@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     # local apps
     "versevault.core",
+    "versevault.users",
 ]
 
 MIDDLEWARE = [
