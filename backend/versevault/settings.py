@@ -9,23 +9,27 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
+import os
 
+import dotenv
 from pathlib import Path
+from .common.utils import get_env_var
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+dotenv.load_dotenv(BASE_DIR / ".env")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-j@dmau@r3##2n*i=gueqe8@l=2&@zfsoy-&0n+!0&ak=pod(78"
+SECRET_KEY = get_env_var("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG_ENABLED") == "true"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -39,19 +43,25 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # 3rd party apps
     "rest_framework",
+    "corsheaders",
     # local apps
+    "versevault.messages_api",
     "versevault.core",
     "versevault.users",
 ]
 
 MIDDLEWARE = [
+    "versevault.middleware.Auth0Middleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "csp.middleware.CSPMiddleware",
 ]
 
 ROOT_URLCONF = "versevault.urls"
@@ -114,6 +124,8 @@ TIME_ZONE = "UTC"
 
 USE_I18N = True
 
+USE_L10N = True
+
 USE_TZ = True
 
 
@@ -126,3 +138,47 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Security
+
+CLIENT_ORIGIN_URL = get_env_var("CLIENT_ORIGIN_URL")
+
+CORS_ALLOWED_ORIGINS = [CLIENT_ORIGIN_URL]
+
+CORS_ALLOW_METHODS = [
+    "GET",
+]
+
+CORS_ALLOW_HEADERS = [
+    "authorization",
+    "content-type",
+]
+
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_SECONDS = 31536000
+
+CSP_FRAME_ANCESTORS = "'none'"
+
+REST_FRAMEWORK = {
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "EXCEPTION_HANDLER": "versevault.messages_api.views.api_exception_handler",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTTokenUserAuthentication",
+    ],
+}
+
+# JWT
+
+AUTH0_DOMAIN = get_env_var("AUTH0_DOMAIN")
+AUTH0_AUDIENCE = get_env_var("AUTH0_AUDIENCE")
+
+SIMPLE_JWT = {
+    "ALGORITHM": "RS256",
+    "JWK_URL": f"https://{AUTH0_DOMAIN}/.well-known/jwks.json",
+    "AUDIENCE": AUTH0_AUDIENCE,
+    "ISSUER": f"https://{AUTH0_DOMAIN}/",
+    "USER_ID_CLAIM": "sub",
+    "AUTH_TOKEN_CLASSES": ("versevault.authz.tokens.Auth0Token",),
+}
