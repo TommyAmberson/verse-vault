@@ -7,8 +7,9 @@ class HasPermission(BasePermission):
     """
     User is allowed access if has the expected permission
     """
+
     def has_permission(self, request, view):
-        return request.auth and self.permission in request.auth.get('permissions', [])
+        return request.auth and self.permission in request.auth.get("permissions", [])
 
     def has_object_permission(self, request, view, obj):
         return self.has_permission(request, view)
