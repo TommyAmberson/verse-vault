@@ -33,12 +33,12 @@ def api_exception_handler(exc, context=None):
     response = exception_handler(exc, context=context)
     if response.status_code == 403:
         response.data = {
-            "error": "insufficient_permissions",
-            "error_description": response.data.get("detail", "API Error"),
-            "message": "Permission denied",
+            'error': 'insufficient_permissions',
+            'error_description': response.data.get('detail', 'API Error'),
+            'message': 'Permission denied'
         }
     elif response and isinstance(response.data, dict):
-        response.data = {"message": response.data.get("detail", "API Error")}
+        response.data = {'message': response.data.get('detail', 'API Error')}
     else:
-        response.data = {"message": "API Error"}
+        response.data = {'message': 'API Error'}
     return response

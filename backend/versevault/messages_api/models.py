@@ -1,3 +1,4 @@
+
 class Message:
     def __init__(self, text=""):
         self.metadata = Metadata()

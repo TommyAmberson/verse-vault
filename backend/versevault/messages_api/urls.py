@@ -4,7 +4,9 @@ from .views import PublicMessageApiView, ProtectedMessageApiView, AdminMessageAp
 
 
 urlpatterns = [
-    path("public", PublicMessageApiView.as_view(), name="public-message"),
-    path("protected", ProtectedMessageApiView.as_view(), name="protected-message"),
-    path("admin", AdminMessageApiView.as_view(), name="admin-message"),
+    path('public', PublicMessageApiView.as_view(), name='public-message'),
+    path(
+        'protected', ProtectedMessageApiView.as_view(), name='protected-message'
+    ),
+    path('admin', AdminMessageApiView.as_view(), name='admin-message'),
 ]
