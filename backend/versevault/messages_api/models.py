@@ -1,10 +1,5 @@
-class Message:
-    def __init__(self, text=""):
-        self.metadata = Metadata()
-        self.text = text
+from django.db import models
 
-
-class Metadata:
-    def __init__(self):
-        self.api = "api_django_python_hello-world"
-        self.branch = "basic-role-based-access-control"
+class Message(models.Model):
+    text = models.CharField(max_length=100)
+    public = models.BooleanField()

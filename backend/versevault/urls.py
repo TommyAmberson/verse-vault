@@ -8,5 +8,6 @@ handler500 = app_error
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("api/messages/", include("versevault.messages_api.urls")),
 ]

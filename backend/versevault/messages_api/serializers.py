@@ -1,11 +1,8 @@
 from rest_framework import serializers
+from .models import Message
 
 
-class MetadataSerializer(serializers.Serializer):
-    api = serializers.CharField()
-    branch = serializers.CharField()
-
-
-class MessageSerializer(serializers.Serializer):
-    text = serializers.CharField()
-    metadata = MetadataSerializer()
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ["text", "public"]
