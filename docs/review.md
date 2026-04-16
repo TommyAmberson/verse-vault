@@ -32,10 +32,10 @@ Surfaces are **dynamically generated** by the scheduler based on which edges nee
 4. Learner grades each hidden atom: Again / Hard / Good / Easy.
 5. Grades feed into credit assignment.
 
-**Heading grading**: headings don't need to be recalled perfectly — they vary across translations
-and editions, so exact wording is less important than recognizing the right section. The app
-should prompt the user to grade generously (e.g., "Good" for getting the gist right even if the
-wording differs from the stored heading text).
+**Grading strictness varies by atom type**: phrases must be word-perfect (exact wording matters
+for competition). Headings are the opposite — they vary across translations and editions, so
+exact wording is irrelevant. The app should prompt generous grading for headings (e.g., "Good"
+for getting the gist right even if wording differs from the stored text).
 
 ## Credit assignment algorithm
 
