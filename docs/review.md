@@ -18,6 +18,8 @@ Example surfaces:
 | fill-in-blank (p2)   | {ref, p1, p3, p4}        | {p2}                           |
 | cross-verse          | {last phrase of prev}     | {p1, p2, p3, p4}              |
 | club listing         | {chapter_gist}            | {ref(2:1), ref(2:4), ref(2:7)} |
+| verse → heading      | {ref} or {p1, p2, ...}    | {heading}                      |
+| ref → heading        | {ref}                     | {heading}                      |
 
 Surfaces are **dynamically generated** by the scheduler based on which edges need reinforcement
 (see [scheduling.md](scheduling.md)), not chosen from a fixed menu.
@@ -29,6 +31,11 @@ Surfaces are **dynamically generated** by the scheduler based on which edges nee
 3. App diffs typed text against source, aligned to phrase boundaries.
 4. Learner grades each hidden atom: Again / Hard / Good / Easy.
 5. Grades feed into credit assignment.
+
+**Heading grading**: headings don't need to be recalled perfectly — they vary across translations
+and editions, so exact wording is less important than recognizing the right section. The app
+should prompt the user to grade generously (e.g., "Good" for getting the gist right even if the
+wording differs from the stored heading text).
 
 ## Credit assignment algorithm
 

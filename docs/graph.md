@@ -23,6 +23,7 @@ is computed on demand: `R = (1 + t / (9 · S))^(-1)`.
 | **Verse gist**    | No — latent, updated via coupling | [gist of Acts 2:3]  |
 | **Reference**     | Yes       | "Acts 2:3"                    |
 | **Club entry**    | Indirectly | "Acts 2:1 is in club 150"    |
+| **Heading**       | Yes       | "All to the Glory of God"     |
 | **Chapter gist**  | No — structural source node   | [gist of Acts 2]     |
 | **Chapter ref**   | Yes       | "Acts 2"                      |
 
@@ -49,6 +50,8 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
 | verse gist → chapter gist                     | uni       | yes        |
 | chapter gist → club entry                     | uni       | no (structural) |
 | club entry → club entry (chain)               | uni       | yes        |
+| verse gist → heading                          | uni       | yes        |
+| heading → heading (chain)                     | uni       | yes        |
 
 ### Directionality rationale
 
@@ -62,6 +65,13 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
 
 * **club entry → club entry** (forward only): the chain represents "what's the next 150 verse."
   Reverse traversal could be added later if needed.
+
+* **verse gist → heading** (not reverse): given a verse, you recall which section it belongs to.
+  The reverse (heading → verses) isn't needed — the primary surfaces show verses and ask for the
+  heading, never the other way around. If "show heading, list verses" surfaces are needed later,
+  heading → verse edges can be added.
+
+* **heading → heading** (forward only): sequential section ordering. "What section comes next?"
 
 ## Graph structure
 
@@ -137,6 +147,33 @@ gist points to entries (uni) for listing surfaces.
 Club 300 entries include all 300 verses. A club-150 verse has both a club_150_entry and a
 club_300_entry.
 
+## Headings
+
+Bible section headings (e.g., "All to the Glory of God" covering 1 Cor 10:23–11:1) provide
+contextual grouping that crosses chapter boundaries. The heading text is both the name and
+the gist — unlike verse references, heading names describe what the section is about.
+
+Headings vary by translation (and even by print edition) — both the text and the verse ranges
+differ. Heading atoms are per-translation.
+
+```
+heading("All to the Glory of God") → heading("Do Not Cause Others to Stumble")
+       ↑      ↑      ↑      ↑
+  v(10:23) v(10:24) v(10:25) ... v(11:1)
+```
+
+* **verse gist → heading** (uni): every verse in the heading's range knows its heading
+* **heading → next heading** (uni): sequential section ordering
+* **No heading → verse edges**: the primary use is verse → heading ("what section is this
+  verse in?"), not heading → verses. Start/end verse numbers are metadata on the heading atom
+  for the app to know the range — not graph structure the learner memorizes.
+
+**Surfaces** (heading is always hidden):
+* Show all phrases of a verse → ask for heading
+* Show one verse reference → ask for heading
+* Show a reference range (e.g., "10:23–11:1") → ask for heading
+* Show a reference → ask for heading
+
 ## Edge inventory
 
 Per verse with N phrases:
@@ -148,13 +185,16 @@ Per verse with N phrases:
 | verse gist ↔ ref                    | 2              |
 | verse gist ↔ next verse (chapter)    | 2              |
 | verse gist → chapter gist           | 1              |
-| **Base total**                       | **4N + 3**     |
+| verse gist → heading                | 1              |
+| **Base total**                       | **4N + 4**     |
 
 Per club-member verse, add: ref ↔ club_entry (2–4) + club_entry → next (1–2) + chapter_gist →
 entry (1–2) = up to 8.
 
-For N=4: 19 base + up to 8 club = ~27 directed edges per verse.
-500-verse season: ~11,000 directed edges. Each learnable edge stores 3 values. Trivially
+Per heading, add: heading → next heading (1).
+
+For N=4: 20 base + up to 8 club = ~28 directed edges per verse.
+500-verse season: ~12,000 directed edges. Each learnable edge stores 3 values. Trivially
 tractable.
 
 ## Open questions
