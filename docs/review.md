@@ -41,19 +41,30 @@ for getting the gist right even if wording differs from the stored text).
 
 Given per-atom grades from a review, determine how to update every edge in the graph.
 
+### Source set
+
+The **source set** is everything the learner had access to during recall:
+
+```
+source = shown atoms ∪ correctly-recalled hidden atoms
+```
+
+Correctly recalled atoms join the source set because they were available for recalling subsequent
+atoms. In a ref→verse surface, once p1 is successfully recalled it becomes a source for p2 — the
+edge p1→p2 was directly exercised.
+
 ### Observations
 
-Each hidden atom's grade tells us:
+For each hidden atom h:
 
-* **Success** (Good/Easy): at least one path from a shown atom succeeded.
-* **Failure** (Again): no path from any shown atom succeeded.
+* **Success** (Good/Easy): at least one path from the source set (excluding h) to h succeeded.
+* **Failure** (Again): no path from the source set to h succeeded.
 * **Partial** (Hard): a path succeeded with difficulty.
 
 ### Step 1: Enumerate paths
 
-For each (shown atom, hidden atom) pair, find all paths through the graph up to **5 hops**.
-Paths follow edge directionality — unidirectional edges can only be traversed in their defined
-direction.
+For each hidden atom h, enumerate all paths from any atom in the source set (excluding h itself)
+to h, up to **5 hops**. Paths follow edge directionality.
 
 ### Step 2: Compute path probabilities
 
@@ -61,12 +72,11 @@ direction.
 R(path) = Π R(edge) for each edge in the path
 ```
 
-Structural edges (no FSRS state) contribute R = 1.0 to path probability but cannot receive
-credit or blame.
+Structural edges (no FSRS state) contribute R = 1.0 but cannot receive credit or blame.
 
 ### Step 3: Credit (successful atoms)
 
-For a hidden atom graded Good/Easy:
+For a hidden atom h graded Good/Easy:
 
 1. Eliminate paths that pass through any atom graded Again (broken paths).
 2. Weight surviving paths by probability:
@@ -77,22 +87,13 @@ credit(path_i) = R(path_i) / Σ R(path_j)   for all surviving paths j
 
 3. Each learnable edge on a surviving path receives credit proportional to its path's weight.
 
-**Example**: p2 graded Good, p1 graded Again:
-
-```
-ref → verse → p2:        R = 0.85 × 0.90 = 0.765  ← viable
-ref → verse → p1 → p2:   ELIMINATED (p1 failed)
-ref → verse → p3 → p2:   R = 0.85 × 0.70 × 0.60 = 0.357  ← viable
-
-credit: ref→verse gets 1.0, verse→p2 gets 0.68, verse→p3 gets 0.32, p3→p2 gets 0.32
-```
-
 ### Step 4: Blame (failed atoms)
 
-For a hidden atom graded Again, all paths failed. Bayesian blame — weakest edges get most blame:
+For a hidden atom h graded Again, all paths from the source set to h failed. Bayesian blame —
+weakest edges get most blame:
 
 ```
-For each path, identify the weakest edge (lowest R).
+For each path from source to h, identify the weakest edge (lowest R).
 Aggregate blame: edges that are the weakest link on multiple paths receive the most blame.
 ```
 
@@ -105,16 +106,48 @@ grade = weighted blend of grades from observations
 S_new = interpolate(S_old, S_fsrs(grade), total_weight)
 ```
 
+### Example
+
+Surface: ref→verse. Grades: p1=Good, p2=Good, p3=Again, p4=Good.
+
+```
+Source set = {ref, p1, p2, p4}
+
+Credit for p1 (Good):
+  source: {ref, p2, p4}
+  paths:  ref → verse → p1      (2 hops, hub)
+          p2 → p1               (1 hop, backward)
+  → both paths get credit; p2→p1 gets strong credit (short path)
+
+Credit for p2 (Good):
+  source: {ref, p1, p4}
+  paths:  p1 → p2               (1 hop, sequential)
+          ref → verse → p2      (2 hops, hub)
+  → p1→p2 gets dominant credit (1-hop from source)
+
+Blame for p3 (Again):
+  source: {ref, p1, p2, p4}
+  paths:  p2 → p3               (1 hop)
+          p4 → p3               (1 hop, backward)
+          ref → verse → p3      (2 hops, hub)
+  → ALL failed. p2→p3 and p4→p3 get strong blame (short paths)
+
+Credit for p4 (Good):
+  source: {ref, p1, p2}
+  paths:  ref → verse → p4      (2 hops, hub)
+          p2 → p3 → p4          ELIMINATED (p3 failed)
+  → hub path gets credit (sequential path broken at p3)
+```
+
 ### Why this works
 
-Reinforcement categories (full / strong / medium / weak) emerge from the path analysis instead
-of being hand-coded:
-
-* Short, high-probability paths → high credit ≈ full reinforcement
-* Long, low-probability paths → low credit ≈ weak reinforcement
-* No path to the atom → zero credit
-
-The mask defines observations. The graph defines paths. The math handles the rest.
+* **Sequential edges get direct credit**: p1 is in the source set, so p1→p2 is a 1-hop path —
+  no dilution from competing with longer paths through the shown atom.
+* **Both directions reinforced**: p1 is in the source set for p2 (p1→p2), and p2 is in the
+  source set for p1 (p2→p1). Both edges were exercised.
+* **Failed atoms block downstream paths**: p3=Again eliminates p2→p3→p4, so p4's credit goes
+  to the hub — reflecting the learner "jumped" via another path.
+* **Blame concentrates on short paths**: p2→p3 as a 1-hop failed path gets strong blame.
 
 ## Anchor transfer
 
@@ -175,9 +208,10 @@ fails again, queue another with a longer gap.
 
 ## Computational cost
 
-Per review (5-hop limit): ~40 path enumerations × ~3 multiplications ≈ 120 operations, plus ~20
-FSRS updates. Anchor transfer adds one multiplication per ref-targeting path. Total: microseconds.
-The bottleneck is the learner typing (30+ seconds), not computation.
+Per review (5-hop limit): path enumerations from each source atom to each hidden atom, ~3
+multiplications per path. With source set of ~5 atoms and ~4 hidden atoms, roughly ~200
+operations plus ~20 FSRS updates. Anchor transfer adds one multiplication per ref-targeting
+path. Total: microseconds.
 
 ## Open questions
 
