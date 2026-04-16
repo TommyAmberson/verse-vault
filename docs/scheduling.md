@@ -1,140 +1,111 @@
-# Verse-Vault Scheduling
+# Scheduling
 
-How the system decides what to show the learner and when.
+How the system decides what to show the learner and when. Depends on the graph structure
+([graph.md](graph.md)) and review model ([review.md](review.md)).
 
-## Computing what's due
+## What's due
 
-Each directed edge stores S, D, and last_review_time. Retrievability is computed on demand:
+An edge is due when its retrievability drops below target retention (default 0.9):
 
 ```
 R = (1 + t / (9 · S))^(-1)
+due when: R < target_retention
 ```
 
-An edge is **due** when R drops below the target retention (default 0.9). Equivalently, when
-elapsed time exceeds the edge's interval:
-
-```
-interval = S × (target_R^(-1) - 1) × 9
-due when: elapsed > interval
-```
-
-No precomputed due dates are stored. Computing R for all ~10,000 edges in a season is
-sub-millisecond and avoids stale values — important because each review updates many edges
-simultaneously.
+No precomputed due dates. Computing R for all ~11,000 edges in a season is sub-millisecond.
+Each review updates many edges simultaneously, so precomputing would mean extra writes without
+saving meaningful computation.
 
 ## Surface selection
 
-The scheduler dynamically generates the best surface for the current graph state. Surfaces are
-not chosen from a fixed menu — they are constructed from the mask that maximizes reinforcement
-where it is most needed.
+The scheduler dynamically generates the best surface for the current graph state.
 
-### Simple scheduler (recommended for v1)
+### Simple scheduler (v1)
 
-1. Compute R for all edges in the learner's active verse set.
+1. Compute R for all edges.
 2. Find the edge with the lowest R below target.
 3. Identify which verse it belongs to.
-4. Count how many edges in that verse are due.
+4. Count how many of that verse's edges are due.
 5. Pick the surface:
 
-| Condition                    | Surface                          |
-| ---------------------------- | -------------------------------- |
-| Most edges due               | Full recitation (ref → verse)    |
-| 1–2 edges due                | Fill-in-the-blank targeting them |
-| Only ref-related edges due   | Verse → ref                      |
-| Cross-verse edge due         | Cross-verse continuation         |
-| Only reverse edges due       | Appropriate reverse surface      |
+| Condition                  | Surface                          |
+| -------------------------- | -------------------------------- |
+| Most edges due              | Full recitation (ref → verse)    |
+| 1–2 edges due               | Fill-in-the-blank targeting them |
+| Only ref-related edges due | Verse → ref                      |
+| Cross-verse edge due        | Cross-verse continuation         |
+| Club edges due              | Club listing                     |
 
-This is O(edges) per decision — find the weakest, pick the obvious surface.
+O(edges) per decision.
 
-### Full scoring scheduler (future optimization)
+### Full scoring scheduler (future)
 
 Score every candidate (verse, surface) pair:
 
 ```
-score(verse, surface) = Σ  credit_potential(edge, surface) × need(edge)
+score(verse, surface) = Σ  credit_potential(edge, surface) × max(0, target_R - R(edge))
                        edges
-
-where need(edge) = max(0, target_R - current_R)
 ```
 
-`credit_potential(edge, surface)` is the credit weight the edge would receive under this surface,
-derived from the path analysis described in the memory model. The surface that delivers the most
-reinforcement to the most needed edges wins.
+`credit_potential` is the credit weight the edge would receive under this surface, from the path
+analysis in [review.md](review.md). The surface delivering the most reinforcement where it's
+most needed wins.
 
-For N=4 phrases, each verse has ~7 candidate surfaces (full recitation, fill-in-blank for each
-phrase, reverse recall, first-words-to-rest). Scoring 7 surfaces × 20 edges = 140 multiply-adds
-per verse. Across 100 due verses: 14,000 operations. Sub-millisecond.
+~7 candidate surfaces per verse × ~27 edges = ~190 multiply-adds per verse. Across 100 due
+verses: ~19,000 operations. Sub-millisecond.
 
-## Session building
+For ref-targeting surfaces, the scheduler must account for anchor transfer when computing
+effective R — a ref with weak direct recall but strong nearby anchors may not actually need
+drilling.
+
+## Sessions
 
 ### Fixed-size sessions
 
-Sessions are defined by count or time, not by "drain everything due":
-
+Defined by count or time, not "drain everything due":
 * "Give me 20 reviews"
 * "I have 15 minutes"
 
-Each review is heavier than an Anki card (type a verse, grade multiple phrases), so sessions are
-fewer reviews but richer signal per review.
+Each review is heavier than an Anki card (type a verse, grade multiple phrases), so sessions
+have fewer reviews but richer signal.
 
-### Building the session
+### Building a session
 
-1. Score all (verse, surface) pairs using the scheduler.
+1. Score all (verse, surface) pairs.
 2. Sort by score descending.
-3. Take the top N for the session.
-4. Store the session as an ordered list.
+3. Take the top N.
+4. Store as an ordered list.
 
 ### Ordering: easy first
 
-When many edges are due (e.g., returning after a break), order by **easiest verse first**. The
-verse whose weakest edge has the highest R comes first.
+When many edges are due (returning after a break), order **easiest verse first** — the verse
+whose weakest edge has the highest R comes first. Equivalently, sort by most-recently-due edge
+descending (barely overdue = easy).
 
-Equivalently: sort verses by the most-recently-due edge descending. Edges that just became due are
-barely below target (easy). Edges due weeks ago are far below target (hard). No R computation
-needed for ordering — due date is the sort key.
-
-Easy-first ordering:
 * Builds confidence and momentum
 * Clears quick reviews first
-* Matches Anki's established pattern
 
 ### Within-session adaptation
 
-After each review, check whether the next planned item's target edges are still due. If a previous
-review reinforced them above threshold (via credit assignment on shared edges), skip to the next
-item. This avoids wasted reviews without requiring full session recomputation.
+After each review, check whether the next planned item's target edges are still due. If the
+previous review reinforced them above threshold via credit assignment, skip to the next item.
 
 ## New verse introduction
 
 * Do not introduce new verses until the daily review target is met.
-* Limit to 1–3 new verses per session to avoid overwhelming the learner.
-* A new verse's first review should be full recitation (ref → verse) to establish all forward edges
-  at initial stability.
-* All edges in a new verse start at initial S from FSRS parameters (w[0]..w[3] keyed on first
-  grade) and initial D from w[4]..w[5].
-
-## Lapse re-drilling
-
-When a phrase lapses (graded Again) during a review:
-
-1. Complete the current review (grade all phrases).
-2. The lapsed edge's S drops via FSRS post-lapse formula.
-3. Queue a fill-in-the-blank surface targeting that edge later in the current session.
-4. Insert it after 2–3 intervening reviews (within-session spacing).
-5. On success: S starts recovering. On repeated failure: queue another re-drill with a longer gap.
+* Limit to 1–3 new verses per session.
+* First review should be full recitation (ref → verse) to establish all forward edges.
+* All edges start at initial S from FSRS parameters.
 
 ## Multiple sessions per day
 
-If the learner does multiple sessions in one day, recompute the session fresh at each session
-start. The computation is cheap enough that there is no reason to cache sessions across sittings.
+Recompute fresh at each session start. Cheap enough that caching is unnecessary.
 
-## Precomputation tradeoffs
+## Phrase boundaries
 
-Anki precomputes and stores due dates because each review updates exactly one card. Verse-vault
-updates ~20 edges per review, so precomputing due dates would mean ~20 writes per review instead
-of ~5 directly graded edges. Computing R on the fly is both cheaper and simpler:
+Phrases define where the edges go inside a verse.
 
-* Fewer writes per review
-* No stale precomputed values
-* Instantly correct if the learner changes target retention
-* Simpler schema: three values per edge (S, D, last_review_time)
+**Default**: AI-generated boundaries. KJV and other translations have consistent clause structure
+(commas, semicolons, conjunctions) that LLMs segment reliably. One-time pipeline per translation.
+
+**Override**: editable per verse, per user or per editor.
