@@ -3,14 +3,14 @@
 How learner reviews update the memory graph. Depends on the graph structure defined in
 [graph.md](graph.md).
 
-## Surfaces
+## Cards
 
-A surface is a **mask** over the graph: `shown = {atoms}`, `hidden = {atoms}`. The learner sees
-the shown atoms and must produce the hidden ones. Surfaces are modes of testing, not memory units.
+A card is a **mask** over the graph: `shown = {atoms}`, `hidden = {atoms}`. The learner sees
+the shown atoms and must produce the hidden ones. Cards are modes of testing, not memory units.
 
-Example surfaces:
+Example cards:
 
-| Surface              | Shown                    | Hidden                         |
+| Card              | Shown                    | Hidden                         |
 | -------------------- | ------------------------ | ------------------------------ |
 | ref → verse           | {ref}                    | {p1, p2, p3, p4}              |
 | verse → ref           | {p1, p2, p3, p4}         | {ref}                          |
@@ -21,12 +21,12 @@ Example surfaces:
 | verse → heading      | {ref} or {p1, p2, ...}    | {heading}                      |
 | ref → heading        | {ref}                     | {heading}                      |
 
-Surfaces are **dynamically generated** by the scheduler based on which edges need reinforcement
+Cards are **dynamically generated** by the scheduler based on which edges need reinforcement
 (see [scheduling.md](scheduling.md)), not chosen from a fixed menu.
 
 ## Review interaction
 
-1. Surface presents the shown atoms as the prompt.
+1. Card presents the shown atoms as the prompt.
 2. Learner types the hidden atoms.
 3. App diffs typed text against source, aligned to phrase boundaries.
 4. Learner grades each hidden atom: Again / Hard / Good / Easy.
@@ -50,7 +50,7 @@ source = shown atoms ∪ correctly-recalled hidden atoms
 ```
 
 Correctly recalled atoms join the source set because they were available for recalling subsequent
-atoms. In a ref→verse surface, once p1 is successfully recalled it becomes a source for p2 — the
+atoms. In a ref→verse card, once p1 is successfully recalled it becomes a source for p2 — the
 edge p1→p2 was directly exercised.
 
 ### Observations
@@ -108,7 +108,7 @@ S_new = interpolate(S_old, S_fsrs(grade), total_weight)
 
 ### Example
 
-Surface: ref→verse. Grades: p1=Good, p2=Good, p3=Again, p4=Good.
+Card: ref→verse. Grades: p1=Good, p2=Good, p3=Again, p4=Good.
 
 ```
 Source set = {ref, p1, p2, p4}
@@ -202,7 +202,7 @@ A lapse is an Again grade — the learner could not produce the transition.
 **Post-lapse update**: FSRS's post-lapse stability formula drops S significantly but preserves
 partial prior learning. D increases.
 
-**Re-drilling**: the scheduler queues a fill-in-the-blank surface targeting the lapsed edge later
+**Re-drilling**: the scheduler queues a fill-in-the-blank card targeting the lapsed edge later
 in the current session, after a few intervening reviews (within-session spacing). If the re-drill
 fails again, queue another with a longer gap.
 

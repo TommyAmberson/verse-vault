@@ -31,7 +31,7 @@ is computed on demand: `R = (1 + t / (9 · S))^(-1)`.
 memory ("what this verse is about") from verbatim memory ("the exact words"). No direct edges
 between references and phrases — all paths route through the verse gist.
 
-**Chapter gist**: structural source node for listing surfaces. Receives incoming edges from
+**Chapter gist**: structural source node for listing cards. Receives incoming edges from
 verse gists, has outgoing edges to club entries and a bidirectional edge to the chapter ref.
 Cannot be traversed into from club entries — prevents shortcut paths. Does not need FSRS state.
 
@@ -59,7 +59,7 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
   would let the chapter gist reach all verses, creating shortcuts between club entries and
   arbitrary verses.
 
-* **chapter gist → club entry** (not reverse): needed for listing surfaces ("which 150 verses in
+* **chapter gist → club entry** (not reverse): needed for listing cards ("which 150 verses in
   Acts 2?"). The reverse is unnecessary — club_entry → ref → verse_gist → chapter_gist already
   exists as a path.
 
@@ -67,8 +67,8 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
   Reverse traversal could be added later if needed.
 
 * **verse gist → heading** (not reverse): given a verse, you recall which section it belongs to.
-  The reverse (heading → verses) isn't needed — the primary surfaces show verses and ask for the
-  heading, never the other way around. If "show heading, list verses" surfaces are needed later,
+  The reverse (heading → verses) isn't needed — the primary cards show verses and ask for the
+  heading, never the other way around. If "show heading, list verses" cards are needed later,
   heading → verse edges can be added.
 
 * **heading ↔ heading** (bidirectional): sequential section ordering. Supports both "what
@@ -137,7 +137,7 @@ chapter_gist ──→ club_150_entry(2:1) ──→ club_150_entry(2:4) ──�
 ```
 
 Each club entry connects to its reference (bi) and chains to the next entry (uni). The chapter
-gist points to entries (uni) for listing surfaces.
+gist points to entries (uni) for listing cards.
 
 **Why separate atoms** (not verse↔verse edges):
 * Avoids verse-chain shortcuts that give false anchor transfer credit
@@ -170,7 +170,7 @@ heading("All to the Glory of God") → heading("Do Not Cause Others to Stumble")
   verse in?"), not heading → verses. Start/end verse numbers are metadata on the heading atom
   for the app to know the range — not graph structure the learner memorizes.
 
-**Surfaces** (heading is always hidden):
+**Cards** (heading is always hidden):
 * Show all phrases of a verse → ask for heading
 * Show one verse reference → ask for heading
 * Show a reference range (e.g., "10:23–11:1") → ask for heading

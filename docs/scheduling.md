@@ -9,21 +9,21 @@ Scheduling uses two database layers:
 
 ```
 Edge DB (memory):      edge_id, S, D, last_review_time
-Surface DB (cards):    surface_id, shown_atoms, hidden_atoms, effective_R, due_date
-Edge→Surface mapping:  edge_id → [surface_ids that depend on this edge]
+Card DB (cards):    card_id, shown_atoms, hidden_atoms, effective_R, due_date
+Edge→Card mapping:  edge_id → [card_ids that depend on this edge]
 ```
 
-The **edge DB** tracks memory state. The **surface DB** tracks scheduling state. Scheduling is
-a simple query on the surface DB — no graph computation at schedule time.
+The **edge DB** tracks memory state. The **card DB** tracks scheduling state. Scheduling is
+a simple query on the card DB — no graph computation at schedule time.
 
-## Surface catalog
+## Card catalog
 
-Each verse has ~10 candidate surfaces. Each chapter has ~5–10. Total: ~5,200 surface records
+Each verse has ~10 candidate cards. Each chapter has ~5–10. Total: ~5,200 card records
 for a 500-verse season.
 
 Per verse (N=4 phrases):
 
-| Surface              | Shown                | Hidden              |
+| Card              | Shown                | Hidden              |
 | -------------------- | -------------------- | ------------------- |
 | full recitation      | {ref}                | {p1, p2, p3, p4}   |
 | fill-in-blank (×N)   | {ref, other phrases} | {one phrase}        |
@@ -34,7 +34,7 @@ Per verse (N=4 phrases):
 
 Per chapter:
 
-| Surface              | Shown                | Hidden              |
+| Card              | Shown                | Hidden              |
 | -------------------- | -------------------- | ------------------- |
 | club 150 listing     | {chapter_gist}       | {150 verse refs}    |
 | club 300 listing     | {chapter_gist}       | {300 verse refs}    |
@@ -43,19 +43,19 @@ Per chapter:
 
 ## Computing effective_R
 
-For each surface, effective_R is the probability the learner can recall ALL hidden atoms from
+For each card, effective_R is the probability the learner can recall ALL hidden atoms from
 the shown atoms. Computed from the graph using path enumeration (see [review.md](review.md)):
 
 ```
 For each hidden atom h:
   R_eff(h) = parallel composition over all paths from shown atoms to h (up to 5 hops)
   
-effective_R(surface) = Π R_eff(h) for all hidden atoms h
+effective_R(card) = Π R_eff(h) for all hidden atoms h
 ```
 
-The product represents: the surface "succeeds" only if ALL hidden atoms are recalled.
+The product represents: the card "succeeds" only if ALL hidden atoms are recalled.
 
-For surfaces where the hidden atom is a reference, anchor transfer applies (see
+For cards where the hidden atom is a reference, anchor transfer applies (see
 [review.md](review.md)).
 
 ## Computing due_date
@@ -78,20 +78,20 @@ due_date = high
 Computing R_effective_at(t) = evaluate the path enumeration with each edge's R projected to
 time t: `R_edge(t) = (1 + (t - last_review) / (9 · S))^(-1)`.
 
-Cost: ~20 iterations × ~120 ops = ~2,400 ops per surface. Sub-millisecond.
+Cost: ~20 iterations × ~120 ops = ~2,400 ops per card. Sub-millisecond.
 
 ## Post-review cascade
 
 After each review:
 
 1. **Credit assignment** updates edges in the edge DB (new S, D, last_review_time).
-2. **Find affected surfaces** via the edge→surface mapping. Most edges are within one verse,
-   so ~10 surfaces are affected. Cross-verse edges add ~20 more. Typically ~30 surfaces total.
-3. **Recompute effective_R and due_date** for each affected surface using the updated edge
+2. **Find affected cards** via the edge→card mapping. Most edges are within one verse,
+   so ~10 cards are affected. Cross-verse edges add ~20 more. Typically ~30 cards total.
+3. **Recompute effective_R and due_date** for each affected card using the updated edge
    values and binary search.
-4. **Write** updated effective_R and due_date to the surface DB.
+4. **Write** updated effective_R and due_date to the card DB.
 
-Cost: ~30 surfaces × ~2,400 ops = ~72,000 ops. Sub-millisecond. The cascade runs as part of
+Cost: ~30 cards × ~2,400 ops = ~72,000 ops. Sub-millisecond. The cascade runs as part of
 the review completion — no background job needed.
 
 ## Picking the next review
@@ -99,14 +99,14 @@ the review completion — no background job needed.
 Scheduling is a database query:
 
 ```sql
-SELECT * FROM surfaces
+SELECT * FROM cards
 WHERE due_date <= now
 ORDER BY due_date ASC    -- easy first (barely overdue = easy)
 LIMIT N                  -- session size
 ```
 
 Easy-first ordering builds confidence and momentum when returning after a break. Barely
-overdue surfaces (highest R among due items) come first.
+overdue cards (highest R among due items) come first.
 
 No graph computation at schedule time. The expensive work (path enumeration, binary search)
 is fully amortized into the post-review cascade.
@@ -124,7 +124,7 @@ have fewer reviews but richer signal.
 
 ### Within-session adaptation
 
-After each review, the cascade updates affected surfaces. If the next planned surface's
+After each review, the cascade updates affected cards. If the next planned card's
 due_date moved past now (no longer due), skip to the next one. This avoids wasted reviews
 when one review reinforces shared edges.
 
@@ -134,7 +134,7 @@ when one review reinforces shared edges.
 * Limit to 1–3 new verses per session.
 * First review should be full recitation (ref → verse) to establish all forward edges.
 * All edges start at initial S from FSRS parameters.
-* New verse surfaces start with effective_R based on initial edge states.
+* New verse cards start with effective_R based on initial edge states.
 
 ## Phrase boundaries
 
