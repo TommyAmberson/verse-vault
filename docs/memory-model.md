@@ -24,15 +24,16 @@ This design is grounded in two theoretical results:
 
 ### Node types
 
-| Node type     | What it represents                                                       | Directly testable?                              | Example                         |
-| ------------- | ------------------------------------------------------------------------ | ----------------------------------------------- | ------------------------------- |
-| **Reference** | The verse citation                                                       | Yes (recite it, identify it)                    | "Acts 2:3"                      |
-| **Verse**     | The gist/identity of a verse — what it's about, where it sits in context | No — latent atom, updated only through coupling | [semantic anchor for Acts 2:3]  |
-| **Phrase**    | A chunk of verbatim text within a verse                                  | Yes (recite it)                                 | "For God so loved the world,"   |
-| **Chapter**   | A material section (may not start at verse 1)                            | Indirectly — tested via verse→chapter edges     | "Acts 2" (verses 1–47)         |
-| **Club entry** | A verse's membership in a club tier, forming a chain with other entries  | Indirectly — tested via club listing surfaces   | "Acts 2:1 is in club 150"      |
+| Node type       | What it represents                                                       | Directly testable?                              | Example                         |
+| --------------- | ------------------------------------------------------------------------ | ----------------------------------------------- | ------------------------------- |
+| **Phrase**       | A chunk of verbatim text within a verse                                  | Yes (recite it)                                 | "For God so loved the world,"   |
+| **Verse gist**   | The gist/identity of a verse — what it's about, where it sits in context | No — latent atom, updated only through coupling | [semantic anchor for Acts 2:3]  |
+| **Reference**    | The verse citation                                                       | Yes (recite it, identify it)                    | "Acts 2:3"                      |
+| **Club entry**   | A verse's membership in a club tier, forming a chain with other entries  | Indirectly — tested via club listing surfaces   | "Acts 2:1 is in club 150"      |
+| **Chapter gist** | A material section's identity (may not start at verse 1)                 | No — structural source node for listing surfaces | [semantic anchor for Acts 2]   |
+| **Chapter ref**  | The chapter citation                                                     | Yes (recite it)                                 | "Acts 2"                        |
 
-The **verse node** is a non-testable hub that:
+The **verse gist** is a non-testable hub that:
 
 * Connects the reference to the phrase chain (ref ↔ verse ↔ phrases)
 * Connects consecutive verses (verse ↔ verse)
@@ -40,30 +41,55 @@ The **verse node** is a non-testable hub that:
   recite the exact words")
 * Has its own FSRS state that evolves through coupling
 
+The **chapter gist** is a structural source node that:
+
+* Connects to the chapter's club entries (outgoing only) for listing surfaces
+* Receives incoming edges from verse gists ("this verse is in this chapter")
+* Cannot be traversed INTO from club entries or other chapters — prevents shortcut paths
+* Does not need FSRS state (never a target of credit assignment)
+
 There are **no direct edges between references and phrases**. All ref-to-phrase paths route through
-the verse node.
+the verse gist.
 
 ### Edge types
 
-Every edge is **bidirectional** — each direction is tracked as a separate memory with its own (S, D)
-state. All edges are learnable (tracked by FSRS). There are **no hardcoded R=1.0 edges** anywhere
-in the graph.
+Edges are either **bidirectional** (each direction tracked separately with its own S, D) or
+**unidirectional** (only one direction exists). All edges are learnable (tracked by FSRS). There
+are **no hardcoded R=1.0 edges** anywhere in the graph.
 
-| Edge                            | Represents                                                       | Stability profile                                     |
-| ------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------- |
-| ref ↔ verse                     | "I know this verse's reference" / "I know what this ref is"      | Variable — some refs memorized directly, others derived via anchor transfer |
-| verse ↔ phrase (hub)            | "this phrase belongs to/comes from this verse"                   | High — exercised on every review of the verse          |
-| phrase ↔ phrase (sequential)    | "this phrase leads to/comes from that phrase"                    | Variable — the core of verbatim recall                 |
-| verse ↔ verse (chapter-consecutive) | "this verse comes after/before that verse"                  | Medium — exists between all consecutive verses in a chapter |
-| verse ↔ chapter                 | "this verse is in this chapter"                                  | High — reinforced by any review involving the verse    |
-| verse ↔ club_entry              | "this verse has this club membership"                            | Medium — connects verse to its club entry atom         |
-| club_entry ↔ club_entry         | "the next verse in this club's sequence"                         | Medium — club-specific sequential ordering             |
+| Edge                                 | Direction | Represents                                                  |
+| ------------------------------------ | --------- | ----------------------------------------------------------- |
+| phrase ↔ phrase (sequential)         | **bi**    | "this phrase leads to/comes from that phrase"                |
+| phrase ↔ verse gist (hub)            | **bi**    | "this phrase belongs to/comes from this verse"               |
+| verse gist ↔ reference              | **bi**    | "I know this verse's reference" / "I know what this ref is"  |
+| verse gist ↔ verse gist (chapter-consecutive) | **bi** | "this verse comes after/before that verse"             |
+| reference ↔ club entry              | **bi**    | "this reference is in this club" / "this club entry is this ref" |
+| verse gist → chapter gist           | **uni**   | "this verse is in this chapter" (verse knows its chapter)    |
+| chapter gist ↔ chapter ref          | **bi**    | "this chapter is called Acts 2" / "Acts 2 is this chapter"  |
+| chapter gist → club entry           | **uni**   | "this chapter has this club entry" (for listing surfaces)    |
+| club entry → club entry (chain)     | **uni**   | "the next verse in this club's sequence"                     |
+
+### Edge directionality rationale
+
+Unidirectional edges prevent shortcuts while preserving useful recall paths:
+
+* **verse gist → chapter gist** (not reverse): given a verse, you can recall its chapter. But the
+  chapter gist should not directly point to individual verses — that would create shortcuts between
+  club entries and verses through the chapter gist. Listing goes through club entries instead.
+
+* **chapter gist → club entry** (not reverse): the chapter gist needs to reach club entries for
+  listing surfaces. The reverse is unnecessary because club_entry → ref → verse_gist → chapter_gist
+  already exists as a 3-hop path through bidirectional edges.
+
+* **club entry → club entry** (chain, not reverse): the chain represents "what's the next 150
+  verse," a forward sequence. Reverse traversal ("what was the previous 150 verse") could be added
+  later if needed.
 
 ### Reference model
 
 A verse's reference (e.g., "Acts 2:3") is composed of two pieces of knowledge:
 
-1. **Chapter**: which chapter the verse is in (verse ↔ chapter edge)
+1. **Chapter**: which chapter the verse is in (verse gist → chapter gist → chapter ref)
 2. **Verse number**: the position within the chapter
 
 The verse number can be recalled two ways:
@@ -89,20 +115,28 @@ computation.
 
 ### Graph structure
 
-For two consecutive verses:
+For two consecutive verses with club 150 membership:
 
 ```
-chapter(Acts 2)
-    |          |
-ref(2:1)    ref(2:2)
-    |          |
- verse1  ──  verse2                       chapter-consecutive
-  / | \       / | \
- p1─p2─p3   p4─p5─p6                     phrase chains
+chapter_ref("Acts 2") ↔ chapter_gist
+                            |  \
+                            |   ↓
+                            |  club_150_entry(2:1) → club_150_entry(2:4)
+                            |       |                      |
+    ref(2:1)    ref(2:4)    |       |                      |
+       ↕           ↕        ↓       ↓                      ↓
+    verse1  ──  verse2 ─────↗──────↗
+     / | \       / | \
+    p1─p2─p3   p4─p5─p6
+
+Edge key:
+  ↔  bidirectional        →  unidirectional
+  ──  verse-verse bi      ↗  verse→chapter_gist uni
 ```
 
-Each verse node hub-connects to **all** of its phrases. Each verse connects to its chapter.
-Cross-verse recall routes through the verse chain: `p3(v1) → verse1 → verse2 → p4(v2)`.
+Each verse gist hub-connects (bi) to **all** of its phrases. Chapter-consecutive verse↔verse edges
+are bidirectional. Verse gists point to the chapter gist (uni). The chapter gist points to club
+entries (uni). Club entries point to next entries (uni chain) and connect to refs (bi).
 
 ### Club structure
 
@@ -113,33 +147,36 @@ material. Most chapters have 3–7 club-150 verses and 6–14 club-300 verses.
 Club membership is modeled with **per-verse club entry atoms** that chain together:
 
 ```
-club_150_entry(2:1) ── club_150_entry(2:4) ── club_150_entry(2:7)
-       |                      |                      |
-    verse(2:1)             verse(2:4)             verse(2:7)
+chapter_gist ──→ club_150_entry(2:1) ──→ club_150_entry(2:4) ──→ club_150_entry(2:7)
+                       ↕                        ↕                        ↕
+                    ref(2:1)                 ref(2:4)                 ref(2:7)
+                       ↕                        ↕                        ↕
+                    verse(2:1)               verse(2:4)               verse(2:7)
 ```
 
-Each club entry atom represents "this verse is in club 150" and connects to:
-* Its **verse gist** (not the reference — references are numbers that trivially encode distance,
-  which would create false shortcuts via anchor transfer)
-* The **next club entry** in the chapter sequence
+Each club entry atom connects to:
+* Its **reference** (bidirectional — "this club entry is Acts 2:1" / "Acts 2:1 is a club entry")
+* The **next club entry** in the chapter sequence (unidirectional chain)
 
-**Membership** is implicit: a verse has a club entry atom = it's in the club. No separate hub atom
-is needed.
+The chapter gist points to club entries (unidirectional) for listing surfaces. Club entries connect
+to their verse gists indirectly through their references (club_entry ↔ ref ↔ verse_gist).
 
-**Sequence**: the chain between club entry atoms represents "what's the next 150 verse." This
-models how 150/300 quizzers study — their mental "next verse" is the next in their set.
+**Membership** is implicit: a verse has a club entry atom = it's in the club.
+
+**Sequence**: the chain between club entry atoms represents "what's the next 150 verse."
 
 **Why club entries are separate atoms** (not edges on verse gists):
-* Avoids creating verse↔verse shortcuts that could give false anchor transfer credit for
-  references
-* The club sequence is meta-knowledge about the verse list, not verse content flow — it
-  shouldn't create paths that bypass intermediate verses
-* Keeps the verse gist chain clean: verse↔verse edges only represent chapter-consecutive
-  content flow
+* Avoids creating verse↔verse shortcuts that could give false anchor transfer credit
+* The club sequence is meta-knowledge about the verse list, not verse content flow
+* Keeps the verse gist chain clean: verse↔verse edges only represent chapter-consecutive flow
 
-**Listing surfaces**: "which 150 verses in Acts 2?" uses shown={club_150_entry(2:1)} (the first
-entry in the chain), hidden={verse(2:1), verse(2:4), verse(2:7), ...}. The chain walks through
-entries, each connecting to its verse gist.
+**Listing surfaces**: "which 150 verses in Acts 2?" uses shown={chapter_gist(Acts 2)}, hidden
+={ref(2:1), ref(2:4), ref(2:7), ...}. Paths go chapter_gist → club_entry → ref. All entries are
+1 hop from the chapter gist (equidistant), each reaching its ref in 1 more hop.
+
+For long chapters with many club verses, Woźniak's complexity formula naturally prevents the
+scheduler from requesting the full list — it will prefer targeted surfaces over listing all at
+once.
 
 Club 300 entries include all 300 verses (including the 150 subset). A verse in club 150 has both
 a club_150_entry and a club_300_entry.
@@ -148,29 +185,30 @@ a club_150_entry and a club_300_entry.
 
 For a verse with N phrases:
 
-| Edge type                    | Count (undirected) | Count (directed, ×2) |
-| ---------------------------- | ------------------ | -------------------- |
-| ref ↔ verse                  | 1                  | 2                    |
-| verse ↔ chapter              | 1                  | 2                    |
-| verse ↔ phrase (hub)         | N                  | 2N                   |
-| phrase ↔ phrase (sequential) | N-1                | 2(N-1)               |
-| verse ↔ next verse (chapter) | 1                  | 2                    |
-| **Total (base)**             | **N + 3**          | **2N + 6**           |
+| Edge type                          | Count (undirected) | Count (directed) |
+| ---------------------------------- | ------------------ | ---------------- |
+| phrase ↔ phrase (sequential)       | N-1                | 2(N-1)           |
+| phrase ↔ verse gist (hub)          | N                  | 2N               |
+| verse gist ↔ ref                   | 1                  | 2                |
+| verse gist ↔ next verse (chapter)  | 1                  | 2                |
+| verse gist → chapter gist          | —                  | 1                |
+| **Total (base)**                   | —                  | **4N + 3**       |
 
 Additional edges for club members:
 
-| Edge type                              | Count (undirected) | Count (directed, ×2) |
-| -------------------------------------- | ------------------ | -------------------- |
-| verse ↔ club_entry (per club tier)     | 1–2                | 2–4                  |
-| club_entry ↔ next club_entry (per tier)| 1–2                | 2–4                  |
+| Edge type                           | Count (directed) |
+| ----------------------------------- | ---------------- |
+| ref ↔ club_entry (per club tier)    | 2–4              |
+| club_entry → next entry (per tier)  | 1–2              |
+| chapter_gist → club_entry (per tier)| 1–2              |
 
-For N=4 phrases: 14 base directed edges + up to 8 club edges = ~22 per verse.
-For a 500-verse QuizMeet season: ~7,000 base + ~900 club edges ≈ 8,000 directed edges total.
-Each stores (S, D, last_review_time). Trivially tractable.
+For N=4 phrases: 19 base directed edges + up to 8 club edges = ~27 per verse.
+For a 500-verse QuizMeet season: ~9,500 base + ~1,200 club edges ≈ 11,000 directed edges total.
+Each learnable edge stores (S, D, last_review_time). Trivially tractable.
 
 ### Edge state
 
-Each directed edge stores:
+Each directed learnable edge stores:
 
 * **Stability (S)**: days for retrievability to decay from 1.0 to 0.9
 * **Difficulty (D)**: intrinsic difficulty, real number in [1, 10]
@@ -179,6 +217,9 @@ Each directed edge stores:
 **Retrievability (R)** is computed on the fly: `R = (1 + t / (9 · S))^(-1)` where t is elapsed days
 since last review. No need to store R or due dates — the computation is trivial and avoids stale
 precomputed values.
+
+Unidirectional structural edges (chapter_gist → club_entry, chapter_gist → verse connections used
+only for listing) do not need FSRS state — they are traversal-only.
 
 ## Composite retrievability
 
@@ -213,8 +254,8 @@ verse(3:17) → verse(3:16) → ref(3:16) = "John 3:16"
   anchor transfer: 3:16 + 1 = 3:17
 ```
 
-"3:17 comes after 3:16" is captured by: learnable verse→verse chain edge + learnable verse→ref
-anchor edge + arithmetic via anchor transfer. No hardcoded edges needed.
+Sequential reference knowledge is captured by: learnable verse↔verse chain edge + learnable
+verse↔ref anchor edge + arithmetic via anchor transfer. No hardcoded edges needed.
 
 ## Review surfaces
 
@@ -229,12 +270,12 @@ A surface is fully specified by: `shown = {set of atoms}`, `hidden = {set of ato
 Example surfaces:
 
 ```
-ref → verse:        shown = {ref}              hidden = {p1, p2, p3, p4}
-verse → ref:        shown = {p1, p2, p3, p4}   hidden = {ref}
-first words → rest: shown = {p1}               hidden = {p2, p3, p4}
-fill-in-blank(p2):  shown = {ref, p1, p3, p4}  hidden = {p2}
-cross-verse:        shown = {last phrase prev}  hidden = {p1, p2, p3, p4}
-club listing:       shown = {club_150(Acts 2)}  hidden = {verse(2:1), verse(2:4), ...}
+ref → verse:        shown = {ref}                     hidden = {p1, p2, p3, p4}
+verse → ref:        shown = {p1, p2, p3, p4}          hidden = {ref}
+first words → rest: shown = {p1}                      hidden = {p2, p3, p4}
+fill-in-blank(p2):  shown = {ref, p1, p3, p4}         hidden = {p2}
+cross-verse:        shown = {last phrase prev}         hidden = {p1, p2, p3, p4}
+club listing:       shown = {chapter_gist(Acts 2)}     hidden = {ref(2:1), ref(2:4), ref(2:7)}
 ```
 
 ### Review interaction
@@ -262,14 +303,17 @@ For each hidden atom h, the grade tells us:
 ### Algorithm
 
 **Step 1: Enumerate paths.** For each (shown atom, hidden atom) pair, enumerate all paths through
-the graph up to a maximum depth of **5 hops**. This includes paths through other verses via
-cross-verse edges.
+the graph up to a maximum depth of **5 hops**. Paths follow edge directionality — unidirectional
+edges can only be traversed in their defined direction.
 
 **Step 2: Compute path probabilities.** For each path:
 
 ```
 R(path) = Π R(edge) for each edge in the path
 ```
+
+Structural edges (no FSRS state) contribute R = 1.0 to path probability but cannot receive
+credit or blame.
 
 **Step 3: Process successful atoms.** For a hidden atom graded Good/Easy:
 
@@ -280,7 +324,7 @@ R(path) = Π R(edge) for each edge in the path
 credit(path_i) = R(path_i) / Σ R(path_j)   for all surviving paths j
 ```
 
-* Each edge on a surviving path receives credit proportional to that path's weight.
+* Each learnable edge on a surviving path receives credit proportional to that path's weight.
 
 **Step 4: Process failed atoms.** For a hidden atom graded Again, all paths to it failed. Apply
 Bayesian blame — the edge with the lowest R on each path was most likely the cause:
@@ -326,9 +370,9 @@ Distance decay values (at factor = 0.95):
 **Example: recalling ref(2:3), direct edge is weak:**
 
 ```
-Direct:      verse(2:3) → ref(2:3)                        R = 0.30 × decay(0) = 0.30
-Via ref(2:1): verse(2:3) → v(2:2) → v(2:1) → ref(2:1)    R = 0.81 × 0.85 × decay(2) = 0.62
-Via ref(2:4): verse(2:3) → v(2:4) → ref(2:4)              R = 0.80 × 0.70 × decay(1) = 0.53
+Direct:       verse(2:3) → ref(2:3)                        R = 0.30 × decay(0) = 0.30
+Via ref(2:1): verse(2:3) → v(2:2) → v(2:1) → ref(2:1)     R = 0.81 × 0.85 × decay(2) = 0.62
+Via ref(2:4): verse(2:3) → v(2:4) → ref(2:4)               R = 0.80 × 0.70 × decay(1) = 0.53
 
 Parallel: R_total = 1 - (1-0.30)(1-0.62)(1-0.53) = 0.875
 ```
@@ -338,14 +382,14 @@ and anchor ref edges that made the derivation possible.
 
 **Why anchor transfer only applies to refs:** References are numbers, and numbers support
 arithmetic (±N). Other atom types (phrases, verse gists, club membership) cannot be derived from
-neighbors via arithmetic. Club hubs connect to verse gists specifically to prevent arithmetic
-shortcuts from creating false credit paths.
+neighbors via arithmetic.
 
-**Counting only works through full material:** A 150 quizzer walking the 150-consecutive chain
-(verse(2:1) → verse(2:4), 1 hop) doesn't know the chapter-distance is 3. To count from ref(2:1)
-to ref(2:4), they'd need the chapter-consecutive chain (verse 2:1→2:2→2:3→2:4, 3 hops). If those
-intermediate edges have low R (unreviewed), the anchor transfer path is naturally weak. Full-
-material quizzers with strong chapter-consecutive edges get anchor transfer as a strong backup.
+**Counting requires the chapter-consecutive chain:** A 150 quizzer using club entries
+(club_entry(2:1) → club_entry(2:4), 1 hop) doesn't know the chapter-distance is 3. To count
+from ref(2:1) to ref(2:4), they'd need the chapter-consecutive verse chain
+(verse(2:1)→verse(2:2)→verse(2:3)→verse(2:4), 3 hops). If those intermediate edges have low R
+(unreviewed), the anchor transfer path is naturally weak. Full-material quizzers with strong
+chapter-consecutive edges get anchor transfer as a strong backup.
 
 ### Computational cost
 
@@ -396,24 +440,26 @@ translation.
 
 ## Terminology
 
-| Term               | Meaning in verse-vault                                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| **Atom / Node**    | A piece of knowledge: a reference, verse (latent), phrase, chapter, or club entry                        |
-| **Edge**           | A directed cue→response association between two atoms. Has its own FSRS state (S, D)                     |
-| **Surface / Card** | A mask (shown/hidden) over the graph that defines a review mode. Not a memory unit itself                |
-| **Credit**         | The weight assigned to an edge after a successful observation, based on path analysis                    |
-| **Blame**          | The weight assigned to an edge after a failed observation, based on Bayesian inference                   |
-| **Anchor**         | A verse whose reference is directly known (strong verse→ref edge). Used to derive nearby refs            |
-| **Anchor transfer**| Computing a target ref from a nearby anchor ref via chain distance + arithmetic, with distance decay     |
-| **Verse graph**    | The full set of atoms and edges for one verse                                                            |
-| **Chapter chain**  | Verse graphs connected by chapter-consecutive verse↔verse edges                                          |
-| **Club chain**     | Club entry atoms connected sequentially, representing a club tier's verse order within a chapter          |
+| Term                | Meaning in verse-vault                                                                                   |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Atom / Node**     | A piece of knowledge: phrase, verse gist (latent), reference, chapter gist, chapter ref, or club entry   |
+| **Edge**            | A directed association between two atoms. Learnable edges have FSRS state (S, D). Structural edges have no state |
+| **Surface / Card**  | A mask (shown/hidden) over the graph that defines a review mode. Not a memory unit itself                |
+| **Credit**          | The weight assigned to an edge after a successful observation, based on path analysis                    |
+| **Blame**           | The weight assigned to an edge after a failed observation, based on Bayesian inference                   |
+| **Anchor**          | A verse whose reference is directly known (strong verse→ref edge). Used to derive nearby refs            |
+| **Anchor transfer** | Computing a target ref from a nearby anchor ref via chain distance + arithmetic, with distance decay     |
+| **Verse graph**     | The full set of atoms and edges for one verse                                                            |
+| **Chapter chain**   | Verse graphs connected by chapter-consecutive verse↔verse edges                                          |
+| **Club chain**      | Club entry atoms connected sequentially, representing a club tier's verse order within a chapter          |
 
 ## Open questions
 
 * **Chapter boundary modeling**: material sections may not start at verse 1. How should section
-  start/end be represented — as properties on the chapter atom, or as edges to specific verses?
+  start/end be represented — as properties on the chapter gist, or as edges to specific verses?
 * **Anchor transfer decay factor**: the 0.95 default is a starting point. Should it be tunable per
   user, or fixed? Should it vary by context (e.g., lower decay within a well-studied chapter)?
 * **Phrase boundaries for non-KJV**: do phrase boundaries transfer across translations, or must
   each translation be chunked independently?
+* **Reverse club chain**: should club_entry chains be bidirectional (enabling "what was the previous
+  150 verse?") or is the forward-only chain sufficient?
