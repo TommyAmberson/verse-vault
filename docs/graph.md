@@ -51,7 +51,7 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
 | chapter gist → club entry                     | uni       | no (structural) |
 | club entry → club entry (chain)               | uni       | yes        |
 | verse gist → heading                          | uni       | yes        |
-| heading → heading (chain)                     | uni       | yes        |
+| heading ↔ heading (chain)                     | bi        | yes        |
 
 ### Directionality rationale
 
@@ -71,7 +71,9 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
   heading, never the other way around. If "show heading, list verses" surfaces are needed later,
   heading → verse edges can be added.
 
-* **heading → heading** (forward only): sequential section ordering. "What section comes next?"
+* **heading ↔ heading** (bidirectional): sequential section ordering. Supports both "what
+  section comes next?" and "what section came before?" No shortcut risk because headings have
+  no outgoing edges to verses — they're sink nodes in the verse→heading direction.
 
 ## Graph structure
 
@@ -173,6 +175,8 @@ heading("All to the Glory of God") → heading("Do Not Cause Others to Stumble")
 * Show one verse reference → ask for heading
 * Show a reference range (e.g., "10:23–11:1") → ask for heading
 * Show a reference → ask for heading
+* Show a heading → ask for next heading
+* Show a heading → ask for previous heading
 
 ## Edge inventory
 
