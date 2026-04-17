@@ -123,11 +123,11 @@ mod tests {
         let sources = HashSet::from([NodeId(2)]); // v2
         let paths = enumerate_paths_with_anchor_transfer(&g, &sources, r2, 5, 0.95);
 
-        let direct: Vec<_> = paths.iter().filter(|ap| ap.decay_multiplier == 1.0).collect();
-        assert!(
-            !direct.is_empty(),
-            "should have direct path from v2 to r2"
-        );
+        let direct: Vec<_> = paths
+            .iter()
+            .filter(|ap| ap.decay_multiplier == 1.0)
+            .collect();
+        assert!(!direct.is_empty(), "should have direct path from v2 to r2");
     }
 
     #[test]
@@ -143,10 +143,7 @@ mod tests {
             .iter()
             .filter(|ap| ap.decay_multiplier < 1.0)
             .collect();
-        assert!(
-            !anchor_paths.is_empty(),
-            "should have anchor path via r1"
-        );
+        assert!(!anchor_paths.is_empty(), "should have anchor path via r1");
 
         let ap = &anchor_paths[0];
         assert!(
@@ -199,8 +196,7 @@ mod tests {
     fn non_reference_target_returns_plain_paths() {
         let (g, v1, _r1, v2, _r2) = two_verse_graph();
         let sources = HashSet::from([v1]);
-        let paths =
-            enumerate_paths_with_anchor_transfer(&g, &sources, v2, 5, DEFAULT_DECAY_FACTOR);
+        let paths = enumerate_paths_with_anchor_transfer(&g, &sources, v2, 5, DEFAULT_DECAY_FACTOR);
 
         for ap in &paths {
             assert_eq!(
@@ -234,8 +230,7 @@ mod tests {
         g.add_bi_edge(EdgeKind::VerseGistVerseGist, v1, v2);
 
         let sources = HashSet::from([v1]);
-        let paths =
-            enumerate_paths_with_anchor_transfer(&g, &sources, r2, 5, DEFAULT_DECAY_FACTOR);
+        let paths = enumerate_paths_with_anchor_transfer(&g, &sources, r2, 5, DEFAULT_DECAY_FACTOR);
 
         // r1 is chapter 1, r2 is chapter 2 — r1 should NOT be an anchor for r2
         for ap in &paths {

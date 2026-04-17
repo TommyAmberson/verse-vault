@@ -72,7 +72,11 @@ pub fn assign_credit(
 
     // Steps 1-4: Credit and blame for each hidden atom
     for &hidden_atom in &review.hidden {
-        let grade = review.grades.get(&hidden_atom).copied().unwrap_or(Grade::Good);
+        let grade = review
+            .grades
+            .get(&hidden_atom)
+            .copied()
+            .unwrap_or(Grade::Good);
 
         // Source set for this atom excludes itself
         let sources_for_atom: HashSet<NodeId> = source_set
@@ -82,7 +86,10 @@ pub fn assign_credit(
             .collect();
 
         // Step 1: Enumerate paths (with anchor transfer if target is a Reference)
-        let is_ref = matches!(graph.node_kind(hidden_atom), Some(NodeKind::Reference { .. }));
+        let is_ref = matches!(
+            graph.node_kind(hidden_atom),
+            Some(NodeKind::Reference { .. })
+        );
         let anchor_paths: Vec<AnchorPath> = if is_ref {
             anchor::enumerate_paths_with_anchor_transfer(
                 graph,
@@ -183,12 +190,7 @@ fn assign_credit_for_pass(
     // Filter out paths through failed atoms
     let surviving: Vec<(&AnchorPath, f32)> = anchor_paths
         .iter()
-        .filter(|ap| {
-            !ap.path
-                .nodes
-                .iter()
-                .any(|n| failed_atoms.contains(n))
-        })
+        .filter(|ap| !ap.path.nodes.iter().any(|n| failed_atoms.contains(n)))
         .map(|ap| {
             let r = path_probability(graph, &ap.path.edges, fsrs, now_secs) * ap.decay_multiplier;
             (ap, r)
@@ -205,12 +207,13 @@ fn assign_credit_for_pass(
         let credit_weight = r / total_r;
         for &edge_id in &ap.path.edges {
             if let Some(edge) = graph.edge(edge_id)
-                && edge.kind.is_learnable() {
-                    updates
-                        .entry(edge_id)
-                        .or_default()
-                        .push((grade, credit_weight));
-                }
+                && edge.kind.is_learnable()
+            {
+                updates
+                    .entry(edge_id)
+                    .or_default()
+                    .push((grade, credit_weight));
+            }
         }
     }
 }
@@ -431,11 +434,7 @@ mod tests {
         let review = ReviewResult {
             shown: vec![r],
             hidden: vec![p1, p2, p3],
-            grades: HashMap::from([
-                (p1, Grade::Good),
-                (p2, Grade::Again),
-                (p3, Grade::Good),
-            ]),
+            grades: HashMap::from([(p1, Grade::Good), (p2, Grade::Again), (p3, Grade::Good)]),
         };
 
         let updates = assign_credit(&g, &review, &CreditParams::default(), &fsrs(), 86400);
@@ -488,11 +487,7 @@ mod tests {
         let review = ReviewResult {
             shown: vec![r],
             hidden: vec![p1, p2, p3],
-            grades: HashMap::from([
-                (p1, Grade::Good),
-                (p2, Grade::Again),
-                (p3, Grade::Good),
-            ]),
+            grades: HashMap::from([(p1, Grade::Good), (p2, Grade::Again), (p3, Grade::Good)]),
         };
 
         let updates = assign_credit(&g, &review, &CreditParams::default(), &fsrs(), 86400);

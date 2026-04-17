@@ -130,3 +130,4 @@ dist
 .pnp.*
 /.claude/settings.local.json
 /target
+/data/

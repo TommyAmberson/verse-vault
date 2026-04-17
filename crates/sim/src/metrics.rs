@@ -93,40 +93,79 @@ mod tests {
     #[test]
     fn perfect_predictions_low_log_loss() {
         let preds = vec![
-            Prediction { predicted_r: 0.99, actual_pass: true },
-            Prediction { predicted_r: 0.01, actual_pass: false },
+            Prediction {
+                predicted_r: 0.99,
+                actual_pass: true,
+            },
+            Prediction {
+                predicted_r: 0.01,
+                actual_pass: false,
+            },
         ];
         let ll = log_loss(&preds);
-        assert!(ll < 0.05, "perfect predictions should have low log loss: {ll}");
+        assert!(
+            ll < 0.05,
+            "perfect predictions should have low log loss: {ll}"
+        );
     }
 
     #[test]
     fn random_predictions_higher_log_loss() {
         let preds = vec![
-            Prediction { predicted_r: 0.5, actual_pass: true },
-            Prediction { predicted_r: 0.5, actual_pass: false },
+            Prediction {
+                predicted_r: 0.5,
+                actual_pass: true,
+            },
+            Prediction {
+                predicted_r: 0.5,
+                actual_pass: false,
+            },
         ];
         let ll = log_loss(&preds);
-        assert!(ll > 0.5, "random predictions should have higher log loss: {ll}");
+        assert!(
+            ll > 0.5,
+            "random predictions should have higher log loss: {ll}"
+        );
     }
 
     #[test]
     fn perfect_auc() {
         let preds = vec![
-            Prediction { predicted_r: 0.9, actual_pass: true },
-            Prediction { predicted_r: 0.8, actual_pass: true },
-            Prediction { predicted_r: 0.2, actual_pass: false },
-            Prediction { predicted_r: 0.1, actual_pass: false },
+            Prediction {
+                predicted_r: 0.9,
+                actual_pass: true,
+            },
+            Prediction {
+                predicted_r: 0.8,
+                actual_pass: true,
+            },
+            Prediction {
+                predicted_r: 0.2,
+                actual_pass: false,
+            },
+            Prediction {
+                predicted_r: 0.1,
+                actual_pass: false,
+            },
         ];
         let a = auc(&preds);
-        assert!((a - 1.0).abs() < 0.001, "perfect ranking should give AUC=1.0: {a}");
+        assert!(
+            (a - 1.0).abs() < 0.001,
+            "perfect ranking should give AUC=1.0: {a}"
+        );
     }
 
     #[test]
     fn random_auc_near_half() {
         let preds = vec![
-            Prediction { predicted_r: 0.9, actual_pass: false },
-            Prediction { predicted_r: 0.1, actual_pass: true },
+            Prediction {
+                predicted_r: 0.9,
+                actual_pass: false,
+            },
+            Prediction {
+                predicted_r: 0.1,
+                actual_pass: true,
+            },
         ];
         let a = auc(&preds);
         assert!(a < 0.5, "reversed ranking should give AUC<0.5: {a}");

@@ -96,9 +96,34 @@ pub fn due_date(
     now_secs: i64,
     params: &ScheduleParams,
 ) -> i64 {
-    let current = due_r(graph, card, fsrs, now_secs, params);
+    // Pre-enumerate paths once; only recompute R at different timestamps.
+    let shown: HashSet<NodeId> = card.shown.iter().copied().collect();
+    let cached_paths: Vec<(NodeId, Vec<AnchorPath>)> = card
+        .hidden
+        .iter()
+        .map(|&h| (h, all_paths_for(graph, &shown, h, params)))
+        .collect();
+
+    let min_r_at = |at_secs: i64| -> f32 {
+        cached_paths
+            .iter()
+            .map(|(_, paths)| {
+                if paths.is_empty() {
+                    return 0.0;
+                }
+                let mut product = 1.0f32;
+                for ap in paths {
+                    let pr = path_r_at(graph, &ap.path.edges, fsrs, at_secs) * ap.decay_multiplier;
+                    product *= 1.0 - pr;
+                }
+                1.0 - product
+            })
+            .fold(f32::MAX, f32::min)
+    };
+
+    let current = min_r_at(now_secs);
     if current < params.target_retention {
-        return now_secs; // already due
+        return now_secs;
     }
 
     let one_hour = 3600i64;
@@ -108,8 +133,7 @@ pub fn due_date(
 
     while high - low > one_hour {
         let mid = low + (high - low) / 2;
-        let r = due_r(graph, card, fsrs, mid, params);
-        if r > params.target_retention {
+        if min_r_at(mid) > params.target_retention {
             low = mid;
         } else {
             high = mid;
@@ -137,12 +161,13 @@ pub fn priority(
         for ap in &paths {
             for &edge_id in &ap.path.edges {
                 if let Some(edge) = graph.edge(edge_id)
-                    && let Some(state) = &edge.state {
-                        let r = fsrs.retrievability(state, now_secs);
-                        if r < params.target_retention {
-                            due_edge_r_sum += r;
-                        }
+                    && let Some(state) = &edge.state
+                {
+                    let r = fsrs.retrievability(state, now_secs);
+                    if r < params.target_retention {
+                        due_edge_r_sum += r;
                     }
+                }
             }
         }
     }
@@ -212,9 +237,10 @@ fn path_r_at(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, at_secs: i64) -
     let mut r = 1.0f32;
     for &edge_id in edges {
         if let Some(edge) = graph.edge(edge_id)
-            && let Some(state) = &edge.state {
-                r *= fsrs.retrievability(state, at_secs);
-            }
+            && let Some(state) = &edge.state
+        {
+            r *= fsrs.retrievability(state, at_secs);
+        }
     }
     r
 }
@@ -222,7 +248,7 @@ fn path_r_at(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, at_secs: i64) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::card::Card;
+    use crate::card::{Card, CardState};
     use crate::edge::{EdgeKind, EdgeState};
     use crate::node::NodeKind;
     use crate::types::CardId;
@@ -265,6 +291,7 @@ mod tests {
             id: CardId(0),
             shown: vec![r],
             hidden: vec![p1, p2],
+            state: CardState::Review,
         };
 
         (g, card)
@@ -278,7 +305,14 @@ mod tests {
     fn effective_r_at_zero_is_high() {
         let (g, card) = make_simple_verse();
         let shown: HashSet<NodeId> = card.shown.iter().copied().collect();
-        let r = effective_r(&g, &shown, card.hidden[0], &fsrs(), 0, &ScheduleParams::default());
+        let r = effective_r(
+            &g,
+            &shown,
+            card.hidden[0],
+            &fsrs(),
+            0,
+            &ScheduleParams::default(),
+        );
         assert!(r > 0.9, "R at t=0 should be high, got {r}");
     }
 
@@ -393,11 +427,13 @@ mod tests {
             id: CardId(0),
             shown: vec![r],
             hidden: phrases.clone(),
+            state: crate::card::CardState::Review,
         };
         let fill_in = Card {
             id: CardId(1),
             shown: vec![r, phrases[0], phrases[2], phrases[3]],
             hidden: vec![phrases[1]],
+            state: crate::card::CardState::Review,
         };
 
         let params = ScheduleParams::default();

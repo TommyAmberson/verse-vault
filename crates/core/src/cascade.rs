@@ -21,10 +21,7 @@ impl EdgeCardMapping {
         for card in cards {
             let edges = collect_card_edges(graph, card, params);
             for edge_id in edges {
-                edge_to_cards
-                    .entry(edge_id)
-                    .or_default()
-                    .push(card.id);
+                edge_to_cards.entry(edge_id).or_default().push(card.id);
             }
         }
 
@@ -100,9 +97,10 @@ fn collect_card_edges(graph: &Graph, card: &Card, params: &ScheduleParams) -> Ve
     for &node in &card.shown {
         for &eid in graph.outgoing_edges(node) {
             if let Some(edge) = graph.edge(eid)
-                && shown.contains(&edge.target) {
-                    edges.insert(eid);
-                }
+                && shown.contains(&edge.target)
+            {
+                edges.insert(eid);
+            }
         }
     }
 
@@ -112,6 +110,7 @@ fn collect_card_edges(graph: &Graph, card: &Card, params: &ScheduleParams) -> Ve
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::card::CardState;
     use crate::edge::{EdgeKind, EdgeState};
     use crate::node::NodeKind;
 
@@ -150,16 +149,19 @@ mod tests {
             id: CardId(0),
             shown: vec![r],
             hidden: vec![p1, p2],
+            state: CardState::Review,
         };
         let fill_in_p1 = Card {
             id: CardId(1),
             shown: vec![r, p2],
             hidden: vec![p1],
+            state: CardState::Review,
         };
         let verse_to_ref = Card {
             id: CardId(2),
             shown: vec![p1, p2],
             hidden: vec![r],
+            state: CardState::Review,
         };
 
         (g, vec![full_recitation, fill_in_p1, verse_to_ref])

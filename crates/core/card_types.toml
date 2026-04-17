@@ -1,0 +1,44 @@
+[[card_types]]
+name = "full_recitation"
+show = ["ref"]
+hide = ["phrases"]
+
+[[card_types]]
+name = "fill_in_blank"
+iterate = "phrases"
+show = ["ref", "phrases - $"]
+hide = ["$"]
+
+[[card_types]]
+name = "first_phrase_to_rest"
+show = ["first_phrase"]
+hide = ["remaining_phrases"]
+
+[[card_types]]
+name = "finish_this_verse"
+show = ["ftv"]
+hide = ["phrases"]
+requires = "ftv"
+
+[[card_types]]
+name = "verse_to_ref"
+show = ["phrases"]
+hide = ["ref"]
+
+[[card_types]]
+name = "verse_to_heading"
+show = ["ref"]
+hide = ["heading"]
+requires = "heading"
+
+[[card_types]]
+name = "heading_to_next"
+show = ["heading"]
+hide = ["next_heading"]
+requires = "next_heading"
+
+[[card_types]]
+name = "heading_to_prev"
+show = ["heading"]
+hide = ["prev_heading"]
+requires = "prev_heading"

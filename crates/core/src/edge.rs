@@ -13,6 +13,8 @@ pub enum EdgeKind {
     ClubEntryClubEntry,
     VerseGistHeading,
     HeadingHeading,
+    FtvPhrase,
+    FtvVerseGist,
 }
 
 impl EdgeKind {
@@ -63,6 +65,8 @@ mod tests {
             EdgeKind::ClubEntryClubEntry,
             EdgeKind::VerseGistHeading,
             EdgeKind::HeadingHeading,
+            EdgeKind::FtvPhrase,
+            EdgeKind::FtvVerseGist,
         ];
         for kind in learnable {
             assert!(kind.is_learnable(), "{kind:?} should be learnable");

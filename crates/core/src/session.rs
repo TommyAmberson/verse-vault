@@ -1,9 +1,16 @@
 use std::collections::{HashMap, VecDeque};
 
+use crate::card::{Card, CardState};
 use crate::credit::EdgeUpdate;
 use crate::engine::ReviewEngine;
 use crate::types::{CardId, Grade, NodeId};
 
+fn card_overlaps_verse(card: &Card, verse_phrases: &[NodeId]) -> bool {
+    card.hidden.iter().any(|h| verse_phrases.contains(h))
+        || card.shown.iter().any(|s| verse_phrases.contains(s))
+}
+
+#[derive(Clone)]
 pub struct SessionParams {
     pub max_session_size: usize,
     pub max_new_verses: usize,
@@ -33,6 +40,7 @@ pub struct ReDrill {
     pub kind: ReDrillKind,
     pub verse_ref: NodeId,
     pub verse_phrases: Vec<NodeId>,
+    pub origin_card: Option<CardId>,
 }
 
 impl ReDrill {
@@ -40,7 +48,12 @@ impl ReDrill {
         match &self.kind {
             ReDrillKind::FillInBlank { target_atom } => {
                 let shown: Vec<NodeId> = std::iter::once(self.verse_ref)
-                    .chain(self.verse_phrases.iter().copied().filter(|p| p != target_atom))
+                    .chain(
+                        self.verse_phrases
+                            .iter()
+                            .copied()
+                            .filter(|p| p != target_atom),
+                    )
                     .collect();
                 SessionCard {
                     shown,
@@ -163,33 +176,55 @@ pub struct Session {
     queue: VecDeque<SessionEntry>,
     reviews_completed: u32,
     params: SessionParams,
+    /// Verse phrases for each verse introduced this session (for abort rollback).
+    introduced_verses: Vec<Vec<NodeId>>,
 }
 
 /// Info needed to introduce a new verse.
+#[derive(Clone)]
 pub struct NewVerseInfo {
     pub verse_ref: NodeId,
     pub verse_phrases: Vec<NodeId>,
 }
 
 impl Session {
-    pub fn new(engine: &ReviewEngine, now_secs: i64, params: SessionParams, new_verses: &[NewVerseInfo]) -> Self {
+    pub fn new(
+        engine: &mut ReviewEngine,
+        now_secs: i64,
+        params: SessionParams,
+        new_verses: &[NewVerseInfo],
+    ) -> Self {
         let mut queue = VecDeque::new();
 
-        // Add due cards sorted by priority
+        // Add due Review cards sorted by priority (skip New/Learning/Relearning)
         let mut due: Vec<_> = engine
             .schedules
             .iter()
-            .filter(|s| s.due_date_secs <= now_secs)
+            .filter(|s| {
+                s.due_date_secs <= now_secs
+                    && engine
+                        .card(s.card_id)
+                        .is_some_and(|c| c.state == CardState::Review)
+            })
             .collect();
         due.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap());
 
-        let max_scheduled = params.max_session_size.saturating_sub(new_verses.len().min(params.max_new_verses) * 4);
+        let max_scheduled = params
+            .max_session_size
+            .saturating_sub(new_verses.len().min(params.max_new_verses) * 4);
         for sched in due.iter().take(max_scheduled) {
             queue.push_back(SessionEntry::Scheduled(sched.card_id));
         }
 
-        // Add new verses (progressive reveal)
+        // Add new verses (progressive reveal) and transition their cards to Learning
+        let mut introduced_verses = Vec::new();
         for nv in new_verses.iter().take(params.max_new_verses) {
+            for card in &mut engine.cards {
+                if card.state == CardState::New && card_overlaps_verse(card, &nv.verse_phrases) {
+                    card.state = CardState::Learning;
+                }
+            }
+            introduced_verses.push(nv.verse_phrases.clone());
             queue.push_back(SessionEntry::NewVerse(NewVerseProgress {
                 verse_ref: nv.verse_ref,
                 verse_phrases: nv.verse_phrases.clone(),
@@ -201,6 +236,7 @@ impl Session {
             queue,
             reviews_completed: 0,
             params,
+            introduced_verses,
         }
     }
 
@@ -210,6 +246,18 @@ impl Session {
 
     pub fn remaining(&self) -> usize {
         self.queue.len()
+    }
+
+    /// Abort the session, rolling back Learning cards to New.
+    /// Cards that already completed progressive reveal (now Review) are not rolled back.
+    pub fn abort(self, engine: &mut ReviewEngine) {
+        for phrases in &self.introduced_verses {
+            for card in &mut engine.cards {
+                if card.state == CardState::Learning && card_overlaps_verse(card, phrases) {
+                    card.state = CardState::New;
+                }
+            }
+        }
     }
 
     /// Peek at the next card to present. Returns None if session is done.
@@ -238,34 +286,63 @@ impl Session {
     ) -> ReviewOutcome {
         let entry = match self.queue.pop_front() {
             Some(e) => e,
-            None => return ReviewOutcome { edge_updates: vec![], redrills_inserted: 0 },
+            None => {
+                return ReviewOutcome {
+                    edge_updates: vec![],
+                    redrills_inserted: 0,
+                };
+            }
         };
 
         self.reviews_completed += 1;
 
         match entry {
             SessionEntry::Scheduled(card_id) => {
+                let has_failures = grades.values().any(|g| !g.is_pass());
                 let updates = engine.review(card_id, grades.clone(), now_secs);
-                let redrills = self.insert_redrills_for_failures(&grades, engine);
-                ReviewOutcome { edge_updates: updates, redrills_inserted: redrills }
+                let redrills = self.insert_redrills_for_failures(&grades, engine, Some(card_id));
+                // Lapse: transition Review → Relearning
+                if has_failures {
+                    engine.set_card_state(card_id, CardState::Relearning);
+                }
+                self.prune_no_longer_due(engine, now_secs);
+                ReviewOutcome {
+                    edge_updates: updates,
+                    redrills_inserted: redrills,
+                }
             }
             SessionEntry::ReDrill(redrill) => {
                 let card = redrill.to_session_card();
-                let updates = engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
-                let redrills = self.insert_redrills_for_failures(&grades, engine);
-                ReviewOutcome { edge_updates: updates, redrills_inserted: redrills }
+                let all_passed = grades.values().all(|g| g.is_pass());
+                let updates =
+                    engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
+                let redrills =
+                    self.insert_redrills_for_failures(&grades, engine, redrill.origin_card);
+                // Re-drill success: find the original card and transition Relearning → Review
+                if all_passed {
+                    self.transition_relearning_to_review(&redrill, engine);
+                }
+                self.prune_no_longer_due(engine, now_secs);
+                ReviewOutcome {
+                    edge_updates: updates,
+                    redrills_inserted: redrills,
+                }
             }
             SessionEntry::NewVerse(mut progress) => {
                 if progress.is_reading() {
                     // Reading stage: no grading, just advance
                     progress.advance();
                     self.queue.push_front(SessionEntry::NewVerse(progress));
-                    return ReviewOutcome { edge_updates: vec![], redrills_inserted: 0 };
+                    return ReviewOutcome {
+                        edge_updates: vec![],
+                        redrills_inserted: 0,
+                    };
                 }
 
                 // Build a transient card for credit assignment
                 let card = progress.to_session_card();
-                let updates = engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
+                let updates =
+                    engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
 
                 let failed: Vec<NodeId> = grades
                     .iter()
@@ -275,21 +352,40 @@ impl Session {
 
                 if failed.is_empty() {
                     progress.advance();
-                    if !matches!(progress.stage, RevealStage::Complete) {
+                    if matches!(progress.stage, RevealStage::Complete) {
+                        // Progressive reveal done — transition all cards for this
+                        // verse from New/Learning to Review
+                        for card in &mut engine.cards {
+                            if card_overlaps_verse(card, &progress.verse_phrases)
+                                && (card.state == CardState::New
+                                    || card.state == CardState::Learning)
+                            {
+                                card.state = CardState::Review;
+                            }
+                        }
+                    } else {
                         self.queue.push_front(SessionEntry::NewVerse(progress));
                     }
-                    ReviewOutcome { edge_updates: updates, redrills_inserted: 0 }
+                    ReviewOutcome {
+                        edge_updates: updates,
+                        redrills_inserted: 0,
+                    }
                 } else {
                     // Insert re-drills for failed phrases, then retry current stage
                     let redrills = self.insert_redrills_from_context(
                         &failed,
                         progress.verse_ref,
                         &progress.verse_phrases,
+                        None,
                     );
                     // Re-queue current stage after re-drills
                     let insert_pos = redrills.min(self.queue.len());
-                    self.queue.insert(insert_pos, SessionEntry::NewVerse(progress));
-                    ReviewOutcome { edge_updates: updates, redrills_inserted: redrills }
+                    self.queue
+                        .insert(insert_pos, SessionEntry::NewVerse(progress));
+                    ReviewOutcome {
+                        edge_updates: updates,
+                        redrills_inserted: redrills,
+                    }
                 }
             }
         }
@@ -299,6 +395,7 @@ impl Session {
         &mut self,
         grades: &HashMap<NodeId, Grade>,
         engine: &ReviewEngine,
+        origin_card: Option<CardId>,
     ) -> usize {
         let failed: Vec<NodeId> = grades
             .iter()
@@ -310,13 +407,36 @@ impl Session {
             return 0;
         }
 
-        // Find verse context for the first failed atom
         let (verse_ref, verse_phrases) = match engine.graph.verse_context(failed[0]) {
             Some(ctx) => ctx,
             None => return 0,
         };
 
-        self.insert_redrills_from_context(&failed, verse_ref, &verse_phrases)
+        self.insert_redrills_from_context(&failed, verse_ref, &verse_phrases, origin_card)
+    }
+
+    fn prune_no_longer_due(&mut self, engine: &ReviewEngine, now_secs: i64) {
+        self.queue.retain(|entry| match entry {
+            SessionEntry::Scheduled(card_id) => {
+                engine
+                    .card(*card_id)
+                    .is_some_and(|c| c.state == CardState::Review)
+                    && engine
+                        .card_schedule(*card_id)
+                        .is_some_and(|s| s.due_date_secs <= now_secs)
+            }
+            _ => true,
+        });
+    }
+
+    fn transition_relearning_to_review(&self, redrill: &ReDrill, engine: &mut ReviewEngine) {
+        if let Some(card_id) = redrill.origin_card
+            && engine
+                .card(card_id)
+                .is_some_and(|c| c.state == CardState::Relearning)
+        {
+            engine.set_card_state(card_id, CardState::Review);
+        }
     }
 
     fn insert_redrills_from_context(
@@ -324,6 +444,7 @@ impl Session {
         failed: &[NodeId],
         verse_ref: NodeId,
         verse_phrases: &[NodeId],
+        origin_card: Option<CardId>,
     ) -> usize {
         let total_hidden = verse_phrases.len().max(1);
         let fail_ratio = failed.len() as f32 / total_hidden as f32;
@@ -333,6 +454,7 @@ impl Session {
                 kind: ReDrillKind::FullRecitation,
                 verse_ref,
                 verse_phrases: verse_phrases.to_vec(),
+                origin_card,
             }]
         } else {
             failed
@@ -341,6 +463,7 @@ impl Session {
                     kind: ReDrillKind::FillInBlank { target_atom: atom },
                     verse_ref,
                     verse_phrases: verse_phrases.to_vec(),
+                    origin_card,
                 })
                 .collect()
         };
@@ -365,7 +488,6 @@ impl NewVerseProgress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::card::Card;
     use crate::edge::{EdgeKind, EdgeState};
     use crate::node::NodeKind;
 
@@ -373,13 +495,35 @@ mod tests {
 
     fn build_verse_engine() -> (ReviewEngine, NodeId, NodeId, NodeId, NodeId, NodeId) {
         let mut g = crate::graph::Graph::new();
-        let r = g.add_node(NodeKind::Reference { chapter: 3, verse: 16 });
-        let v = g.add_node(NodeKind::VerseGist { chapter: 3, verse: 16 });
-        let p1 = g.add_node(NodeKind::Phrase { text: "phrase one".into(), verse_id: 0, position: 0 });
-        let p2 = g.add_node(NodeKind::Phrase { text: "phrase two".into(), verse_id: 0, position: 1 });
-        let p3 = g.add_node(NodeKind::Phrase { text: "phrase three".into(), verse_id: 0, position: 2 });
+        let r = g.add_node(NodeKind::Reference {
+            chapter: 3,
+            verse: 16,
+        });
+        let v = g.add_node(NodeKind::VerseGist {
+            chapter: 3,
+            verse: 16,
+        });
+        let p1 = g.add_node(NodeKind::Phrase {
+            text: "phrase one".into(),
+            verse_id: 0,
+            position: 0,
+        });
+        let p2 = g.add_node(NodeKind::Phrase {
+            text: "phrase two".into(),
+            verse_id: 0,
+            position: 1,
+        });
+        let p3 = g.add_node(NodeKind::Phrase {
+            text: "phrase three".into(),
+            verse_id: 0,
+            position: 2,
+        });
 
-        let state = EdgeState { stability: 5.0, difficulty: 5.0, last_review_secs: 0 };
+        let state = EdgeState {
+            stability: 5.0,
+            difficulty: 5.0,
+            last_review_secs: 0,
+        };
         g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
@@ -387,7 +531,12 @@ mod tests {
         g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
         g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p2, p3, state);
 
-        let full = Card { id: CardId(0), shown: vec![r], hidden: vec![p1, p2, p3] };
+        let full = Card {
+            id: CardId(0),
+            shown: vec![r],
+            hidden: vec![p1, p2, p3],
+            state: CardState::Review,
+        };
         let engine = ReviewEngine::new(g, vec![full], 0.9);
         (engine, r, v, p1, p2, p3)
     }
@@ -403,9 +552,12 @@ mod tests {
     #[test]
     fn redrill_fill_in_blank_construction() {
         let rd = ReDrill {
-            kind: ReDrillKind::FillInBlank { target_atom: NodeId(3) },
+            kind: ReDrillKind::FillInBlank {
+                target_atom: NodeId(3),
+            },
             verse_ref: NodeId(0),
             verse_phrases: vec![NodeId(2), NodeId(3), NodeId(4)],
+            origin_card: None,
         };
         let card = rd.to_session_card();
         assert_eq!(card.hidden, vec![NodeId(3)]);
@@ -453,8 +605,8 @@ mod tests {
 
     #[test]
     fn session_with_due_cards() {
-        let (engine, _, _, p1, p2, p3) = build_verse_engine();
-        let mut session = Session::new(&engine, 30 * DAY, SessionParams::default(), &[]);
+        let (mut engine, _, _, p1, p2, p3) = build_verse_engine();
+        let mut session = Session::new(&mut engine, 30 * DAY, SessionParams::default(), &[]);
 
         // At 30 days, cards should be due
         assert!(!session.is_done());
@@ -465,17 +617,16 @@ mod tests {
     #[test]
     fn session_inserts_redrill_on_lapse() {
         let (mut engine, _, _, p1, p2, p3) = build_verse_engine();
-        let mut session = Session::new(&engine, 30 * DAY, SessionParams::default(), &[]);
+        let mut session = Session::new(&mut engine, 30 * DAY, SessionParams::default(), &[]);
 
         let _card = session.next().unwrap();
-        let grades = HashMap::from([
-            (p1, Grade::Good),
-            (p2, Grade::Again),
-            (p3, Grade::Good),
-        ]);
+        let grades = HashMap::from([(p1, Grade::Good), (p2, Grade::Again), (p3, Grade::Good)]);
         let outcome = session.record_review(grades, &mut engine, 30 * DAY);
 
-        assert!(outcome.redrills_inserted > 0, "should insert re-drill for p2");
+        assert!(
+            outcome.redrills_inserted > 0,
+            "should insert re-drill for p2"
+        );
         assert!(!session.is_done(), "session should have re-drill in queue");
     }
 
@@ -486,7 +637,7 @@ mod tests {
             verse_ref: r,
             verse_phrases: vec![p1, p2, p3],
         };
-        let mut session = Session::new(&engine, 0, SessionParams::default(), &[new_verse]);
+        let mut session = Session::new(&mut engine, 0, SessionParams::default(), &[new_verse]);
 
         // First card should be reading
         let card = session.next().unwrap();
@@ -516,5 +667,51 @@ mod tests {
         let verse_phrases = vec![NodeId(2), NodeId(3), NodeId(4)];
         let ratio = failed.len() as f32 / verse_phrases.len() as f32;
         assert!(ratio > 0.5); // 2/3 > 0.5 → full recitation
+    }
+
+    #[test]
+    fn abort_rolls_back_learning_to_new() {
+        let (mut engine, r, _, p1, p2, p3) = build_verse_engine();
+        engine.cards[0].state = CardState::New;
+
+        let new_verse = NewVerseInfo {
+            verse_ref: r,
+            verse_phrases: vec![p1, p2, p3],
+        };
+        let session = Session::new(&mut engine, 0, SessionParams::default(), &[new_verse]);
+
+        assert_eq!(engine.cards[0].state, CardState::Learning);
+
+        session.abort(&mut engine);
+
+        assert_eq!(engine.cards[0].state, CardState::New);
+    }
+
+    #[test]
+    fn abort_mid_session_rolls_back_learning() {
+        let (mut engine, r, _, p1, p2, p3) = build_verse_engine();
+        engine.cards[0].state = CardState::New;
+
+        let new_verse = NewVerseInfo {
+            verse_ref: r,
+            verse_phrases: vec![p1, p2, p3],
+        };
+        let mut session = Session::new(&mut engine, 0, SessionParams::default(), &[new_verse]);
+
+        assert_eq!(engine.cards[0].state, CardState::Learning);
+
+        // Complete the reading stage (pops the NewVerse entry from queue)
+        let _card = session.next().unwrap();
+        session.record_review(HashMap::new(), &mut engine, 0);
+
+        // NewVerse entry was popped and re-queued at FillInBlank stage,
+        // but abort should still roll back because it uses introduced_verses
+        session.abort(&mut engine);
+
+        assert_eq!(
+            engine.cards[0].state,
+            CardState::New,
+            "abort should roll back even after partial progress"
+        );
     }
 }
