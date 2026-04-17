@@ -224,7 +224,7 @@ fn path_r_at(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, at_secs: i64) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::card::Card;
+    use crate::card::{Card, CardState};
     use crate::edge::{EdgeKind, EdgeState};
     use crate::node::NodeKind;
     use crate::types::CardId;
@@ -267,6 +267,7 @@ mod tests {
             id: CardId(0),
             shown: vec![r],
             hidden: vec![p1, p2],
+            state: CardState::Review,
         };
 
         (g, card)
@@ -402,11 +403,13 @@ mod tests {
             id: CardId(0),
             shown: vec![r],
             hidden: phrases.clone(),
+            state: crate::card::CardState::Review,
         };
         let fill_in = Card {
             id: CardId(1),
             shown: vec![r, phrases[0], phrases[2], phrases[3]],
             hidden: vec![phrases[1]],
+            state: crate::card::CardState::Review,
         };
 
         let params = ScheduleParams::default();

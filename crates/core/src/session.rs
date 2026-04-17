@@ -4,6 +4,7 @@ use crate::credit::EdgeUpdate;
 use crate::engine::ReviewEngine;
 use crate::types::{CardId, Grade, NodeId};
 
+#[derive(Clone)]
 pub struct SessionParams {
     pub max_session_size: usize,
     pub max_new_verses: usize,
@@ -185,11 +186,16 @@ impl Session {
     ) -> Self {
         let mut queue = VecDeque::new();
 
-        // Add due cards sorted by priority
+        // Add due Review cards sorted by priority (skip New/Learning/Relearning)
         let mut due: Vec<_> = engine
             .schedules
             .iter()
-            .filter(|s| s.due_date_secs <= now_secs)
+            .filter(|s| {
+                s.due_date_secs <= now_secs
+                    && engine
+                        .card(s.card_id)
+                        .is_some_and(|c| c.state == crate::card::CardState::Review)
+            })
             .collect();
         due.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap());
 
@@ -264,6 +270,7 @@ impl Session {
             SessionEntry::Scheduled(card_id) => {
                 let updates = engine.review(card_id, grades.clone(), now_secs);
                 let redrills = self.insert_redrills_for_failures(&grades, engine);
+                self.prune_no_longer_due(engine, now_secs);
                 ReviewOutcome {
                     edge_updates: updates,
                     redrills_inserted: redrills,
@@ -274,6 +281,7 @@ impl Session {
                 let updates =
                     engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
                 let redrills = self.insert_redrills_for_failures(&grades, engine);
+                self.prune_no_longer_due(engine, now_secs);
                 ReviewOutcome {
                     edge_updates: updates,
                     redrills_inserted: redrills,
@@ -303,7 +311,25 @@ impl Session {
 
                 if failed.is_empty() {
                     progress.advance();
-                    if !matches!(progress.stage, RevealStage::Complete) {
+                    if matches!(progress.stage, RevealStage::Complete) {
+                        // Progressive reveal done — transition all cards for this
+                        // verse from New/Learning to Review
+                        for card in &mut engine.cards {
+                            if (card
+                                .hidden
+                                .iter()
+                                .any(|h| progress.verse_phrases.contains(h))
+                                || card
+                                    .shown
+                                    .iter()
+                                    .any(|s| progress.verse_phrases.contains(s)))
+                                && (card.state == crate::card::CardState::New
+                                    || card.state == crate::card::CardState::Learning)
+                            {
+                                card.state = crate::card::CardState::Review;
+                            }
+                        }
+                    } else {
                         self.queue.push_front(SessionEntry::NewVerse(progress));
                     }
                     ReviewOutcome {
@@ -354,6 +380,15 @@ impl Session {
         self.insert_redrills_from_context(&failed, verse_ref, &verse_phrases)
     }
 
+    fn prune_no_longer_due(&mut self, engine: &ReviewEngine, now_secs: i64) {
+        self.queue.retain(|entry| match entry {
+            SessionEntry::Scheduled(card_id) => engine
+                .card_schedule(*card_id)
+                .is_none_or(|s| s.due_date_secs <= now_secs),
+            _ => true,
+        });
+    }
+
     fn insert_redrills_from_context(
         &mut self,
         failed: &[NodeId],
@@ -400,7 +435,7 @@ impl NewVerseProgress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::card::Card;
+    use crate::card::{Card, CardState};
     use crate::edge::{EdgeKind, EdgeState};
     use crate::node::NodeKind;
 
@@ -448,6 +483,7 @@ mod tests {
             id: CardId(0),
             shown: vec![r],
             hidden: vec![p1, p2, p3],
+            state: CardState::Review,
         };
         let engine = ReviewEngine::new(g, vec![full], 0.9);
         (engine, r, v, p1, p2, p3)

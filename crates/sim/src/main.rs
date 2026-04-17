@@ -1,14 +1,17 @@
 mod learner;
 mod metrics;
 
+use std::collections::HashMap;
+use std::fs;
+
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
+use verse_vault_core::builder;
 use verse_vault_core::card::Card;
-use verse_vault_core::edge::{EdgeKind, EdgeState};
+use verse_vault_core::card_types::CardTypesConfig;
+use verse_vault_core::content::MaterialData;
 use verse_vault_core::engine::ReviewEngine;
-use verse_vault_core::graph::Graph;
-use verse_vault_core::node::NodeKind;
 use verse_vault_core::session::{NewVerseInfo, Session, SessionCardSource, SessionParams};
 use verse_vault_core::types::{CardId, NodeId};
 
@@ -18,55 +21,132 @@ use crate::metrics::{Prediction, auc, log_loss, rmse_binned};
 const DAY: i64 = 86400;
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let data_path = args
+        .get(1)
+        .map(|s| s.as_str())
+        .unwrap_or("data/corinthians.json");
+    let chapter_filter: Option<u16> = args.get(2).and_then(|s| s.parse().ok());
+    let days: i64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(60);
+
     println!("=== Verse-Vault Simulation ===\n");
-    run_single_verse_scenario();
+
+    if let Err(e) = run(data_path, chapter_filter, days) {
+        eprintln!("Error: {e}");
+        eprintln!("Usage: verse-vault-sim [data.json] [chapter] [days]");
+        eprintln!("  e.g.: verse-vault-sim data/corinthians.json 13 60");
+        std::process::exit(1);
+    }
 }
 
-fn run_single_verse_scenario() {
-    println!("--- Single Verse Scenario (with Session) ---");
-    println!("1 verse, 3 phrases, 90 days, progressive reveal + re-drills\n");
+fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), String> {
+    // Load data
+    let json_str =
+        fs::read_to_string(data_path).map_err(|e| format!("Can't read {data_path}: {e}"))?;
+    let mut data: MaterialData =
+        MaterialData::from_json(&json_str).map_err(|e| format!("Bad JSON: {e}"))?;
 
-    let (graph, cards, hidden_atoms, verse_ref, verse_phrases) = build_single_verse();
-    let mut engine = ReviewEngine::new(graph, cards, 0.9);
+    if let Some(ch) = chapter_filter {
+        data.verses.retain(|v| v.chapter == ch);
+        data.chapters.retain(|c| c.number == ch);
+        data.headings
+            .retain(|h| h.start_chapter <= ch && h.end_chapter >= ch);
+    }
 
-    let seed = 42u64;
-    let rng = StdRng::seed_from_u64(seed);
+    let verse_count = data.verses_with_text().count();
+    if verse_count == 0 {
+        return Err("No verses with text found".into());
+    }
+
+    println!(
+        "Material: {} verses{}",
+        verse_count,
+        chapter_filter
+            .map(|ch| format!(" (chapter {ch})"))
+            .unwrap_or_default()
+    );
+
+    // Build graph
+    let card_types = CardTypesConfig::from_toml(include_str!("../../core/card_types.toml"))
+        .map_err(|e| format!("Bad TOML: {e}"))?;
+
+    let result = builder::build(&data, &card_types, 0);
+    println!(
+        "Graph: {} nodes, {} edges, {} cards\n",
+        result.graph.node_count(),
+        result.graph.edge_count(),
+        result.cards.len()
+    );
+
+    let new_verse_infos: Vec<NewVerseInfo> = result
+        .verse_atoms
+        .iter()
+        .map(|va| NewVerseInfo {
+            verse_ref: va.ref_node,
+            verse_phrases: va.phrases.clone(),
+        })
+        .collect();
+
+    let mut engine = ReviewEngine::new(result.graph, result.cards, 0.9);
+
+    // Simulated learner
+    let rng = StdRng::seed_from_u64(42);
     let mut learner = SimulatedLearner::new(rng, 0.9);
-    learner.initialize_atoms(&hidden_atoms, 3.0);
+    let all_atoms: Vec<NodeId> = new_verse_infos
+        .iter()
+        .flat_map(|nv| nv.verse_phrases.iter().copied())
+        .collect();
+    learner.initialize_atoms(&all_atoms, 3.0);
 
+    // Run simulation
     let mut total_reviews = 0u32;
+    let mut total_passes = 0u32;
+    let mut total_fails = 0u32;
+    let mut verses_introduced = 0usize;
     let mut predictions: Vec<Prediction> = Vec::new();
+    let mut active_days = 0u32;
 
-    for day in 0..90 {
-        let now = day as i64 * DAY;
+    let session_params = SessionParams {
+        max_session_size: 30,
+        max_new_verses: 3,
+        fail_ratio_for_full_recitation: 0.5,
+    };
 
-        // Build a session for this day
-        let new_verses = if day == 0 {
-            vec![NewVerseInfo {
-                verse_ref,
-                verse_phrases: verse_phrases.clone(),
-            }]
-        } else {
-            vec![]
-        };
+    println!("Day  Reviews  Pass  Fail  Verses  Notes");
+    println!("{}", "-".repeat(55));
 
-        let mut session = Session::new(&engine, now, SessionParams::default(), &new_verses);
+    for day in 0..days {
+        let now = day * DAY;
 
-        if session.is_done() {
+        let new_verses: Vec<NewVerseInfo> = new_verse_infos
+            .iter()
+            .skip(verses_introduced)
+            .take(session_params.max_new_verses)
+            .map(|nv| NewVerseInfo {
+                verse_ref: nv.verse_ref,
+                verse_phrases: nv.verse_phrases.clone(),
+            })
+            .collect();
+
+        let new_count = new_verses.len();
+        let mut session = Session::new(&engine, now, session_params.clone(), &new_verses);
+
+        if session.is_done() && new_count == 0 {
             continue;
         }
 
         let mut day_reviews = 0u32;
+        let mut day_passes = 0u32;
+        let mut day_fails = 0u32;
+        let mut day_redrills = 0u32;
 
         while let Some(card) = session.next() {
             if card.is_reading {
-                // Reading stage: no grading, just advance
-                session.record_review(std::collections::HashMap::new(), &mut engine, now);
+                session.record_review(HashMap::new(), &mut engine, now);
                 day_reviews += 1;
                 continue;
             }
 
-            // For scheduled cards, get the actual shown/hidden from engine
             let (shown, hidden) = match &card.source {
                 SessionCardSource::Scheduled(card_id) => {
                     let c = engine.card(*card_id).unwrap();
@@ -76,134 +156,126 @@ fn run_single_verse_scenario() {
             };
 
             if hidden.is_empty() {
-                session.record_review(std::collections::HashMap::new(), &mut engine, now);
+                session.record_review(HashMap::new(), &mut engine, now);
                 day_reviews += 1;
                 continue;
             }
 
-            // Record prediction before review
-            let card_id_for_sched = match &card.source {
-                SessionCardSource::Scheduled(id) => {
-                    engine.card_schedule(*id).map(|s| s.due_r.clamp(0.01, 0.99))
-                }
-                _ => None,
+            let predicted_r = match &card.source {
+                SessionCardSource::Scheduled(id) => engine
+                    .card_schedule(*id)
+                    .map(|s| s.due_r.clamp(0.01, 0.99))
+                    .unwrap_or(0.5),
+                _ => 0.5,
             };
-            let predicted_r = card_id_for_sched.unwrap_or(0.5);
 
-            // Learner reviews using a transient card
             let temp_card = Card {
                 id: CardId(9999),
-                shown: shown.clone(),
-                hidden: hidden.clone(),
+                shown,
+                hidden,
+                state: verse_vault_core::card::CardState::Review,
             };
             let grades = learner.review(&engine.graph, &temp_card, now);
-
             let all_passed = grades.values().all(|g| g.is_pass());
+
             predictions.push(Prediction {
                 predicted_r,
                 actual_pass: all_passed,
             });
 
-            // Record to session (handles re-drills, progressive reveal)
             let outcome = session.record_review(grades.clone(), &mut engine, now);
-
             learner.update_true_state(&grades);
+
             day_reviews += 1;
+            if all_passed {
+                day_passes += 1;
+            } else {
+                day_fails += 1;
+            }
+            day_redrills += outcome.redrills_inserted as u32;
 
-            let pass_count = grades.values().filter(|g| g.is_pass()).count();
-            let total = grades.len();
-            let card_type = match &card.source {
-                SessionCardSource::Scheduled(_) => "sched",
-                SessionCardSource::ReDrill => "drill",
-                SessionCardSource::NewVerse => "new  ",
-            };
-            println!(
-                "  Day {day:3} [{card_type}]: {pass_count}/{total} passed{}",
-                if outcome.redrills_inserted > 0 {
-                    format!(" (+{} re-drills)", outcome.redrills_inserted)
-                } else {
-                    String::new()
-                }
-            );
-
-            if day_reviews > 20 {
-                break; // safety cap
+            if day_reviews > 50 {
+                break;
             }
         }
 
+        verses_introduced += new_count;
         total_reviews += day_reviews;
+        total_passes += day_passes;
+        total_fails += day_fails;
+        active_days += 1;
+
+        let notes = if new_count > 0 {
+            format!("+{new_count} new")
+        } else {
+            String::new()
+        };
+        let drill_note = if day_redrills > 0 {
+            format!(" +{day_redrills}drill")
+        } else {
+            String::new()
+        };
+
+        println!(
+            "{:3}  {:7}  {:4}  {:4}  {:6}  {notes}{drill_note}",
+            day, day_reviews, day_passes, day_fails, verses_introduced,
+        );
     }
 
-    println!("\n--- Results ---");
-    println!("Total reviews: {total_reviews}");
-    println!("Predictions recorded: {}", predictions.len());
+    // Summary
+    println!("\n{}", "=".repeat(55));
+    println!("SUMMARY");
+    println!("{}", "=".repeat(55));
+    println!("  Days simulated:    {days}");
+    println!("  Active days:       {active_days}");
+    println!("  Verses introduced: {verses_introduced}/{verse_count}");
+    println!("  Total reviews:     {total_reviews}");
+    println!(
+        "  Pass rate:         {:.1}%",
+        if total_passes + total_fails > 0 {
+            total_passes as f64 / (total_passes + total_fails) as f64 * 100.0
+        } else {
+            0.0
+        }
+    );
+    println!(
+        "  Avg reviews/day:   {:.1}",
+        if active_days > 0 {
+            total_reviews as f64 / active_days as f64
+        } else {
+            0.0
+        }
+    );
 
     if !predictions.is_empty() {
-        println!("Log loss:  {:.4}", log_loss(&predictions));
-        println!("AUC:       {:.4}", auc(&predictions));
-        println!("RMSE:      {:.4}", rmse_binned(&predictions));
+        println!("\nPREDICTION QUALITY");
+        println!("  Log loss:  {:.4}", log_loss(&predictions));
+        println!("  AUC:       {:.4}", auc(&predictions));
+        println!("  RMSE:      {:.4}", rmse_binned(&predictions));
+        println!("  ({} predictions)", predictions.len());
     }
 
-    println!("\nFinal edge stabilities:");
-    for edge in engine.graph.edges() {
-        if let Some(state) = &edge.state
-            && state.stability > 0.01
-        {
-            let kind = format!("{:?}", edge.kind);
-            println!(
-                "  {}: S={:.2}, D={:.2}",
-                kind, state.stability, state.difficulty
-            );
-        }
+    let mut stabilities: Vec<f32> = engine
+        .graph
+        .edges()
+        .filter_map(|e| e.state.map(|s| s.stability))
+        .filter(|&s| s > 0.01)
+        .collect();
+    stabilities.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    if !stabilities.is_empty() {
+        let n = stabilities.len();
+        println!("\nEDGE STABILITY");
+        println!(
+            "  min={:.1}  p25={:.1}  median={:.1}  p75={:.1}  max={:.1}",
+            stabilities[0],
+            stabilities[n / 4],
+            stabilities[n / 2],
+            stabilities[n * 3 / 4],
+            stabilities[n - 1],
+        );
+        println!("  {} learnable edges", n);
     }
-}
 
-fn build_single_verse() -> (Graph, Vec<Card>, Vec<NodeId>, NodeId, Vec<NodeId>) {
-    let mut g = Graph::new();
-    let r = g.add_node(NodeKind::Reference {
-        chapter: 3,
-        verse: 16,
-    });
-    let v = g.add_node(NodeKind::VerseGist {
-        chapter: 3,
-        verse: 16,
-    });
-    let p1 = g.add_node(NodeKind::Phrase {
-        text: "For God so loved the world,".into(),
-        verse_id: 0,
-        position: 0,
-    });
-    let p2 = g.add_node(NodeKind::Phrase {
-        text: "that he gave his only begotten Son,".into(),
-        verse_id: 0,
-        position: 1,
-    });
-    let p3 = g.add_node(NodeKind::Phrase {
-        text: "that whosoever believeth in him".into(),
-        verse_id: 0,
-        position: 2,
-    });
-
-    let state = EdgeState {
-        stability: 1.0,
-        difficulty: 5.0,
-        last_review_secs: 0,
-    };
-    g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
-    g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
-    g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
-    g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p3, v, state);
-    g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
-    g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p2, p3, state);
-
-    let full = Card {
-        id: CardId(0),
-        shown: vec![r],
-        hidden: vec![p1, p2, p3],
-    };
-
-    let hidden_atoms = vec![p1, p2, p3, r];
-    let verse_phrases = vec![p1, p2, p3];
-
-    (g, vec![full], hidden_atoms, r, verse_phrases)
+    Ok(())
 }

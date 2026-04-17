@@ -31,7 +31,7 @@ fn build_graph_from_corinthians() {
     let verses_with_text = data.verses_with_text().count();
     println!("Verses with text: {verses_with_text}");
 
-    let result = builder::build(&data, &card_types);
+    let result = builder::build(&data, &card_types, 0);
 
     println!("Nodes: {}", result.graph.node_count());
     println!("Edges: {}", result.graph.edge_count());
@@ -98,7 +98,7 @@ fn engine_from_corinthians() {
         }
     };
 
-    let result = builder::build(&data, &card_types);
+    let result = builder::build(&data, &card_types, 0);
     let engine = ReviewEngine::new(result.graph, result.cards, 0.9);
 
     println!("Schedules: {}", engine.schedules.len());

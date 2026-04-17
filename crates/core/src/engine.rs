@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::card::{Card, CardSchedule};
+use crate::card::{Card, CardSchedule, CardState};
 use crate::cascade::{self, EdgeCardMapping};
 use crate::credit::{self, CreditParams, EdgeUpdate, ReviewResult};
 use crate::fsrs_bridge::FsrsBridge;
@@ -42,7 +42,14 @@ impl ReviewEngine {
     pub fn next_card(&self, now_secs: i64) -> Option<&CardSchedule> {
         self.schedules
             .iter()
-            .filter(|s| s.due_date_secs <= now_secs)
+            .filter(|s| {
+                s.due_date_secs <= now_secs
+                    && self
+                        .cards
+                        .iter()
+                        .find(|c| c.id == s.card_id)
+                        .is_some_and(|c| c.state == CardState::Review)
+            })
             .max_by(|a, b| a.priority.partial_cmp(&b.priority).unwrap())
     }
 
@@ -190,6 +197,13 @@ impl ReviewEngine {
         self.cards.iter().find(|c| c.id == id)
     }
 
+    /// Set a card's state.
+    pub fn set_card_state(&mut self, id: CardId, state: CardState) {
+        if let Some(card) = self.cards.iter_mut().find(|c| c.id == id) {
+            card.state = state;
+        }
+    }
+
     /// Get schedule for a card by ID.
     pub fn card_schedule(&self, id: CardId) -> Option<&CardSchedule> {
         self.schedules.iter().find(|s| s.card_id == id)
@@ -258,16 +272,19 @@ mod tests {
             id: CardId(0),
             shown: vec![r],
             hidden: vec![p1, p2, p3],
+            state: CardState::Review,
         };
         let fill_p2 = Card {
             id: CardId(1),
             shown: vec![r, p1, p3],
             hidden: vec![p2],
+            state: CardState::Review,
         };
         let verse_to_ref = Card {
             id: CardId(2),
             shown: vec![p1, p2, p3],
             hidden: vec![r],
+            state: CardState::Review,
         };
 
         (g, vec![full, fill_p2, verse_to_ref], r, v, p1, p2, p3)

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::card::Card;
+use crate::card::{Card, CardState};
 use crate::card_types::{AtomRole, CardTypeDef, CardTypesConfig, parse_role};
 use crate::content::MaterialData;
 use crate::edge::{EdgeKind, EdgeState};
@@ -10,13 +10,14 @@ use crate::types::{CardId, NodeId};
 
 const INITIAL_STABILITY: f32 = 1.0;
 const INITIAL_DIFFICULTY: f32 = 5.0;
+const INITIAL_AGE_DAYS: i64 = 365;
 const FTV_MAX_WORDS: usize = 5;
 
-fn initial_state() -> EdgeState {
+fn initial_state(now_secs: i64) -> EdgeState {
     EdgeState {
         stability: INITIAL_STABILITY,
         difficulty: INITIAL_DIFFICULTY,
-        last_review_secs: 0,
+        last_review_secs: now_secs - INITIAL_AGE_DAYS * 86400,
     }
 }
 
@@ -40,9 +41,10 @@ pub struct BuildResult {
 }
 
 /// Build a graph and card catalog from content data and card type definitions.
-pub fn build(data: &MaterialData, card_types: &CardTypesConfig) -> BuildResult {
+/// `now_secs` is used to set initial edge last_review to `now - 365 days`.
+pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -> BuildResult {
     let mut graph = Graph::new();
-    let state = initial_state();
+    let state = initial_state(now_secs);
 
     // Chapter gist + ref nodes
     let mut chapter_gists: HashMap<(String, u16), NodeId> = HashMap::new();
@@ -354,7 +356,12 @@ fn resolve_card(
 
     let id = CardId(*next_id);
     *next_id += 1;
-    Some(Card { id, shown, hidden })
+    Some(Card {
+        id,
+        shown,
+        hidden,
+        state: CardState::New,
+    })
 }
 
 fn resolve_roles(
@@ -455,7 +462,7 @@ mod tests {
     fn builds_graph_from_content() {
         let data = test_data();
         let card_types = test_card_types();
-        let result = build(&data, &card_types);
+        let result = build(&data, &card_types, 0);
 
         // 3 verses × (ref + gist + 2 phrases) + chapter gist + chapter ref + heading + FTV nodes + club entries
         assert!(
@@ -474,7 +481,7 @@ mod tests {
     fn generates_cards_from_types() {
         let data = test_data();
         let card_types = test_card_types();
-        let result = build(&data, &card_types);
+        let result = build(&data, &card_types, 0);
 
         // Each verse with 2 phrases should get: full_recitation, 2x fill_in_blank,
         // first_phrase_to_rest, verse_to_ref = 5 cards. Plus FTV, heading cards.
@@ -496,7 +503,7 @@ mod tests {
     fn verse_context_works_on_built_graph() {
         let data = test_data();
         let card_types = test_card_types();
-        let result = build(&data, &card_types);
+        let result = build(&data, &card_types, 0);
 
         let atoms = &result.verse_atoms[0];
         let (ref_id, phrases) = result.graph.verse_context(atoms.phrases[0]).unwrap();
@@ -508,7 +515,7 @@ mod tests {
     fn club_entries_created() {
         let data = test_data();
         let card_types = test_card_types();
-        let result = build(&data, &card_types);
+        let result = build(&data, &card_types, 0);
 
         // Verse 1 is in club 150 and 300
         let club_nodes: Vec<_> = result
@@ -527,7 +534,7 @@ mod tests {
     fn ftv_nodes_created() {
         let data = test_data();
         let card_types = test_card_types();
-        let result = build(&data, &card_types);
+        let result = build(&data, &card_types, 0);
 
         let ftv_nodes: Vec<_> = result
             .graph
@@ -542,7 +549,7 @@ mod tests {
     fn heading_edges_created() {
         let data = test_data();
         let card_types = test_card_types();
-        let result = build(&data, &card_types);
+        let result = build(&data, &card_types, 0);
 
         // All 3 verses should have verse_gist → heading edges
         let heading_edges: Vec<_> = result
