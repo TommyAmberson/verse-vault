@@ -134,11 +134,29 @@ For each edge between shown atoms where R(edge) < target_retention:
 This captures the real but small reinforcement from seeing phrases in order during a verse→ref
 card, or seeing surrounding context during a fill-in-the-blank.
 
-### Step 6: Apply FSRS updates
+### Step 6: Reverse reinforcement (fallback only)
+
+For bidirectional edges, engaging with one direction weakly reinforces the reverse. But
+only as a **fallback** — if the reverse direction already received credit, blame, or
+exposure from the current review, no reverse bonus is added.
+
+```
+After steps 1–5, for each directed edge B→A that received NO update this review:
+  If the reverse edge A→B DID receive an update with weight w and grade G:
+    B→A gets: weight β × w, grade G
+```
+
+This avoids double-counting. For edges between two correctly-recalled hidden atoms, both
+directions already get primary credit through source set expansion (p1 sources p2 AND p2
+sources p1) — reverse reinforcement doesn't apply. It only kicks in for edges where one
+direction was exercised but the reverse was not on any path.
+
+### Step 7: Apply FSRS updates
 
 ```
 total_weight = Σ (credit or blame from all observations involving this edge)
              + exposure_weight (if applicable)
+             + reverse_reinforcement_weight (if applicable, and only if no other update)
 grade = weighted blend of grades from observations
 
 S_new = interpolate(S_old, S_fsrs(grade), total_weight)
