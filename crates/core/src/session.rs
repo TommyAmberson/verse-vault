@@ -248,14 +248,8 @@ impl Session {
                     if card.state != crate::card::CardState::Learning {
                         continue;
                     }
-                    let overlaps = card
-                        .hidden
-                        .iter()
-                        .any(|h| nv.verse_phrases.contains(h))
-                        || card
-                            .shown
-                            .iter()
-                            .any(|s| nv.verse_phrases.contains(s));
+                    let overlaps = card.hidden.iter().any(|h| nv.verse_phrases.contains(h))
+                        || card.shown.iter().any(|s| nv.verse_phrases.contains(s));
                     if overlaps {
                         card.state = crate::card::CardState::New;
                     }
