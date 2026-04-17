@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn parse_card_types_toml() {
-        let toml_str = include_str!("../../../data/card_types.toml");
+        let toml_str = include_str!("../card_types.toml");
         let config = CardTypesConfig::from_toml(toml_str).unwrap();
         assert!(config.card_types.len() >= 6);
 
