@@ -71,58 +71,7 @@ impl ReviewEngine {
             grades,
         };
 
-        let updates = credit::assign_credit(
-            &self.graph,
-            &review_result,
-            &self.credit_params,
-            &self.fsrs,
-            now_secs,
-        );
-
-        // Group updates by edge and apply
-        let mut edge_updates: HashMap<crate::types::EdgeId, Vec<(Grade, f32)>> = HashMap::new();
-        for u in &updates {
-            edge_updates
-                .entry(u.edge_id)
-                .or_default()
-                .push((u.grade, u.weight));
-        }
-
-        let mut updated_edge_ids = Vec::new();
-        for (edge_id, weighted_grades) in &edge_updates {
-            if let Some(edge) = self.graph.edge_mut(*edge_id)
-                && let Some(ref state) = edge.state
-            {
-                let new_state = self
-                    .fsrs
-                    .apply_weighted_update(state, weighted_grades, now_secs);
-                edge.state = Some(new_state);
-                updated_edge_ids.push(*edge_id);
-            }
-        }
-
-        // Cascade: recompute affected cards
-        let affected = self.mapping.affected_cards_for_edges(&updated_edge_ids);
-        let new_schedules = cascade::recompute_schedules(
-            &self.graph,
-            &self.cards,
-            &affected,
-            &self.fsrs,
-            now_secs,
-            &self.schedule_params,
-        );
-
-        for new_sched in new_schedules {
-            if let Some(existing) = self
-                .schedules
-                .iter_mut()
-                .find(|s| s.card_id == new_sched.card_id)
-            {
-                *existing = new_sched;
-            }
-        }
-
-        updates
+        self.apply_review(review_result, now_secs)
     }
 
     /// Process a review with a transient card (not from the catalog).
@@ -140,6 +89,10 @@ impl ReviewEngine {
             grades,
         };
 
+        self.apply_review(review_result, now_secs)
+    }
+
+    fn apply_review(&mut self, review_result: ReviewResult, now_secs: i64) -> Vec<EdgeUpdate> {
         let updates = credit::assign_credit(
             &self.graph,
             &review_result,

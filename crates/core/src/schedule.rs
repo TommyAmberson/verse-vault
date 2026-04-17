@@ -96,9 +96,34 @@ pub fn due_date(
     now_secs: i64,
     params: &ScheduleParams,
 ) -> i64 {
-    let current = due_r(graph, card, fsrs, now_secs, params);
+    // Pre-enumerate paths once; only recompute R at different timestamps.
+    let shown: HashSet<NodeId> = card.shown.iter().copied().collect();
+    let cached_paths: Vec<(NodeId, Vec<AnchorPath>)> = card
+        .hidden
+        .iter()
+        .map(|&h| (h, all_paths_for(graph, &shown, h, params)))
+        .collect();
+
+    let min_r_at = |at_secs: i64| -> f32 {
+        cached_paths
+            .iter()
+            .map(|(_, paths)| {
+                if paths.is_empty() {
+                    return 0.0;
+                }
+                let mut product = 1.0f32;
+                for ap in paths {
+                    let pr = path_r_at(graph, &ap.path.edges, fsrs, at_secs) * ap.decay_multiplier;
+                    product *= 1.0 - pr;
+                }
+                1.0 - product
+            })
+            .fold(f32::MAX, f32::min)
+    };
+
+    let current = min_r_at(now_secs);
     if current < params.target_retention {
-        return now_secs; // already due
+        return now_secs;
     }
 
     let one_hour = 3600i64;
@@ -108,8 +133,7 @@ pub fn due_date(
 
     while high - low > one_hour {
         let mid = low + (high - low) / 2;
-        let r = due_r(graph, card, fsrs, mid, params);
-        if r > params.target_retention {
+        if min_r_at(mid) > params.target_retention {
             low = mid;
         } else {
             high = mid;

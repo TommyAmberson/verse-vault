@@ -1,8 +1,14 @@
 use std::collections::{HashMap, VecDeque};
 
+use crate::card::{Card, CardState};
 use crate::credit::EdgeUpdate;
 use crate::engine::ReviewEngine;
 use crate::types::{CardId, Grade, NodeId};
+
+fn card_overlaps_verse(card: &Card, verse_phrases: &[NodeId]) -> bool {
+    card.hidden.iter().any(|h| verse_phrases.contains(h))
+        || card.shown.iter().any(|s| verse_phrases.contains(s))
+}
 
 #[derive(Clone)]
 pub struct SessionParams {
@@ -173,6 +179,7 @@ pub struct Session {
 }
 
 /// Info needed to introduce a new verse.
+#[derive(Clone)]
 pub struct NewVerseInfo {
     pub verse_ref: NodeId,
     pub verse_phrases: Vec<NodeId>,
@@ -195,7 +202,7 @@ impl Session {
                 s.due_date_secs <= now_secs
                     && engine
                         .card(s.card_id)
-                        .is_some_and(|c| c.state == crate::card::CardState::Review)
+                        .is_some_and(|c| c.state == CardState::Review)
             })
             .collect();
         due.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap());
@@ -211,11 +218,8 @@ impl Session {
         for nv in new_verses.iter().take(params.max_new_verses) {
             // Transition all cards for this verse from New → Learning
             for card in &mut engine.cards {
-                if card.state == crate::card::CardState::New
-                    && (card.hidden.iter().any(|h| nv.verse_phrases.contains(h))
-                        || card.shown.iter().any(|s| nv.verse_phrases.contains(s)))
-                {
-                    card.state = crate::card::CardState::Learning;
+                if card.state == CardState::New && card_overlaps_verse(card, &nv.verse_phrases) {
+                    card.state = CardState::Learning;
                 }
             }
             queue.push_back(SessionEntry::NewVerse(NewVerseProgress {
@@ -245,13 +249,10 @@ impl Session {
         for entry in &self.queue {
             if let SessionEntry::NewVerse(nv) = entry {
                 for card in &mut engine.cards {
-                    if card.state != crate::card::CardState::Learning {
-                        continue;
-                    }
-                    let overlaps = card.hidden.iter().any(|h| nv.verse_phrases.contains(h))
-                        || card.shown.iter().any(|s| nv.verse_phrases.contains(s));
-                    if overlaps {
-                        card.state = crate::card::CardState::New;
+                    if card.state == CardState::Learning
+                        && card_overlaps_verse(card, &nv.verse_phrases)
+                    {
+                        card.state = CardState::New;
                     }
                 }
             }
@@ -301,7 +302,7 @@ impl Session {
                 let redrills = self.insert_redrills_for_failures(&grades, engine, Some(card_id));
                 // Lapse: transition Review → Relearning
                 if has_failures {
-                    engine.set_card_state(card_id, crate::card::CardState::Relearning);
+                    engine.set_card_state(card_id, CardState::Relearning);
                 }
                 self.prune_no_longer_due(engine, now_secs);
                 ReviewOutcome {
@@ -354,18 +355,11 @@ impl Session {
                         // Progressive reveal done — transition all cards for this
                         // verse from New/Learning to Review
                         for card in &mut engine.cards {
-                            if (card
-                                .hidden
-                                .iter()
-                                .any(|h| progress.verse_phrases.contains(h))
-                                || card
-                                    .shown
-                                    .iter()
-                                    .any(|s| progress.verse_phrases.contains(s)))
-                                && (card.state == crate::card::CardState::New
-                                    || card.state == crate::card::CardState::Learning)
+                            if card_overlaps_verse(card, &progress.verse_phrases)
+                                && (card.state == CardState::New
+                                    || card.state == CardState::Learning)
                             {
-                                card.state = crate::card::CardState::Review;
+                                card.state = CardState::Review;
                             }
                         }
                     } else {
@@ -425,7 +419,7 @@ impl Session {
             SessionEntry::Scheduled(card_id) => {
                 engine
                     .card(*card_id)
-                    .is_some_and(|c| c.state == crate::card::CardState::Review)
+                    .is_some_and(|c| c.state == CardState::Review)
                     && engine
                         .card_schedule(*card_id)
                         .is_some_and(|s| s.due_date_secs <= now_secs)
@@ -435,8 +429,12 @@ impl Session {
     }
 
     fn transition_relearning_to_review(&self, redrill: &ReDrill, engine: &mut ReviewEngine) {
-        if let Some(card_id) = redrill.origin_card {
-            engine.set_card_state(card_id, crate::card::CardState::Review);
+        if let Some(card_id) = redrill.origin_card
+            && engine
+                .card(card_id)
+                .is_some_and(|c| c.state == CardState::Relearning)
+        {
+            engine.set_card_state(card_id, CardState::Review);
         }
     }
 
@@ -489,7 +487,6 @@ impl NewVerseProgress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::card::{Card, CardState};
     use crate::edge::{EdgeKind, EdgeState};
     use crate::node::NodeKind;
 

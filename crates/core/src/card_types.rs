@@ -33,9 +33,9 @@ pub enum AtomRole {
     FirstPhrase,
     RemainingPhrases,
     /// The current phrase in an iterate loop
-    Current(usize),
+    Current,
     /// All phrases except the current
-    PhrasesExceptCurrent(usize),
+    PhrasesExceptCurrent,
     Ftv,
     Heading,
     NextHeading,
@@ -56,8 +56,8 @@ pub fn parse_role(s: &str) -> Option<AtomRole> {
         "prev_heading" => Some(AtomRole::PrevHeading),
         "chapter_gist" => Some(AtomRole::ChapterGist),
         "club_refs" => Some(AtomRole::ClubRefs),
-        "$" => Some(AtomRole::Current(0)),
-        _ if s.starts_with("phrases - $") => Some(AtomRole::PhrasesExceptCurrent(0)),
+        "$" => Some(AtomRole::Current),
+        _ if s.starts_with("phrases - $") => Some(AtomRole::PhrasesExceptCurrent),
         _ => None,
     }
 }
@@ -103,7 +103,7 @@ mod tests {
         assert_eq!(parse_role("ref"), Some(AtomRole::Ref));
         assert_eq!(parse_role("phrases"), Some(AtomRole::Phrases));
         assert_eq!(parse_role("ftv"), Some(AtomRole::Ftv));
-        assert_eq!(parse_role("$"), Some(AtomRole::Current(0)));
+        assert_eq!(parse_role("$"), Some(AtomRole::Current));
         assert!(parse_role("phrases - $").is_some());
         assert!(parse_role("unknown").is_none());
     }

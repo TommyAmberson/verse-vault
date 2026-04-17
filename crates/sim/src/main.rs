@@ -122,10 +122,7 @@ fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), St
             .iter()
             .skip(verses_introduced)
             .take(session_params.max_new_verses)
-            .map(|nv| NewVerseInfo {
-                verse_ref: nv.verse_ref,
-                verse_phrases: nv.verse_phrases.clone(),
-            })
+            .cloned()
             .collect();
 
         let new_count = new_verses.len();

@@ -12,6 +12,8 @@ const INITIAL_STABILITY: f32 = 1.0;
 const INITIAL_DIFFICULTY: f32 = 5.0;
 const INITIAL_AGE_DAYS: i64 = 365;
 const FTV_MAX_WORDS: usize = 5;
+/// Upper bound on verses per chapter (Psalm 119 has 176).
+const MAX_VERSES_PER_CHAPTER: u16 = 200;
 
 fn initial_state(now_secs: i64) -> EdgeState {
     EdgeState {
@@ -48,14 +50,12 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
 
     // Chapter gist + ref nodes
     let mut chapter_gists: HashMap<(String, u16), NodeId> = HashMap::new();
-    let mut chapter_refs: HashMap<(String, u16), NodeId> = HashMap::new();
 
     for ch in &data.chapters {
         let gist = graph.add_node(NodeKind::ChapterGist { chapter: ch.number });
         let cref = graph.add_node(NodeKind::ChapterRef { chapter: ch.number });
         graph.add_bi_edge_with_state(EdgeKind::ChapterGistChapterRef, gist, cref, state);
         chapter_gists.insert((ch.book.clone(), ch.number), gist);
-        chapter_refs.insert((ch.book.clone(), ch.number), cref);
     }
 
     // Heading nodes
@@ -215,21 +215,13 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         }
 
         // Find adjacent headings for card generation
-        let next_heading = heading_node.and_then(|_| {
-            let idx = heading_nodes
-                .iter()
-                .position(|(id, _)| Some(*id) == heading_node)?;
-            heading_nodes.get(idx + 1).map(|(id, _)| *id)
-        });
-        let prev_heading = heading_node.and_then(|_| {
-            let idx = heading_nodes
-                .iter()
-                .position(|(id, _)| Some(*id) == heading_node)?;
-            if idx > 0 {
-                heading_nodes.get(idx - 1).map(|(id, _)| *id)
-            } else {
-                None
-            }
+        let heading_idx =
+            heading_node.and_then(|hid| heading_nodes.iter().position(|(id, _)| *id == hid));
+        let next_heading = heading_idx.and_then(|i| heading_nodes.get(i + 1).map(|(id, _)| *id));
+        let prev_heading = heading_idx.and_then(|i| {
+            i.checked_sub(1)
+                .and_then(|j| heading_nodes.get(j))
+                .map(|(id, _)| *id)
         });
 
         verse_atoms_list.push(VerseAtoms {
@@ -300,7 +292,7 @@ fn build_heading_lookup(
                 let end_v = if ch == h.end_chapter {
                     h.end_verse
                 } else {
-                    200
+                    MAX_VERSES_PER_CHAPTER
                 };
                 for v in start_v..=end_v {
                     lookup.insert((h.book.clone(), ch, v), *hid);
@@ -392,11 +384,11 @@ fn resolve_roles(
                     nodes.extend_from_slice(&atoms.phrases[1..]);
                 }
             }
-            AtomRole::Current(_) => {
+            AtomRole::Current => {
                 let idx = iterate_idx?;
                 nodes.push(*atoms.phrases.get(idx)?);
             }
-            AtomRole::PhrasesExceptCurrent(_) => {
+            AtomRole::PhrasesExceptCurrent => {
                 let idx = iterate_idx?;
                 for (i, &p) in atoms.phrases.iter().enumerate() {
                     if i != idx {
