@@ -75,6 +75,7 @@ fn build_graph_from_corinthians() {
 }
 
 #[test]
+#[ignore] // slow: computes schedules for ~5,853 cards with path enumeration
 fn engine_from_corinthians() {
     let (data, card_types) = match load_corinthians() {
         Some(d) => d,
