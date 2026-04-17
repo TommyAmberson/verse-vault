@@ -21,8 +21,9 @@ cargo run -p verse-vault-sim   # run simulation
 * `crates/core/` — pure algorithm library (no I/O, no DB). Graph, FSRS, credit assignment,
   scheduling. Depends on `fsrs = "5"`.
 * `crates/sim/` — simulation binary. Uses core to validate algorithm against synthetic data.
-* `docs/` — design docs: graph.md, review.md, scheduling.md, validation.md
-* `backend/` and `src/` — legacy empty stubs from earlier exploration. Ignore.
+* `tools/` — Python scripts for content pipeline (Anki parsing, verse chunking).
+* `docs/` — design docs: graph.md, review.md, scheduling.md, session.md, validation.md
+* `data/` — gitignored. Local content files (NKJV text, chunked JSON). Not committed.
 * Other branches (`django-vue*`, `laravel*`, `express-vue`, etc.) are abandoned spikes.
   Do not merge from them.
 
