@@ -133,32 +133,48 @@ review_cost(card) = N_hidden ^ α      where α ∈ (0.5, 0.8), default 0.6
 
 α can be calibrated from observed review durations once users are active.
 
+### Reinforcement bonus
+
+A card also passively reinforces edges between shown atoms (see exposure reinforcement in
+[review.md](review.md)). Edges between shown atoms that are below target contribute a
+β-discounted bonus to the priority:
+
+```
+reinforcement_bonus(card) = Σ R(edge) for due edges between shown atoms
+```
+
+This gives a card credit for doing "double duty" — testing hidden atoms while also exposing
+due shown-atom edges.
+
 ### Priority formula
 
 ```
-priority(card) = total_delay(card) / review_cost(card)
+priority(card) = (total_delay(card) + β × reinforcement_bonus(card)) / review_cost(card)
 ```
 
-This naturally selects the right card type:
+Where β ≈ 0.1–0.3 (same discount as exposure reinforcement in credit assignment).
+
+**Examples** (β=0.2, α=0.6):
 
 ```
-All 4 edges barely due (R=0.88):
-  Full recitation:  Σ = 4 × 0.88 = 3.52 / 2.3 = 1.53
-  Fill-in-blank:    Σ = 1 × 0.88 = 0.88 / 1.0 = 0.88
-  → Full recitation wins — covers 4 due edges efficiently ✓
+All 4 phrase edges barely due (R=0.88):
+  Full recitation:  delay=3.52, reinf=0,     cost=2.3 → priority = 3.52 / 2.3 = 1.53
+  Fill-in-blank:    delay=0.88, reinf=0.53,  cost=1.0 → priority = (0.88 + 0.11) / 1.0 = 0.99
+  → Full recitation wins ✓
 
-Only 1 edge barely due:
-  Full recitation:  Σ = 0.88 / 2.3 = 0.38
-  Fill-in-blank:    Σ = 0.88 / 1.0 = 0.88
-  → Fill-in-blank wins — don't waste effort on non-due edges ✓
+Only 1 phrase edge due, but phrase→phrase edges also due:
+  verse→ref card:   delay=0.85, reinf=0.2×2.64, cost=1.0 → priority = (0.85 + 0.53) / 1.0 = 1.38
+  Fill-in-blank:    delay=0.88, reinf=0,         cost=1.0 → priority = 0.88 / 1.0 = 0.88
+  → verse→ref wins — it also reinforces phrase edges ✓
 
-3 of 4 edges due:
-  Full recitation:  Σ = 2.64 / 2.3 = 1.15
-  Fill-in-blank:    Σ = 0.88 / 1.0 = 0.88
-  → Full recitation wins — efficient coverage ✓
+Only 1 edge due, nothing else weak:
+  Full recitation:  delay=0.88, reinf=0,  cost=2.3 → priority = 0.88 / 2.3 = 0.38
+  Fill-in-blank:    delay=0.88, reinf=0,  cost=1.0 → priority = 0.88 / 1.0 = 0.88
+  → Fill-in-blank wins ✓
 ```
 
-The crossover depends on α. Higher α penalizes broad cards more; lower α favors them.
+The reinforcement bonus gives cards credit for incidental exposure, making cards that do
+double duty more attractive when multiple edges need work.
 
 ## Post-review cascade
 

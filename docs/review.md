@@ -107,10 +107,25 @@ For each path from source to h, identify the weakest edge (lowest R).
 Aggregate blame: edges that are the weakest link on multiple paths receive the most blame.
 ```
 
-### Step 5: Apply FSRS updates
+### Step 5: Exposure reinforcement
+
+Edges between shown atoms were not actively tested but were passively observed (the learner
+saw the atoms in context). These receive a weak update at discount factor β ≈ 0.1–0.3:
+
+```
+For each edge between shown atoms where R(edge) < target_retention:
+  exposure_weight = β
+  grade = Good  (passive exposure is treated as a weak positive signal)
+```
+
+This captures the real but small reinforcement from seeing phrases in order during a verse→ref
+card, or seeing surrounding context during a fill-in-the-blank.
+
+### Step 6: Apply FSRS updates
 
 ```
 total_weight = Σ (credit or blame from all observations involving this edge)
+             + exposure_weight (if applicable)
 grade = weighted blend of grades from observations
 
 S_new = interpolate(S_old, S_fsrs(grade), total_weight)
@@ -158,6 +173,8 @@ Credit for p4 (Good):
 * **Failed atoms block downstream paths**: p3=Again eliminates p2→p3→p4, so p4's credit goes
   to the hub — reflecting the learner "jumped" via another path.
 * **Blame concentrates on short paths**: p2→p3 as a 1-hop failed path gets strong blame.
+* **Exposure reinforcement**: edges between shown atoms get a weak update (β-discounted),
+  capturing passive reinforcement from seeing atoms in context without actively recalling them.
 
 ## Anchor transfer
 
