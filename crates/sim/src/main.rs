@@ -129,7 +129,7 @@ fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), St
             .collect();
 
         let new_count = new_verses.len();
-        let mut session = Session::new(&engine, now, session_params.clone(), &new_verses);
+        let mut session = Session::new(&mut engine, now, session_params.clone(), &new_verses);
 
         if session.is_done() && new_count == 0 {
             continue;

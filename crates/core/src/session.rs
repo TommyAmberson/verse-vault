@@ -179,7 +179,7 @@ pub struct NewVerseInfo {
 
 impl Session {
     pub fn new(
-        engine: &ReviewEngine,
+        engine: &mut ReviewEngine,
         now_secs: i64,
         params: SessionParams,
         new_verses: &[NewVerseInfo],
@@ -206,8 +206,17 @@ impl Session {
             queue.push_back(SessionEntry::Scheduled(sched.card_id));
         }
 
-        // Add new verses (progressive reveal)
+        // Add new verses (progressive reveal) and transition their cards to Learning
         for nv in new_verses.iter().take(params.max_new_verses) {
+            // Transition all cards for this verse from New → Learning
+            for card in &mut engine.cards {
+                if card.state == crate::card::CardState::New
+                    && (card.hidden.iter().any(|h| nv.verse_phrases.contains(h))
+                        || card.shown.iter().any(|s| nv.verse_phrases.contains(s)))
+                {
+                    card.state = crate::card::CardState::Learning;
+                }
+            }
             queue.push_back(SessionEntry::NewVerse(NewVerseProgress {
                 verse_ref: nv.verse_ref,
                 verse_phrases: nv.verse_phrases.clone(),
@@ -268,8 +277,13 @@ impl Session {
 
         match entry {
             SessionEntry::Scheduled(card_id) => {
+                let has_failures = grades.values().any(|g| !g.is_pass());
                 let updates = engine.review(card_id, grades.clone(), now_secs);
                 let redrills = self.insert_redrills_for_failures(&grades, engine);
+                // Lapse: transition Review → Relearning
+                if has_failures {
+                    engine.set_card_state(card_id, crate::card::CardState::Relearning);
+                }
                 self.prune_no_longer_due(engine, now_secs);
                 ReviewOutcome {
                     edge_updates: updates,
@@ -278,9 +292,14 @@ impl Session {
             }
             SessionEntry::ReDrill(redrill) => {
                 let card = redrill.to_session_card();
+                let all_passed = grades.values().all(|g| g.is_pass());
                 let updates =
                     engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
                 let redrills = self.insert_redrills_for_failures(&grades, engine);
+                // Re-drill success: find the original card and transition Relearning → Review
+                if all_passed {
+                    self.transition_relearning_to_review(&redrill, engine);
+                }
                 self.prune_no_longer_due(engine, now_secs);
                 ReviewOutcome {
                     edge_updates: updates,
@@ -387,6 +406,25 @@ impl Session {
                 .is_none_or(|s| s.due_date_secs <= now_secs),
             _ => true,
         });
+    }
+
+    fn transition_relearning_to_review(&self, redrill: &ReDrill, engine: &mut ReviewEngine) {
+        for card in &mut engine.cards {
+            if card.state != crate::card::CardState::Relearning {
+                continue;
+            }
+            let overlaps = card
+                .hidden
+                .iter()
+                .any(|h| redrill.verse_phrases.contains(h))
+                || card
+                    .shown
+                    .iter()
+                    .any(|s| redrill.verse_phrases.contains(s));
+            if overlaps {
+                card.state = crate::card::CardState::Review;
+            }
+        }
     }
 
     fn insert_redrills_from_context(
@@ -552,8 +590,8 @@ mod tests {
 
     #[test]
     fn session_with_due_cards() {
-        let (engine, _, _, p1, p2, p3) = build_verse_engine();
-        let mut session = Session::new(&engine, 30 * DAY, SessionParams::default(), &[]);
+        let (mut engine, _, _, p1, p2, p3) = build_verse_engine();
+        let mut session = Session::new(&mut engine, 30 * DAY, SessionParams::default(), &[]);
 
         // At 30 days, cards should be due
         assert!(!session.is_done());
@@ -564,7 +602,7 @@ mod tests {
     #[test]
     fn session_inserts_redrill_on_lapse() {
         let (mut engine, _, _, p1, p2, p3) = build_verse_engine();
-        let mut session = Session::new(&engine, 30 * DAY, SessionParams::default(), &[]);
+        let mut session = Session::new(&mut engine, 30 * DAY, SessionParams::default(), &[]);
 
         let _card = session.next().unwrap();
         let grades = HashMap::from([(p1, Grade::Good), (p2, Grade::Again), (p3, Grade::Good)]);
@@ -584,7 +622,7 @@ mod tests {
             verse_ref: r,
             verse_phrases: vec![p1, p2, p3],
         };
-        let mut session = Session::new(&engine, 0, SessionParams::default(), &[new_verse]);
+        let mut session = Session::new(&mut engine, 0, SessionParams::default(), &[new_verse]);
 
         // First card should be reading
         let card = session.next().unwrap();
