@@ -80,28 +80,39 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
 Two consecutive verses with club 150 membership:
 
 ```
-                chapter_ref("Acts 2")
-                        ↕
-                   chapter_gist
-                  ↑      ↑     ↓                       ↓
-              verse1 ── verse2  club_150_entry(2:1) → club_150_entry(2:4)
-              / | \     / | \          ↕                       ↕
-            p1─p2─p3  p4─p5─p6     ref(2:1)                ref(2:4)
-                          ↕                                    ↕
-                       ref(2:1)                             ref(2:4)
+                        CHAPTER LEVEL
+                        ─────────────
+              chapter_ref("Acts 2") ←──bi──→ chapter_gist
+                                                  │
+                                          uni ────┘└──── uni
+                                          │              │
+                                          ▼              ▼
+                                   club_entry(2:1) ─→ club_entry(2:4)
+                                        │  (uni chain)    │
+                                    bi ─┘                 └─ bi
+                                        │                    │
+                        VERSE LEVEL     ▼                    ▼
+                        ───────────
+        verse1 ──bi── verse2       ref(2:1)             ref(2:4)
+         /│\           /│\            │                     │
+        / │ \         / │ \       bi ─┘                     └─ bi
+       /  │  \       /  │  \          │                        │
+      p1─p2─p3     p4─p5─p6      verse1                   verse2
+       (bi)          (bi)
 
-note: ref(2:1) and ref(2:4) each appear once — shown twice here for layout clarity
-verse gist → chapter gist edges are unidirectional (↑)
-chapter gist → club entry edges are unidirectional (↓)
-all other vertical edges (↕) are bidirectional
-all horizontal edges (──) are bidirectional
-club entry → club entry (→) is unidirectional
+                verse1 ──uni──→ chapter_gist
+                verse2 ──uni──→ chapter_gist
 ```
 
-* Verse gist hub-connects (bi) to all its phrases
-* Chapter-consecutive verse↔verse edges are bidirectional
-* Verse gists point to the chapter gist (uni)
-* Club entries connect to refs (bi) and chain forward (uni)
+The diagram is split into levels for clarity. Key connections:
+* **Phrases ↔ verse gist**: bidirectional hub (each phrase connects to its verse)
+* **Phrase ↔ phrase**: bidirectional sequential chain
+* **Verse gist ↔ ref**: bidirectional (shown as vertical bi edges above)
+* **Verse gist ↔ verse gist**: bidirectional chapter-consecutive
+* **Verse gist → chapter gist**: unidirectional
+* **Ref ↔ club entry**: bidirectional
+* **Chapter gist → club entry**: unidirectional (structural)
+* **Club entry → club entry**: unidirectional chain
 
 ## Reference model
 

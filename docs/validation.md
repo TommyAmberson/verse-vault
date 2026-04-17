@@ -179,7 +179,12 @@ Cards:
 
 - Edge S values increase on successful reviews and decrease on lapses
 - Credit flows to the right edges (sequential edges get strong credit, hub edges get moderate)
-- Exposure reinforcement gives shown→shown edges small but non-zero updates
+- Hard grades: atom joins source set, doesn't block paths, gives smaller S increase than Good
+- **Fallback chain correctness**:
+  - An edge on a credit path AND between shown atoms gets primary credit only (no exposure)
+  - An edge between shown atoms NOT on any credit path gets exposure only
+  - A reverse edge where the forward got credit but reverse got nothing gets reverse reinforcement
+  - No edge gets more than one type of secondary update
 - Priority formula selects targeted cards when one edge is weak, broad cards when many are
 - due_date binary search gives correct values
 - Post-review cascade correctly updates affected cards

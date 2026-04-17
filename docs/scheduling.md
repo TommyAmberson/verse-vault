@@ -159,33 +159,39 @@ contributes separately).
 
 **Examples** (β=0.2, α=0.6):
 
+Note: in these examples, "due edges" means all directed edges on paths from shown to
+hidden that have R < target. A full recitation card with 4 hidden phrases has paths
+through hub edges (verse→p1..p4), sequential edges (p1→p2, p2→p3, p3→p4), and
+ref→verse — typically 8+ directed edges. The examples use simplified counts for
+clarity.
+
 ```
-All 4 phrase edges barely due (R=0.88):
+All phrase-related edges barely due (R=0.88):
   Full recitation (shown={ref}, hidden={p1,p2,p3,p4}):
-    delay = 4 × 0.88 = 3.52
-    reinf = 0 (ref has no shown↔shown edges)
+    delay = 8 × 0.88 = 7.04 (ref→verse, verse→p1..p4, p1→p2, p2→p3, p3→p4)
+    reinf = 0 (only one shown atom, no shown↔shown edges)
     cost = 4^0.6 = 2.3
-    priority = 3.52 / 2.3 = 1.53
+    priority = 7.04 / 2.3 = 3.06
 
   Fill-in-blank for p2 (shown={ref,p1,p3,p4}, hidden={p2}):
-    delay = 0.88 (p2's due edges)
-    reinf = p3→p4 + p4→p3 = 0.88 + 0.88 = 1.76 (only direct shown↔shown edge pair)
+    delay = 0.88 (p1→p2 is the main due edge on paths to p2)
+    reinf = p3→p4 + p4→p3 = 2 × 0.88 = 1.76 (only direct shown↔shown pair)
     cost = 1^0.6 = 1.0
     priority = (0.88 + 0.2 × 1.76) / 1.0 = 1.23
-  → Full recitation wins ✓
+  → Full recitation wins — covers all due edges in one review ✓
 
 Ref edge due, phrase→phrase edges also due:
   verse→ref (shown={p1,p2,p3,p4}, hidden={ref}):
-    delay = 0.88 (ref's due edges)
-    reinf = p1↔p2 + p2↔p3 + p3↔p4 = 6 × 0.88 = 5.28 (all phrase shown↔shown)
+    delay = 0.88 (verse→ref is the main due edge on paths to ref)
+    reinf = p1↔p2 + p2↔p3 + p3↔p4 = 6 × 0.88 = 5.28 (3 bi pairs = 6 directed)
     cost = 1^0.6 = 1.0
     priority = (0.88 + 0.2 × 5.28) / 1.0 = 1.94
-  → verse→ref wins big — reinforces 6 phrase edges while testing ref ✓
+  → verse→ref wins — reinforces 6 phrase edges while testing ref ✓
 
 Only 1 edge due, nothing else weak:
   Full recitation:  delay=0.88, reinf=0, cost=2.3 → priority = 0.38
   Fill-in-blank:    delay=0.88, reinf=0, cost=1.0 → priority = 0.88
-  → Fill-in-blank wins ✓
+  → Fill-in-blank wins — don't waste effort on non-due edges ✓
 ```
 
 ## Post-review cascade

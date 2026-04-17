@@ -99,7 +99,7 @@ Structural edges (no FSRS state) contribute R = 1.0 but cannot receive credit or
 
 ### Step 3: Credit (successful atoms)
 
-For a hidden atom h graded Good/Easy:
+For a hidden atom h graded Good/Easy/Hard (any pass):
 
 1. Eliminate paths that pass through any atom graded Again (broken paths).
 2. Weight surviving paths by probability:
