@@ -30,6 +30,7 @@ Per verse (N=4 phrases):
 | first words → rest   | {p1}                 | {p2, p3, p4}       |
 | verse → ref          | {p1, p2, p3, p4}    | {ref}               |
 | verse → heading      | {ref} or {phrases}   | {heading}           |
+| ref → heading        | {ref}                | {heading}           |
 | cross-verse          | {prev last phrase}   | {p1, p2, p3, p4}   |
 
 Per chapter:
@@ -40,6 +41,7 @@ Per chapter:
 | club 300 listing     | {chapter_gist}       | {300 verse refs}    |
 | heading → next       | {heading}            | {next heading}      |
 | heading → prev       | {heading}            | {prev heading}      |
+| ref range → heading  | {start ref, end ref} | {heading}           |
 
 ## Computing effective_R
 
@@ -54,6 +56,12 @@ effective_R(card) = Π R_eff(h) for all hidden atoms h
 ```
 
 The product represents: the card "succeeds" only if ALL hidden atoms are recalled.
+
+**Note on multi-atom cards**: a club listing card with 7 hidden refs at per-atom R=0.9 has
+effective_R = 0.9^7 = 0.48. This means there's a ~52% chance of getting at least one wrong —
+the card is legitimately hard and SHOULD be scheduled more frequently than single-atom cards.
+If this over-schedules multi-atom cards in practice, an alternative is to use min(R_eff(h))
+(weakest atom) instead of the product. This is a tuning decision.
 
 For cards where the hidden atom is a reference, anchor transfer applies (see
 [review.md](review.md)).

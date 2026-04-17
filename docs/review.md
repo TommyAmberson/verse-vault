@@ -21,8 +21,9 @@ Example cards:
 | verse → heading      | {ref} or {p1, p2, ...}    | {heading}                      |
 | ref → heading        | {ref}                     | {heading}                      |
 
-Cards are **dynamically generated** by the scheduler based on which edges need reinforcement
-(see [scheduling.md](scheduling.md)), not chosen from a fixed menu.
+All possible cards for a verse are **pre-generated** and stored in the card DB with precomputed
+effective_R and due_date (see [scheduling.md](scheduling.md)). The scheduler picks from this
+catalog — it does not generate cards on the fly.
 
 ## Review interaction
 
@@ -41,17 +42,26 @@ for getting the gist right even if wording differs from the stored text).
 
 Given per-atom grades from a review, determine how to update every edge in the graph.
 
-### Source set
+### Source set (review vs. scheduling)
 
-The **source set** is everything the learner had access to during recall:
+There are two source set definitions, used in different contexts:
 
+**During review (credit assignment)**:
 ```
 source = shown atoms ∪ correctly-recalled hidden atoms
 ```
-
 Correctly recalled atoms join the source set because they were available for recalling subsequent
 atoms. In a ref→verse card, once p1 is successfully recalled it becomes a source for p2 — the
 edge p1→p2 was directly exercised.
+
+**During scheduling (card effective_R in the card DB)**:
+```
+source = shown atoms only
+```
+The card DB precomputes effective_R conservatively using only the shown atoms, because at
+scheduling time we don't know which hidden atoms will be recalled. The actual review may go
+better than predicted (due to source set expansion), which is fine — the prediction is a
+conservative lower bound.
 
 ### Observations
 

@@ -81,17 +81,16 @@ Two consecutive verses with club 150 membership:
 
 ```
 chapter_ref("Acts 2") ↔ chapter_gist
-                            |  \
-                            |   ↓
-                            |  club_150_entry(2:1) → club_150_entry(2:4)
-                            |       ↕                      ↕
-    ref(2:1)    ref(2:4)    |    ref(2:1)              ref(2:4)
-       ↕           ↕        |
-    verse1  ──  verse2 ────↗
-     / | \       / | \
-    p1─p2─p3   p4─p5─p6
+                              ↓  ↑
+        club_150_entry(2:1) ←┘  |    club_150_entry(2:4)
+               ↕                |           ↕
+           ref(2:1)         ref(2:4)
+               ↕                ↕
+           verse1  ────────  verse2 ───→ chapter_gist
+            / | \             / | \
+           p1─p2─p3         p4─p5─p6
 
-↔ = bidirectional    → = unidirectional    ↕ = bidirectional (vertical)
+↔ / ── = bidirectional    → / ↓ = unidirectional    ↕ = bidirectional (vertical)
 ```
 
 * Verse gist hub-connects (bi) to all its phrases
@@ -159,13 +158,14 @@ Headings vary by translation (and even by print edition) — both the text and t
 differ. Heading atoms are per-translation.
 
 ```
-heading("All to the Glory of God") → heading("Do Not Cause Others to Stumble")
+heading("All to the Glory of God") ↔ heading("Do Not Cause Others to Stumble")
        ↑      ↑      ↑      ↑
   v(10:23) v(10:24) v(10:25) ... v(11:1)
 ```
 
 * **verse gist → heading** (uni): every verse in the heading's range knows its heading
-* **heading → next heading** (uni): sequential section ordering
+* **heading ↔ heading** (bi): sequential section ordering — supports "what comes next?" and
+  "what came before?"
 * **No heading → verse edges**: the primary use is verse → heading ("what section is this
   verse in?"), not heading → verses. Start/end verse numbers are metadata on the heading atom
   for the app to know the range — not graph structure the learner memorizes.
@@ -195,7 +195,7 @@ Per verse with N phrases:
 Per club-member verse, add: ref ↔ club_entry (2–4) + club_entry → next (1–2) + chapter_gist →
 entry (1–2) = up to 8.
 
-Per heading, add: heading → next heading (1).
+Per heading, add: heading ↔ next heading (2).
 
 For N=4: 20 base + up to 8 club = ~28 directed edges per verse.
 500-verse season: ~12,000 directed edges. Each learnable edge stores 3 values. Trivially
