@@ -290,12 +290,21 @@ fn build_heading_lookup(
                 lookup.insert((h.book.clone(), h.start_chapter, v), *hid);
             }
         } else {
-            // Cross-chapter heading — just map start chapter for now
-            for v in h.start_verse..=99 {
-                lookup.insert((h.book.clone(), h.start_chapter, v), *hid);
-            }
-            for v in 1..=h.end_verse {
-                lookup.insert((h.book.clone(), h.end_chapter, v), *hid);
+            // Cross-chapter heading: map all chapters in range
+            for ch in h.start_chapter..=h.end_chapter {
+                let start_v = if ch == h.start_chapter {
+                    h.start_verse
+                } else {
+                    1
+                };
+                let end_v = if ch == h.end_chapter {
+                    h.end_verse
+                } else {
+                    200
+                };
+                for v in start_v..=end_v {
+                    lookup.insert((h.book.clone(), ch, v), *hid);
+                }
             }
         }
     }
