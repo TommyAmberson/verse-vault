@@ -240,6 +240,30 @@ impl Session {
         self.queue.len()
     }
 
+    /// Abort the session, rolling back Learning cards to New.
+    pub fn abort(self, engine: &mut ReviewEngine) {
+        for entry in &self.queue {
+            if let SessionEntry::NewVerse(nv) = entry {
+                for card in &mut engine.cards {
+                    if card.state != crate::card::CardState::Learning {
+                        continue;
+                    }
+                    let overlaps = card
+                        .hidden
+                        .iter()
+                        .any(|h| nv.verse_phrases.contains(h))
+                        || card
+                            .shown
+                            .iter()
+                            .any(|s| nv.verse_phrases.contains(s));
+                    if overlaps {
+                        card.state = crate::card::CardState::New;
+                    }
+                }
+            }
+        }
+    }
+
     /// Peek at the next card to present. Returns None if session is done.
     /// Does NOT consume the entry — call record_review() after grading.
     pub fn next(&self) -> Option<SessionCard> {
@@ -651,5 +675,27 @@ mod tests {
         let verse_phrases = vec![NodeId(2), NodeId(3), NodeId(4)];
         let ratio = failed.len() as f32 / verse_phrases.len() as f32;
         assert!(ratio > 0.5); // 2/3 > 0.5 → full recitation
+    }
+
+    #[test]
+    fn abort_rolls_back_learning_to_new() {
+        let (mut engine, r, _, p1, p2, p3) = build_verse_engine();
+        // Start with a New card
+        engine.cards[0].state = CardState::New;
+
+        let new_verse = NewVerseInfo {
+            verse_ref: r,
+            verse_phrases: vec![p1, p2, p3],
+        };
+        let session = Session::new(&mut engine, 0, SessionParams::default(), &[new_verse]);
+
+        // Card should now be Learning
+        assert_eq!(engine.cards[0].state, CardState::Learning);
+
+        // Abort without completing
+        session.abort(&mut engine);
+
+        // Card should be back to New
+        assert_eq!(engine.cards[0].state, CardState::New);
     }
 }
