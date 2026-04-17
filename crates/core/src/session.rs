@@ -176,6 +176,8 @@ pub struct Session {
     queue: VecDeque<SessionEntry>,
     reviews_completed: u32,
     params: SessionParams,
+    /// Verse phrases for each verse introduced this session (for abort rollback).
+    introduced_verses: Vec<Vec<NodeId>>,
 }
 
 /// Info needed to introduce a new verse.
@@ -215,13 +217,14 @@ impl Session {
         }
 
         // Add new verses (progressive reveal) and transition their cards to Learning
+        let mut introduced_verses = Vec::new();
         for nv in new_verses.iter().take(params.max_new_verses) {
-            // Transition all cards for this verse from New → Learning
             for card in &mut engine.cards {
                 if card.state == CardState::New && card_overlaps_verse(card, &nv.verse_phrases) {
                     card.state = CardState::Learning;
                 }
             }
+            introduced_verses.push(nv.verse_phrases.clone());
             queue.push_back(SessionEntry::NewVerse(NewVerseProgress {
                 verse_ref: nv.verse_ref,
                 verse_phrases: nv.verse_phrases.clone(),
@@ -233,6 +236,7 @@ impl Session {
             queue,
             reviews_completed: 0,
             params,
+            introduced_verses,
         }
     }
 
@@ -245,15 +249,12 @@ impl Session {
     }
 
     /// Abort the session, rolling back Learning cards to New.
+    /// Cards that already completed progressive reveal (now Review) are not rolled back.
     pub fn abort(self, engine: &mut ReviewEngine) {
-        for entry in &self.queue {
-            if let SessionEntry::NewVerse(nv) = entry {
-                for card in &mut engine.cards {
-                    if card.state == CardState::Learning
-                        && card_overlaps_verse(card, &nv.verse_phrases)
-                    {
-                        card.state = CardState::New;
-                    }
+        for phrases in &self.introduced_verses {
+            for card in &mut engine.cards {
+                if card.state == CardState::Learning && card_overlaps_verse(card, phrases) {
+                    card.state = CardState::New;
                 }
             }
         }
@@ -671,7 +672,6 @@ mod tests {
     #[test]
     fn abort_rolls_back_learning_to_new() {
         let (mut engine, r, _, p1, p2, p3) = build_verse_engine();
-        // Start with a New card
         engine.cards[0].state = CardState::New;
 
         let new_verse = NewVerseInfo {
@@ -680,13 +680,38 @@ mod tests {
         };
         let session = Session::new(&mut engine, 0, SessionParams::default(), &[new_verse]);
 
-        // Card should now be Learning
         assert_eq!(engine.cards[0].state, CardState::Learning);
 
-        // Abort without completing
         session.abort(&mut engine);
 
-        // Card should be back to New
         assert_eq!(engine.cards[0].state, CardState::New);
+    }
+
+    #[test]
+    fn abort_mid_session_rolls_back_learning() {
+        let (mut engine, r, _, p1, p2, p3) = build_verse_engine();
+        engine.cards[0].state = CardState::New;
+
+        let new_verse = NewVerseInfo {
+            verse_ref: r,
+            verse_phrases: vec![p1, p2, p3],
+        };
+        let mut session = Session::new(&mut engine, 0, SessionParams::default(), &[new_verse]);
+
+        assert_eq!(engine.cards[0].state, CardState::Learning);
+
+        // Complete the reading stage (pops the NewVerse entry from queue)
+        let _card = session.next().unwrap();
+        session.record_review(HashMap::new(), &mut engine, 0);
+
+        // NewVerse entry was popped and re-queued at FillInBlank stage,
+        // but abort should still roll back because it uses introduced_verses
+        session.abort(&mut engine);
+
+        assert_eq!(
+            engine.cards[0].state,
+            CardState::New,
+            "abort should roll back even after partial progress"
+        );
     }
 }
