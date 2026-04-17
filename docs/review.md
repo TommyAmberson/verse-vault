@@ -20,6 +20,7 @@ Example cards:
 | club listing         | {chapter_gist}            | {ref(2:1), ref(2:4), ref(2:7)} |
 | verse → heading      | {ref} or {p1, p2, ...}    | {heading}                      |
 | ref → heading        | {ref}                     | {heading}                      |
+| finish this verse    | {ftv}                     | {p1, p2, p3, p4}              |
 
 All possible cards for a verse are **pre-generated** and stored in the card DB with precomputed
 effective_R and due_date (see [scheduling.md](scheduling.md)). The scheduler picks from this

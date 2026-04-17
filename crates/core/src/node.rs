@@ -39,6 +39,9 @@ pub enum NodeKind {
     ChapterRef {
         chapter: u16,
     },
+    Ftv {
+        text: String,
+    },
 }
 
 pub struct Node {

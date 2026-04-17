@@ -26,6 +26,7 @@ is computed on demand: `R = (1 + t / (9 · S))^(-1)`.
 | **Heading**       | Yes       | "All to the Glory of God"     |
 | **Chapter gist**  | No — structural source node   | [gist of Acts 2]     |
 | **Chapter ref**   | Yes       | "Acts 2"                      |
+| **FTV**            | No — cue only, never recalled | "Paul, called"    |
 
 **Verse gist**: non-testable hub connecting reference, phrases, and chapter. Separates gist
 memory ("what this verse is about") from verbatim memory ("the exact words"). No direct edges
@@ -34,6 +35,11 @@ between references and phrases — all paths route through the verse gist.
 **Chapter gist**: structural source node for listing cards. Receives incoming edges from
 verse gists, has outgoing edges to club entries and a bidirectional edge to the chapter ref.
 Cannot be traversed into from club entries — prevents shortcut paths. Does not need FSRS state.
+
+**FTV** (Finish This Verse): the unique first words that identify a verse for quiz purposes.
+Optional — only created when the FTV text is ≤ 5 words. A pure cue node with unidirectional
+edges outward only (ftv → first phrase, ftv → verse gist). You never recall the FTV; it's
+given as a prompt to trigger verse recall.
 
 ## Edge types
 
@@ -52,6 +58,8 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
 | club entry → club entry (chain)               | uni       | yes        |
 | verse gist → heading                          | uni       | yes        |
 | heading ↔ heading (chain)                     | bi        | yes        |
+| ftv → first phrase                            | uni       | yes        |
+| ftv → verse gist                             | uni       | yes        |
 
 ### Directionality rationale
 
@@ -70,6 +78,10 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
   The reverse (heading → verses) isn't needed — the primary cards show verses and ask for the
   heading, never the other way around. If "show heading, list verses" cards are needed later,
   heading → verse edges can be added.
+
+* **ftv → first phrase, ftv → verse gist** (outward only): the FTV is a cue given to the
+  learner to trigger verse recall. You never recall FTV text — it's always shown. No
+  incoming edges needed.
 
 * **heading ↔ heading** (bidirectional): sequential section ordering. Supports both "what
   section comes next?" and "what section came before?" No shortcut risk because headings have
