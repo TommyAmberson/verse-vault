@@ -12,7 +12,8 @@ use verse_vault_core::types::{Grade, NodeId};
 /// A simulated learner with "true" memory states.
 /// Recall is stochastic: pass with probability R_true.
 pub struct SimulatedLearner {
-    true_states: HashMap<NodeId, f32>, // node -> true stability
+    true_states: HashMap<NodeId, f32>,
+    last_review: HashMap<NodeId, i64>,
     rng: StdRng,
     fsrs: FsrsBridge,
 }
@@ -21,15 +22,21 @@ impl SimulatedLearner {
     pub fn new(rng: StdRng, desired_retention: f32) -> Self {
         Self {
             true_states: HashMap::new(),
+            last_review: HashMap::new(),
             rng,
             fsrs: FsrsBridge::new(desired_retention),
         }
     }
 
-    /// Initialize true stability for all hidden atoms of a card.
-    pub fn initialize_atoms(&mut self, atoms: &[NodeId], initial_stability: f32) {
+    pub fn initialize_atoms(
+        &mut self,
+        atoms: &[NodeId],
+        initial_stability: f32,
+        last_review_secs: i64,
+    ) {
         for &atom in atoms {
             self.true_states.entry(atom).or_insert(initial_stability);
+            self.last_review.entry(atom).or_insert(last_review_secs);
         }
     }
 
@@ -40,10 +47,11 @@ impl SimulatedLearner {
 
         for &hidden in &card.hidden {
             let stability = self.true_states.get(&hidden).copied().unwrap_or(1.0);
+            let last_rev = self.last_review.get(&hidden).copied().unwrap_or(0);
             let state = EdgeState {
                 stability,
                 difficulty: 5.0,
-                last_review_secs: 0,
+                last_review_secs: last_rev,
             };
             let r_true = self.fsrs.retrievability(&state, now_secs);
 
@@ -60,8 +68,7 @@ impl SimulatedLearner {
         grades
     }
 
-    /// After a successful review, increase the true stability for passed atoms.
-    pub fn update_true_state(&mut self, grades: &HashMap<NodeId, Grade>) {
+    pub fn update_true_state(&mut self, grades: &HashMap<NodeId, Grade>, now_secs: i64) {
         for (&atom, &grade) in grades {
             let s = self.true_states.get(&atom).copied().unwrap_or(1.0);
             let new_s = match grade {
@@ -71,6 +78,7 @@ impl SimulatedLearner {
                 Grade::Easy => s * 2.0,
             };
             self.true_states.insert(atom, new_s);
+            self.last_review.insert(atom, now_secs);
         }
     }
 

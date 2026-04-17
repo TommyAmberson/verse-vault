@@ -96,7 +96,7 @@ fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), St
         .iter()
         .flat_map(|nv| nv.verse_phrases.iter().copied())
         .collect();
-    learner.initialize_atoms(&all_atoms, 3.0);
+    learner.initialize_atoms(&all_atoms, 3.0, -365 * DAY);
 
     // Run simulation
     let mut total_reviews = 0u32;
@@ -161,14 +161,6 @@ fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), St
                 continue;
             }
 
-            let predicted_r = match &card.source {
-                SessionCardSource::Scheduled(id) => engine
-                    .card_schedule(*id)
-                    .map(|s| s.due_r.clamp(0.01, 0.99))
-                    .unwrap_or(0.5),
-                _ => 0.5,
-            };
-
             let temp_card = Card {
                 id: CardId(9999),
                 shown,
@@ -178,13 +170,17 @@ fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), St
             let grades = learner.review(&engine.graph, &temp_card, now);
             let all_passed = grades.values().all(|g| g.is_pass());
 
-            predictions.push(Prediction {
-                predicted_r,
-                actual_pass: all_passed,
-            });
+            if let SessionCardSource::Scheduled(id) = &card.source {
+                if let Some(sched) = engine.card_schedule(*id) {
+                    predictions.push(Prediction {
+                        predicted_r: sched.due_r.clamp(0.01, 0.99),
+                        actual_pass: all_passed,
+                    });
+                }
+            }
 
             let outcome = session.record_review(grades.clone(), &mut engine, now);
-            learner.update_true_state(&grades);
+            learner.update_true_state(&grades, now);
 
             day_reviews += 1;
             if all_passed {
