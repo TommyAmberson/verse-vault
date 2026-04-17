@@ -170,13 +170,13 @@ fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), St
             let grades = learner.review(&engine.graph, &temp_card, now);
             let all_passed = grades.values().all(|g| g.is_pass());
 
-            if let SessionCardSource::Scheduled(id) = &card.source {
-                if let Some(sched) = engine.card_schedule(*id) {
-                    predictions.push(Prediction {
-                        predicted_r: sched.due_r.clamp(0.01, 0.99),
-                        actual_pass: all_passed,
-                    });
-                }
+            if let SessionCardSource::Scheduled(id) = &card.source
+                && let Some(sched) = engine.card_schedule(*id)
+            {
+                predictions.push(Prediction {
+                    predicted_r: sched.due_r.clamp(0.01, 0.99),
+                    actual_pass: all_passed,
+                });
             }
 
             let outcome = session.record_review(grades.clone(), &mut engine, now);
