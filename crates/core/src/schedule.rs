@@ -137,12 +137,13 @@ pub fn priority(
         for ap in &paths {
             for &edge_id in &ap.path.edges {
                 if let Some(edge) = graph.edge(edge_id)
-                    && let Some(state) = &edge.state {
-                        let r = fsrs.retrievability(state, now_secs);
-                        if r < params.target_retention {
-                            due_edge_r_sum += r;
-                        }
+                    && let Some(state) = &edge.state
+                {
+                    let r = fsrs.retrievability(state, now_secs);
+                    if r < params.target_retention {
+                        due_edge_r_sum += r;
                     }
+                }
             }
         }
     }
@@ -212,9 +213,10 @@ fn path_r_at(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, at_secs: i64) -
     let mut r = 1.0f32;
     for &edge_id in edges {
         if let Some(edge) = graph.edge(edge_id)
-            && let Some(state) = &edge.state {
-                r *= fsrs.retrievability(state, at_secs);
-            }
+            && let Some(state) = &edge.state
+        {
+            r *= fsrs.retrievability(state, at_secs);
+        }
     }
     r
 }
@@ -278,7 +280,14 @@ mod tests {
     fn effective_r_at_zero_is_high() {
         let (g, card) = make_simple_verse();
         let shown: HashSet<NodeId> = card.shown.iter().copied().collect();
-        let r = effective_r(&g, &shown, card.hidden[0], &fsrs(), 0, &ScheduleParams::default());
+        let r = effective_r(
+            &g,
+            &shown,
+            card.hidden[0],
+            &fsrs(),
+            0,
+            &ScheduleParams::default(),
+        );
         assert!(r > 0.9, "R at t=0 should be high, got {r}");
     }
 

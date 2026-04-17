@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use rand::Rng;
 use rand::rngs::StdRng;
 
+use verse_vault_core::card::Card;
 use verse_vault_core::edge::EdgeState;
 use verse_vault_core::fsrs_bridge::FsrsBridge;
 use verse_vault_core::graph::Graph;
-use verse_vault_core::card::Card;
 use verse_vault_core::types::{Grade, NodeId};
 
 /// A simulated learner with "true" memory states.
@@ -35,12 +35,7 @@ impl SimulatedLearner {
 
     /// Simulate a review: for each hidden atom, stochastically determine recall.
     /// Returns grades for each hidden atom.
-    pub fn review(
-        &mut self,
-        _graph: &Graph,
-        card: &Card,
-        now_secs: i64,
-    ) -> HashMap<NodeId, Grade> {
+    pub fn review(&mut self, _graph: &Graph, card: &Card, now_secs: i64) -> HashMap<NodeId, Grade> {
         let mut grades = HashMap::new();
 
         for &hidden in &card.hidden {

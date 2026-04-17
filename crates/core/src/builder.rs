@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::card::Card;
-use crate::card_types::{CardTypeDef, CardTypesConfig, parse_role, AtomRole};
+use crate::card_types::{AtomRole, CardTypeDef, CardTypesConfig, parse_role};
 use crate::content::MaterialData;
 use crate::edge::{EdgeKind, EdgeState};
 use crate::graph::Graph;
@@ -146,19 +146,9 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig) -> BuildResult {
                 text: verse_data.ftv.clone(),
             });
             // ftv → first phrase (uni)
-            graph.add_edge_with_state(
-                EdgeKind::FtvPhrase,
-                ftv,
-                phrase_nodes[0],
-                Some(state),
-            );
+            graph.add_edge_with_state(EdgeKind::FtvPhrase, ftv, phrase_nodes[0], Some(state));
             // ftv → verse gist (uni)
-            graph.add_edge_with_state(
-                EdgeKind::FtvVerseGist,
-                ftv,
-                verse_gist,
-                Some(state),
-            );
+            graph.add_edge_with_state(EdgeKind::FtvVerseGist, ftv, verse_gist, Some(state));
             Some(ftv)
         } else {
             None
@@ -166,28 +156,28 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig) -> BuildResult {
 
         // Chapter-consecutive verse ↔ verse (bi)
         if let Some(prev_gist) = prev_verse_gist
-            && prev_verse_book.as_deref() == Some(&verse_data.book) {
-                graph.add_bi_edge_with_state(
-                    EdgeKind::VerseGistVerseGist,
-                    prev_gist,
-                    verse_gist,
-                    state,
-                );
-            }
+            && prev_verse_book.as_deref() == Some(&verse_data.book)
+        {
+            graph.add_bi_edge_with_state(
+                EdgeKind::VerseGistVerseGist,
+                prev_gist,
+                verse_gist,
+                state,
+            );
+        }
         prev_verse_gist = Some(verse_gist);
         prev_verse_book = Some(verse_data.book.clone());
 
         // Heading association (verse gist → heading, uni)
         let heading_node = heading_lookup
-            .get(&(verse_data.book.clone(), verse_data.chapter, verse_data.verse))
+            .get(&(
+                verse_data.book.clone(),
+                verse_data.chapter,
+                verse_data.verse,
+            ))
             .copied();
         if let Some(hid) = heading_node {
-            graph.add_edge_with_state(
-                EdgeKind::VerseGistHeading,
-                verse_gist,
-                hid,
-                Some(state),
-            );
+            graph.add_edge_with_state(EdgeKind::VerseGistHeading, verse_gist, hid, Some(state));
         }
 
         // Club entries
@@ -224,12 +214,20 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig) -> BuildResult {
 
         // Find adjacent headings for card generation
         let next_heading = heading_node.and_then(|_| {
-            let idx = heading_nodes.iter().position(|(id, _)| Some(*id) == heading_node)?;
+            let idx = heading_nodes
+                .iter()
+                .position(|(id, _)| Some(*id) == heading_node)?;
             heading_nodes.get(idx + 1).map(|(id, _)| *id)
         });
         let prev_heading = heading_node.and_then(|_| {
-            let idx = heading_nodes.iter().position(|(id, _)| Some(*id) == heading_node)?;
-            if idx > 0 { heading_nodes.get(idx - 1).map(|(id, _)| *id) } else { None }
+            let idx = heading_nodes
+                .iter()
+                .position(|(id, _)| Some(*id) == heading_node)?;
+            if idx > 0 {
+                heading_nodes.get(idx - 1).map(|(id, _)| *id)
+            } else {
+                None
+            }
         });
 
         verse_atoms_list.push(VerseAtoms {
@@ -257,15 +255,14 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig) -> BuildResult {
     }
 }
 
-fn chain_club_entries(
-    graph: &mut Graph,
-    entries: &[(NodeId, String, u16)],
-    state: EdgeState,
-) {
+fn chain_club_entries(graph: &mut Graph, entries: &[(NodeId, String, u16)], state: EdgeState) {
     // Group by book, then chain within each book
     let mut by_book: HashMap<&str, Vec<(NodeId, u16)>> = HashMap::new();
     for (id, book, verse) in entries {
-        by_book.entry(book.as_str()).or_default().push((*id, *verse));
+        by_book
+            .entry(book.as_str())
+            .or_default()
+            .push((*id, *verse));
     }
     for (_, mut verses) in by_book {
         verses.sort_by_key(|(_, v)| *v);
@@ -327,8 +324,7 @@ fn generate_cards(card_types: &CardTypesConfig, verse_atoms: &[VerseAtoms]) -> V
                 if iterate == "phrases" {
                     // Generate one card per phrase
                     for (idx, _) in atoms.phrases.iter().enumerate() {
-                        if let Some(card) =
-                            resolve_card(card_type, atoms, Some(idx), &mut next_id)
+                        if let Some(card) = resolve_card(card_type, atoms, Some(idx), &mut next_id)
                         {
                             cards.push(card);
                         }
@@ -410,7 +406,8 @@ mod tests {
     use super::*;
 
     fn test_data() -> MaterialData {
-        serde_json::from_str(r#"{
+        serde_json::from_str(
+            r#"{
             "year": 3,
             "books": ["1 Corinthians"],
             "chapters": [{"book": "1 Corinthians", "number": 1, "start_verse": 1, "end_verse": 3}],
@@ -445,7 +442,9 @@ mod tests {
                     "end_chapter": 1, "end_verse": 3
                 }
             ]
-        }"#).unwrap()
+        }"#,
+        )
+        .unwrap()
     }
 
     fn test_card_types() -> CardTypesConfig {
@@ -459,8 +458,16 @@ mod tests {
         let result = build(&data, &card_types);
 
         // 3 verses × (ref + gist + 2 phrases) + chapter gist + chapter ref + heading + FTV nodes + club entries
-        assert!(result.graph.node_count() > 15, "should have many nodes: {}", result.graph.node_count());
-        assert!(result.graph.edge_count() > 20, "should have many edges: {}", result.graph.edge_count());
+        assert!(
+            result.graph.node_count() > 15,
+            "should have many nodes: {}",
+            result.graph.node_count()
+        );
+        assert!(
+            result.graph.edge_count() > 20,
+            "should have many edges: {}",
+            result.graph.edge_count()
+        );
     }
 
     #[test]
@@ -471,12 +478,17 @@ mod tests {
 
         // Each verse with 2 phrases should get: full_recitation, 2x fill_in_blank,
         // first_phrase_to_rest, verse_to_ref = 5 cards. Plus FTV, heading cards.
-        assert!(result.cards.len() >= 10, "should generate cards: {}", result.cards.len());
+        assert!(
+            result.cards.len() >= 10,
+            "should generate cards: {}",
+            result.cards.len()
+        );
 
         // Verify a full_recitation card exists
-        let full_recit = result.cards.iter().find(|c| {
-            c.shown.len() == 1 && c.hidden.len() == 2
-        });
+        let full_recit = result
+            .cards
+            .iter()
+            .find(|c| c.shown.len() == 1 && c.hidden.len() == 2);
         assert!(full_recit.is_some(), "should have a full recitation card");
     }
 
@@ -499,10 +511,16 @@ mod tests {
         let result = build(&data, &card_types);
 
         // Verse 1 is in club 150 and 300
-        let club_nodes: Vec<_> = result.graph.node_ids()
+        let club_nodes: Vec<_> = result
+            .graph
+            .node_ids()
             .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::ClubEntry { .. })))
             .collect();
-        assert!(club_nodes.len() >= 3, "should have club entries: {}", club_nodes.len());
+        assert!(
+            club_nodes.len() >= 3,
+            "should have club entries: {}",
+            club_nodes.len()
+        );
     }
 
     #[test]
@@ -511,7 +529,9 @@ mod tests {
         let card_types = test_card_types();
         let result = build(&data, &card_types);
 
-        let ftv_nodes: Vec<_> = result.graph.node_ids()
+        let ftv_nodes: Vec<_> = result
+            .graph
+            .node_ids()
             .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::Ftv { .. })))
             .collect();
         // Verse 1 and 2 have FTV (≤5 words), verse 3 has empty FTV
@@ -525,12 +545,20 @@ mod tests {
         let result = build(&data, &card_types);
 
         // All 3 verses should have verse_gist → heading edges
-        let heading_edges: Vec<_> = result.graph.edge_ids()
+        let heading_edges: Vec<_> = result
+            .graph
+            .edge_ids()
             .filter(|&id| {
-                result.graph.edge(id)
+                result
+                    .graph
+                    .edge(id)
                     .map_or(false, |e| matches!(e.kind, EdgeKind::VerseGistHeading))
             })
             .collect();
-        assert_eq!(heading_edges.len(), 3, "all 3 verses should link to heading");
+        assert_eq!(
+            heading_edges.len(),
+            3,
+            "all 3 verses should link to heading"
+        );
     }
 }

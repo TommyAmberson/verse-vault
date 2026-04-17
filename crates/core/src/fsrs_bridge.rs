@@ -1,4 +1,4 @@
-use fsrs::{FSRS, MemoryState, NextStates, DEFAULT_PARAMETERS, FSRS6_DEFAULT_DECAY};
+use fsrs::{DEFAULT_PARAMETERS, FSRS, FSRS6_DEFAULT_DECAY, MemoryState, NextStates};
 
 use crate::edge::EdgeState;
 use crate::types::Grade;
@@ -220,11 +220,8 @@ mod tests {
         let b = bridge();
         let state = reviewed_state(86400 * 5);
         let good_only = b.apply_weighted_update(&state, &[(Grade::Good, 0.7)], 0);
-        let blended = b.apply_weighted_update(
-            &state,
-            &[(Grade::Good, 0.7), (Grade::Again, 0.3)],
-            0,
-        );
+        let blended =
+            b.apply_weighted_update(&state, &[(Grade::Good, 0.7), (Grade::Again, 0.3)], 0);
         assert!(
             blended.stability < good_only.stability,
             "blending Again should lower S vs pure Good"

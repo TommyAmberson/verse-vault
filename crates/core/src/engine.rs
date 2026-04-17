@@ -19,11 +19,7 @@ pub struct ReviewEngine {
 }
 
 impl ReviewEngine {
-    pub fn new(
-        graph: Graph,
-        cards: Vec<Card>,
-        desired_retention: f32,
-    ) -> Self {
+    pub fn new(graph: Graph, cards: Vec<Card>, desired_retention: f32) -> Self {
         let fsrs = FsrsBridge::new(desired_retention);
         let schedule_params = ScheduleParams::default();
         let credit_params = CreditParams::default();
@@ -88,13 +84,14 @@ impl ReviewEngine {
         let mut updated_edge_ids = Vec::new();
         for (edge_id, weighted_grades) in &edge_updates {
             if let Some(edge) = self.graph.edge_mut(*edge_id)
-                && let Some(ref state) = edge.state {
-                    let new_state =
-                        self.fsrs
-                            .apply_weighted_update(state, weighted_grades, now_secs);
-                    edge.state = Some(new_state);
-                    updated_edge_ids.push(*edge_id);
-                }
+                && let Some(ref state) = edge.state
+            {
+                let new_state = self
+                    .fsrs
+                    .apply_weighted_update(state, weighted_grades, now_secs);
+                edge.state = Some(new_state);
+                updated_edge_ids.push(*edge_id);
+            }
         }
 
         // Cascade: recompute affected cards
@@ -155,13 +152,14 @@ impl ReviewEngine {
         let mut updated_edge_ids = Vec::new();
         for (edge_id, weighted_grades) in &edge_updates {
             if let Some(edge) = self.graph.edge_mut(*edge_id)
-                && let Some(ref state) = edge.state {
-                    let new_state =
-                        self.fsrs
-                            .apply_weighted_update(state, weighted_grades, now_secs);
-                    edge.state = Some(new_state);
-                    updated_edge_ids.push(*edge_id);
-                }
+                && let Some(ref state) = edge.state
+            {
+                let new_state = self
+                    .fsrs
+                    .apply_weighted_update(state, weighted_grades, now_secs);
+                edge.state = Some(new_state);
+                updated_edge_ids.push(*edge_id);
+            }
         }
 
         let affected = self.mapping.affected_cards_for_edges(&updated_edge_ids);
@@ -313,11 +311,7 @@ mod tests {
             .collect();
 
         // Review at day 3 (S=5, so R is still decent)
-        let grades = HashMap::from([
-            (p1, Grade::Good),
-            (p2, Grade::Good),
-            (p3, Grade::Good),
-        ]);
+        let grades = HashMap::from([(p1, Grade::Good), (p2, Grade::Good), (p3, Grade::Good)]);
         let updates = engine.review(CardId(0), grades, 3 * DAY);
         assert!(!updates.is_empty(), "should produce edge updates");
 
@@ -352,17 +346,25 @@ mod tests {
             })
             .unwrap();
 
-        let s_before = engine.graph.edge(p1_to_p2).unwrap().state.unwrap().stability;
+        let s_before = engine
+            .graph
+            .edge(p1_to_p2)
+            .unwrap()
+            .state
+            .unwrap()
+            .stability;
 
         // p2 = Again: p1→p2 should get blame
-        let grades = HashMap::from([
-            (p1, Grade::Good),
-            (p2, Grade::Again),
-            (p3, Grade::Good),
-        ]);
+        let grades = HashMap::from([(p1, Grade::Good), (p2, Grade::Again), (p3, Grade::Good)]);
         engine.review(CardId(0), grades, 3 * DAY);
 
-        let s_after = engine.graph.edge(p1_to_p2).unwrap().state.unwrap().stability;
+        let s_after = engine
+            .graph
+            .edge(p1_to_p2)
+            .unwrap()
+            .state
+            .unwrap()
+            .stability;
 
         // The edge might get blame (from p2's failure) or credit (from p1/p3's success
         // through other paths). The net effect depends on the specific path weights.
@@ -378,11 +380,7 @@ mod tests {
         let (g, cards, _r, _v, p1, p2, p3) = build_toy_verse();
         let mut engine = ReviewEngine::new(g, cards, 0.9);
 
-        let all_good = HashMap::from([
-            (p1, Grade::Good),
-            (p2, Grade::Good),
-            (p3, Grade::Good),
-        ]);
+        let all_good = HashMap::from([(p1, Grade::Good), (p2, Grade::Good), (p3, Grade::Good)]);
 
         // Review at day 3
         engine.review(CardId(0), all_good.clone(), 3 * DAY);
@@ -411,13 +409,10 @@ mod tests {
         let (g, cards, _r, _v, p1, p2, p3) = build_toy_verse();
         let mut engine = ReviewEngine::new(g, cards, 0.9);
 
-        let initial_due_dates: Vec<i64> = engine.schedules.iter().map(|s| s.due_date_secs).collect();
+        let initial_due_dates: Vec<i64> =
+            engine.schedules.iter().map(|s| s.due_date_secs).collect();
 
-        let grades = HashMap::from([
-            (p1, Grade::Good),
-            (p2, Grade::Good),
-            (p3, Grade::Good),
-        ]);
+        let grades = HashMap::from([(p1, Grade::Good), (p2, Grade::Good), (p3, Grade::Good)]);
         engine.review(CardId(0), grades, 3 * DAY);
 
         let new_due_dates: Vec<i64> = engine.schedules.iter().map(|s| s.due_date_secs).collect();

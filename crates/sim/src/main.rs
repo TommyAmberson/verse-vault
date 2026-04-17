@@ -147,13 +147,14 @@ fn run_single_verse_scenario() {
     println!("\nFinal edge stabilities:");
     for edge in engine.graph.edges() {
         if let Some(state) = &edge.state
-            && state.stability > 0.01 {
-                let kind = format!("{:?}", edge.kind);
-                println!(
-                    "  {}: S={:.2}, D={:.2}",
-                    kind, state.stability, state.difficulty
-                );
-            }
+            && state.stability > 0.01
+        {
+            let kind = format!("{:?}", edge.kind);
+            println!(
+                "  {}: S={:.2}, D={:.2}",
+                kind, state.stability, state.difficulty
+            );
+        }
     }
 }
 

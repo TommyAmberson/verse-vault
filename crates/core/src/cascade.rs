@@ -21,10 +21,7 @@ impl EdgeCardMapping {
         for card in cards {
             let edges = collect_card_edges(graph, card, params);
             for edge_id in edges {
-                edge_to_cards
-                    .entry(edge_id)
-                    .or_default()
-                    .push(card.id);
+                edge_to_cards.entry(edge_id).or_default().push(card.id);
             }
         }
 
@@ -100,9 +97,10 @@ fn collect_card_edges(graph: &Graph, card: &Card, params: &ScheduleParams) -> Ve
     for &node in &card.shown {
         for &eid in graph.outgoing_edges(node) {
             if let Some(edge) = graph.edge(eid)
-                && shown.contains(&edge.target) {
-                    edges.insert(eid);
-                }
+                && shown.contains(&edge.target)
+            {
+                edges.insert(eid);
+            }
         }
     }
 

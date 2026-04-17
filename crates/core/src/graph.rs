@@ -159,18 +159,20 @@ impl Graph {
         for &eid in self.outgoing_edges(verse_gist) {
             if let Some(edge) = self.edge(eid)
                 && edge.kind == EdgeKind::PhraseVerseGist
-                    && let Some(NodeKind::Phrase { position, .. }) = self.node_kind(edge.target) {
-                        phrases.push((*position, edge.target));
-                    }
+                && let Some(NodeKind::Phrase { position, .. }) = self.node_kind(edge.target)
+            {
+                phrases.push((*position, edge.target));
+            }
         }
         // Also check incoming (phrase→verse edges)
         for &eid in self.incoming_edges(verse_gist) {
             if let Some(edge) = self.edge(eid)
                 && edge.kind == EdgeKind::PhraseVerseGist
-                    && let Some(NodeKind::Phrase { position, .. }) = self.node_kind(edge.source)
-                        && !phrases.iter().any(|(_, id)| *id == edge.source) {
-                            phrases.push((*position, edge.source));
-                        }
+                && let Some(NodeKind::Phrase { position, .. }) = self.node_kind(edge.source)
+                && !phrases.iter().any(|(_, id)| *id == edge.source)
+            {
+                phrases.push((*position, edge.source));
+            }
         }
         phrases.sort_by_key(|(pos, _)| *pos);
         let phrase_ids: Vec<NodeId> = phrases.into_iter().map(|(_, id)| id).collect();
@@ -187,18 +189,20 @@ impl Graph {
         for &eid in self.outgoing_edges(node) {
             if let Some(edge) = self.edge(eid)
                 && edge.kind == edge_kind
-                    && let Some(kind) = self.node_kind(edge.target)
-                        && pred(kind) {
-                            return Some(edge.target);
-                        }
+                && let Some(kind) = self.node_kind(edge.target)
+                && pred(kind)
+            {
+                return Some(edge.target);
+            }
         }
         for &eid in self.incoming_edges(node) {
             if let Some(edge) = self.edge(eid)
                 && edge.kind == edge_kind
-                    && let Some(kind) = self.node_kind(edge.source)
-                        && pred(kind) {
-                            return Some(edge.source);
-                        }
+                && let Some(kind) = self.node_kind(edge.source)
+                && pred(kind)
+            {
+                return Some(edge.source);
+            }
         }
         None
     }

@@ -38,6 +38,17 @@ The algorithm is fully specified in:
 Implementation should follow these docs. The FSRS retrievability formula in the docs is a
 simplification — use fsrs-rs's actual `current_retrievability()` function.
 
+## Pre-commit checks
+
+Run before committing:
+
+```
+cargo clippy          # lint
+cargo fmt --check     # formatting
+typos                 # spell check
+cargo test            # tests
+```
+
 ## Git conventions
 
 * Commits must be atomic and single-responsibility — one logical change per commit.

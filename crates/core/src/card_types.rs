@@ -72,17 +72,29 @@ mod tests {
         let config = CardTypesConfig::from_toml(toml_str).unwrap();
         assert!(config.card_types.len() >= 6);
 
-        let full = config.card_types.iter().find(|c| c.name == "full_recitation").unwrap();
+        let full = config
+            .card_types
+            .iter()
+            .find(|c| c.name == "full_recitation")
+            .unwrap();
         assert_eq!(full.show, vec!["ref"]);
         assert_eq!(full.hide, vec!["phrases"]);
         assert!(full.iterate.is_none());
 
-        let fill = config.card_types.iter().find(|c| c.name == "fill_in_blank").unwrap();
+        let fill = config
+            .card_types
+            .iter()
+            .find(|c| c.name == "fill_in_blank")
+            .unwrap();
         assert_eq!(fill.iterate.as_deref(), Some("phrases"));
         assert_eq!(fill.show, vec!["ref", "phrases - $"]);
         assert_eq!(fill.hide, vec!["$"]);
 
-        let ftv = config.card_types.iter().find(|c| c.name == "finish_this_verse").unwrap();
+        let ftv = config
+            .card_types
+            .iter()
+            .find(|c| c.name == "finish_this_verse")
+            .unwrap();
         assert_eq!(ftv.requires.as_deref(), Some("ftv"));
     }
 

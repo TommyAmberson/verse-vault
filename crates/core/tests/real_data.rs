@@ -45,19 +45,29 @@ fn build_graph_from_corinthians() {
     assert_eq!(result.verse_atoms.len(), verses_with_text);
 
     // Verify node types exist
-    let phrase_count = result.graph.node_ids()
+    let phrase_count = result
+        .graph
+        .node_ids()
         .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::Phrase { .. })))
         .count();
-    let ref_count = result.graph.node_ids()
+    let ref_count = result
+        .graph
+        .node_ids()
         .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::Reference { .. })))
         .count();
-    let ftv_count = result.graph.node_ids()
+    let ftv_count = result
+        .graph
+        .node_ids()
         .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::Ftv { .. })))
         .count();
-    let heading_count = result.graph.node_ids()
+    let heading_count = result
+        .graph
+        .node_ids()
         .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::Heading { .. })))
         .count();
-    let club_count = result.graph.node_ids()
+    let club_count = result
+        .graph
+        .node_ids()
         .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::ClubEntry { .. })))
         .count();
 
@@ -68,7 +78,10 @@ fn build_graph_from_corinthians() {
     println!("Club entries: {club_count}");
 
     assert_eq!(ref_count, verses_with_text);
-    assert!(phrase_count > verses_with_text, "should have more phrases than verses");
+    assert!(
+        phrase_count > verses_with_text,
+        "should have more phrases than verses"
+    );
     assert!(ftv_count > 0, "should have FTV nodes");
     assert!(heading_count > 0, "should have heading nodes");
     assert!(club_count > 0, "should have club entries");

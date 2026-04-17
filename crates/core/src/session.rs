@@ -40,7 +40,12 @@ impl ReDrill {
         match &self.kind {
             ReDrillKind::FillInBlank { target_atom } => {
                 let shown: Vec<NodeId> = std::iter::once(self.verse_ref)
-                    .chain(self.verse_phrases.iter().copied().filter(|p| p != target_atom))
+                    .chain(
+                        self.verse_phrases
+                            .iter()
+                            .copied()
+                            .filter(|p| p != target_atom),
+                    )
                     .collect();
                 SessionCard {
                     shown,
@@ -172,7 +177,12 @@ pub struct NewVerseInfo {
 }
 
 impl Session {
-    pub fn new(engine: &ReviewEngine, now_secs: i64, params: SessionParams, new_verses: &[NewVerseInfo]) -> Self {
+    pub fn new(
+        engine: &ReviewEngine,
+        now_secs: i64,
+        params: SessionParams,
+        new_verses: &[NewVerseInfo],
+    ) -> Self {
         let mut queue = VecDeque::new();
 
         // Add due cards sorted by priority
@@ -183,7 +193,9 @@ impl Session {
             .collect();
         due.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap());
 
-        let max_scheduled = params.max_session_size.saturating_sub(new_verses.len().min(params.max_new_verses) * 4);
+        let max_scheduled = params
+            .max_session_size
+            .saturating_sub(new_verses.len().min(params.max_new_verses) * 4);
         for sched in due.iter().take(max_scheduled) {
             queue.push_back(SessionEntry::Scheduled(sched.card_id));
         }
@@ -238,7 +250,12 @@ impl Session {
     ) -> ReviewOutcome {
         let entry = match self.queue.pop_front() {
             Some(e) => e,
-            None => return ReviewOutcome { edge_updates: vec![], redrills_inserted: 0 },
+            None => {
+                return ReviewOutcome {
+                    edge_updates: vec![],
+                    redrills_inserted: 0,
+                };
+            }
         };
 
         self.reviews_completed += 1;
@@ -247,25 +264,36 @@ impl Session {
             SessionEntry::Scheduled(card_id) => {
                 let updates = engine.review(card_id, grades.clone(), now_secs);
                 let redrills = self.insert_redrills_for_failures(&grades, engine);
-                ReviewOutcome { edge_updates: updates, redrills_inserted: redrills }
+                ReviewOutcome {
+                    edge_updates: updates,
+                    redrills_inserted: redrills,
+                }
             }
             SessionEntry::ReDrill(redrill) => {
                 let card = redrill.to_session_card();
-                let updates = engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
+                let updates =
+                    engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
                 let redrills = self.insert_redrills_for_failures(&grades, engine);
-                ReviewOutcome { edge_updates: updates, redrills_inserted: redrills }
+                ReviewOutcome {
+                    edge_updates: updates,
+                    redrills_inserted: redrills,
+                }
             }
             SessionEntry::NewVerse(mut progress) => {
                 if progress.is_reading() {
                     // Reading stage: no grading, just advance
                     progress.advance();
                     self.queue.push_front(SessionEntry::NewVerse(progress));
-                    return ReviewOutcome { edge_updates: vec![], redrills_inserted: 0 };
+                    return ReviewOutcome {
+                        edge_updates: vec![],
+                        redrills_inserted: 0,
+                    };
                 }
 
                 // Build a transient card for credit assignment
                 let card = progress.to_session_card();
-                let updates = engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
+                let updates =
+                    engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
 
                 let failed: Vec<NodeId> = grades
                     .iter()
@@ -278,7 +306,10 @@ impl Session {
                     if !matches!(progress.stage, RevealStage::Complete) {
                         self.queue.push_front(SessionEntry::NewVerse(progress));
                     }
-                    ReviewOutcome { edge_updates: updates, redrills_inserted: 0 }
+                    ReviewOutcome {
+                        edge_updates: updates,
+                        redrills_inserted: 0,
+                    }
                 } else {
                     // Insert re-drills for failed phrases, then retry current stage
                     let redrills = self.insert_redrills_from_context(
@@ -288,8 +319,12 @@ impl Session {
                     );
                     // Re-queue current stage after re-drills
                     let insert_pos = redrills.min(self.queue.len());
-                    self.queue.insert(insert_pos, SessionEntry::NewVerse(progress));
-                    ReviewOutcome { edge_updates: updates, redrills_inserted: redrills }
+                    self.queue
+                        .insert(insert_pos, SessionEntry::NewVerse(progress));
+                    ReviewOutcome {
+                        edge_updates: updates,
+                        redrills_inserted: redrills,
+                    }
                 }
             }
         }
@@ -373,13 +408,35 @@ mod tests {
 
     fn build_verse_engine() -> (ReviewEngine, NodeId, NodeId, NodeId, NodeId, NodeId) {
         let mut g = crate::graph::Graph::new();
-        let r = g.add_node(NodeKind::Reference { chapter: 3, verse: 16 });
-        let v = g.add_node(NodeKind::VerseGist { chapter: 3, verse: 16 });
-        let p1 = g.add_node(NodeKind::Phrase { text: "phrase one".into(), verse_id: 0, position: 0 });
-        let p2 = g.add_node(NodeKind::Phrase { text: "phrase two".into(), verse_id: 0, position: 1 });
-        let p3 = g.add_node(NodeKind::Phrase { text: "phrase three".into(), verse_id: 0, position: 2 });
+        let r = g.add_node(NodeKind::Reference {
+            chapter: 3,
+            verse: 16,
+        });
+        let v = g.add_node(NodeKind::VerseGist {
+            chapter: 3,
+            verse: 16,
+        });
+        let p1 = g.add_node(NodeKind::Phrase {
+            text: "phrase one".into(),
+            verse_id: 0,
+            position: 0,
+        });
+        let p2 = g.add_node(NodeKind::Phrase {
+            text: "phrase two".into(),
+            verse_id: 0,
+            position: 1,
+        });
+        let p3 = g.add_node(NodeKind::Phrase {
+            text: "phrase three".into(),
+            verse_id: 0,
+            position: 2,
+        });
 
-        let state = EdgeState { stability: 5.0, difficulty: 5.0, last_review_secs: 0 };
+        let state = EdgeState {
+            stability: 5.0,
+            difficulty: 5.0,
+            last_review_secs: 0,
+        };
         g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
@@ -387,7 +444,11 @@ mod tests {
         g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
         g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p2, p3, state);
 
-        let full = Card { id: CardId(0), shown: vec![r], hidden: vec![p1, p2, p3] };
+        let full = Card {
+            id: CardId(0),
+            shown: vec![r],
+            hidden: vec![p1, p2, p3],
+        };
         let engine = ReviewEngine::new(g, vec![full], 0.9);
         (engine, r, v, p1, p2, p3)
     }
@@ -403,7 +464,9 @@ mod tests {
     #[test]
     fn redrill_fill_in_blank_construction() {
         let rd = ReDrill {
-            kind: ReDrillKind::FillInBlank { target_atom: NodeId(3) },
+            kind: ReDrillKind::FillInBlank {
+                target_atom: NodeId(3),
+            },
             verse_ref: NodeId(0),
             verse_phrases: vec![NodeId(2), NodeId(3), NodeId(4)],
         };
@@ -468,14 +531,13 @@ mod tests {
         let mut session = Session::new(&engine, 30 * DAY, SessionParams::default(), &[]);
 
         let _card = session.next().unwrap();
-        let grades = HashMap::from([
-            (p1, Grade::Good),
-            (p2, Grade::Again),
-            (p3, Grade::Good),
-        ]);
+        let grades = HashMap::from([(p1, Grade::Good), (p2, Grade::Again), (p3, Grade::Good)]);
         let outcome = session.record_review(grades, &mut engine, 30 * DAY);
 
-        assert!(outcome.redrills_inserted > 0, "should insert re-drill for p2");
+        assert!(
+            outcome.redrills_inserted > 0,
+            "should insert re-drill for p2"
+        );
         assert!(!session.is_done(), "session should have re-drill in queue");
     }
 
