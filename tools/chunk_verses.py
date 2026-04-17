@@ -24,7 +24,18 @@ def strip_html(text: str) -> str:
     text = NBSP_RE.sub(" ", text)
     text = STRIP_HTML_RE.sub("", text)
     text = html.unescape(text)
+    text = clean_anki_quotes(text)
     text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def clean_anki_quotes(text: str) -> str:
+    """Remove Anki CSV quote escaping."""
+    # Remove outer wrapping quotes from Anki CSV export
+    if text.startswith('"') and text.endswith('"'):
+        text = text[1:-1]
+    # Convert doubled quotes to single (Anki's CSV escaping for inner quotes)
+    text = text.replace('""', '"')
     return text
 
 
