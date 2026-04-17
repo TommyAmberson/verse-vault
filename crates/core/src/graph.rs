@@ -72,6 +72,19 @@ impl Graph {
         (forward, backward)
     }
 
+    /// Add a bidirectional edge pair with explicit initial state.
+    pub fn add_bi_edge_with_state(
+        &mut self,
+        kind: EdgeKind,
+        a: NodeId,
+        b: NodeId,
+        state: EdgeState,
+    ) -> (EdgeId, EdgeId) {
+        let forward = self.add_edge_with_state(kind, a, b, Some(state));
+        let backward = self.add_edge_with_state(kind, b, a, Some(state));
+        (forward, backward)
+    }
+
     pub fn node(&self, id: NodeId) -> Option<&Node> {
         self.nodes.get(&id)
     }

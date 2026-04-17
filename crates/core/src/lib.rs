@@ -5,3 +5,4 @@ pub mod graph;
 pub mod fsrs_bridge;
 pub mod path;
 pub mod anchor;
+pub mod credit;
