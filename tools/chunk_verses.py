@@ -15,28 +15,85 @@ import re
 import sys
 import time
 
+KEEP_TAGS = re.compile(
+    r'(</?b>|</?i>|<span\s+style="?font-variant:\s*small-caps;?"?>|</span>)',
+    re.IGNORECASE,
+)
 STRIP_HTML_RE = re.compile(r"<[^>]+>")
 NBSP_RE = re.compile(r"&nbsp;")
-QUOTE_RE = re.compile(r"&[a-z]+;")
 
 
-def strip_html(text: str) -> str:
+def clean_text(text: str) -> str:
+    """Clean Anki HTML export into text with preserved formatting tags.
+
+    Keeps <b>, <i>, <span style="font-variant: small-caps;"> tags.
+    Normalizes multi-word <b>/<i> spans into per-word tags.
+    Removes everything else (nbsp, br, other tags).
+    Cleans Anki CSV quote escaping.
+    """
+    # 1. Clean Anki CSV quote escaping first (before HTML processing)
+    text = _clean_anki_quotes(text)
+    # 2. Replace &nbsp; with space
     text = NBSP_RE.sub(" ", text)
-    text = STRIP_HTML_RE.sub("", text)
+    # 3. Remove <br> tags
+    text = re.sub(r"<br\s*/?>", " ", text, flags=re.IGNORECASE)
+    # 4. Extract and protect kept tags, strip everything else
+    text = _strip_unwanted_tags(text)
+    # 5. Unescape HTML entities
     text = html.unescape(text)
-    text = clean_anki_quotes(text)
+    # 6. Normalize bold/italic spans to per-word
+    text = _normalize_tag_spans(text, "b")
+    text = _normalize_tag_spans(text, "i")
+    # 7. Move spaces outside tags
+    text = re.sub(r"<(b|i)>\s+", r" <\1>", text)
+    text = re.sub(r"\s+</(b|i)>", r"</\1> ", text)
+    # 8. Collapse whitespace
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
 
-def clean_anki_quotes(text: str) -> str:
-    """Remove Anki CSV quote escaping."""
-    # Remove outer wrapping quotes from Anki CSV export
+def _clean_anki_quotes(text: str) -> str:
     if text.startswith('"') and text.endswith('"'):
         text = text[1:-1]
-    # Convert doubled quotes to single (Anki's CSV escaping for inner quotes)
     text = text.replace('""', '"')
     return text
+
+
+def _strip_unwanted_tags(text: str) -> str:
+    """Remove all HTML tags except b, i, and small-caps span."""
+    # Replace kept tags with placeholders
+    placeholders = []
+
+    def save_tag(m):
+        placeholders.append(m.group(0))
+        return f"\x00{len(placeholders) - 1}\x00"
+
+    text = KEEP_TAGS.sub(save_tag, text)
+    # Strip all remaining tags
+    text = STRIP_HTML_RE.sub("", text)
+    # Restore kept tags
+    for i, tag in enumerate(placeholders):
+        text = text.replace(f"\x00{i}\x00", tag)
+    return text
+
+
+def _normalize_tag_spans(text: str, tag: str) -> str:
+    """Convert multi-word <tag>some words</tag> to <tag>some</tag> <tag>words</tag>."""
+    pattern = re.compile(rf"<{tag}>(.*?)</{tag}>", re.DOTALL)
+
+    def split_span(m):
+        content = m.group(1).strip()
+        words = content.split()
+        if len(words) <= 1:
+            return f"<{tag}>{content}</{tag}>"
+        return " ".join(f"<{tag}>{w}</{tag}>" for w in words)
+
+    return pattern.sub(split_span, text)
+
+
+def strip_tags(text: str) -> str:
+    """Remove ALL tags from text (for plain-text operations like chunking)."""
+    return re.sub(r"<[^>]+>", "", text)
 
 
 def parse_reference(ref_str: str) -> tuple[str, int, int]:
@@ -92,8 +149,8 @@ def parse_anki_export(filepath: str, year_prefix: str):
 
             if note_type == "Verse":
                 book, chapter, verse = parse_reference(reference)
-                plain_text = strip_html(text_html)
-                ftv_plain = strip_html(ftv) if ftv else ""
+                cleaned = clean_text(text_html)
+                ftv_clean = clean_text(ftv) if ftv else ""
 
                 clubs = []
                 if "150" in club:
@@ -105,9 +162,8 @@ def parse_anki_export(filepath: str, year_prefix: str):
                     "book": book,
                     "chapter": chapter,
                     "verse": verse,
-                    "text": plain_text,
-                    "text_html": text_html,
-                    "ftv": ftv_plain,
+                    "text": cleaned,
+                    "ftv": ftv_clean,
                     "clubs": clubs,
                     "phrases": [],  # filled by LLM
                 })

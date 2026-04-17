@@ -26,8 +26,6 @@ pub struct VerseData {
     pub chapter: u16,
     pub verse: u16,
     pub text: String,
-    #[serde(default)]
-    pub text_html: String,
     pub phrases: Vec<String>,
     #[serde(default)]
     pub ftv: String,
