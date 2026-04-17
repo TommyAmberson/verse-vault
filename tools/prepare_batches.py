@@ -24,6 +24,8 @@ Split each line into memorization phrases (4-12 words). Rules:
   exactly equal the original line.
 
 Write ONLY valid JSON to {output} — an array of {count} arrays of strings.
+IMPORTANT: Some verses contain literal " (double quote) characters. In JSON
+strings these MUST be escaped as \\". For example: "He said: \\"Come here.\\""
 Do NOT use Bash or Python. Use only Read and Write tools."""
 
 

@@ -11,6 +11,47 @@ import sys
 import difflib
 
 
+def _try_fix_json_quotes(raw: str) -> str:
+    """Try to fix unescaped quotes inside JSON strings.
+
+    LLM agents sometimes write "text with "quotes" inside" instead of
+    "text with \\"quotes\\" inside". This attempts to fix that by escaping
+    quotes that appear inside string values.
+    """
+    import re
+    # Find strings between [ ] and escape inner quotes
+    # Strategy: replace " that are NOT at string boundaries with \"
+    lines = raw.split("\n")
+    fixed_lines = []
+    for line in lines:
+        stripped = line.strip()
+        # Lines that are just structural JSON (brackets, commas) — skip
+        if stripped in ("", "[", "]", "],", "[],"):
+            fixed_lines.append(line)
+            continue
+        # Lines that are string values: start with " and end with " or ",
+        if stripped.startswith('"') and (stripped.endswith('"') or stripped.endswith('",') or stripped.endswith('",')):
+            # Find the content between the outer quotes
+            trailing = ""
+            if stripped.endswith('",'):
+                trailing = ","
+                inner = stripped[1:-2]
+            elif stripped.endswith('"'):
+                inner = stripped[1:-1]
+            else:
+                fixed_lines.append(line)
+                continue
+            # Escape any unescaped quotes in the inner content
+            inner = inner.replace('\\"', '\x00')  # protect already-escaped
+            inner = inner.replace('"', '\\"')       # escape unescaped
+            inner = inner.replace('\x00', '\\"')    # restore
+            indent = line[:len(line) - len(line.lstrip())]
+            fixed_lines.append(f'{indent}"{inner}"{trailing}')
+        else:
+            fixed_lines.append(line)
+    return "\n".join(fixed_lines)
+
+
 def main():
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} <input.json> <output.json>")
@@ -34,8 +75,21 @@ def main():
         if not os.path.exists(path):
             break
         with open(path) as f:
-            chunks = json.load(f)
-        print(f"  Batch {batch_num}: {len(chunks)} entries")
+            raw = f.read()
+        try:
+            chunks = json.loads(raw)
+        except json.JSONDecodeError:
+            # Try to fix common agent JSON errors: unescaped quotes inside strings
+            fixed = _try_fix_json_quotes(raw)
+            try:
+                chunks = json.loads(fixed)
+                print(f"  Batch {batch_num}: {len(chunks)} entries (fixed JSON quote escaping)")
+            except json.JSONDecodeError as e:
+                print(f"  Batch {batch_num}: INVALID JSON even after fix attempt: {e}")
+                batch_num += 1
+                continue
+        else:
+            print(f"  Batch {batch_num}: {len(chunks)} entries")
         all_chunks.extend(chunks)
         batch_num += 1
 

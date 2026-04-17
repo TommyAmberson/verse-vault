@@ -68,8 +68,15 @@ Split each line into memorization phrases (4-12 words). Rules:
   exactly equal the original line.
 
 Write ONLY valid JSON to /path/to/data/chunks-N.json — an array of M arrays of strings.
+IMPORTANT: Some verses contain literal " (double quote) characters. In JSON
+strings these MUST be escaped as \". For example: "He said: \"Come here.\""
 Do NOT use Bash or Python. Use only Read and Write tools.
 ```
+
+**Known issue:** LLM agents sometimes fail to escape `"` in JSON strings,
+producing invalid JSON. The `validate_and_merge.py` script attempts to fix
+this automatically. If a batch still has invalid JSON after the fix attempt,
+manually fix the `chunks-N.json` file or re-dispatch that batch.
 
 **Key settings for dispatch:**
 - Model: `haiku` (cheaper, sufficient for this task)
