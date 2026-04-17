@@ -80,17 +80,22 @@ All learnable edges are tracked by FSRS. There are no hardcoded R=1.0 edges.
 Two consecutive verses with club 150 membership:
 
 ```
-chapter_ref("Acts 2") ↔ chapter_gist
-                              ↓  ↑
-        club_150_entry(2:1) ←┘  |    club_150_entry(2:4)
-               ↕                |           ↕
-           ref(2:1)         ref(2:4)
-               ↕                ↕
-           verse1  ────────  verse2 ───→ chapter_gist
-            / | \             / | \
-           p1─p2─p3         p4─p5─p6
+                chapter_ref("Acts 2")
+                        ↕
+                   chapter_gist
+                  ↑      ↑     ↓                       ↓
+              verse1 ── verse2  club_150_entry(2:1) → club_150_entry(2:4)
+              / | \     / | \          ↕                       ↕
+            p1─p2─p3  p4─p5─p6     ref(2:1)                ref(2:4)
+                          ↕                                    ↕
+                       ref(2:1)                             ref(2:4)
 
-↔ / ── = bidirectional    → / ↓ = unidirectional    ↕ = bidirectional (vertical)
+note: ref(2:1) and ref(2:4) each appear once — shown twice here for layout clarity
+verse gist → chapter gist edges are unidirectional (↑)
+chapter gist → club entry edges are unidirectional (↓)
+all other vertical edges (↕) are bidirectional
+all horizontal edges (──) are bidirectional
+club entry → club entry (→) is unidirectional
 ```
 
 * Verse gist hub-connects (bi) to all its phrases

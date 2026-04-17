@@ -154,27 +154,39 @@ priority(card) = (total_delay(card) + β × reinforcement_bonus(card)) / review_
 
 Where β ≈ 0.1–0.3 (same discount as exposure reinforcement in credit assignment).
 
+Reinforcement bonus sums both directions of each shown↔shown edge (each directed edge
+contributes separately).
+
 **Examples** (β=0.2, α=0.6):
 
 ```
 All 4 phrase edges barely due (R=0.88):
-  Full recitation:  delay=3.52, reinf=0,     cost=2.3 → priority = 3.52 / 2.3 = 1.53
-  Fill-in-blank:    delay=0.88, reinf=0.53,  cost=1.0 → priority = (0.88 + 0.11) / 1.0 = 0.99
+  Full recitation (shown={ref}, hidden={p1,p2,p3,p4}):
+    delay = 4 × 0.88 = 3.52
+    reinf = 0 (ref has no shown↔shown edges)
+    cost = 4^0.6 = 2.3
+    priority = 3.52 / 2.3 = 1.53
+
+  Fill-in-blank for p2 (shown={ref,p1,p3,p4}, hidden={p2}):
+    delay = 0.88 (p2's due edges)
+    reinf = p3→p4 + p4→p3 = 0.88 + 0.88 = 1.76 (only direct shown↔shown edge pair)
+    cost = 1^0.6 = 1.0
+    priority = (0.88 + 0.2 × 1.76) / 1.0 = 1.23
   → Full recitation wins ✓
 
-Only 1 phrase edge due, but phrase→phrase edges also due:
-  verse→ref card:   delay=0.85, reinf=0.2×2.64, cost=1.0 → priority = (0.85 + 0.53) / 1.0 = 1.38
-  Fill-in-blank:    delay=0.88, reinf=0,         cost=1.0 → priority = 0.88 / 1.0 = 0.88
-  → verse→ref wins — it also reinforces phrase edges ✓
+Ref edge due, phrase→phrase edges also due:
+  verse→ref (shown={p1,p2,p3,p4}, hidden={ref}):
+    delay = 0.88 (ref's due edges)
+    reinf = p1↔p2 + p2↔p3 + p3↔p4 = 6 × 0.88 = 5.28 (all phrase shown↔shown)
+    cost = 1^0.6 = 1.0
+    priority = (0.88 + 0.2 × 5.28) / 1.0 = 1.94
+  → verse→ref wins big — reinforces 6 phrase edges while testing ref ✓
 
 Only 1 edge due, nothing else weak:
-  Full recitation:  delay=0.88, reinf=0,  cost=2.3 → priority = 0.88 / 2.3 = 0.38
-  Fill-in-blank:    delay=0.88, reinf=0,  cost=1.0 → priority = 0.88 / 1.0 = 0.88
+  Full recitation:  delay=0.88, reinf=0, cost=2.3 → priority = 0.38
+  Fill-in-blank:    delay=0.88, reinf=0, cost=1.0 → priority = 0.88
   → Fill-in-blank wins ✓
 ```
-
-The reinforcement bonus gives cards credit for incidental exposure, making cards that do
-double duty more attractive when multiple edges need work.
 
 ## Post-review cascade
 

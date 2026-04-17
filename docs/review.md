@@ -63,13 +63,26 @@ scheduling time we don't know which hidden atoms will be recalled. The actual re
 better than predicted (due to source set expansion), which is fine — the prediction is a
 conservative lower bound.
 
+### Grades
+
+FSRS uses four grades, following standard spaced-repetition convention:
+
+| Grade | Code | Classification | Effect on S | Effect on D |
+| ----- | ---- | -------------- | ----------- | ----------- |
+| Again | 1    | **Fail**       | Post-lapse formula (S drops significantly) | D increases |
+| Hard  | 2    | **Pass**       | S increases (smaller multiplier, w₁₅) | D increases |
+| Good  | 3    | **Pass**       | S increases (standard) | D unchanged (mean reversion) |
+| Easy  | 4    | **Pass**       | S increases (larger multiplier, w₁₆) | D decreases |
+
 ### Observations
 
 For each hidden atom h:
 
-* **Success** (Good/Easy): at least one path from the source set (excluding h) to h succeeded.
-* **Failure** (Again): no path from the source set to h succeeded.
-* **Partial** (Hard): a path succeeded with difficulty.
+* **Pass** (Good/Easy/Hard): at least one path from the source set (excluding h) to h
+  succeeded. The atom joins the source set. Hard is a pass — the learner recalled it, just
+  with difficulty. Paths through Hard atoms are NOT eliminated.
+* **Fail** (Again): no path from the source set to h succeeded. The atom does NOT join the
+  source set. Paths through this atom are eliminated for other atoms' credit assignment.
 
 ### Step 1: Enumerate paths
 
@@ -197,11 +210,16 @@ effective_R(path) = R(path_to_anchor_ref) × decay_factor ^ |target_num - anchor
 **Example**: recalling ref(2:3), direct edge weak:
 
 ```
-Direct:       verse(2:3) → ref(2:3)                      R = 0.30 × decay(0) = 0.30
-Via ref(2:1): verse(2:3) → v(2:2) → v(2:1) → ref(2:1)   R = 0.81 × 0.85 × decay(2) = 0.62
-Via ref(2:4): verse(2:3) → v(2:4) → ref(2:4)             R = 0.80 × 0.70 × decay(1) = 0.53
+Direct:       verse(2:3) → ref(2:3)
+              R = 0.30 × decay(0) = 0.30
 
-Parallel: R_total = 1 - (1-0.30)(1-0.62)(1-0.53) = 0.875
+Via ref(2:1): verse(2:3) → v(2:2) → v(2:1) → ref(2:1)
+              R = 0.90 × 0.90 × 0.95 × decay(2) = 0.77 × 0.90 = 0.69
+
+Via ref(2:4): verse(2:3) → v(2:4) → ref(2:4)
+              R = 0.85 × 0.80 × decay(1) = 0.68 × 0.95 = 0.65
+
+Parallel: R_total = 1 - (1-0.30)(1-0.69)(1-0.65) = 0.924
 ```
 
 **Anchor transfer only applies to references.** References are numbers that support arithmetic.
