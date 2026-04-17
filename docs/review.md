@@ -120,44 +120,46 @@ For each path from source to h, identify the weakest edge (lowest R).
 Aggregate blame: edges that are the weakest link on multiple paths receive the most blame.
 ```
 
-### Step 5: Exposure reinforcement
+### Step 5: Secondary reinforcement (fallback chain)
 
-Edges between shown atoms were not actively tested but were passively observed (the learner
-saw the atoms in context). These receive a weak update at discount factor β ≈ 0.1–0.3:
+After primary credit/blame, edges that received no primary update may get a secondary
+update. These follow a **priority chain** — each edge gets at most one type of update:
+
+```
+1. Primary credit/blame (Steps 3-4)     always applied, accumulates across atoms
+2. Exposure                              ONLY if no primary update
+3. Reverse reinforcement                 ONLY if no primary or exposure update
+```
+
+**Exposure**: edges between shown atoms were passively observed. If an edge got no primary
+credit or blame, it receives a weak exposure update:
 
 ```
 For each edge between shown atoms where R(edge) < target_retention:
-  exposure_weight = β
-  grade = Good  (passive exposure is treated as a weak positive signal)
+  IF edge received no primary credit or blame this review:
+    exposure_weight = β
+    grade = Good
 ```
 
-This captures the real but small reinforcement from seeing phrases in order during a verse→ref
-card, or seeing surrounding context during a fill-in-the-blank.
-
-### Step 6: Reverse reinforcement (fallback only)
-
-For bidirectional edges, engaging with one direction weakly reinforces the reverse. But
-only as a **fallback** — if the reverse direction already received credit, blame, or
-exposure from the current review, no reverse bonus is added.
+**Reverse reinforcement**: for bidirectional edges where one direction was updated but the
+reverse was not. If the reverse direction got no primary or exposure update:
 
 ```
-After steps 1–5, for each directed edge B→A that received NO update this review:
+For each directed edge B→A that received NO update this review:
   If the reverse edge A→B DID receive an update with weight w and grade G:
     B→A gets: weight β × w, grade G
 ```
 
-This avoids double-counting. For edges between two correctly-recalled hidden atoms, both
-directions already get primary credit through source set expansion (p1 sources p2 AND p2
-sources p1) — reverse reinforcement doesn't apply. It only kicks in for edges where one
-direction was exercised but the reverse was not on any path.
+The fallback chain prevents double-counting. An edge between two shown atoms that is ALSO
+on a credit path (e.g., p1→p2 in a verse→ref card where p1→p2→verse→ref is a path) gets
+only primary credit, not exposure on top. Exposure only fills in edges the primary algorithm
+didn't reach.
 
-### Step 7: Apply FSRS updates
+### Step 6: Apply FSRS updates
 
 ```
-total_weight = Σ (credit or blame from all observations involving this edge)
-             + exposure_weight (if applicable)
-             + reverse_reinforcement_weight (if applicable, and only if no other update)
-grade = weighted blend of grades from observations
+total_weight = primary_weight + secondary_weight (if applicable)
+grade = weighted blend of grades from all updates
 
 S_new = interpolate(S_old, S_fsrs(grade), total_weight)
 ```
@@ -204,8 +206,9 @@ Credit for p4 (Good):
 * **Failed atoms block downstream paths**: p3=Again eliminates p2→p3→p4, so p4's credit goes
   to the hub — reflecting the learner "jumped" via another path.
 * **Blame concentrates on short paths**: p2→p3 as a 1-hop failed path gets strong blame.
-* **Exposure reinforcement**: edges between shown atoms get a weak update (β-discounted),
-  capturing passive reinforcement from seeing atoms in context without actively recalling them.
+* **No double-counting**: secondary updates (exposure, reverse reinforcement) only apply to
+  edges that got no primary update. An edge on a credit path AND between shown atoms gets
+  primary credit only — not exposure on top.
 
 ## Anchor transfer
 
