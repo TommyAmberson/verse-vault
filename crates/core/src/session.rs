@@ -34,6 +34,7 @@ pub struct ReDrill {
     pub kind: ReDrillKind,
     pub verse_ref: NodeId,
     pub verse_phrases: Vec<NodeId>,
+    pub origin_card: Option<CardId>,
 }
 
 impl ReDrill {
@@ -279,7 +280,7 @@ impl Session {
             SessionEntry::Scheduled(card_id) => {
                 let has_failures = grades.values().any(|g| !g.is_pass());
                 let updates = engine.review(card_id, grades.clone(), now_secs);
-                let redrills = self.insert_redrills_for_failures(&grades, engine);
+                let redrills = self.insert_redrills_for_failures(&grades, engine, Some(card_id));
                 // Lapse: transition Review → Relearning
                 if has_failures {
                     engine.set_card_state(card_id, crate::card::CardState::Relearning);
@@ -295,7 +296,8 @@ impl Session {
                 let all_passed = grades.values().all(|g| g.is_pass());
                 let updates =
                     engine.review_transient(&card.shown, &card.hidden, grades.clone(), now_secs);
-                let redrills = self.insert_redrills_for_failures(&grades, engine);
+                let redrills =
+                    self.insert_redrills_for_failures(&grades, engine, redrill.origin_card);
                 // Re-drill success: find the original card and transition Relearning → Review
                 if all_passed {
                     self.transition_relearning_to_review(&redrill, engine);
@@ -361,6 +363,7 @@ impl Session {
                         &failed,
                         progress.verse_ref,
                         &progress.verse_phrases,
+                        None,
                     );
                     // Re-queue current stage after re-drills
                     let insert_pos = redrills.min(self.queue.len());
@@ -379,6 +382,7 @@ impl Session {
         &mut self,
         grades: &HashMap<NodeId, Grade>,
         engine: &ReviewEngine,
+        origin_card: Option<CardId>,
     ) -> usize {
         let failed: Vec<NodeId> = grades
             .iter()
@@ -390,40 +394,31 @@ impl Session {
             return 0;
         }
 
-        // Find verse context for the first failed atom
         let (verse_ref, verse_phrases) = match engine.graph.verse_context(failed[0]) {
             Some(ctx) => ctx,
             None => return 0,
         };
 
-        self.insert_redrills_from_context(&failed, verse_ref, &verse_phrases)
+        self.insert_redrills_from_context(&failed, verse_ref, &verse_phrases, origin_card)
     }
 
     fn prune_no_longer_due(&mut self, engine: &ReviewEngine, now_secs: i64) {
         self.queue.retain(|entry| match entry {
-            SessionEntry::Scheduled(card_id) => engine
-                .card_schedule(*card_id)
-                .is_none_or(|s| s.due_date_secs <= now_secs),
+            SessionEntry::Scheduled(card_id) => {
+                engine
+                    .card(*card_id)
+                    .is_some_and(|c| c.state == crate::card::CardState::Review)
+                    && engine
+                        .card_schedule(*card_id)
+                        .is_some_and(|s| s.due_date_secs <= now_secs)
+            }
             _ => true,
         });
     }
 
     fn transition_relearning_to_review(&self, redrill: &ReDrill, engine: &mut ReviewEngine) {
-        for card in &mut engine.cards {
-            if card.state != crate::card::CardState::Relearning {
-                continue;
-            }
-            let overlaps = card
-                .hidden
-                .iter()
-                .any(|h| redrill.verse_phrases.contains(h))
-                || card
-                    .shown
-                    .iter()
-                    .any(|s| redrill.verse_phrases.contains(s));
-            if overlaps {
-                card.state = crate::card::CardState::Review;
-            }
+        if let Some(card_id) = redrill.origin_card {
+            engine.set_card_state(card_id, crate::card::CardState::Review);
         }
     }
 
@@ -432,6 +427,7 @@ impl Session {
         failed: &[NodeId],
         verse_ref: NodeId,
         verse_phrases: &[NodeId],
+        origin_card: Option<CardId>,
     ) -> usize {
         let total_hidden = verse_phrases.len().max(1);
         let fail_ratio = failed.len() as f32 / total_hidden as f32;
@@ -441,6 +437,7 @@ impl Session {
                 kind: ReDrillKind::FullRecitation,
                 verse_ref,
                 verse_phrases: verse_phrases.to_vec(),
+                origin_card,
             }]
         } else {
             failed
@@ -449,6 +446,7 @@ impl Session {
                     kind: ReDrillKind::FillInBlank { target_atom: atom },
                     verse_ref,
                     verse_phrases: verse_phrases.to_vec(),
+                    origin_card,
                 })
                 .collect()
         };
@@ -543,6 +541,7 @@ mod tests {
             },
             verse_ref: NodeId(0),
             verse_phrases: vec![NodeId(2), NodeId(3), NodeId(4)],
+            origin_card: None,
         };
         let card = rd.to_session_card();
         assert_eq!(card.hidden, vec![NodeId(3)]);
