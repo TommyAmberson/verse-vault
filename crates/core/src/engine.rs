@@ -121,6 +121,72 @@ impl ReviewEngine {
         updates
     }
 
+    /// Process a review with a transient card (not from the catalog).
+    /// Used for re-drills and progressive reveal cards.
+    pub fn review_transient(
+        &mut self,
+        shown: &[NodeId],
+        hidden: &[NodeId],
+        grades: HashMap<NodeId, Grade>,
+        now_secs: i64,
+    ) -> Vec<EdgeUpdate> {
+        let review_result = ReviewResult {
+            shown: shown.to_vec(),
+            hidden: hidden.to_vec(),
+            grades,
+        };
+
+        let updates = credit::assign_credit(
+            &self.graph,
+            &review_result,
+            &self.credit_params,
+            &self.fsrs,
+            now_secs,
+        );
+
+        let mut edge_updates: HashMap<crate::types::EdgeId, Vec<(Grade, f32)>> = HashMap::new();
+        for u in &updates {
+            edge_updates
+                .entry(u.edge_id)
+                .or_default()
+                .push((u.grade, u.weight));
+        }
+
+        let mut updated_edge_ids = Vec::new();
+        for (edge_id, weighted_grades) in &edge_updates {
+            if let Some(edge) = self.graph.edge_mut(*edge_id)
+                && let Some(ref state) = edge.state {
+                    let new_state =
+                        self.fsrs
+                            .apply_weighted_update(state, weighted_grades, now_secs);
+                    edge.state = Some(new_state);
+                    updated_edge_ids.push(*edge_id);
+                }
+        }
+
+        let affected = self.mapping.affected_cards_for_edges(&updated_edge_ids);
+        let new_schedules = cascade::recompute_schedules(
+            &self.graph,
+            &self.cards,
+            &affected,
+            &self.fsrs,
+            now_secs,
+            &self.schedule_params,
+        );
+
+        for new_sched in new_schedules {
+            if let Some(existing) = self
+                .schedules
+                .iter_mut()
+                .find(|s| s.card_id == new_sched.card_id)
+            {
+                *existing = new_sched;
+            }
+        }
+
+        updates
+    }
+
     /// Get a card by ID.
     pub fn card(&self, id: CardId) -> Option<&Card> {
         self.cards.iter().find(|c| c.id == id)

@@ -128,6 +128,80 @@ impl Graph {
     pub fn edges(&self) -> impl Iterator<Item = &Edge> {
         self.edges.values()
     }
+
+    /// Find the verse context for a given atom: (reference NodeId, sorted phrase NodeIds).
+    /// Traverses: atom → VerseGist (via PhraseVerseGist) → Reference + all Phrases.
+    /// Works for Phrase, VerseGist, and Reference atoms.
+    pub fn verse_context(&self, atom: NodeId) -> Option<(NodeId, Vec<NodeId>)> {
+        use crate::edge::EdgeKind;
+        use crate::node::NodeKind;
+
+        let verse_gist = match self.node_kind(atom)? {
+            NodeKind::VerseGist { .. } => atom,
+            NodeKind::Phrase { .. } => {
+                self.find_neighbor(atom, EdgeKind::PhraseVerseGist, |k| {
+                    matches!(k, NodeKind::VerseGist { .. })
+                })?
+            }
+            NodeKind::Reference { .. } => {
+                self.find_neighbor(atom, EdgeKind::VerseGistReference, |k| {
+                    matches!(k, NodeKind::VerseGist { .. })
+                })?
+            }
+            _ => return None,
+        };
+
+        let reference = self.find_neighbor(verse_gist, EdgeKind::VerseGistReference, |k| {
+            matches!(k, NodeKind::Reference { .. })
+        })?;
+
+        let mut phrases: Vec<(u16, NodeId)> = Vec::new();
+        for &eid in self.outgoing_edges(verse_gist) {
+            if let Some(edge) = self.edge(eid)
+                && edge.kind == EdgeKind::PhraseVerseGist
+                    && let Some(NodeKind::Phrase { position, .. }) = self.node_kind(edge.target) {
+                        phrases.push((*position, edge.target));
+                    }
+        }
+        // Also check incoming (phrase→verse edges)
+        for &eid in self.incoming_edges(verse_gist) {
+            if let Some(edge) = self.edge(eid)
+                && edge.kind == EdgeKind::PhraseVerseGist
+                    && let Some(NodeKind::Phrase { position, .. }) = self.node_kind(edge.source)
+                        && !phrases.iter().any(|(_, id)| *id == edge.source) {
+                            phrases.push((*position, edge.source));
+                        }
+        }
+        phrases.sort_by_key(|(pos, _)| *pos);
+        let phrase_ids: Vec<NodeId> = phrases.into_iter().map(|(_, id)| id).collect();
+
+        Some((reference, phrase_ids))
+    }
+
+    fn find_neighbor(
+        &self,
+        node: NodeId,
+        edge_kind: crate::edge::EdgeKind,
+        pred: impl Fn(&NodeKind) -> bool,
+    ) -> Option<NodeId> {
+        for &eid in self.outgoing_edges(node) {
+            if let Some(edge) = self.edge(eid)
+                && edge.kind == edge_kind
+                    && let Some(kind) = self.node_kind(edge.target)
+                        && pred(kind) {
+                            return Some(edge.target);
+                        }
+        }
+        for &eid in self.incoming_edges(node) {
+            if let Some(edge) = self.edge(eid)
+                && edge.kind == edge_kind
+                    && let Some(kind) = self.node_kind(edge.source)
+                        && pred(kind) {
+                            return Some(edge.source);
+                        }
+        }
+        None
+    }
 }
 
 #[cfg(test)]
