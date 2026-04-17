@@ -41,3 +41,4 @@ simplification — use fsrs-rs's actual `current_retrievability()` function.
 
 * Commits must be atomic and single-responsibility — one logical change per commit.
 * Do not add `Co-Authored-By` lines.
+* Work on feature branches, not directly on master. Merge when ready.
