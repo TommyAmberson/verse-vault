@@ -14,8 +14,13 @@ import json
 import os
 import re
 
+SMALL_CAPS_SPAN = re.compile(
+    r'<span\s+style="[^"]*small-caps[^"]*">',
+    re.IGNORECASE,
+)
+CANONICAL_SMALL_CAPS = '<span style="font-variant: small-caps;">'
 KEEP_TAGS = re.compile(
-    r'(</?b>|</?i>|<span\s+style="?font-variant:\s*small-caps;?"?>|</span>)',
+    r'(</?b>|</?i>|</span>)',
     re.IGNORECASE,
 )
 STRIP_HTML_RE = re.compile(r"<[^>]+>")
@@ -51,12 +56,21 @@ def _clean_anki_quotes(text: str) -> str:
 
 
 def _strip_unwanted_tags(text: str) -> str:
+    # Normalize any small-caps span (however verbose) to canonical form
+    text = SMALL_CAPS_SPAN.sub(CANONICAL_SMALL_CAPS, text)
+
     placeholders = []
 
     def save_tag(m):
         placeholders.append(m.group(0))
         return f"\x00{len(placeholders) - 1}\x00"
 
+    # Now keep canonical small-caps spans too
+    text = re.sub(
+        re.escape(CANONICAL_SMALL_CAPS),
+        lambda m: save_tag(m),
+        text,
+    )
     text = KEEP_TAGS.sub(save_tag, text)
     text = STRIP_HTML_RE.sub("", text)
     for i, tag in enumerate(placeholders):
