@@ -3,14 +3,19 @@
 How the system decides what to show the learner and when. Depends on the graph structure
 ([graph.md](graph.md)) and review model ([review.md](review.md)).
 
+## Goal
+
+Maximize total retained memory, minimize review effort. The scheduler picks the card where
+each unit of learner effort produces the most memory maintenance.
+
 ## Architecture
 
 Scheduling uses two database layers:
 
 ```
-Edge DB (memory):      edge_id, S, D, last_review_time
-Card DB (cards):    card_id, shown_atoms, hidden_atoms, effective_R, due_date
-Edge→Card mapping:  edge_id → [card_ids that depend on this edge]
+Edge DB (memory):     edge_id, S, D, last_review_time
+Card DB (cards):      card_id, shown_atoms, hidden_atoms, due_R, due_date, priority
+Edge→Card mapping:    edge_id → [card_ids that depend on this edge]
 ```
 
 The **edge DB** tracks memory state. The **card DB** tracks scheduling state. Scheduling is
@@ -23,7 +28,7 @@ for a 500-verse season.
 
 Per verse (N=4 phrases):
 
-| Card              | Shown                | Hidden              |
+| Card                 | Shown                | Hidden              |
 | -------------------- | -------------------- | ------------------- |
 | full recitation      | {ref}                | {p1, p2, p3, p4}   |
 | fill-in-blank (×N)   | {ref, other phrases} | {one phrase}        |
@@ -35,7 +40,7 @@ Per verse (N=4 phrases):
 
 Per chapter:
 
-| Card              | Shown                | Hidden              |
+| Card                 | Shown                | Hidden              |
 | -------------------- | -------------------- | ------------------- |
 | club 150 listing     | {chapter_gist}       | {150 verse refs}    |
 | club 300 listing     | {chapter_gist}       | {300 verse refs}    |
@@ -43,50 +48,117 @@ Per chapter:
 | heading → prev       | {heading}            | {prev heading}      |
 | ref range → heading  | {start ref, end ref} | {heading}           |
 
-## Computing effective_R
+## Computing due_R
 
-For each card, effective_R is the probability the learner can recall ALL hidden atoms from
-the shown atoms. Computed from the graph using path enumeration (see [review.md](review.md)):
+A card is due when any of its hidden atoms drops below target retention. `due_R` is the
+R_eff of the weakest hidden atom:
 
 ```
-For each hidden atom h:
-  R_eff(h) = parallel composition over all paths from shown atoms to h (up to 5 hops)
-  
-effective_R(card) = Π R_eff(h) for all hidden atoms h
+due_R(card) = min over hidden atoms h: R_eff(h, shown_atoms)
 ```
 
-The product represents: the card "succeeds" only if ALL hidden atoms are recalled.
-
-**Note on multi-atom cards**: a club listing card with 7 hidden refs at per-atom R=0.9 has
-effective_R = 0.9^7 = 0.48. This means there's a ~52% chance of getting at least one wrong —
-the card is legitimately hard and SHOULD be scheduled more frequently than single-atom cards.
-If this over-schedules multi-atom cards in practice, an alternative is to use min(R_eff(h))
-(weakest atom) instead of the product. This is a tuning decision.
+Where R_eff(h, shown_atoms) = parallel composition over all paths from shown atoms to h
+(up to 5 hops). See [review.md](review.md).
 
 For cards where the hidden atom is a reference, anchor transfer applies (see
 [review.md](review.md)).
 
+A card is **due** when `due_R < target_retention`.
+
 ## Computing due_date
 
-R_effective(t) is a deterministic, monotonically decreasing function of time (as edge R values
-decay). The due_date is when it crosses target_retention. Solved exactly via binary search:
+R_eff(t) is deterministic and monotonically decreasing as edge R values decay. The due_date
+is when the weakest hidden atom crosses target_retention. Solved via binary search:
 
 ```
 low = now
 high = now + 365 days
 while high - low > 1 hour:
     mid = (low + high) / 2
-    if R_effective_at(mid) > target_retention:
+    if min_R_eff_at(mid) > target_retention:
         low = mid
     else:
         high = mid
 due_date = high
 ```
 
-Computing R_effective_at(t) = evaluate the path enumeration with each edge's R projected to
-time t: `R_edge(t) = (1 + (t - last_review) / (9 · S))^(-1)`.
+Computing min_R_eff_at(t) = for each hidden atom, evaluate path enumeration with each edge's
+R projected to time t: `R_edge(t) = (1 + (t - last_review) / (9 · S))^(-1)`. Take the min.
 
 Cost: ~20 iterations × ~120 ops = ~2,400 ops per card. Sub-millisecond.
+
+## Computing priority
+
+The scheduler's goal: maximize memory maintained per unit of review effort. The priority
+score captures this by combining **cost of delay** and **review cost**.
+
+### Cost of delay
+
+The cost of skipping a review is highest for barely-due edges — they have the most
+stability-compounding momentum to lose. Very overdue edges have already lost their momentum;
+delaying further costs little extra.
+
+For each edge on a path from shown to hidden:
+```
+cost_of_delay(edge) = R(edge)    if R(edge) < target_retention (edge is due)
+                    = 0          if R(edge) ≥ target_retention (edge is fine)
+```
+
+Higher R among due edges = more to lose from delay.
+
+Total cost of delay for the card = sum across all due edges the card exercises:
+```
+total_delay(card) = Σ R(edge) for each due edge on paths from shown to hidden
+```
+
+This is a byproduct of the path enumeration already done when computing due_R — just flag
+which edges are on paths and below target.
+
+### Review cost
+
+Review effort scales sub-linearly with hidden atoms. Typing a full verse flows sequentially
+(each phrase cues the next) and has fixed per-review overhead.
+
+```
+review_cost(card) = N_hidden ^ α      where α ∈ (0.5, 0.8), default 0.6
+```
+
+| Card type          | N_hidden | Cost (α=0.6) |
+| ------------------ | -------- | ------------- |
+| fill-in-blank      | 1        | 1.0           |
+| verse → ref        | 1        | 1.0           |
+| first words → rest | 3        | 1.9           |
+| full recitation    | 4        | 2.3           |
+| club 150 listing   | 7        | 3.4           |
+
+α can be calibrated from observed review durations once users are active.
+
+### Priority formula
+
+```
+priority(card) = total_delay(card) / review_cost(card)
+```
+
+This naturally selects the right card type:
+
+```
+All 4 edges barely due (R=0.88):
+  Full recitation:  Σ = 4 × 0.88 = 3.52 / 2.3 = 1.53
+  Fill-in-blank:    Σ = 1 × 0.88 = 0.88 / 1.0 = 0.88
+  → Full recitation wins — covers 4 due edges efficiently ✓
+
+Only 1 edge barely due:
+  Full recitation:  Σ = 0.88 / 2.3 = 0.38
+  Fill-in-blank:    Σ = 0.88 / 1.0 = 0.88
+  → Fill-in-blank wins — don't waste effort on non-due edges ✓
+
+3 of 4 edges due:
+  Full recitation:  Σ = 2.64 / 2.3 = 1.15
+  Fill-in-blank:    Σ = 0.88 / 1.0 = 0.88
+  → Full recitation wins — efficient coverage ✓
+```
+
+The crossover depends on α. Higher α penalizes broad cards more; lower α favors them.
 
 ## Post-review cascade
 
@@ -95,9 +167,9 @@ After each review:
 1. **Credit assignment** updates edges in the edge DB (new S, D, last_review_time).
 2. **Find affected cards** via the edge→card mapping. Most edges are within one verse,
    so ~10 cards are affected. Cross-verse edges add ~20 more. Typically ~30 cards total.
-3. **Recompute effective_R and due_date** for each affected card using the updated edge
-   values and binary search.
-4. **Write** updated effective_R and due_date to the card DB.
+3. **Recompute due_R, due_date, and priority** for each affected card using the updated
+   edge values and binary search.
+4. **Write** updated values to the card DB.
 
 Cost: ~30 cards × ~2,400 ops = ~72,000 ops. Sub-millisecond. The cascade runs as part of
 the review completion — no background job needed.
@@ -109,15 +181,12 @@ Scheduling is a database query:
 ```sql
 SELECT * FROM cards
 WHERE due_date <= now
-ORDER BY due_date ASC    -- easy first (barely overdue = easy)
-LIMIT N                  -- session size
+ORDER BY priority DESC
+LIMIT N
 ```
 
-Easy-first ordering builds confidence and momentum when returning after a break. Barely
-overdue cards (highest R among due items) come first.
-
-No graph computation at schedule time. The expensive work (path enumeration, binary search)
-is fully amortized into the post-review cascade.
+No graph computation at schedule time. The expensive work (path enumeration, binary search,
+priority scoring) is fully amortized into the post-review cascade.
 
 ## Sessions
 
@@ -132,9 +201,9 @@ have fewer reviews but richer signal.
 
 ### Within-session adaptation
 
-After each review, the cascade updates affected cards. If the next planned card's
-due_date moved past now (no longer due), skip to the next one. This avoids wasted reviews
-when one review reinforces shared edges.
+After each review, the cascade updates affected cards. If the next planned card's due_date
+moved past now (no longer due), skip to the next one. This avoids wasted reviews when one
+review reinforces shared edges.
 
 ## New verse introduction
 
@@ -142,7 +211,7 @@ when one review reinforces shared edges.
 * Limit to 1–3 new verses per session.
 * First review should be full recitation (ref → verse) to establish all forward edges.
 * All edges start at initial S from FSRS parameters.
-* New verse cards start with effective_R based on initial edge states.
+* New verse cards start with due_R and priority based on initial edge states.
 
 ## Phrase boundaries
 
@@ -152,3 +221,11 @@ Phrases define where the edges go inside a verse.
 (commas, semicolons, conjunctions) that LLMs segment reliably. One-time pipeline per translation.
 
 **Override**: editable per verse, per user or per editor.
+
+## Open questions
+
+* **α calibration**: default 0.6 is a guess. Calibrate from observed review durations per card
+  type once real usage data exists.
+* **Session-level optimization**: the greedy approach (pick highest priority next) doesn't account
+  for covering multiple due edges in one broad card vs. several targeted cards. A knapsack-style
+  optimizer could improve session efficiency but adds complexity.
