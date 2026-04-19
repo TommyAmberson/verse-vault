@@ -82,10 +82,10 @@ pub struct WasmEngine {
 
 #[wasm_bindgen]
 impl WasmEngine {
-    /// Load an engine from a serialized graph, cards, and optional edge states.
-    /// `graph_data` and `cards_data` are bincode-serialized.
-    /// `edge_states_json` and `card_states_json` are JSON for easier debugging.
-    /// If edge/card states are provided, they override the freshly-built state.
+    /// Load an engine from JSON: graph + card catalog, and optional
+    /// persisted edge/card states (pass empty strings to skip).
+    /// When edge/card states are provided they override the initial state
+    /// derived from the graph — this is how a user's progress is resumed.
     #[wasm_bindgen(constructor)]
     pub fn new(
         graph_json: &str,
