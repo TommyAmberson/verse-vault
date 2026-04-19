@@ -5,5 +5,4 @@ edition = "2024"
 
 [dependencies]
 verse-vault-core = { path = "../core" }
-fsrs = "5"
 rand = "0.9"
