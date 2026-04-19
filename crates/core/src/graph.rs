@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::edge::{Edge, EdgeKind, EdgeState};
 use crate::node::{Node, NodeKind};
 use crate::types::{EdgeId, NodeId};
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Graph {
     nodes: HashMap<NodeId, Node>,
     edges: HashMap<EdgeId, Edge>,

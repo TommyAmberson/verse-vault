@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::types::{EdgeId, NodeId};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EdgeKind {
     PhrasePhrase,
     PhraseVerseGist,
@@ -27,13 +29,14 @@ impl EdgeKind {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct EdgeState {
     pub stability: f32,
     pub difficulty: f32,
     pub last_review_secs: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Edge {
     pub id: EdgeId,
     pub kind: EdgeKind,

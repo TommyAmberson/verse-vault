@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::types::{CardId, NodeId};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CardState {
     New,
     Learning,
@@ -8,7 +10,7 @@ pub enum CardState {
     Relearning,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Card {
     pub id: CardId,
     pub shown: Vec<NodeId>,
@@ -16,7 +18,7 @@ pub struct Card {
     pub state: CardState,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardSchedule {
     pub card_id: CardId,
     pub due_r: f32,
