@@ -131,3 +131,6 @@ dist
 /.claude/settings.local.json
 /target
 /data/
+
+# wasm-pack build output
+/crates/wasm/pkg/

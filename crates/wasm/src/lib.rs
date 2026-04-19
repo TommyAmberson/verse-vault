@@ -236,11 +236,7 @@ impl WasmEngine {
     }
 
     /// Record a review. Returns ReviewOutcomeWire as JSON.
-    pub fn session_review(
-        &mut self,
-        grades_json: &str,
-        now_secs: i64,
-    ) -> Result<String, JsError> {
+    pub fn session_review(&mut self, grades_json: &str, now_secs: i64) -> Result<String, JsError> {
         let session = self
             .session
             .as_mut()

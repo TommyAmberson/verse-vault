@@ -17,8 +17,27 @@ const D_MAX: f32 = 10.0;
 pub const FSRS6_DEFAULT_DECAY: f32 = 0.1542;
 
 pub const DEFAULT_PARAMETERS: [f32; 21] = [
-    0.212, 1.2931, 2.3065, 8.2956, 6.4133, 0.8334, 3.0194, 0.001, 1.8722, 0.1666, 0.796, 1.4835,
-    0.0614, 0.2629, 1.6483, 0.6014, 1.8729, 0.5425, 0.0912, 0.0658, FSRS6_DEFAULT_DECAY,
+    0.212,
+    1.2931,
+    2.3065,
+    8.2956,
+    6.4133,
+    0.8334,
+    3.0194,
+    0.001,
+    1.8722,
+    0.1666,
+    0.796,
+    1.4835,
+    0.0614,
+    0.2629,
+    1.6483,
+    0.6014,
+    1.8729,
+    0.5425,
+    0.0912,
+    0.0658,
+    FSRS6_DEFAULT_DECAY,
 ];
 
 #[derive(Debug, Clone, Copy)]
@@ -137,7 +156,10 @@ impl FsrsBridge {
         let is_initial = current.is_none();
 
         let (last_s, last_d) = match current {
-            Some(c) => (c.stability.clamp(S_MIN, S_MAX), c.difficulty.clamp(D_MIN, D_MAX)),
+            Some(c) => (
+                c.stability.clamp(S_MIN, S_MAX),
+                c.difficulty.clamp(D_MIN, D_MAX),
+            ),
             None => (0.0, 0.0),
         };
 
@@ -202,7 +224,8 @@ impl FsrsBridge {
     }
 
     fn stability_short_term(&self, last_s: f32, rating: u32) -> f32 {
-        let sinc = (self.w[17] * (rating as f32 - 3.0 + self.w[18])).exp() * last_s.powf(-self.w[19]);
+        let sinc =
+            (self.w[17] * (rating as f32 - 3.0 + self.w[18])).exp() * last_s.powf(-self.w[19]);
         let sinc = if rating >= 3 { sinc.max(1.0) } else { sinc };
         last_s * sinc
     }
