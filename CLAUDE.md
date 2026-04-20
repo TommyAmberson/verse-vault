@@ -22,8 +22,8 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 
 ## Repository layout
 
-* `crates/core/` — pure algorithm library (no I/O, no DB). Graph, credit assignment,
-  scheduling, minimal FSRS-6 inference.
+* `crates/core/` — pure algorithm library (no I/O, no DB). Graph, credit assignment, scheduling,
+  minimal FSRS-6 inference.
 * `crates/sim/` — simulation binary. Uses core to validate algorithm against synthetic data.
 * `crates/wasm/` — wasm-bindgen wrappers around core for JS consumers (server + browser).
 * `packages/api/` (planned) — Hono + Better Auth + Drizzle + SQLite server.
@@ -31,8 +31,8 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 * `tools/` — Python scripts for content pipeline (Anki parsing, verse chunking).
 * `docs/` — design docs. See list below.
 * `data/` — gitignored. Local content files (NKJV text, chunked JSON). Not committed.
-* Other branches (`django-vue*`, `laravel*`, `express-vue`, etc.) are abandoned spikes.
-  Do not merge from them.
+* Other branches (`django-vue*`, `laravel*`, `express-vue`, etc.) are abandoned spikes. Do not merge
+  from them.
 
 ## Design docs
 
@@ -52,6 +52,7 @@ Run before committing:
 cargo clippy          # lint
 cargo fmt --check     # formatting
 typos                 # spell check
+dprint check          # formatting for docs
 cargo test            # tests
 ```
 
@@ -76,3 +77,9 @@ cross-cutting changes (e.g. `chore: bump version to 0.2.0`).
 
 Subject in lowercase, no trailing period. Imperative mood ("add X", not "added X"). Body wrapped at
 ~72 cols, focuses on the why.
+
+## Other conventions
+
+* Slight preference for writing tests before features.
+* Redundant comments are not helpful. Comments that simply say "what" is happening when the code is
+  obvious should be extremely brief or omitted. Prefer comments that explain "why" or complex logic.
