@@ -505,7 +505,7 @@ mod tests {
             .collect();
 
         if !p2_to_p3_edges.is_empty() {
-            let p2p3_credit: Vec<_> = updates
+            let _p2p3_credit: Vec<_> = updates
                 .iter()
                 .filter(|u| u.edge_id == p2_to_p3_edges[0] && u.grade.is_pass())
                 .collect();

@@ -561,7 +561,7 @@ mod tests {
                 result
                     .graph
                     .edge(id)
-                    .map_or(false, |e| matches!(e.kind, EdgeKind::VerseGistHeading))
+                    .is_some_and(|e| matches!(e.kind, EdgeKind::VerseGistHeading))
             })
             .collect();
         assert_eq!(

@@ -605,8 +605,8 @@ mod tests {
 
     #[test]
     fn session_with_due_cards() {
-        let (mut engine, _, _, p1, p2, p3) = build_verse_engine();
-        let mut session = Session::new(&mut engine, 30 * DAY, SessionParams::default(), &[]);
+        let (mut engine, _, _, _p1, _p2, _p3) = build_verse_engine();
+        let session = Session::new(&mut engine, 30 * DAY, SessionParams::default(), &[]);
 
         // At 30 days, cards should be due
         assert!(!session.is_done());
@@ -655,16 +655,16 @@ mod tests {
 
     #[test]
     fn determine_redrills_single_fail() {
-        let failed = vec![NodeId(3)];
-        let verse_phrases = vec![NodeId(2), NodeId(3), NodeId(4)];
+        let failed = [NodeId(3)];
+        let verse_phrases = [NodeId(2), NodeId(3), NodeId(4)];
         let ratio = failed.len() as f32 / verse_phrases.len() as f32;
         assert!(ratio <= 0.5); // 1/3 ≤ 0.5 → fill-in-blanks
     }
 
     #[test]
     fn determine_redrills_majority_fail() {
-        let failed = vec![NodeId(2), NodeId(3)];
-        let verse_phrases = vec![NodeId(2), NodeId(3), NodeId(4)];
+        let failed = [NodeId(2), NodeId(3)];
+        let verse_phrases = [NodeId(2), NodeId(3), NodeId(4)];
         let ratio = failed.len() as f32 / verse_phrases.len() as f32;
         assert!(ratio > 0.5); // 2/3 > 0.5 → full recitation
     }

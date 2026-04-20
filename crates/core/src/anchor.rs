@@ -115,11 +115,7 @@ mod tests {
 
     #[test]
     fn direct_path_has_multiplier_one() {
-        let (g, v2, _r1, _v2_id, r2) = two_verse_graph();
-        let sources = HashSet::from([v2]);
-        // v2 is NodeId(2), but we need the verse2 gist which is v2_id
-        // Actually let me re-read: v2 is the second verse gist
-        let _ = v2;
+        let (g, _v2, _r1, _v2_id, r2) = two_verse_graph();
         let sources = HashSet::from([NodeId(2)]); // v2
         let paths = enumerate_paths_with_anchor_transfer(&g, &sources, r2, 5, 0.95);
 
