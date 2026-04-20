@@ -14,29 +14,35 @@ cargo check          # type-check
 cargo test           # run all tests
 cargo clippy         # lint
 cargo run -p verse-vault-sim   # run simulation
+
+# WASM (JS bindings for server + browser)
+wasm-pack build crates/wasm --target nodejs --out-dir pkg
+node crates/wasm/test-smoke.js  # smoke-test the WASM module
 ```
 
 ## Repository layout
 
-* `crates/core/` — pure algorithm library (no I/O, no DB). Graph, FSRS, credit assignment,
-  scheduling. Depends on `fsrs = "5"`.
+* `crates/core/` — pure algorithm library (no I/O, no DB). Graph, credit assignment, scheduling,
+  minimal FSRS-6 inference.
 * `crates/sim/` — simulation binary. Uses core to validate algorithm against synthetic data.
+* `crates/wasm/` — wasm-bindgen wrappers around core for JS consumers (server + browser).
+* `packages/api/` (planned) — Hono + Better Auth + Drizzle + SQLite server.
+* `apps/` (planned) — Vue web app, Tauri desktop, CLI.
 * `tools/` — Python scripts for content pipeline (Anki parsing, verse chunking).
-* `docs/` — design docs: graph.md, review.md, scheduling.md, session.md, validation.md
+* `docs/` — design docs. See list below.
 * `data/` — gitignored. Local content files (NKJV text, chunked JSON). Not committed.
-* Other branches (`django-vue*`, `laravel*`, `express-vue`, etc.) are abandoned spikes.
-  Do not merge from them.
+* Other branches (`django-vue*`, `laravel*`, `express-vue`, etc.) are abandoned spikes. Do not merge
+  from them.
 
 ## Design docs
 
-The algorithm is fully specified in:
-* `docs/graph.md` — memory graph: 7 node types, 11 edge types, directionality
+* `docs/architecture.md` — system overview, crates/packages/clients, data flow
+* `docs/graph.md` — memory graph: node types, edge types, directionality
 * `docs/review.md` — credit assignment: 6-step algorithm, fallback chain, anchor transfer
 * `docs/scheduling.md` — card DB, priority scoring, binary search due dates
+* `docs/session.md` — within-session flow (re-drills, progressive reveal)
 * `docs/validation.md` — proofs, simulation framework, test scenarios
-
-Implementation should follow these docs. The FSRS retrievability formula in the docs is a
-simplification — use fsrs-rs's actual `current_retrievability()` function.
+* `docs/wasm-api.md` — WASM boundary: exposed functions, JSON shapes
 
 ## Pre-commit checks
 
@@ -46,6 +52,7 @@ Run before committing:
 cargo clippy          # lint
 cargo fmt --check     # formatting
 typos                 # spell check
+dprint check          # formatting for docs
 cargo test            # tests
 ```
 
@@ -54,3 +61,25 @@ cargo test            # tests
 * Commits must be atomic and single-responsibility — one logical change per commit.
 * Do not add `Co-Authored-By` lines.
 * Work on feature branches, not directly on master. Merge when ready.
+
+### Commit message format ([Conventional Commits](https://www.conventionalcommits.org/))
+
+```
+<type>(<scope>): <short subject in lowercase>
+
+<wrapped body explaining why, not what (the diff shows what)>
+```
+
+Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `style`, `revert`, `perf`, `build`.
+
+Scopes: `core`, `wasm`, `sim`, `api`, `web`, `desktop`, `cli`, `tools`, `docs`. Omit the scope for
+cross-cutting changes (e.g. `chore: bump version to 0.2.0`).
+
+Subject in lowercase, no trailing period, imperative mood ("add X", not "added X"), and **≤ 50
+characters** including the type/scope prefix. Body wrapped at ~72 cols, focuses on the why.
+
+## Other conventions
+
+* Slight preference for writing tests before features.
+* Redundant comments are not helpful. Comments that simply say "what" is happening when the code is
+  obvious should be extremely brief or omitted. Prefer comments that explain "why" or complex logic.

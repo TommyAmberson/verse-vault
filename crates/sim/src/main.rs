@@ -1,3 +1,4 @@
+mod cache;
 mod learner;
 mod metrics;
 
@@ -14,6 +15,8 @@ use verse_vault_core::content::MaterialData;
 use verse_vault_core::engine::ReviewEngine;
 use verse_vault_core::session::{NewVerseInfo, Session, SessionCardSource, SessionParams};
 use verse_vault_core::types::{CardId, NodeId};
+
+const CARD_TYPES_TOML: &str = include_str!("../../core/card_types.toml");
 
 use crate::learner::SimulatedLearner;
 use crate::metrics::{Prediction, auc, log_loss, rmse_binned};
@@ -66,11 +69,22 @@ fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), St
             .unwrap_or_default()
     );
 
-    // Build graph
-    let card_types = CardTypesConfig::from_toml(include_str!("../../core/card_types.toml"))
-        .map_err(|e| format!("Bad TOML: {e}"))?;
-
-    let result = builder::build(&data, &card_types, 0);
+    // Build graph (cached by hash of inputs)
+    let key = cache::cache_key(&json_str, CARD_TYPES_TOML, chapter_filter);
+    let result = match cache::load(&key).map_err(|e| format!("Cache load: {e}"))? {
+        Some(cached) => {
+            println!("Graph: loaded from cache ({key})");
+            cached
+        }
+        None => {
+            let card_types = CardTypesConfig::from_toml(CARD_TYPES_TOML)
+                .map_err(|e| format!("Bad TOML: {e}"))?;
+            let built = builder::build(&data, &card_types, 0);
+            cache::save(&key, &built).map_err(|e| format!("Cache save: {e}"))?;
+            println!("Graph: built and cached ({key})");
+            built
+        }
+    };
     println!(
         "Graph: {} nodes, {} edges, {} cards\n",
         result.graph.node_count(),

@@ -1,12 +1,14 @@
+use serde::{Deserialize, Serialize};
+
 use crate::types::NodeId;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ClubTier {
     Club150,
     Club300,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NodeKind {
     Phrase {
         text: String,
@@ -44,6 +46,7 @@ pub enum NodeKind {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
     pub id: NodeId,
     pub kind: NodeKind,

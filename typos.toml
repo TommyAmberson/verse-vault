@@ -1,3 +1,9 @@
+[files]
+extend-exclude = [
+    "crates/wasm/pkg/",
+    "data/",
+]
+
 [default]
 
 [default.extend-words]

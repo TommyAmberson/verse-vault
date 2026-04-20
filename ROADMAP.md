@@ -4,74 +4,75 @@
 
 Edge-based memory graph with FSRS integration.
 
-- [x] Graph model (7 node types, 11 edge types, directionality)
-- [x] FSRS bridge (retrievability, next_states, weighted interpolation)
-- [x] Path enumeration (DFS, 5-hop, no revisits)
-- [x] Anchor transfer (distance decay for reference derivation)
-- [x] Credit assignment (6-step algorithm, source set expansion, fallback chain)
-- [x] Scheduling (effective_R, due_date binary search, priority scoring)
-- [x] Post-review cascade (edge→card mapping)
-- [x] ReviewEngine facade
-- [x] Session module (re-drills, progressive reveal)
-- [x] Basic simulation framework
+* [x] Graph model (7 node types, 11 edge types, directionality)
+* [x] FSRS bridge (retrievability, next_states, weighted interpolation)
+* [x] Path enumeration (DFS, 5-hop, no revisits)
+* [x] Anchor transfer (distance decay for reference derivation)
+* [x] Credit assignment (6-step algorithm, source set expansion, fallback chain)
+* [x] Scheduling (effective_R, due_date binary search, priority scoring)
+* [x] Post-review cascade (edge→card mapping)
+* [x] ReviewEngine facade
+* [x] Session module (re-drills, progressive reveal)
+* [x] Basic simulation framework
 
-## Phase 2: Graph Builder + Content Pipeline
+## Phase 2: Graph Builder + Content Pipeline ✅
 
-Make the system work with real Bible content instead of hand-built test graphs.
+Work with real Bible content.
 
-- [ ] Graph builder: structured verse data → Graph + edges
-- [ ] Card catalog builder: Graph → all card types per verse/chapter
-- [ ] Bible content ingestion: KJV text with verse boundaries
-- [ ] Phrase chunking: AI-generated or punctuation-based phrase boundaries
-- [ ] Club 150/300 verse list loading
-- [ ] Heading data loading
+* [x] Graph builder: structured verse data → Graph + edges
+* [x] Card catalog builder: Graph → all card types per verse/chapter
+* [x] Bible content ingestion (NKJV text with verse boundaries)
+* [x] Phrase chunking (LLM-powered pipeline with typo flagging)
+* [x] Club 150/300 verse list loading
+* [x] Heading data loading
 
-## Phase 3: CLI
+## Phase 3: Persistence + Server + Clients
 
-Terminal interface for personal use. Fastest path to actually memorizing.
+Architecture established in `docs/architecture.md`. TS server wrapping the Rust core via WASM; Node
+on a VPS; Better Auth; Drizzle + SQLite; event-sourced reviews for clean offline sync.
 
-- [ ] Session-based review loop (show card → type verse → diff → grade)
-- [ ] New verse introduction (progressive reveal in terminal)
-- [ ] Edge state persistence (save/load between sessions)
-- [ ] Chapter/verse selection (pick what to study)
-- [ ] Progress display (stabilities, due counts, streak)
+### Phase 3A: WASM bindings ✅
 
-## Phase 4: Simulation + Validation
+* [x] New `crates/wasm/` crate with wasm-bindgen
+* [x] Replace fsrs-rs with minimal FSRS-6 inference (WASM-compatible)
+* [x] Serde derives on core types
+* [x] Expose ReviewEngine + Session to JS
+* [x] Node smoke test verifies the full session flow
 
-Verify the algorithm works before building for others.
+### Phase 3B: Server foundation
 
-- [ ] Multi-verse scenarios (2 adjacent, full chapter)
-- [ ] Proper per-card prediction tracking (log loss, AUC, RMSE)
-- [ ] Vanilla FSRS per-card baseline comparison
-- [ ] User's Anki parameters as whole-verse baseline
-- [ ] Fix simulated learner (per-atom last_review tracking)
-- [ ] Sensitivity analysis (α, β, decay_factor)
+* [ ] pnpm monorepo setup (`packages/api/`)
+* [ ] Hono server with health check
+* [ ] Drizzle + SQLite + migrations
+* [ ] Better Auth setup (email/password + Google OAuth)
 
-## Phase 5: API Server
+### Phase 3C: Engine integration
 
-Backend for the web app. Rust (Axum), lightweight JSON API.
+* [ ] Load graph from DB, construct WASM engine
+* [ ] Session API endpoints (start/next/review/abort)
+* [ ] Review event logging
+* [ ] Edge/card state persistence
 
-- [ ] Database schema (SQLite: edges, cards, users, verse content)
-- [ ] Auth (accounts, sessions)
-- [ ] API endpoints: start session, get next card, submit grades, get progress
-- [ ] Content API: list chapters, verses, club lists
-- [ ] Per-user FSRS parameter storage
+### Phase 3D: Sync API
 
-## Phase 6: Web Frontend
+* [ ] State download endpoint
+* [ ] Event upload + merge (event replay)
 
-The "visit, account, start memorizing" experience.
+### Phase 3E: Stats + Materials
 
-- [ ] Framework selection (deferred — independent of backend)
-- [ ] Card review UI (show prompt, type response, diff display, grading)
-- [ ] Session flow (progressive reveal, re-drills)
-- [ ] Chapter/club selection
-- [ ] Progress dashboard
-- [ ] Mobile-responsive design
+* [ ] Material enrollment
+* [ ] Progress stats
+
+### Phase 3F: Frontends
+
+* [ ] Vue web app
+* [ ] Tauri desktop app
+* [ ] CLI for terminal review
 
 ## Future
 
-- [ ] Per-user FSRS parameter optimization (from review history)
-- [ ] Multiple translations (ESV, NIV — with licensing)
-- [ ] Team features for QuizMeet teams
-- [ ] Customizable learning flow
-- [ ] Import from Anki
+* [ ] Per-user FSRS parameter optimization (from review history)
+* [ ] Multiple translations (ESV, NIV — with licensing)
+* [ ] Team features for QuizMeet teams
+* [ ] Customizable learning flow
+* [ ] Import from Anki

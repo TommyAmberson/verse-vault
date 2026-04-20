@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Fast pre-commit checks: formatting and typos. Heavier checks (clippy,
+# tests) run in CI to keep commits snappy.
+#
+# Enable in this repo with:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+
+fail=0
+
+if ! cargo fmt --check; then
+    echo "cargo fmt failed. Run 'cargo fmt' and re-stage." >&2
+    fail=1
+fi
+
+if ! dprint check; then
+    echo "dprint check failed. Run 'dprint fmt' and re-stage." >&2
+    fail=1
+fi
+
+if ! typos; then
+    echo "typos check failed. Fix them or add to typos.toml and re-stage." >&2
+    fail=1
+fi
+
+exit $fail

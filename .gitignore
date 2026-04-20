@@ -131,3 +131,9 @@ dist
 /.claude/settings.local.json
 /target
 /data/
+
+# wasm-pack build output
+/crates/wasm/pkg/
+
+# Large untracked scratch files (PostScript, scratch outputs)
+/math
