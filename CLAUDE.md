@@ -46,14 +46,17 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 
 ## Pre-commit checks
 
-Run before committing:
+Hooks are wired via `simple-git-hooks` + `lint-staged` and installed by `pnpm install` (see the
+`postinstall` script in `package.json`). The `pre-commit` hook runs `lint-staged`,
+`cargo fmt --check`, and `typos`; `commit-msg` runs `commitlint` against the conventional-commits
+config.
+
+Manually run the slower checks before pushing:
 
 ```
 cargo clippy          # lint
-cargo fmt --check     # formatting
-typos                 # spell check
-dprint check          # formatting for docs
 cargo test            # tests
+dprint check          # formatting for docs (also runs via lint-staged)
 ```
 
 ## Git conventions
