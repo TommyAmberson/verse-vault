@@ -77,25 +77,29 @@ export interface SeedOptions {
   userId: string;
   materialId: string;
   version?: number;
+  /** If true, also inserts a user row. Off when the user already exists (e.g. after sign-up). */
+  createUser?: boolean;
 }
 
-/** Inserts a user, enrollment, and graph snapshot — enough to load an engine. */
+/** Inserts enrollment + graph snapshot (and optionally the user) — enough to load an engine. */
 export function seedUserWithFixture(opts: SeedOptions): { snapshotId: string; version: number } {
   const { db, userId, materialId } = opts;
   const version = opts.version ?? 1;
   const { graph, cards } = buildSingleVerseFixture();
   const now = Math.floor(Date.now() / 1000);
 
-  db.insert(schema.user)
-    .values({
-      id: userId,
-      email: `${userId}@example.com`,
-      name: userId,
-      emailVerified: false,
-      createdAt: new Date(now * 1000),
-      updatedAt: new Date(now * 1000),
-    })
-    .run();
+  if (opts.createUser ?? true) {
+    db.insert(schema.user)
+      .values({
+        id: userId,
+        email: `${userId}@example.com`,
+        name: userId,
+        emailVerified: false,
+        createdAt: new Date(now * 1000),
+        updatedAt: new Date(now * 1000),
+      })
+      .run();
+  }
   db.insert(schema.userMaterials)
     .values({ userId, materialId, clubTier: null, createdAt: now })
     .run();
