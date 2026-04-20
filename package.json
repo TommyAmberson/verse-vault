@@ -17,11 +17,7 @@
     "commit-msg": "pnpm commitlint --edit $1"
   },
   "lint-staged": {
-    "**/*.{md,toml,dockerfile}": "pnpm exec dprint fmt",
-    "packages/**/*.ts": [
-      "eslint --fix",
-      "prettier --write"
-    ]
+    "**/*.{md,toml,dockerfile}": "pnpm exec dprint fmt"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
