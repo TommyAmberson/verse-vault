@@ -276,6 +276,52 @@ impl WasmEngine {
         }
     }
 
+    /// Replay a persisted review event without an active session. Runs
+    /// credit assignment + FSRS + schedule cascade on the given
+    /// shown/hidden/grades, same as an online `session_review`. Used by
+    /// the sync endpoint to apply offline events to the live engine.
+    pub fn replay_event(
+        &mut self,
+        shown_json: &str,
+        hidden_json: &str,
+        grades_json: &str,
+        now_secs: i64,
+    ) -> Result<String, JsError> {
+        let shown_raw: Vec<u32> = serde_json::from_str(shown_json)
+            .map_err(|e| JsError::new(&format!("shown parse: {e}")))?;
+        let hidden_raw: Vec<u32> = serde_json::from_str(hidden_json)
+            .map_err(|e| JsError::new(&format!("hidden parse: {e}")))?;
+        let grade_entries: Vec<GradeEntry> = if grades_json.is_empty() {
+            Vec::new()
+        } else {
+            serde_json::from_str(grades_json)
+                .map_err(|e| JsError::new(&format!("grades parse: {e}")))?
+        };
+
+        let shown: Vec<NodeId> = shown_raw.into_iter().map(NodeId).collect();
+        let hidden: Vec<NodeId> = hidden_raw.into_iter().map(NodeId).collect();
+        let mut grades: HashMap<NodeId, Grade> = HashMap::new();
+        for g in grade_entries {
+            grades.insert(NodeId(g.node_id), int_to_grade(g.grade)?);
+        }
+
+        let updates = self
+            .engine
+            .review_transient(&shown, &hidden, grades, now_secs);
+        let wire = ReviewOutcomeWire {
+            edge_updates: updates
+                .iter()
+                .map(|u| EdgeUpdateWire {
+                    edge_id: u.edge_id.0,
+                    grade: grade_to_int(u.grade),
+                    weight: u.weight,
+                })
+                .collect(),
+            redrills_inserted: 0,
+        };
+        serde_json::to_string(&wire).map_err(|e| JsError::new(&e.to_string()))
+    }
+
     /// Whether the current session is done (empty queue).
     pub fn session_is_done(&self) -> bool {
         self.session.as_ref().is_none_or(|s| s.is_done())

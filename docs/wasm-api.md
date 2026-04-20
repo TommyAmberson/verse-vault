@@ -47,7 +47,18 @@ reveal). Calling `session_abort` rolls them back to `New`.
 
 ```ts
 next_due_card(now_secs: bigint): number | undefined  // card_id of highest-priority due card
+
+replay_event(
+  shown_json: string,   // JSON number[]
+  hidden_json: string,  // JSON number[]
+  grades_json: string,  // JSON Grade[], or '' for []
+  now_secs: bigint,
+): string                // JSON ReviewOutcome
 ```
+
+`replay_event` runs the same credit assignment + FSRS + schedule cascade as `session_review`, but
+without requiring an active session. It's the primitive used by the server's sync endpoint to apply
+offline events.
 
 ### Export for persistence
 
