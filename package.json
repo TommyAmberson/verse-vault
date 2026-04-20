@@ -1,0 +1,43 @@
+{
+  "name": "verse-vault",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:api": "pnpm --filter @verse-vault/api dev",
+    "type-check": "pnpm --filter '*' type-check",
+    "test": "pnpm --filter '*' test",
+    "lint": "eslint",
+    "format": "dprint fmt",
+    "format:check": "dprint check",
+    "postinstall": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged && cargo fmt --check && typos",
+    "commit-msg": "pnpm commitlint --edit $1"
+  },
+  "lint-staged": {
+    "**/*.{md,toml,dockerfile}": "pnpm exec dprint fmt"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "dprint": "^0.49.0",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.0.0",
+    "simple-git-hooks": "^2.0.0",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "packageManager": "pnpm@10.7.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "dprint",
+      "esbuild",
+      "simple-git-hooks"
+    ]
+  }
+}

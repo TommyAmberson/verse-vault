@@ -1,0 +1,2 @@
+CREATE INDEX `idx_graph_snapshots_user_material` ON `graph_snapshots` (`user_id`,`material_id`);--> statement-breakpoint
+CREATE INDEX `idx_review_events_user_material_time` ON `review_events` (`user_id`,`material_id`,`timestamp_secs`);
