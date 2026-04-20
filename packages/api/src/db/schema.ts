@@ -1,9 +1,10 @@
 import { blob, index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-// ----- Better Auth tables -----
-// Shape follows the Better Auth drizzle adapter's expected schema. We own
-// these here (rather than letting @better-auth/cli generate them into a
-// separate file) so Drizzle sees everything in one place for FK typing.
+// Better Auth tables — shape follows the Better Auth drizzle adapter's
+// expected schema. We own them here (rather than letting @better-auth/cli
+// generate a separate file) so Drizzle sees everything in one place for FK
+// typing. Regenerate via `pnpm dlx @better-auth/cli generate` if the upstream
+// shape changes.
 
 export const user = sqliteTable('user', {
   id: text('id').primaryKey(),
@@ -70,8 +71,6 @@ export const verification = sqliteTable(
     identifierIdx: index('idx_verification_identifier').on(t.identifier),
   }),
 );
-
-// ----- Verse-vault domain -----
 
 // Which materials (e.g. a Bible book) a user has enrolled in.
 export const userMaterials = sqliteTable(
