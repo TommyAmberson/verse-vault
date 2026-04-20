@@ -75,8 +75,8 @@ Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `style`, `rever
 Scopes: `core`, `wasm`, `sim`, `api`, `web`, `desktop`, `cli`, `tools`, `docs`. Omit the scope for
 cross-cutting changes (e.g. `chore: bump version to 0.2.0`).
 
-Subject in lowercase, no trailing period. Imperative mood ("add X", not "added X"). Body wrapped at
-~72 cols, focuses on the why.
+Subject in lowercase, no trailing period, imperative mood ("add X", not "added X"), and **≤ 50
+characters** including the type/scope prefix. Body wrapped at ~72 cols, focuses on the why.
 
 ## Other conventions
 
