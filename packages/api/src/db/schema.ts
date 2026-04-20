@@ -1,4 +1,4 @@
-import { blob, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { blob, index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 // Better Auth inserts its own tables (user, session, account, verification)
 // via its own migrations. Those are declared here for type-safety in queries
@@ -32,33 +32,51 @@ export const userMaterials = sqliteTable(
 
 // The graph + card catalog built from content. Rebuilt when content changes;
 // versioned so existing events can be replayed against a known snapshot.
-export const graphSnapshots = sqliteTable('graph_snapshots', {
-  id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  materialId: text('material_id').notNull(),
-  version: integer('version').notNull(),
-  graphData: blob('graph_data', { mode: 'buffer' }).notNull(),
-  cardsData: blob('cards_data', { mode: 'buffer' }).notNull(),
-  createdAt: integer('created_at').notNull(),
-});
+export const graphSnapshots = sqliteTable(
+  'graph_snapshots',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    version: integer('version').notNull(),
+    graphData: blob('graph_data', { mode: 'buffer' }).notNull(),
+    cardsData: blob('cards_data', { mode: 'buffer' }).notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => ({
+    userMaterialIdx: index('idx_graph_snapshots_user_material').on(t.userId, t.materialId),
+  }),
+);
 
 // Append-only review log. Source of truth — edge/card states are derived.
-export const reviewEvents = sqliteTable('review_events', {
-  id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  materialId: text('material_id').notNull(),
-  snapshotVersion: integer('snapshot_version').notNull(),
-  timestampSecs: integer('timestamp_secs').notNull(),
-  cardId: integer('card_id'), // null for transient (re-drill / progressive reveal)
-  shown: blob('shown', { mode: 'buffer' }).notNull(),
-  hidden: blob('hidden', { mode: 'buffer' }).notNull(),
-  grades: blob('grades', { mode: 'buffer' }).notNull(),
-  createdAt: integer('created_at').notNull(),
-});
+export const reviewEvents = sqliteTable(
+  'review_events',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    snapshotVersion: integer('snapshot_version').notNull(),
+    timestampSecs: integer('timestamp_secs').notNull(),
+    cardId: integer('card_id'), // null for transient (re-drill / progressive reveal)
+    shown: blob('shown', { mode: 'buffer' }).notNull(),
+    hidden: blob('hidden', { mode: 'buffer' }).notNull(),
+    grades: blob('grades', { mode: 'buffer' }).notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  // Replay is always filtered by (user_id, material_id) and sorted by
+  // timestamp, so keep timestamp as the trailing key.
+  (t) => ({
+    replayIdx: index('idx_review_events_user_material_time').on(
+      t.userId,
+      t.materialId,
+      t.timestampSecs,
+    ),
+  }),
+);
 
 // Materialized edge state (recomputable by replaying review_events).
 export const edgeStates = sqliteTable(
