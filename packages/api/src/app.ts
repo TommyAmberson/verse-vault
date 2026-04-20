@@ -8,6 +8,7 @@ import { EngineStore } from './lib/engine.js';
 import { SessionStore } from './lib/sessions.js';
 import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
 import { sessionRoutes } from './routes/sessions.js';
+import { syncRoutes } from './routes/sync.js';
 
 export interface AppDeps {
   db: DB;
@@ -45,6 +46,7 @@ export function createApp(deps: AppDeps) {
   app.get('/api/me', requireAuth(), (c) => c.json({ user: getUser(c) }));
 
   app.route('/api/sessions', sessionRoutes({ db: deps.db, engines, sessions, now: deps.now }));
+  app.route('/api/sync', syncRoutes({ db: deps.db, engines, now: deps.now }));
 
   return app;
 }
