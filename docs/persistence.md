@@ -27,18 +27,25 @@ known-good snapshot even after the content pipeline regenerates the graph.
 
 ### `review_events` — source of truth
 
-Append-only log. Every call to `POST /api/sessions/:id/review` writes one row:
+Append-only log. Every drill review (online or uploaded offline) writes one row. Progressive-reveal
+reading cards are intentionally skipped — they don't change engine state, so logging them would make
+replay non-deterministic.
 
 | column             | notes                                                                 |
 | ------------------ | --------------------------------------------------------------------- |
-| `id`               | UUID, server-generated today; client-generated later for offline sync |
+| `id`               | server-generated UUID, stable row identity                            |
+| `client_event_id`  | idempotency key; server-generated UUID for online, client for offline |
 | `snapshot_version` | which graph snapshot this event applies to                            |
-| `card_id`          | source card, or null for re-drill / new-verse (progressive reveal)    |
+| `card_id`          | source card, or null for re-drill                                     |
 | `shown` / `hidden` | node IDs of the card as served to the user                            |
 | `grades`           | `[{ node_id, grade }]` — 1=Again, 2=Hard, 3=Good, 4=Easy              |
 
-Indexed by `(user_id, material_id, timestamp_secs)` because replay is always filtered by
-user+material and sorted by time.
+Two indexes:
+
+* `(user_id, material_id, timestamp_secs)` — replay is always filtered by user+material and sorted
+  by time.
+* Unique on `(user_id, material_id, client_event_id)` — re-uploading the same batch must not
+  double-apply events.
 
 ### `edge_states` — materialized
 
@@ -72,15 +79,41 @@ The engine loader (`EngineStore`, `packages/api/src/lib/engine.ts`) builds a `Wa
 Engines are cached in-process keyed by `(user_id, material_id)` — the Node process is long-running,
 so reloading per request would be wasteful.
 
-## Replay
+## Replay and sync
 
-Because the core algorithm is deterministic in `(current_state, grades, timestamp)`, any
-materialized state can be rebuilt by:
+Credit assignment and FSRS updates are pure functions of `(current_state, grades, timestamp)`, so
+the materialized state is recomputable. Phase 3D exposes this as a sync API for fat clients (Tauri,
+offline web):
 
-1. Starting a fresh `WasmEngine` from the snapshot (no edge/card overrides).
-2. Feeding `review_events` in timestamp order.
-3. Exporting the final `edge_states` + `card_states`.
+### Upload flow — `POST /api/sync/:materialId/events`
 
-This makes `edge_states` / `card_states` a cache, not a source of truth, and unlocks the Phase 3D
-sync flow: a fat client uploads offline events, the server merges by timestamp, replays, and returns
-the authoritative materialized state.
+1. Client sends a batch of events, each keyed by a client-generated `clientEventId` (UUID).
+2. Server rejects the batch (409) if any event's `snapshotVersion` doesn't match the current
+   snapshot — the client must re-pull `/state` before syncing.
+3. Server drops events whose `clientEventId` already exists for this (user, material). Remaining
+   events are sorted by `(timestampSecs, clientEventId)` for stable ordering.
+4. For each fresh event, the server calls `WasmEngine.replay_event(shown, hidden, grades, ts)` which
+   invokes the core's `review_transient` — same credit assignment + FSRS path as the online
+   `session_review`, but session-independent.
+5. In a single transaction the server appends the new events, upserts the union of changed edges,
+   and upserts `card_states` from the engine's full export.
+6. Response returns the engine's full edge/card state plus the new `lastEventId`, so the client can
+   replace its local cache in one shot.
+
+### Determinism contract
+
+Replaying a sequence of events through a fresh engine yields the same materialized state as applying
+them one-by-one through live sessions. The sync test `sync.test.ts` asserts parity between the
+online path and the sync path on an identical event.
+
+### Known limitations (Phase 3D)
+
+* **No snapshot-to-snapshot migration.** `graph_snapshots.version` is wired but nothing increments
+  it; when the content pipeline reissues a material we'll need to re-build edge/card state and
+  decide what to do with events tied to the old version.
+* **Live engine, not fresh replay.** Offline events are applied to the in-process cached engine, so
+  edge state reflects "server state before + offline events in timestamp order within the batch."
+  This is correct for single-device offline usage; truly concurrent multi-device edits are out of
+  scope.
+* **Reading cards aren't logged.** A client that lost its progressive-reveal progress will start
+  from the beginning on reconnect; only drill grades are preserved.

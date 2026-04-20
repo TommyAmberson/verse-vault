@@ -46,17 +46,19 @@ on a VPS; Better Auth; Drizzle + SQLite; event-sourced reviews for clean offline
 * [x] Drizzle + SQLite + migrations
 * [x] Better Auth setup (email/password + Google OAuth)
 
-### Phase 3C: Engine integration
+### Phase 3C: Engine integration ✅
 
 * [x] Load graph from DB, construct WASM engine
 * [x] Session API endpoints (start/next/review/abort)
 * [x] Review event logging
 * [x] Edge/card state persistence
 
-### Phase 3D: Sync API
+### Phase 3D: Sync API ✅
 
-* [ ] State download endpoint
-* [ ] Event upload + merge (event replay)
+* [x] State download endpoint (`GET /api/sync/:materialId/state`)
+* [x] Event upload + replay (`POST /api/sync/:materialId/events`)
+* [x] Idempotent uploads via `client_event_id`
+* [x] Stale-snapshot rejection (409)
 
 ### Phase 3E: Stats + Materials
 
