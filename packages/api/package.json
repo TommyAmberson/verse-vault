@@ -19,7 +19,8 @@
     "better-auth": "^1.2.0",
     "better-sqlite3": "^11.0.0",
     "drizzle-orm": "^0.44.0",
-    "hono": "^4.7.0"
+    "hono": "^4.7.0",
+    "verse-vault-wasm": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.0.0",

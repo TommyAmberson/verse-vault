@@ -39,19 +39,19 @@ on a VPS; Better Auth; Drizzle + SQLite; event-sourced reviews for clean offline
 * [x] Expose ReviewEngine + Session to JS
 * [x] Node smoke test verifies the full session flow
 
-### Phase 3B: Server foundation
+### Phase 3B: Server foundation ✅
 
-* [ ] pnpm monorepo setup (`packages/api/`)
-* [ ] Hono server with health check
-* [ ] Drizzle + SQLite + migrations
-* [ ] Better Auth setup (email/password + Google OAuth)
+* [x] pnpm monorepo setup (`packages/api/`)
+* [x] Hono server with health check
+* [x] Drizzle + SQLite + migrations
+* [x] Better Auth setup (email/password + Google OAuth)
 
 ### Phase 3C: Engine integration
 
-* [ ] Load graph from DB, construct WASM engine
-* [ ] Session API endpoints (start/next/review/abort)
-* [ ] Review event logging
-* [ ] Edge/card state persistence
+* [x] Load graph from DB, construct WASM engine
+* [x] Session API endpoints (start/next/review/abort)
+* [x] Review event logging
+* [x] Edge/card state persistence
 
 ### Phase 3D: Sync API
 

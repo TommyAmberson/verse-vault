@@ -4,15 +4,21 @@ import { logger } from 'hono/logger';
 
 import type { DB } from './db/client.js';
 import { type AuthEnv, createAuth } from './lib/auth.js';
+import { EngineStore } from './lib/engine.js';
+import { SessionStore } from './lib/sessions.js';
 import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
+import { sessionRoutes } from './routes/sessions.js';
 
 export interface AppDeps {
   db: DB;
   authEnv: AuthEnv;
+  now?: () => number;
 }
 
 export function createApp(deps: AppDeps) {
   const auth = createAuth(deps.db, deps.authEnv);
+  const engines = new EngineStore(deps.db);
+  const sessions = new SessionStore();
   const app = new Hono<{ Variables: SessionVariables }>();
 
   app.use('*', logger());
@@ -37,6 +43,8 @@ export function createApp(deps: AppDeps) {
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
   app.get('/api/me', requireAuth(), (c) => c.json({ user: getUser(c) }));
+
+  app.route('/api/sessions', sessionRoutes({ db: deps.db, engines, sessions, now: deps.now }));
 
   return app;
 }
