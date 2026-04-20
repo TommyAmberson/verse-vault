@@ -137,3 +137,7 @@ dist
 
 # Large untracked scratch files (PostScript, scratch outputs)
 /math
+
+# Local dev/test databases
+/packages/api/data/
+/tmp/vv-test-*.db
