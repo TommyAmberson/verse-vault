@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import type { DB } from './db/client.js';
 import * as schema from './db/schema.js';
+import { jsonBlob } from './lib/keys.js';
 
-/** Minimal graph shape matching the WASM wire format. */
 export interface FixtureGraph {
   nodes: Record<string, { id: number; kind: unknown }>;
   edges: Record<string, FixtureEdge>;
@@ -28,10 +28,7 @@ export interface FixtureCard {
   state: 'New' | 'Learning' | 'Review' | 'Relearning';
 }
 
-/**
- * Builds a minimal three-phrase verse graph: one verse reference, one gist, three phrases.
- * Matches the shape used in `crates/wasm/test-smoke.js` so the engine will accept it.
- */
+/** Mirrors `crates/wasm/test-smoke.js` — minimum shape the engine will accept. */
 export function buildSingleVerseFixture(): { graph: FixtureGraph; cards: FixtureCard[] } {
   const edgeState = { stability: 5.0, difficulty: 5.0, last_review_secs: 0 };
   const graph: FixtureGraph = {
@@ -77,11 +74,10 @@ export interface SeedOptions {
   userId: string;
   materialId: string;
   version?: number;
-  /** If true, also inserts a user row. Off when the user already exists (e.g. after sign-up). */
+  /** Off when the user already exists (e.g. created by Better Auth sign-up). */
   createUser?: boolean;
 }
 
-/** Inserts enrollment + graph snapshot (and optionally the user) — enough to load an engine. */
 export function seedUserWithFixture(opts: SeedOptions): { snapshotId: string; version: number } {
   const { db, userId, materialId } = opts;
   const version = opts.version ?? 1;
@@ -110,8 +106,8 @@ export function seedUserWithFixture(opts: SeedOptions): { snapshotId: string; ve
       userId,
       materialId,
       version,
-      graphData: Buffer.from(JSON.stringify(graph), 'utf8'),
-      cardsData: Buffer.from(JSON.stringify(cards), 'utf8'),
+      graphData: jsonBlob(graph),
+      cardsData: jsonBlob(cards),
       createdAt: now,
     })
     .run();

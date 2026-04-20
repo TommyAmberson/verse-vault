@@ -10,7 +10,6 @@ export interface SessionRoutesDeps {
   db: DB;
   engines: EngineStore;
   sessions: SessionStore;
-  /** Seconds-precision clock. Injectable for tests. */
   now?: () => number;
 }
 

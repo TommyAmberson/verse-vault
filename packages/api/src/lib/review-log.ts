@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
+import { sql } from 'drizzle-orm';
 import type { WasmEngine } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import type { CardStateEntry, EdgeStateEntry } from './engine.js';
+import { jsonBlob } from './keys.js';
 import type { SessionCard } from './sessions.js';
 
 export interface Grade {
@@ -29,10 +31,7 @@ export interface RecordReviewArgs {
   outcome: ReviewOutcome;
 }
 
-/**
- * Appends a review event and upserts the resulting edge/card states. Runs in a
- * transaction so the log and the materialized state stay consistent.
- */
+/** Transactional so the event log and the materialized state can't diverge. */
 export function recordReview(args: RecordReviewArgs): void {
   const edges = JSON.parse(args.engine.export_edge_states()) as EdgeStateEntry[];
   const cards = JSON.parse(args.engine.export_card_states()) as CardStateEntry[];
@@ -66,37 +65,37 @@ export function recordReview(args: RecordReviewArgs): void {
         snapshotVersion: args.snapshotVersion,
         timestampSecs: args.timestampSecs,
         cardId: args.card.source_card_id,
-        shown: Buffer.from(JSON.stringify(args.card.shown), 'utf8'),
-        hidden: Buffer.from(JSON.stringify(args.card.hidden), 'utf8'),
-        grades: Buffer.from(JSON.stringify(args.grades), 'utf8'),
+        shown: jsonBlob(args.card.shown),
+        hidden: jsonBlob(args.card.hidden),
+        grades: jsonBlob(args.grades),
         createdAt: args.timestampSecs,
       })
       .run();
 
-    for (const row of edgeRows) {
+    if (edgeRows.length > 0) {
       tx.insert(schema.edgeStates)
-        .values(row)
+        .values(edgeRows)
         .onConflictDoUpdate({
           target: [schema.edgeStates.userId, schema.edgeStates.materialId, schema.edgeStates.edgeId],
           set: {
-            stability: row.stability,
-            difficulty: row.difficulty,
-            lastReviewSecs: row.lastReviewSecs,
+            stability: sql`excluded.stability`,
+            difficulty: sql`excluded.difficulty`,
+            lastReviewSecs: sql`excluded.last_review_secs`,
           },
         })
         .run();
     }
 
-    for (const row of cardRows) {
+    if (cardRows.length > 0) {
       tx.insert(schema.cardStates)
-        .values(row)
+        .values(cardRows)
         .onConflictDoUpdate({
           target: [schema.cardStates.userId, schema.cardStates.materialId, schema.cardStates.cardId],
           set: {
-            state: row.state,
-            dueR: row.dueR,
-            dueDateSecs: row.dueDateSecs,
-            priority: row.priority,
+            state: sql`excluded.state`,
+            dueR: sql`excluded.due_r`,
+            dueDateSecs: sql`excluded.due_date_secs`,
+            priority: sql`excluded.priority`,
           },
         })
         .run();

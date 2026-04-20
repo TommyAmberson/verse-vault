@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { cardStates, edgeStates, reviewEvents, user } from '../db/schema.js';
-import { buildSingleVerseFixture, seedUserWithFixture } from '../test-fixtures.js';
+import { seedUserWithFixture } from '../test-fixtures.js';
 import { createTestApp } from '../test-utils.js';
+
+type TestApp = ReturnType<typeof createTestApp>;
 
 interface StartResponse {
   sessionId: string;
@@ -14,8 +16,10 @@ interface ReviewResponse extends StartResponse {
   outcome: { edge_updates: Array<{ edge_id: number }>; redrills_inserted: number };
 }
 
-async function signUpAndGetUser(app: ReturnType<typeof createTestApp>['app'], db: ReturnType<typeof createTestApp>['db']) {
-  const res = await app.request('/api/auth/sign-up/email', {
+const MATERIAL_ID = 'nkjv-1cor';
+
+async function signUpAndGetUser(test: TestApp) {
+  const res = await test.app.request('/api/auth/sign-up/email', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -25,9 +29,25 @@ async function signUpAndGetUser(app: ReturnType<typeof createTestApp>['app'], db
     }),
   });
   expect(res.status).toBe(200);
-  const cookie = res.headers.get('set-cookie')!;
-  const row = db.select().from(user).get()!;
-  return { cookie, userId: row.id };
+  return {
+    cookie: res.headers.get('set-cookie')!,
+    userId: test.db.select().from(user).get()!.id,
+  };
+}
+
+async function startEnrolledSession(test: TestApp): Promise<{ cookie: string; userId: string; start: StartResponse }> {
+  const { cookie, userId } = await signUpAndGetUser(test);
+  seedUserWithFixture({ db: test.db, userId, materialId: MATERIAL_ID, createUser: false });
+  const startRes = await test.app.request('/api/sessions/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({
+      materialId: MATERIAL_ID,
+      newVerses: [{ verse_ref: 0, verse_phrases: [2, 3, 4] }],
+    }),
+  });
+  expect(startRes.status).toBe(200);
+  return { cookie, userId, start: (await startRes.json()) as StartResponse };
 }
 
 describe('session routes', () => {
@@ -43,7 +63,7 @@ describe('session routes', () => {
     const res = await test.app.request('/api/sessions/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ materialId: 'nkjv-1cor' }),
+      body: JSON.stringify({ materialId: MATERIAL_ID }),
     });
     expect(res.status).toBe(401);
   });
@@ -51,25 +71,12 @@ describe('session routes', () => {
   it('runs a full session: start → review → done', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie, userId } = await signUpAndGetUser(test.app, test.db);
-    seedUserWithFixture({ db: test.db, userId, materialId: 'nkjv-1cor', createUser: false });
-
-    const { graph: _g } = buildSingleVerseFixture();
-    const startRes = await test.app.request('/api/sessions/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({
-        materialId: 'nkjv-1cor',
-        newVerses: [{ verse_ref: 0, verse_phrases: [2, 3, 4] }],
-      }),
-    });
-    expect(startRes.status).toBe(200);
-    const start = (await startRes.json()) as StartResponse;
+    const { cookie, userId, start } = await startEnrolledSession(test);
     expect(start.done).toBe(false);
     expect(start.card).not.toBeNull();
     expect(start.sessionId).toBeTruthy();
 
-    let sessionId = start.sessionId;
+    const sessionId = start.sessionId;
     let card = start.card!;
     let reviews = 0;
     while (card) {
@@ -115,44 +122,24 @@ describe('session routes', () => {
   it('rejects access to other users sessions', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie, userId } = await signUpAndGetUser(test.app, test.db);
-    seedUserWithFixture({ db: test.db, userId, materialId: 'nkjv-1cor', createUser: false });
-    const startRes = await test.app.request('/api/sessions/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({
-        materialId: 'nkjv-1cor',
-        newVerses: [{ verse_ref: 0, verse_phrases: [2, 3, 4] }],
-      }),
-    });
-    const { sessionId } = (await startRes.json()) as StartResponse;
+    const { start } = await startEnrolledSession(test);
 
-    const res = await test.app.request(`/api/sessions/${sessionId}/next`);
+    const res = await test.app.request(`/api/sessions/${start.sessionId}/next`);
     expect(res.status).toBe(401);
   });
 
   it('aborts a session', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie, userId } = await signUpAndGetUser(test.app, test.db);
-    seedUserWithFixture({ db: test.db, userId, materialId: 'nkjv-1cor', createUser: false });
-    const startRes = await test.app.request('/api/sessions/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({
-        materialId: 'nkjv-1cor',
-        newVerses: [{ verse_ref: 0, verse_phrases: [2, 3, 4] }],
-      }),
-    });
-    const { sessionId } = (await startRes.json()) as StartResponse;
+    const { cookie, start } = await startEnrolledSession(test);
 
-    const abortRes = await test.app.request(`/api/sessions/${sessionId}/abort`, {
+    const abortRes = await test.app.request(`/api/sessions/${start.sessionId}/abort`, {
       method: 'POST',
       headers: { cookie },
     });
     expect(abortRes.status).toBe(200);
 
-    const nextRes = await test.app.request(`/api/sessions/${sessionId}/next`, {
+    const nextRes = await test.app.request(`/api/sessions/${start.sessionId}/next`, {
       headers: { cookie },
     });
     expect(nextRes.status).toBe(404);

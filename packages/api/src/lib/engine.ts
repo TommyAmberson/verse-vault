@@ -3,20 +3,18 @@ import { WasmEngine } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
+import { type UserMaterial, userMaterialKey } from './keys.js';
 
 const DEFAULT_DESIRED_RETENTION = 0.9;
 
-export interface EngineKey {
-  userId: string;
-  materialId: string;
-}
+export type EngineKey = UserMaterial;
 
 export interface LoadedEngine {
   engine: WasmEngine;
   snapshotVersion: number;
 }
 
-/** Wire shapes for persisted state — must match the WASM boundary contract. */
+/** Wire shapes must stay in sync with crates/wasm/src/lib.rs. */
 export interface EdgeStateEntry {
   edge_id: number;
   stability: number;
@@ -33,9 +31,8 @@ export interface CardStateEntry {
 }
 
 /**
- * Loads and caches per-(user, material) WASM engines. The Node process is
- * long-running so engines stay in memory between requests — much faster than
- * reloading the graph on every session action.
+ * Caches per-(user, material) WASM engines across requests — the Node process
+ * is long-running so reloading the graph per session action would be wasteful.
  */
 export class EngineStore {
   private readonly cache = new Map<string, LoadedEngine>();
@@ -46,7 +43,7 @@ export class EngineStore {
   ) {}
 
   async load(key: EngineKey): Promise<LoadedEngine> {
-    const cached = this.cache.get(cacheKey(key));
+    const cached = this.cache.get(userMaterialKey(key));
     if (cached) return cached;
 
     const snapshot = this.db
@@ -109,14 +106,13 @@ export class EngineStore {
     );
 
     const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
-    this.cache.set(cacheKey(key), loaded);
+    this.cache.set(userMaterialKey(key), loaded);
     return loaded;
   }
 
   invalidate(key: EngineKey): void {
-    const k = cacheKey(key);
-    const existing = this.cache.get(k);
-    existing?.engine.free();
+    const k = userMaterialKey(key);
+    this.cache.get(k)?.engine.free();
     this.cache.delete(k);
   }
 
@@ -124,8 +120,4 @@ export class EngineStore {
     for (const loaded of this.cache.values()) loaded.engine.free();
     this.cache.clear();
   }
-}
-
-function cacheKey(k: EngineKey): string {
-  return `${k.userId}:${k.materialId}`;
 }

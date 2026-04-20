@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import type { WasmEngine } from 'verse-vault-wasm';
 
+import { userMaterialKey } from './keys.js';
+
 export interface SessionCard {
   shown: number[];
   hidden: number[];
@@ -17,14 +19,12 @@ export interface SessionEntry {
   snapshotVersion: number;
   engine: WasmEngine;
   createdAtSecs: number;
-  /** Card currently awaiting a review. Populated by `advance()`, consumed by review. */
   currentCard: SessionCard | null;
 }
 
 /**
- * In-memory registry of active sessions. A WasmEngine can hold at most one
- * session at a time, so we also track the current session per (user, material)
- * and abort it when a new one is started.
+ * A WasmEngine can hold at most one `Session` at a time, so we abort the
+ * previous session for a (user, material) pair when a new one is started.
  */
 export class SessionStore {
   private readonly sessions = new Map<string, SessionEntry>();
@@ -68,8 +68,4 @@ export class SessionStore {
       this.activeByUserMaterial.delete(key);
     }
   }
-}
-
-function userMaterialKey(x: { userId: string; materialId: string }): string {
-  return `${x.userId}:${x.materialId}`;
 }
