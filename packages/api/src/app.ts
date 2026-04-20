@@ -8,25 +8,31 @@ import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from '
 
 export interface AppDeps {
   db: DB;
-  auth: AuthEnv;
+  authEnv: AuthEnv;
 }
 
 export function createApp(deps: AppDeps) {
-  const auth = createAuth(deps.db, deps.auth);
+  const auth = createAuth(deps.db, deps.authEnv);
   const app = new Hono<{ Variables: SessionVariables }>();
 
   app.use('*', logger());
   app.use(
     '*',
     cors({
-      origin: [deps.auth.webOrigin],
+      origin: [deps.authEnv.webOrigin],
       credentials: true,
     }),
   );
-  app.use('*', sessionMiddleware(auth));
 
-  // Better Auth handles /api/auth/* — sign-up, sign-in, OAuth, session, etc.
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+
+  // Session middleware runs on everything except Better Auth's own routes
+  // (Better Auth does its own session handling internally) and /health
+  // (no auth needed — skips a DB round-trip per healthcheck).
+  app.use('/api/*', async (c, next) => {
+    if (c.req.path.startsWith('/api/auth/')) return next();
+    return sessionMiddleware(auth)(c, next);
+  });
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
