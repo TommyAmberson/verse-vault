@@ -34,8 +34,13 @@ export function sessionRoutes(deps: SessionRoutesDeps) {
   app.use('*', requireAuth());
 
   app.post('/start', async (c) => {
-    const body = await parseJson<StartBody>(c.req.raw);
-    if (!body || typeof body.materialId !== 'string') {
+    let body: StartBody;
+    try {
+      body = await c.req.json<StartBody>();
+    } catch {
+      return c.json({ error: 'invalid JSON body' }, 400);
+    }
+    if (typeof body.materialId !== 'string') {
       return c.json({ error: 'materialId required' }, 400);
     }
     const user = getUser(c);
@@ -71,8 +76,13 @@ export function sessionRoutes(deps: SessionRoutesDeps) {
     if (!entry) return c.json({ error: 'Session not found' }, 404);
     const card = entry.currentCard;
     if (!card) return c.json({ error: 'No card awaiting review' }, 409);
-    const body = await parseJson<ReviewBody>(c.req.raw);
-    if (!body || !Array.isArray(body.grades)) {
+    let body: ReviewBody;
+    try {
+      body = await c.req.json<ReviewBody>();
+    } catch {
+      return c.json({ error: 'invalid JSON body' }, 400);
+    }
+    if (!Array.isArray(body.grades)) {
       return c.json({ error: 'grades required' }, 400);
     }
     const nowSecs = now();
@@ -84,17 +94,7 @@ export function sessionRoutes(deps: SessionRoutesDeps) {
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
     }
-    recordReview({
-      db: deps.db,
-      engine: entry.engine,
-      userId: entry.userId,
-      materialId: entry.materialId,
-      snapshotVersion: entry.snapshotVersion,
-      timestampSecs: nowSecs,
-      card,
-      grades: body.grades,
-      outcome,
-    });
+    recordReview({ db: deps.db, entry, timestampSecs: nowSecs, card, grades: body.grades, outcome });
     entry.currentCard = null;
     const next = advance(entry);
     if (next.done) deps.sessions.end(entry.id);
@@ -134,10 +134,3 @@ function authorizedSession(
   return entry;
 }
 
-async function parseJson<T>(req: Request): Promise<T | null> {
-  try {
-    return (await req.json()) as T;
-  } catch {
-    return null;
-  }
-}

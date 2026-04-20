@@ -30,10 +30,7 @@ export interface CardStateEntry {
   priority: number | null;
 }
 
-/**
- * Caches per-(user, material) WASM engines across requests — the Node process
- * is long-running so reloading the graph per session action would be wasteful.
- */
+/** Long-running Node process, so engines live across requests; no eviction yet. */
 export class EngineStore {
   private readonly cache = new Map<string, LoadedEngine>();
 

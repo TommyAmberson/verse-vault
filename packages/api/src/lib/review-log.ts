@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
 import { sql } from 'drizzle-orm';
-import type { WasmEngine } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import type { CardStateEntry, EdgeStateEntry } from './engine.js';
 import { jsonBlob } from './keys.js';
-import type { SessionCard } from './sessions.js';
+import type { SessionCard, SessionEntry } from './sessions.js';
 
 export interface Grade {
   node_id: number;
@@ -21,10 +20,7 @@ export interface ReviewOutcome {
 
 export interface RecordReviewArgs {
   db: DB;
-  engine: WasmEngine;
-  userId: string;
-  materialId: string;
-  snapshotVersion: number;
+  entry: SessionEntry;
   timestampSecs: number;
   card: SessionCard;
   grades: Grade[];
@@ -33,22 +29,24 @@ export interface RecordReviewArgs {
 
 /** Transactional so the event log and the materialized state can't diverge. */
 export function recordReview(args: RecordReviewArgs): void {
-  const edges = JSON.parse(args.engine.export_edge_states()) as EdgeStateEntry[];
-  const cards = JSON.parse(args.engine.export_card_states()) as CardStateEntry[];
-  const changedEdgeIds = new Set(args.outcome.edge_updates.map((u) => u.edge_id));
+  const { db, entry, timestampSecs, card, grades, outcome } = args;
+  const { userId, materialId } = entry;
+  const edges = JSON.parse(entry.engine.export_edge_states()) as EdgeStateEntry[];
+  const cards = JSON.parse(entry.engine.export_card_states()) as CardStateEntry[];
+  const changedEdgeIds = new Set(outcome.edge_updates.map((u) => u.edge_id));
   const edgeRows = edges
     .filter((e) => changedEdgeIds.has(e.edge_id))
     .map((e) => ({
-      userId: args.userId,
-      materialId: args.materialId,
+      userId,
+      materialId,
       edgeId: e.edge_id,
       stability: e.stability,
       difficulty: e.difficulty,
       lastReviewSecs: e.last_review_secs,
     }));
   const cardRows = cards.map((c) => ({
-    userId: args.userId,
-    materialId: args.materialId,
+    userId,
+    materialId,
     cardId: c.card_id,
     state: c.state,
     dueR: c.due_r,
@@ -56,19 +54,19 @@ export function recordReview(args: RecordReviewArgs): void {
     priority: c.priority,
   }));
 
-  args.db.transaction((tx) => {
+  db.transaction((tx) => {
     tx.insert(schema.reviewEvents)
       .values({
         id: randomUUID(),
-        userId: args.userId,
-        materialId: args.materialId,
-        snapshotVersion: args.snapshotVersion,
-        timestampSecs: args.timestampSecs,
-        cardId: args.card.source_card_id,
-        shown: jsonBlob(args.card.shown),
-        hidden: jsonBlob(args.card.hidden),
-        grades: jsonBlob(args.grades),
-        createdAt: args.timestampSecs,
+        userId,
+        materialId,
+        snapshotVersion: entry.snapshotVersion,
+        timestampSecs,
+        cardId: card.source_card_id,
+        shown: jsonBlob(card.shown),
+        hidden: jsonBlob(card.hidden),
+        grades: jsonBlob(grades),
+        createdAt: timestampSecs,
       })
       .run();
 
