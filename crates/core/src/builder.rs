@@ -24,7 +24,7 @@ fn initial_state(now_secs: i64) -> EdgeState {
 }
 
 /// Per-verse atom references for card generation.
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct VerseAtoms {
     pub ref_node: NodeId,
     pub verse_gist: NodeId,
@@ -36,6 +36,7 @@ pub struct VerseAtoms {
 }
 
 /// Build result from content data.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct BuildResult {
     pub graph: Graph,
     pub cards: Vec<Card>,
