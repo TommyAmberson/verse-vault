@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { runMigrations } from './migrate.js';
 
 describe('indexes', () => {
-  it('creates user+material indexes on review_events and graph_snapshots', () => {
+  it('creates all hot-path indexes', () => {
     const path = `/tmp/vv-idx-test-${Date.now()}.db`;
     runMigrations(path);
 
@@ -16,7 +16,12 @@ describe('indexes', () => {
     sqlite.close();
 
     expect(names).toEqual(
-      ['idx_graph_snapshots_user_material', 'idx_review_events_user_material_time'].sort(),
+      [
+        'idx_account_provider',
+        'idx_graph_snapshots_user_material',
+        'idx_review_events_user_material_time',
+        'idx_verification_identifier',
+      ].sort(),
     );
   });
 
@@ -34,5 +39,35 @@ describe('indexes', () => {
 
     const detail = plan.map((p) => p.detail).join(' ');
     expect(detail).toContain('idx_review_events_user_material_time');
+  });
+
+  it('uses the account index for OAuth callback lookups', () => {
+    const path = `/tmp/vv-idx-account-${Date.now()}.db`;
+    runMigrations(path);
+
+    const sqlite = new Database(path);
+    const plan = sqlite
+      .prepare(
+        'EXPLAIN QUERY PLAN SELECT * FROM account WHERE provider_id = ? AND account_id = ?',
+      )
+      .all('google', 'oauth-id-xyz') as Array<{ detail: string }>;
+    sqlite.close();
+
+    const detail = plan.map((p) => p.detail).join(' ');
+    expect(detail).toContain('idx_account_provider');
+  });
+
+  it('uses the verification index for identifier lookups', () => {
+    const path = `/tmp/vv-idx-verif-${Date.now()}.db`;
+    runMigrations(path);
+
+    const sqlite = new Database(path);
+    const plan = sqlite
+      .prepare('EXPLAIN QUERY PLAN SELECT * FROM verification WHERE identifier = ?')
+      .all('alice@example.com') as Array<{ detail: string }>;
+    sqlite.close();
+
+    const detail = plan.map((p) => p.detail).join(' ');
+    expect(detail).toContain('idx_verification_identifier');
   });
 });
