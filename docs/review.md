@@ -5,26 +5,26 @@ How learner reviews update the memory graph. Depends on the graph structure defi
 
 ## Cards
 
-A card is a **mask** over the graph: `shown = {atoms}`, `hidden = {atoms}`. The learner sees
-the shown atoms and must produce the hidden ones. Cards are modes of testing, not memory units.
+A card is a **mask** over the graph: `shown = {atoms}`, `hidden = {atoms}`. The learner sees the
+shown atoms and must produce the hidden ones. Cards are modes of testing, not memory units.
 
 Example cards:
 
-| Card              | Shown                    | Hidden                         |
-| -------------------- | ------------------------ | ------------------------------ |
-| ref → verse           | {ref}                    | {p1, p2, p3, p4}              |
-| verse → ref           | {p1, p2, p3, p4}         | {ref}                          |
-| first words → rest   | {p1}                     | {p2, p3, p4}                  |
-| fill-in-blank (p2)   | {ref, p1, p3, p4}        | {p2}                           |
-| cross-verse          | {last phrase of prev}     | {p1, p2, p3, p4}              |
-| club listing         | {chapter_gist}            | {ref(2:1), ref(2:4), ref(2:7)} |
-| verse → heading      | {ref} or {p1, p2, ...}    | {heading}                      |
-| ref → heading        | {ref}                     | {heading}                      |
-| finish this verse    | {ftv}                     | {p1, p2, p3, p4}              |
+| Card               | Shown                  | Hidden                         |
+| ------------------ | ---------------------- | ------------------------------ |
+| ref → verse        | {ref}                  | {p1, p2, p3, p4}               |
+| verse → ref        | {p1, p2, p3, p4}       | {ref}                          |
+| first words → rest | {p1}                   | {p2, p3, p4}                   |
+| fill-in-blank (p2) | {ref, p1, p3, p4}      | {p2}                           |
+| cross-verse        | {last phrase of prev}  | {p1, p2, p3, p4}               |
+| club listing       | {chapter_gist}         | {ref(2:1), ref(2:4), ref(2:7)} |
+| verse → heading    | {ref} or {p1, p2, ...} | {heading}                      |
+| ref → heading      | {ref}                  | {heading}                      |
+| finish this verse  | {ftv}                  | {p1, p2, p3, p4}               |
 
 All possible cards for a verse are **pre-generated** and stored in the card DB with precomputed
-effective_R and due_date (see [scheduling.md](scheduling.md)). The scheduler picks from this
-catalog — it does not generate cards on the fly.
+effective_R and due_date (see [scheduling.md](scheduling.md)). The scheduler picks from this catalog
+— it does not generate cards on the fly.
 
 ## Review interaction
 
@@ -34,10 +34,10 @@ catalog — it does not generate cards on the fly.
 4. Learner grades each hidden atom: Again / Hard / Good / Easy.
 5. Grades feed into credit assignment.
 
-**Grading strictness varies by atom type**: phrases must be word-perfect (exact wording matters
-for competition). Headings are the opposite — they vary across translations and editions, so
-exact wording is irrelevant. The app should prompt generous grading for headings (e.g., "Good"
-for getting the gist right even if wording differs from the stored text).
+**Grading strictness varies by atom type**: phrases must be word-perfect (exact wording matters for
+competition). Headings are the opposite — they vary across translations and editions, so exact
+wording is irrelevant. The app should prompt generous grading for headings (e.g., "Good" for getting
+the gist right even if wording differs from the stored text).
 
 ## Credit assignment algorithm
 
@@ -48,47 +48,51 @@ Given per-atom grades from a review, determine how to update every edge in the g
 There are two source set definitions, used in different contexts:
 
 **During review (credit assignment)**:
+
 ```
 source = shown atoms ∪ correctly-recalled hidden atoms
 ```
+
 Correctly recalled atoms join the source set because they were available for recalling subsequent
-atoms. In a ref→verse card, once p1 is successfully recalled it becomes a source for p2 — the
-edge p1→p2 was directly exercised.
+atoms. In a ref→verse card, once p1 is successfully recalled it becomes a source for p2 — the edge
+p1→p2 was directly exercised.
 
 **During scheduling (card effective_R in the card DB)**:
+
 ```
 source = shown atoms only
 ```
-The card DB precomputes effective_R conservatively using only the shown atoms, because at
-scheduling time we don't know which hidden atoms will be recalled. The actual review may go
-better than predicted (due to source set expansion), which is fine — the prediction is a
-conservative lower bound.
+
+The card DB precomputes effective_R conservatively using only the shown atoms, because at scheduling
+time we don't know which hidden atoms will be recalled. The actual review may go better than
+predicted (due to source set expansion), which is fine — the prediction is a conservative lower
+bound.
 
 ### Grades
 
 FSRS uses four grades, following standard spaced-repetition convention:
 
-| Grade | Code | Classification | Effect on S | Effect on D |
-| ----- | ---- | -------------- | ----------- | ----------- |
-| Again | 1    | **Fail**       | Post-lapse formula (S drops significantly) | D increases |
-| Hard  | 2    | **Pass**       | S increases (smaller multiplier, w₁₅) | D increases |
-| Good  | 3    | **Pass**       | S increases (standard) | D unchanged (mean reversion) |
-| Easy  | 4    | **Pass**       | S increases (larger multiplier, w₁₆) | D decreases |
+| Grade | Code | Classification | Effect on S                                | Effect on D                  |
+| ----- | ---- | -------------- | ------------------------------------------ | ---------------------------- |
+| Again | 1    | **Fail**       | Post-lapse formula (S drops significantly) | D increases                  |
+| Hard  | 2    | **Pass**       | S increases (smaller multiplier, w₁₅)      | D increases                  |
+| Good  | 3    | **Pass**       | S increases (standard)                     | D unchanged (mean reversion) |
+| Easy  | 4    | **Pass**       | S increases (larger multiplier, w₁₆)       | D decreases                  |
 
 ### Observations
 
 For each hidden atom h:
 
-* **Pass** (Good/Easy/Hard): at least one path from the source set (excluding h) to h
-  succeeded. The atom joins the source set. Hard is a pass — the learner recalled it, just
-  with difficulty. Paths through Hard atoms are NOT eliminated.
-* **Fail** (Again): no path from the source set to h succeeded. The atom does NOT join the
-  source set. Paths through this atom are eliminated for other atoms' credit assignment.
+* **Pass** (Good/Easy/Hard): at least one path from the source set (excluding h) to h succeeded. The
+  atom joins the source set. Hard is a pass — the learner recalled it, just with difficulty. Paths
+  through Hard atoms are NOT eliminated.
+* **Fail** (Again): no path from the source set to h succeeded. The atom does NOT join the source
+  set. Paths through this atom are eliminated for other atoms' credit assignment.
 
 ### Step 1: Enumerate paths
 
-For each hidden atom h, enumerate all paths from any atom in the source set (excluding h itself)
-to h, up to **5 hops**. Paths follow edge directionality.
+For each hidden atom h, enumerate all paths from any atom in the source set (excluding h itself) to
+h, up to **5 hops**. Paths follow edge directionality.
 
 ### Step 2: Compute path probabilities
 
@@ -123,8 +127,8 @@ Aggregate blame: edges that are the weakest link on multiple paths receive the m
 
 ### Step 5: Secondary reinforcement (fallback chain)
 
-After primary credit/blame, edges that received no primary update may get a secondary
-update. These follow a **priority chain** — each edge gets at most one type of update:
+After primary credit/blame, edges that received no primary update may get a secondary update. These
+follow a **priority chain** — each edge gets at most one type of update:
 
 ```
 1. Primary credit/blame (Steps 3-4)     always applied, accumulates across atoms
@@ -132,8 +136,8 @@ update. These follow a **priority chain** — each edge gets at most one type of
 3. Reverse reinforcement                 ONLY if no primary or exposure update
 ```
 
-**Exposure**: edges between shown atoms were passively observed. If an edge got no primary
-credit or blame, it receives a weak exposure update:
+**Exposure**: edges between shown atoms were passively observed. If an edge got no primary credit or
+blame, it receives a weak exposure update:
 
 ```
 For each edge between shown atoms where R(edge) < target_retention:
@@ -142,8 +146,8 @@ For each edge between shown atoms where R(edge) < target_retention:
     grade = Good
 ```
 
-**Reverse reinforcement**: for bidirectional edges where one direction was updated but the
-reverse was not. If the reverse direction got no primary or exposure update:
+**Reverse reinforcement**: for bidirectional edges where one direction was updated but the reverse
+was not. If the reverse direction got no primary or exposure update:
 
 ```
 For each directed edge B→A that received NO update this review:
@@ -151,10 +155,9 @@ For each directed edge B→A that received NO update this review:
     B→A gets: weight β × w, grade G
 ```
 
-The fallback chain prevents double-counting. An edge between two shown atoms that is ALSO
-on a credit path (e.g., p1→p2 in a verse→ref card where p1→p2→verse→ref is a path) gets
-only primary credit, not exposure on top. Exposure only fills in edges the primary algorithm
-didn't reach.
+The fallback chain prevents double-counting. An edge between two shown atoms that is ALSO on a
+credit path (e.g., p1→p2 in a verse→ref card where p1→p2→verse→ref is a path) gets only primary
+credit, not exposure on top. Exposure only fills in edges the primary algorithm didn't reach.
 
 ### Step 6: Apply FSRS updates
 
@@ -200,34 +203,34 @@ Credit for p4 (Good):
 
 ### Why this works
 
-* **Sequential edges get direct credit**: p1 is in the source set, so p1→p2 is a 1-hop path —
-  no dilution from competing with longer paths through the shown atom.
-* **Both directions reinforced**: p1 is in the source set for p2 (p1→p2), and p2 is in the
-  source set for p1 (p2→p1). Both edges were exercised.
-* **Failed atoms block downstream paths**: p3=Again eliminates p2→p3→p4, so p4's credit goes
-  to the hub — reflecting the learner "jumped" via another path.
+* **Sequential edges get direct credit**: p1 is in the source set, so p1→p2 is a 1-hop path — no
+  dilution from competing with longer paths through the shown atom.
+* **Both directions reinforced**: p1 is in the source set for p2 (p1→p2), and p2 is in the source
+  set for p1 (p2→p1). Both edges were exercised.
+* **Failed atoms block downstream paths**: p3=Again eliminates p2→p3→p4, so p4's credit goes to the
+  hub — reflecting the learner "jumped" via another path.
 * **Blame concentrates on short paths**: p2→p3 as a 1-hop failed path gets strong blame.
-* **No double-counting**: secondary updates (exposure, reverse reinforcement) only apply to
-  edges that got no primary update. An edge on a credit path AND between shown atoms gets
-  primary credit only — not exposure on top.
+* **No double-counting**: secondary updates (exposure, reverse reinforcement) only apply to edges
+  that got no primary update. An edge on a credit path AND between shown atoms gets primary credit
+  only — not exposure on top.
 
 ## Anchor transfer
 
-When the hidden atom is a **reference**, path enumeration extends with anchor transfer: a path
-can reach ANY ref atom, and arithmetic (target = anchor ± chain_distance) is modeled as
-**distance-based decay**.
+When the hidden atom is a **reference**, path enumeration extends with anchor transfer: a path can
+reach ANY ref atom, and arithmetic (target = anchor ± chain_distance) is modeled as **distance-based
+decay**.
 
 ```
 effective_R(path) = R(path_to_anchor_ref) × decay_factor ^ |target_num - anchor_num|
 ```
 
-| Distance | Decay (factor=0.95) | Meaning                    |
-| -------- | ------------------- | -------------------------- |
-| 0        | 1.00                | Direct recall              |
-| 1        | 0.95                | One verse away             |
-| 2        | 0.90                | Two verses                 |
-| 5        | 0.77                | Moderate mental effort     |
-| 10       | 0.60                | Significant counting       |
+| Distance | Decay (factor=0.95) | Meaning                |
+| -------- | ------------------- | ---------------------- |
+| 0        | 1.00                | Direct recall          |
+| 1        | 0.95                | One verse away         |
+| 2        | 0.90                | Two verses             |
+| 5        | 0.77                | Moderate mental effort |
+| 10       | 0.60                | Significant counting   |
 
 **Example**: recalling ref(2:3), direct edge weak:
 
@@ -247,9 +250,9 @@ Parallel: R_total = 1 - (1-0.30)(1-0.69)(1-0.65) = 0.924
 **Anchor transfer only applies to references.** References are numbers that support arithmetic.
 Other atom types (phrases, gists, club membership) cannot be derived from neighbors.
 
-**Counting requires full-material knowledge.** To count from ref(2:1) to ref(2:4), the learner
-needs the chapter-consecutive verse chain (3 hops through 2:2, 2:3). If those edges are weak
-(unreviewed), the anchor path is naturally weak.
+**Counting requires full-material knowledge.** To count from ref(2:1) to ref(2:4), the learner needs
+the chapter-consecutive verse chain (3 hops through 2:2, 2:3). If those edges are weak (unreviewed),
+the anchor path is naturally weak.
 
 ## Grade blending
 
@@ -269,19 +272,19 @@ A lapse is an Again grade — the learner could not produce the transition.
 **Post-lapse update**: FSRS's post-lapse stability formula drops S significantly but preserves
 partial prior learning. D increases.
 
-**Re-drilling**: the scheduler queues a fill-in-the-blank card targeting the lapsed edge later
-in the current session, after a few intervening reviews (within-session spacing). If the re-drill
-fails again, queue another with a longer gap.
+**Re-drilling**: the scheduler queues a fill-in-the-blank card targeting the lapsed edge later in
+the current session, after a few intervening reviews (within-session spacing). If the re-drill fails
+again, queue another with a longer gap.
 
 ## Computational cost
 
 Per review (5-hop limit): path enumerations from each source atom to each hidden atom, ~3
-multiplications per path. With source set of ~5 atoms and ~4 hidden atoms, roughly ~200
-operations plus ~20 FSRS updates. Anchor transfer adds one multiplication per ref-targeting
-path. Total: microseconds.
+multiplications per path. With source set of ~5 atoms and ~4 hidden atoms, roughly ~200 operations
+plus ~20 FSRS updates. Anchor transfer adds one multiplication per ref-targeting path. Total:
+microseconds.
 
 ## Open questions
 
 * **Anchor transfer decay factor**: 0.95 is a starting point. Tunable per user or fixed?
-* **Lapse threshold for re-drilling**: how many same-session re-drills before flagging the edge
-  to the user as a persistent problem?
+* **Lapse threshold for re-drilling**: how many same-session re-drills before flagging the edge to
+  the user as a persistent problem?

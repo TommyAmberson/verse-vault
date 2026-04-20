@@ -1,8 +1,8 @@
 # WASM API
 
-The `verse-vault-wasm` crate exposes the core engine to JavaScript. The
-API is intentionally small: load, session, export. Data crosses the
-boundary as JSON strings (easy to debug, forward-compatible).
+The `verse-vault-wasm` crate exposes the core engine to JavaScript. The API is intentionally small:
+load, session, export. Data crosses the boundary as JSON strings (easy to debug,
+forward-compatible).
 
 ## Building
 
@@ -26,9 +26,8 @@ new WasmEngine(
 )
 ```
 
-Loads the graph and card catalog. If edge/card states are provided,
-they override the initial state built from the graph (this is how you
-resume a user's progress from the database).
+Loads the graph and card catalog. If edge/card states are provided, they override the initial state
+built from the graph (this is how you resume a user's progress from the database).
 
 ### Session lifecycle
 
@@ -41,9 +40,8 @@ session_is_done(): boolean
 session_remaining(): number
 ```
 
-`start_session` transitions any `New` cards for the provided verses to
-`Learning` (progressive reveal). Calling `session_abort` rolls them
-back to `New`.
+`start_session` transitions any `New` cards for the provided verses to `Learning` (progressive
+reveal). Calling `session_abort` rolls them back to `New`.
 
 ### Direct engine access (no session)
 
@@ -77,9 +75,8 @@ The `Graph` type serializes as:
 }
 ```
 
-Note that HashMap keys in JSON are always strings, even though the
-underlying NodeId/EdgeId are `u32` newtypes. NodeIds appearing as
-values (not keys) serialize as plain numbers.
+Note that HashMap keys in JSON are always strings, even though the underlying NodeId/EdgeId are
+`u32` newtypes. NodeIds appearing as values (not keys) serialize as plain numbers.
 
 ### Card
 
@@ -143,10 +140,10 @@ For reading-stage cards, pass `[]`.
 
 ## Timestamps
 
-All timestamps are Unix seconds, passed as `bigint` (JavaScript can't
-represent `i64` as a regular number). Convert with `BigInt(Math.floor(Date.now() / 1000))`.
+All timestamps are Unix seconds, passed as `bigint` (JavaScript can't represent `i64` as a regular
+number). Convert with `BigInt(Math.floor(Date.now() / 1000))`.
 
 ## Errors
 
-Constructor and methods that parse JSON will throw JS `Error` on bad
-input (mapped from Rust `JsError`).
+Constructor and methods that parse JSON will throw JS `Error` on bad input (mapped from Rust
+`JsError`).

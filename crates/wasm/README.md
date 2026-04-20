@@ -1,8 +1,7 @@
 # verse-vault-wasm
 
-WebAssembly bindings for the verse-vault core engine. Exposes
-`ReviewEngine` and `Session` to JavaScript so they can run in Node.js
-(server-side) and in the browser (offline mode).
+WebAssembly bindings for the verse-vault core engine. Exposes `ReviewEngine` and `Session` to
+JavaScript so they can run in Node.js (server-side) and in the browser (offline mode).
 
 ## Build
 
@@ -45,5 +44,5 @@ node crates/wasm/test-smoke.js
 
 ## See also
 
-- `docs/wasm-api.md` — JSON shapes for data crossing the boundary
-- `docs/architecture.md` — where this fits in the overall system
+* `docs/wasm-api.md` — JSON shapes for data crossing the boundary
+* `docs/architecture.md` — where this fits in the overall system

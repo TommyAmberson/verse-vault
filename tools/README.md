@@ -28,16 +28,17 @@ validate_and_merge.py ──→ final JSON (phrases = [chunked phrases])
 python3 tools/parse_anki.py data/anki-export.txt data/corinthians-parsed.json --year 3-C
 ```
 
-This parses the tab-separated Anki export, cleans HTML formatting, and produces
-the intermediate JSON. Phrases are initially set to `[whole verse]` as placeholder.
+This parses the tab-separated Anki export, cleans HTML formatting, and produces the intermediate
+JSON. Phrases are initially set to `[whole verse]` as placeholder.
 
 **Text cleaning:**
-- Anki CSV quote escaping removed (`""` → `"`, outer wrapping quotes stripped)
-- `&nbsp;` → space, `<br>` → removed
-- HTML entities unescaped
-- `<b>`, `<i>`, `<span style="font-variant: small-caps;">` tags PRESERVED
-- Multi-word `<b>`/`<i>` spans normalized to per-word tags
-- Spaces moved outside tags
+
+* Anki CSV quote escaping removed (`""` → `"`, outer wrapping quotes stripped)
+* `&nbsp;` → space, `<br>` → removed
+* HTML entities unescaped
+* `<b>`, `<i>`, `<span style="font-variant: small-caps;">` tags PRESERVED
+* Multi-word `<b>`/`<i>` spans normalized to per-word tags
+* Spaces moved outside tags
 
 ### 2. Prepare batch files for LLM chunking
 
@@ -45,13 +46,13 @@ the intermediate JSON. Phrases are initially set to `[whole verse]` as placehold
 python3 tools/prepare_batches.py data/corinthians-parsed.json --batch-size 50
 ```
 
-Splits verses into `data/batch-N-input.txt` files (50 verses each, one per line)
-and prints the agent prompt template.
+Splits verses into `data/batch-N-input.txt` files (50 verses each, one per line) and prints the
+agent prompt template.
 
 ### 3. Dispatch LLM agents
 
-Use Claude Code to dispatch background Haiku agents. Each agent reads one batch
-file, splits verses into phrases, and writes a `data/chunks-N.json` file.
+Use Claude Code to dispatch background Haiku agents. Each agent reads one batch file, splits verses
+into phrases, and writes a `data/chunks-N.json` file.
 
 **Agent prompt** (from prepare_batches.py output):
 
@@ -73,15 +74,15 @@ strings these MUST be escaped as \". For example: "He said: \"Come here.\""
 Do NOT use Bash or Python. Use only Read and Write tools.
 ```
 
-**Known issue:** LLM agents sometimes fail to escape `"` in JSON strings,
-producing invalid JSON. The `validate_and_merge.py` script attempts to fix
-this automatically. If a batch still has invalid JSON after the fix attempt,
-manually fix the `chunks-N.json` file or re-dispatch that batch.
+**Known issue:** LLM agents sometimes fail to escape `"` in JSON strings, producing invalid JSON.
+The `validate_and_merge.py` script attempts to fix this automatically. If a batch still has invalid
+JSON after the fix attempt, manually fix the `chunks-N.json` file or re-dispatch that batch.
 
 **Key settings for dispatch:**
-- Model: `haiku` (cheaper, sufficient for this task)
-- Run in background: `true`
-- Some agents may fail due to permissions or content filtering — retry failed batches
+
+* Model: `haiku` (cheaper, sufficient for this task)
+* Run in background: `true`
+* Some agents may fail due to permissions or content filtering — retry failed batches
 
 ### 4. Validate and merge
 
@@ -89,14 +90,13 @@ manually fix the `chunks-N.json` file or re-dispatch that batch.
 python3 tools/validate_and_merge.py data/corinthians-parsed.json data/corinthians.json
 ```
 
-Validates that each verse's phrases rejoin to the original text exactly.
-Reports:
-- **Clean**: phrases match original ✓
-- **Typo flagged**: LLM changed text slightly (likely corrected a typo in source)
-- **Fallback**: too many changes, uses whole verse as single phrase
+Validates that each verse's phrases rejoin to the original text exactly. Reports:
 
-Typo-flagged verses show the original and suggested text so you can decide
-which is correct.
+* **Clean**: phrases match original ✓
+* **Typo flagged**: LLM changed text slightly (likely corrected a typo in source)
+* **Fallback**: too many changes, uses whole verse as single phrase
+
+Typo-flagged verses show the original and suggested text so you can decide which is correct.
 
 ## File format
 
@@ -130,6 +130,7 @@ The intermediate JSON (`corinthians.json`):
 ```
 
 The `text` field contains clean text with preserved HTML formatting:
-- `<b>word</b>` — bold keyword
-- `<i><b>word</b></i>` — bold italic keyword
-- `L<span style="font-variant: small-caps;">ord</span>` — LORD small caps
+
+* `<b>word</b>` — bold keyword
+* `<i><b>word</b></i>` — bold italic keyword
+* `L<span style="font-variant: small-caps;">ord</span>` — LORD small caps
