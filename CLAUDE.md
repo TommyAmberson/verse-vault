@@ -62,8 +62,22 @@ dprint check          # formatting for docs (also runs via lint-staged)
 ## Git conventions
 
 * Commits must be atomic and single-responsibility — one logical change per commit.
+* Commit as you go: after each logical chunk compiles and tests pass, commit it — don't batch at the
+  end.
 * Do not add `Co-Authored-By` lines.
-* Work on feature branches, not directly on master. Merge when ready.
+* Work on feature branches, not directly on master.
+
+### Merging PRs
+
+* Always use a merge commit, never squash: `gh pr merge <N> --merge --delete-branch`. The individual
+  branch commits must land on master so `git log` shows the actual progression.
+
+### Rewriting history
+
+* **Feature branches:** rewriting is fine and often encouraged (rebase, amend, reorder, squash
+  fixups, `git push --force-with-lease`) when it produces a cleaner, more readable series _before_
+  merging.
+* **Master:** never rewrite history. Once a commit is on master, it stays.
 
 ### Commit message format ([Conventional Commits](https://www.conventionalcommits.org/))
 
