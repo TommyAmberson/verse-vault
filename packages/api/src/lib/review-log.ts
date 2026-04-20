@@ -55,14 +55,16 @@ export function recordReview(args: RecordReviewArgs): void {
   }));
 
   db.transaction((tx) => {
+    const eventId = randomUUID();
     tx.insert(schema.reviewEvents)
       .values({
-        id: randomUUID(),
+        id: eventId,
         userId,
         materialId,
         snapshotVersion: entry.snapshotVersion,
         timestampSecs,
         cardId: card.source_card_id,
+        clientEventId: eventId, // online review: server-generated IDs serve both roles
         shown: jsonBlob(card.shown),
         hidden: jsonBlob(card.hidden),
         grades: jsonBlob(grades),

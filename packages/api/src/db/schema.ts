@@ -1,4 +1,13 @@
-import { blob, index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  blob,
+  index,
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 // Better Auth tables — shape follows the Better Auth drizzle adapter's
 // expected schema. We own them here (rather than letting @better-auth/cli
@@ -118,18 +127,29 @@ export const reviewEvents = sqliteTable(
     snapshotVersion: integer('snapshot_version').notNull(),
     timestampSecs: integer('timestamp_secs').notNull(),
     cardId: integer('card_id'), // null for transient (re-drill / progressive reveal)
+    // Client-supplied ID that makes uploads idempotent across retries. For
+    // online reviews the server generates a UUID; for offline reviews the
+    // client sends its own UUID.
+    clientEventId: text('client_event_id').notNull(),
     shown: blob('shown', { mode: 'buffer' }).notNull(),
     hidden: blob('hidden', { mode: 'buffer' }).notNull(),
     grades: blob('grades', { mode: 'buffer' }).notNull(),
     createdAt: integer('created_at').notNull(),
   },
-  // Replay is always filtered by (user_id, material_id) and sorted by
-  // timestamp, so keep timestamp as the trailing key.
   (t) => ({
+    // Replay is always filtered by (user_id, material_id) and sorted by
+    // timestamp, so keep timestamp as the trailing key.
     replayIdx: index('idx_review_events_user_material_time').on(
       t.userId,
       t.materialId,
       t.timestampSecs,
+    ),
+    // Dedup on re-upload: a client may retry the same batch; accept the
+    // second POST without double-applying events.
+    clientEventIdx: uniqueIndex('uniq_review_events_user_material_client_event').on(
+      t.userId,
+      t.materialId,
+      t.clientEventId,
     ),
   }),
 );

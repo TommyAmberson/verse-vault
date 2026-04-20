@@ -1,0 +1,2 @@
+ALTER TABLE `review_events` ADD `client_event_id` text NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `uniq_review_events_user_material_client_event` ON `review_events` (`user_id`,`material_id`,`client_event_id`);
