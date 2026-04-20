@@ -141,3 +141,7 @@ dist
 # Local dev/test databases
 /packages/api/data/
 /tmp/vv-test-*.db
+/tmp/vv-idx-*.db
+/tmp/vv-app-test-*.db
+/packages/api/.env
+/packages/api/.env.local
