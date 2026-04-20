@@ -60,3 +60,19 @@ cargo test            # tests
 * Commits must be atomic and single-responsibility — one logical change per commit.
 * Do not add `Co-Authored-By` lines.
 * Work on feature branches, not directly on master. Merge when ready.
+
+### Commit message format ([Conventional Commits](https://www.conventionalcommits.org/))
+
+```
+<type>(<scope>): <short subject in lowercase>
+
+<wrapped body explaining why, not what (the diff shows what)>
+```
+
+Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `style`, `revert`, `perf`, `build`.
+
+Scopes: `core`, `wasm`, `sim`, `api`, `web`, `desktop`, `cli`, `tools`, `docs`. Omit the scope for
+cross-cutting changes (e.g. `chore: bump version to 0.2.0`).
+
+Subject in lowercase, no trailing period. Imperative mood ("add X", not "added X"). Body wrapped at
+~72 cols, focuses on the why.
