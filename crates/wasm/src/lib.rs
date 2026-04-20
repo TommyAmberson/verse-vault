@@ -242,31 +242,9 @@ impl WasmEngine {
             .as_mut()
             .ok_or_else(|| JsError::new("no active session"))?;
 
-        let grade_entries: Vec<GradeEntry> = if grades_json.is_empty() {
-            Vec::new()
-        } else {
-            serde_json::from_str(grades_json)
-                .map_err(|e| JsError::new(&format!("grades parse: {e}")))?
-        };
-        let mut grades: HashMap<NodeId, Grade> = HashMap::new();
-        for g in grade_entries {
-            grades.insert(NodeId(g.node_id), int_to_grade(g.grade)?);
-        }
-
+        let grades = parse_grades_json(grades_json)?;
         let outcome: ReviewOutcome = session.record_review(grades, &mut self.engine, now_secs);
-        let wire = ReviewOutcomeWire {
-            edge_updates: outcome
-                .edge_updates
-                .iter()
-                .map(|u| EdgeUpdateWire {
-                    edge_id: u.edge_id.0,
-                    grade: grade_to_int(u.grade),
-                    weight: u.weight,
-                })
-                .collect(),
-            redrills_inserted: outcome.redrills_inserted,
-        };
-        serde_json::to_string(&wire).map_err(|e| JsError::new(&e.to_string()))
+        serialize_outcome(&outcome.edge_updates, outcome.redrills_inserted)
     }
 
     /// Abort the current session.
@@ -287,39 +265,14 @@ impl WasmEngine {
         grades_json: &str,
         now_secs: i64,
     ) -> Result<String, JsError> {
-        let shown_raw: Vec<u32> = serde_json::from_str(shown_json)
-            .map_err(|e| JsError::new(&format!("shown parse: {e}")))?;
-        let hidden_raw: Vec<u32> = serde_json::from_str(hidden_json)
-            .map_err(|e| JsError::new(&format!("hidden parse: {e}")))?;
-        let grade_entries: Vec<GradeEntry> = if grades_json.is_empty() {
-            Vec::new()
-        } else {
-            serde_json::from_str(grades_json)
-                .map_err(|e| JsError::new(&format!("grades parse: {e}")))?
-        };
-
-        let shown: Vec<NodeId> = shown_raw.into_iter().map(NodeId).collect();
-        let hidden: Vec<NodeId> = hidden_raw.into_iter().map(NodeId).collect();
-        let mut grades: HashMap<NodeId, Grade> = HashMap::new();
-        for g in grade_entries {
-            grades.insert(NodeId(g.node_id), int_to_grade(g.grade)?);
-        }
+        let shown = parse_node_ids_json(shown_json, "shown")?;
+        let hidden = parse_node_ids_json(hidden_json, "hidden")?;
+        let grades = parse_grades_json(grades_json)?;
 
         let updates = self
             .engine
             .review_transient(&shown, &hidden, grades, now_secs);
-        let wire = ReviewOutcomeWire {
-            edge_updates: updates
-                .iter()
-                .map(|u| EdgeUpdateWire {
-                    edge_id: u.edge_id.0,
-                    grade: grade_to_int(u.grade),
-                    weight: u.weight,
-                })
-                .collect(),
-            redrills_inserted: 0,
-        };
-        serde_json::to_string(&wire).map_err(|e| JsError::new(&e.to_string()))
+        serialize_outcome(&updates, 0)
     }
 
     /// Whether the current session is done (empty queue).
@@ -395,6 +348,43 @@ fn parse_card_state(s: &str) -> Result<CardState, JsError> {
         "relearning" => Ok(CardState::Relearning),
         _ => Err(JsError::new(&format!("invalid card state: {s}"))),
     }
+}
+
+fn parse_node_ids_json(s: &str, field: &str) -> Result<Vec<NodeId>, JsError> {
+    let raw: Vec<u32> =
+        serde_json::from_str(s).map_err(|e| JsError::new(&format!("{field} parse: {e}")))?;
+    Ok(raw.into_iter().map(NodeId).collect())
+}
+
+fn parse_grades_json(s: &str) -> Result<HashMap<NodeId, Grade>, JsError> {
+    let entries: Vec<GradeEntry> = if s.is_empty() {
+        Vec::new()
+    } else {
+        serde_json::from_str(s).map_err(|e| JsError::new(&format!("grades parse: {e}")))?
+    };
+    let mut grades = HashMap::with_capacity(entries.len());
+    for g in entries {
+        grades.insert(NodeId(g.node_id), int_to_grade(g.grade)?);
+    }
+    Ok(grades)
+}
+
+fn serialize_outcome(
+    updates: &[verse_vault_core::credit::EdgeUpdate],
+    redrills_inserted: usize,
+) -> Result<String, JsError> {
+    let wire = ReviewOutcomeWire {
+        edge_updates: updates
+            .iter()
+            .map(|u| EdgeUpdateWire {
+                edge_id: u.edge_id.0,
+                grade: grade_to_int(u.grade),
+                weight: u.weight,
+            })
+            .collect(),
+        redrills_inserted,
+    };
+    serde_json::to_string(&wire).map_err(|e| JsError::new(&e.to_string()))
 }
 
 fn int_to_grade(v: u8) -> Result<Grade, JsError> {
