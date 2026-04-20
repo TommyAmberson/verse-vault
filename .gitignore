@@ -138,10 +138,8 @@ dist
 # Large untracked scratch files (PostScript, scratch outputs)
 /math
 
-# Local dev/test databases
+# Local dev/test databases (tests use mkdtemp under $TMPDIR and clean up
+# themselves; this is belt-and-suspenders in case a test crashes mid-run)
 /packages/api/data/
-/tmp/vv-test-*.db
-/tmp/vv-idx-*.db
-/tmp/vv-app-test-*.db
 /packages/api/.env
 /packages/api/.env.local

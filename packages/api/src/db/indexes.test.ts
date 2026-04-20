@@ -1,21 +1,37 @@
 import Database from 'better-sqlite3';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { runMigrations } from './migrate.js';
+import { createTestDb } from '../test-utils.js';
 
 describe('indexes', () => {
-  it('creates all hot-path indexes', () => {
-    const path = `/tmp/vv-idx-test-${Date.now()}.db`;
-    runMigrations(path);
+  let path: string;
+  let cleanup: () => void;
+  let sqlite: Database.Database;
 
-    const sqlite = new Database(path);
-    const indexes = sqlite
+  beforeAll(() => {
+    const test = createTestDb();
+    path = test.path;
+    cleanup = test.cleanup;
+    sqlite = new Database(path, { readonly: true });
+  });
+
+  afterAll(() => {
+    sqlite.close();
+    cleanup();
+  });
+
+  function planFor(sql: string, ...args: unknown[]): string {
+    const rows = sqlite.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...args) as Array<{
+      detail: string;
+    }>;
+    return rows.map((r) => r.detail).join(' ');
+  }
+
+  it('creates all hot-path indexes', () => {
+    const rows = sqlite
       .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'")
       .all() as Array<{ name: string }>;
-    const names = indexes.map((i) => i.name).sort();
-    sqlite.close();
-
-    expect(names).toEqual(
+    expect(rows.map((r) => r.name).sort()).toEqual(
       [
         'idx_account_provider',
         'idx_graph_snapshots_user_material',
@@ -25,49 +41,25 @@ describe('indexes', () => {
     );
   });
 
-  it('uses the review_events index for (user_id, material_id) replay queries', () => {
-    const path = `/tmp/vv-idx-plan-${Date.now()}.db`;
-    runMigrations(path);
-
-    const sqlite = new Database(path);
-    const plan = sqlite
-      .prepare(
-        'EXPLAIN QUERY PLAN SELECT * FROM review_events WHERE user_id = ? AND material_id = ? ORDER BY timestamp_secs',
-      )
-      .all('u1', 'nkjv-1cor') as Array<{ detail: string }>;
-    sqlite.close();
-
-    const detail = plan.map((p) => p.detail).join(' ');
-    expect(detail).toContain('idx_review_events_user_material_time');
+  it('uses idx_review_events_user_material_time for (user, material) replay', () => {
+    expect(
+      planFor(
+        'SELECT * FROM review_events WHERE user_id = ? AND material_id = ? ORDER BY timestamp_secs',
+        'u1',
+        'nkjv-1cor',
+      ),
+    ).toContain('idx_review_events_user_material_time');
   });
 
-  it('uses the account index for OAuth callback lookups', () => {
-    const path = `/tmp/vv-idx-account-${Date.now()}.db`;
-    runMigrations(path);
-
-    const sqlite = new Database(path);
-    const plan = sqlite
-      .prepare(
-        'EXPLAIN QUERY PLAN SELECT * FROM account WHERE provider_id = ? AND account_id = ?',
-      )
-      .all('google', 'oauth-id-xyz') as Array<{ detail: string }>;
-    sqlite.close();
-
-    const detail = plan.map((p) => p.detail).join(' ');
-    expect(detail).toContain('idx_account_provider');
+  it('uses idx_account_provider for OAuth callback lookups', () => {
+    expect(
+      planFor('SELECT * FROM account WHERE provider_id = ? AND account_id = ?', 'google', 'x'),
+    ).toContain('idx_account_provider');
   });
 
-  it('uses the verification index for identifier lookups', () => {
-    const path = `/tmp/vv-idx-verif-${Date.now()}.db`;
-    runMigrations(path);
-
-    const sqlite = new Database(path);
-    const plan = sqlite
-      .prepare('EXPLAIN QUERY PLAN SELECT * FROM verification WHERE identifier = ?')
-      .all('alice@example.com') as Array<{ detail: string }>;
-    sqlite.close();
-
-    const detail = plan.map((p) => p.detail).join(' ');
-    expect(detail).toContain('idx_verification_identifier');
+  it('uses idx_verification_identifier for identifier lookups', () => {
+    expect(planFor('SELECT * FROM verification WHERE identifier = ?', 'alice@example.com')).toContain(
+      'idx_verification_identifier',
+    );
   });
 });

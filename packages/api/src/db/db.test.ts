@@ -1,37 +1,37 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { createDb } from './client.js';
-import { runMigrations } from './migrate.js';
+import { createTestDb } from '../test-utils.js';
 import { user, userMaterials } from './schema.js';
 
 describe('db', () => {
-  it('applies migrations to a fresh in-memory db and round-trips a row', () => {
-    runMigrations(':memory:');
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
   });
 
-  it('round-trips user + user_materials with fk cascade', () => {
-    // Use a file-backed db so we can re-open and test the shared state.
-    // :memory: would give us a fresh db each createDb() call.
-    const path = `/tmp/vv-test-${Date.now()}.db`;
-    runMigrations(path);
+  it('round-trips user + user_materials', () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
 
-    const db = createDb(path);
     const now = Math.floor(Date.now() / 1000);
-    db.insert(user)
+    test.db
+      .insert(user)
       .values({
         id: 'u1',
-        email: 'a@b.c',
+        email: 'alice@example.com',
         name: 'Test',
         emailVerified: false,
         createdAt: new Date(now * 1000),
         updatedAt: new Date(now * 1000),
       })
       .run();
-    db.insert(userMaterials)
+    test.db
+      .insert(userMaterials)
       .values({ userId: 'u1', materialId: 'nkjv-1cor', clubTier: 150, createdAt: now })
       .run();
 
-    const rows = db.select().from(userMaterials).all();
+    const rows = test.db.select().from(userMaterials).all();
     expect(rows).toHaveLength(1);
     expect(rows[0]?.materialId).toBe('nkjv-1cor');
   });
