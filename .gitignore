@@ -134,3 +134,6 @@ dist
 
 # wasm-pack build output
 /crates/wasm/pkg/
+
+# Large untracked scratch files (PostScript, scratch outputs)
+/math
