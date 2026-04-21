@@ -95,6 +95,19 @@ exist.
 * [#17 Retention tuning knob (per-user desiredRetention)](https://github.com/TommyAmberson/verse-vault/issues/17)
 * [#18 Engine mutation before DB transaction in sync POST](https://github.com/TommyAmberson/verse-vault/issues/18)
 
+## Before public launch
+
+Near-term operational work that should land before real users exist. Not filed as issues yet —
+promote to issues when a phase picks them up.
+
+* Content pipeline integration — wire the `tools/` Python scripts (Anki parsing, verse chunking)
+  into material enrollment so a new material produces a `graph_snapshots` row end-to-end
+* Observability — structured logging, request tracing, metrics (review throughput, engine load time,
+  cache hit rate)
+* Rate limiting + abuse controls — per-user/IP limits on review endpoints
+* Database backups + migration testing — file-based SQLite on a VPS needs a backup story
+  (litestream? periodic snapshots?) and a migration rehearsal process
+
 ## Future
 
 Long-horizon ideas; not filed as issues yet.
