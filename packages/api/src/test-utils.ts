@@ -45,6 +45,21 @@ export function createTestApp() {
 
 export type TestApp = ReturnType<typeof createTestApp>;
 
+/** Inserts a bare user row for tests that don't need a Better Auth session. */
+export function createTestUser(db: DB, userId: string): void {
+  const now = Math.floor(Date.now() / 1000);
+  db.insert(user)
+    .values({
+      id: userId,
+      email: `${userId}@example.com`,
+      name: userId,
+      emailVerified: false,
+      createdAt: new Date(now * 1000),
+      updatedAt: new Date(now * 1000),
+    })
+    .run();
+}
+
 /** Creates a user via Better Auth's email sign-up and returns the session cookie + user id. */
 export async function signUpTestUser(
   test: TestApp,

@@ -1,6 +1,6 @@
 import type { DB } from './db/client.js';
-import * as schema from './db/schema.js';
 import { enrollUser } from './lib/enrollment.js';
+import { createTestUser } from './test-utils.js';
 
 export interface SeedOptions {
   db: DB;
@@ -19,18 +19,7 @@ export function seedUserWithFixture(opts: SeedOptions): { snapshotId: string; ve
   const { db, userId, materialId } = opts;
   const now = Math.floor(Date.now() / 1000);
 
-  if (opts.createUser ?? true) {
-    db.insert(schema.user)
-      .values({
-        id: userId,
-        email: `${userId}@example.com`,
-        name: userId,
-        emailVerified: false,
-        createdAt: new Date(now * 1000),
-        updatedAt: new Date(now * 1000),
-      })
-      .run();
-  }
+  if (opts.createUser ?? true) createTestUser(db, userId);
 
   return enrollUser({ db, userId, materialId, now: () => now });
 }

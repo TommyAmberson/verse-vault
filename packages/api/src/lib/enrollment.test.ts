@@ -1,24 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import * as schema from '../db/schema.js';
-import { createTestDb } from '../test-utils.js';
+import { createTestDb, createTestUser } from '../test-utils.js';
 import { AlreadyEnrolledError, UnknownMaterialError, enrollUser } from './enrollment.js';
 
 const MATERIAL_ID = 'nkjv-1cor';
-
-function createUser(db: ReturnType<typeof createTestDb>['db'], userId: string): void {
-  const now = Math.floor(Date.now() / 1000);
-  db.insert(schema.user)
-    .values({
-      id: userId,
-      email: `${userId}@example.com`,
-      name: userId,
-      emailVerified: false,
-      createdAt: new Date(now * 1000),
-      updatedAt: new Date(now * 1000),
-    })
-    .run();
-}
 
 describe('enrollUser', () => {
   let cleanup: (() => void) | null = null;
@@ -30,7 +15,7 @@ describe('enrollUser', () => {
   it('enrolls a new user', () => {
     const test = createTestDb();
     cleanup = test.cleanup;
-    createUser(test.db, 'u1');
+    createTestUser(test.db, 'u1');
 
     const result = enrollUser({ db: test.db, userId: 'u1', materialId: MATERIAL_ID });
     expect(result.version).toBe(1);
@@ -40,7 +25,7 @@ describe('enrollUser', () => {
   it('throws UnknownMaterialError for unknown materials', () => {
     const test = createTestDb();
     cleanup = test.cleanup;
-    createUser(test.db, 'u1');
+    createTestUser(test.db, 'u1');
 
     expect(() =>
       enrollUser({ db: test.db, userId: 'u1', materialId: 'does-not-exist' }),
@@ -54,7 +39,7 @@ describe('enrollUser', () => {
     // 500.
     const test = createTestDb();
     cleanup = test.cleanup;
-    createUser(test.db, 'u1');
+    createTestUser(test.db, 'u1');
 
     enrollUser({ db: test.db, userId: 'u1', materialId: MATERIAL_ID });
 
