@@ -1,5 +1,9 @@
 # Roadmap
 
+Active work and planning happens in
+[GitHub Issues](https://github.com/TommyAmberson/verse-vault/issues). This file records what has
+shipped and points to the open work that's coming next.
+
 ## Phase 1: Core Algorithm ✅
 
 Edge-based memory graph with FSRS integration.
@@ -69,37 +73,34 @@ on a VPS; Better Auth; Drizzle + SQLite; event-sourced reviews for clean offline
 
 ## Phase 4: Frontends
 
-Each sub-phase is its own mergeable workstream, comparable in scope to any of 3A–3E.
+Each sub-phase is its own mergeable workstream, comparable in scope to any of 3A–3E. Suggested order
+— 4A unlocks real usage, 4B is a parallel-track CLI, 4C and 4D layer on top of 4A.
 
-### Phase 4A: Vue web app (thin client)
+1. [#9 Phase 4A: Vue web app (thin client)](https://github.com/TommyAmberson/verse-vault/issues/9)
+2. [#10 Phase 4B: CLI](https://github.com/TommyAmberson/verse-vault/issues/10)
+3. [#11 Phase 4C: WASM offline in the web app](https://github.com/TommyAmberson/verse-vault/issues/11)
+   — blocked by #9, #15, #16
+4. [#12 Phase 4D: Tauri desktop](https://github.com/TommyAmberson/verse-vault/issues/12) — blocked
+   by #9, #11
 
-* [ ] `apps/web/` scaffold (Vue 3 + Vite + TypeScript)
-* [ ] Better Auth browser client (sign-in/sign-up, Google OAuth)
-* [ ] Materials list + enroll + status screens
-* [ ] Session screen (start / next / review / done)
-* [ ] Stats screen
-* [ ] Playwright smoke test
+## Known tech debt
 
-### Phase 4B: CLI
+Deferred items from Phase 3 — none block Phase 4 on day one, but each should land before real users
+exist.
 
-* [ ] `apps/cli/` terminal review tool consuming the server API
-
-### Phase 4C: WASM offline in the web app
-
-* [ ] IndexedDB cache of snapshot + edge/card state + pending events
-* [ ] WASM engine applied locally, synced via `/sync/:materialId/events`
-* [ ] 409 reconciliation on stale `snapshotVersion`
-
-### Phase 4D: Tauri desktop
-
-* [ ] `apps/desktop/` Tauri scaffold wrapping the web UI
-* [ ] Native Rust core (no WASM in the desktop build)
-* [ ] OS-keychain auth storage
+* [#13 EngineStore eviction (TTL/LRU + engine.free())](https://github.com/TommyAmberson/verse-vault/issues/13)
+* [#14 SessionStore eviction (idle reaper)](https://github.com/TommyAmberson/verse-vault/issues/14)
+* [#15 WASM delta export for edge/card state](https://github.com/TommyAmberson/verse-vault/issues/15)
+* [#16 Snapshot versioning + invalidation flow](https://github.com/TommyAmberson/verse-vault/issues/16)
+* [#17 Retention tuning knob (per-user desiredRetention)](https://github.com/TommyAmberson/verse-vault/issues/17)
+* [#18 Engine mutation before DB transaction in sync POST](https://github.com/TommyAmberson/verse-vault/issues/18)
 
 ## Future
 
-* [ ] Per-user FSRS parameter optimization (from review history)
-* [ ] Multiple translations (ESV, NIV — with licensing)
-* [ ] Team features for QuizMeet teams
-* [ ] Customizable learning flow
-* [ ] Import from Anki
+Long-horizon ideas; not filed as issues yet.
+
+* Per-user FSRS parameter optimization (from review history)
+* Multiple translations (ESV, NIV — with licensing)
+* Team features for QuizMeet teams
+* Customizable learning flow
+* Import from Anki
