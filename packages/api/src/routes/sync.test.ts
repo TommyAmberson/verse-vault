@@ -200,6 +200,56 @@ describe('sync routes', () => {
     expect(afterSecond).toEqual(afterFirst);
   });
 
+  it('returns the chronologically latest lastEventId, even for older batches', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    const newer = {
+      clientEventId: randomUUID(),
+      timestampSecs: 2_000_000_000,
+      snapshotVersion: 1,
+      cardId: 0,
+      shown: [0],
+      hidden: [2],
+      grades: [{ node_id: 2, grade: 3 as const }],
+    };
+    const older = {
+      clientEventId: randomUUID(),
+      timestampSecs: 1_000_000_000,
+      snapshotVersion: 1,
+      cardId: 0,
+      shown: [0],
+      hidden: [2],
+      grades: [{ node_id: 2, grade: 3 as const }],
+    };
+
+    const firstRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [newer] }),
+    });
+    expect(firstRes.status).toBe(200);
+    const firstBody = (await firstRes.json()) as UploadResponse;
+    const newerId = firstBody.lastEventId;
+    expect(newerId).not.toBeNull();
+
+    const secondRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [older] }),
+    });
+    expect(secondRes.status).toBe(200);
+    const secondBody = (await secondRes.json()) as UploadResponse;
+    expect(secondBody.lastEventId).toBe(newerId);
+
+    const stateRes = await test.app.request(`/api/sync/${MATERIAL_ID}/state`, {
+      headers: { cookie },
+    });
+    const stateBody = (await stateRes.json()) as StateResponse;
+    expect(stateBody.lastEventId).toBe(newerId);
+  });
+
   it('rejects batches larger than MAX_BATCH_SIZE with 413', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;

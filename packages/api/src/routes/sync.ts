@@ -187,12 +187,15 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
     // Response carries the engine's full edge/card state so fat clients can
     // replace their local cache in one shot; DB writes are filtered above.
+    // `lastEventId` must agree with GET /state so clients can use it as a
+    // resume cursor — both report the chronologically latest event, not the
+    // last one in this batch (which may be older than pre-existing rows).
     return c.json({
       accepted: fresh.length,
       duplicates: events.length - fresh.length,
       edgeStates: allEdges,
       cardStates: allCards,
-      lastEventId: eventRows[eventRows.length - 1]!.id,
+      lastEventId: latestEventId(deps.db, user.id, materialId),
     });
   });
 
