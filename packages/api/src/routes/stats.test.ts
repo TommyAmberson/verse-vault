@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
@@ -56,6 +58,40 @@ describe('stats routes', () => {
     expect(body.retentionRate).toBeNull();
     expect(body.totalGrades).toBe(0);
     for (const count of Object.values(body.edgeDistribution)) expect(count).toBe(0);
+  });
+
+  it('counts Hard (grade 2) as a pass, matching the core scheduler', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID);
+
+    // Upload a synthetic event via sync so we control the exact grades.
+    const event = {
+      clientEventId: randomUUID(),
+      timestampSecs: 1_700_000_000,
+      snapshotVersion: 1,
+      cardId: 0,
+      shown: [0],
+      hidden: [2, 3, 4],
+      grades: [
+        { node_id: 2, grade: 2 as const },
+        { node_id: 3, grade: 3 as const },
+        { node_id: 4, grade: 4 as const },
+      ],
+    };
+    const uploadRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [event] }),
+    });
+    expect(uploadRes.status).toBe(200);
+
+    const res = await test.app.request(`/api/stats/${MATERIAL_ID}`, { headers: { cookie } });
+    const body = (await res.json()) as StatsResponse;
+    expect(body.totalGrades).toBe(3);
+    // Hard, Good, Easy all count as passes per crates/core/src/types.rs::is_pass.
+    expect(body.retentionRate).toBe(1);
   });
 
   it('reflects review activity', async () => {
