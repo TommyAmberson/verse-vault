@@ -242,31 +242,9 @@ impl WasmEngine {
             .as_mut()
             .ok_or_else(|| JsError::new("no active session"))?;
 
-        let grade_entries: Vec<GradeEntry> = if grades_json.is_empty() {
-            Vec::new()
-        } else {
-            serde_json::from_str(grades_json)
-                .map_err(|e| JsError::new(&format!("grades parse: {e}")))?
-        };
-        let mut grades: HashMap<NodeId, Grade> = HashMap::new();
-        for g in grade_entries {
-            grades.insert(NodeId(g.node_id), int_to_grade(g.grade)?);
-        }
-
+        let grades = parse_grades_json(grades_json)?;
         let outcome: ReviewOutcome = session.record_review(grades, &mut self.engine, now_secs);
-        let wire = ReviewOutcomeWire {
-            edge_updates: outcome
-                .edge_updates
-                .iter()
-                .map(|u| EdgeUpdateWire {
-                    edge_id: u.edge_id.0,
-                    grade: grade_to_int(u.grade),
-                    weight: u.weight,
-                })
-                .collect(),
-            redrills_inserted: outcome.redrills_inserted,
-        };
-        serde_json::to_string(&wire).map_err(|e| JsError::new(&e.to_string()))
+        serialize_outcome(&outcome.edge_updates, outcome.redrills_inserted)
     }
 
     /// Abort the current session.
@@ -274,6 +252,27 @@ impl WasmEngine {
         if let Some(session) = self.session.take() {
             session.abort(&mut self.engine);
         }
+    }
+
+    /// Replay a persisted review event without an active session. Runs
+    /// credit assignment + FSRS + schedule cascade on the given
+    /// shown/hidden/grades, same as an online `session_review`. Used by
+    /// the sync endpoint to apply offline events to the live engine.
+    pub fn replay_event(
+        &mut self,
+        shown_json: &str,
+        hidden_json: &str,
+        grades_json: &str,
+        now_secs: i64,
+    ) -> Result<String, JsError> {
+        let shown = parse_node_ids_json(shown_json, "shown")?;
+        let hidden = parse_node_ids_json(hidden_json, "hidden")?;
+        let grades = parse_grades_json(grades_json)?;
+
+        let updates = self
+            .engine
+            .review_transient(&shown, &hidden, grades, now_secs);
+        serialize_outcome(&updates, 0)
     }
 
     /// Whether the current session is done (empty queue).
@@ -349,6 +348,43 @@ fn parse_card_state(s: &str) -> Result<CardState, JsError> {
         "relearning" => Ok(CardState::Relearning),
         _ => Err(JsError::new(&format!("invalid card state: {s}"))),
     }
+}
+
+fn parse_node_ids_json(s: &str, field: &str) -> Result<Vec<NodeId>, JsError> {
+    let raw: Vec<u32> =
+        serde_json::from_str(s).map_err(|e| JsError::new(&format!("{field} parse: {e}")))?;
+    Ok(raw.into_iter().map(NodeId).collect())
+}
+
+fn parse_grades_json(s: &str) -> Result<HashMap<NodeId, Grade>, JsError> {
+    let entries: Vec<GradeEntry> = if s.is_empty() {
+        Vec::new()
+    } else {
+        serde_json::from_str(s).map_err(|e| JsError::new(&format!("grades parse: {e}")))?
+    };
+    let mut grades = HashMap::with_capacity(entries.len());
+    for g in entries {
+        grades.insert(NodeId(g.node_id), int_to_grade(g.grade)?);
+    }
+    Ok(grades)
+}
+
+fn serialize_outcome(
+    updates: &[verse_vault_core::credit::EdgeUpdate],
+    redrills_inserted: usize,
+) -> Result<String, JsError> {
+    let wire = ReviewOutcomeWire {
+        edge_updates: updates
+            .iter()
+            .map(|u| EdgeUpdateWire {
+                edge_id: u.edge_id.0,
+                grade: grade_to_int(u.grade),
+                weight: u.weight,
+            })
+            .collect(),
+        redrills_inserted,
+    };
+    serde_json::to_string(&wire).map_err(|e| JsError::new(&e.to_string()))
 }
 
 fn int_to_grade(v: u8) -> Result<Grade, JsError> {

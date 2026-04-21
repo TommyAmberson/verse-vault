@@ -14,6 +14,14 @@ export interface LoadedEngine {
   snapshotVersion: number;
 }
 
+/** Thrown by `EngineStore.load` when the caller isn't enrolled in the material. */
+export class NotEnrolledError extends Error {
+  constructor(key: EngineKey) {
+    super(`Not enrolled: user=${key.userId} material=${key.materialId}`);
+    this.name = 'NotEnrolledError';
+  }
+}
+
 /** Wire shapes must stay in sync with crates/wasm/src/lib.rs. */
 export interface EdgeStateEntry {
   edge_id: number;
@@ -28,6 +36,39 @@ export interface CardStateEntry {
   due_r: number | null;
   due_date_secs: number | null;
   priority: number | null;
+}
+
+export function readEdgeStateEntries(db: DB, key: EngineKey): EdgeStateEntry[] {
+  return db
+    .select()
+    .from(schema.edgeStates)
+    .where(
+      and(eq(schema.edgeStates.userId, key.userId), eq(schema.edgeStates.materialId, key.materialId)),
+    )
+    .all()
+    .map((e) => ({
+      edge_id: e.edgeId,
+      stability: e.stability,
+      difficulty: e.difficulty,
+      last_review_secs: e.lastReviewSecs,
+    }));
+}
+
+export function readCardStateEntries(db: DB, key: EngineKey): CardStateEntry[] {
+  return db
+    .select()
+    .from(schema.cardStates)
+    .where(
+      and(eq(schema.cardStates.userId, key.userId), eq(schema.cardStates.materialId, key.materialId)),
+    )
+    .all()
+    .map((c) => ({
+      card_id: c.cardId,
+      state: c.state,
+      due_r: c.dueR,
+      due_date_secs: c.dueDateSecs,
+      priority: c.priority,
+    }));
 }
 
 /** Long-running Node process, so engines live across requests; no eviction yet. */
@@ -56,43 +97,11 @@ export class EngineStore {
       .limit(1)
       .get();
     if (!snapshot) {
-      throw new Error(`No graph snapshot for user=${key.userId} material=${key.materialId}`);
+      throw new NotEnrolledError(key);
     }
 
-    const edges = this.db
-      .select()
-      .from(schema.edgeStates)
-      .where(
-        and(
-          eq(schema.edgeStates.userId, key.userId),
-          eq(schema.edgeStates.materialId, key.materialId),
-        ),
-      )
-      .all();
-    const cards = this.db
-      .select()
-      .from(schema.cardStates)
-      .where(
-        and(
-          eq(schema.cardStates.userId, key.userId),
-          eq(schema.cardStates.materialId, key.materialId),
-        ),
-      )
-      .all();
-
-    const edgeJson: EdgeStateEntry[] = edges.map((e) => ({
-      edge_id: e.edgeId,
-      stability: e.stability,
-      difficulty: e.difficulty,
-      last_review_secs: e.lastReviewSecs,
-    }));
-    const cardJson: CardStateEntry[] = cards.map((c) => ({
-      card_id: c.cardId,
-      state: c.state,
-      due_r: c.dueR,
-      due_date_secs: c.dueDateSecs,
-      priority: c.priority,
-    }));
+    const edgeJson = readEdgeStateEntries(this.db, key);
+    const cardJson = readCardStateEntries(this.db, key);
 
     const engine = new WasmEngine(
       snapshot.graphData.toString('utf8'),

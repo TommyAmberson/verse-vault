@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { createTestDb } from '../test-utils.js';
-import { EngineStore } from './engine.js';
+import { EngineStore, NotEnrolledError } from './engine.js';
 
 describe('EngineStore', () => {
   let cleanup: (() => void) | null = null;
@@ -30,8 +30,8 @@ describe('EngineStore', () => {
     cleanup = test.cleanup;
 
     const store = new EngineStore(test.db);
-    await expect(store.load({ userId: 'missing', materialId: 'x' })).rejects.toThrow(
-      /No graph snapshot/,
+    await expect(store.load({ userId: 'missing', materialId: 'x' })).rejects.toBeInstanceOf(
+      NotEnrolledError,
     );
   });
 

@@ -94,7 +94,13 @@ export function sessionRoutes(deps: SessionRoutesDeps) {
     } catch (err) {
       return c.json({ error: (err as Error).message }, 400);
     }
-    recordReview({ db: deps.db, entry, timestampSecs: nowSecs, card, grades: body.grades, outcome });
+    // Progressive-reveal "reading" cards don't run credit assignment inside
+    // the session, so they leave the engine unchanged. Skipping the event
+    // log here keeps the online path and the sync replay path symmetric —
+    // replaying these would wrongly trigger the exposure fallback.
+    if (!card.is_reading) {
+      recordReview({ db: deps.db, entry, timestampSecs: nowSecs, card, grades: body.grades, outcome });
+    }
     entry.currentCard = null;
     const next = advance(entry);
     if (next.done) deps.sessions.end(entry.id);
