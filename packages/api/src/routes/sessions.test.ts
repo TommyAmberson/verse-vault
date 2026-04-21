@@ -49,6 +49,18 @@ describe('session routes', () => {
     expect(res.status).toBe(401);
   });
 
+  it('returns 404 when the caller is not enrolled', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    const res = await test.app.request('/api/sessions/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ materialId: MATERIAL_ID }),
+    });
+    expect(res.status).toBe(404);
+  });
+
   it('runs a full session: start → review → done', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;

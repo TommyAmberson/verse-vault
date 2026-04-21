@@ -1,7 +1,7 @@
 import { type Context, Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
-import { EngineStore } from '../lib/engine.js';
+import { EngineStore, NotEnrolledError } from '../lib/engine.js';
 import { type Grade, type ReviewOutcome, recordReview } from '../lib/review-log.js';
 import { SessionStore, type SessionCard, type SessionEntry } from '../lib/sessions.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
@@ -44,7 +44,13 @@ export function sessionRoutes(deps: SessionRoutesDeps) {
       return c.json({ error: 'materialId required' }, 400);
     }
     const user = getUser(c);
-    const loaded = await deps.engines.load({ userId: user.id, materialId: body.materialId });
+    let loaded;
+    try {
+      loaded = await deps.engines.load({ userId: user.id, materialId: body.materialId });
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
     const nowSecs = now();
     try {
       loaded.engine.start_session(
