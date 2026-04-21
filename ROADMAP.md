@@ -26,7 +26,7 @@ Work with real Bible content.
 * [x] Club 150/300 verse list loading
 * [x] Heading data loading
 
-## Phase 3: Persistence + Server + Clients
+## Phase 3: Persistence + Server ✅
 
 Architecture established in `docs/architecture.md`. TS server wrapping the Rust core via WASM; Node
 on a VPS; Better Auth; Drizzle + SQLite; event-sourced reviews for clean offline sync.
@@ -67,11 +67,34 @@ on a VPS; Better Auth; Drizzle + SQLite; event-sourced reviews for clean offline
 * [x] `GET /api/materials/:id/status`
 * [x] `GET /api/stats/:materialId`
 
-### Phase 3F: Frontends
+## Phase 4: Frontends
 
-* [ ] Vue web app
-* [ ] Tauri desktop app
-* [ ] CLI for terminal review
+Each sub-phase is its own mergeable workstream, comparable in scope to any of 3A–3E.
+
+### Phase 4A: Vue web app (thin client)
+
+* [ ] `apps/web/` scaffold (Vue 3 + Vite + TypeScript)
+* [ ] Better Auth browser client (sign-in/sign-up, Google OAuth)
+* [ ] Materials list + enroll + status screens
+* [ ] Session screen (start / next / review / done)
+* [ ] Stats screen
+* [ ] Playwright smoke test
+
+### Phase 4B: CLI
+
+* [ ] `apps/cli/` terminal review tool consuming the server API
+
+### Phase 4C: WASM offline in the web app
+
+* [ ] IndexedDB cache of snapshot + edge/card state + pending events
+* [ ] WASM engine applied locally, synced via `/sync/:materialId/events`
+* [ ] 409 reconciliation on stale `snapshotVersion`
+
+### Phase 4D: Tauri desktop
+
+* [ ] `apps/desktop/` Tauri scaffold wrapping the web UI
+* [ ] Native Rust core (no WASM in the desktop build)
+* [ ] OS-keychain auth storage
 
 ## Future
 
