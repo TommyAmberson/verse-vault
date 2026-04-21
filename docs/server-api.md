@@ -193,11 +193,83 @@ Side effects are a single transaction: append new events, upsert the union of ch
 every card's state. See [persistence.md](persistence.md#upload-flow--post-apisyncmaterialidevents)
 for replay semantics.
 
+## Materials — `/api/materials/*`
+
+Catalog of available materials + per-user enrollment. The catalog is a static manifest today; the
+content pipeline will eventually feed it.
+
+### `GET /api/materials`
+
+```json
+{
+  "materials": [
+    { "id": "nkjv-1cor", "title": "1 Corinthians (NKJV)", "description": "…" }
+  ]
+}
+```
+
+### `POST /api/materials/enroll`
+
+Enrolls the caller, inserts the initial graph snapshot, and seeds `card_states` so status queries
+work before any reviews. Re-enrolling returns 409.
+
+Request:
+
+```json
+{ "materialId": "nkjv-1cor", "clubTier": 150 }
+```
+
+`clubTier` is optional (`150`, `300`, or omitted for "full material").
+
+Response:
+
+```json
+{ "materialId": "nkjv-1cor", "snapshotId": "uuid", "version": 1 }
+```
+
+Errors: 404 for an unknown material, 409 for a duplicate enrollment.
+
+### `GET /api/materials/:id/status`
+
+```json
+{
+  "materialId": "nkjv-1cor",
+  "clubTier": 150,
+  "cardCounts": { "new": 1, "learning": 0, "review": 0, "relearning": 0 },
+  "nextDueSecs": null
+}
+```
+
+404 if the material is unknown or the caller isn't enrolled.
+
+## Stats — `/api/stats/:materialId`
+
+```json
+{
+  "materialId": "nkjv-1cor",
+  "versesLearned": 0,
+  "retentionRate": 0.92,
+  "totalGrades": 120,
+  "edgeDistribution": {
+    "weak": 0, "learning": 5, "familiar": 3, "strong": 2, "mastered": 1
+  }
+}
+```
+
+* `versesLearned`: cards currently in `review` state.
+* `retentionRate`: fraction of all grades in `review_events` that were a pass (3 or 4). `null` if no
+  reviews yet.
+* `totalGrades`: denominator for `retentionRate`, handy for displaying sample size.
+* `edgeDistribution`: edge counts bucketed by stability (days): `weak < 1`, `learning < 7`,
+  `familiar < 30`, `strong < 90`, `mastered ≥ 90`.
+
+404 on unknown material or non-enrolled caller.
+
 ## Errors
 
-| Status | Meaning                                                                                 |
-| ------ | --------------------------------------------------------------------------------------- |
-| 400    | Malformed body, missing field, or engine rejected input                                 |
-| 401    | No session cookie / expired session                                                     |
-| 404    | Session ID unknown / not owned by caller, or user not enrolled in the material          |
-| 409    | Session found but no card awaiting review, or sync batch uses a stale `snapshotVersion` |
+| Status | Meaning                                                                                                |
+| ------ | ------------------------------------------------------------------------------------------------------ |
+| 400    | Malformed body, missing field, or engine rejected input                                                |
+| 401    | No session cookie / expired session                                                                    |
+| 404    | Session ID unknown / not owned by caller, or user not enrolled in the material                         |
+| 409    | Session found but no card awaiting review, sync batch uses a stale `snapshotVersion`, or re-enrollment |

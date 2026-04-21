@@ -66,3 +66,18 @@ export async function signUpTestUser(
   if (!row) throw new Error(`user not found: ${email}`);
   return { cookie, userId: row.id };
 }
+
+/** Hits POST /api/materials/enroll and asserts success. */
+export async function enrollViaApi(
+  test: TestApp,
+  cookie: string,
+  materialId: string,
+  clubTier: number | null = null,
+): Promise<void> {
+  const res = await test.app.request('/api/materials/enroll', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({ materialId, clubTier }),
+  });
+  expect(res.status).toBe(200);
+}

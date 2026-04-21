@@ -13,6 +13,11 @@ export interface Grade {
   grade: 1 | 2 | 3 | 4;
 }
 
+/** Mirrors the core's `Grade::is_pass` — only `Again` (1) is a fail. */
+export function isPass(g: Grade): boolean {
+  return g.grade > 1;
+}
+
 export interface ReviewOutcome {
   edge_updates: Array<{ edge_id: number; grade: number; weight: number }>;
   redrills_inserted: number;

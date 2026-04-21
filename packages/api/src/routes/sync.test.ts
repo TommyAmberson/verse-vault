@@ -108,7 +108,10 @@ describe('sync routes', () => {
     expect(body.snapshot.graphData).toBeTruthy();
     expect(body.snapshot.cardsData).toBeTruthy();
     expect(body.edgeStates).toEqual([]);
-    expect(body.cardStates).toEqual([]);
+    // Enrollment seeds card_states with all cards in 'new' so the status
+    // endpoint can report accurate counts without a review happening first.
+    expect(body.cardStates.length).toBeGreaterThan(0);
+    expect(body.cardStates.every((c) => c.state === 'new')).toBe(true);
     expect(body.lastEventId).toBeNull();
   });
 

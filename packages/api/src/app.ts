@@ -7,7 +7,9 @@ import { type AuthEnv, createAuth } from './lib/auth.js';
 import { EngineStore } from './lib/engine.js';
 import { SessionStore } from './lib/sessions.js';
 import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
+import { materialsRoutes } from './routes/materials.js';
 import { sessionRoutes } from './routes/sessions.js';
+import { statsRoutes } from './routes/stats.js';
 import { syncRoutes } from './routes/sync.js';
 
 export interface AppDeps {
@@ -47,6 +49,8 @@ export function createApp(deps: AppDeps) {
 
   app.route('/api/sessions', sessionRoutes({ db: deps.db, engines, sessions, now: deps.now }));
   app.route('/api/sync', syncRoutes({ db: deps.db, engines, now: deps.now }));
+  app.route('/api/materials', materialsRoutes({ db: deps.db, now: deps.now }));
+  app.route('/api/stats', statsRoutes({ db: deps.db }));
 
   return app;
 }

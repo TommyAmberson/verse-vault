@@ -60,10 +60,12 @@ on a VPS; Better Auth; Drizzle + SQLite; event-sourced reviews for clean offline
 * [x] Idempotent uploads via `client_event_id`
 * [x] Stale-snapshot rejection (409)
 
-### Phase 3E: Stats + Materials
+### Phase 3E: Stats + Materials ✅
 
-* [ ] Material enrollment
-* [ ] Progress stats
+* [x] `GET /api/materials` (static manifest)
+* [x] `POST /api/materials/enroll` (seeds graph + card_states)
+* [x] `GET /api/materials/:id/status`
+* [x] `GET /api/stats/:materialId`
 
 ### Phase 3F: Frontends
 
