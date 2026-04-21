@@ -3,8 +3,9 @@ import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { getMaterial } from '../lib/materials.js';
-import type { Grade } from '../lib/review-log.js';
+import { NotEnrolledError } from '../lib/engine.js';
+import { requireEnrollment } from '../lib/enrollment.js';
+import { type Grade, isPass } from '../lib/review-log.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface StatsRoutesDeps {
@@ -12,15 +13,7 @@ export interface StatsRoutesDeps {
 }
 
 /** Stability buckets in days, tuned roughly to "how long until you'd forget it". */
-const EDGE_BUCKETS = [
-  { label: 'weak', max: 1 },
-  { label: 'learning', max: 7 },
-  { label: 'familiar', max: 30 },
-  { label: 'strong', max: 90 },
-  { label: 'mastered', max: Infinity },
-] as const;
-
-type BucketLabel = (typeof EDGE_BUCKETS)[number]['label'];
+type BucketLabel = 'weak' | 'learning' | 'familiar' | 'strong' | 'mastered';
 
 export function statsRoutes(deps: StatsRoutesDeps) {
   const app = new Hono<{ Variables: SessionVariables }>();
@@ -30,20 +23,12 @@ export function statsRoutes(deps: StatsRoutesDeps) {
   app.get('/:materialId', (c) => {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
-    const material = getMaterial(materialId);
-    if (!material) return c.json({ error: 'Unknown material' }, 404);
-
-    const enrolled = deps.db
-      .select()
-      .from(schema.userMaterials)
-      .where(
-        and(
-          eq(schema.userMaterials.userId, user.id),
-          eq(schema.userMaterials.materialId, materialId),
-        ),
-      )
-      .get();
-    if (!enrolled) return c.json({ error: 'Not enrolled' }, 404);
+    try {
+      requireEnrollment(deps.db, { userId: user.id, materialId });
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
 
     const versesLearnedRow = deps.db
       .select({ count: sql<number>`count(*)`.as('count') })
@@ -73,12 +58,19 @@ export function statsRoutes(deps: StatsRoutesDeps) {
       const grades = JSON.parse(row.grades.toString('utf8')) as Grade[];
       for (const g of grades) {
         gradeCount += 1;
-        if (g.grade >= 3) passCount += 1;
+        if (isPass(g)) passCount += 1;
       }
     }
 
-    const edges = deps.db
-      .select({ stability: schema.edgeStates.stability })
+    const stability = schema.edgeStates.stability;
+    const histogram = deps.db
+      .select({
+        weak: sql<number>`coalesce(sum(case when ${stability} < 1 then 1 else 0 end), 0)`,
+        learning: sql<number>`coalesce(sum(case when ${stability} >= 1 and ${stability} < 7 then 1 else 0 end), 0)`,
+        familiar: sql<number>`coalesce(sum(case when ${stability} >= 7 and ${stability} < 30 then 1 else 0 end), 0)`,
+        strong: sql<number>`coalesce(sum(case when ${stability} >= 30 and ${stability} < 90 then 1 else 0 end), 0)`,
+        mastered: sql<number>`coalesce(sum(case when ${stability} >= 90 then 1 else 0 end), 0)`,
+      })
       .from(schema.edgeStates)
       .where(
         and(
@@ -86,18 +78,14 @@ export function statsRoutes(deps: StatsRoutesDeps) {
           eq(schema.edgeStates.materialId, materialId),
         ),
       )
-      .all();
-    const edgeDistribution: Record<BucketLabel, number> = {
+      .get();
+    const edgeDistribution: Record<BucketLabel, number> = histogram ?? {
       weak: 0,
       learning: 0,
       familiar: 0,
       strong: 0,
       mastered: 0,
     };
-    for (const e of edges) {
-      const bucket = EDGE_BUCKETS.find((b) => e.stability < b.max)!;
-      edgeDistribution[bucket.label] += 1;
-    }
 
     return c.json({
       materialId,

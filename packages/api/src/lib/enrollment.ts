@@ -4,7 +4,8 @@ import { and, eq } from 'drizzle-orm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { jsonBlob } from './keys.js';
+import { NotEnrolledError } from './engine.js';
+import { type UserMaterial, jsonBlob } from './keys.js';
 import { type MaterialCard, buildMaterialTemplate, getMaterial } from './materials.js';
 
 export interface EnrollArgs {
@@ -27,6 +28,29 @@ export class AlreadyEnrolledError extends Error {
     super(`Already enrolled: user=${userId} material=${materialId}`);
     this.name = 'AlreadyEnrolledError';
   }
+}
+
+/**
+ * Returns the user_materials row for the caller, or throws NotEnrolledError.
+ * Route handlers `try { … } catch (NotEnrolledError)` → 404, matching the
+ * sync-endpoint pattern.
+ */
+export function requireEnrollment(
+  db: DB,
+  key: UserMaterial,
+): typeof schema.userMaterials.$inferSelect {
+  const row = db
+    .select()
+    .from(schema.userMaterials)
+    .where(
+      and(
+        eq(schema.userMaterials.userId, key.userId),
+        eq(schema.userMaterials.materialId, key.materialId),
+      ),
+    )
+    .get();
+  if (!row) throw new NotEnrolledError(key);
+  return row;
 }
 
 /**
@@ -78,6 +102,9 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
       })
       .run();
 
+    // MaterialCard.state stays PascalCase because that's what Rust's serde
+    // produces for the CardState enum on the WASM side; card_states on the
+    // DB is the lowercase union so we normalize on the way in.
     const cardRows = template.cards.map((c: MaterialCard) => ({
       userId,
       materialId,

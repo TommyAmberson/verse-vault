@@ -3,12 +3,14 @@ import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
+import { NotEnrolledError } from '../lib/engine.js';
 import {
   AlreadyEnrolledError,
   UnknownMaterialError,
   enrollUser,
+  requireEnrollment,
 } from '../lib/enrollment.js';
-import { MATERIALS, getMaterial } from '../lib/materials.js';
+import { MATERIALS } from '../lib/materials.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface MaterialsRoutesDeps {
@@ -64,20 +66,13 @@ export function materialsRoutes(deps: MaterialsRoutesDeps) {
   app.get('/:id/status', (c) => {
     const user = getUser(c);
     const materialId = c.req.param('id');
-    const material = getMaterial(materialId);
-    if (!material) return c.json({ error: 'Unknown material' }, 404);
-
-    const enrolled = deps.db
-      .select()
-      .from(schema.userMaterials)
-      .where(
-        and(
-          eq(schema.userMaterials.userId, user.id),
-          eq(schema.userMaterials.materialId, materialId),
-        ),
-      )
-      .get();
-    if (!enrolled) return c.json({ error: 'Not enrolled' }, 404);
+    let enrolled;
+    try {
+      enrolled = requireEnrollment(deps.db, { userId: user.id, materialId });
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
 
     const counts = deps.db
       .select({
