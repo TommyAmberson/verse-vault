@@ -9,6 +9,7 @@ import {
   type CardStateEntry,
   type EdgeStateEntry,
   EngineStore,
+  NotEnrolledError,
   readCardStateEntries,
   readEdgeStateEntries,
 } from '../lib/engine.js';
@@ -101,7 +102,13 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       return c.json(unchangedResponse(deps.db, key, 0, 0));
     }
 
-    const loaded = await deps.engines.load(key);
+    let loaded;
+    try {
+      loaded = await deps.engines.load(key);
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
     for (const e of events) {
       if (e.snapshotVersion !== loaded.snapshotVersion) {
         return c.json({ error: 'Snapshot version mismatch — re-fetch state before syncing' }, 409);

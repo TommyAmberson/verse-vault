@@ -14,6 +14,14 @@ export interface LoadedEngine {
   snapshotVersion: number;
 }
 
+/** Thrown by `EngineStore.load` when the caller isn't enrolled in the material. */
+export class NotEnrolledError extends Error {
+  constructor(key: EngineKey) {
+    super(`Not enrolled: user=${key.userId} material=${key.materialId}`);
+    this.name = 'NotEnrolledError';
+  }
+}
+
 /** Wire shapes must stay in sync with crates/wasm/src/lib.rs. */
 export interface EdgeStateEntry {
   edge_id: number;
@@ -89,7 +97,7 @@ export class EngineStore {
       .limit(1)
       .get();
     if (!snapshot) {
-      throw new Error(`No graph snapshot for user=${key.userId} material=${key.materialId}`);
+      throw new NotEnrolledError(key);
     }
 
     const edgeJson = readEdgeStateEntries(this.db, key);

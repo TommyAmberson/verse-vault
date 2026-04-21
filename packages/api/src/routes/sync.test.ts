@@ -71,8 +71,29 @@ describe('sync routes', () => {
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'nouser@example.com');
 
-    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/state`, { headers: { cookie } });
-    expect(res.status).toBe(404);
+    const stateRes = await test.app.request(`/api/sync/${MATERIAL_ID}/state`, {
+      headers: { cookie },
+    });
+    expect(stateRes.status).toBe(404);
+
+    const eventsRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({
+        events: [
+          {
+            clientEventId: randomUUID(),
+            timestampSecs: 1_700_000_000,
+            snapshotVersion: 1,
+            cardId: 0,
+            shown: [0],
+            hidden: [2],
+            grades: [{ node_id: 2, grade: 3 }],
+          },
+        ],
+      }),
+    });
+    expect(eventsRes.status).toBe(404);
   });
 
   it('returns snapshot + empty state for a newly-enrolled user', async () => {
