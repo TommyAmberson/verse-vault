@@ -13,6 +13,11 @@ export interface Grade {
   grade: 1 | 2 | 3 | 4;
 }
 
+/** Mirrors the core's `Grade::is_pass` — Good (3) and Easy (4) are passes. */
+export function isPass(g: Grade): boolean {
+  return g.grade >= 3;
+}
+
 export interface ReviewOutcome {
   edge_updates: Array<{ edge_id: number; grade: number; weight: number }>;
   redrills_inserted: number;
