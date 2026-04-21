@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { userMaterials } from '../db/schema.js';
-import { createTestApp, signUpTestUser } from '../test-utils.js';
+import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-1cor';
 
@@ -110,12 +110,7 @@ describe('materials routes', () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
-
-    await test.app.request('/api/materials/enroll', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ materialId: MATERIAL_ID }),
-    });
+    await enrollViaApi(test, cookie, MATERIAL_ID);
 
     const res = await test.app.request(`/api/materials/${MATERIAL_ID}/status`, {
       headers: { cookie },
