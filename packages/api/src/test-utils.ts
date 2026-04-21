@@ -2,8 +2,11 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { expect } from 'vitest';
+
 import { createApp } from './app.js';
 import { type DB, createDb } from './db/client.js';
+import { user } from './db/schema.js';
 import { runMigrations } from './db/migrate.js';
 
 export const TEST_AUTH_ENV = {
@@ -38,4 +41,28 @@ export function createTestApp() {
   const test = createTestDb();
   const app = createApp({ db: test.db, authEnv: TEST_AUTH_ENV });
   return { app, ...test };
+}
+
+export type TestApp = ReturnType<typeof createTestApp>;
+
+/** Creates a user via Better Auth's email sign-up and returns the session cookie + user id. */
+export async function signUpTestUser(
+  test: TestApp,
+  email: string,
+  password = 'superSecret123!',
+): Promise<{ cookie: string; userId: string }> {
+  const res = await test.app.request('/api/auth/sign-up/email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, name: email }),
+  });
+  expect(res.status).toBe(200);
+  const cookie = res.headers.get('set-cookie')!;
+  const row = test.db
+    .select()
+    .from(user)
+    .all()
+    .find((r) => r.email === email);
+  if (!row) throw new Error(`user not found: ${email}`);
+  return { cookie, userId: row.id };
 }

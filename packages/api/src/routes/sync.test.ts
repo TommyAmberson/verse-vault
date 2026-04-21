@@ -2,11 +2,9 @@ import { randomUUID } from 'node:crypto';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { cardStates, edgeStates, reviewEvents, user } from '../db/schema.js';
+import { cardStates, edgeStates, reviewEvents } from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
-import { createTestApp } from '../test-utils.js';
-
-type TestApp = ReturnType<typeof createTestApp>;
+import { type TestApp, createTestApp, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-1cor';
 
@@ -37,24 +35,13 @@ interface UploadResponse {
   lastEventId: string | null;
 }
 
-async function signUp(
+async function enroll(
   test: TestApp,
   email: string,
 ): Promise<{ cookie: string; userId: string }> {
-  const res = await test.app.request('/api/auth/sign-up/email', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password: 'superSecret123!', name: email }),
-  });
-  expect(res.status).toBe(200);
-  const cookie = res.headers.get('set-cookie')!;
-  const u = test.db
-    .select()
-    .from(user)
-    .all()
-    .find((r) => r.email === email);
-  if (!u) throw new Error(`user not found: ${email}`);
-  return { cookie, userId: u.id };
+  const { cookie, userId } = await signUpTestUser(test, email);
+  seedUserWithFixture({ db: test.db, userId, materialId: MATERIAL_ID, createUser: false });
+  return { cookie, userId };
 }
 
 describe('sync routes', () => {
@@ -82,7 +69,7 @@ describe('sync routes', () => {
   it('returns 404 when the user is not enrolled', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie } = await signUp(test, 'nouser@example.com');
+    const { cookie } = await signUpTestUser(test, 'nouser@example.com');
 
     const res = await test.app.request(`/api/sync/${MATERIAL_ID}/state`, { headers: { cookie } });
     expect(res.status).toBe(404);
@@ -91,8 +78,7 @@ describe('sync routes', () => {
   it('returns snapshot + empty state for a newly-enrolled user', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie, userId } = await signUp(test, 'alice@example.com');
-    seedUserWithFixture({ db: test.db, userId, materialId: MATERIAL_ID, createUser: false });
+    const { cookie } = await enroll(test, 'alice@example.com');
 
     const res = await test.app.request(`/api/sync/${MATERIAL_ID}/state`, { headers: { cookie } });
     expect(res.status).toBe(200);
@@ -108,8 +94,7 @@ describe('sync routes', () => {
   it('accepts an offline event batch and persists merged state', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie, userId } = await signUp(test, 'alice@example.com');
-    seedUserWithFixture({ db: test.db, userId, materialId: MATERIAL_ID, createUser: false });
+    const { cookie } = await enroll(test, 'alice@example.com');
 
     const event = {
       clientEventId: randomUUID(),
@@ -151,8 +136,7 @@ describe('sync routes', () => {
   it('is idempotent on re-upload of the same client_event_id', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie, userId } = await signUp(test, 'alice@example.com');
-    seedUserWithFixture({ db: test.db, userId, materialId: MATERIAL_ID, createUser: false });
+    const { cookie } = await enroll(test, 'alice@example.com');
 
     const event = {
       clientEventId: randomUUID(),
@@ -192,11 +176,32 @@ describe('sync routes', () => {
     expect(afterSecond).toEqual(afterFirst);
   });
 
+  it('rejects batches larger than MAX_BATCH_SIZE with 413', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    const events = Array.from({ length: 501 }, () => ({
+      clientEventId: randomUUID(),
+      timestampSecs: 1_700_000_000,
+      snapshotVersion: 1,
+      cardId: 0,
+      shown: [0],
+      hidden: [2],
+      grades: [{ node_id: 2, grade: 3 as const }],
+    }));
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events }),
+    });
+    expect(res.status).toBe(413);
+  });
+
   it('rejects a stale snapshot version with 409', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie, userId } = await signUp(test, 'alice@example.com');
-    seedUserWithFixture({ db: test.db, userId, materialId: MATERIAL_ID, createUser: false });
+    const { cookie } = await enroll(test, 'alice@example.com');
 
     const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
@@ -222,20 +227,8 @@ describe('sync routes', () => {
     const test = createTestApp();
     cleanup = test.cleanup;
 
-    const alice = await signUp(test, 'alice@example.com');
-    seedUserWithFixture({
-      db: test.db,
-      userId: alice.userId,
-      materialId: MATERIAL_ID,
-      createUser: false,
-    });
-    const bob = await signUp(test, 'bob@example.com');
-    seedUserWithFixture({
-      db: test.db,
-      userId: bob.userId,
-      materialId: MATERIAL_ID,
-      createUser: false,
-    });
+    const alice = await enroll(test, 'alice@example.com');
+    const bob = await enroll(test, 'bob@example.com');
 
     // Alice: review via live session — drive through reading stages until a
     // drill card produces a logged event.

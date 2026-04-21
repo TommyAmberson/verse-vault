@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { cardStates, edgeStates, reviewEvents, user } from '../db/schema.js';
+import { cardStates, edgeStates, reviewEvents } from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
-import { createTestApp } from '../test-utils.js';
-
-type TestApp = ReturnType<typeof createTestApp>;
+import { type TestApp, createTestApp, signUpTestUser } from '../test-utils.js';
 
 interface StartResponse {
   sessionId: string;
@@ -18,25 +16,8 @@ interface ReviewResponse extends StartResponse {
 
 const MATERIAL_ID = 'nkjv-1cor';
 
-async function signUpAndGetUser(test: TestApp) {
-  const res = await test.app.request('/api/auth/sign-up/email', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: 'alice@example.com',
-      password: 'superSecret123!',
-      name: 'Alice',
-    }),
-  });
-  expect(res.status).toBe(200);
-  return {
-    cookie: res.headers.get('set-cookie')!,
-    userId: test.db.select().from(user).get()!.id,
-  };
-}
-
 async function startEnrolledSession(test: TestApp): Promise<{ cookie: string; userId: string; start: StartResponse }> {
-  const { cookie, userId } = await signUpAndGetUser(test);
+  const { cookie, userId } = await signUpTestUser(test, 'alice@example.com');
   seedUserWithFixture({ db: test.db, userId, materialId: MATERIAL_ID, createUser: false });
   const startRes = await test.app.request('/api/sessions/start', {
     method: 'POST',
