@@ -1,13 +1,19 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { type CardStateEntry, type EdgeStateEntry, EngineStore } from '../lib/engine.js';
+import {
+  type CardStateEntry,
+  type EdgeStateEntry,
+  EngineStore,
+  readCardStateEntries,
+  readEdgeStateEntries,
+} from '../lib/engine.js';
 import { jsonBlob } from '../lib/keys.js';
-import type { Grade, ReviewOutcome } from '../lib/review-log.js';
+import { type Grade, type ReviewOutcome, persistEngineState } from '../lib/review-log.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface SyncRoutesDeps {
@@ -15,6 +21,9 @@ export interface SyncRoutesDeps {
   engines: EngineStore;
   now?: () => number;
 }
+
+/** Caps each upload so the `inArray` dedup stays under SQLite's 999-param limit. */
+const MAX_BATCH_SIZE = 500;
 
 interface ReviewEventUpload {
   clientEventId: string;
@@ -36,9 +45,11 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
   app.use('*', requireAuth());
 
-  app.get('/:materialId/state', async (c) => {
+  app.get('/:materialId/state', (c) => {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
+    const key = { userId: user.id, materialId };
+
     const snapshot = deps.db
       .select()
       .from(schema.graphSnapshots)
@@ -53,36 +64,22 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       .get();
     if (!snapshot) return c.json({ error: 'Not enrolled' }, 404);
 
-    const edges = readEdgeStates(deps.db, user.id, materialId);
-    const cards = readCardStates(deps.db, user.id, materialId);
-    const latest = deps.db
-      .select({ id: schema.reviewEvents.id })
-      .from(schema.reviewEvents)
-      .where(
-        and(
-          eq(schema.reviewEvents.userId, user.id),
-          eq(schema.reviewEvents.materialId, materialId),
-        ),
-      )
-      .orderBy(desc(schema.reviewEvents.timestampSecs), desc(schema.reviewEvents.id))
-      .limit(1)
-      .get();
-
     return c.json({
       snapshot: {
         version: snapshot.version,
         graphData: JSON.parse(snapshot.graphData.toString('utf8')) as unknown,
         cardsData: JSON.parse(snapshot.cardsData.toString('utf8')) as unknown,
       },
-      edgeStates: edges,
-      cardStates: cards,
-      lastEventId: latest?.id ?? null,
+      edgeStates: readEdgeStateEntries(deps.db, key),
+      cardStates: readCardStateEntries(deps.db, key),
+      lastEventId: latestEventId(deps.db, user.id, materialId),
     });
   });
 
   app.post('/:materialId/events', async (c) => {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
+    const key = { userId: user.id, materialId };
 
     let body: UploadBody;
     try {
@@ -92,43 +89,42 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     }
     const events = body.events;
     if (!Array.isArray(events)) return c.json({ error: 'events required' }, 400);
+    if (events.length > MAX_BATCH_SIZE) {
+      return c.json({ error: `Batch too large — max ${MAX_BATCH_SIZE} events per request` }, 413);
+    }
     for (const e of events) {
       const problem = validateUpload(e);
       if (problem) return c.json({ error: problem }, 400);
     }
 
-    const loaded = await deps.engines.load({ userId: user.id, materialId });
+    if (events.length === 0) {
+      return c.json(unchangedResponse(deps.db, key, 0, 0));
+    }
+
+    const loaded = await deps.engines.load(key);
     for (const e of events) {
       if (e.snapshotVersion !== loaded.snapshotVersion) {
-        return c.json(
-          {
-            error: 'Snapshot version mismatch — re-fetch state before syncing',
-            expected: loaded.snapshotVersion,
-            got: e.snapshotVersion,
-          },
-          409,
-        );
+        return c.json({ error: 'Snapshot version mismatch — re-fetch state before syncing' }, 409);
       }
     }
 
-    const clientIds = events.map((e) => e.clientEventId);
-    const existing = clientIds.length
-      ? deps.db
-          .select({ clientEventId: schema.reviewEvents.clientEventId })
-          .from(schema.reviewEvents)
-          .where(
-            and(
-              eq(schema.reviewEvents.userId, user.id),
-              eq(schema.reviewEvents.materialId, materialId),
-              inArray(schema.reviewEvents.clientEventId, clientIds),
-            ),
-          )
-          .all()
-      : [];
+    const existing = deps.db
+      .select({ clientEventId: schema.reviewEvents.clientEventId })
+      .from(schema.reviewEvents)
+      .where(
+        and(
+          eq(schema.reviewEvents.userId, user.id),
+          eq(schema.reviewEvents.materialId, materialId),
+          inArray(
+            schema.reviewEvents.clientEventId,
+            events.map((e) => e.clientEventId),
+          ),
+        ),
+      )
+      .all();
     const seen = new Set(existing.map((r) => r.clientEventId));
 
-    // Apply events to the live engine in (timestamp, clientEventId) order so
-    // multi-device uploads stay deterministic regardless of arrival order.
+    // Sort so multi-device uploads stay deterministic regardless of arrival order.
     const fresh = events
       .filter((e) => !seen.has(e.clientEventId))
       .sort((a, b) =>
@@ -136,6 +132,10 @@ export function syncRoutes(deps: SyncRoutesDeps) {
           ? a.timestampSecs - b.timestampSecs
           : a.clientEventId.localeCompare(b.clientEventId),
       );
+
+    if (fresh.length === 0) {
+      return c.json(unchangedResponse(deps.db, key, 0, events.length));
+    }
 
     const changedEdgeIds = new Set<number>();
     for (const e of fresh) {
@@ -154,137 +154,73 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     const changedEdges = allEdges.filter((e) => changedEdgeIds.has(e.edge_id));
     const allCards = JSON.parse(loaded.engine.export_card_states()) as CardStateEntry[];
     const createdAt = now();
+    const eventRows = fresh.map((e) => ({
+      id: randomUUID(),
+      userId: user.id,
+      materialId,
+      snapshotVersion: e.snapshotVersion,
+      timestampSecs: e.timestampSecs,
+      cardId: e.cardId,
+      clientEventId: e.clientEventId,
+      shown: jsonBlob(e.shown),
+      hidden: jsonBlob(e.hidden),
+      grades: jsonBlob(e.grades),
+      createdAt,
+    }));
 
-    let lastEventId: string | null = null;
     deps.db.transaction((tx) => {
-      if (fresh.length > 0) {
-        const rows = fresh.map((e) => {
-          const id = randomUUID();
-          lastEventId = id;
-          return {
-            id,
-            userId: user.id,
-            materialId,
-            snapshotVersion: e.snapshotVersion,
-            timestampSecs: e.timestampSecs,
-            cardId: e.cardId,
-            clientEventId: e.clientEventId,
-            shown: jsonBlob(e.shown),
-            hidden: jsonBlob(e.hidden),
-            grades: jsonBlob(e.grades),
-            createdAt,
-          };
-        });
-        tx.insert(schema.reviewEvents).values(rows).run();
-      }
-
-      if (changedEdges.length > 0) {
-        tx.insert(schema.edgeStates)
-          .values(
-            changedEdges.map((e) => ({
-              userId: user.id,
-              materialId,
-              edgeId: e.edge_id,
-              stability: e.stability,
-              difficulty: e.difficulty,
-              lastReviewSecs: e.last_review_secs,
-            })),
-          )
-          .onConflictDoUpdate({
-            target: [schema.edgeStates.userId, schema.edgeStates.materialId, schema.edgeStates.edgeId],
-            set: {
-              stability: sql`excluded.stability`,
-              difficulty: sql`excluded.difficulty`,
-              lastReviewSecs: sql`excluded.last_review_secs`,
-            },
-          })
-          .run();
-      }
-
-      if (allCards.length > 0) {
-        tx.insert(schema.cardStates)
-          .values(
-            allCards.map((c) => ({
-              userId: user.id,
-              materialId,
-              cardId: c.card_id,
-              state: c.state,
-              dueR: c.due_r,
-              dueDateSecs: c.due_date_secs,
-              priority: c.priority,
-            })),
-          )
-          .onConflictDoUpdate({
-            target: [schema.cardStates.userId, schema.cardStates.materialId, schema.cardStates.cardId],
-            set: {
-              state: sql`excluded.state`,
-              dueR: sql`excluded.due_r`,
-              dueDateSecs: sql`excluded.due_date_secs`,
-              priority: sql`excluded.priority`,
-            },
-          })
-          .run();
-      }
+      persistEngineState(tx, {
+        userId: user.id,
+        materialId,
+        eventRows,
+        changedEdges,
+        allCards,
+      });
     });
 
-    if (lastEventId === null) {
-      const latest = deps.db
-        .select({ id: schema.reviewEvents.id })
-        .from(schema.reviewEvents)
-        .where(
-          and(
-            eq(schema.reviewEvents.userId, user.id),
-            eq(schema.reviewEvents.materialId, materialId),
-          ),
-        )
-        .orderBy(desc(schema.reviewEvents.timestampSecs), desc(schema.reviewEvents.id))
-        .limit(1)
-        .get();
-      lastEventId = latest?.id ?? null;
-    }
-
-    // Response returns the engine's full edge/card state so fat clients can
-    // replace their local cache in one shot, rather than having to merge
-    // deltas. DB writes are filtered to the changed set as an optimization.
+    // Response carries the engine's full edge/card state so fat clients can
+    // replace their local cache in one shot; DB writes are filtered above.
     return c.json({
       accepted: fresh.length,
       duplicates: events.length - fresh.length,
       edgeStates: allEdges,
       cardStates: allCards,
-      lastEventId,
+      lastEventId: eventRows[eventRows.length - 1]!.id,
     });
   });
 
   return app;
 }
 
-function readEdgeStates(db: DB, userId: string, materialId: string): EdgeStateEntry[] {
-  return db
-    .select()
-    .from(schema.edgeStates)
-    .where(and(eq(schema.edgeStates.userId, userId), eq(schema.edgeStates.materialId, materialId)))
-    .all()
-    .map((e) => ({
-      edge_id: e.edgeId,
-      stability: e.stability,
-      difficulty: e.difficulty,
-      last_review_secs: e.lastReviewSecs,
-    }));
+function unchangedResponse(
+  db: DB,
+  key: { userId: string; materialId: string },
+  accepted: number,
+  duplicates: number,
+) {
+  return {
+    accepted,
+    duplicates,
+    edgeStates: readEdgeStateEntries(db, key),
+    cardStates: readCardStateEntries(db, key),
+    lastEventId: latestEventId(db, key.userId, key.materialId),
+  };
 }
 
-function readCardStates(db: DB, userId: string, materialId: string): CardStateEntry[] {
-  return db
-    .select()
-    .from(schema.cardStates)
-    .where(and(eq(schema.cardStates.userId, userId), eq(schema.cardStates.materialId, materialId)))
-    .all()
-    .map((c) => ({
-      card_id: c.cardId,
-      state: c.state,
-      due_r: c.dueR,
-      due_date_secs: c.dueDateSecs,
-      priority: c.priority,
-    }));
+function latestEventId(db: DB, userId: string, materialId: string): string | null {
+  const latest = db
+    .select({ id: schema.reviewEvents.id })
+    .from(schema.reviewEvents)
+    .where(
+      and(
+        eq(schema.reviewEvents.userId, userId),
+        eq(schema.reviewEvents.materialId, materialId),
+      ),
+    )
+    .orderBy(desc(schema.reviewEvents.timestampSecs), desc(schema.reviewEvents.id))
+    .limit(1)
+    .get();
+  return latest?.id ?? null;
 }
 
 function validateUpload(e: ReviewEventUpload): string | null {
