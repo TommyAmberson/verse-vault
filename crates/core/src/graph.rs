@@ -286,20 +286,6 @@ mod tests {
     }
 
     #[test]
-    fn structural_edge_has_no_state() {
-        let mut g = Graph::new();
-        let ch = g.add_node(NodeKind::ChapterGist { chapter: 1 });
-        let club = g.add_node(NodeKind::VerseClubMember {
-            tier: crate::node::ClubTier::Club150,
-            chapter: 1,
-            verse: 1,
-        });
-
-        let eid = g.add_edge(EdgeKind::ChapterGistClubEntry, ch, club);
-        assert!(g.edge(eid).unwrap().state.is_none());
-    }
-
-    #[test]
     fn learnable_edge_has_state() {
         let mut g = Graph::new();
         let v = g.add_node(NodeKind::VerseGist {

@@ -11,7 +11,6 @@ pub enum EdgeKind {
     VerseRefVerseClubMember,
     ChapterGistChapterRef,
     VerseGistChapterGist,
-    ChapterGistClubEntry,
     VerseClubMemberVerseClubMember,
     VerseGistHeading,
     HeadingHeading,
@@ -20,8 +19,11 @@ pub enum EdgeKind {
 }
 
 impl EdgeKind {
+    /// Every edge in the current graph is a retrieval proposition with its
+    /// own FSRS state. Kept as a method for API stability — previously some
+    /// edges (notably `ChapterGistClubEntry`) were non-learnable plumbing.
     pub fn is_learnable(self) -> bool {
-        !matches!(self, EdgeKind::ChapterGistClubEntry)
+        true
     }
 
     pub fn is_structural(self) -> bool {
@@ -50,14 +52,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn structural_edge() {
-        assert!(!EdgeKind::ChapterGistClubEntry.is_learnable());
-        assert!(EdgeKind::ChapterGistClubEntry.is_structural());
-    }
-
-    #[test]
-    fn all_other_edges_are_learnable() {
-        let learnable = [
+    fn every_edge_is_learnable() {
+        let all = [
             EdgeKind::PhrasePhrase,
             EdgeKind::PhraseVerseGist,
             EdgeKind::VerseGistVerseRef,
@@ -71,8 +67,9 @@ mod tests {
             EdgeKind::FtvPhrase,
             EdgeKind::FtvVerseGist,
         ];
-        for kind in learnable {
+        for kind in all {
             assert!(kind.is_learnable(), "{kind:?} should be learnable");
+            assert!(!kind.is_structural(), "{kind:?} should not be structural");
         }
     }
 }
