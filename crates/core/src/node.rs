@@ -35,11 +35,36 @@ pub enum NodeKind {
         end_chapter: u16,
         end_verse: u16,
     },
+    /// Per-heading-per-tier club participation.
+    /// `heading_id` matches the builder's 0-based heading index within
+    /// the book (assigned in reading order).
+    HeadingClubMember {
+        tier: ClubTier,
+        heading_id: u32,
+    },
     ChapterGist {
         chapter: u16,
     },
     ChapterRef {
         chapter: u16,
+    },
+    /// Per-chapter-per-tier club participation.
+    ChapterClubMember {
+        tier: ClubTier,
+        chapter: u16,
+    },
+    /// Book-level hub. `book` is the material's canonical book name
+    /// (e.g. "1 Corinthians").
+    BookGist {
+        book: String,
+    },
+    /// Book-level identifier atom.
+    BookRef {
+        book: String,
+    },
+    /// Per-tier hub atom (one per tier present in a material).
+    ClubGist {
+        tier: ClubTier,
     },
     Ftv {
         text: String,
