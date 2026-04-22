@@ -85,10 +85,10 @@ pub fn assign_credit(
             .filter(|&id| id != hidden_atom)
             .collect();
 
-        // Step 1: Enumerate paths (with anchor transfer if target is a Reference)
+        // Step 1: Enumerate paths (with anchor transfer if target is a VerseRef)
         let is_ref = matches!(
             graph.node_kind(hidden_atom),
-            Some(NodeKind::Reference { .. })
+            Some(NodeKind::VerseRef { .. })
         );
         let anchor_paths: Vec<AnchorPath> = if is_ref {
             anchor::enumerate_paths_with_anchor_transfer(
@@ -367,7 +367,7 @@ mod tests {
     fn make_verse_graph() -> (Graph, NodeId, NodeId, NodeId, NodeId, NodeId) {
         // ref ↔ verse ↔ p1 ↔ p2 ↔ p3
         let mut g = Graph::new();
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 3,
             verse: 16,
         });
@@ -397,7 +397,7 @@ mod tests {
             last_review_secs: 0,
         };
 
-        g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
+        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p3, v, state);

@@ -11,7 +11,7 @@ function makeEdge(id, kind, source, target) {
 
 const graph = {
   nodes: {
-    '0': { id: 0, kind: { Reference: { chapter: 3, verse: 16 } } },
+    '0': { id: 0, kind: { VerseRef: { chapter: 3, verse: 16 } } },
     '1': { id: 1, kind: { VerseGist: { chapter: 3, verse: 16 } } },
     '2': { id: 2, kind: { Phrase: { text: 'phrase one', verse_id: 0, position: 0 } } },
     '3': { id: 3, kind: { Phrase: { text: 'phrase two', verse_id: 0, position: 1 } } },
@@ -35,7 +35,7 @@ function addBi(kind, a, b) {
   graph.incoming[String(a)].push(bwd);
 }
 
-addBi('VerseGistReference', 1, 0);
+addBi('VerseGistVerseRef', 1, 0);
 addBi('PhraseVerseGist', 2, 1);
 addBi('PhraseVerseGist', 3, 1);
 addBi('PhraseVerseGist', 4, 1);

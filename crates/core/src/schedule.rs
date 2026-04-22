@@ -38,7 +38,7 @@ pub fn effective_r(
     now_secs: i64,
     params: &ScheduleParams,
 ) -> f32 {
-    let is_ref = matches!(graph.node_kind(hidden), Some(NodeKind::Reference { .. }));
+    let is_ref = matches!(graph.node_kind(hidden), Some(NodeKind::VerseRef { .. }));
 
     let anchor_paths: Vec<AnchorPath> = if is_ref {
         anchor::enumerate_paths_with_anchor_transfer(
@@ -213,7 +213,7 @@ fn all_paths_for(
     hidden: NodeId,
     params: &ScheduleParams,
 ) -> Vec<AnchorPath> {
-    let is_ref = matches!(graph.node_kind(hidden), Some(NodeKind::Reference { .. }));
+    let is_ref = matches!(graph.node_kind(hidden), Some(NodeKind::VerseRef { .. }));
     if is_ref {
         anchor::enumerate_paths_with_anchor_transfer(
             graph,
@@ -257,7 +257,7 @@ mod tests {
 
     fn make_simple_verse() -> (Graph, Card) {
         let mut g = Graph::new();
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 3,
             verse: 16,
         });
@@ -282,7 +282,7 @@ mod tests {
             last_review_secs: 0,
         };
 
-        g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
+        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
@@ -394,7 +394,7 @@ mod tests {
     #[test]
     fn priority_penalizes_larger_cards() {
         let mut g = Graph::new();
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 1,
             verse: 1,
         });
@@ -421,7 +421,7 @@ mod tests {
             }
             phrases.push(p);
         }
-        g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
+        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
 
         let full = Card {
             id: CardId(0),

@@ -95,7 +95,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     let mut club300_entries: Vec<(NodeId, String, u16)> = Vec::new();
 
     for verse_data in data.verses_with_text() {
-        let ref_node = graph.add_node(NodeKind::Reference {
+        let ref_node = graph.add_node(NodeKind::VerseRef {
             chapter: verse_data.chapter,
             verse: verse_data.verse,
         });
@@ -105,7 +105,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         });
 
         // verse gist ↔ reference (bi)
-        graph.add_bi_edge_with_state(EdgeKind::VerseGistReference, verse_gist, ref_node, state);
+        graph.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, verse_gist, ref_node, state);
 
         // verse gist → chapter gist (uni)
         if let Some(&ch_gist) = chapter_gists.get(&(verse_data.book.clone(), verse_data.chapter)) {
@@ -190,13 +190,13 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
                 300 => ClubTier::Club300,
                 _ => continue,
             };
-            let entry = graph.add_node(NodeKind::ClubEntry {
+            let entry = graph.add_node(NodeKind::VerseClubMember {
                 tier,
                 chapter: verse_data.chapter,
                 verse: verse_data.verse,
             });
             // ref ↔ club entry (bi)
-            graph.add_bi_edge_with_state(EdgeKind::ReferenceClubEntry, ref_node, entry, state);
+            graph.add_bi_edge_with_state(EdgeKind::VerseRefVerseClubMember, ref_node, entry, state);
 
             // chapter gist → club entry (uni, structural)
             if let Some(&ch_gist) =
@@ -263,7 +263,7 @@ fn chain_club_entries(graph: &mut Graph, entries: &[(NodeId, String, u16)], stat
         verses.sort_by_key(|(_, v)| *v);
         for i in 1..verses.len() {
             graph.add_edge_with_state(
-                EdgeKind::ClubEntryClubEntry,
+                EdgeKind::VerseClubMemberVerseClubMember,
                 verses[i - 1].0,
                 verses[i].0,
                 Some(state),
@@ -523,7 +523,12 @@ mod tests {
         let club_nodes: Vec<_> = result
             .graph
             .node_ids()
-            .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::ClubEntry { .. })))
+            .filter(|&id| {
+                matches!(
+                    result.graph.node_kind(id),
+                    Some(NodeKind::VerseClubMember { .. })
+                )
+            })
             .collect();
         assert!(
             club_nodes.len() >= 3,

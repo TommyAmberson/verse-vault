@@ -53,7 +53,7 @@ fn build_graph_from_corinthians() {
     let ref_count = result
         .graph
         .node_ids()
-        .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::Reference { .. })))
+        .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::VerseRef { .. })))
         .count();
     let ftv_count = result
         .graph
@@ -68,11 +68,16 @@ fn build_graph_from_corinthians() {
     let club_count = result
         .graph
         .node_ids()
-        .filter(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::ClubEntry { .. })))
+        .filter(|&id| {
+            matches!(
+                result.graph.node_kind(id),
+                Some(NodeKind::VerseClubMember { .. })
+            )
+        })
         .count();
 
     println!("Phrases: {phrase_count}");
-    println!("References: {ref_count}");
+    println!("VerseRefs: {ref_count}");
     println!("FTV nodes: {ftv_count}");
     println!("Headings: {heading_count}");
     println!("Club entries: {club_count}");

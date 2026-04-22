@@ -19,11 +19,11 @@ pub enum NodeKind {
         chapter: u16,
         verse: u16,
     },
-    Reference {
+    VerseRef {
         chapter: u16,
         verse: u16,
     },
-    ClubEntry {
+    VerseClubMember {
         tier: ClubTier,
         chapter: u16,
         verse: u16,

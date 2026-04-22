@@ -10,7 +10,7 @@ use verse_vault_core::types::{CardId, NodeId};
 #[test]
 fn print_graph_json_shape() {
     let mut g = Graph::new();
-    let r = g.add_node(NodeKind::Reference {
+    let r = g.add_node(NodeKind::VerseRef {
         chapter: 3,
         verse: 16,
     });
@@ -18,7 +18,7 @@ fn print_graph_json_shape() {
         chapter: 3,
         verse: 16,
     });
-    g.add_bi_edge(EdgeKind::VerseGistReference, v, r);
+    g.add_bi_edge(EdgeKind::VerseGistVerseRef, v, r);
 
     let graph_json = serde_json::to_string_pretty(&g).unwrap();
     println!("Graph JSON:\n{graph_json}");

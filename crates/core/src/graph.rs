@@ -131,9 +131,9 @@ impl Graph {
         self.edges.values()
     }
 
-    /// Find the verse context for a given atom: (reference NodeId, sorted phrase NodeIds).
-    /// Traverses: atom → VerseGist (via PhraseVerseGist) → Reference + all Phrases.
-    /// Works for Phrase, VerseGist, and Reference atoms.
+    /// Find the verse context for a given atom: (verse-ref NodeId, sorted phrase NodeIds).
+    /// Traverses: atom → VerseGist (via PhraseVerseGist) → VerseRef + all Phrases.
+    /// Works for Phrase, VerseGist, and VerseRef atoms.
     pub fn verse_context(&self, atom: NodeId) -> Option<(NodeId, Vec<NodeId>)> {
         use crate::edge::EdgeKind;
         use crate::node::NodeKind;
@@ -145,16 +145,16 @@ impl Graph {
                     matches!(k, NodeKind::VerseGist { .. })
                 })?
             }
-            NodeKind::Reference { .. } => {
-                self.find_neighbor(atom, EdgeKind::VerseGistReference, |k| {
+            NodeKind::VerseRef { .. } => {
+                self.find_neighbor(atom, EdgeKind::VerseGistVerseRef, |k| {
                     matches!(k, NodeKind::VerseGist { .. })
                 })?
             }
             _ => return None,
         };
 
-        let reference = self.find_neighbor(verse_gist, EdgeKind::VerseGistReference, |k| {
-            matches!(k, NodeKind::Reference { .. })
+        let reference = self.find_neighbor(verse_gist, EdgeKind::VerseGistVerseRef, |k| {
+            matches!(k, NodeKind::VerseRef { .. })
         })?;
 
         let mut phrases: Vec<(u16, NodeId)> = Vec::new();
@@ -289,7 +289,7 @@ mod tests {
     fn structural_edge_has_no_state() {
         let mut g = Graph::new();
         let ch = g.add_node(NodeKind::ChapterGist { chapter: 1 });
-        let club = g.add_node(NodeKind::ClubEntry {
+        let club = g.add_node(NodeKind::VerseClubMember {
             tier: crate::node::ClubTier::Club150,
             chapter: 1,
             verse: 1,
@@ -306,12 +306,12 @@ mod tests {
             chapter: 1,
             verse: 1,
         });
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 1,
             verse: 1,
         });
 
-        let eid = g.add_edge(EdgeKind::VerseGistReference, v, r);
+        let eid = g.add_edge(EdgeKind::VerseGistVerseRef, v, r);
         let state = g.edge(eid).unwrap().state.unwrap();
         assert_eq!(state.difficulty, 5.0);
     }
