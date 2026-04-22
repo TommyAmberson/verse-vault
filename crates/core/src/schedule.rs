@@ -160,10 +160,8 @@ pub fn priority(
         let paths = all_paths_for(graph, &shown, hidden, params);
         for ap in &paths {
             for &edge_id in &ap.path.edges {
-                if let Some(edge) = graph.edge(edge_id)
-                    && let Some(state) = &edge.state
-                {
-                    let r = fsrs.retrievability(state, now_secs);
+                if let Some(edge) = graph.edge(edge_id) {
+                    let r = fsrs.retrievability(&edge.state, now_secs);
                     if r < params.target_retention {
                         due_edge_r_sum += r;
                     }
@@ -176,15 +174,12 @@ pub fn priority(
     let mut reinf_bonus = 0.0f32;
     for &node in &card.shown {
         for &edge_id in graph.outgoing_edges(node) {
-            if let Some(edge) = graph.edge(edge_id) {
-                if !edge.kind.is_learnable() || !shown.contains(&edge.target) {
-                    continue;
-                }
-                if let Some(state) = &edge.state {
-                    let r = fsrs.retrievability(state, now_secs);
-                    if r < params.target_retention {
-                        reinf_bonus += r;
-                    }
+            if let Some(edge) = graph.edge(edge_id)
+                && shown.contains(&edge.target)
+            {
+                let r = fsrs.retrievability(&edge.state, now_secs);
+                if r < params.target_retention {
+                    reinf_bonus += r;
                 }
             }
         }
@@ -236,10 +231,8 @@ fn all_paths_for(
 fn path_r_at(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, at_secs: i64) -> f32 {
     let mut r = 1.0f32;
     for &edge_id in edges {
-        if let Some(edge) = graph.edge(edge_id)
-            && let Some(state) = &edge.state
-        {
-            r *= fsrs.retrievability(state, at_secs);
+        if let Some(edge) = graph.edge(edge_id) {
+            r *= fsrs.retrievability(&edge.state, at_secs);
         }
     }
     r

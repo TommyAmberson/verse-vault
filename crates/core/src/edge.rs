@@ -74,20 +74,6 @@ pub enum EdgeKind {
     FtvVerseGist,
 }
 
-impl EdgeKind {
-    /// Every edge is currently a retrieval proposition with its own FSRS
-    /// state. The method exists so credit-assignment and scheduling
-    /// call-sites stay honest about the distinction if a non-learnable
-    /// (purely structural) variant is ever reintroduced.
-    pub const fn is_learnable(self) -> bool {
-        true
-    }
-
-    pub const fn is_structural(self) -> bool {
-        !self.is_learnable()
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct EdgeState {
     pub stability: f32,
@@ -101,70 +87,5 @@ pub struct Edge {
     pub kind: EdgeKind,
     pub source: NodeId,
     pub target: NodeId,
-    pub state: Option<EdgeState>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn every_edge_is_learnable() {
-        let all = [
-            // Phrase / verse
-            EdgeKind::PhrasePhrase,
-            EdgeKind::PhraseVerseGist,
-            EdgeKind::VerseGistVerseRef,
-            EdgeKind::VerseGistVerseGist,
-            // Chapter
-            EdgeKind::ChapterGistChapterRef,
-            EdgeKind::VerseGistChapterGist,
-            EdgeKind::ChapterGistFirstVerseGist,
-            EdgeKind::ChapterGistLastVerseGist,
-            EdgeKind::VerseRefChapterRef,
-            EdgeKind::ChapterGistChapterGist,
-            // Book
-            EdgeKind::BookGistBookRef,
-            EdgeKind::ChapterGistBookGist,
-            EdgeKind::BookGistFirstChapterGist,
-            EdgeKind::BookGistLastChapterGist,
-            EdgeKind::ChapterRefBookRef,
-            EdgeKind::BookGistBookGist,
-            // Heading
-            EdgeKind::VerseGistHeading,
-            EdgeKind::HeadingHeading,
-            EdgeKind::HeadingFirstVerseGist,
-            EdgeKind::HeadingLastVerseGist,
-            // Club hierarchy
-            EdgeKind::VerseRefVerseClubMember,
-            EdgeKind::VerseClubMemberVerseClubMember,
-            EdgeKind::VerseClubMemberClubGist,
-            EdgeKind::VerseClubMemberChapterClubMember,
-            EdgeKind::ChapterRefChapterClubMember,
-            EdgeKind::ChapterClubMemberChapterClubMember,
-            EdgeKind::ChapterClubMemberClubGist,
-            EdgeKind::ChapterClubMemberFirstVerseClubMember,
-            EdgeKind::ChapterClubMemberLastVerseClubMember,
-            EdgeKind::ClubGistFirstVerseClubMember,
-            EdgeKind::ClubGistLastVerseClubMember,
-            EdgeKind::ClubGistFirstChapterClubMember,
-            EdgeKind::ClubGistLastChapterClubMember,
-            // Heading-club
-            EdgeKind::HeadingHeadingClubMember,
-            EdgeKind::HeadingClubMemberHeadingClubMember,
-            EdgeKind::HeadingClubMemberClubGist,
-            EdgeKind::VerseClubMemberHeadingClubMember,
-            EdgeKind::HeadingClubMemberFirstVerseClubMember,
-            EdgeKind::HeadingClubMemberLastVerseClubMember,
-            EdgeKind::ClubGistFirstHeadingClubMember,
-            EdgeKind::ClubGistLastHeadingClubMember,
-            // FTV
-            EdgeKind::FtvPhrase,
-            EdgeKind::FtvVerseGist,
-        ];
-        assert_eq!(all.len(), 43, "update this list when adding EdgeKinds");
-        for kind in all {
-            assert!(kind.is_learnable(), "{kind:?} should be learnable");
-        }
-    }
+    pub state: EdgeState,
 }

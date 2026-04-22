@@ -111,13 +111,10 @@ impl ReviewEngine {
 
         let mut updated_edge_ids = Vec::new();
         for (edge_id, weighted_grades) in &edge_updates {
-            if let Some(edge) = self.graph.edge_mut(*edge_id)
-                && let Some(ref state) = edge.state
-            {
-                let new_state = self
-                    .fsrs
-                    .apply_weighted_update(state, weighted_grades, now_secs);
-                edge.state = Some(new_state);
+            if let Some(edge) = self.graph.edge_mut(*edge_id) {
+                edge.state =
+                    self.fsrs
+                        .apply_weighted_update(&edge.state, weighted_grades, now_secs);
                 updated_edge_ids.push(*edge_id);
             }
         }
@@ -274,11 +271,8 @@ mod tests {
         let mut engine = ReviewEngine::new(g, cards, 0.9);
 
         // Record initial stability of an edge
-        let initial_stabilities: Vec<f32> = engine
-            .graph
-            .edges()
-            .filter_map(|e| e.state.map(|s| s.stability))
-            .collect();
+        let initial_stabilities: Vec<f32> =
+            engine.graph.edges().map(|e| e.state.stability).collect();
 
         // Review at day 3 (S=5, so R is still decent)
         let grades = HashMap::from([(p1, Grade::Good), (p2, Grade::Good), (p3, Grade::Good)]);
@@ -286,11 +280,7 @@ mod tests {
         assert!(!updates.is_empty(), "should produce edge updates");
 
         // Check that some edges changed
-        let new_stabilities: Vec<f32> = engine
-            .graph
-            .edges()
-            .filter_map(|e| e.state.map(|s| s.stability))
-            .collect();
+        let new_stabilities: Vec<f32> = engine.graph.edges().map(|e| e.state.stability).collect();
 
         let changed = initial_stabilities
             .iter()
@@ -316,25 +306,13 @@ mod tests {
             })
             .unwrap();
 
-        let s_before = engine
-            .graph
-            .edge(p1_to_p2)
-            .unwrap()
-            .state
-            .unwrap()
-            .stability;
+        let s_before = engine.graph.edge(p1_to_p2).unwrap().state.stability;
 
         // p2 = Again: p1→p2 should get blame
         let grades = HashMap::from([(p1, Grade::Good), (p2, Grade::Again), (p3, Grade::Good)]);
         engine.review(CardId(0), grades, 3 * DAY);
 
-        let s_after = engine
-            .graph
-            .edge(p1_to_p2)
-            .unwrap()
-            .state
-            .unwrap()
-            .stability;
+        let s_after = engine.graph.edge(p1_to_p2).unwrap().state.stability;
 
         // The edge might get blame (from p2's failure) or credit (from p1/p3's success
         // through other paths). The net effect depends on the specific path weights.
@@ -357,7 +335,7 @@ mod tests {
         let s_after_1 = engine
             .graph
             .edges()
-            .filter_map(|e| e.state.map(|s| s.stability))
+            .map(|e| e.state.stability)
             .fold(0.0f32, |acc, s| acc + s);
 
         // Review again at day 10
@@ -365,7 +343,7 @@ mod tests {
         let s_after_2 = engine
             .graph
             .edges()
-            .filter_map(|e| e.state.map(|s| s.stability))
+            .map(|e| e.state.stability)
             .fold(0.0f32, |acc, s| acc + s);
 
         assert!(

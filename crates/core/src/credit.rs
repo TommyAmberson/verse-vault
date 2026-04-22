@@ -206,9 +206,7 @@ fn assign_credit_for_pass(
     for (ap, r) in &surviving {
         let credit_weight = r / total_r;
         for &edge_id in &ap.path.edges {
-            if let Some(edge) = graph.edge(edge_id)
-                && edge.kind.is_learnable()
-            {
+            if graph.edge(edge_id).is_some() {
                 updates
                     .entry(edge_id)
                     .or_default()
@@ -236,13 +234,7 @@ fn assign_blame_for_fail(
 
         for &edge_id in &ap.path.edges {
             if let Some(edge) = graph.edge(edge_id) {
-                if !edge.kind.is_learnable() {
-                    continue;
-                }
-                let r = match &edge.state {
-                    Some(state) => fsrs.retrievability(state, now_secs),
-                    None => 1.0,
-                };
+                let r = fsrs.retrievability(&edge.state, now_secs);
                 if r < weakest_r {
                     weakest_r = r;
                     weakest_edge = Some(edge_id);
@@ -285,16 +277,10 @@ fn apply_exposure(
                 Some(e) => e,
                 None => continue,
             };
-            if !edge.kind.is_learnable() {
-                continue;
-            }
             if !shown_set.contains(&edge.target) {
                 continue;
             }
-            let r = match &edge.state {
-                Some(state) => fsrs.retrievability(state, now_secs),
-                None => continue,
-            };
+            let r = fsrs.retrievability(&edge.state, now_secs);
             if r >= params.target_retention {
                 continue;
             }
@@ -351,9 +337,7 @@ fn path_probability(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, now_secs
             Some(e) => e,
             None => return 0.0,
         };
-        if let Some(state) = &edge.state {
-            r *= fsrs.retrievability(state, now_secs);
-        }
+        r *= fsrs.retrievability(&edge.state, now_secs);
     }
     r
 }

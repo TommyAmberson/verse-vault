@@ -109,12 +109,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
 
         // verse gist → chapter gist (uni)
         if let Some(&ch_gist) = chapter_gists.get(&(verse_data.book.clone(), verse_data.chapter)) {
-            graph.add_edge_with_state(
-                EdgeKind::VerseGistChapterGist,
-                verse_gist,
-                ch_gist,
-                Some(state),
-            );
+            graph.add_edge_with_state(EdgeKind::VerseGistChapterGist, verse_gist, ch_gist, state);
         }
 
         // Phrase nodes
@@ -149,9 +144,9 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
                 text: verse_data.ftv.clone(),
             });
             // ftv → first phrase (uni)
-            graph.add_edge_with_state(EdgeKind::FtvPhrase, ftv, phrase_nodes[0], Some(state));
+            graph.add_edge_with_state(EdgeKind::FtvPhrase, ftv, phrase_nodes[0], state);
             // ftv → verse gist (uni)
-            graph.add_edge_with_state(EdgeKind::FtvVerseGist, ftv, verse_gist, Some(state));
+            graph.add_edge_with_state(EdgeKind::FtvVerseGist, ftv, verse_gist, state);
             Some(ftv)
         } else {
             None
@@ -180,7 +175,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             ))
             .copied();
         if let Some(hid) = heading_node {
-            graph.add_edge_with_state(EdgeKind::VerseGistHeading, verse_gist, hid, Some(state));
+            graph.add_edge_with_state(EdgeKind::VerseGistHeading, verse_gist, hid, state);
         }
 
         // Club entries
@@ -259,7 +254,7 @@ fn chain_club_entries(graph: &mut Graph, entries: &[(NodeId, String, u16)], stat
                 EdgeKind::VerseClubMemberVerseClubMember,
                 verses[i - 1].0,
                 verses[i].0,
-                Some(state),
+                state,
             );
         }
     }

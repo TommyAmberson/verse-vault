@@ -265,7 +265,7 @@ fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), St
     let mut stabilities: Vec<f32> = engine
         .graph
         .edges()
-        .filter_map(|e| e.state.map(|s| s.stability))
+        .map(|e| e.state.stability)
         .filter(|&s| s > 0.01)
         .collect();
     stabilities.sort_by(|a, b| a.partial_cmp(b).unwrap());

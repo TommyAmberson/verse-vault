@@ -31,14 +31,10 @@ impl Graph {
     }
 
     pub fn add_edge(&mut self, kind: EdgeKind, source: NodeId, target: NodeId) -> EdgeId {
-        let state = if kind.is_learnable() {
-            Some(EdgeState {
-                stability: 0.0,
-                difficulty: 5.0,
-                last_review_secs: 0,
-            })
-        } else {
-            None
+        let state = EdgeState {
+            stability: 0.0,
+            difficulty: 5.0,
+            last_review_secs: 0,
         };
         self.add_edge_with_state(kind, source, target, state)
     }
@@ -48,7 +44,7 @@ impl Graph {
         kind: EdgeKind,
         source: NodeId,
         target: NodeId,
-        state: Option<EdgeState>,
+        state: EdgeState,
     ) -> EdgeId {
         let id = EdgeId(self.next_edge_id);
         self.next_edge_id += 1;
@@ -82,8 +78,8 @@ impl Graph {
         b: NodeId,
         state: EdgeState,
     ) -> (EdgeId, EdgeId) {
-        let forward = self.add_edge_with_state(kind, a, b, Some(state));
-        let backward = self.add_edge_with_state(kind, b, a, Some(state));
+        let forward = self.add_edge_with_state(kind, a, b, state);
+        let backward = self.add_edge_with_state(kind, b, a, state);
         (forward, backward)
     }
 
@@ -286,7 +282,7 @@ mod tests {
     }
 
     #[test]
-    fn learnable_edge_has_state() {
+    fn every_edge_has_state() {
         let mut g = Graph::new();
         let v = g.add_node(NodeKind::VerseGist {
             chapter: 1,
@@ -298,7 +294,7 @@ mod tests {
         });
 
         let eid = g.add_edge(EdgeKind::VerseGistVerseRef, v, r);
-        let state = g.edge(eid).unwrap().state.unwrap();
+        let state = g.edge(eid).unwrap().state;
         assert_eq!(state.difficulty, 5.0);
     }
 }
