@@ -98,5 +98,7 @@ characters** including the type/scope prefix. Body wrapped at ~72 cols, focuses 
 ## Other conventions
 
 * Slight preference for writing tests before features.
-* Redundant comments are not helpful. Comments that simply say "what" is happening when the code is
-  obvious should be extremely brief or omitted. Prefer comments that explain "why" or complex logic.
+* Redundant inline comments are not helpful. Comments that simply say "what" is happening when the
+  code is obvious should be extremely brief or omitted. Prefer comments that explain "why" or
+  complex logic. Docstrings should be brief and focused on info that is not obvious from the
+  signature and would be useful to consumers.
