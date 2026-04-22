@@ -305,13 +305,15 @@ fn apply_reverse_reinforcement(
             Some(e) => e,
             None => continue,
         };
-        // Find reverse edge (same kind, target->source)
+        // Find reverse edge: target → source with the same role. Since we
+        // iterate outgoing_edges(edge.target) the source matches by
+        // construction; we only need to check the far end.
         for &reverse_candidate in graph.outgoing_edges(edge.target) {
             let rev = match graph.edge(reverse_candidate) {
                 Some(e) => e,
                 None => continue,
             };
-            if rev.target != edge.source || rev.kind != edge.kind {
+            if rev.target != edge.source || rev.role != edge.role {
                 continue;
             }
             if primary_edge_ids.contains(&reverse_candidate)
@@ -345,7 +347,7 @@ fn path_probability(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, now_secs
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edge::{EdgeKind, EdgeState};
+    use crate::edge::EdgeState;
     use crate::node::NodeKind;
 
     fn make_verse_graph() -> (Graph, NodeId, NodeId, NodeId, NodeId, NodeId) {
@@ -381,12 +383,12 @@ mod tests {
             last_review_secs: 0,
         };
 
-        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p3, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
-        g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p2, p3, state);
+        g.add_bi_edge_with_state(v, r, state);
+        g.add_bi_edge_with_state(p1, v, state);
+        g.add_bi_edge_with_state(p2, v, state);
+        g.add_bi_edge_with_state(p3, v, state);
+        g.add_bi_edge_with_state(p1, p2, state);
+        g.add_bi_edge_with_state(p2, p3, state);
 
         (g, r, v, p1, p2, p3)
     }
@@ -451,7 +453,7 @@ mod tests {
             .iter()
             .filter(|&&eid| {
                 let e = g.edge(eid).unwrap();
-                e.target == p2 && matches!(e.kind, EdgeKind::PhrasePhrase)
+                e.target == p2
             })
             .collect();
         assert!(!p1_to_p2_edges.is_empty());
@@ -484,7 +486,7 @@ mod tests {
             .copied()
             .filter(|&eid| {
                 let e = g.edge(eid).unwrap();
-                e.target == p3 && matches!(e.kind, EdgeKind::PhrasePhrase)
+                e.target == p3
             })
             .collect();
 
@@ -537,7 +539,7 @@ mod tests {
             .copied()
             .filter(|&eid| {
                 let e = g.edge(eid).unwrap();
-                e.target == p2 && matches!(e.kind, EdgeKind::PhrasePhrase)
+                e.target == p2
             })
             .collect();
 
@@ -573,7 +575,7 @@ mod tests {
             .copied()
             .filter(|&eid| {
                 let e = g.edge(eid).unwrap();
-                e.target == p2 && matches!(e.kind, EdgeKind::PhrasePhrase)
+                e.target == p2
             })
             .collect();
 

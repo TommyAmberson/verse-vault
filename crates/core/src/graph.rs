@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::edge::{Edge, EdgeKind, EdgeState};
+use crate::edge::{Edge, EdgeRole, EdgeState};
 use crate::node::{Node, NodeKind};
 use crate::types::{EdgeId, NodeId};
 
@@ -15,6 +15,12 @@ pub struct Graph {
     next_node_id: u32,
     next_edge_id: u32,
 }
+
+const DEFAULT_EDGE_STATE: EdgeState = EdgeState {
+    stability: 0.0,
+    difficulty: 5.0,
+    last_review_secs: 0,
+};
 
 impl Graph {
     pub fn new() -> Self {
@@ -30,21 +36,54 @@ impl Graph {
         id
     }
 
-    pub fn add_edge(&mut self, kind: EdgeKind, source: NodeId, target: NodeId) -> EdgeId {
-        let state = EdgeState {
-            stability: 0.0,
-            difficulty: 5.0,
-            last_review_secs: 0,
-        };
-        self.add_edge_with_state(kind, source, target, state)
+    pub fn add_edge(&mut self, source: NodeId, target: NodeId) -> EdgeId {
+        self.insert_edge(source, target, DEFAULT_EDGE_STATE, None)
     }
 
     pub fn add_edge_with_state(
         &mut self,
-        kind: EdgeKind,
         source: NodeId,
         target: NodeId,
         state: EdgeState,
+    ) -> EdgeId {
+        self.insert_edge(source, target, state, None)
+    }
+
+    pub fn add_edge_with_role(
+        &mut self,
+        source: NodeId,
+        target: NodeId,
+        role: EdgeRole,
+        state: EdgeState,
+    ) -> EdgeId {
+        self.insert_edge(source, target, state, Some(role))
+    }
+
+    /// Add a bidirectional edge pair (two directed edges with independent state).
+    pub fn add_bi_edge(&mut self, a: NodeId, b: NodeId) -> (EdgeId, EdgeId) {
+        let forward = self.add_edge(a, b);
+        let backward = self.add_edge(b, a);
+        (forward, backward)
+    }
+
+    /// Add a bidirectional edge pair with explicit initial state.
+    pub fn add_bi_edge_with_state(
+        &mut self,
+        a: NodeId,
+        b: NodeId,
+        state: EdgeState,
+    ) -> (EdgeId, EdgeId) {
+        let forward = self.add_edge_with_state(a, b, state);
+        let backward = self.add_edge_with_state(b, a, state);
+        (forward, backward)
+    }
+
+    fn insert_edge(
+        &mut self,
+        source: NodeId,
+        target: NodeId,
+        state: EdgeState,
+        role: Option<EdgeRole>,
     ) -> EdgeId {
         let id = EdgeId(self.next_edge_id);
         self.next_edge_id += 1;
@@ -52,35 +91,15 @@ impl Graph {
             id,
             Edge {
                 id,
-                kind,
                 source,
                 target,
                 state,
+                role,
             },
         );
         self.outgoing.entry(source).or_default().push(id);
         self.incoming.entry(target).or_default().push(id);
         id
-    }
-
-    /// Add a bidirectional edge pair (two directed edges with independent state).
-    pub fn add_bi_edge(&mut self, kind: EdgeKind, a: NodeId, b: NodeId) -> (EdgeId, EdgeId) {
-        let forward = self.add_edge(kind, a, b);
-        let backward = self.add_edge(kind, b, a);
-        (forward, backward)
-    }
-
-    /// Add a bidirectional edge pair with explicit initial state.
-    pub fn add_bi_edge_with_state(
-        &mut self,
-        kind: EdgeKind,
-        a: NodeId,
-        b: NodeId,
-        state: EdgeState,
-    ) -> (EdgeId, EdgeId) {
-        let forward = self.add_edge_with_state(kind, a, b, state);
-        let backward = self.add_edge_with_state(kind, b, a, state);
-        (forward, backward)
     }
 
     pub fn node(&self, id: NodeId) -> Option<&Node> {
@@ -127,45 +146,45 @@ impl Graph {
         self.edges.values()
     }
 
+    /// True when `edge` connects a node matching `src` to a node matching
+    /// `dst`. Use with `matches!` against `NodeKind` variants when the
+    /// caller cares about the specific source→target shape.
+    pub fn edge_connects<P, Q>(&self, edge: &Edge, src: P, dst: Q) -> bool
+    where
+        P: FnOnce(&NodeKind) -> bool,
+        Q: FnOnce(&NodeKind) -> bool,
+    {
+        self.node_kind(edge.source).is_some_and(src) && self.node_kind(edge.target).is_some_and(dst)
+    }
+
     /// Find the verse context for a given atom: (verse-ref NodeId, sorted phrase NodeIds).
-    /// Traverses: atom → VerseGist (via PhraseVerseGist) → VerseRef + all Phrases.
+    /// Traverses: atom → VerseGist → VerseRef + all Phrases.
     /// Works for Phrase, VerseGist, and VerseRef atoms.
     pub fn verse_context(&self, atom: NodeId) -> Option<(NodeId, Vec<NodeId>)> {
-        use crate::edge::EdgeKind;
-        use crate::node::NodeKind;
-
         let verse_gist = match self.node_kind(atom)? {
             NodeKind::VerseGist { .. } => atom,
             NodeKind::Phrase { .. } => {
-                self.find_neighbor(atom, EdgeKind::PhraseVerseGist, |k| {
-                    matches!(k, NodeKind::VerseGist { .. })
-                })?
+                self.find_neighbor(atom, |k| matches!(k, NodeKind::VerseGist { .. }))?
             }
             NodeKind::VerseRef { .. } => {
-                self.find_neighbor(atom, EdgeKind::VerseGistVerseRef, |k| {
-                    matches!(k, NodeKind::VerseGist { .. })
-                })?
+                self.find_neighbor(atom, |k| matches!(k, NodeKind::VerseGist { .. }))?
             }
             _ => return None,
         };
 
-        let reference = self.find_neighbor(verse_gist, EdgeKind::VerseGistVerseRef, |k| {
-            matches!(k, NodeKind::VerseRef { .. })
-        })?;
+        let verse_ref =
+            self.find_neighbor(verse_gist, |k| matches!(k, NodeKind::VerseRef { .. }))?;
 
         let mut phrases: Vec<(u16, NodeId)> = Vec::new();
         for &eid in self.outgoing_edges(verse_gist) {
             if let Some(edge) = self.edge(eid)
-                && edge.kind == EdgeKind::PhraseVerseGist
                 && let Some(NodeKind::Phrase { position, .. }) = self.node_kind(edge.target)
             {
                 phrases.push((*position, edge.target));
             }
         }
-        // Also check incoming (phrase→verse edges)
         for &eid in self.incoming_edges(verse_gist) {
             if let Some(edge) = self.edge(eid)
-                && edge.kind == EdgeKind::PhraseVerseGist
                 && let Some(NodeKind::Phrase { position, .. }) = self.node_kind(edge.source)
                 && !phrases.iter().any(|(_, id)| *id == edge.source)
             {
@@ -175,18 +194,12 @@ impl Graph {
         phrases.sort_by_key(|(pos, _)| *pos);
         let phrase_ids: Vec<NodeId> = phrases.into_iter().map(|(_, id)| id).collect();
 
-        Some((reference, phrase_ids))
+        Some((verse_ref, phrase_ids))
     }
 
-    fn find_neighbor(
-        &self,
-        node: NodeId,
-        edge_kind: crate::edge::EdgeKind,
-        pred: impl Fn(&NodeKind) -> bool,
-    ) -> Option<NodeId> {
+    fn find_neighbor(&self, node: NodeId, pred: impl Fn(&NodeKind) -> bool) -> Option<NodeId> {
         for &eid in self.outgoing_edges(node) {
             if let Some(edge) = self.edge(eid)
-                && edge.kind == edge_kind
                 && let Some(kind) = self.node_kind(edge.target)
                 && pred(kind)
             {
@@ -195,7 +208,6 @@ impl Graph {
         }
         for &eid in self.incoming_edges(node) {
             if let Some(edge) = self.edge(eid)
-                && edge.kind == edge_kind
                 && let Some(kind) = self.node_kind(edge.source)
                 && pred(kind)
             {
@@ -228,9 +240,9 @@ mod tests {
             position: 1,
         });
 
-        g.add_bi_edge(EdgeKind::PhraseVerseGist, p1, v);
-        g.add_bi_edge(EdgeKind::PhraseVerseGist, p2, v);
-        g.add_bi_edge(EdgeKind::PhrasePhrase, p1, p2);
+        g.add_bi_edge(p1, v);
+        g.add_bi_edge(p2, v);
+        g.add_bi_edge(p1, p2);
 
         assert_eq!(g.node_count(), 3);
         assert_eq!(g.edge_count(), 6);
@@ -248,7 +260,7 @@ mod tests {
             verse: 2,
         });
 
-        let (fwd, bwd) = g.add_bi_edge(EdgeKind::VerseGistVerseGist, a, b);
+        let (fwd, bwd) = g.add_bi_edge(a, b);
 
         let fwd_edge = g.edge(fwd).unwrap();
         assert_eq!(fwd_edge.source, a);
@@ -273,7 +285,7 @@ mod tests {
         });
         let ch = g.add_node(NodeKind::ChapterGist { chapter: 1 });
 
-        g.add_edge(EdgeKind::VerseGistChapterGist, v, ch);
+        g.add_edge(v, ch);
 
         assert_eq!(g.outgoing_edges(v).len(), 1);
         assert_eq!(g.outgoing_edges(ch).len(), 0);
@@ -293,8 +305,24 @@ mod tests {
             verse: 1,
         });
 
-        let eid = g.add_edge(EdgeKind::VerseGistVerseRef, v, r);
+        let eid = g.add_edge(v, r);
         let state = g.edge(eid).unwrap().state;
         assert_eq!(state.difficulty, 5.0);
+    }
+
+    #[test]
+    fn role_is_optional() {
+        let mut g = Graph::new();
+        let ch = g.add_node(NodeKind::ChapterGist { chapter: 1 });
+        let v = g.add_node(NodeKind::VerseGist {
+            chapter: 1,
+            verse: 1,
+        });
+
+        let plain = g.add_edge(v, ch);
+        assert!(g.edge(plain).unwrap().role.is_none());
+
+        let endpoint = g.add_edge_with_role(ch, v, EdgeRole::FirstChild, DEFAULT_EDGE_STATE);
+        assert_eq!(g.edge(endpoint).unwrap().role, Some(EdgeRole::FirstChild));
     }
 }
