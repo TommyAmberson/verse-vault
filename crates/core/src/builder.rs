@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::card::{Card, CardState};
 use crate::card_types::{AtomRole, CardTypeDef, CardTypesConfig, parse_role};
 use crate::content::MaterialData;
-use crate::edge::{EdgeKind, EdgeState};
+use crate::edge::{EdgeRole, EdgeState};
 use crate::graph::Graph;
 use crate::node::{ClubTier, NodeKind};
 use crate::types::{CardId, NodeId};
@@ -85,7 +85,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     for book in &data.books {
         let bg = graph.add_node(NodeKind::BookGist { book: book.clone() });
         let br = graph.add_node(NodeKind::BookRef { book: book.clone() });
-        graph.add_bi_edge_with_state(EdgeKind::BookGistBookRef, bg, br, state);
+        graph.add_bi_edge_with_state(bg, br, state);
         book_gists.insert(book.clone(), bg);
         book_refs.insert(book.clone(), br);
     }
@@ -95,7 +95,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             book_gists.get(&data.books[i - 1]),
             book_gists.get(&data.books[i]),
         ) {
-            graph.add_bi_edge_with_state(EdgeKind::BookGistBookGist, prev, curr, state);
+            graph.add_bi_edge_with_state(prev, curr, state);
         }
     }
 
@@ -107,15 +107,15 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     for ch in &data.chapters {
         let gist = graph.add_node(NodeKind::ChapterGist { chapter: ch.number });
         let cref = graph.add_node(NodeKind::ChapterRef { chapter: ch.number });
-        graph.add_bi_edge_with_state(EdgeKind::ChapterGistChapterRef, gist, cref, state);
+        graph.add_bi_edge_with_state(gist, cref, state);
 
         // chapter_gist → book_gist (uni)
         if let Some(&bg) = book_gists.get(&ch.book) {
-            graph.add_edge_with_state(EdgeKind::ChapterGistBookGist, gist, bg, state);
+            graph.add_edge_with_state(gist, bg, state);
         }
         // chapter_ref → book_ref (uni)
         if let Some(&br) = book_refs.get(&ch.book) {
-            graph.add_edge_with_state(EdgeKind::ChapterRefBookRef, cref, br, state);
+            graph.add_edge_with_state(cref, br, state);
         }
 
         chapter_gists.insert((ch.book.clone(), ch.number), gist);
@@ -130,18 +130,13 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     for (book, chapters) in &mut chapters_by_book {
         chapters.sort_by_key(|(num, _)| *num);
         for i in 1..chapters.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::ChapterGistChapterGist,
-                chapters[i - 1].1,
-                chapters[i].1,
-                state,
-            );
+            graph.add_bi_edge_with_state(chapters[i - 1].1, chapters[i].1, state);
         }
         if let Some(&bg) = book_gists.get(book)
             && let (Some(first), Some(last)) = (chapters.first(), chapters.last())
         {
-            graph.add_edge_with_state(EdgeKind::BookGistFirstChapterGist, bg, first.1, state);
-            graph.add_edge_with_state(EdgeKind::BookGistLastChapterGist, bg, last.1, state);
+            graph.add_edge_with_role(bg, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(bg, last.1, EdgeRole::LastChild, state);
         }
     }
 
@@ -162,7 +157,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         let (prev_id, prev_h) = &heading_nodes[i - 1];
         let (curr_id, curr_h) = &heading_nodes[i];
         if prev_h.book == curr_h.book {
-            graph.add_bi_edge_with_state(EdgeKind::HeadingHeading, *prev_id, *curr_id, state);
+            graph.add_bi_edge_with_state(*prev_id, *curr_id, state);
         }
     }
     // Build heading lookup: (book, chapter, verse) -> heading node
@@ -192,15 +187,15 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         });
 
         // verse gist ↔ verse ref (bi)
-        graph.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, verse_gist, ref_node, state);
+        graph.add_bi_edge_with_state(verse_gist, ref_node, state);
 
         // verse gist → chapter gist (uni)
         if let Some(&ch_gist) = chapter_gists.get(&(verse_data.book.clone(), verse_data.chapter)) {
-            graph.add_edge_with_state(EdgeKind::VerseGistChapterGist, verse_gist, ch_gist, state);
+            graph.add_edge_with_state(verse_gist, ch_gist, state);
         }
         // verse ref → chapter ref (uni)
         if let Some(&ch_ref) = chapter_refs.get(&(verse_data.book.clone(), verse_data.chapter)) {
-            graph.add_edge_with_state(EdgeKind::VerseRefChapterRef, ref_node, ch_ref, state);
+            graph.add_edge_with_state(ref_node, ch_ref, state);
         }
 
         // Phrase nodes
@@ -211,17 +206,12 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
                 verse_id: verse_data.verse as u32,
                 position: pos as u16,
             });
-            graph.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, pid, verse_gist, state);
+            graph.add_bi_edge_with_state(pid, verse_gist, state);
             phrase_nodes.push(pid);
         }
         // Phrase ↔ phrase chain (bi)
         for i in 1..phrase_nodes.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::PhrasePhrase,
-                phrase_nodes[i - 1],
-                phrase_nodes[i],
-                state,
-            );
+            graph.add_bi_edge_with_state(phrase_nodes[i - 1], phrase_nodes[i], state);
         }
 
         // FTV node (optional, ≤ FTV_MAX_WORDS)
@@ -232,8 +222,8 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             let ftv = graph.add_node(NodeKind::Ftv {
                 text: verse_data.ftv.clone(),
             });
-            graph.add_edge_with_state(EdgeKind::FtvPhrase, ftv, phrase_nodes[0], state);
-            graph.add_edge_with_state(EdgeKind::FtvVerseGist, ftv, verse_gist, state);
+            graph.add_edge_with_state(ftv, phrase_nodes[0], state);
+            graph.add_edge_with_state(ftv, verse_gist, state);
             Some(ftv)
         } else {
             None
@@ -243,12 +233,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         if let Some(prev_gist) = prev_verse_gist
             && prev_verse_book.as_deref() == Some(&verse_data.book)
         {
-            graph.add_bi_edge_with_state(
-                EdgeKind::VerseGistVerseGist,
-                prev_gist,
-                verse_gist,
-                state,
-            );
+            graph.add_bi_edge_with_state(prev_gist, verse_gist, state);
         }
         prev_verse_gist = Some(verse_gist);
         prev_verse_book = Some(verse_data.book.clone());
@@ -262,7 +247,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             ))
             .copied();
         if let Some(hid) = heading_node {
-            graph.add_edge_with_state(EdgeKind::VerseGistHeading, verse_gist, hid, state);
+            graph.add_edge_with_state(verse_gist, hid, state);
         }
 
         // Club membership (verse layer). Tier expansion materialises both
@@ -273,12 +258,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
                 chapter: verse_data.chapter,
                 verse: verse_data.verse,
             });
-            graph.add_bi_edge_with_state(
-                EdgeKind::VerseRefVerseClubMember,
-                ref_node,
-                member,
-                state,
-            );
+            graph.add_bi_edge_with_state(ref_node, member, state);
             verse_club_members.insert(
                 (
                     tier,
@@ -332,8 +312,8 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         if let Some(&ch_gist) = chapter_gists.get(&(book.clone(), chapter_num))
             && let (Some(first), Some(last)) = (verses.first(), verses.last())
         {
-            graph.add_edge_with_state(EdgeKind::ChapterGistFirstVerseGist, ch_gist, first.1, state);
-            graph.add_edge_with_state(EdgeKind::ChapterGistLastVerseGist, ch_gist, last.1, state);
+            graph.add_edge_with_role(ch_gist, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(ch_gist, last.1, EdgeRole::LastChild, state);
         }
     }
 
@@ -353,8 +333,8 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         }
         verses_in_range.sort_by_key(|(k, _)| *k);
         if let (Some(first), Some(last)) = (verses_in_range.first(), verses_in_range.last()) {
-            graph.add_edge_with_state(EdgeKind::HeadingFirstVerseGist, *hid, first.1, state);
-            graph.add_edge_with_state(EdgeKind::HeadingLastVerseGist, *hid, last.1, state);
+            graph.add_edge_with_role(*hid, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(*hid, last.1, EdgeRole::LastChild, state);
         }
     }
 
@@ -437,30 +417,20 @@ fn build_club_hierarchy(
             tier: *tier,
             chapter: *chapter,
         });
-        graph.add_bi_edge_with_state(EdgeKind::ChapterRefChapterClubMember, cref, ccm, state);
+        graph.add_bi_edge_with_state(cref, ccm, state);
         if let Some(&cg) = club_gists.get(tier) {
-            graph.add_edge_with_state(EdgeKind::ChapterClubMemberClubGist, ccm, cg, state);
+            graph.add_edge_with_state(ccm, cg, state);
         }
 
         let mut sorted = members.clone();
         sorted.sort_by_key(|(v, _)| *v);
         if let (Some(first), Some(last)) = (sorted.first(), sorted.last()) {
-            graph.add_edge_with_state(
-                EdgeKind::ChapterClubMemberFirstVerseClubMember,
-                ccm,
-                first.1,
-                state,
-            );
-            graph.add_edge_with_state(
-                EdgeKind::ChapterClubMemberLastVerseClubMember,
-                ccm,
-                last.1,
-                state,
-            );
+            graph.add_edge_with_role(ccm, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(ccm, last.1, EdgeRole::LastChild, state);
         }
         // Upward verse_cm → chapter_cm
         for (_, vcm) in &sorted {
-            graph.add_edge_with_state(EdgeKind::VerseClubMemberChapterClubMember, *vcm, ccm, state);
+            graph.add_edge_with_state(*vcm, ccm, state);
         }
 
         chapter_cm_by_tier
@@ -474,19 +444,14 @@ fn build_club_hierarchy(
     for (tier, chapters) in chapter_cm_by_tier.iter_mut() {
         chapters.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
         for i in 1..chapters.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::ChapterClubMemberChapterClubMember,
-                chapters[i - 1].2,
-                chapters[i].2,
-                state,
-            );
+            graph.add_bi_edge_with_state(chapters[i - 1].2, chapters[i].2, state);
         }
         // Club gist → first/last chapter_cm endpoints
         if let Some(&cg) = club_gists.get(tier)
             && let (Some(first), Some(last)) = (chapters.first(), chapters.last())
         {
-            graph.add_edge_with_state(EdgeKind::ClubGistFirstChapterClubMember, cg, first.2, state);
-            graph.add_edge_with_state(EdgeKind::ClubGistLastChapterClubMember, cg, last.2, state);
+            graph.add_edge_with_role(cg, first.2, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(cg, last.2, EdgeRole::LastChild, state);
         }
     }
 
@@ -507,30 +472,20 @@ fn build_club_hierarchy(
             start_chapter: hdata.start_chapter,
             start_verse: hdata.start_verse,
         });
-        graph.add_bi_edge_with_state(EdgeKind::HeadingHeadingClubMember, *hid, hcm, state);
+        graph.add_bi_edge_with_state(*hid, hcm, state);
         if let Some(&cg) = club_gists.get(tier) {
-            graph.add_edge_with_state(EdgeKind::HeadingClubMemberClubGist, hcm, cg, state);
+            graph.add_edge_with_state(hcm, cg, state);
         }
 
         let mut sorted = members.clone();
         sorted.sort_by_key(|(k, _)| *k);
         if let (Some(first), Some(last)) = (sorted.first(), sorted.last()) {
-            graph.add_edge_with_state(
-                EdgeKind::HeadingClubMemberFirstVerseClubMember,
-                hcm,
-                first.1,
-                state,
-            );
-            graph.add_edge_with_state(
-                EdgeKind::HeadingClubMemberLastVerseClubMember,
-                hcm,
-                last.1,
-                state,
-            );
+            graph.add_edge_with_role(hcm, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(hcm, last.1, EdgeRole::LastChild, state);
         }
         // Upward verse_cm → heading_cm
         for (_, vcm) in &sorted {
-            graph.add_edge_with_state(EdgeKind::VerseClubMemberHeadingClubMember, *vcm, hcm, state);
+            graph.add_edge_with_state(*vcm, hcm, state);
         }
 
         if let Some(&idx) = heading_index.get(hid) {
@@ -545,18 +500,13 @@ fn build_club_hierarchy(
     for (tier, headings) in heading_cm_by_tier.iter_mut() {
         headings.sort_by_key(|(idx, _)| *idx);
         for i in 1..headings.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::HeadingClubMemberHeadingClubMember,
-                headings[i - 1].1,
-                headings[i].1,
-                state,
-            );
+            graph.add_bi_edge_with_state(headings[i - 1].1, headings[i].1, state);
         }
         if let Some(&cg) = club_gists.get(tier)
             && let (Some(first), Some(last)) = (headings.first(), headings.last())
         {
-            graph.add_edge_with_state(EdgeKind::ClubGistFirstHeadingClubMember, cg, first.1, state);
-            graph.add_edge_with_state(EdgeKind::ClubGistLastHeadingClubMember, cg, last.1, state);
+            graph.add_edge_with_role(cg, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(cg, last.1, EdgeRole::LastChild, state);
         }
     }
 
@@ -572,26 +522,16 @@ fn build_club_hierarchy(
     for (tier, verses) in verse_members_by_tier.iter_mut() {
         verses.sort_by(|a, b| a.0.cmp(&b.0));
         for i in 1..verses.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::VerseClubMemberVerseClubMember,
-                verses[i - 1].1,
-                verses[i].1,
-                state,
-            );
+            graph.add_bi_edge_with_state(verses[i - 1].1, verses[i].1, state);
         }
         // verse_cm → club_gist
         if let Some(&cg) = club_gists.get(tier) {
             for (_, vcm) in verses.iter() {
-                graph.add_edge_with_state(EdgeKind::VerseClubMemberClubGist, *vcm, cg, state);
+                graph.add_edge_with_state(*vcm, cg, state);
             }
             if let (Some(first), Some(last)) = (verses.first(), verses.last()) {
-                graph.add_edge_with_state(
-                    EdgeKind::ClubGistFirstVerseClubMember,
-                    cg,
-                    first.1,
-                    state,
-                );
-                graph.add_edge_with_state(EdgeKind::ClubGistLastVerseClubMember, cg, last.1, state);
+                graph.add_edge_with_role(cg, first.1, EdgeRole::FirstChild, state);
+                graph.add_edge_with_role(cg, last.1, EdgeRole::LastChild, state);
             }
         }
     }
@@ -889,10 +829,13 @@ mod tests {
             .graph
             .edge_ids()
             .filter(|&id| {
-                result
-                    .graph
-                    .edge(id)
-                    .is_some_and(|e| matches!(e.kind, EdgeKind::VerseGistHeading))
+                result.graph.edge(id).is_some_and(|e| {
+                    result.graph.edge_connects(
+                        e,
+                        |k| matches!(k, NodeKind::VerseGist { .. }),
+                        |k| matches!(k, NodeKind::Heading { .. }),
+                    )
+                })
             })
             .collect();
         assert_eq!(heading_edges.len(), 3);
@@ -926,20 +869,28 @@ mod tests {
             .graph
             .edge_ids()
             .filter(|&id| {
-                result
-                    .graph
-                    .edge(id)
-                    .is_some_and(|e| matches!(e.kind, EdgeKind::ChapterGistFirstVerseGist))
+                result.graph.edge(id).is_some_and(|e| {
+                    e.role == Some(EdgeRole::FirstChild)
+                        && result.graph.edge_connects(
+                            e,
+                            |k| matches!(k, NodeKind::ChapterGist { .. }),
+                            |k| matches!(k, NodeKind::VerseGist { .. }),
+                        )
+                })
             })
             .count();
         let last_count = result
             .graph
             .edge_ids()
             .filter(|&id| {
-                result
-                    .graph
-                    .edge(id)
-                    .is_some_and(|e| matches!(e.kind, EdgeKind::ChapterGistLastVerseGist))
+                result.graph.edge(id).is_some_and(|e| {
+                    e.role == Some(EdgeRole::LastChild)
+                        && result.graph.edge_connects(
+                            e,
+                            |k| matches!(k, NodeKind::ChapterGist { .. }),
+                            |k| matches!(k, NodeKind::VerseGist { .. }),
+                        )
+                })
             })
             .count();
         assert_eq!(first_count, 1);
