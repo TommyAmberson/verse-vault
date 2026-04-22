@@ -21,10 +21,18 @@ of many items, the edge does not exist — the relationship is either expressed 
 lets the listing become a sequence of single retrievals (see `ChapterClubMember`), or not modeled in
 the graph at all.
 
-**Every edge is learnable.** There are no structural edges — each edge carries FSRS state. This was
-not always true: the original design had one `ChapterGistClubEntry` structural edge to support club
-listings from a chapter, but that role was replaced by proper `ChapterClubMember` atoms when the
-club hierarchy was fleshed out.
+**Every edge is learnable.** There are no structural edges — each edge carries FSRS state.
+
+**The "kind" of an edge is derived, not stored.** An `Edge` struct holds `source`, `target`,
+`state`, and an optional `role: Option<EdgeRole>` where `EdgeRole ∈ {FirstChild, LastChild}`. The
+retrieval proposition an edge represents is determined by its endpoint node kinds plus its role —
+the graph does not carry a separate per-edge type tag. This is the minimum data model: renaming a
+node kind doesn't cascade through dozens of redundant edge-kind names, and adding a new layer needs
+no enum-variant churn.
+
+`EdgeRole` exists only because parent → first-child and parent → last-child edges share the same
+`(source.kind, target.kind)` pair. Every other edge in the graph has `role: None` and gets its
+identity from endpoints alone.
 
 ## Theoretical grounding
 
@@ -75,20 +83,25 @@ prompt.
 Every containment layer (book → chapter → verse, and the parallel club-membership hierarchies) has
 the same five-edge shape:
 
-| Pattern                        | Direction | Example                                |
-| ------------------------------ | --------- | -------------------------------------- |
-| gist ↔ ref                     | bi        | `ChapterGistChapterRef`                |
-| child_gist → parent_gist       | uni       | `VerseGistChapterGist`                 |
-| parent_gist → first_child_gist | uni       | `ChapterGistFirstVerseGist`            |
-| parent_gist → last_child_gist  | uni       | `ChapterGistLastVerseGist`             |
-| parent-consecutive gist ↔ gist | bi        | `ChapterGistChapterGist` (within book) |
-| child_ref → parent_ref         | uni       | `VerseRefChapterRef`                   |
+| Pattern                        | Direction | Role marker  | Example retrieval                   |
+| ------------------------------ | --------- | ------------ | ----------------------------------- |
+| gist ↔ ref                     | bi        | —            | chapter gist ↔ chapter ref          |
+| child_gist → parent_gist       | uni       | —            | verse gist → chapter gist           |
+| parent_gist → first_child_gist | uni       | `FirstChild` | chapter gist → first verse gist     |
+| parent_gist → last_child_gist  | uni       | `LastChild`  | chapter gist → last verse gist      |
+| parent-consecutive gist ↔ gist | bi        | —            | chapter gist ↔ chapter gist in book |
+| child_ref → parent_ref         | uni       | —            | verse ref → chapter ref             |
 
 Child→parent is always a unique retrieval ("which chapter is this verse in?"). Parent→child is only
-unique via the endpoint edges ("what's the first verse of this chapter?") — there's no
-`ChapterGist → some_verse_gist` for arbitrary verses because it's non-unique.
+unique via the endpoint edges ("what's the first verse of this chapter?") — those carry the
+`FirstChild`/`LastChild` role to distinguish them from each other (they'd be indistinguishable in a
+one-child parent otherwise).
 
-## Edge inventory (43 kinds)
+## Edge taxonomy
+
+The graph supports the following retrieval propositions. These are a taxonomy, not enum variants —
+the code identifies each edge from `(source.kind, target.kind, role)`. Names in the tables below are
+convenient labels for discussion; they don't appear in `EdgeKind` (there isn't one).
 
 ### Phrase / verse layer
 
@@ -326,15 +339,8 @@ that chain is weak the anchor path is weak.
 
 ## Open questions
 
-* **Generalised edge-kind enum.** The book/chapter/verse/heading/club-member layers all follow the
-  same five-edge containment shape (gist↔ref, child→parent, parent→first/last child,
-  parent-consecutive chain, child_ref→parent_ref). A future cleanup could collapse `EdgeKind` to
-  generic variants parameterised by a layer discriminator (`ContainsStart`, `ContainsEnd`,
-  `ParentRef`, …). Kept explicit for now while the schema is still iterating.
-* **Cross-book anchor transfer.** `BookGistBookGist` exists in the schema but isn't exercised in
+* **Cross-book anchor transfer.** Book-consecutive edges exist in the schema but aren't exercised in
   card generation today. Once multi-book materials land, the anchor-transfer algorithm may want to
   use book-level chains for cross-book references.
-* **Reverse club_entry chain.** The `VerseClubMemberVerseClubMember` edge is now bi (previous + next
-  verse in tier). Earlier versions had it uni.
 * **Phrase boundaries for non-KJV.** Unresolved: do phrase atoms transfer across translations or
   chunk each translation independently?
