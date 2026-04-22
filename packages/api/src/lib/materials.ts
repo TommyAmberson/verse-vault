@@ -34,10 +34,10 @@ export interface MaterialGraph {
 
 interface MaterialEdge {
   id: number;
-  kind: string;
   source: number;
   target: number;
   state: { stability: number; difficulty: number; last_review_secs: number };
+  role?: 'FirstChild' | 'LastChild';
 }
 
 export interface MaterialCard {
@@ -75,23 +75,24 @@ function buildSingleVerseTemplate(): MaterialTemplate {
     next_edge_id: 0,
   };
 
-  const addBi = (kind: string, a: number, b: number) => {
+  const addBi = (a: number, b: number) => {
     const fwd = graph.next_edge_id++;
     const bwd = graph.next_edge_id++;
-    graph.edges[String(fwd)] = { id: fwd, kind, source: a, target: b, state: edgeState };
-    graph.edges[String(bwd)] = { id: bwd, kind, source: b, target: a, state: edgeState };
+    graph.edges[String(fwd)] = { id: fwd, source: a, target: b, state: edgeState };
+    graph.edges[String(bwd)] = { id: bwd, source: b, target: a, state: edgeState };
     graph.outgoing[String(a)]!.push(fwd);
     graph.incoming[String(b)]!.push(fwd);
     graph.outgoing[String(b)]!.push(bwd);
     graph.incoming[String(a)]!.push(bwd);
   };
 
-  addBi('VerseGistVerseRef', 1, 0);
-  addBi('PhraseVerseGist', 2, 1);
-  addBi('PhraseVerseGist', 3, 1);
-  addBi('PhraseVerseGist', 4, 1);
-  addBi('PhrasePhrase', 2, 3);
-  addBi('PhrasePhrase', 3, 4);
+  // Edge identity derives from endpoint node kinds — no `kind` field.
+  addBi(1, 0); // VerseGist ↔ VerseRef
+  addBi(2, 1); // Phrase ↔ VerseGist
+  addBi(3, 1);
+  addBi(4, 1);
+  addBi(2, 3); // Phrase ↔ Phrase
+  addBi(3, 4);
 
   const cards: MaterialCard[] = [{ id: 0, shown: [0], hidden: [2, 3, 4], state: 'New' }];
 

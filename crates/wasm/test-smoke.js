@@ -5,8 +5,8 @@ import { WasmEngine } from './pkg/verse_vault_wasm.js';
 
 const edgeState = { stability: 5.0, difficulty: 5.0, last_review_secs: 0 };
 
-function makeEdge(id, kind, source, target) {
-  return { id, kind, source, target, state: edgeState };
+function makeEdge(id, source, target) {
+  return { id, source, target, state: edgeState };
 }
 
 const graph = {
@@ -24,23 +24,24 @@ const graph = {
   next_edge_id: 0,
 };
 
-function addBi(kind, a, b) {
+function addBi(a, b) {
   const fwd = graph.next_edge_id++;
   const bwd = graph.next_edge_id++;
-  graph.edges[String(fwd)] = makeEdge(fwd, kind, a, b);
-  graph.edges[String(bwd)] = makeEdge(bwd, kind, b, a);
+  graph.edges[String(fwd)] = makeEdge(fwd, a, b);
+  graph.edges[String(bwd)] = makeEdge(bwd, b, a);
   graph.outgoing[String(a)].push(fwd);
   graph.incoming[String(b)].push(fwd);
   graph.outgoing[String(b)].push(bwd);
   graph.incoming[String(a)].push(bwd);
 }
 
-addBi('VerseGistVerseRef', 1, 0);
-addBi('PhraseVerseGist', 2, 1);
-addBi('PhraseVerseGist', 3, 1);
-addBi('PhraseVerseGist', 4, 1);
-addBi('PhrasePhrase', 2, 3);
-addBi('PhrasePhrase', 3, 4);
+// Edge identity derives from endpoint node kinds; no `kind` field needed.
+addBi(1, 0); // VerseGist ↔ VerseRef
+addBi(2, 1); // Phrase ↔ VerseGist
+addBi(3, 1);
+addBi(4, 1);
+addBi(2, 3); // Phrase ↔ Phrase
+addBi(3, 4);
 
 const cards = [
   {
