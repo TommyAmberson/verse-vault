@@ -12,9 +12,9 @@ pub struct AnchorPath {
     pub decay_multiplier: f32,
 }
 
-/// Enumerate paths with anchor transfer for a Reference target.
+/// Enumerate paths with anchor transfer for a VerseRef target.
 ///
-/// In addition to direct paths to `target`, finds paths to ANY Reference node
+/// In addition to direct paths to `target`, finds paths to ANY VerseRef node
 /// in the graph and applies a distance-based decay:
 ///   effective_R = R(path_to_anchor) × decay_factor^|target_verse - anchor_verse|
 ///
@@ -27,7 +27,7 @@ pub fn enumerate_paths_with_anchor_transfer(
     decay_factor: f32,
 ) -> Vec<AnchorPath> {
     let target_verse = match graph.node_kind(target) {
-        Some(NodeKind::Reference { verse, .. }) => *verse,
+        Some(NodeKind::VerseRef { verse, .. }) => *verse,
         _ => {
             return enumerate_paths(graph, sources, target, max_hops)
                 .into_iter()
@@ -40,7 +40,7 @@ pub fn enumerate_paths_with_anchor_transfer(
     };
 
     let target_chapter = match graph.node_kind(target) {
-        Some(NodeKind::Reference { chapter, .. }) => *chapter,
+        Some(NodeKind::VerseRef { chapter, .. }) => *chapter,
         _ => unreachable!(),
     };
 
@@ -54,13 +54,13 @@ pub fn enumerate_paths_with_anchor_transfer(
         });
     }
 
-    // Paths to other Reference nodes (anchors) in the same chapter
+    // Paths to other VerseRef nodes (anchors) in the same chapter
     for anchor_id in graph.node_ids() {
         if anchor_id == target {
             continue;
         }
         let (anchor_chapter, anchor_verse) = match graph.node_kind(anchor_id) {
-            Some(NodeKind::Reference { chapter, verse }) => (*chapter, *verse),
+            Some(NodeKind::VerseRef { chapter, verse }) => (*chapter, *verse),
             _ => continue,
         };
         if anchor_chapter != target_chapter {
@@ -93,7 +93,7 @@ mod tests {
             chapter: 2,
             verse: 1,
         });
-        let r1 = g.add_node(NodeKind::Reference {
+        let r1 = g.add_node(NodeKind::VerseRef {
             chapter: 2,
             verse: 1,
         });
@@ -101,13 +101,13 @@ mod tests {
             chapter: 2,
             verse: 2,
         });
-        let r2 = g.add_node(NodeKind::Reference {
+        let r2 = g.add_node(NodeKind::VerseRef {
             chapter: 2,
             verse: 2,
         });
 
-        g.add_bi_edge(EdgeKind::VerseGistReference, v1, r1);
-        g.add_bi_edge(EdgeKind::VerseGistReference, v2, r2);
+        g.add_bi_edge(EdgeKind::VerseGistVerseRef, v1, r1);
+        g.add_bi_edge(EdgeKind::VerseGistVerseRef, v2, r2);
         g.add_bi_edge(EdgeKind::VerseGistVerseGist, v1, v2);
 
         (g, v1, r1, v2, r2)
@@ -159,11 +159,11 @@ mod tests {
                 chapter: 1,
                 verse: i,
             });
-            let r = g.add_node(NodeKind::Reference {
+            let r = g.add_node(NodeKind::VerseRef {
                 chapter: 1,
                 verse: i,
             });
-            g.add_bi_edge(EdgeKind::VerseGistReference, v, r);
+            g.add_bi_edge(EdgeKind::VerseGistVerseRef, v, r);
             if let Some(&prev_v) = verses.last() {
                 g.add_bi_edge(EdgeKind::VerseGistVerseGist, prev_v, v);
             }
@@ -209,7 +209,7 @@ mod tests {
             chapter: 1,
             verse: 1,
         });
-        let r1 = g.add_node(NodeKind::Reference {
+        let r1 = g.add_node(NodeKind::VerseRef {
             chapter: 1,
             verse: 1,
         });
@@ -217,12 +217,12 @@ mod tests {
             chapter: 2,
             verse: 1,
         });
-        let r2 = g.add_node(NodeKind::Reference {
+        let r2 = g.add_node(NodeKind::VerseRef {
             chapter: 2,
             verse: 1,
         });
-        g.add_bi_edge(EdgeKind::VerseGistReference, v1, r1);
-        g.add_bi_edge(EdgeKind::VerseGistReference, v2, r2);
+        g.add_bi_edge(EdgeKind::VerseGistVerseRef, v1, r1);
+        g.add_bi_edge(EdgeKind::VerseGistVerseRef, v2, r2);
         g.add_bi_edge(EdgeKind::VerseGistVerseGist, v1, v2);
 
         let sources = HashSet::from([v1]);

@@ -85,10 +85,10 @@ pub fn assign_credit(
             .filter(|&id| id != hidden_atom)
             .collect();
 
-        // Step 1: Enumerate paths (with anchor transfer if target is a Reference)
+        // Step 1: Enumerate paths (with anchor transfer if target is a VerseRef)
         let is_ref = matches!(
             graph.node_kind(hidden_atom),
-            Some(NodeKind::Reference { .. })
+            Some(NodeKind::VerseRef { .. })
         );
         let anchor_paths: Vec<AnchorPath> = if is_ref {
             anchor::enumerate_paths_with_anchor_transfer(
@@ -206,9 +206,7 @@ fn assign_credit_for_pass(
     for (ap, r) in &surviving {
         let credit_weight = r / total_r;
         for &edge_id in &ap.path.edges {
-            if let Some(edge) = graph.edge(edge_id)
-                && edge.kind.is_learnable()
-            {
+            if graph.edge(edge_id).is_some() {
                 updates
                     .entry(edge_id)
                     .or_default()
@@ -236,13 +234,7 @@ fn assign_blame_for_fail(
 
         for &edge_id in &ap.path.edges {
             if let Some(edge) = graph.edge(edge_id) {
-                if !edge.kind.is_learnable() {
-                    continue;
-                }
-                let r = match &edge.state {
-                    Some(state) => fsrs.retrievability(state, now_secs),
-                    None => 1.0,
-                };
+                let r = fsrs.retrievability(&edge.state, now_secs);
                 if r < weakest_r {
                     weakest_r = r;
                     weakest_edge = Some(edge_id);
@@ -285,16 +277,10 @@ fn apply_exposure(
                 Some(e) => e,
                 None => continue,
             };
-            if !edge.kind.is_learnable() {
-                continue;
-            }
             if !shown_set.contains(&edge.target) {
                 continue;
             }
-            let r = match &edge.state {
-                Some(state) => fsrs.retrievability(state, now_secs),
-                None => continue,
-            };
+            let r = fsrs.retrievability(&edge.state, now_secs);
             if r >= params.target_retention {
                 continue;
             }
@@ -351,9 +337,7 @@ fn path_probability(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, now_secs
             Some(e) => e,
             None => return 0.0,
         };
-        if let Some(state) = &edge.state {
-            r *= fsrs.retrievability(state, now_secs);
-        }
+        r *= fsrs.retrievability(&edge.state, now_secs);
     }
     r
 }
@@ -367,7 +351,7 @@ mod tests {
     fn make_verse_graph() -> (Graph, NodeId, NodeId, NodeId, NodeId, NodeId) {
         // ref ↔ verse ↔ p1 ↔ p2 ↔ p3
         let mut g = Graph::new();
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 3,
             verse: 16,
         });
@@ -397,7 +381,7 @@ mod tests {
             last_review_secs: 0,
         };
 
-        g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
+        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p3, v, state);

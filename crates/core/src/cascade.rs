@@ -116,7 +116,7 @@ mod tests {
 
     fn make_test_graph_and_cards() -> (Graph, Vec<Card>) {
         let mut g = Graph::new();
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 1,
             verse: 1,
         });
@@ -140,7 +140,7 @@ mod tests {
             difficulty: 5.0,
             last_review_secs: 0,
         };
-        g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
+        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);

@@ -19,11 +19,11 @@ pub enum NodeKind {
         chapter: u16,
         verse: u16,
     },
-    Reference {
+    VerseRef {
         chapter: u16,
         verse: u16,
     },
-    ClubEntry {
+    VerseClubMember {
         tier: ClubTier,
         chapter: u16,
         verse: u16,
@@ -35,11 +35,38 @@ pub enum NodeKind {
         end_chapter: u16,
         end_verse: u16,
     },
+    /// Per-heading-per-tier club participation.
+    /// Keyed by the heading's starting coordinates so the atom is
+    /// stable across graph rebuilds (the Heading atom itself is
+    /// identified by its start_chapter/start_verse pair).
+    HeadingClubMember {
+        tier: ClubTier,
+        start_chapter: u16,
+        start_verse: u16,
+    },
     ChapterGist {
         chapter: u16,
     },
     ChapterRef {
         chapter: u16,
+    },
+    /// Per-chapter-per-tier club participation.
+    ChapterClubMember {
+        tier: ClubTier,
+        chapter: u16,
+    },
+    /// Book-level hub. `book` is the material's canonical book name
+    /// (e.g. "1 Corinthians").
+    BookGist {
+        book: String,
+    },
+    /// Book-level identifier atom.
+    BookRef {
+        book: String,
+    },
+    /// Per-tier hub atom (one per tier present in a material).
+    ClubGist {
+        tier: ClubTier,
     },
     Ftv {
         text: String,

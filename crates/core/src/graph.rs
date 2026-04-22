@@ -31,14 +31,10 @@ impl Graph {
     }
 
     pub fn add_edge(&mut self, kind: EdgeKind, source: NodeId, target: NodeId) -> EdgeId {
-        let state = if kind.is_learnable() {
-            Some(EdgeState {
-                stability: 0.0,
-                difficulty: 5.0,
-                last_review_secs: 0,
-            })
-        } else {
-            None
+        let state = EdgeState {
+            stability: 0.0,
+            difficulty: 5.0,
+            last_review_secs: 0,
         };
         self.add_edge_with_state(kind, source, target, state)
     }
@@ -48,7 +44,7 @@ impl Graph {
         kind: EdgeKind,
         source: NodeId,
         target: NodeId,
-        state: Option<EdgeState>,
+        state: EdgeState,
     ) -> EdgeId {
         let id = EdgeId(self.next_edge_id);
         self.next_edge_id += 1;
@@ -82,8 +78,8 @@ impl Graph {
         b: NodeId,
         state: EdgeState,
     ) -> (EdgeId, EdgeId) {
-        let forward = self.add_edge_with_state(kind, a, b, Some(state));
-        let backward = self.add_edge_with_state(kind, b, a, Some(state));
+        let forward = self.add_edge_with_state(kind, a, b, state);
+        let backward = self.add_edge_with_state(kind, b, a, state);
         (forward, backward)
     }
 
@@ -131,9 +127,9 @@ impl Graph {
         self.edges.values()
     }
 
-    /// Find the verse context for a given atom: (reference NodeId, sorted phrase NodeIds).
-    /// Traverses: atom → VerseGist (via PhraseVerseGist) → Reference + all Phrases.
-    /// Works for Phrase, VerseGist, and Reference atoms.
+    /// Find the verse context for a given atom: (verse-ref NodeId, sorted phrase NodeIds).
+    /// Traverses: atom → VerseGist (via PhraseVerseGist) → VerseRef + all Phrases.
+    /// Works for Phrase, VerseGist, and VerseRef atoms.
     pub fn verse_context(&self, atom: NodeId) -> Option<(NodeId, Vec<NodeId>)> {
         use crate::edge::EdgeKind;
         use crate::node::NodeKind;
@@ -145,16 +141,16 @@ impl Graph {
                     matches!(k, NodeKind::VerseGist { .. })
                 })?
             }
-            NodeKind::Reference { .. } => {
-                self.find_neighbor(atom, EdgeKind::VerseGistReference, |k| {
+            NodeKind::VerseRef { .. } => {
+                self.find_neighbor(atom, EdgeKind::VerseGistVerseRef, |k| {
                     matches!(k, NodeKind::VerseGist { .. })
                 })?
             }
             _ => return None,
         };
 
-        let reference = self.find_neighbor(verse_gist, EdgeKind::VerseGistReference, |k| {
-            matches!(k, NodeKind::Reference { .. })
+        let reference = self.find_neighbor(verse_gist, EdgeKind::VerseGistVerseRef, |k| {
+            matches!(k, NodeKind::VerseRef { .. })
         })?;
 
         let mut phrases: Vec<(u16, NodeId)> = Vec::new();
@@ -286,33 +282,19 @@ mod tests {
     }
 
     #[test]
-    fn structural_edge_has_no_state() {
-        let mut g = Graph::new();
-        let ch = g.add_node(NodeKind::ChapterGist { chapter: 1 });
-        let club = g.add_node(NodeKind::ClubEntry {
-            tier: crate::node::ClubTier::Club150,
-            chapter: 1,
-            verse: 1,
-        });
-
-        let eid = g.add_edge(EdgeKind::ChapterGistClubEntry, ch, club);
-        assert!(g.edge(eid).unwrap().state.is_none());
-    }
-
-    #[test]
-    fn learnable_edge_has_state() {
+    fn every_edge_has_state() {
         let mut g = Graph::new();
         let v = g.add_node(NodeKind::VerseGist {
             chapter: 1,
             verse: 1,
         });
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 1,
             verse: 1,
         });
 
-        let eid = g.add_edge(EdgeKind::VerseGistReference, v, r);
-        let state = g.edge(eid).unwrap().state.unwrap();
+        let eid = g.add_edge(EdgeKind::VerseGistVerseRef, v, r);
+        let state = g.edge(eid).unwrap().state;
         assert_eq!(state.difficulty, 5.0);
     }
 }

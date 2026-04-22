@@ -107,11 +107,11 @@ impl WasmEngine {
                 .map_err(|e| JsError::new(&format!("edge_states parse: {e}")))?;
             for entry in edges {
                 if let Some(edge) = engine.graph.edge_mut(EdgeId(entry.edge_id)) {
-                    edge.state = Some(EdgeState {
+                    edge.state = EdgeState {
                         stability: entry.stability,
                         difficulty: entry.difficulty,
                         last_review_secs: entry.last_review_secs,
-                    });
+                    };
                 }
             }
         }
@@ -138,13 +138,11 @@ impl WasmEngine {
             .engine
             .graph
             .edges()
-            .filter_map(|e| {
-                e.state.map(|s| EdgeStateEntry {
-                    edge_id: e.id.0,
-                    stability: s.stability,
-                    difficulty: s.difficulty,
-                    last_review_secs: s.last_review_secs,
-                })
+            .map(|e| EdgeStateEntry {
+                edge_id: e.id.0,
+                stability: e.state.stability,
+                difficulty: e.state.difficulty,
+                last_review_secs: e.state.last_review_secs,
             })
             .collect();
         serde_json::to_string(&entries).map_err(|e| JsError::new(&e.to_string()))

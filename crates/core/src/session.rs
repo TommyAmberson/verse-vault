@@ -495,7 +495,7 @@ mod tests {
 
     fn build_verse_engine() -> (ReviewEngine, NodeId, NodeId, NodeId, NodeId, NodeId) {
         let mut g = crate::graph::Graph::new();
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 3,
             verse: 16,
         });
@@ -524,7 +524,7 @@ mod tests {
             difficulty: 5.0,
             last_review_secs: 0,
         };
-        g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
+        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p3, v, state);

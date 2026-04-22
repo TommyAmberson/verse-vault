@@ -38,7 +38,7 @@ pub fn effective_r(
     now_secs: i64,
     params: &ScheduleParams,
 ) -> f32 {
-    let is_ref = matches!(graph.node_kind(hidden), Some(NodeKind::Reference { .. }));
+    let is_ref = matches!(graph.node_kind(hidden), Some(NodeKind::VerseRef { .. }));
 
     let anchor_paths: Vec<AnchorPath> = if is_ref {
         anchor::enumerate_paths_with_anchor_transfer(
@@ -160,10 +160,8 @@ pub fn priority(
         let paths = all_paths_for(graph, &shown, hidden, params);
         for ap in &paths {
             for &edge_id in &ap.path.edges {
-                if let Some(edge) = graph.edge(edge_id)
-                    && let Some(state) = &edge.state
-                {
-                    let r = fsrs.retrievability(state, now_secs);
+                if let Some(edge) = graph.edge(edge_id) {
+                    let r = fsrs.retrievability(&edge.state, now_secs);
                     if r < params.target_retention {
                         due_edge_r_sum += r;
                     }
@@ -176,15 +174,12 @@ pub fn priority(
     let mut reinf_bonus = 0.0f32;
     for &node in &card.shown {
         for &edge_id in graph.outgoing_edges(node) {
-            if let Some(edge) = graph.edge(edge_id) {
-                if !edge.kind.is_learnable() || !shown.contains(&edge.target) {
-                    continue;
-                }
-                if let Some(state) = &edge.state {
-                    let r = fsrs.retrievability(state, now_secs);
-                    if r < params.target_retention {
-                        reinf_bonus += r;
-                    }
+            if let Some(edge) = graph.edge(edge_id)
+                && shown.contains(&edge.target)
+            {
+                let r = fsrs.retrievability(&edge.state, now_secs);
+                if r < params.target_retention {
+                    reinf_bonus += r;
                 }
             }
         }
@@ -213,7 +208,7 @@ fn all_paths_for(
     hidden: NodeId,
     params: &ScheduleParams,
 ) -> Vec<AnchorPath> {
-    let is_ref = matches!(graph.node_kind(hidden), Some(NodeKind::Reference { .. }));
+    let is_ref = matches!(graph.node_kind(hidden), Some(NodeKind::VerseRef { .. }));
     if is_ref {
         anchor::enumerate_paths_with_anchor_transfer(
             graph,
@@ -236,10 +231,8 @@ fn all_paths_for(
 fn path_r_at(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, at_secs: i64) -> f32 {
     let mut r = 1.0f32;
     for &edge_id in edges {
-        if let Some(edge) = graph.edge(edge_id)
-            && let Some(state) = &edge.state
-        {
-            r *= fsrs.retrievability(state, at_secs);
+        if let Some(edge) = graph.edge(edge_id) {
+            r *= fsrs.retrievability(&edge.state, at_secs);
         }
     }
     r
@@ -257,7 +250,7 @@ mod tests {
 
     fn make_simple_verse() -> (Graph, Card) {
         let mut g = Graph::new();
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 3,
             verse: 16,
         });
@@ -282,7 +275,7 @@ mod tests {
             last_review_secs: 0,
         };
 
-        g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
+        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
         g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
@@ -394,7 +387,7 @@ mod tests {
     #[test]
     fn priority_penalizes_larger_cards() {
         let mut g = Graph::new();
-        let r = g.add_node(NodeKind::Reference {
+        let r = g.add_node(NodeKind::VerseRef {
             chapter: 1,
             verse: 1,
         });
@@ -421,7 +414,7 @@ mod tests {
             }
             phrases.push(p);
         }
-        g.add_bi_edge_with_state(EdgeKind::VerseGistReference, v, r, state);
+        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
 
         let full = Card {
             id: CardId(0),
