@@ -187,12 +187,15 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
     // Response carries the engine's full edge/card state so fat clients can
     // replace their local cache in one shot; DB writes are filtered above.
+    // `lastEventId` must agree with GET /state so clients can use it as a
+    // resume cursor — both report the chronologically latest event, not the
+    // last one in this batch (which may be older than pre-existing rows).
     return c.json({
       accepted: fresh.length,
       duplicates: events.length - fresh.length,
       edgeStates: allEdges,
       cardStates: allCards,
-      lastEventId: eventRows[eventRows.length - 1]!.id,
+      lastEventId: latestEventId(deps.db, user.id, materialId),
     });
   });
 
@@ -232,9 +235,17 @@ function latestEventId(db: DB, userId: string, materialId: string): string | nul
 
 function validateUpload(e: ReviewEventUpload): string | null {
   if (typeof e.clientEventId !== 'string' || !e.clientEventId) return 'clientEventId required';
-  if (typeof e.timestampSecs !== 'number') return 'timestampSecs required';
-  if (typeof e.snapshotVersion !== 'number') return 'snapshotVersion required';
-  if (e.cardId !== null && typeof e.cardId !== 'number') return 'cardId must be number or null';
+  // NaN/Infinity/non-integer floats reach BigInt() at the engine boundary and
+  // throw RangeError → 500; reject them at the edge as 400 instead.
+  if (!Number.isInteger(e.timestampSecs) || e.timestampSecs < 0) {
+    return 'timestampSecs must be a non-negative integer';
+  }
+  if (!Number.isInteger(e.snapshotVersion) || e.snapshotVersion < 1) {
+    return 'snapshotVersion must be a positive integer';
+  }
+  if (e.cardId !== null && (!Number.isInteger(e.cardId) || e.cardId < 0)) {
+    return 'cardId must be a non-negative integer or null';
+  }
   if (!Array.isArray(e.shown)) return 'shown must be an array';
   if (!Array.isArray(e.hidden)) return 'hidden must be an array';
   if (!Array.isArray(e.grades)) return 'grades must be an array';

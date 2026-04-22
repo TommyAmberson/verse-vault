@@ -193,6 +193,10 @@ Side effects are a single transaction: append new events, upsert the union of ch
 every card's state. See [persistence.md](persistence.md#upload-flow--post-apisyncmaterialidevents)
 for replay semantics.
 
+`lastEventId` is the chronologically latest event (ordered by `timestampSecs` then `id`), the same
+value GET `/state` returns. Safe to use as a resume cursor — re-uploading an older batch does not
+rewind it.
+
 ## Materials — `/api/materials/*`
 
 Catalog of available materials + per-user enrollment. The catalog is a static manifest today; the

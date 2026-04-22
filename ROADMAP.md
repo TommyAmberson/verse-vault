@@ -1,5 +1,9 @@
 # Roadmap
 
+Active work and planning happens in
+[GitHub Issues](https://github.com/TommyAmberson/verse-vault/issues). This file records what has
+shipped and points to the open work that's coming next.
+
 ## Phase 1: Core Algorithm ✅
 
 Edge-based memory graph with FSRS integration.
@@ -26,7 +30,7 @@ Work with real Bible content.
 * [x] Club 150/300 verse list loading
 * [x] Heading data loading
 
-## Phase 3: Persistence + Server + Clients
+## Phase 3: Persistence + Server ✅
 
 Architecture established in `docs/architecture.md`. TS server wrapping the Rust core via WASM; Node
 on a VPS; Better Auth; Drizzle + SQLite; event-sourced reviews for clean offline sync.
@@ -67,16 +71,49 @@ on a VPS; Better Auth; Drizzle + SQLite; event-sourced reviews for clean offline
 * [x] `GET /api/materials/:id/status`
 * [x] `GET /api/stats/:materialId`
 
-### Phase 3F: Frontends
+## Phase 4: Frontends
 
-* [ ] Vue web app
-* [ ] Tauri desktop app
-* [ ] CLI for terminal review
+Each sub-phase is its own mergeable workstream, comparable in scope to any of 3A–3E. Suggested order
+— 4A unlocks real usage, 4B is a parallel-track CLI, 4C and 4D layer on top of 4A.
+
+1. [#9 Phase 4A: Vue web app (thin client)](https://github.com/TommyAmberson/verse-vault/issues/9)
+2. [#10 Phase 4B: CLI](https://github.com/TommyAmberson/verse-vault/issues/10)
+3. [#11 Phase 4C: WASM offline in the web app](https://github.com/TommyAmberson/verse-vault/issues/11)
+   — blocked by #9, #15, #16
+4. [#12 Phase 4D: Tauri desktop](https://github.com/TommyAmberson/verse-vault/issues/12) — blocked
+   by #9, #11
+
+## Known tech debt
+
+Deferred items from Phase 3 — none block Phase 4 on day one, but each should land before real users
+exist.
+
+* [#13 EngineStore eviction (TTL/LRU + engine.free())](https://github.com/TommyAmberson/verse-vault/issues/13)
+* [#14 SessionStore eviction (idle reaper)](https://github.com/TommyAmberson/verse-vault/issues/14)
+* [#15 WASM delta export for edge/card state](https://github.com/TommyAmberson/verse-vault/issues/15)
+* [#16 Snapshot versioning + invalidation flow](https://github.com/TommyAmberson/verse-vault/issues/16)
+* [#17 Retention tuning knob (per-user desiredRetention)](https://github.com/TommyAmberson/verse-vault/issues/17)
+* [#18 Engine mutation before DB transaction in sync POST](https://github.com/TommyAmberson/verse-vault/issues/18)
+
+## Before public launch
+
+Near-term operational work that should land before real users exist. Not filed as issues yet —
+promote to issues when a phase picks them up.
+
+* Content pipeline integration — wire the `tools/` Python scripts (Anki parsing, verse chunking)
+  into material enrollment so a new material produces a `graph_snapshots` row end-to-end
+* Observability — structured logging, request tracing, metrics (review throughput, engine load time,
+  cache hit rate)
+* Rate limiting + abuse controls — per-user/IP limits on review endpoints
+* Database backups + migration testing — file-based SQLite on a VPS needs a backup story
+  (litestream? periodic snapshots?) and a migration rehearsal process
 
 ## Future
 
-* [ ] Per-user FSRS parameter optimization (from review history)
-* [ ] Multiple translations (ESV, NIV — with licensing)
-* [ ] Team features for QuizMeet teams
-* [ ] Customizable learning flow
-* [ ] Import from Anki
+Long-horizon ideas; not filed as issues yet.
+
+* Per-user FSRS parameter optimization (from review history)
+* Multiple translations (ESV, NIV — with licensing)
+* Team features for QuizMeet teams
+* Customizable learning flow
+* Import from Anki
