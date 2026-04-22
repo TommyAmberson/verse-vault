@@ -198,10 +198,6 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             // ref ↔ club entry (bi)
             graph.add_bi_edge_with_state(EdgeKind::VerseRefVerseClubMember, ref_node, entry, state);
 
-            // Chapter → club-member listing path is rebuilt in the next PR
-            // via the `ChapterClubMember` atom; the prior structural edge
-            // `ChapterGistClubEntry` has been retired.
-
             match tier {
                 ClubTier::Club150 => {
                     club150_entries.push((entry, verse_data.book.clone(), verse_data.verse));

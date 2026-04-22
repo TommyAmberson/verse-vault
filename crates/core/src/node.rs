@@ -36,11 +36,13 @@ pub enum NodeKind {
         end_verse: u16,
     },
     /// Per-heading-per-tier club participation.
-    /// `heading_id` matches the builder's 0-based heading index within
-    /// the book (assigned in reading order).
+    /// Keyed by the heading's starting coordinates so the atom is
+    /// stable across graph rebuilds (the Heading atom itself is
+    /// identified by its start_chapter/start_verse pair).
     HeadingClubMember {
         tier: ClubTier,
-        heading_id: u32,
+        start_chapter: u16,
+        start_verse: u16,
     },
     ChapterGist {
         chapter: u16,

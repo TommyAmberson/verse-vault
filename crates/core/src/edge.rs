@@ -5,9 +5,7 @@ use crate::types::{EdgeId, NodeId};
 /// Directed edge kinds in the memory graph.
 ///
 /// Each variant represents a specific retrieval proposition: "given I am
-/// thinking about X, can I produce Y?" Every edge is learnable (has FSRS
-/// state); the previous structural `ChapterGistClubEntry` variant was
-/// retired in favour of a proper `ChapterClubMember` atom.
+/// thinking about X, can I produce Y?" Every edge carries FSRS state.
 ///
 /// The enum duplicates the same containment pattern (gist↔ref,
 /// parent→first/last child, parent-consecutive chain, child_ref→parent_ref)
@@ -77,14 +75,15 @@ pub enum EdgeKind {
 }
 
 impl EdgeKind {
-    /// Every edge in the current graph is a retrieval proposition with its
-    /// own FSRS state. Kept as a method for API stability — previously some
-    /// edges (notably `ChapterGistClubEntry`) were non-learnable plumbing.
-    pub fn is_learnable(self) -> bool {
+    /// Every edge is currently a retrieval proposition with its own FSRS
+    /// state. The method exists so credit-assignment and scheduling
+    /// call-sites stay honest about the distinction if a non-learnable
+    /// (purely structural) variant is ever reintroduced.
+    pub const fn is_learnable(self) -> bool {
         true
     }
 
-    pub fn is_structural(self) -> bool {
+    pub const fn is_structural(self) -> bool {
         !self.is_learnable()
     }
 }
@@ -166,7 +165,6 @@ mod tests {
         assert_eq!(all.len(), 43, "update this list when adding EdgeKinds");
         for kind in all {
             assert!(kind.is_learnable(), "{kind:?} should be learnable");
-            assert!(!kind.is_structural(), "{kind:?} should not be structural");
         }
     }
 }
