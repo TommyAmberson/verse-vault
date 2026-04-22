@@ -242,7 +242,7 @@ fn path_r_at(graph: &Graph, edges: &[EdgeId], fsrs: &FsrsBridge, at_secs: i64) -
 mod tests {
     use super::*;
     use crate::card::{Card, CardState};
-    use crate::edge::{EdgeKind, EdgeState};
+    use crate::edge::EdgeState;
     use crate::node::NodeKind;
     use crate::types::CardId;
 
@@ -275,10 +275,10 @@ mod tests {
             last_review_secs: 0,
         };
 
-        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
+        g.add_bi_edge_with_state(v, r, state);
+        g.add_bi_edge_with_state(p1, v, state);
+        g.add_bi_edge_with_state(p2, v, state);
+        g.add_bi_edge_with_state(p1, p2, state);
 
         let card = Card {
             id: CardId(0),
@@ -408,13 +408,13 @@ mod tests {
                 verse_id: 0,
                 position: i as u16,
             });
-            g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p, v, state);
+            g.add_bi_edge_with_state(p, v, state);
             if let Some(&prev) = phrases.last() {
-                g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, prev, p, state);
+                g.add_bi_edge_with_state(prev, p, state);
             }
             phrases.push(p);
         }
-        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
+        g.add_bi_edge_with_state(v, r, state);
 
         let full = Card {
             id: CardId(0),

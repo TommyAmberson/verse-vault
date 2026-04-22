@@ -2,7 +2,6 @@
 //! Run with: cargo test -p verse-vault-wasm
 
 use verse_vault_core::card::{Card, CardState};
-use verse_vault_core::edge::EdgeKind;
 use verse_vault_core::graph::Graph;
 use verse_vault_core::node::NodeKind;
 use verse_vault_core::types::{CardId, NodeId};
@@ -18,7 +17,7 @@ fn print_graph_json_shape() {
         chapter: 3,
         verse: 16,
     });
-    g.add_bi_edge(EdgeKind::VerseGistVerseRef, v, r);
+    g.add_bi_edge(v, r);
 
     let graph_json = serde_json::to_string_pretty(&g).unwrap();
     println!("Graph JSON:\n{graph_json}");

@@ -488,7 +488,7 @@ impl NewVerseProgress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edge::{EdgeKind, EdgeState};
+    use crate::edge::EdgeState;
     use crate::node::NodeKind;
 
     const DAY: i64 = 86400;
@@ -524,12 +524,12 @@ mod tests {
             difficulty: 5.0,
             last_review_secs: 0,
         };
-        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p3, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
-        g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p2, p3, state);
+        g.add_bi_edge_with_state(v, r, state);
+        g.add_bi_edge_with_state(p1, v, state);
+        g.add_bi_edge_with_state(p2, v, state);
+        g.add_bi_edge_with_state(p3, v, state);
+        g.add_bi_edge_with_state(p1, p2, state);
+        g.add_bi_edge_with_state(p2, p3, state);
 
         let full = Card {
             id: CardId(0),
