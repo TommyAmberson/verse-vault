@@ -305,9 +305,7 @@ fn apply_reverse_reinforcement(
             Some(e) => e,
             None => continue,
         };
-        // Find reverse edge: target → source with the same role. Since we
-        // iterate outgoing_edges(edge.target) the source matches by
-        // construction; we only need to check the far end.
+        // Reverse edge: target → source with the same role.
         for &reverse_candidate in graph.outgoing_edges(edge.target) {
             let rev = match graph.edge(reverse_candidate) {
                 Some(e) => e,
