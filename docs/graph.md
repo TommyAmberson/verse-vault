@@ -194,18 +194,31 @@ and reinforce.
 | `FtvPhrase`    | uni   | FTV cue → first phrase |
 | `FtvVerseGist` | uni   | FTV cue → verse gist   |
 
-## Card coupling
+## Card scopes + coupling
+
+Card types in `card_types.toml` declare a `scope` that decides what context bundle they iterate
+over. Three scopes exist today:
+
+* **Verse** (default): one card per `VerseAtoms`. Roles like `ref`, `phrases`, `ftv`, `heading`
+  resolve against the current verse.
+* **ChapterClub**: one card per `(book, chapter, tier)` that has at least one club member. Roles
+  available: `club_gist`, `book_ref`, `chapter_ref`, `chapter_club_verse_refs`.
+* **Heading**: one card per heading with at least one verse in range. Roles available: `heading`,
+  `heading_verse_refs`.
 
 Cards enforce these co-presence rules so grading and credit assignment have the right source atoms:
 
-* **Ref-chain coupling** (implemented): the `ref` atom role in `card_types.toml` resolves to the
-  full triple `[book_ref, chapter_ref, verse_ref]`. Every card whose definition uses `ref` — shown
-  or hidden — carries all three atoms in that slot. `VerseAtoms` (in `crates/core/src/builder.rs`)
-  collects the matching `chapter_ref` and `book_ref` per verse; `resolve_roles` expands `Ref` into
-  the triple. Card-types authors don't need to list the three atoms separately.
-* **Club-gist coupling** (design intent): whenever any `*ClubMember` atom is in `shown` or `hidden`,
-  add its `ClubGist`. Not yet implemented — club listing cards aren't emitted by the card-type
-  pipeline today, so this will land with the club-card TOML work.
+* **Ref-chain coupling** (implemented, verse scope): the `ref` atom role resolves to the full triple
+  `[book_ref, chapter_ref, verse_ref]`. Every verse-scope card whose TOML uses `ref` — shown or
+  hidden — carries all three atoms in that slot. Card-type authors don't need to list the three
+  atoms separately.
+* **Listing-role scopes** (implemented): the `chapter_club_verse_refs` and `heading_verse_refs`
+  roles expand to every `VerseRef` for verses in the card's scope. They do **not** trigger the
+  ref-chain coupling — the chapter/book context is either already present explicitly in `shown`
+  (chapter-club cards) or implicit (heading cards render the range client-side).
+* **Club-gist coupling** (design intent): whenever any `*ClubMember` atom appears in `shown` or
+  `hidden`, add its `ClubGist`. Not yet implemented — no card type currently puts a `*ClubMember`
+  atom in a slot directly.
 * Do **not** auto-add chapter/heading `*ClubMember` atoms when a verse-member appears — those are
   hub atoms, not transitively present.
 
