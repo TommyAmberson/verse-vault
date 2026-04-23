@@ -105,7 +105,7 @@ convenient labels for discussion; they don't appear in `EdgeKind` (there isn't o
 
 ### Phrase / verse layer
 
-| Edge                 | Shape | Role                                   |
+| Edge                 | Shape | Meaning                                |
 | -------------------- | ----- | -------------------------------------- |
 | `PhrasePhrase`       | bi    | sequential phrase chain within a verse |
 | `PhraseVerseGist`    | bi    | hub between phrase and verse gist      |
@@ -114,7 +114,7 @@ convenient labels for discussion; they don't appear in `EdgeKind` (there isn't o
 
 ### Chapter layer
 
-| Edge                        | Shape | Role                           |
+| Edge                        | Shape | Meaning                        |
 | --------------------------- | ----- | ------------------------------ |
 | `ChapterGistChapterRef`     | bi    | chapter gist ↔ ref             |
 | `VerseGistChapterGist`      | uni   | verse knows its chapter        |
@@ -125,7 +125,7 @@ convenient labels for discussion; they don't appear in `EdgeKind` (there isn't o
 
 ### Book layer
 
-| Edge                       | Shape | Role                            |
+| Edge                       | Shape | Meaning                         |
 | -------------------------- | ----- | ------------------------------- |
 | `BookGistBookRef`          | bi    | book gist ↔ ref                 |
 | `ChapterGistBookGist`      | uni   | chapter knows its book          |
@@ -136,7 +136,7 @@ convenient labels for discussion; they don't appear in `EdgeKind` (there isn't o
 
 ### Heading layer
 
-| Edge                    | Shape | Role                                        |
+| Edge                    | Shape | Meaning                                     |
 | ----------------------- | ----- | ------------------------------------------- |
 | `VerseGistHeading`      | uni   | verse knows its section                     |
 | `HeadingHeading`        | bi    | section-to-section chain (within-book only) |
@@ -150,7 +150,7 @@ is a graph-building invariant rather than an edge.
 
 ### Club hierarchy (verse + chapter)
 
-| Edge                                    | Shape | Role                                  |
+| Edge                                    | Shape | Meaning                               |
 | --------------------------------------- | ----- | ------------------------------------- |
 | `VerseRefVerseClubMember`               | bi    | "is this verse in club N?"            |
 | `VerseClubMemberVerseClubMember`        | bi    | prev/next verse in same tier          |
@@ -170,7 +170,7 @@ is a graph-building invariant rather than an edge.
 
 Same shape as chapter-club, applied at the section level.
 
-| Edge                                    | Shape | Role                                    |
+| Edge                                    | Shape | Meaning                                 |
 | --------------------------------------- | ----- | --------------------------------------- |
 | `HeadingHeadingClubMember`              | bi    | section ↔ its club-presence atom        |
 | `HeadingClubMemberHeadingClubMember`    | bi    | prev/next section with club presence    |
@@ -189,7 +189,7 @@ and reinforce.
 
 ### FTV
 
-| Edge           | Shape | Role                   |
+| Edge           | Shape | Meaning                |
 | -------------- | ----- | ---------------------- |
 | `FtvPhrase`    | uni   | FTV cue → first phrase |
 | `FtvVerseGist` | uni   | FTV cue → verse gist   |
