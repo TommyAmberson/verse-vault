@@ -684,6 +684,16 @@ fn resolve_roles(
             AtomRole::ChapterGist | AtomRole::ClubRefs => {
                 // These need chapter-level context, handled separately.
             }
+            AtomRole::ClubGist
+            | AtomRole::BookRef
+            | AtomRole::ChapterRef
+            | AtomRole::ChapterClubVerseRefs
+            | AtomRole::HeadingVerseRefs => {
+                // Roles for chapter-club / heading scopes — not applicable
+                // to verse-scoped cards. A verse-scoped card that names
+                // one of these is a malformed definition; return None.
+                return None;
+            }
         }
     }
 
