@@ -27,6 +27,8 @@ fn initial_state(now_secs: i64) -> EdgeState {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct VerseAtoms {
     pub ref_node: NodeId,
+    pub chapter_ref: NodeId,
+    pub book_ref: NodeId,
     pub verse_gist: NodeId,
     pub phrases: Vec<NodeId>,
     pub ftv: Option<NodeId>,
@@ -295,8 +297,18 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             .or_default()
             .push((verse_data.verse, verse_gist));
 
+        let chapter_ref = chapter_refs
+            .get(&(verse_data.book.clone(), verse_data.chapter))
+            .copied()
+            .expect("chapter_ref was inserted during chapter layer");
+        let book_ref = *book_refs
+            .get(&verse_data.book)
+            .expect("book_ref was inserted during book layer");
+
         verse_atoms_list.push(VerseAtoms {
             ref_node,
+            chapter_ref,
+            book_ref,
             verse_gist,
             phrases: phrase_nodes,
             ftv: ftv_node,
