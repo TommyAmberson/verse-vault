@@ -36,3 +36,15 @@ name = "heading_to_next"
 show = ["heading"]
 hide = ["next_heading"]
 requires = "next_heading"
+
+[[card_types]]
+name = "club_chapter_listing"
+scope = "chapter_club"
+show = ["club_gist", "book_ref", "chapter_ref"]
+hide = ["chapter_club_verse_refs"]
+
+[[card_types]]
+name = "verses_to_heading"
+scope = "heading"
+show = ["heading_verse_refs"]
+hide = ["heading"]

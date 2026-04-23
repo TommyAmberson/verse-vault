@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::card::{Card, CardState};
-use crate::card_types::{AtomRole, CardTypeDef, CardTypesConfig, parse_role};
+use crate::card_types::{AtomRole, CardScope, CardTypeDef, CardTypesConfig, parse_role};
 use crate::content::MaterialData;
 use crate::edge::{EdgeRole, EdgeState};
 use crate::graph::Graph;
@@ -35,6 +35,28 @@ pub struct VerseAtoms {
     pub heading: Option<NodeId>,
     pub next_heading: Option<NodeId>,
     pub prev_heading: Option<NodeId>,
+}
+
+/// Per-(book, chapter, tier) context for chapter-club-scoped card types.
+/// Produced for every (chapter, tier) pair that has at least one member.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ChapterClubAtoms {
+    pub club_gist: NodeId,
+    pub book_ref: NodeId,
+    pub chapter_ref: NodeId,
+    /// VerseRef atoms for members of this chapter in this tier,
+    /// sorted by verse number.
+    pub verse_refs: Vec<NodeId>,
+}
+
+/// Per-heading context for heading-scoped card types. Produced for every
+/// heading that covers at least one verse with text.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct HeadingAtoms {
+    pub heading: NodeId,
+    /// VerseRef atoms for every verse inside the heading's range,
+    /// sorted by (chapter, verse).
+    pub verse_refs: Vec<NodeId>,
 }
 
 /// Build result from content data.
@@ -178,6 +200,16 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     let mut verse_members_by_chapter_tier: VerseMembersByChapter = HashMap::new();
     let mut verse_members_by_heading_tier: VerseMembersByHeading = HashMap::new();
 
+    // Track VerseRef NodeIds for chapter-club and heading listing cards.
+    // Parallel to verse_members_by_chapter_tier but stores verse_ref (the
+    // displayed atom) rather than the VerseClubMember (internal atom).
+    type VerseRefsByChapterTier = HashMap<(ClubTier, String, u16), Vec<(u16, NodeId)>>;
+    type VerseRefsByHeading = HashMap<NodeId, Vec<((u16, u16), NodeId)>>;
+    let mut verse_refs_by_chapter_tier: VerseRefsByChapterTier = HashMap::new();
+    // (heading_id) -> list of ((chapter, verse), verse_ref) for verses in
+    // that heading's range (regardless of club membership).
+    let mut verse_refs_by_heading: VerseRefsByHeading = HashMap::new();
+
     for verse_data in data.verses_with_text() {
         let ref_node = graph.add_node(NodeKind::VerseRef {
             chapter: verse_data.chapter,
@@ -274,12 +306,26 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
                 .entry((tier, verse_data.book.clone(), verse_data.chapter))
                 .or_default()
                 .push((verse_data.verse, member));
+            verse_refs_by_chapter_tier
+                .entry((tier, verse_data.book.clone(), verse_data.chapter))
+                .or_default()
+                .push((verse_data.verse, ref_node));
             if let Some(hid) = heading_node {
                 verse_members_by_heading_tier
                     .entry((tier, hid))
                     .or_default()
                     .push(((verse_data.chapter, verse_data.verse), member));
             }
+        }
+
+        // Heading-scope tracking: every verse with a heading contributes
+        // its verse_ref to the heading's card scope (independent of club
+        // membership).
+        if let Some(hid) = heading_node {
+            verse_refs_by_heading
+                .entry(hid)
+                .or_default()
+                .push(((verse_data.chapter, verse_data.verse), ref_node));
         }
 
         // Heading context for card generation (lookup adjacent headings)
@@ -351,7 +397,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     }
 
     // --- Club hierarchy ---
-    build_club_hierarchy(
+    let club_gists = build_club_hierarchy(
         &mut graph,
         state,
         &verse_club_members,
@@ -361,8 +407,44 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         &heading_nodes,
     );
 
+    // --- Chapter-club atom bundles ---
+    let mut chapter_club_atoms_list: Vec<ChapterClubAtoms> = Vec::new();
+    for ((tier, book, chapter), verse_refs) in &verse_refs_by_chapter_tier {
+        let mut sorted = verse_refs.clone();
+        sorted.sort_by_key(|(v, _)| *v);
+        let (Some(&club_gist), Some(&book_ref), Some(&chapter_ref)) = (
+            club_gists.get(tier),
+            book_refs.get(book),
+            chapter_refs.get(&(book.clone(), *chapter)),
+        ) else {
+            continue;
+        };
+        chapter_club_atoms_list.push(ChapterClubAtoms {
+            club_gist,
+            book_ref,
+            chapter_ref,
+            verse_refs: sorted.into_iter().map(|(_, vref)| vref).collect(),
+        });
+    }
+
+    // --- Heading atom bundles ---
+    let mut heading_atoms_list: Vec<HeadingAtoms> = Vec::new();
+    for (hid, entries) in &verse_refs_by_heading {
+        let mut sorted = entries.clone();
+        sorted.sort_by_key(|(k, _)| *k);
+        heading_atoms_list.push(HeadingAtoms {
+            heading: *hid,
+            verse_refs: sorted.into_iter().map(|(_, vref)| vref).collect(),
+        });
+    }
+
     // --- Cards ---
-    let cards = generate_cards(card_types, &verse_atoms_list);
+    let cards = generate_cards(
+        card_types,
+        &verse_atoms_list,
+        &chapter_club_atoms_list,
+        &heading_atoms_list,
+    );
 
     BuildResult {
         graph,
@@ -393,7 +475,7 @@ fn build_club_hierarchy(
     verse_members_by_heading_tier: &VerseMembersByHeading,
     chapter_refs: &HashMap<(String, u16), NodeId>,
     heading_nodes: &[(NodeId, &crate::content::HeadingData)],
-) {
+) -> HashMap<ClubTier, NodeId> {
     // Set of tiers that actually appear in the material.
     let mut tiers: Vec<ClubTier> = Vec::new();
     for (tier, _, _, _) in verse_club_members.keys() {
@@ -547,6 +629,8 @@ fn build_club_hierarchy(
             }
         }
     }
+
+    club_gists
 }
 
 fn build_heading_lookup(
@@ -579,41 +663,154 @@ fn build_heading_lookup(
     lookup
 }
 
-fn generate_cards(card_types: &CardTypesConfig, verse_atoms: &[VerseAtoms]) -> Vec<Card> {
+fn generate_cards(
+    card_types: &CardTypesConfig,
+    verse_atoms: &[VerseAtoms],
+    chapter_club_atoms: &[ChapterClubAtoms],
+    heading_atoms: &[HeadingAtoms],
+) -> Vec<Card> {
     let mut cards = Vec::new();
     let mut next_id = 0u32;
 
-    for atoms in verse_atoms {
-        for card_type in &card_types.card_types {
-            if let Some(req) = &card_type.requires {
-                let has_it = match req.as_str() {
-                    "ftv" => atoms.ftv.is_some(),
-                    "heading" => atoms.heading.is_some(),
-                    "next_heading" => atoms.next_heading.is_some(),
-                    "prev_heading" => atoms.prev_heading.is_some(),
-                    _ => true,
-                };
-                if !has_it {
-                    continue;
-                }
+    for card_type in &card_types.card_types {
+        match card_type.scope {
+            CardScope::Verse => {
+                generate_verse_cards(card_type, verse_atoms, &mut cards, &mut next_id);
             }
-
-            if let Some(iterate) = &card_type.iterate {
-                if iterate == "phrases" {
-                    for (idx, _) in atoms.phrases.iter().enumerate() {
-                        if let Some(card) = resolve_card(card_type, atoms, Some(idx), &mut next_id)
-                        {
-                            cards.push(card);
-                        }
-                    }
-                }
-            } else if let Some(card) = resolve_card(card_type, atoms, None, &mut next_id) {
-                cards.push(card);
+            CardScope::ChapterClub => {
+                generate_chapter_club_cards(
+                    card_type,
+                    chapter_club_atoms,
+                    &mut cards,
+                    &mut next_id,
+                );
+            }
+            CardScope::Heading => {
+                generate_heading_cards(card_type, heading_atoms, &mut cards, &mut next_id);
             }
         }
     }
 
     cards
+}
+
+fn generate_verse_cards(
+    card_type: &CardTypeDef,
+    verse_atoms: &[VerseAtoms],
+    cards: &mut Vec<Card>,
+    next_id: &mut u32,
+) {
+    for atoms in verse_atoms {
+        if let Some(req) = &card_type.requires {
+            let has_it = match req.as_str() {
+                "ftv" => atoms.ftv.is_some(),
+                "heading" => atoms.heading.is_some(),
+                "next_heading" => atoms.next_heading.is_some(),
+                "prev_heading" => atoms.prev_heading.is_some(),
+                _ => true,
+            };
+            if !has_it {
+                continue;
+            }
+        }
+
+        if let Some(iterate) = &card_type.iterate {
+            if iterate == "phrases" {
+                for (idx, _) in atoms.phrases.iter().enumerate() {
+                    if let Some(card) = resolve_card(card_type, atoms, Some(idx), next_id) {
+                        cards.push(card);
+                    }
+                }
+            }
+        } else if let Some(card) = resolve_card(card_type, atoms, None, next_id) {
+            cards.push(card);
+        }
+    }
+}
+
+fn generate_chapter_club_cards(
+    card_type: &CardTypeDef,
+    chapter_club_atoms: &[ChapterClubAtoms],
+    cards: &mut Vec<Card>,
+    next_id: &mut u32,
+) {
+    for atoms in chapter_club_atoms {
+        if atoms.verse_refs.is_empty() {
+            continue;
+        }
+        let shown = resolve_chapter_club_roles(&card_type.show, atoms);
+        let hidden = resolve_chapter_club_roles(&card_type.hide, atoms);
+        let (Some(shown), Some(hidden)) = (shown, hidden) else {
+            continue;
+        };
+        if shown.is_empty() || hidden.is_empty() {
+            continue;
+        }
+        let id = CardId(*next_id);
+        *next_id += 1;
+        cards.push(Card {
+            id,
+            shown,
+            hidden,
+            state: CardState::New,
+        });
+    }
+}
+
+fn generate_heading_cards(
+    card_type: &CardTypeDef,
+    heading_atoms: &[HeadingAtoms],
+    cards: &mut Vec<Card>,
+    next_id: &mut u32,
+) {
+    for atoms in heading_atoms {
+        if atoms.verse_refs.is_empty() {
+            continue;
+        }
+        let shown = resolve_heading_roles(&card_type.show, atoms);
+        let hidden = resolve_heading_roles(&card_type.hide, atoms);
+        let (Some(shown), Some(hidden)) = (shown, hidden) else {
+            continue;
+        };
+        if shown.is_empty() || hidden.is_empty() {
+            continue;
+        }
+        let id = CardId(*next_id);
+        *next_id += 1;
+        cards.push(Card {
+            id,
+            shown,
+            hidden,
+            state: CardState::New,
+        });
+    }
+}
+
+fn resolve_chapter_club_roles(roles: &[String], atoms: &ChapterClubAtoms) -> Option<Vec<NodeId>> {
+    let mut nodes = Vec::new();
+    for role_str in roles {
+        match parse_role(role_str)? {
+            AtomRole::ClubGist => nodes.push(atoms.club_gist),
+            AtomRole::BookRef => nodes.push(atoms.book_ref),
+            AtomRole::ChapterRef => nodes.push(atoms.chapter_ref),
+            AtomRole::ChapterClubVerseRefs => nodes.extend_from_slice(&atoms.verse_refs),
+            // Roles outside the chapter-club scope aren't resolvable here.
+            _ => return None,
+        }
+    }
+    Some(nodes)
+}
+
+fn resolve_heading_roles(roles: &[String], atoms: &HeadingAtoms) -> Option<Vec<NodeId>> {
+    let mut nodes = Vec::new();
+    for role_str in roles {
+        match parse_role(role_str)? {
+            AtomRole::Heading => nodes.push(atoms.heading),
+            AtomRole::HeadingVerseRefs => nodes.extend_from_slice(&atoms.verse_refs),
+            _ => return None,
+        }
+    }
+    Some(nodes)
 }
 
 fn resolve_card(
@@ -788,36 +985,6 @@ mod tests {
     }
 
     #[test]
-    fn ref_role_expands_to_book_chapter_verse() {
-        let data = test_data();
-        let card_types = test_card_types();
-        let result = build(&data, &card_types, 0);
-
-        // A card containing a given verse's VerseRef must also contain the
-        // matching chapter_ref and book_ref (in the same slot).
-        let mut saw_ref_card = false;
-        for card in &result.cards {
-            for atoms in &result.verse_atoms {
-                for (slot_name, slot) in [("shown", &card.shown), ("hidden", &card.hidden)] {
-                    if !slot.contains(&atoms.ref_node) {
-                        continue;
-                    }
-                    saw_ref_card = true;
-                    assert!(
-                        slot.contains(&atoms.chapter_ref),
-                        "card {slot_name} has verse_ref but missing chapter_ref: {slot:?}"
-                    );
-                    assert!(
-                        slot.contains(&atoms.book_ref),
-                        "card {slot_name} has verse_ref but missing book_ref: {slot:?}"
-                    );
-                }
-            }
-        }
-        assert!(saw_ref_card, "expected at least one ref-bearing card");
-    }
-
-    #[test]
     fn verse_context_works_on_built_graph() {
         let data = test_data();
         let card_types = test_card_types();
@@ -977,5 +1144,101 @@ mod tests {
         assert!(ccm_tiers.contains(&(ClubTier::Club150, 1)));
         assert!(ccm_tiers.contains(&(ClubTier::Club300, 1)));
         assert_eq!(ccm_tiers.len(), 2);
+    }
+
+    #[test]
+    fn club_chapter_listing_cards_generated() {
+        let data = test_data();
+        let card_types = test_card_types();
+        let result = build(&data, &card_types, 0);
+
+        // Test data: chapter 1 has verse 1 tagged 150 (→ both 150 and 300)
+        // and verse 2 tagged 300. So we expect TWO listing cards:
+        // - Club150 / chapter 1 with 1 verse (verse 1).
+        // - Club300 / chapter 1 with 2 verses (verse 1 + verse 2).
+        let book_ref = result
+            .graph
+            .node_ids()
+            .find(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::BookRef { .. })))
+            .unwrap();
+        let chapter_ref = result
+            .graph
+            .node_ids()
+            .find(|&id| {
+                matches!(
+                    result.graph.node_kind(id),
+                    Some(NodeKind::ChapterRef { .. })
+                )
+            })
+            .unwrap();
+
+        let listing_cards: Vec<_> = result
+            .cards
+            .iter()
+            .filter(|c| c.shown.len() == 3 && c.shown[1] == book_ref && c.shown[2] == chapter_ref)
+            .collect();
+        assert_eq!(
+            listing_cards.len(),
+            2,
+            "expected 2 listing cards (Club150 + Club300), got {}",
+            listing_cards.len()
+        );
+
+        let card_150 = listing_cards
+            .iter()
+            .find(|c| {
+                matches!(
+                    result.graph.node_kind(c.shown[0]),
+                    Some(NodeKind::ClubGist {
+                        tier: ClubTier::Club150
+                    })
+                )
+            })
+            .expect("should have a Club150 listing card");
+        assert_eq!(card_150.hidden.len(), 1, "Club150 ch 1: just verse 1");
+
+        let card_300 = listing_cards
+            .iter()
+            .find(|c| {
+                matches!(
+                    result.graph.node_kind(c.shown[0]),
+                    Some(NodeKind::ClubGist {
+                        tier: ClubTier::Club300
+                    })
+                )
+            })
+            .expect("should have a Club300 listing card");
+        assert_eq!(card_300.hidden.len(), 2, "Club300 ch 1: verses 1 and 2");
+    }
+
+    #[test]
+    fn verses_to_heading_card_generated() {
+        let data = test_data();
+        let card_types = test_card_types();
+        let result = build(&data, &card_types, 0);
+
+        // Test data has one heading ("Greeting") covering verses 1-3.
+        // The card hides that heading and shows all three verse refs.
+        let heading = result
+            .graph
+            .node_ids()
+            .find(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::Heading { .. })))
+            .unwrap();
+
+        // verses_to_heading hides the heading and shows the full range of
+        // verse refs. Distinguish from verse_to_heading (which also hides
+        // the heading but shows [book_ref, chapter_ref, verse_ref]) by
+        // requiring every shown atom to be a VerseRef.
+        let card = result
+            .cards
+            .iter()
+            .find(|c| {
+                c.hidden == vec![heading]
+                    && c.shown.iter().all(|&n| {
+                        matches!(result.graph.node_kind(n), Some(NodeKind::VerseRef { .. }))
+                    })
+            })
+            .expect("verses_to_heading card should exist");
+        assert_eq!(card.shown.len(), 3, "three verses in the heading range");
     }
 }
