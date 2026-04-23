@@ -648,7 +648,14 @@ fn resolve_roles(
 
     for role_str in roles {
         match parse_role(role_str)? {
-            AtomRole::Ref => nodes.push(atoms.ref_node),
+            // `ref` expands to the full book/chapter/verse triple so every
+            // reference-bearing card carries the three atoms that grade
+            // independently (see card-coupling design in docs/graph.md).
+            AtomRole::Ref => {
+                nodes.push(atoms.book_ref);
+                nodes.push(atoms.chapter_ref);
+                nodes.push(atoms.ref_node);
+            }
             AtomRole::Phrases => nodes.extend_from_slice(&atoms.phrases),
             AtomRole::FirstPhrase => {
                 nodes.push(*atoms.phrases.first()?);
@@ -759,11 +766,45 @@ mod tests {
         let card_types = test_card_types();
         let result = build(&data, &card_types, 0);
         assert!(result.cards.len() >= 10, "cards: {}", result.cards.len());
-        let full_recit = result
-            .cards
-            .iter()
-            .find(|c| c.shown.len() == 1 && c.hidden.len() == 2);
+
+        // Full-recitation: shown = [book_ref, chapter_ref, verse_ref] (3)
+        // and hidden = all phrases (2 in test data).
+        let atoms0 = &result.verse_atoms[0];
+        let full_recit = result.cards.iter().find(|c| {
+            c.shown == vec![atoms0.book_ref, atoms0.chapter_ref, atoms0.ref_node]
+                && c.hidden == atoms0.phrases
+        });
         assert!(full_recit.is_some(), "should have a full recitation card");
+    }
+
+    #[test]
+    fn ref_role_expands_to_book_chapter_verse() {
+        let data = test_data();
+        let card_types = test_card_types();
+        let result = build(&data, &card_types, 0);
+
+        // A card containing a given verse's VerseRef must also contain the
+        // matching chapter_ref and book_ref (in the same slot).
+        let mut saw_ref_card = false;
+        for card in &result.cards {
+            for atoms in &result.verse_atoms {
+                for (slot_name, slot) in [("shown", &card.shown), ("hidden", &card.hidden)] {
+                    if !slot.contains(&atoms.ref_node) {
+                        continue;
+                    }
+                    saw_ref_card = true;
+                    assert!(
+                        slot.contains(&atoms.chapter_ref),
+                        "card {slot_name} has verse_ref but missing chapter_ref: {slot:?}"
+                    );
+                    assert!(
+                        slot.contains(&atoms.book_ref),
+                        "card {slot_name} has verse_ref but missing book_ref: {slot:?}"
+                    );
+                }
+            }
+        }
+        assert!(saw_ref_card, "expected at least one ref-bearing card");
     }
 
     #[test]

@@ -194,21 +194,20 @@ and reinforce.
 | `FtvPhrase`    | uni   | FTV cue → first phrase |
 | `FtvVerseGist` | uni   | FTV cue → verse gist   |
 
-## Card coupling (design intent)
+## Card coupling
 
-When card generation code lands, it should enforce these co-presence rules so grading and credit
-assignment have the right source atoms:
+Cards enforce these co-presence rules so grading and credit assignment have the right source atoms:
 
-* **Ref-chain coupling**: whenever a `VerseRef` is in `shown` or `hidden`, add its `ChapterRef`.
-  Whenever `ChapterRef` is present, add its `BookRef`. Transitively, any `VerseRef` pulls all three
-  refs together.
-* **Club-gist coupling**: whenever any `*ClubMember` atom is in `shown` or `hidden`, add its
-  `ClubGist`. Listing cards that hide verse-members are automatically sourced from the club tier.
+* **Ref-chain coupling** (implemented): the `ref` atom role in `card_types.toml` resolves to the
+  full triple `[book_ref, chapter_ref, verse_ref]`. Every card whose definition uses `ref` — shown
+  or hidden — carries all three atoms in that slot. `VerseAtoms` (in `crates/core/src/builder.rs`)
+  collects the matching `chapter_ref` and `book_ref` per verse; `resolve_roles` expands `Ref` into
+  the triple. Card-types authors don't need to list the three atoms separately.
+* **Club-gist coupling** (design intent): whenever any `*ClubMember` atom is in `shown` or `hidden`,
+  add its `ClubGist`. Not yet implemented — club listing cards aren't emitted by the card-type
+  pipeline today, so this will land with the club-card TOML work.
 * Do **not** auto-add chapter/heading `*ClubMember` atoms when a verse-member appears — those are
   hub atoms, not transitively present.
-
-These rules are not yet implemented in code; they're documented here as the design contract for the
-eventual card generator.
 
 ## Per-component grading (design intent)
 
