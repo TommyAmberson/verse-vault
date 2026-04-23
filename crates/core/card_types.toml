@@ -36,9 +36,3 @@ name = "heading_to_next"
 show = ["heading"]
 hide = ["next_heading"]
 requires = "next_heading"
-
-[[card_types]]
-name = "heading_to_prev"
-show = ["heading"]
-hide = ["prev_heading"]
-requires = "prev_heading"
