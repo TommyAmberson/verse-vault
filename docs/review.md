@@ -8,23 +8,41 @@ How learner reviews update the memory graph. Depends on the graph structure defi
 A card is a **mask** over the graph: `shown = {atoms}`, `hidden = {atoms}`. The learner sees the
 shown atoms and must produce the hidden ones. Cards are modes of testing, not memory units.
 
-Example cards:
+Example cards (using `{ref}` as shorthand for the `[book_ref, chapter_ref, verse_ref]` triple — see
+"Reference triple" below):
 
-| Card               | Shown                  | Hidden                         |
-| ------------------ | ---------------------- | ------------------------------ |
-| ref → verse        | {ref}                  | {p1, p2, p3, p4}               |
-| verse → ref        | {p1, p2, p3, p4}       | {ref}                          |
-| first words → rest | {p1}                   | {p2, p3, p4}                   |
-| fill-in-blank (p2) | {ref, p1, p3, p4}      | {p2}                           |
-| cross-verse        | {last phrase of prev}  | {p1, p2, p3, p4}               |
-| club listing       | {chapter_gist}         | {ref(2:1), ref(2:4), ref(2:7)} |
-| verse → heading    | {ref} or {p1, p2, ...} | {heading}                      |
-| ref → heading      | {ref}                  | {heading}                      |
-| finish this verse  | {ftv}                  | {p1, p2, p3, p4}               |
+| Card               | Shown                                | Hidden                                           |
+| ------------------ | ------------------------------------ | ------------------------------------------------ |
+| ref → verse        | {ref}                                | {p1, p2, p3, p4}                                 |
+| verse → ref        | {p1, p2, p3, p4}                     | {ref}                                            |
+| first words → rest | {p1}                                 | {p2, p3, p4}                                     |
+| fill-in-blank (p2) | {ref, p1, p3, p4}                    | {p2}                                             |
+| cross-verse        | {last phrase of prev}                | {p1, p2, p3, p4}                                 |
+| club listing       | {club_gist, book_ref, chapter_ref}   | {verse_ref(2:1), verse_ref(2:4), verse_ref(2:7)} |
+| verses → heading   | {verse_ref(10:23) … verse_ref(11:1)} | {heading}                                        |
+| verse → heading    | {ref} or {p1, p2, ...}               | {heading}                                        |
+| finish this verse  | {ftv}                                | {p1, p2, p3, p4}                                 |
 
 All possible cards for a verse are **pre-generated** and stored in the card DB with precomputed
 effective_R and due_date (see [scheduling.md](scheduling.md)). The scheduler picks from this catalog
 — it does not generate cards on the fly.
+
+### Reference triple
+
+A verse reference is three atoms: `book_ref`, `chapter_ref`, `verse_ref`. The card-types TOML role
+`ref` resolves to all three; verse-scoped cards that name `ref` in `show` or `hide` carry the full
+triple in that slot. This means the source set for credit assignment includes all three refs
+whenever a verse-style card is reviewed, and graders can produce three independent pass/fail signals
+(one per component) if the frontend chooses to split the typed answer. See
+[graph.md § Card scopes + coupling](graph.md#card-scopes--coupling).
+
+Listing-style cards (`club_chapter_listing`, `verses_to_heading`) carry the verse-ref atoms directly
+without the per-verse triple coupling — the chapter/book context is supplied either explicitly in
+`shown` (chapter-club) or implicit in the rendered verse range (heading).
+
+Session re-drills and progressive-reveal cards (constructed at runtime in
+`crates/core/src/session.rs`) populate the same triple in `shown` via `Graph::verse_ref_parents`, so
+the source set stays consistent between catalog cards and session-generated cards.
 
 ## Review interaction
 
