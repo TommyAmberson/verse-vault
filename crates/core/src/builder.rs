@@ -35,6 +35,11 @@ pub struct VerseAtoms {
     pub heading: Option<NodeId>,
     pub next_heading: Option<NodeId>,
     pub prev_heading: Option<NodeId>,
+    /// `ClubGist` of the most-specific tier this verse belongs to: Club150
+    /// if tagged 150 (which by the subset rule also lives in 300), else
+    /// Club300 if tagged 300, else None for full-material-only verses.
+    /// Resolves the `club_gist` role on verse-scope cards.
+    pub most_specific_club_gist: Option<NodeId>,
 }
 
 /// Per-(book, chapter, tier) context for chapter-club-scoped card types.
@@ -189,6 +194,10 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
 
     // --- Verse layer ---
     let mut verse_atoms_list: Vec<VerseAtoms> = Vec::new();
+    // Parallel to verse_atoms_list: most-specific club tier per verse, or
+    // None for full-material-only verses. Resolved to a ClubGist NodeId
+    // after `build_club_hierarchy` returns the per-tier gist map.
+    let mut verse_most_specific_tier: Vec<Option<ClubTier>> = Vec::new();
     let mut prev_verse_gist: Option<NodeId> = None;
     let mut prev_verse_book: Option<String> = None;
 
@@ -351,6 +360,16 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             .get(&verse_data.book)
             .expect("book_ref was inserted during book layer");
 
+        // Most-specific tier this verse belongs to (filled in below once
+        // ClubGist NodeIds are known). 150 wins over 300 because 150 ⊂ 300.
+        let most_specific_tier =
+            expand_tiers(&verse_data.clubs)
+                .into_iter()
+                .min_by_key(|t| match t {
+                    ClubTier::Club150 => 0,
+                    ClubTier::Club300 => 1,
+                });
+
         verse_atoms_list.push(VerseAtoms {
             ref_node,
             chapter_ref,
@@ -361,7 +380,11 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             heading: heading_node,
             next_heading,
             prev_heading,
+            // Filled in after build_club_hierarchy — store the tier in
+            // a parallel vec so we don't carry it on the public struct.
+            most_specific_club_gist: None,
         });
+        verse_most_specific_tier.push(most_specific_tier);
     }
 
     // Chapter → first/last verse endpoints (needs full verse map)
@@ -406,6 +429,15 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         &chapter_refs,
         &heading_nodes,
     );
+
+    // Resolve each verse's most-specific ClubGist NodeId now that the
+    // gist map exists.
+    for (atoms, tier) in verse_atoms_list
+        .iter_mut()
+        .zip(verse_most_specific_tier.iter())
+    {
+        atoms.most_specific_club_gist = tier.and_then(|t| club_gists.get(&t).copied());
+    }
 
     // --- Chapter-club atom bundles ---
     let mut chapter_club_atoms_list: Vec<ChapterClubAtoms> = Vec::new();
@@ -881,14 +913,18 @@ fn resolve_roles(
             AtomRole::ChapterGist | AtomRole::ClubRefs => {
                 // These need chapter-level context, handled separately.
             }
-            AtomRole::ClubGist
-            | AtomRole::BookRef
-            | AtomRole::ChapterRef
-            | AtomRole::ChapterClubVerseRefs
-            | AtomRole::HeadingVerseRefs => {
-                // Roles for chapter-club / heading scopes — not applicable
-                // to verse-scoped cards. A verse-scoped card that names
-                // one of these is a malformed definition; return None.
+            // Verse-scope resolution for roles that name a single parent
+            // atom of the verse: book_ref, chapter_ref, and the
+            // most-specific club_gist (if the verse is in any tier).
+            AtomRole::BookRef => nodes.push(atoms.book_ref),
+            AtomRole::ChapterRef => nodes.push(atoms.chapter_ref),
+            AtomRole::ClubGist => {
+                // Skip the card entirely for full-material-only verses.
+                nodes.push(atoms.most_specific_club_gist?);
+            }
+            // Genuine cross-scope roles that don't map to a single verse-
+            // scoped answer.
+            AtomRole::ChapterClubVerseRefs | AtomRole::HeadingVerseRefs => {
                 return None;
             }
         }
@@ -1144,6 +1180,68 @@ mod tests {
         assert!(ccm_tiers.contains(&(ClubTier::Club150, 1)));
         assert!(ccm_tiers.contains(&(ClubTier::Club300, 1)));
         assert_eq!(ccm_tiers.len(), 2);
+    }
+
+    #[test]
+    fn verse_to_club_picks_most_specific_tier() {
+        let data = test_data();
+        let card_types = test_card_types();
+        let result = build(&data, &card_types, 0);
+
+        // Test data: verse 1 tagged 150 (→ both 150 and 300; most specific
+        // = 150), verse 2 tagged 300 only (most specific = 300), verse 3
+        // untagged (no card).
+        let club_gist_150 = result
+            .graph
+            .node_ids()
+            .find(|&id| {
+                matches!(
+                    result.graph.node_kind(id),
+                    Some(NodeKind::ClubGist {
+                        tier: ClubTier::Club150
+                    })
+                )
+            })
+            .unwrap();
+        let club_gist_300 = result
+            .graph
+            .node_ids()
+            .find(|&id| {
+                matches!(
+                    result.graph.node_kind(id),
+                    Some(NodeKind::ClubGist {
+                        tier: ClubTier::Club300
+                    })
+                )
+            })
+            .unwrap();
+
+        let verse_to_club_cards: Vec<_> = result
+            .cards
+            .iter()
+            .filter(|c| {
+                c.hidden.len() == 1
+                    && (c.hidden[0] == club_gist_150 || c.hidden[0] == club_gist_300)
+            })
+            .collect();
+        assert_eq!(
+            verse_to_club_cards.len(),
+            2,
+            "verse_to_club should be generated only for verses 1 and 2"
+        );
+
+        let v1 = &result.verse_atoms[0];
+        let v2 = &result.verse_atoms[1];
+        let v1_card = verse_to_club_cards
+            .iter()
+            .find(|c| c.shown.contains(&v1.ref_node))
+            .expect("verse 1 card");
+        let v2_card = verse_to_club_cards
+            .iter()
+            .find(|c| c.shown.contains(&v2.ref_node))
+            .expect("verse 2 card");
+        assert_eq!(v1_card.hidden, vec![club_gist_150], "verse 1 → Club150");
+        assert_eq!(v2_card.hidden, vec![club_gist_300], "verse 2 → Club300");
     }
 
     #[test]
