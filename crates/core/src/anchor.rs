@@ -84,7 +84,6 @@ pub fn enumerate_paths_with_anchor_transfer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edge::EdgeKind;
     use crate::node::NodeKind;
 
     fn two_verse_graph() -> (Graph, NodeId, NodeId, NodeId, NodeId) {
@@ -106,9 +105,9 @@ mod tests {
             verse: 2,
         });
 
-        g.add_bi_edge(EdgeKind::VerseGistVerseRef, v1, r1);
-        g.add_bi_edge(EdgeKind::VerseGistVerseRef, v2, r2);
-        g.add_bi_edge(EdgeKind::VerseGistVerseGist, v1, v2);
+        g.add_bi_edge(v1, r1);
+        g.add_bi_edge(v2, r2);
+        g.add_bi_edge(v1, v2);
 
         (g, v1, r1, v2, r2)
     }
@@ -163,9 +162,9 @@ mod tests {
                 chapter: 1,
                 verse: i,
             });
-            g.add_bi_edge(EdgeKind::VerseGistVerseRef, v, r);
+            g.add_bi_edge(v, r);
             if let Some(&prev_v) = verses.last() {
-                g.add_bi_edge(EdgeKind::VerseGistVerseGist, prev_v, v);
+                g.add_bi_edge(prev_v, v);
             }
             verses.push(v);
             refs.push(r);
@@ -221,9 +220,9 @@ mod tests {
             chapter: 2,
             verse: 1,
         });
-        g.add_bi_edge(EdgeKind::VerseGistVerseRef, v1, r1);
-        g.add_bi_edge(EdgeKind::VerseGistVerseRef, v2, r2);
-        g.add_bi_edge(EdgeKind::VerseGistVerseGist, v1, v2);
+        g.add_bi_edge(v1, r1);
+        g.add_bi_edge(v2, r2);
+        g.add_bi_edge(v1, v2);
 
         let sources = HashSet::from([v1]);
         let paths = enumerate_paths_with_anchor_transfer(&g, &sources, r2, 5, DEFAULT_DECAY_FACTOR);

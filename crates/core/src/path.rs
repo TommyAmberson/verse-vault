@@ -86,7 +86,6 @@ fn dfs(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edge::EdgeKind;
     use crate::node::NodeKind;
 
     fn make_chain_graph() -> (Graph, NodeId, NodeId, NodeId) {
@@ -104,8 +103,8 @@ mod tests {
             chapter: 1,
             verse: 3,
         });
-        g.add_edge(EdgeKind::VerseGistVerseGist, a, b);
-        g.add_edge(EdgeKind::VerseGistVerseGist, b, c);
+        g.add_edge(a, b);
+        g.add_edge(b, c);
         (g, a, b, c)
     }
 
@@ -148,7 +147,7 @@ mod tests {
             }));
         }
         for i in 0..6 {
-            g.add_edge(EdgeKind::VerseGistVerseGist, nodes[i], nodes[i + 1]);
+            g.add_edge(nodes[i], nodes[i + 1]);
         }
 
         let sources = HashSet::from([nodes[0]]);
@@ -175,9 +174,9 @@ mod tests {
             chapter: 1,
             verse: 3,
         });
-        g.add_edge(EdgeKind::VerseGistVerseGist, a, b);
-        g.add_edge(EdgeKind::VerseGistVerseGist, b, c);
-        g.add_edge(EdgeKind::VerseGistVerseGist, c, a);
+        g.add_edge(a, b);
+        g.add_edge(b, c);
+        g.add_edge(c, a);
 
         // Source = a, target = a: skip self
         let sources = HashSet::from([a]);
@@ -215,10 +214,10 @@ mod tests {
             chapter: 1,
             verse: 4,
         });
-        g.add_edge(EdgeKind::VerseGistVerseGist, a, b);
-        g.add_edge(EdgeKind::VerseGistVerseGist, a, c);
-        g.add_edge(EdgeKind::VerseGistVerseGist, b, d);
-        g.add_edge(EdgeKind::VerseGistVerseGist, c, d);
+        g.add_edge(a, b);
+        g.add_edge(a, c);
+        g.add_edge(b, d);
+        g.add_edge(c, d);
 
         let sources = HashSet::from([a]);
         let paths = enumerate_paths(&g, &sources, d, MAX_HOPS);

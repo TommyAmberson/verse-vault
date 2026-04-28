@@ -38,7 +38,18 @@ hide = ["next_heading"]
 requires = "next_heading"
 
 [[card_types]]
-name = "heading_to_prev"
-show = ["heading"]
-hide = ["prev_heading"]
-requires = "prev_heading"
+name = "verse_to_club"
+show = ["ref"]
+hide = ["club_gist"]
+
+[[card_types]]
+name = "club_chapter_listing"
+scope = "chapter_club"
+show = ["club_gist", "book_ref", "chapter_ref"]
+hide = ["chapter_club_verse_refs"]
+
+[[card_types]]
+name = "verses_to_heading"
+scope = "heading"
+show = ["heading_verse_refs"]
+hide = ["heading"]

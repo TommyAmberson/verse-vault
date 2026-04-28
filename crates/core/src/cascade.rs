@@ -111,7 +111,7 @@ fn collect_card_edges(graph: &Graph, card: &Card, params: &ScheduleParams) -> Ve
 mod tests {
     use super::*;
     use crate::card::CardState;
-    use crate::edge::{EdgeKind, EdgeState};
+    use crate::edge::EdgeState;
     use crate::node::NodeKind;
 
     fn make_test_graph_and_cards() -> (Graph, Vec<Card>) {
@@ -140,10 +140,10 @@ mod tests {
             difficulty: 5.0,
             last_review_secs: 0,
         };
-        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
+        g.add_bi_edge_with_state(v, r, state);
+        g.add_bi_edge_with_state(p1, v, state);
+        g.add_bi_edge_with_state(p2, v, state);
+        g.add_bi_edge_with_state(p1, p2, state);
 
         let full_recitation = Card {
             id: CardId(0),
@@ -178,7 +178,11 @@ mod tests {
             .edge_ids()
             .filter(|&eid| {
                 let e = g.edge(eid).unwrap();
-                matches!(e.kind, EdgeKind::PhraseVerseGist)
+                g.edge_connects(
+                    e,
+                    |k| matches!(k, NodeKind::Phrase { .. }),
+                    |k| matches!(k, NodeKind::VerseGist { .. }),
+                )
             })
             .collect();
 

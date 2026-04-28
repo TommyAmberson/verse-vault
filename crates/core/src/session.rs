@@ -39,22 +39,38 @@ pub enum ReDrillKind {
 pub struct ReDrill {
     pub kind: ReDrillKind,
     pub verse_ref: NodeId,
+    /// Parent refs for the verse, if the graph carries the chapter/book
+    /// layers. Populated alongside `verse_ref` so card rendering carries the
+    /// full ref triple. Both fields are `Some` together or both `None`.
+    pub chapter_ref: Option<NodeId>,
+    pub book_ref: Option<NodeId>,
     pub verse_phrases: Vec<NodeId>,
     pub origin_card: Option<CardId>,
+}
+
+fn ref_triple(book: Option<NodeId>, chapter: Option<NodeId>, verse: NodeId) -> Vec<NodeId> {
+    let mut out = Vec::with_capacity(3);
+    if let Some(b) = book {
+        out.push(b);
+    }
+    if let Some(c) = chapter {
+        out.push(c);
+    }
+    out.push(verse);
+    out
 }
 
 impl ReDrill {
     pub fn to_session_card(&self) -> SessionCard {
         match &self.kind {
             ReDrillKind::FillInBlank { target_atom } => {
-                let shown: Vec<NodeId> = std::iter::once(self.verse_ref)
-                    .chain(
-                        self.verse_phrases
-                            .iter()
-                            .copied()
-                            .filter(|p| p != target_atom),
-                    )
-                    .collect();
+                let mut shown = ref_triple(self.book_ref, self.chapter_ref, self.verse_ref);
+                shown.extend(
+                    self.verse_phrases
+                        .iter()
+                        .copied()
+                        .filter(|p| p != target_atom),
+                );
                 SessionCard {
                     shown,
                     hidden: vec![*target_atom],
@@ -63,7 +79,7 @@ impl ReDrill {
                 }
             }
             ReDrillKind::FullRecitation => SessionCard {
-                shown: vec![self.verse_ref],
+                shown: ref_triple(self.book_ref, self.chapter_ref, self.verse_ref),
                 hidden: self.verse_phrases.clone(),
                 is_reading: false,
                 source: SessionCardSource::ReDrill,
@@ -85,6 +101,8 @@ pub enum RevealStage {
 #[derive(Debug, Clone)]
 pub struct NewVerseProgress {
     pub verse_ref: NodeId,
+    pub chapter_ref: Option<NodeId>,
+    pub book_ref: Option<NodeId>,
     pub verse_phrases: Vec<NodeId>,
     pub stage: RevealStage,
 }
@@ -92,19 +110,20 @@ pub struct NewVerseProgress {
 impl NewVerseProgress {
     pub fn to_session_card(&self) -> SessionCard {
         match &self.stage {
-            RevealStage::Reading => SessionCard {
-                shown: std::iter::once(self.verse_ref)
-                    .chain(self.verse_phrases.iter().copied())
-                    .collect(),
-                hidden: vec![],
-                is_reading: true,
-                source: SessionCardSource::NewVerse,
-            },
+            RevealStage::Reading => {
+                let mut shown = ref_triple(self.book_ref, self.chapter_ref, self.verse_ref);
+                shown.extend(self.verse_phrases.iter().copied());
+                SessionCard {
+                    shown,
+                    hidden: vec![],
+                    is_reading: true,
+                    source: SessionCardSource::NewVerse,
+                }
+            }
             RevealStage::FillInBlank { index } => {
                 let target = self.verse_phrases[*index];
-                let shown: Vec<NodeId> = std::iter::once(self.verse_ref)
-                    .chain(self.verse_phrases.iter().copied().filter(|&p| p != target))
-                    .collect();
+                let mut shown = ref_triple(self.book_ref, self.chapter_ref, self.verse_ref);
+                shown.extend(self.verse_phrases.iter().copied().filter(|&p| p != target));
                 SessionCard {
                     shown,
                     hidden: vec![target],
@@ -113,7 +132,7 @@ impl NewVerseProgress {
                 }
             }
             RevealStage::FullRecitation => SessionCard {
-                shown: vec![self.verse_ref],
+                shown: ref_triple(self.book_ref, self.chapter_ref, self.verse_ref),
                 hidden: self.verse_phrases.clone(),
                 is_reading: false,
                 source: SessionCardSource::NewVerse,
@@ -225,8 +244,14 @@ impl Session {
                 }
             }
             introduced_verses.push(nv.verse_phrases.clone());
+            let (chapter_ref, book_ref) = match engine.graph.verse_ref_parents(nv.verse_ref) {
+                Some((cr, br)) => (Some(cr), Some(br)),
+                None => (None, None),
+            };
             queue.push_back(SessionEntry::NewVerse(NewVerseProgress {
                 verse_ref: nv.verse_ref,
+                chapter_ref,
+                book_ref,
                 verse_phrases: nv.verse_phrases.clone(),
                 stage: RevealStage::Reading,
             }));
@@ -375,6 +400,8 @@ impl Session {
                     let redrills = self.insert_redrills_from_context(
                         &failed,
                         progress.verse_ref,
+                        progress.chapter_ref,
+                        progress.book_ref,
                         &progress.verse_phrases,
                         None,
                     );
@@ -411,8 +438,19 @@ impl Session {
             Some(ctx) => ctx,
             None => return 0,
         };
+        let (chapter_ref, book_ref) = match engine.graph.verse_ref_parents(verse_ref) {
+            Some((cr, br)) => (Some(cr), Some(br)),
+            None => (None, None),
+        };
 
-        self.insert_redrills_from_context(&failed, verse_ref, &verse_phrases, origin_card)
+        self.insert_redrills_from_context(
+            &failed,
+            verse_ref,
+            chapter_ref,
+            book_ref,
+            &verse_phrases,
+            origin_card,
+        )
     }
 
     fn prune_no_longer_due(&mut self, engine: &ReviewEngine, now_secs: i64) {
@@ -439,10 +477,13 @@ impl Session {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn insert_redrills_from_context(
         &mut self,
         failed: &[NodeId],
         verse_ref: NodeId,
+        chapter_ref: Option<NodeId>,
+        book_ref: Option<NodeId>,
         verse_phrases: &[NodeId],
         origin_card: Option<CardId>,
     ) -> usize {
@@ -453,6 +494,8 @@ impl Session {
             vec![ReDrill {
                 kind: ReDrillKind::FullRecitation,
                 verse_ref,
+                chapter_ref,
+                book_ref,
                 verse_phrases: verse_phrases.to_vec(),
                 origin_card,
             }]
@@ -462,6 +505,8 @@ impl Session {
                 .map(|&atom| ReDrill {
                     kind: ReDrillKind::FillInBlank { target_atom: atom },
                     verse_ref,
+                    chapter_ref,
+                    book_ref,
                     verse_phrases: verse_phrases.to_vec(),
                     origin_card,
                 })
@@ -488,7 +533,7 @@ impl NewVerseProgress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edge::{EdgeKind, EdgeState};
+    use crate::edge::EdgeState;
     use crate::node::NodeKind;
 
     const DAY: i64 = 86400;
@@ -524,12 +569,12 @@ mod tests {
             difficulty: 5.0,
             last_review_secs: 0,
         };
-        g.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, v, r, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p1, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p2, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, p3, v, state);
-        g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p1, p2, state);
-        g.add_bi_edge_with_state(EdgeKind::PhrasePhrase, p2, p3, state);
+        g.add_bi_edge_with_state(v, r, state);
+        g.add_bi_edge_with_state(p1, v, state);
+        g.add_bi_edge_with_state(p2, v, state);
+        g.add_bi_edge_with_state(p3, v, state);
+        g.add_bi_edge_with_state(p1, p2, state);
+        g.add_bi_edge_with_state(p2, p3, state);
 
         let full = Card {
             id: CardId(0),
@@ -556,6 +601,8 @@ mod tests {
                 target_atom: NodeId(3),
             },
             verse_ref: NodeId(0),
+            chapter_ref: None,
+            book_ref: None,
             verse_phrases: vec![NodeId(2), NodeId(3), NodeId(4)],
             origin_card: None,
         };
@@ -568,9 +615,41 @@ mod tests {
     }
 
     #[test]
+    fn redrill_includes_ref_triple_when_parents_known() {
+        let rd = ReDrill {
+            kind: ReDrillKind::FullRecitation,
+            verse_ref: NodeId(7),
+            chapter_ref: Some(NodeId(5)),
+            book_ref: Some(NodeId(3)),
+            verse_phrases: vec![NodeId(10), NodeId(11)],
+            origin_card: None,
+        };
+        let card = rd.to_session_card();
+        // book_ref → chapter_ref → verse_ref ordering, then phrases hidden.
+        assert_eq!(card.shown, vec![NodeId(3), NodeId(5), NodeId(7)]);
+        assert_eq!(card.hidden, vec![NodeId(10), NodeId(11)]);
+    }
+
+    #[test]
+    fn new_verse_includes_ref_triple_when_parents_known() {
+        let nv = NewVerseProgress {
+            verse_ref: NodeId(7),
+            chapter_ref: Some(NodeId(5)),
+            book_ref: Some(NodeId(3)),
+            verse_phrases: vec![NodeId(10), NodeId(11)],
+            stage: RevealStage::FullRecitation,
+        };
+        let card = nv.to_session_card();
+        assert_eq!(card.shown, vec![NodeId(3), NodeId(5), NodeId(7)]);
+        assert_eq!(card.hidden, vec![NodeId(10), NodeId(11)]);
+    }
+
+    #[test]
     fn progressive_reveal_stages() {
         let mut nv = NewVerseProgress {
             verse_ref: NodeId(0),
+            chapter_ref: None,
+            book_ref: None,
             verse_phrases: vec![NodeId(1), NodeId(2)],
             stage: RevealStage::Reading,
         };

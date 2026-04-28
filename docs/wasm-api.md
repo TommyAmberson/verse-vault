@@ -78,13 +78,17 @@ The `Graph` type serializes as:
 ```json
 {
   "nodes": { "<NodeId>": { "id": <NodeId>, "kind": <NodeKind> }, ... },
-  "edges": { "<EdgeId>": { "id": <EdgeId>, "kind": "<EdgeKind>", "source": <NodeId>, "target": <NodeId>, "state": {...} | null }, ... },
+  "edges": { "<EdgeId>": { "id": <EdgeId>, "source": <NodeId>, "target": <NodeId>, "state": {...}, "role": "FirstChild" | "LastChild" | null }, ... },
   "outgoing": { "<NodeId>": [<EdgeId>, ...], ... },
   "incoming": { "<NodeId>": [<EdgeId>, ...], ... },
   "next_node_id": <u32>,
   "next_edge_id": <u32>
 }
 ```
+
+Edges do not carry a `kind` tag — an edge's retrieval proposition is derived from
+`(source.kind, target.kind, role)`. `role` is omitted (or `null`) on the majority of edges; it's
+only set to `FirstChild` / `LastChild` on parent→first/last endpoint edges.
 
 Note that HashMap keys in JSON are always strings, even though the underlying NodeId/EdgeId are
 `u32` newtypes. NodeIds appearing as values (not keys) serialize as plain numbers.

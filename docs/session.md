@@ -54,7 +54,7 @@ handling — the progressive reveal is just a sequence of cards in the queue.
 
 A re-drill needs to know the verse context: which reference and which phrases. The graph provides
 this via `verse_context(atom)` — traverses from the atom to its VerseGist hub, then collects the
-Reference and all Phrases (sorted by position).
+VerseRef and all Phrases (sorted by position).
 
 Fill-in-blank: `shown = {ref, all other phrases}`, `hidden = {failed phrase}` Full recitation:
 `shown = {ref}`, `hidden = {all phrases}`

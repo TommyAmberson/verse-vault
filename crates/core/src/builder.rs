@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use crate::card::{Card, CardState};
-use crate::card_types::{AtomRole, CardTypeDef, CardTypesConfig, parse_role};
+use crate::card_types::{AtomRole, CardScope, CardTypeDef, CardTypesConfig, parse_role};
 use crate::content::MaterialData;
-use crate::edge::{EdgeKind, EdgeState};
+use crate::edge::{EdgeRole, EdgeState};
 use crate::graph::Graph;
 use crate::node::{ClubTier, NodeKind};
 use crate::types::{CardId, NodeId};
@@ -27,12 +27,41 @@ fn initial_state(now_secs: i64) -> EdgeState {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct VerseAtoms {
     pub ref_node: NodeId,
+    pub chapter_ref: NodeId,
+    pub book_ref: NodeId,
     pub verse_gist: NodeId,
     pub phrases: Vec<NodeId>,
     pub ftv: Option<NodeId>,
     pub heading: Option<NodeId>,
     pub next_heading: Option<NodeId>,
     pub prev_heading: Option<NodeId>,
+    /// `ClubGist` of the most-specific tier this verse belongs to: Club150
+    /// if tagged 150 (which by the subset rule also lives in 300), else
+    /// Club300 if tagged 300, else None for full-material-only verses.
+    /// Resolves the `club_gist` role on verse-scope cards.
+    pub most_specific_club_gist: Option<NodeId>,
+}
+
+/// Per-(book, chapter, tier) context for chapter-club-scoped card types.
+/// Produced for every (chapter, tier) pair that has at least one member.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ChapterClubAtoms {
+    pub club_gist: NodeId,
+    pub book_ref: NodeId,
+    pub chapter_ref: NodeId,
+    /// VerseRef atoms for members of this chapter in this tier,
+    /// sorted by verse number.
+    pub verse_refs: Vec<NodeId>,
+}
+
+/// Per-heading context for heading-scoped card types. Produced for every
+/// heading that covers at least one verse with text.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct HeadingAtoms {
+    pub heading: NodeId,
+    /// VerseRef atoms for every verse inside the heading's range,
+    /// sorted by (chapter, verse).
+    pub verse_refs: Vec<NodeId>,
 }
 
 /// Build result from content data.
@@ -85,7 +114,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     for book in &data.books {
         let bg = graph.add_node(NodeKind::BookGist { book: book.clone() });
         let br = graph.add_node(NodeKind::BookRef { book: book.clone() });
-        graph.add_bi_edge_with_state(EdgeKind::BookGistBookRef, bg, br, state);
+        graph.add_bi_edge_with_state(bg, br, state);
         book_gists.insert(book.clone(), bg);
         book_refs.insert(book.clone(), br);
     }
@@ -95,7 +124,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             book_gists.get(&data.books[i - 1]),
             book_gists.get(&data.books[i]),
         ) {
-            graph.add_bi_edge_with_state(EdgeKind::BookGistBookGist, prev, curr, state);
+            graph.add_bi_edge_with_state(prev, curr, state);
         }
     }
 
@@ -107,15 +136,15 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     for ch in &data.chapters {
         let gist = graph.add_node(NodeKind::ChapterGist { chapter: ch.number });
         let cref = graph.add_node(NodeKind::ChapterRef { chapter: ch.number });
-        graph.add_bi_edge_with_state(EdgeKind::ChapterGistChapterRef, gist, cref, state);
+        graph.add_bi_edge_with_state(gist, cref, state);
 
         // chapter_gist → book_gist (uni)
         if let Some(&bg) = book_gists.get(&ch.book) {
-            graph.add_edge_with_state(EdgeKind::ChapterGistBookGist, gist, bg, state);
+            graph.add_edge_with_state(gist, bg, state);
         }
         // chapter_ref → book_ref (uni)
         if let Some(&br) = book_refs.get(&ch.book) {
-            graph.add_edge_with_state(EdgeKind::ChapterRefBookRef, cref, br, state);
+            graph.add_edge_with_state(cref, br, state);
         }
 
         chapter_gists.insert((ch.book.clone(), ch.number), gist);
@@ -130,18 +159,13 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     for (book, chapters) in &mut chapters_by_book {
         chapters.sort_by_key(|(num, _)| *num);
         for i in 1..chapters.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::ChapterGistChapterGist,
-                chapters[i - 1].1,
-                chapters[i].1,
-                state,
-            );
+            graph.add_bi_edge_with_state(chapters[i - 1].1, chapters[i].1, state);
         }
         if let Some(&bg) = book_gists.get(book)
             && let (Some(first), Some(last)) = (chapters.first(), chapters.last())
         {
-            graph.add_edge_with_state(EdgeKind::BookGistFirstChapterGist, bg, first.1, state);
-            graph.add_edge_with_state(EdgeKind::BookGistLastChapterGist, bg, last.1, state);
+            graph.add_edge_with_role(bg, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(bg, last.1, EdgeRole::LastChild, state);
         }
     }
 
@@ -162,7 +186,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         let (prev_id, prev_h) = &heading_nodes[i - 1];
         let (curr_id, curr_h) = &heading_nodes[i];
         if prev_h.book == curr_h.book {
-            graph.add_bi_edge_with_state(EdgeKind::HeadingHeading, *prev_id, *curr_id, state);
+            graph.add_bi_edge_with_state(*prev_id, *curr_id, state);
         }
     }
     // Build heading lookup: (book, chapter, verse) -> heading node
@@ -170,6 +194,10 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
 
     // --- Verse layer ---
     let mut verse_atoms_list: Vec<VerseAtoms> = Vec::new();
+    // Parallel to verse_atoms_list: most-specific club tier per verse, or
+    // None for full-material-only verses. Resolved to a ClubGist NodeId
+    // after `build_club_hierarchy` returns the per-tier gist map.
+    let mut verse_most_specific_tier: Vec<Option<ClubTier>> = Vec::new();
     let mut prev_verse_gist: Option<NodeId> = None;
     let mut prev_verse_book: Option<String> = None;
 
@@ -180,6 +208,16 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
     let mut verse_club_members: VerseClubMemberMap = HashMap::new();
     let mut verse_members_by_chapter_tier: VerseMembersByChapter = HashMap::new();
     let mut verse_members_by_heading_tier: VerseMembersByHeading = HashMap::new();
+
+    // Track VerseRef NodeIds for chapter-club and heading listing cards.
+    // Parallel to verse_members_by_chapter_tier but stores verse_ref (the
+    // displayed atom) rather than the VerseClubMember (internal atom).
+    type VerseRefsByChapterTier = HashMap<(ClubTier, String, u16), Vec<(u16, NodeId)>>;
+    type VerseRefsByHeading = HashMap<NodeId, Vec<((u16, u16), NodeId)>>;
+    let mut verse_refs_by_chapter_tier: VerseRefsByChapterTier = HashMap::new();
+    // (heading_id) -> list of ((chapter, verse), verse_ref) for verses in
+    // that heading's range (regardless of club membership).
+    let mut verse_refs_by_heading: VerseRefsByHeading = HashMap::new();
 
     for verse_data in data.verses_with_text() {
         let ref_node = graph.add_node(NodeKind::VerseRef {
@@ -192,15 +230,15 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         });
 
         // verse gist ↔ verse ref (bi)
-        graph.add_bi_edge_with_state(EdgeKind::VerseGistVerseRef, verse_gist, ref_node, state);
+        graph.add_bi_edge_with_state(verse_gist, ref_node, state);
 
         // verse gist → chapter gist (uni)
         if let Some(&ch_gist) = chapter_gists.get(&(verse_data.book.clone(), verse_data.chapter)) {
-            graph.add_edge_with_state(EdgeKind::VerseGistChapterGist, verse_gist, ch_gist, state);
+            graph.add_edge_with_state(verse_gist, ch_gist, state);
         }
         // verse ref → chapter ref (uni)
         if let Some(&ch_ref) = chapter_refs.get(&(verse_data.book.clone(), verse_data.chapter)) {
-            graph.add_edge_with_state(EdgeKind::VerseRefChapterRef, ref_node, ch_ref, state);
+            graph.add_edge_with_state(ref_node, ch_ref, state);
         }
 
         // Phrase nodes
@@ -211,17 +249,12 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
                 verse_id: verse_data.verse as u32,
                 position: pos as u16,
             });
-            graph.add_bi_edge_with_state(EdgeKind::PhraseVerseGist, pid, verse_gist, state);
+            graph.add_bi_edge_with_state(pid, verse_gist, state);
             phrase_nodes.push(pid);
         }
         // Phrase ↔ phrase chain (bi)
         for i in 1..phrase_nodes.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::PhrasePhrase,
-                phrase_nodes[i - 1],
-                phrase_nodes[i],
-                state,
-            );
+            graph.add_bi_edge_with_state(phrase_nodes[i - 1], phrase_nodes[i], state);
         }
 
         // FTV node (optional, ≤ FTV_MAX_WORDS)
@@ -232,8 +265,8 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             let ftv = graph.add_node(NodeKind::Ftv {
                 text: verse_data.ftv.clone(),
             });
-            graph.add_edge_with_state(EdgeKind::FtvPhrase, ftv, phrase_nodes[0], state);
-            graph.add_edge_with_state(EdgeKind::FtvVerseGist, ftv, verse_gist, state);
+            graph.add_edge_with_state(ftv, phrase_nodes[0], state);
+            graph.add_edge_with_state(ftv, verse_gist, state);
             Some(ftv)
         } else {
             None
@@ -243,12 +276,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         if let Some(prev_gist) = prev_verse_gist
             && prev_verse_book.as_deref() == Some(&verse_data.book)
         {
-            graph.add_bi_edge_with_state(
-                EdgeKind::VerseGistVerseGist,
-                prev_gist,
-                verse_gist,
-                state,
-            );
+            graph.add_bi_edge_with_state(prev_gist, verse_gist, state);
         }
         prev_verse_gist = Some(verse_gist);
         prev_verse_book = Some(verse_data.book.clone());
@@ -262,7 +290,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             ))
             .copied();
         if let Some(hid) = heading_node {
-            graph.add_edge_with_state(EdgeKind::VerseGistHeading, verse_gist, hid, state);
+            graph.add_edge_with_state(verse_gist, hid, state);
         }
 
         // Club membership (verse layer). Tier expansion materialises both
@@ -273,12 +301,7 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
                 chapter: verse_data.chapter,
                 verse: verse_data.verse,
             });
-            graph.add_bi_edge_with_state(
-                EdgeKind::VerseRefVerseClubMember,
-                ref_node,
-                member,
-                state,
-            );
+            graph.add_bi_edge_with_state(ref_node, member, state);
             verse_club_members.insert(
                 (
                     tier,
@@ -292,12 +315,26 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
                 .entry((tier, verse_data.book.clone(), verse_data.chapter))
                 .or_default()
                 .push((verse_data.verse, member));
+            verse_refs_by_chapter_tier
+                .entry((tier, verse_data.book.clone(), verse_data.chapter))
+                .or_default()
+                .push((verse_data.verse, ref_node));
             if let Some(hid) = heading_node {
                 verse_members_by_heading_tier
                     .entry((tier, hid))
                     .or_default()
                     .push(((verse_data.chapter, verse_data.verse), member));
             }
+        }
+
+        // Heading-scope tracking: every verse with a heading contributes
+        // its verse_ref to the heading's card scope (independent of club
+        // membership).
+        if let Some(hid) = heading_node {
+            verse_refs_by_heading
+                .entry(hid)
+                .or_default()
+                .push(((verse_data.chapter, verse_data.verse), ref_node));
         }
 
         // Heading context for card generation (lookup adjacent headings)
@@ -315,15 +352,39 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
             .or_default()
             .push((verse_data.verse, verse_gist));
 
+        let chapter_ref = chapter_refs
+            .get(&(verse_data.book.clone(), verse_data.chapter))
+            .copied()
+            .expect("chapter_ref was inserted during chapter layer");
+        let book_ref = *book_refs
+            .get(&verse_data.book)
+            .expect("book_ref was inserted during book layer");
+
+        // Most-specific tier this verse belongs to (filled in below once
+        // ClubGist NodeIds are known). 150 wins over 300 because 150 ⊂ 300.
+        let most_specific_tier =
+            expand_tiers(&verse_data.clubs)
+                .into_iter()
+                .min_by_key(|t| match t {
+                    ClubTier::Club150 => 0,
+                    ClubTier::Club300 => 1,
+                });
+
         verse_atoms_list.push(VerseAtoms {
             ref_node,
+            chapter_ref,
+            book_ref,
             verse_gist,
             phrases: phrase_nodes,
             ftv: ftv_node,
             heading: heading_node,
             next_heading,
             prev_heading,
+            // Filled in after build_club_hierarchy — store the tier in
+            // a parallel vec so we don't carry it on the public struct.
+            most_specific_club_gist: None,
         });
+        verse_most_specific_tier.push(most_specific_tier);
     }
 
     // Chapter → first/last verse endpoints (needs full verse map)
@@ -332,8 +393,8 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         if let Some(&ch_gist) = chapter_gists.get(&(book.clone(), chapter_num))
             && let (Some(first), Some(last)) = (verses.first(), verses.last())
         {
-            graph.add_edge_with_state(EdgeKind::ChapterGistFirstVerseGist, ch_gist, first.1, state);
-            graph.add_edge_with_state(EdgeKind::ChapterGistLastVerseGist, ch_gist, last.1, state);
+            graph.add_edge_with_role(ch_gist, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(ch_gist, last.1, EdgeRole::LastChild, state);
         }
     }
 
@@ -353,13 +414,13 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         }
         verses_in_range.sort_by_key(|(k, _)| *k);
         if let (Some(first), Some(last)) = (verses_in_range.first(), verses_in_range.last()) {
-            graph.add_edge_with_state(EdgeKind::HeadingFirstVerseGist, *hid, first.1, state);
-            graph.add_edge_with_state(EdgeKind::HeadingLastVerseGist, *hid, last.1, state);
+            graph.add_edge_with_role(*hid, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(*hid, last.1, EdgeRole::LastChild, state);
         }
     }
 
     // --- Club hierarchy ---
-    build_club_hierarchy(
+    let club_gists = build_club_hierarchy(
         &mut graph,
         state,
         &verse_club_members,
@@ -369,8 +430,53 @@ pub fn build(data: &MaterialData, card_types: &CardTypesConfig, now_secs: i64) -
         &heading_nodes,
     );
 
+    // Resolve each verse's most-specific ClubGist NodeId now that the
+    // gist map exists.
+    for (atoms, tier) in verse_atoms_list
+        .iter_mut()
+        .zip(verse_most_specific_tier.iter())
+    {
+        atoms.most_specific_club_gist = tier.and_then(|t| club_gists.get(&t).copied());
+    }
+
+    // --- Chapter-club atom bundles ---
+    let mut chapter_club_atoms_list: Vec<ChapterClubAtoms> = Vec::new();
+    for ((tier, book, chapter), verse_refs) in &verse_refs_by_chapter_tier {
+        let mut sorted = verse_refs.clone();
+        sorted.sort_by_key(|(v, _)| *v);
+        let (Some(&club_gist), Some(&book_ref), Some(&chapter_ref)) = (
+            club_gists.get(tier),
+            book_refs.get(book),
+            chapter_refs.get(&(book.clone(), *chapter)),
+        ) else {
+            continue;
+        };
+        chapter_club_atoms_list.push(ChapterClubAtoms {
+            club_gist,
+            book_ref,
+            chapter_ref,
+            verse_refs: sorted.into_iter().map(|(_, vref)| vref).collect(),
+        });
+    }
+
+    // --- Heading atom bundles ---
+    let mut heading_atoms_list: Vec<HeadingAtoms> = Vec::new();
+    for (hid, entries) in &verse_refs_by_heading {
+        let mut sorted = entries.clone();
+        sorted.sort_by_key(|(k, _)| *k);
+        heading_atoms_list.push(HeadingAtoms {
+            heading: *hid,
+            verse_refs: sorted.into_iter().map(|(_, vref)| vref).collect(),
+        });
+    }
+
     // --- Cards ---
-    let cards = generate_cards(card_types, &verse_atoms_list);
+    let cards = generate_cards(
+        card_types,
+        &verse_atoms_list,
+        &chapter_club_atoms_list,
+        &heading_atoms_list,
+    );
 
     BuildResult {
         graph,
@@ -401,7 +507,7 @@ fn build_club_hierarchy(
     verse_members_by_heading_tier: &VerseMembersByHeading,
     chapter_refs: &HashMap<(String, u16), NodeId>,
     heading_nodes: &[(NodeId, &crate::content::HeadingData)],
-) {
+) -> HashMap<ClubTier, NodeId> {
     // Set of tiers that actually appear in the material.
     let mut tiers: Vec<ClubTier> = Vec::new();
     for (tier, _, _, _) in verse_club_members.keys() {
@@ -437,30 +543,20 @@ fn build_club_hierarchy(
             tier: *tier,
             chapter: *chapter,
         });
-        graph.add_bi_edge_with_state(EdgeKind::ChapterRefChapterClubMember, cref, ccm, state);
+        graph.add_bi_edge_with_state(cref, ccm, state);
         if let Some(&cg) = club_gists.get(tier) {
-            graph.add_edge_with_state(EdgeKind::ChapterClubMemberClubGist, ccm, cg, state);
+            graph.add_edge_with_state(ccm, cg, state);
         }
 
         let mut sorted = members.clone();
         sorted.sort_by_key(|(v, _)| *v);
         if let (Some(first), Some(last)) = (sorted.first(), sorted.last()) {
-            graph.add_edge_with_state(
-                EdgeKind::ChapterClubMemberFirstVerseClubMember,
-                ccm,
-                first.1,
-                state,
-            );
-            graph.add_edge_with_state(
-                EdgeKind::ChapterClubMemberLastVerseClubMember,
-                ccm,
-                last.1,
-                state,
-            );
+            graph.add_edge_with_role(ccm, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(ccm, last.1, EdgeRole::LastChild, state);
         }
         // Upward verse_cm → chapter_cm
         for (_, vcm) in &sorted {
-            graph.add_edge_with_state(EdgeKind::VerseClubMemberChapterClubMember, *vcm, ccm, state);
+            graph.add_edge_with_state(*vcm, ccm, state);
         }
 
         chapter_cm_by_tier
@@ -474,19 +570,14 @@ fn build_club_hierarchy(
     for (tier, chapters) in chapter_cm_by_tier.iter_mut() {
         chapters.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
         for i in 1..chapters.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::ChapterClubMemberChapterClubMember,
-                chapters[i - 1].2,
-                chapters[i].2,
-                state,
-            );
+            graph.add_bi_edge_with_state(chapters[i - 1].2, chapters[i].2, state);
         }
         // Club gist → first/last chapter_cm endpoints
         if let Some(&cg) = club_gists.get(tier)
             && let (Some(first), Some(last)) = (chapters.first(), chapters.last())
         {
-            graph.add_edge_with_state(EdgeKind::ClubGistFirstChapterClubMember, cg, first.2, state);
-            graph.add_edge_with_state(EdgeKind::ClubGistLastChapterClubMember, cg, last.2, state);
+            graph.add_edge_with_role(cg, first.2, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(cg, last.2, EdgeRole::LastChild, state);
         }
     }
 
@@ -507,30 +598,20 @@ fn build_club_hierarchy(
             start_chapter: hdata.start_chapter,
             start_verse: hdata.start_verse,
         });
-        graph.add_bi_edge_with_state(EdgeKind::HeadingHeadingClubMember, *hid, hcm, state);
+        graph.add_bi_edge_with_state(*hid, hcm, state);
         if let Some(&cg) = club_gists.get(tier) {
-            graph.add_edge_with_state(EdgeKind::HeadingClubMemberClubGist, hcm, cg, state);
+            graph.add_edge_with_state(hcm, cg, state);
         }
 
         let mut sorted = members.clone();
         sorted.sort_by_key(|(k, _)| *k);
         if let (Some(first), Some(last)) = (sorted.first(), sorted.last()) {
-            graph.add_edge_with_state(
-                EdgeKind::HeadingClubMemberFirstVerseClubMember,
-                hcm,
-                first.1,
-                state,
-            );
-            graph.add_edge_with_state(
-                EdgeKind::HeadingClubMemberLastVerseClubMember,
-                hcm,
-                last.1,
-                state,
-            );
+            graph.add_edge_with_role(hcm, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(hcm, last.1, EdgeRole::LastChild, state);
         }
         // Upward verse_cm → heading_cm
         for (_, vcm) in &sorted {
-            graph.add_edge_with_state(EdgeKind::VerseClubMemberHeadingClubMember, *vcm, hcm, state);
+            graph.add_edge_with_state(*vcm, hcm, state);
         }
 
         if let Some(&idx) = heading_index.get(hid) {
@@ -545,18 +626,13 @@ fn build_club_hierarchy(
     for (tier, headings) in heading_cm_by_tier.iter_mut() {
         headings.sort_by_key(|(idx, _)| *idx);
         for i in 1..headings.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::HeadingClubMemberHeadingClubMember,
-                headings[i - 1].1,
-                headings[i].1,
-                state,
-            );
+            graph.add_bi_edge_with_state(headings[i - 1].1, headings[i].1, state);
         }
         if let Some(&cg) = club_gists.get(tier)
             && let (Some(first), Some(last)) = (headings.first(), headings.last())
         {
-            graph.add_edge_with_state(EdgeKind::ClubGistFirstHeadingClubMember, cg, first.1, state);
-            graph.add_edge_with_state(EdgeKind::ClubGistLastHeadingClubMember, cg, last.1, state);
+            graph.add_edge_with_role(cg, first.1, EdgeRole::FirstChild, state);
+            graph.add_edge_with_role(cg, last.1, EdgeRole::LastChild, state);
         }
     }
 
@@ -572,29 +648,21 @@ fn build_club_hierarchy(
     for (tier, verses) in verse_members_by_tier.iter_mut() {
         verses.sort_by(|a, b| a.0.cmp(&b.0));
         for i in 1..verses.len() {
-            graph.add_bi_edge_with_state(
-                EdgeKind::VerseClubMemberVerseClubMember,
-                verses[i - 1].1,
-                verses[i].1,
-                state,
-            );
+            graph.add_bi_edge_with_state(verses[i - 1].1, verses[i].1, state);
         }
         // verse_cm → club_gist
         if let Some(&cg) = club_gists.get(tier) {
             for (_, vcm) in verses.iter() {
-                graph.add_edge_with_state(EdgeKind::VerseClubMemberClubGist, *vcm, cg, state);
+                graph.add_edge_with_state(*vcm, cg, state);
             }
             if let (Some(first), Some(last)) = (verses.first(), verses.last()) {
-                graph.add_edge_with_state(
-                    EdgeKind::ClubGistFirstVerseClubMember,
-                    cg,
-                    first.1,
-                    state,
-                );
-                graph.add_edge_with_state(EdgeKind::ClubGistLastVerseClubMember, cg, last.1, state);
+                graph.add_edge_with_role(cg, first.1, EdgeRole::FirstChild, state);
+                graph.add_edge_with_role(cg, last.1, EdgeRole::LastChild, state);
             }
         }
     }
+
+    club_gists
 }
 
 fn build_heading_lookup(
@@ -627,41 +695,154 @@ fn build_heading_lookup(
     lookup
 }
 
-fn generate_cards(card_types: &CardTypesConfig, verse_atoms: &[VerseAtoms]) -> Vec<Card> {
+fn generate_cards(
+    card_types: &CardTypesConfig,
+    verse_atoms: &[VerseAtoms],
+    chapter_club_atoms: &[ChapterClubAtoms],
+    heading_atoms: &[HeadingAtoms],
+) -> Vec<Card> {
     let mut cards = Vec::new();
     let mut next_id = 0u32;
 
-    for atoms in verse_atoms {
-        for card_type in &card_types.card_types {
-            if let Some(req) = &card_type.requires {
-                let has_it = match req.as_str() {
-                    "ftv" => atoms.ftv.is_some(),
-                    "heading" => atoms.heading.is_some(),
-                    "next_heading" => atoms.next_heading.is_some(),
-                    "prev_heading" => atoms.prev_heading.is_some(),
-                    _ => true,
-                };
-                if !has_it {
-                    continue;
-                }
+    for card_type in &card_types.card_types {
+        match card_type.scope {
+            CardScope::Verse => {
+                generate_verse_cards(card_type, verse_atoms, &mut cards, &mut next_id);
             }
-
-            if let Some(iterate) = &card_type.iterate {
-                if iterate == "phrases" {
-                    for (idx, _) in atoms.phrases.iter().enumerate() {
-                        if let Some(card) = resolve_card(card_type, atoms, Some(idx), &mut next_id)
-                        {
-                            cards.push(card);
-                        }
-                    }
-                }
-            } else if let Some(card) = resolve_card(card_type, atoms, None, &mut next_id) {
-                cards.push(card);
+            CardScope::ChapterClub => {
+                generate_chapter_club_cards(
+                    card_type,
+                    chapter_club_atoms,
+                    &mut cards,
+                    &mut next_id,
+                );
+            }
+            CardScope::Heading => {
+                generate_heading_cards(card_type, heading_atoms, &mut cards, &mut next_id);
             }
         }
     }
 
     cards
+}
+
+fn generate_verse_cards(
+    card_type: &CardTypeDef,
+    verse_atoms: &[VerseAtoms],
+    cards: &mut Vec<Card>,
+    next_id: &mut u32,
+) {
+    for atoms in verse_atoms {
+        if let Some(req) = &card_type.requires {
+            let has_it = match req.as_str() {
+                "ftv" => atoms.ftv.is_some(),
+                "heading" => atoms.heading.is_some(),
+                "next_heading" => atoms.next_heading.is_some(),
+                "prev_heading" => atoms.prev_heading.is_some(),
+                _ => true,
+            };
+            if !has_it {
+                continue;
+            }
+        }
+
+        if let Some(iterate) = &card_type.iterate {
+            if iterate == "phrases" {
+                for (idx, _) in atoms.phrases.iter().enumerate() {
+                    if let Some(card) = resolve_card(card_type, atoms, Some(idx), next_id) {
+                        cards.push(card);
+                    }
+                }
+            }
+        } else if let Some(card) = resolve_card(card_type, atoms, None, next_id) {
+            cards.push(card);
+        }
+    }
+}
+
+fn generate_chapter_club_cards(
+    card_type: &CardTypeDef,
+    chapter_club_atoms: &[ChapterClubAtoms],
+    cards: &mut Vec<Card>,
+    next_id: &mut u32,
+) {
+    for atoms in chapter_club_atoms {
+        if atoms.verse_refs.is_empty() {
+            continue;
+        }
+        let shown = resolve_chapter_club_roles(&card_type.show, atoms);
+        let hidden = resolve_chapter_club_roles(&card_type.hide, atoms);
+        let (Some(shown), Some(hidden)) = (shown, hidden) else {
+            continue;
+        };
+        if shown.is_empty() || hidden.is_empty() {
+            continue;
+        }
+        let id = CardId(*next_id);
+        *next_id += 1;
+        cards.push(Card {
+            id,
+            shown,
+            hidden,
+            state: CardState::New,
+        });
+    }
+}
+
+fn generate_heading_cards(
+    card_type: &CardTypeDef,
+    heading_atoms: &[HeadingAtoms],
+    cards: &mut Vec<Card>,
+    next_id: &mut u32,
+) {
+    for atoms in heading_atoms {
+        if atoms.verse_refs.is_empty() {
+            continue;
+        }
+        let shown = resolve_heading_roles(&card_type.show, atoms);
+        let hidden = resolve_heading_roles(&card_type.hide, atoms);
+        let (Some(shown), Some(hidden)) = (shown, hidden) else {
+            continue;
+        };
+        if shown.is_empty() || hidden.is_empty() {
+            continue;
+        }
+        let id = CardId(*next_id);
+        *next_id += 1;
+        cards.push(Card {
+            id,
+            shown,
+            hidden,
+            state: CardState::New,
+        });
+    }
+}
+
+fn resolve_chapter_club_roles(roles: &[String], atoms: &ChapterClubAtoms) -> Option<Vec<NodeId>> {
+    let mut nodes = Vec::new();
+    for role_str in roles {
+        match parse_role(role_str)? {
+            AtomRole::ClubGist => nodes.push(atoms.club_gist),
+            AtomRole::BookRef => nodes.push(atoms.book_ref),
+            AtomRole::ChapterRef => nodes.push(atoms.chapter_ref),
+            AtomRole::ChapterClubVerseRefs => nodes.extend_from_slice(&atoms.verse_refs),
+            // Roles outside the chapter-club scope aren't resolvable here.
+            _ => return None,
+        }
+    }
+    Some(nodes)
+}
+
+fn resolve_heading_roles(roles: &[String], atoms: &HeadingAtoms) -> Option<Vec<NodeId>> {
+    let mut nodes = Vec::new();
+    for role_str in roles {
+        match parse_role(role_str)? {
+            AtomRole::Heading => nodes.push(atoms.heading),
+            AtomRole::HeadingVerseRefs => nodes.extend_from_slice(&atoms.verse_refs),
+            _ => return None,
+        }
+    }
+    Some(nodes)
 }
 
 fn resolve_card(
@@ -696,7 +877,14 @@ fn resolve_roles(
 
     for role_str in roles {
         match parse_role(role_str)? {
-            AtomRole::Ref => nodes.push(atoms.ref_node),
+            // `ref` expands to the full book/chapter/verse triple so every
+            // reference-bearing card carries the three atoms that grade
+            // independently (see card-coupling design in docs/graph.md).
+            AtomRole::Ref => {
+                nodes.push(atoms.book_ref);
+                nodes.push(atoms.chapter_ref);
+                nodes.push(atoms.ref_node);
+            }
             AtomRole::Phrases => nodes.extend_from_slice(&atoms.phrases),
             AtomRole::FirstPhrase => {
                 nodes.push(*atoms.phrases.first()?);
@@ -724,6 +912,20 @@ fn resolve_roles(
             AtomRole::PrevHeading => nodes.push(atoms.prev_heading?),
             AtomRole::ChapterGist | AtomRole::ClubRefs => {
                 // These need chapter-level context, handled separately.
+            }
+            // Verse-scope resolution for roles that name a single parent
+            // atom of the verse: book_ref, chapter_ref, and the
+            // most-specific club_gist (if the verse is in any tier).
+            AtomRole::BookRef => nodes.push(atoms.book_ref),
+            AtomRole::ChapterRef => nodes.push(atoms.chapter_ref),
+            AtomRole::ClubGist => {
+                // Skip the card entirely for full-material-only verses.
+                nodes.push(atoms.most_specific_club_gist?);
+            }
+            // Genuine cross-scope roles that don't map to a single verse-
+            // scoped answer.
+            AtomRole::ChapterClubVerseRefs | AtomRole::HeadingVerseRefs => {
+                return None;
             }
         }
     }
@@ -807,10 +1009,14 @@ mod tests {
         let card_types = test_card_types();
         let result = build(&data, &card_types, 0);
         assert!(result.cards.len() >= 10, "cards: {}", result.cards.len());
-        let full_recit = result
-            .cards
-            .iter()
-            .find(|c| c.shown.len() == 1 && c.hidden.len() == 2);
+
+        // Full-recitation: shown = [book_ref, chapter_ref, verse_ref] (3)
+        // and hidden = all phrases (2 in test data).
+        let atoms0 = &result.verse_atoms[0];
+        let full_recit = result.cards.iter().find(|c| {
+            c.shown == vec![atoms0.book_ref, atoms0.chapter_ref, atoms0.ref_node]
+                && c.hidden == atoms0.phrases
+        });
         assert!(full_recit.is_some(), "should have a full recitation card");
     }
 
@@ -889,10 +1095,13 @@ mod tests {
             .graph
             .edge_ids()
             .filter(|&id| {
-                result
-                    .graph
-                    .edge(id)
-                    .is_some_and(|e| matches!(e.kind, EdgeKind::VerseGistHeading))
+                result.graph.edge(id).is_some_and(|e| {
+                    result.graph.edge_connects(
+                        e,
+                        |k| matches!(k, NodeKind::VerseGist { .. }),
+                        |k| matches!(k, NodeKind::Heading { .. }),
+                    )
+                })
             })
             .collect();
         assert_eq!(heading_edges.len(), 3);
@@ -926,20 +1135,28 @@ mod tests {
             .graph
             .edge_ids()
             .filter(|&id| {
-                result
-                    .graph
-                    .edge(id)
-                    .is_some_and(|e| matches!(e.kind, EdgeKind::ChapterGistFirstVerseGist))
+                result.graph.edge(id).is_some_and(|e| {
+                    e.role == Some(EdgeRole::FirstChild)
+                        && result.graph.edge_connects(
+                            e,
+                            |k| matches!(k, NodeKind::ChapterGist { .. }),
+                            |k| matches!(k, NodeKind::VerseGist { .. }),
+                        )
+                })
             })
             .count();
         let last_count = result
             .graph
             .edge_ids()
             .filter(|&id| {
-                result
-                    .graph
-                    .edge(id)
-                    .is_some_and(|e| matches!(e.kind, EdgeKind::ChapterGistLastVerseGist))
+                result.graph.edge(id).is_some_and(|e| {
+                    e.role == Some(EdgeRole::LastChild)
+                        && result.graph.edge_connects(
+                            e,
+                            |k| matches!(k, NodeKind::ChapterGist { .. }),
+                            |k| matches!(k, NodeKind::VerseGist { .. }),
+                        )
+                })
             })
             .count();
         assert_eq!(first_count, 1);
@@ -963,5 +1180,163 @@ mod tests {
         assert!(ccm_tiers.contains(&(ClubTier::Club150, 1)));
         assert!(ccm_tiers.contains(&(ClubTier::Club300, 1)));
         assert_eq!(ccm_tiers.len(), 2);
+    }
+
+    #[test]
+    fn verse_to_club_picks_most_specific_tier() {
+        let data = test_data();
+        let card_types = test_card_types();
+        let result = build(&data, &card_types, 0);
+
+        // Test data: verse 1 tagged 150 (→ both 150 and 300; most specific
+        // = 150), verse 2 tagged 300 only (most specific = 300), verse 3
+        // untagged (no card).
+        let club_gist_150 = result
+            .graph
+            .node_ids()
+            .find(|&id| {
+                matches!(
+                    result.graph.node_kind(id),
+                    Some(NodeKind::ClubGist {
+                        tier: ClubTier::Club150
+                    })
+                )
+            })
+            .unwrap();
+        let club_gist_300 = result
+            .graph
+            .node_ids()
+            .find(|&id| {
+                matches!(
+                    result.graph.node_kind(id),
+                    Some(NodeKind::ClubGist {
+                        tier: ClubTier::Club300
+                    })
+                )
+            })
+            .unwrap();
+
+        let verse_to_club_cards: Vec<_> = result
+            .cards
+            .iter()
+            .filter(|c| {
+                c.hidden.len() == 1
+                    && (c.hidden[0] == club_gist_150 || c.hidden[0] == club_gist_300)
+            })
+            .collect();
+        assert_eq!(
+            verse_to_club_cards.len(),
+            2,
+            "verse_to_club should be generated only for verses 1 and 2"
+        );
+
+        let v1 = &result.verse_atoms[0];
+        let v2 = &result.verse_atoms[1];
+        let v1_card = verse_to_club_cards
+            .iter()
+            .find(|c| c.shown.contains(&v1.ref_node))
+            .expect("verse 1 card");
+        let v2_card = verse_to_club_cards
+            .iter()
+            .find(|c| c.shown.contains(&v2.ref_node))
+            .expect("verse 2 card");
+        assert_eq!(v1_card.hidden, vec![club_gist_150], "verse 1 → Club150");
+        assert_eq!(v2_card.hidden, vec![club_gist_300], "verse 2 → Club300");
+    }
+
+    #[test]
+    fn club_chapter_listing_cards_generated() {
+        let data = test_data();
+        let card_types = test_card_types();
+        let result = build(&data, &card_types, 0);
+
+        // Test data: chapter 1 has verse 1 tagged 150 (→ both 150 and 300)
+        // and verse 2 tagged 300. So we expect TWO listing cards:
+        // - Club150 / chapter 1 with 1 verse (verse 1).
+        // - Club300 / chapter 1 with 2 verses (verse 1 + verse 2).
+        let book_ref = result
+            .graph
+            .node_ids()
+            .find(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::BookRef { .. })))
+            .unwrap();
+        let chapter_ref = result
+            .graph
+            .node_ids()
+            .find(|&id| {
+                matches!(
+                    result.graph.node_kind(id),
+                    Some(NodeKind::ChapterRef { .. })
+                )
+            })
+            .unwrap();
+
+        let listing_cards: Vec<_> = result
+            .cards
+            .iter()
+            .filter(|c| c.shown.len() == 3 && c.shown[1] == book_ref && c.shown[2] == chapter_ref)
+            .collect();
+        assert_eq!(
+            listing_cards.len(),
+            2,
+            "expected 2 listing cards (Club150 + Club300), got {}",
+            listing_cards.len()
+        );
+
+        let card_150 = listing_cards
+            .iter()
+            .find(|c| {
+                matches!(
+                    result.graph.node_kind(c.shown[0]),
+                    Some(NodeKind::ClubGist {
+                        tier: ClubTier::Club150
+                    })
+                )
+            })
+            .expect("should have a Club150 listing card");
+        assert_eq!(card_150.hidden.len(), 1, "Club150 ch 1: just verse 1");
+
+        let card_300 = listing_cards
+            .iter()
+            .find(|c| {
+                matches!(
+                    result.graph.node_kind(c.shown[0]),
+                    Some(NodeKind::ClubGist {
+                        tier: ClubTier::Club300
+                    })
+                )
+            })
+            .expect("should have a Club300 listing card");
+        assert_eq!(card_300.hidden.len(), 2, "Club300 ch 1: verses 1 and 2");
+    }
+
+    #[test]
+    fn verses_to_heading_card_generated() {
+        let data = test_data();
+        let card_types = test_card_types();
+        let result = build(&data, &card_types, 0);
+
+        // Test data has one heading ("Greeting") covering verses 1-3.
+        // The card hides that heading and shows all three verse refs.
+        let heading = result
+            .graph
+            .node_ids()
+            .find(|&id| matches!(result.graph.node_kind(id), Some(NodeKind::Heading { .. })))
+            .unwrap();
+
+        // verses_to_heading hides the heading and shows the full range of
+        // verse refs. Distinguish from verse_to_heading (which also hides
+        // the heading but shows [book_ref, chapter_ref, verse_ref]) by
+        // requiring every shown atom to be a VerseRef.
+        let card = result
+            .cards
+            .iter()
+            .find(|c| {
+                c.hidden == vec![heading]
+                    && c.shown.iter().all(|&n| {
+                        matches!(result.graph.node_kind(n), Some(NodeKind::VerseRef { .. }))
+                    })
+            })
+            .expect("verses_to_heading card should exist");
+        assert_eq!(card.shown.len(), 3, "three verses in the heading range");
     }
 }
