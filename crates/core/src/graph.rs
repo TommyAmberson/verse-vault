@@ -197,6 +197,19 @@ impl Graph {
         Some((verse_ref, phrase_ids))
     }
 
+    /// Walk `verse_ref → chapter_ref → book_ref` via the structural ref-chain
+    /// edges. Returns the (chapter_ref, book_ref) pair, or None if either link
+    /// is missing (e.g. graphs built before the chapter/book layers existed).
+    /// Used by session re-drill / new-verse cards to assemble the full ref
+    /// triple at render time.
+    pub fn verse_ref_parents(&self, verse_ref: NodeId) -> Option<(NodeId, NodeId)> {
+        let chapter_ref =
+            self.find_neighbor(verse_ref, |k| matches!(k, NodeKind::ChapterRef { .. }))?;
+        let book_ref =
+            self.find_neighbor(chapter_ref, |k| matches!(k, NodeKind::BookRef { .. }))?;
+        Some((chapter_ref, book_ref))
+    }
+
     fn find_neighbor(&self, node: NodeId, pred: impl Fn(&NodeKind) -> bool) -> Option<NodeId> {
         for &eid in self.outgoing_edges(node) {
             if let Some(edge) = self.edge(eid)
