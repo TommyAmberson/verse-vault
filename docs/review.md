@@ -118,8 +118,6 @@ h, up to **5 hops**. Paths follow edge directionality.
 R(path) = Π R(edge) for each edge in the path
 ```
 
-Structural edges (no FSRS state) contribute R = 1.0 but cannot receive credit or blame.
-
 ### Step 3: Credit (successful atoms)
 
 For a hidden atom h graded Good/Easy/Hard (any pass):
