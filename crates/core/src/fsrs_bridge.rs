@@ -126,7 +126,7 @@ impl FsrsBridge {
         }
 
         EdgeState {
-            stability: (current.stability + s_delta).max(S_MIN),
+            stability: (current.stability + s_delta).clamp(S_MIN, S_MAX),
             difficulty: (current.difficulty + d_delta).clamp(D_MIN, D_MAX),
             last_review_secs: now_secs,
         }
