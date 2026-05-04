@@ -243,7 +243,7 @@ fn assign_blame_for_fail(
         }
 
         if let Some(edge_id) = weakest_edge {
-            let blame = 1.0 - weakest_r;
+            let blame = (1.0 - weakest_r) * ap.decay_multiplier;
             *blame_scores.entry(edge_id).or_default() += blame;
             total_blame += blame;
         }
@@ -545,6 +545,40 @@ mod tests {
         assert!(
             has_p1p2_credit,
             "Hard=pass, p1 should be in source set for p2"
+        );
+    }
+
+    #[test]
+    fn blame_scales_with_anchor_decay() {
+        use crate::path::Path;
+
+        let (g, _r, _v, p1, p2, _p3) = make_verse_graph();
+        let edge_a = g.outgoing_edges(p1)[0];
+        let edge_b = g.outgoing_edges(p2)[0];
+
+        let near = AnchorPath {
+            path: Path {
+                edges: vec![edge_a],
+                nodes: vec![p1, p2],
+            },
+            decay_multiplier: 1.0,
+        };
+        let far = AnchorPath {
+            path: Path {
+                edges: vec![edge_b],
+                nodes: vec![p2, p1],
+            },
+            decay_multiplier: 0.5,
+        };
+
+        let mut updates: HashMap<EdgeId, Vec<(Grade, f32)>> = HashMap::new();
+        assign_blame_for_fail(&g, &[near, far], Grade::Again, &fsrs(), 86400, &mut updates);
+
+        let near_w = updates.get(&edge_a).unwrap()[0].1;
+        let far_w = updates.get(&edge_b).unwrap()[0].1;
+        assert!(
+            near_w > far_w * 1.9,
+            "near (decay=1.0) should carry ~2x blame of far (decay=0.5): near={near_w}, far={far_w}"
         );
     }
 
