@@ -298,7 +298,14 @@ fn apply_reverse_reinforcement(
     params: &CreditParams,
     secondary: &mut HashMap<EdgeId, Vec<(Grade, f32)>>,
 ) {
-    for (&edge_id, updates) in primary_updates {
+    // Iterate sorted so that when two primaries compete for the same reverse
+    // candidate, the secondary.contains_key guard at line below picks a
+    // deterministic winner instead of relying on hashmap order.
+    let mut primary_ids: Vec<EdgeId> = primary_updates.keys().copied().collect();
+    primary_ids.sort_by_key(|id| id.0);
+
+    for edge_id in primary_ids {
+        let updates = &primary_updates[&edge_id];
         let edge = match graph.edge(edge_id) {
             Some(e) => e,
             None => continue,
