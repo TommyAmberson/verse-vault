@@ -226,7 +226,7 @@ impl FsrsBridge {
     fn stability_short_term(&self, last_s: f32, rating: u32) -> f32 {
         let sinc =
             (self.w[17] * (rating as f32 - 3.0 + self.w[18])).exp() * last_s.powf(-self.w[19]);
-        let sinc = if rating >= 3 { sinc.max(1.0) } else { sinc };
+        let sinc = if rating >= 2 { sinc.max(1.0) } else { sinc };
         last_s * sinc
     }
 
@@ -391,6 +391,23 @@ mod tests {
         assert!(
             blended.stability < good_only.stability,
             "blending Again should lower S vs pure Good"
+        );
+    }
+
+    #[test]
+    fn same_session_hard_does_not_decrease_stability() {
+        let b = bridge();
+        let state = EdgeState {
+            stability: 10.0,
+            difficulty: 5.0,
+            last_review_secs: 0,
+        };
+        let updated = b.apply_weighted_update(&state, &[(Grade::Hard, 1.0)], 0);
+        assert!(
+            updated.stability >= state.stability,
+            "same-day Hard must not decrease S (upstream fsrs-rs #376): {} -> {}",
+            state.stability,
+            updated.stability
         );
     }
 
