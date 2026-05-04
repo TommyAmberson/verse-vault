@@ -65,6 +65,8 @@ impl ReviewEngine {
             None => return Vec::new(),
         };
 
+        assert_grades_cover_hidden(&card.hidden, &grades);
+
         let review_result = ReviewResult {
             shown: card.shown.clone(),
             hidden: card.hidden.clone(),
@@ -83,6 +85,8 @@ impl ReviewEngine {
         grades: HashMap<NodeId, Grade>,
         now_secs: i64,
     ) -> Vec<EdgeUpdate> {
+        assert_grades_cover_hidden(hidden, &grades);
+
         let review_result = ReviewResult {
             shown: shown.to_vec(),
             hidden: hidden.to_vec(),
@@ -168,6 +172,15 @@ impl ReviewEngine {
             &self.fsrs,
             now_secs,
             &self.schedule_params,
+        );
+    }
+}
+
+fn assert_grades_cover_hidden(hidden: &[NodeId], grades: &HashMap<NodeId, Grade>) {
+    for h in hidden {
+        assert!(
+            grades.contains_key(h),
+            "review grades must cover every hidden atom: missing grade for {h:?}"
         );
     }
 }
@@ -350,6 +363,16 @@ mod tests {
             s_after_2 > s_after_1,
             "total stability should increase with Good reviews: {s_after_2} > {s_after_1}"
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "review grades must cover every hidden atom")]
+    fn missing_grade_panics() {
+        let (g, cards, _r, _v, p1, p2, _p3) = build_toy_verse();
+        let mut engine = ReviewEngine::new(g, cards, 0.9);
+        // p3 hidden but not graded — must panic, not silently default to Good
+        let grades = HashMap::from([(p1, Grade::Good), (p2, Grade::Good)]);
+        engine.review(CardId(0), grades, 3 * DAY);
     }
 
     #[test]

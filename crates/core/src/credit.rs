@@ -72,11 +72,9 @@ pub fn assign_credit(
 
     // Steps 1-4: Credit and blame for each hidden atom
     for &hidden_atom in &review.hidden {
-        let grade = review
-            .grades
-            .get(&hidden_atom)
-            .copied()
-            .unwrap_or(Grade::Good);
+        let grade = review.grades.get(&hidden_atom).copied().expect(
+            "grade missing for hidden atom; engine must validate grades before assign_credit",
+        );
 
         // Source set for this atom excludes itself
         let sources_for_atom: HashSet<NodeId> = source_set
