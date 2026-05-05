@@ -684,33 +684,86 @@ Cognitively, the VerseGist is real: people can know "John 3:16 is the verse abou
 world and giving His Son" without remembering the exact wording, and can know the wording without
 confidently knowing the citation. The gist is its own memorable thing.
 
-Working list for verse-vault, with **two-level composite hierarchy** centred on VerseGist:
+**Refs are themselves bindings, not standalone identities.** The user's memory of "John 3:16 is
+verse 16" isn't a memory of "the number 16" as an isolated fact — numbers exist independently of
+memory. What's memorable is the _binding_ of the verse's gist to its position in the chapter. So
+VerseRef is itself a composite, not a primary identity:
 
-| Composite                         | Constituents                          |
-| --------------------------------- | ------------------------------------- |
-| **VerseGist**                     | Phrases of the verse                  |
-| Verse-gist association            | VerseGist + VerseRef                  |
-| VerseRef ↔ ChapterRef containment | VerseRef + ChapterRef (the endpoints) |
-| ChapterRef ↔ BookRef containment  | ChapterRef + BookRef (the endpoints)  |
-| HeadingPassageAssociation         | The VerseGists in the passage range   |
-| HeadingHierarchy (parent → child) | Parent and child heading nodes        |
+* **VerseRef** = "this VerseGist is verse N of this ChapterRef." A binding with the position number
+  as a value.
+* **ChapterRef** = "this chapter is chapter M of this BookRef." A binding with the chapter number as
+  a value. (Optionally has a ChapterGist constituent for famous chapters known as units — Psalm 23,
+  Romans 8 — but most chapters don't need a separate gist.)
+* **BookRef** = the book's name as a primary identity (the name _is_ the identity, no further parent
+  context needed).
 
-The two-level structure means scaffolding flows transitively:
+This collapses what we previously called "verse-gist association" into VerseRef itself: knowing the
+citation IS knowing the binding between gist and position-in-chapter. The two were describing the
+same memory.
+
+Working list for verse-vault under HSRS-state:
+
+| Composite                             | Constituents                                        | Position value |
+| ------------------------------------- | --------------------------------------------------- | -------------- |
+| **VerseGist**                         | Phrases of the verse                                | n/a            |
+| **VerseRef**                          | VerseGist + ChapterRef                              | verse number   |
+| **ChapterRef**                        | BookRef (+ optional ChapterGist for known chapters) | chapter number |
+| **BookRef**                           | (primary identity, not a composite)                 | n/a            |
+| **HeadingPassageAssociation**         | The VerseGists in the passage range                 | n/a            |
+| **HeadingHierarchy (parent → child)** | Parent + child heading nodes                        | n/a            |
+
+The hierarchy of composites means scaffolding flows transitively up multiple levels:
 
 ```
-Phrases of verse v ──→ VerseGist of v ──→ Verse-gist association of v
-                              └─→ HeadingPassageAssociation (where v is in the passage)
+Phrases of verse v ──→ VerseGist of v ──→ VerseRef of v ──→ (already covers the citation binding)
+                                  ├─→ HeadingPassageAssociation (where v is in the passage)
+                                  
+ChapterRef of c ──→ VerseRef of v (where v is in chapter c) — sibling support
+BookRef ──→ ChapterRef ──→ VerseRef — parent support
 ```
 
 So when a phrase is reviewed:
 
-1. Phrase update → VerseGist propagation (constituent → composite).
-2. VerseGist update → both Verse-gist association and HeadingPassageAssociation propagation.
-3. The heading and ref-binding states reflect constituent strength transitively.
+1. Phrase update → VerseGist propagation.
+2. VerseGist update → VerseRef propagation (gist is a constituent of the citation binding).
+3. VerseGist update → HeadingPassageAssociation propagation (gist is a constituent of the passage
+   binding).
 
-This is much cleaner than a flat "heading → all phrases" composite structure. The
+When ChapterRef is reviewed (e.g., "what chapter is this?" produces the chapter number):
+
+1. ChapterRef update directly.
+2. ChapterRef update → VerseRef propagation (chapter is a constituent of the verse-citation binding)
+   for every VerseRef in the chapter.
+
+When BookRef is reviewed:
+
+1. BookRef update directly.
+2. BookRef update → ChapterRef propagation for every chapter in the book.
+3. ChapterRef updates → VerseRef propagation transitively.
+
+This is cleaner than the previous flat "heading → all phrases" composite structure. The
 HeadingPassageAssociation composes over verse-level abstractions (~10 gists for a 10-verse passage)
-rather than over individual phrases (~30+ phrases for the same passage).
+rather than over individual phrases (~30+ phrases). The citation hierarchy composes over
+higher-level groupings (book → chapter → verse), each level a stateful binding.
+
+#### Why refs need to be bindings
+
+The user observation that motivated this framing: **a person can remember a verse was verse 16 but
+forget what chapter or book it was in**, and vice versa. These are dissociable memories. Under
+standalone-identity refs, capturing this dissociation is awkward — there's no place to hang "I know
+the verse number but not which chapter."
+
+Under composite-binding refs, the dissociation is captured cleanly:
+
+* Strong VerseGist + weak ChapterRef + a moderate VerseRef binding-state = "I know what the verse
+  says and roughly know the verse number, but couldn't tell you which chapter."
+* Weak VerseGist + strong ChapterRef + weak VerseRef = "I can't recall the verse content but know
+  it's in this chapter; the binding (which verse number) is just gone."
+* Strong all of (gist, chapter, ref binding) = full citation recall.
+
+Each is a different state pattern. Direct grades on each component (via dedicated card types) update
+them independently. Failures isolate to specific components, which is exactly what we want for
+scheduling and remediation.
 
 A natural rule: an element is a composite if it represents a _binding_, _relation_, or _aggregation_
 over other stateful elements. Standalone elements (a phrase, a book name, a heading text) are not
