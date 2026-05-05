@@ -684,86 +684,103 @@ Cognitively, the VerseGist is real: people can know "John 3:16 is the verse abou
 world and giving His Son" without remembering the exact wording, and can know the wording without
 confidently knowing the citation. The gist is its own memorable thing.
 
-**Refs are themselves bindings, not standalone identities.** The user's memory of "John 3:16 is
-verse 16" isn't a memory of "the number 16" as an isolated fact — numbers exist independently of
-memory. What's memorable is the _binding_ of the verse's gist to its position in the chapter. So
-VerseRef is itself a composite, not a primary identity:
+**Position identities and containment are separately memorable** — and containment is often the more
+important memory. A user might remember "this verse is in this chapter" without recalling the
+specific verse number, or vice versa. So we keep them as separate stateful elements rather than
+collapsing them.
 
-* **VerseRef** = "this VerseGist is verse N of this ChapterRef." A binding with the position number
-  as a value.
-* **ChapterRef** = "this chapter is chapter M of this BookRef." A binding with the chapter number as
-  a value. (Optionally has a ChapterGist constituent for famous chapters known as units — Psalm 23,
-  Romans 8 — but most chapters don't need a separate gist.)
-* **BookRef** = the book's name as a primary identity (the name _is_ the identity, no further parent
-  context needed).
+* **VerseRef** = position identity: "this verse is verse 16" (number-in-context). A standalone
+  identity, not a composite.
+* **VerseRef ↔ ChapterRef containment** = "this verse is in this chapter." A composite binding with
+  constituents = VerseRef + ChapterRef + VerseGist (the verse content scaffolds placement).
+* **ChapterRef** = position identity: "this chapter is chapter 3" (number-in-book). Standalone
+  identity.
+* **ChapterRef ↔ BookRef containment** = "this chapter is in this book." Composite with constituents
+  = ChapterRef + BookRef.
+* **BookRef** = the book's name as a primary identity.
 
-This collapses what we previously called "verse-gist association" into VerseRef itself: knowing the
-citation IS knowing the binding between gist and position-in-chapter. The two were describing the
-same memory.
+Why containment is "more important" (per the user's prioritisation): knowing where a verse lives in
+scripture is what binds it into the addressing scheme of the canon. The position numbers matter
+mostly because they're how containment is referred to. A user who knows "this verse is in John 3"
+but isn't sure of the verse number is closer to fully knowing the citation than a user who knows
+"this is verse 16" but can't place it.
 
-Working list for verse-vault under HSRS-state:
+Working list for verse-vault under HSRS-state, with **position identities and containment kept
+separate**:
 
-| Composite                             | Constituents                                        | Position value |
-| ------------------------------------- | --------------------------------------------------- | -------------- |
-| **VerseGist**                         | Phrases of the verse                                | n/a            |
-| **VerseRef**                          | VerseGist + ChapterRef                              | verse number   |
-| **ChapterRef**                        | BookRef (+ optional ChapterGist for known chapters) | chapter number |
-| **BookRef**                           | (primary identity, not a composite)                 | n/a            |
-| **HeadingPassageAssociation**         | The VerseGists in the passage range                 | n/a            |
-| **HeadingHierarchy (parent → child)** | Parent + child heading nodes                        | n/a            |
+| Element                               | Type                  | Constituents                        | Position value |
+| ------------------------------------- | --------------------- | ----------------------------------- | -------------- |
+| **Phrase**                            | identity (standalone) | none                                | n/a            |
+| **VerseGist**                         | composite             | Phrases of the verse                | n/a            |
+| **VerseRef**                          | identity (standalone) | none                                | verse number   |
+| **VerseRef ↔ ChapterRef containment** | composite             | VerseGist + VerseRef + ChapterRef   | n/a            |
+| **ChapterRef**                        | identity (standalone) | none                                | chapter number |
+| **ChapterRef ↔ BookRef containment**  | composite             | ChapterRef + BookRef                | n/a            |
+| **BookRef**                           | identity (standalone) | none                                | n/a            |
+| **ChapterGist** (optional)            | composite             | VerseGists in the chapter           | n/a            |
+| **HeadingText**                       | identity              | none                                | n/a            |
+| **HeadingPassageAssociation**         | composite             | HeadingText + VerseGists in passage | n/a            |
+| **HeadingHierarchy (parent → child)** | composite             | Parent + child heading nodes        | n/a            |
+
+The graph topology under HSRS-style: stateful elements are nodes; pure structural relationships are
+edges. Containment relationships have FSRS state, so they're either modelled as nodes themselves
+(with structural edges to their endpoints) or as state-bearing edges — implementation detail; the
+model is the same either way.
 
 The hierarchy of composites means scaffolding flows transitively up multiple levels:
 
 ```
-Phrases of verse v ──→ VerseGist of v ──→ VerseRef of v ──→ (already covers the citation binding)
-                                  ├─→ HeadingPassageAssociation (where v is in the passage)
-                                  
-ChapterRef of c ──→ VerseRef of v (where v is in chapter c) — sibling support
-BookRef ──→ ChapterRef ──→ VerseRef — parent support
+phrases ─→ VerseGist
+              │
+              ├─→ VerseRef ↔ ChapterRef containment    (along with VerseRef + ChapterRef)
+              │
+              └─→ HeadingPassageAssociation            (along with HeadingText)
+
+ChapterRef + BookRef ─→ ChapterRef ↔ BookRef containment
 ```
 
-So when a phrase is reviewed:
+When a phrase is reviewed:
 
 1. Phrase update → VerseGist propagation.
-2. VerseGist update → VerseRef propagation (gist is a constituent of the citation binding).
-3. VerseGist update → HeadingPassageAssociation propagation (gist is a constituent of the passage
-   binding).
+2. VerseGist update → VerseRef ↔ ChapterRef containment propagation (gist is a constituent).
+3. VerseGist update → HeadingPassageAssociation propagation.
 
-When ChapterRef is reviewed (e.g., "what chapter is this?" produces the chapter number):
+When ChapterRef is reviewed directly (e.g., "what chapter number is that chapter?"):
 
 1. ChapterRef update directly.
-2. ChapterRef update → VerseRef propagation (chapter is a constituent of the verse-citation binding)
-   for every VerseRef in the chapter.
+2. ChapterRef update → VerseRef ↔ ChapterRef containment propagation for every verse in the chapter
+   (chapter is a constituent of containment).
+3. ChapterRef update → ChapterRef ↔ BookRef containment propagation.
 
-When BookRef is reviewed:
+When BookRef is reviewed directly:
 
 1. BookRef update directly.
-2. BookRef update → ChapterRef propagation for every chapter in the book.
-3. ChapterRef updates → VerseRef propagation transitively.
+2. BookRef update → ChapterRef ↔ BookRef containment propagation for every chapter in the book.
 
-This is cleaner than the previous flat "heading → all phrases" composite structure. The
-HeadingPassageAssociation composes over verse-level abstractions (~10 gists for a 10-verse passage)
-rather than over individual phrases (~30+ phrases). The citation hierarchy composes over
-higher-level groupings (book → chapter → verse), each level a stateful binding.
+When a containment is reviewed directly (e.g., "what chapter is this verse in?"):
 
-#### Why refs need to be bindings
+1. Containment update directly.
+2. Small partial updates propagate _down_ to constituents — but per the asymmetric propagation rule,
+   these are very small or zero (composite review barely lifts constituents).
 
-The user observation that motivated this framing: **a person can remember a verse was verse 16 but
-forget what chapter or book it was in**, and vice versa. These are dissociable memories. Under
-standalone-identity refs, capturing this dissociation is awkward — there's no place to hang "I know
-the verse number but not which chapter."
+#### Why position identity and containment are separate
 
-Under composite-binding refs, the dissociation is captured cleanly:
+The user observation that motivates this: **a person can remember "this verse is verse 16" without
+remembering what chapter or book it's in, and vice versa**. These are dissociable. Containment is
+typically the more important memory (knowing where the verse lives in scripture).
 
-* Strong VerseGist + weak ChapterRef + a moderate VerseRef binding-state = "I know what the verse
-  says and roughly know the verse number, but couldn't tell you which chapter."
-* Weak VerseGist + strong ChapterRef + weak VerseRef = "I can't recall the verse content but know
-  it's in this chapter; the binding (which verse number) is just gone."
-* Strong all of (gist, chapter, ref binding) = full citation recall.
+Under separate position-identity + containment elements, the dissociation is captured cleanly:
 
-Each is a different state pattern. Direct grades on each component (via dedicated card types) update
-them independently. Failures isolate to specific components, which is exactly what we want for
-scheduling and remediation.
+* Strong VerseGist + weak VerseRef + strong VerseRef↔ChapterRef containment = "I know the verse
+  content and which chapter it's in, but blanking on the verse number."
+* Strong VerseRef + weak VerseRef↔ChapterRef containment = "I know it's verse 16 of _something_, but
+  can't place which chapter."
+* Strong containment + weak ChapterRef = "I know this verse is in _that_ chapter, but I'm shaky on
+  which chapter number it is."
+* Strong all = full citation recall.
+
+Each pattern is a distinct state configuration. Direct grades on each (via dedicated cards) update
+them independently.
 
 A natural rule: an element is a composite if it represents a _binding_, _relation_, or _aggregation_
 over other stateful elements. Standalone elements (a phrase, a book name, a heading text) are not
