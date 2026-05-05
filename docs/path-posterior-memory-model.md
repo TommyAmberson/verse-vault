@@ -590,87 +590,87 @@ happening too close together. Both mechanisms address related-but-different conc
 Both are documented; cooldown is a much weaker intervention than initially proposed. Whether it's
 worth implementing at all is an empirical question, not a settled architectural commitment.
 
-### Composite memory: scaffolding from constituents
+### Compositional and relational scaffolding
 
-A real cognitive effect that the architecture should capture explicitly: **some elements are
-composite in the sense that their recall depends on recalling their constituents**. The clearest
-example is headings: "The Beatitudes" is much easier to recall when you know the verses it labels;
-much harder when you don't know any. But the same principle applies elsewhere — the verse-gist
-association is scaffolded by phrase recall + ref-component recall, containment relations are
-scaffolded by knowing the endpoints, etc.
+Two distinct cognitive effects the architecture should capture, with different propagation
+strengths:
 
-This is the same composite-stability phenomenon the SuperMemo memory-complexity argument warns
-about, applied at the prediction layer rather than the state-storage layer. We addressed storage by
-keeping FSRS state atomic; we now need to address prediction by computing composite retrievability
-from constituents.
+**Composition (whole = sum of parts).** Some elements are _composites_ — their substance is
+constructed from constituent parts. Knowing the parts effectively constitutes knowing the whole.
+Example: HeadingPassageAssociation ("The Beatitudes covers verses 3-12 of Matthew 5") is composed of
+the per-verse Verse↔Heading bindings ("verse 3 is in The Beatitudes," etc.). The composite's
+substance lives in its parts.
 
-**Asymmetric scaffolding.** The cognitive effect is one-directional:
+**Binding (relationship between two endpoints).** Most stateful elements are _bindings_ — facts
+about how two things relate. The binding's state is independent of the endpoints; knowing the
+endpoints helps recall the binding (mild scaffolding) but doesn't _constitute_ it. Example: "this
+verse is in this chapter" is a relational fact. The verse isn't _made of_ the chapter; the chapter
+isn't _made of_ the verse. They're related, not composed.
 
-* **Components → composite: strong.** Knowing a phrase makes the verse's binding easier; knowing the
-  verses makes the heading recallable.
-* **Composite → components: weak.** Knowing "The Beatitudes is a heading in Matthew 5" doesn't help
-  you produce verse 3 word-for-word.
+Most "containment" or "association" elements in verse-vault are bindings, not composites. A small
+number of multi-element relations (HeadingPassageAssociation) are true composites.
 
-The architecture must reflect this asymmetry in both prediction and propagation.
+**Asymmetric propagation, with different strengths for the two cases:**
 
-#### Compositional retrievability prediction
+* **Constituent → composite (strong).** Knowing the parts is what constitutes knowing the whole.
+  When a constituent is reviewed, the composite's state lifts substantially. Strength
+  `γ_constituent ≈ 0.15-0.25`.
+* **Composite → constituent (very weak / zero).** Knowing the whole as a unit doesn't directly give
+  you the parts.
+* **Endpoint ↔ binding (mild, possibly symmetric).** Knowing the endpoints scaffolds the binding via
+  cuing; reviewing the binding can mildly reinforce the endpoint memory. Strength
+  `γ_endpoint ≈ 0.05-0.10`, much smaller than constituent propagation.
 
-For a composite element `C` with self-state retrievability `R_self(C, t)` and constituents
-`c_1, ..., c_n` (with retrievabilities `R(c_i, t)`), the **effective retrievability** for scheduling
-purposes is:
+The two-tier strength reflects the distinction: composition is a stronger semantic relationship than
+mere binding, so the propagation weights differ.
+
+#### Propagation rules
+
+For composite elements (HeadingPassageAssociation and the rare few like it), use the
+constituent-to-composite asymmetric rule with strong weight:
+
+```
+on direct grade of constituent c_i:
+  Standard FSRS step on c_i.
+  For each composite C containing c_i:
+    Apply HSRS-style probabilistic FSRS update with weight w_constituent  (~0.15-0.25)
+on direct grade of composite C:
+  Standard FSRS step on C.
+  For each constituent c_i:
+    Apply tiny partial update with weight ε (often zero).
+```
+
+For binding elements (the majority — Verse↔Chapter, Verse↔Book, etc.), use endpoint-binding mild
+propagation. Both directions get small updates:
+
+```
+on direct grade of endpoint e:
+  Standard FSRS step on e.
+  For each binding B with e as endpoint:
+    Apply partial update with weight w_endpoint  (~0.05-0.10)
+on direct grade of binding B:
+  Standard FSRS step on B.
+  For each endpoint e of B:
+    Apply small partial update with weight w_endpoint  (or smaller; could be zero)
+```
+
+The reason composites get stronger propagation: knowing the constituents is what _constitutes_
+knowing the whole; the composite's substance lives in the parts. The reason bindings get weaker
+propagation: the binding is its own fact, just contextually scaffolded by the endpoints.
+
+#### Effective retrievability
+
+For composites only (not bindings), effective retrievability for scheduling combines self-state with
+constituent-derived scaffolding:
 
 ```
 R_eff(C, t) = combine(R_self(C, t), scaffolded(R(c_1, t), ..., R(c_n, t)))
+            = 1 - (1 - R_self) · (1 - max_i (R(c_i) · binding_strength(c_i, C)))
 ```
 
-Adopted form: **noisy-OR combine with max-component scaffolding** (Option A from the design
-discussion):
-
-```
-scaffolded(C, t) = max_i  (R(c_i, t) · binding_strength(c_i, C))
-combine(a, b)    = 1 - (1 - a) · (1 - b)
-```
-
-Interpretation: the user can recall C through _any_ successful path — direct memory of C, or through
-any constituent whose binding to C is strong enough. Multiple paths multiply the chances of success
-rather than averaging them. Captures the cognitive intuition that "remembering The Beatitudes" can
-succeed via direct heading-text memory or via any one of the constituent verses cuing the heading
-association.
-
-Alternatives considered:
-
-* _Bounded by components_: `R_eff = min(R_self, mean(R(c_i)) · scaffold_factor)`. Cleaner
-  semantically (composite is bounded by components on average), but loses the multi-path benefit and
-  is overly pessimistic when the user has a strong direct memory.
-* _Additive in log-odds space_: aligns with the log-odds Hebbian update form, treats each source as
-  independent evidence. Mathematically clean but harder to interpret.
-
-#### Asymmetric propagation
-
-When components are reviewed, composites get partial updates reflecting the predicted retrievability
-change:
-
-```
-on direct grade of c_i:
-  Standard FSRS step on c_i.
-  For each composite C containing c_i:
-    Recompute R_eff(C, t) with c_i's updated state.
-    If R_eff(C, t) changed by ΔR:
-      Apply HSRS-style probabilistic FSRS update to C with weight w ∝ |ΔR|.
-```
-
-When composites are reviewed, components get _very small_ updates (essentially zero):
-
-```
-on direct grade of C:
-  Standard FSRS step on C's self-state.
-  For each component c_i:
-    Apply tiny partial FSRS update with weight ε (small, possibly zero).
-```
-
-The asymmetry is enforced by the propagation magnitudes, not just by the prediction math. Reviews of
-constituents lift composite states substantially; reviews of composites barely lift constituent
-states.
+Noisy-OR combine: the user can recall C through any successful path (direct or via a strong
+constituent). For bindings, predicted retrievability is just `R_self` — no compositional combine,
+because the endpoints don't constitute the binding's substance.
 
 #### Which elements are composites?
 
@@ -695,41 +695,50 @@ groupings as separate stateful elements**:
 
 Per verse:
 
-| Element                         | Type                  | Constituents                                           | Position value |
-| ------------------------------- | --------------------- | ------------------------------------------------------ | -------------- |
-| **Phrase × N**                  | identity (standalone) | none                                                   | n/a            |
-| **VerseRef position**           | identity (standalone) | none                                                   | verse number   |
-| **Verse ↔ Chapter containment** | composite             | Phrases of verse + ChapterRef                          | n/a            |
-| **Verse ↔ Book containment**    | composite             | Phrases of verse + BookRef                             | n/a            |
-| **Verse ↔ Heading association** | composite             | Phrases of verse + HeadingText                         | n/a            |
-| **Verse ↔ Club association**    | composite             | Phrases of verse + ClubText (often multiple per verse) | n/a            |
+| Element                         | Type     | Endpoints / Constituents                                       | Position value |
+| ------------------------------- | -------- | -------------------------------------------------------------- | -------------- |
+| **Phrase × N**                  | identity | none                                                           | n/a            |
+| **VerseRef position**           | identity | none                                                           | verse number   |
+| **Verse ↔ Chapter containment** | binding  | endpoints: verse phrases + ChapterRef                          | n/a            |
+| **Verse ↔ Book containment**    | binding  | endpoints: verse phrases + BookRef                             | n/a            |
+| **Verse ↔ Heading association** | binding  | endpoints: verse phrases + HeadingText                         | n/a            |
+| **Verse ↔ Club association**    | binding  | endpoints: verse phrases + ClubText (often multiple per verse) | n/a            |
 
 Per chapter:
 
-| Element                        | Type                  | Constituents         | Position value |
-| ------------------------------ | --------------------- | -------------------- | -------------- |
-| **ChapterRef position**        | identity (standalone) | none                 | chapter number |
-| **Chapter ↔ Book containment** | composite             | ChapterRef + BookRef | n/a            |
+| Element                        | Type     | Endpoints            | Position value |
+| ------------------------------ | -------- | -------------------- | -------------- |
+| **ChapterRef position**        | identity | none                 | chapter number |
+| **Chapter ↔ Book containment** | binding  | ChapterRef + BookRef | n/a            |
 
 Per book:
 
-| Element     | Type                                  |
-| ----------- | ------------------------------------- |
-| **BookRef** | identity (standalone) — the book name |
+| Element     | Type                     |
+| ----------- | ------------------------ |
+| **BookRef** | identity — the book name |
 
 Per heading:
 
-| Element                                   | Type                                                                   |
-| ----------------------------------------- | ---------------------------------------------------------------------- |
-| **HeadingText**                           | identity                                                               |
-| **HeadingPassageAssociation**             | composite over the per-verse Verse↔Heading associations in the passage |
-| **HeadingHierarchy** (per parent → child) | composite                                                              |
+| Element                                   | Type      | Endpoints / Constituents                                     |
+| ----------------------------------------- | --------- | ------------------------------------------------------------ |
+| **HeadingText**                           | identity  | none                                                         |
+| **HeadingPassageAssociation**             | composite | constituents: per-verse Verse↔Heading bindings + HeadingText |
+| **HeadingHierarchy** (per parent → child) | binding   | endpoints: parent + child HeadingText                        |
 
 Per club (Bible-quizzer thematic groupings):
 
 | Element      | Type                                     |
 | ------------ | ---------------------------------------- |
-| **ClubText** | identity (the club's name / theme label) |
+| **ClubText** | identity — the club's name / theme label |
+
+**Summary by type:**
+
+* _Identities_ (standalone state): Phrase, VerseRef position, ChapterRef position, BookRef,
+  HeadingText, ClubText.
+* _Bindings_ (relational state): Verse↔Chapter, Verse↔Book, Verse↔Heading, Verse↔Club, Chapter↔Book,
+  HeadingHierarchy.
+* _Composites_ (compositional state): HeadingPassageAssociation. (Few in number — most multi-element
+  relations are bindings, not composites.)
 
 The graph topology under HSRS-style: stateful elements are nodes; pure structural relationships are
 edges. Containment relationships have FSRS state, so they're modelled as nodes themselves (with
