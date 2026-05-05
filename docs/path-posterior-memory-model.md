@@ -965,53 +965,85 @@ This variant explores making the state-bearing units finer-grained while preserv
 
 ### What gets graded in verse-vault
 
-Walking through plausible card types and identifying what each grades:
+The graded things are the atoms the user must produce or recognise correctly. For each card type,
+the grades it produces are:
 
-| Card type                            | Directly graded                                                    |
-| ------------------------------------ | ------------------------------------------------------------------ |
-| Per-phrase recitation                | Each Phrase node                                                   |
-| Holistic recitation                  | (optionally) the Verse node, as one grade for the whole            |
-| Fill-in-blank                        | The hidden Phrase node                                             |
-| Reference identification             | The Reference node                                                 |
-| Continuation ("what comes after X?") | Either the next-Phrase node, OR the adjacency edge — design choice |
-| Discrimination                       | Either the Verse node, OR the Verse-Reference binding edge         |
-| Hierarchy ("what chapter is X in?")  | The ChapterRef / BookRef node                                      |
-| Holistic gist                        | The Verse node (gist as the verse's holistic memory)               |
+| Card type                                | Grades produced                                                                                                            |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Reference identification (content → ref) | Book, Chapter, Verse-number (three independent grades — each part of the ref produced by the user is graded separately)    |
+| Fill-in-blank (one phrase hidden)        | The specific Phrase                                                                                                        |
+| Holistic recitation (full ref + content) | Each Phrase, Book, Chapter, Verse-number, _and_ the verse-gist association (the binding between this content and this ref) |
 
-The takeaway: depending on which card types verse-vault commits to, both nodes and edges can be
-"directly graded." A continuation card is essentially a probe of an adjacency edge; that edge
-carries its own FSRS state and is updated directly by the grade.
+Three structural insights:
+
+1. **References decompose into three separate graded atoms.** Book, Chapter, and Verse-number are
+   independent memories — a user might know the book name confidently while being shaky on the verse
+   number, or vice versa. They're modelled as three distinct graded nodes, not as a single conjoined
+   "ref" identity.
+2. **Phrase grades are local to the specific phrase.** Whether produced via fill-in-blank or as part
+   of a full recitation, a phrase getting a grade updates _that phrase's_ state. A recitation card
+   produces N phrase grades, one per hidden phrase.
+3. **The "verse-gist association" is a separate graded thing.** It represents the binding between
+   the verse's content and its citation. Holistic recitation grades it directly: did you produce the
+   right content for this ref, _and_ did you correctly bind them together? Knowing the phrases and
+   knowing the ref-parts independently isn't enough — you also need to associate them.
 
 ### Graph elements
 
-**Nodes:**
+**Graded nodes (carry FSRS state):**
 
-| Node                | FSRS state?                    | Updated by                                      |
-| ------------------- | ------------------------------ | ----------------------------------------------- |
-| Phrase              | Yes                            | Recitation, fill-in-blank                       |
-| Verse               | Yes (if holistic cards exist)  | Holistic recitation, gist cards, discrimination |
-| Reference           | Yes                            | Reference identification, discrimination        |
-| ChapterRef, BookRef | Yes (if hierarchy cards exist) | Hierarchy queries                               |
+| Node       | Granularity                                                                  | Updated by                           |
+| ---------- | ---------------------------------------------------------------------------- | ------------------------------------ |
+| Phrase     | one per phrase                                                               | Fill-in-blank, recitation            |
+| BookRef    | one per book                                                                 | Reference identification, recitation |
+| ChapterRef | one per chapter                                                              | Reference identification, recitation |
+| VerseRef   | one per verse (the verse-number specifically, in the context of its chapter) | Reference identification, recitation |
 
-The current architecture's distinction between **VerseGist** and **Verse** dissolves under this
-variant: there is just one Verse node per verse, representing it as a memorized entity. It's graded
-by holistic recitation or gist cards.
+**Graded edges (carry FSRS state):**
 
-**Edges:**
+| Edge                   | Granularity   | Updated by          |
+| ---------------------- | ------------- | ------------------- |
+| Verse-gist association | one per verse | Holistic recitation |
 
-| Edge                                                 | FSRS state?                                                                             | Updated by                                                   |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Phrase → Phrase (forward adjacency)                  | Yes (if continuation cards exist)                                                       | Continuation cards; structural propagation                   |
-| Phrase → Phrase (reverse adjacency)                  | Yes (if reverse-continuation cards exist; usually no)                                   | Reverse continuation cards                                   |
-| Verse ↔ Phrase (membership)                          | No                                                                                      | Pure structural; participates in propagation                 |
-| Verse ↔ Reference (binding)                          | Yes (if discrimination cards exist) OR No (if implied by Verse + Reference node grades) | Discrimination cards                                         |
-| Verse ↔ ChapterRef, ChapterRef ↔ BookRef (hierarchy) | No (typically)                                                                          | Pure structural                                              |
-| Anchor (cross-verse, similarity-driven)              | No                                                                                      | Pure structural; content-derived prior on association weight |
-| Confusion (cross-verse, similarity-driven)           | No                                                                                      | Structural with negative-coupling prior                      |
+The verse-gist association edge is the thing that gets graded when a recitation correctly binds a
+body of content to a reference. It connects the verse's content (the set of phrases) to the
+reference (the book/chapter/verse triple). It's an edge rather than a node because it represents a
+_relationship_ between two existing identities.
 
-Most edges in this variant don't carry FSRS state. They have _association weights_ (used in path
-probabilities and propagation) but those weights are either fixed (structural) or Hebbian-updated
-(learned from observation co-occurrence).
+**Structural elements (no FSRS state, propagation only):**
+
+| Element                                                 | Role                                                                               |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| VerseGist node (if retained as a hub)                   | Connects phrases to the verse's identity; can be a structural hub or absent        |
+| Phrase ↔ Phrase adjacency edges (forward)               | Sequence; participates in propagation but not directly graded                      |
+| Phrase ↔ VerseGist (membership)                         | Connects phrases to the verse hub                                                  |
+| BookRef ↔ ChapterRef, ChapterRef ↔ VerseRef (hierarchy) | Structural ref-chain; not directly graded                                          |
+| Anchor edges (cross-verse, content-similarity)          | Hybrid (option C): explicit edges for high-similarity pairs only                   |
+| Confusion edges (cross-verse, content-similarity)       | Hybrid (option C): explicit edges for high-similarity-divergent-continuation pairs |
+
+Structural elements have **association weights** (Hebbian-updated, log-odds form per Q2), used in
+path probabilities and propagation. They don't have FSRS dynamics because they're not directly
+graded.
+
+### Notes on what's _not_ graded
+
+A few things the user explicitly excluded from the grading taxonomy that are worth flagging:
+
+* **Adjacency edges are not directly graded.** Continuation cards ("what comes after p2?") are
+  essentially fill-in-blank for the next phrase — they grade the phrase node, not the adjacency
+  edge. The adjacency edge is structural, exercised by propagation only.
+* **VerseGist as a node is not directly graded.** "Did you understand this verse's meaning?" isn't a
+  card type in this taxonomy. The verse's holistic mastery is _derived_ from the states of its
+  constituent graded atoms (phrases, ref-parts, association edge), not tracked as a separate hub
+  state.
+* **Hierarchy edges between ref components are not directly graded.** The book/chapter/verse parts
+  are graded individually as separate nodes; the relationships between them (BookRef → ChapterRef →
+  VerseRef) are structural.
+* **Membership edges (VerseGist ↔ Phrase) are not directly graded.** Phrase recall is graded; the
+  membership relationship is structural.
+
+The architectural invariant stays clean: every graded thing has a one-to-one correspondence with a
+grade event from some card type, and only graded things carry FSRS state.
 
 ### What state actually looks like per element
 
@@ -1130,36 +1162,46 @@ toward those priors via slow decay between updates.
 
 ### What's still open under this variant
 
-A handful of things that need to be decided before implementing:
+Several earlier open questions have been resolved by the explicit grading taxonomy:
 
-* **Verse vs. VerseGist:** are these one node or two? Argument for one: simpler, the "memorized
-  verse" is a single thing accessible via ref or content. Argument for two: gist (meaning) and verse
-  (verbatim text) might be cognitively dissociable for some users. Default for this variant:
-  collapse to one Verse node unless gist-only cards become a distinct workflow.
-* **Continuation-card grading:** does a continuation card grade the next-phrase node, the adjacency
-  edge, or both? Has implications for which receives the strongest signal.
-* **Discrimination-card grading:** does a discrimination card grade the verse node, the binding
-  edge, or the reference node? Probably the binding edge is most natural, but there's a case for the
-  verse if discrimination is testing "do you remember this _verse_ well enough to distinguish it
-  from confusables."
-* **Holistic recitation grading:** is there a single Verse-level grade, or only per-phrase grades,
-  or both? If both, are they aggregated or independent?
+* ~~**Verse vs. VerseGist as graded nodes.**~~ Neither is graded. Holistic mastery is derived from
+  constituent atoms (phrases, ref-parts, association edge). VerseGist may be retained as a
+  structural hub or absorbed into the membership pattern, but doesn't carry FSRS state either way.
+* ~~**Continuation-card grading.**~~ Continuation cards grade the next-Phrase node (same as
+  fill-in-blank). Adjacency edges are not directly graded.
+* ~~**Discrimination-card grading.**~~ Discrimination targets the verse-gist association edge — the
+  binding between content and ref.
+* ~~**Holistic recitation grading.**~~ Per-phrase grades + ref-part grades (book, chapter,
+  verse-number) + verse-gist association grade. No additional aggregate verse-level grade.
+
+What remains genuinely open:
+
 * **Cold-start values:** new content has no observation history. Each graded element needs default
   FSRS state (per FSRS standard); each structural edge needs an initial association strength (from
-  type-specific prior). Anchor/Confusion edges get priors from similarity scores.
-* **Direction of edges:** the symmetry pushback says most non-adjacency edges should be symmetric /
-  undirected. Adjacency stays directional for sequence reasons. But: do Anchor/Confusion edges have
-  direction? Probably not — similarity is symmetric. Hierarchy edges? Probably weakly directional
-  (parent → child has a different cognitive role from child → parent).
-* **How Hebbian updates work on edges that are sometimes graded:** if continuation cards exist,
-  adjacency edges have FSRS state. But there are also propagation events that nudge them. Are those
-  propagated updates partial-FSRS-steps (treating the edge like a graded node), or Hebbian updates
-  on a separate association strength? Probably the former — once an edge is FSRS-stateful, all
-  updates go through FSRS dynamics, even propagated ones.
-* **Identifiability under VI:** if some edge always co-occurs with its endpoints (e.g., a membership
-  edge that's never on its own path), the variational posterior won't distinguish edge effects from
-  node effects. Need to check that the chosen card types produce identifiable path patterns for each
-  FSRS-stateful element.
+  type-specific prior). Anchor / Confusion edges get priors derived from content-similarity scores.
+* **Direction of edges:** adjacency stays directional (sequence is asymmetric). Hierarchy edges are
+  weakly directional (parent → child differs from child → parent in cognitive role). Anchor /
+  Confusion edges are symmetric (similarity is). Membership edges (VerseGist ↔ Phrase) are
+  essentially symmetric / structural.
+* **Identifiability under VI:** if some structural edge always co-occurs with the same set of graded
+  elements in every observation (e.g., a membership edge that's never the focal element of any
+  path), the variational posterior won't distinguish its association weight from neighbouring
+  contributions. Worth checking once card types are pinned down.
+* **Recitation card variants:** the holistic recitation card type produces many grades at once.
+  Variants of recitation cards (e.g., "recite from the second phrase onward") would produce subsets
+  of these grades. Need to specify the full card-type catalogue before finalizing what each one
+  grades.
+* **Where the verse-gist association edge attaches:** the binding edge has two endpoints. One is the
+  verse content (the set of phrases, possibly via a structural hub node); the other is the reference
+  (which itself is decomposed into book/chapter/verse parts — does the association edge attach to
+  the VerseRef node, or to the chapter-level / book-level separately, or to all three?). Probably
+  attaches to the VerseRef as the "leaf" of the ref-chain, with the hierarchy edges providing
+  structural propagation up to chapter and book.
+* **Cross-reference between this taxonomy and the path posterior math:** the existing math assumes
+  paths terminate at "hidden atoms." Under the graded-thing variant, a card review produces grades
+  at multiple targets simultaneously (e.g., recitation grades phrases _and_ ref-parts _and_ the
+  binding). The path posterior + AGG-FlowJoint machinery generalizes fine, but the bookkeeping needs
+  to be explicit about which graded element each grade belongs to.
 
 ### Relation to the cards-primary architecture
 
