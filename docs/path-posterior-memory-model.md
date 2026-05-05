@@ -227,59 +227,64 @@ learned from co-occurrence and persist unless contradicted (Hebbian-like).
 
 ### Hebbian update form
 
-Several reasonable update forms; the one we adopt is a design choice.
+Adopted form: **log-odds (Bayesian conjugate update).**
 
-**Option A — saturating linear:**
-
-```
-on success: a_e ← a_e + α · w_e · (1 - a_e)
-on failure: a_e ← a_e - α · w_e · a_e
-```
-
-where `w_e` is the per-edge weight from the path posterior (see below). Saturating because the
-multiplicative term `(1 - a_e)` shrinks updates as `a_e` approaches 1 (and similarly `a_e` near 0).
-Naturally bounds `a_e ∈ [0, 1]` without hard clamps.
-
-**Option B — log-odds (Bayesian flavour):**
-
-Treat `a_e` as the parameter of a Bernoulli "edge fires successfully" distribution. Update its
-log-odds:
+Treat `a_e` as the parameter of a Bernoulli "edge fires successfully when activated" distribution.
+Maintain its log-odds:
 
 ```
 λ_e := log(a_e / (1 - a_e))
-on success: λ_e ← λ_e + α · w_e
-on failure: λ_e ← λ_e - α · w_e
-a_e ← σ(λ_e)
+a_e := σ(λ_e) = 1 / (1 + exp(-λ_e))
 ```
 
-Equivalent to a stationary Bayesian update on a Beta-Bernoulli model with implicit prior counts
-derived from `α`. Mathematically prettier, slightly heavier per-update.
-
-**Option C — exponential moving average toward observation:**
+The update rule (combining with the surprise-based form from _Edge updates via Bayesian inference_):
 
 ```
-target = posterior(success | this edge fired) ∈ {0, 1}   // discrete observation
-a_e ← (1 - α · w_e) · a_e + (α · w_e) · target
+λ_e ← λ_e + α · post_e · surprise
 ```
 
-Closer to "moving average of recent observed reliability." Simpler to reason about than Options A/B
-but loses the bounded-rate-toward-extremes property.
+where `surprise = observed_R - expected_R` is signed. No explicit saturation factor — the sigmoid's
+own diminishing derivative at extremes provides natural bounding.
 
-**Recommended starting point:** Option A. Easy to reason about, well-bounded, small implementation
-footprint. Reconsider after seeing simulation behaviour.
+**Why this form:** equivalent to the Bayesian conjugate update on a Beta-Bernoulli model with
+implicit prior count proportional to `α`. The log-odds parameterization is the natural scale on
+which evidence is additive: each observation contributes a fixed log-odds increment regardless of
+the current value, which matches how Bayesian beliefs actually update under Bernoulli observations.
+This composes cleanly if we later want to:
+
+* run principled inference (variational, MCMC) on the association parameters,
+* combine slow decay with the update (decay is multiplicative on `λ_e`),
+* derive priors from content-similarity metadata (Anchor/Confusion edge classes set initial `λ_e`).
+
+**Alternative forms considered and rejected:**
+
+* _Saturating linear_ (`a_e ← a_e + α · post_e · surprise · saturate(a_e, sign(surprise))` with
+  `saturate(a, +) = (1 - a)`, `saturate(a, -) = a`): functionally similar to log-odds for moderate
+  `a_e` values but lacks the conjugate-Bayesian provenance. Slightly faster per update; less
+  graceful at extremes; doesn't compose as cleanly with downstream Bayesian operations. Cheaper but
+  less principled.
+* _EMA toward target_ (`a_e ← (1 - α · post_e) · a_e + α · post_e · target`): collapses to a special
+  case of saturating linear with binary target, or becomes unbounded if `target` is continuous.
+  Provides no advantages.
 
 ### Optional slow decay
 
-Edge associations may decay slowly between updates if not used:
+Edge associations may decay slowly between updates if not used. In log-odds form, decay is a
+multiplicative shrinkage of `λ_e` toward 0 (which is `a_e = 0.5`, a maximum-uncertainty prior):
 
 ```
-a_e ← a_e · exp(-λ_decay · (t_now - t_last_used) / TAU)
+λ_e ← λ_e · exp(-(t_now - t_last_used) / TAU)
 ```
 
-with `TAU` on the order of months and `λ_decay` small. Models the cognitive intuition that unused
-connections eventually weaken, but on a much slower timescale than card-level forgetting.
+with `TAU` on the order of months. Models the cognitive intuition that unused connections drift back
+toward "we don't know" rather than back toward "definitely doesn't fire" — an unused edge is
+forgotten, not actively negated.
 
-This is optional and can be deferred.
+This composes cleanly with the log-odds update: decay shrinks log-odds toward zero between reviews,
+the surprise update pushes them back when reviews provide new evidence. Equivalent to a Bayesian
+model where the prior gradually reasserts itself in the absence of observations.
+
+Optional and can be deferred.
 
 ## Path posterior at review time
 
@@ -421,9 +426,9 @@ the model thought was weak _reinforces_ those edges.
 
 ### Practical update rule
 
-The exact gradient is well-defined but somewhat fiddly to compute and numerically delicate. The
-following Hebbian-style approximation captures the same qualitative behaviour with simple closed
-form:
+The exact gradient is well-defined but somewhat fiddly to compute. The following log-odds
+Hebbian-style approximation is equivalent to a Beta-Bernoulli conjugate update and captures the same
+qualitative behaviour:
 
 ```
 expected_R = Σ_π P(π | {a_e}) · R(π)         // model's predicted recall strength for this card
@@ -432,11 +437,13 @@ surprise   = observed_R - expected_R          // signed; can be negative
 
 post_e := Σ_{π : e ∈ π} P(π | g)              // marginal posterior that edge e was used
 
-a_e ← a_e + α · post_e · surprise · saturate(a_e, sign(surprise))
+λ_e ← λ_e + α · post_e · surprise              // log-odds update
+a_e := σ(λ_e)                                 // map back to [0, 1]
 ```
 
-where `saturate(a, +)` = `(1 - a)` and `saturate(a, -)` = `a`, keeping `a_e ∈ [0, 1]` without hard
-clamps.
+The sigmoid's diminishing derivative at extremes provides natural saturation: an edge near `a_e = 1`
+requires a much larger surprise to push further, but can come back from extremes when contradicted.
+No explicit clamps. See _Edge associations / Hebbian update form_ for why log-odds.
 
 This rule has the right qualitative properties:
 
@@ -805,8 +812,14 @@ To answer iteratively as the architecture is prototyped:
    (`Δa_e ∝ post_e · (observed_R - expected_R) · saturate`) is the practical approximation of the
    exact gradient. See _Edge updates via Bayesian inference_ for the derivation.
 
-2. **Hebbian update form.** Options A/B/C above produce different convergence behaviour. Should be
-   picked based on simulation sensitivity analysis once a prototype exists.
+2. ~~**Hebbian update form.**~~ **Resolved.** Adopted: log-odds (Bayesian conjugate) update.
+   `λ_e ← λ_e + α · post_e · surprise`, with `a_e = σ(λ_e)`. Equivalent to a Beta-Bernoulli
+   conjugate update with implicit prior count proportional to `α`. Chosen over saturating-linear for
+   the principled provenance, graceful behaviour at extremes, and clean composition with downstream
+   Bayesian operations (slow decay as multiplicative log-odds shrinkage; content-derived priors as
+   initial `λ_e`; future variational/MCMC inference if desired). The slight overhead of
+   sigmoid/logit conversions is acceptable given the goal is a principled memory model, not a
+   minimal SRS. See _Edge associations / Hebbian update form_.
 
 3. **Multi-atom aggregation.** AGG1/AGG2/AGG3 each have plausible justifications; the right choice
    depends on whether hub edges should experience disproportionately strong updates from
