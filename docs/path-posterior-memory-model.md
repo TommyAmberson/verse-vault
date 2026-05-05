@@ -585,71 +585,201 @@ computational cost is modest, and the schedule stays current.
 ## Multi-atom cards
 
 A card with multiple hidden atoms (e.g., full recitation with N phrases hidden) produces N grade
-observations in one review. The path posterior extends naturally:
+observations in one review. The naive aggregation — sum per-atom posteriors and apply per-atom
+surprises additively — gets the wrong answer in two important cases (shared edges in failed
+recitations, downstream edges in chain failures). The right model treats edges as participants in a
+noisy-AND graphical model under an _activation-flow_ assumption, with joint inference across atoms
+to handle shared edges correctly.
 
-### Per-atom posteriors
+### Two firing models
 
-For each hidden atom `h_k` in card `c`:
+A subtle modeling choice that has large consequences:
 
-1. Enumerate paths from shown atoms to `h_k`: `Π_{c, k}`.
-2. Compute per-atom prior `P(π | h_k)` from edge associations.
-3. Compute per-atom likelihood `P(g_k | π)` using grade for atom `k`.
-4. Compute per-atom posterior `P(π | g_k, h_k)`.
-5. Compute per-atom marginal edge posterior `post_{e, k}`.
+* **Probabilistic-firing model.** Every edge fires or not at every review independently with
+  probability `a_e`. Path success = all edges fired. Each edge's update is informed by every review.
+* **Activation-flow model.** Activation propagates from sources. An edge is _tested_ only if
+  upstream activation reaches it. If an upstream edge fails, downstream edges in that path weren't
+  tested at all — we have no information about them.
 
-### Aggregating across atoms
+The activation-flow model is more cognitively plausible and produces the right behaviour in
+upstream-failure cases. **Adopted: activation-flow.**
 
-Edge `e` may appear in paths to multiple atoms. Its total posterior weight from this review is:
+### Activation-flow blame distribution for a single failed atom
 
-```
-post_e^total = Σ_k post_{e, k}
-```
-
-This can exceed 1.0 (an edge implicated in paths to many atoms). The question is whether to:
-
-**Option AGG1 — let it accumulate:**
-
-Use `post_e^total` directly as the Hebbian update weight. Hub edges participating in many atoms'
-recall get correspondingly stronger updates per card. Justification: they did receive more evidence
-from this review.
-
-But this re-introduces a magnitude problem (similar in spirit to S2 in the audit). Hub edges'
-associations move much faster than peripheral edges'.
-
-**Option AGG2 — cap at 1.0:**
+For a failed path `π = e_1 → e_2 → ... → e_n` (in activation order), the failure happens at the
+first edge that didn't fire. Bayesian inference gives the marginal probability that the failure was
+at edge `e_i`:
 
 ```
-post_e^bounded = min(1.0, post_e^total)
+P(failure at e_i | path failed) = (∏_{j<i} a_j) · (1 - a_i) / (1 - ∏_j a_j)
 ```
 
-Treat each card review as providing at most one update event's worth of evidence per edge,
-regardless of how many atoms implicate the edge. Loses the "more atoms → more evidence" signal but
-bounds the magnitude.
-
-**Option AGG3 — average across atoms with non-trivial posterior:**
+The corresponding "tested AND failed" probability per edge is:
 
 ```
-post_e^avg = post_e^total / |{k : post_{e, k} > ε}|
+P(reached AND failed | path failed) = same as above for each e_i
 ```
 
-Average over only the atoms that meaningfully implicate the edge. Compromise between AGG1 and AGG2.
+(They sum to 1 across the path.)
 
-**Recommended starting point:** AGG2. Conservative, bounded, matches the "each card is one
-observation" framing. Revisit if simulation suggests hub-edge associations are systematically
-underestimated.
+For a 2-edge path with `a_1 = 0.5` and `a_2 = 0.7`:
+
+* `e_1`: blame = `(1-0.5) / (1-0.35) = 0.5/0.65 ≈ 0.77`
+* `e_2`: blame = `0.5·(1-0.7) / 0.65 ≈ 0.23`
+
+The first edge gets more blame because it was definitely tested; the second edge gets less because
+it was only tested with probability `a_1`.
+
+### Joint inference for shared edges
+
+The crucial extension: when one edge appears in multiple atoms' paths, its "did it fire this review"
+outcome is a single shared event. Joint inference over all observed atom outcomes gives a posterior
+that's much sharper than per-atom analysis.
+
+For each shared edge `e_s`:
+
+```
+P(e_s fired | observations) computed via Bayes:
+  P(e_s fired | atoms 1..K outcomes) ∝ P(outcomes | e_s fired) · P(e_s fired)
+                                      = P(outcomes | e_s fired) · a_{e_s}
+```
+
+`P(outcomes | e_s fired)` is the joint probability of all atom outcomes given that the shared edge
+fired (computed by treating each atom's local edges independently given that activation reached the
+shared edge).
+
+`P(outcomes | e_s didn't fire)` = 1 if all atoms via `e_s` failed (paths blocked), 0 otherwise.
+
+A successful atom passing through `e_s` forces P(`e_s` fired) = 1. Unanimous failure across atoms
+via `e_s` drives P(`e_s` fired) toward 0.
+
+### Worked example: all 4 phrases fail
+
+Card `shown={ref}, hidden={p1, p2, p3, p4}`, paths `ref → gist → p_k`. Suppose `a_{ref→gist} = 0.5`,
+`a_{gist→p_k} = 0.7` for all `k`. All 4 atoms fail.
+
+**Configurations consistent with all-fail:**
+
+* Scenario 1: `ref→gist` failed (prob `(1-0.5) = 0.5`). All `gist→p_k` not tested.
+* Scenario 2: `ref→gist` fired AND all 4 `gist→p_k` failed (prob `0.5 · 0.3⁴ ≈ 0.004`). All
+  `gist→p_k` tested-and-failed.
+
+**Posterior:**
+
+* P(scenario 1 | all fail) ≈ `0.5 / 0.504 ≈ 0.992`
+* P(scenario 2 | all fail) ≈ `0.004 / 0.504 ≈ 0.008`
+
+**Marginal updates:**
+
+* `ref→gist`: P(failed) ≈ 0.99 → strong negative update.
+* `gist→p_k`: P(tested-and-failed) ≈ 0.008 → essentially no update.
+
+This is the right behaviour: the shared edge absorbs the blame; the per-phrase edges don't move
+because they almost certainly weren't reached.
+
+### Worked example: 1 pass, 3 fail
+
+Card `shown={ref}, hidden={p1, p2, p3, p4}`. Atom 2 passes; atoms 1, 3, 4 fail.
+
+**Step 1.** Atom 2's success forces P(`ref→gist` fired) = 1 and confirms `gist→p2` (it was the
+firing edge).
+
+**Step 2.** With `ref→gist` known to have fired, atoms 1, 3, 4 failures must be due to their
+respective `gist→p_k` edges. Each of `gist→p_1`, `gist→p_3`, `gist→p_4` was reached and failed —
+full-weight negative updates.
+
+**Result:**
+
+* `ref→gist`: confirmed-fired. Small positive update from p2's success surprise.
+* `gist→p_2`: confirmed-fired. Small positive update.
+* `gist→p_1`, `gist→p_3`, `gist→p_4`: full negative updates (reached and failed).
+
+The shared edge is exonerated by the single success; failed-phrase edges are localized as the
+specific bottlenecks.
+
+### Adjacency edges (chains)
+
+Adjacency edges enter the path enumeration via the source-set-expansion rule (passed atoms join the
+source set for subsequent atoms — already implemented in the existing `credit.rs`). They're not
+special; they're just additional edges in the path enumeration.
+
+For a recitation card where p1 passes, p2 passes, p3 fails, p4 passes:
+
+* p1 success: confirms `ref→gist`, `gist→p1`.
+* p2 success: paths from `{ref, p1}` include `p1 → p2` (1 hop adjacency) and `ref → gist → p2` (2
+  hops via gist). Dominant path determined by relative association strengths under the likelihood;
+  for healthy chains, adjacency wins. Confirms whichever wins, plus all upstream edges.
+* p3 failure: paths from `{ref, p1, p2}` include `p2 → p3` and `ref → gist → p3`. With shared edges
+  confirmed, blame falls on `gist→p3` and `p2→p3` proportional to weakness — both are unconfirmed,
+  both are reached (their predecessors fired), both compete for the failure attribution.
+* p4 success: paths from `{ref, p1, p2}` (p3 excluded — failed). No chain through p3. Only
+  `ref → gist → p4`. Confirms `gist→p4`.
+
+Outcome: failure of p3 localizes between two specific edges — the gist-binding for p3 and the
+transition from p2 to p3. As more reviews accumulate, the system identifies which is the actual
+bottleneck.
+
+### Edge case: all phrases fail (chain context)
+
+If no phrase succeeds, source-set-expansion doesn't add any sources beyond `{ref}`. Adjacency paths
+can't form because their sources require successful predecessors. Only `ref → gist → p_k` paths are
+enumerated. As in the worked example above, blame concentrates on `ref→gist`; `gist→p_k` edges
+receive essentially no update (they probably weren't reached); adjacency edges aren't on any
+surviving path and receive no update at all.
+
+This is correct: chain failures are only diagnosable when at least some chain succeeded — you can
+only blame an adjacency edge for a missed transition if you got to its source phrase in the first
+place.
 
 ### Per-card propagation with multi-atom cards
 
-Use the aggregated edge posterior `post_e^total` (or whichever variant) in the propagation
-calculation. Related cards `c'` are weighted by overlap with the union of edges implicated across
-atoms.
+For card-to-card propagation, the relevant per-edge weight is
+`P(edge e fired this review | observations)` — the same posterior computed above. Edges with high
+posterior of having fired provide informative signal for related cards; edges that probably weren't
+tested don't propagate.
 
-### Per-atom partial failures
+### Why this resolves the magnitude concern
 
-If some atoms in a card pass and others fail, the per-atom posteriors naturally encode this: failed
-atoms' posteriors concentrate on weak paths (blame), passed atoms' posteriors concentrate on strong
-paths (credit). Aggregation treats them as separate observations on potentially overlapping edges.
-The posterior framework absorbs partial failures without special-case logic.
+Under the original framing, "hub edges in many atoms" raised the worry that they'd accumulate
+disproportionately strong updates. Under AGG-FlowJoint:
+
+* Confirmed-fired hub edges (across multiple successes) get one positive update event's worth, not N
+  updates. Confirmation is a binary fact, not an accumulating count.
+* Failed-atom contributions to hub edges are dampened by the joint inference: if all atoms via the
+  hub fail, the hub gets one strong negative update (not N moderate ones); if some atoms pass, the
+  hub is exonerated and gets zero negative contribution.
+
+The "more atoms = more evidence" intuition is preserved for per-atom edges (they each get their own
+observation) but corrected for shared edges (they get one shared observation, not N correlated
+ones).
+
+### Computational cost
+
+For typical card structures (paths up to 5 hops, 4-5 hidden atoms per recitation card, one shared
+root edge), the joint inference is cheap:
+
+* Per-atom: O(|paths|) for posterior computation. Existing path enumeration.
+* Joint analysis: enumerate the small number of "configurations" of shared-edge firings (most cards
+  have one or two shared edges); compute the conditional likelihood of observations under each.
+  O(2^k) for `k` shared edges, with `k` typically ≤ 3.
+
+For pathological cases (dense graphs, many shared edges), variational approximation or sequential
+conditional inference makes this tractable.
+
+### Fallback: AGG-Structural heuristic
+
+If the full joint inference is too expensive in some context, a graceful fallback is the simpler
+AGG-Structural rule:
+
+1. Process successes; mark edges on dominant successful paths as confirmed-fired.
+2. For each failed atom, distribute blame across unconfirmed edges in its path proportional to
+   `(1 - a_e) / Σ (1 - a_e')`.
+3. Apply log-odds updates with these weights.
+
+This captures most of the structural inference (confirmed edges absorb successes; failures localize
+on unconfirmed edges) without the full joint analysis. It systematically over-decrements per-atom
+edges in all-fail cases relative to AGG-FlowJoint, but it's a reasonable approximation when joint
+inference is impractical.
 
 ## Verse-chunk layer (optional)
 
@@ -821,9 +951,16 @@ To answer iteratively as the architecture is prototyped:
    sigmoid/logit conversions is acceptable given the goal is a principled memory model, not a
    minimal SRS. See _Edge associations / Hebbian update form_.
 
-3. **Multi-atom aggregation.** AGG1/AGG2/AGG3 each have plausible justifications; the right choice
-   depends on whether hub edges should experience disproportionately strong updates from
-   full-recitation cards.
+3. ~~**Multi-atom aggregation.**~~ **Resolved.** Adopted: **AGG-FlowJoint** — activation-flow model
+   with joint inference across atoms. Per-atom-independent aggregation gets the wrong answer in two
+   important cases (shared edges in failed recitations, downstream edges in chain failures). Under
+   activation-flow, an edge is _tested_ only if upstream activation reaches it; if upstream fails,
+   downstream parameters shouldn't update on that observation. Joint inference for shared edges (one
+   "did `ref→gist` fire" event across all atoms) produces sharp posteriors: a single success forces
+   the shared edge confirmed; unanimous failure drives it strongly toward "didn't fire" while
+   leaving per-atom downstream edges essentially untouched. Fallback for tractability:
+   AGG-Structural heuristic (confirm successes, distribute failure blame proportional to weakness
+   across unconfirmed edges). See _Multi-atom cards_.
 
 4. **Card-to-card propagation form.** P1 (posterior-weighted edge alignment) is recommended for
    simplicity; P2 (KL divergence) is more principled but expensive. Worth comparing on synthetic
