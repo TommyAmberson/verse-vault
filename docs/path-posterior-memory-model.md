@@ -707,53 +707,33 @@ compose directly into those binding composites.
 
 (See _Why no VerseGist node_ below for the design rationale.)
 
-**Position identities and containment are separately memorable** — and containment is often the more
-important memory. A user might remember "this verse is in this chapter" without recalling the
-specific verse number, or vice versa.
+**Every stateful element is a binding** that the user can be directly tested on. The FSRS state
+holds the user's memory of a relationship — even when it looks like an "identity," it's actually a
+binding to underlying components (e.g., the verse number is a binding between verse content and the
+position number).
 
-**Containment is verse-centric** (rather than chained through ref nodes). Quizzers commonly know
-"this is in Romans" without first recalling which chapter, so verse-to-book is its own memory rather
-than a transitive consequence of verse→chapter→book.
-
-Working list for verse-vault under HSRS-state, with **position identities, containment, and thematic
-groupings as separate stateful elements**:
-
-**Every stateful element is a binding.** What looked like "identities" (BookRef, ChapterRef
-position, etc.) are actually bindings whose theoretical endpoints aren't all modelled as separate
-states. The FSRS state for "ChapterRef of John 3:16" represents the user's memory of the whole
-relational path — verse content ↔ chapter as a unit ↔ position number — not a free- floating memory
-of "3."
-
-The practical distinction isn't identity-vs-binding; it's:
+Two practical distinctions:
 
 * How many endpoints of the binding have stateful representation in the model (this determines
   whether endpoint propagation applies).
 * Whether the binding is **atomic** (single relational fact) or **compositional** (substance
   composes over many constituent bindings).
 
+**No standalone chapter or book elements.** ChapterRef position, BookRef, and Chapter↔Book
+containment were considered and dropped — see _Why no chapter or book identities_ below. They can't
+be cleanly tested in isolation, and the verse-rooted Verse↔Chapter and Verse↔Book bindings already
+capture everything we can directly observe.
+
 Per verse:
 
-| Element                         | Kind           | Endpoints / constituents in the model         | Position value |
-| ------------------------------- | -------------- | --------------------------------------------- | -------------- |
-| **Phrase × N**                  | atomic binding | none stateful                                 | n/a            |
-| **VerseRef position**           | atomic binding | phrases (verse content endpoint)              | verse number   |
-| **Verse ↔ Chapter containment** | atomic binding | phrases + ChapterRef                          | n/a            |
-| **Verse ↔ Book containment**    | atomic binding | phrases + BookRef                             | n/a            |
-| **Verse ↔ Heading association** | atomic binding | phrases + HeadingText                         | n/a            |
-| **Verse ↔ Club association**    | atomic binding | phrases + ClubText (often multiple per verse) | n/a            |
-
-Per chapter:
-
-| Element                        | Kind           | Endpoints in the model | Position value |
-| ------------------------------ | -------------- | ---------------------- | -------------- |
-| **ChapterRef position**        | atomic binding | none stateful          | chapter number |
-| **Chapter ↔ Book containment** | atomic binding | ChapterRef + BookRef   | n/a            |
-
-Per book:
-
-| Element     | Kind           | Endpoints in the model |
-| ----------- | -------------- | ---------------------- |
-| **BookRef** | atomic binding | none stateful          |
+| Element                         | Kind           | Endpoints / constituents in the model         | Position value           |
+| ------------------------------- | -------------- | --------------------------------------------- | ------------------------ |
+| **Phrase × N**                  | atomic binding | none stateful                                 | n/a                      |
+| **VerseRef position**           | atomic binding | phrases (verse content endpoint)              | verse number             |
+| **Verse ↔ Chapter binding**     | atomic binding | phrases (verse content)                       | chapter number (bundled) |
+| **Verse ↔ Book binding**        | atomic binding | phrases (verse content)                       | book name (bundled)      |
+| **Verse ↔ Heading association** | atomic binding | phrases + HeadingText                         | n/a                      |
+| **Verse ↔ Club association**    | atomic binding | phrases + ClubText (often multiple per verse) | n/a                      |
 
 Per heading:
 
@@ -768,6 +748,29 @@ Per club (Bible-quizzer thematic groupings):
 | Element      | Kind           | Endpoints in the model |
 | ------------ | -------------- | ---------------------- |
 | **ClubText** | atomic binding | none stateful          |
+
+#### Why no chapter or book identities
+
+Earlier drafts had ChapterRef position ("this chapter is chapter 3"), BookRef ("this book is named
+John"), and Chapter↔Book containment ("this chapter is in this book") as separate stateful elements.
+Dropped because:
+
+1. **No clean direct-grade card.** To test ChapterRef position in isolation, you'd need to show "the
+   chapter" as cue without revealing its number. But chapters don't have a handle separate from
+   their (book, number) identity — the only ways to show "the chapter" are via its content (which
+   routes through verses → chapter, not isolated) or its label (which contains the answer). Same
+   problem for BookRef and Chapter↔Book.
+2. **The 1-to-1 grading rule excludes elements without direct-grade cards.** If we kept these,
+   they'd be stateful but only updated by propagation — which means drift over time without
+   ground-truth observations.
+3. **The information is recoverable.** Chapter-level mastery is derivable from aggregating across
+   all the verses' Verse↔Chapter bindings for that chapter. Book-level mastery is derivable from
+   Verse↔Book bindings. These are derived metrics for diagnostics and scheduling, not stored states.
+
+Verse↔Chapter and Verse↔Book bindings now bundle the chapter number and book name as values attached
+to the binding. The card "verse is in chapter (versetext + book + verse cue → chapter)" grades the
+Verse↔Chapter binding directly, with the chapter number being part of what's produced. No separate
+ChapterRef state needed.
 
 **Summary by structure:**
 
@@ -899,19 +902,16 @@ grades from one review) supplement it for efficiency.
 
 **Atomic cards (one direct grade per card per element):**
 
-| Card                                 | Cue                                | User produces  | Direct grade target                          |
-| ------------------------------------ | ---------------------------------- | -------------- | -------------------------------------------- |
-| Phrase fill-in / continuation        | ref + other phrases (or preceding) | the phrase     | 1× Phrase                                    |
-| **Verse is at verseref**             | versetext + book + chapter         | verse number   | 1× VerseRef position                         |
-| **Verse is in chapter**              | versetext + book + verse           | chapter        | 1× Verse↔Chapter containment                 |
-| **Verse is in book**                 | versetext + chapter + verse        | book           | 1× Verse↔Book containment                    |
-| What chapter number is that chapter? | chapter context                    | chapter number | 1× ChapterRef position                       |
-| What book is that chapter in?        | a chapter                          | book           | 1× Chapter↔Book containment                  |
-| What's the book name?                | book context                       | book name      | 1× BookRef                                   |
-| **Verse is in heading**              | versetext                          | heading        | 1× Verse↔Heading association                 |
-| **Verse is in club**                 | versetext or ref                   | club name      | 1× Verse↔Club association                    |
-| Heading text from passage            | passage content                    | heading text   | 1× HeadingText (+ HeadingPassageAssociation) |
-| Heading-hierarchy                    | sub-heading or parent              | parent or sub  | 1× HeadingHierarchy                          |
+| Card                          | Cue                                | User produces | Direct grade target                          |
+| ----------------------------- | ---------------------------------- | ------------- | -------------------------------------------- |
+| Phrase fill-in / continuation | ref + other phrases (or preceding) | the phrase    | 1× Phrase                                    |
+| **Verse is at verseref**      | versetext + book + chapter         | verse number  | 1× VerseRef position                         |
+| **Verse is in chapter**       | versetext + book + verse           | chapter       | 1× Verse↔Chapter binding                     |
+| **Verse is in book**          | versetext + chapter + verse        | book          | 1× Verse↔Book binding                        |
+| **Verse is in heading**       | versetext                          | heading       | 1× Verse↔Heading association                 |
+| **Verse is in club**          | versetext or ref                   | club name     | 1× Verse↔Club association                    |
+| Heading text from passage     | passage content                    | heading text  | 1× HeadingText (+ HeadingPassageAssociation) |
+| Heading-hierarchy             | sub-heading or parent              | parent or sub | 1× HeadingHierarchy                          |
 
 **Composite cards (multiple grades per review):**
 
@@ -921,16 +921,16 @@ grades from one review) supplement it for efficiency.
 | **Citation: verse → ref**      | verse content          | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                                 |
 | **Heading: passage → heading** | a range of verses      | the heading text                     | 1× HeadingText + 1× HeadingPassageAssociation + (per verse in passage) 1× Verse↔Heading |
 | **Club: verse → club**         | versetext or ref       | club name(s)                         | 1× ClubText + (per verse) 1× Verse↔Club                                                 |
-| **Holistic recitation** (full) | (something)            | full citation + content              | N× Phrase + VerseRef + Verse↔Chapter + Verse↔Book + ChapterRef + Chapter↔Book + BookRef |
+| **Holistic recitation** (full) | (something)            | full citation + content              | N× Phrase + VerseRef + Verse↔Chapter + Verse↔Book                                       |
 
 A typical 4-phrase verse with full ref machinery has roughly:
 
-* ~11 atomic card types (some shared at chapter/book level).
+* ~6 atomic card types per verse (1× phrase × N, plus 5 verse-level binding cards).
 * 2-3 composite card types (recitation, citation, possibly holistic).
 * Heading and club cards added per heading/club the verse participates in.
 
 Atomic cards exist so every FSRS state has a route to direct grading (avoids drift). Composite cards
-exist for efficiency and realism — each holistic recitation produces 6+N grades in one review
+exist for efficiency and realism — each holistic recitation produces 3+N grades in one review
 session.
 
 #### Why this generalizes
