@@ -932,24 +932,43 @@ That's the complete atomic card set: per-phrase + 5 per-verse binding cards.
 
 **Composite cards (multiple grades per review):**
 
-| Card                           | Cue                    | User produces                        | Grades                                                  |
-| ------------------------------ | ---------------------- | ------------------------------------ | ------------------------------------------------------- |
-| **Recitation: ref → text**     | book + chapter + verse | full verse content                   | N× Phrase                                               |
-| **Citation: verse → ref**      | verse content          | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book |
-| **Heading: passage → heading** | a range of verses      | the heading                          | (per verse in passage) 1× Verse↔Heading                 |
-| **Heading: heading → passage** | the heading            | the verse range                      | (per verse in passage) 1× Verse↔Heading                 |
-| **Club: verse → club**         | versetext or ref       | club name(s)                         | (per verse) 1× Verse↔Club                               |
-| **Holistic recitation** (full) | (something)            | full citation + content              | N× Phrase + VerseRef + Verse↔Chapter + Verse↔Book       |
+| Card                           | Cue                            | User produces                        | Grades                                                                    |
+| ------------------------------ | ------------------------------ | ------------------------------------ | ------------------------------------------------------------------------- |
+| **Recitation: ref → text**     | book + chapter + verse         | full verse content                   | N× Phrase                                                                 |
+| **Citation: verse → ref**      | verse content                  | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                   |
+| **FTV (Finish The Verse)**     | first phrase / verse beginning | rest of the verse content            | (N − 1)× Phrase                                                           |
+| **FTV with citation**          | first phrase / verse beginning | rest of content + full citation      | (N − 1)× Phrase + 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book |
+| **Heading: passage → heading** | a range of verses              | the heading                          | (per verse in passage) 1× Verse↔Heading                                   |
+| **Heading: heading → passage** | the heading                    | the verse range                      | (per verse in passage) 1× Verse↔Heading                                   |
+| **Club: verse → club**         | versetext or ref               | club name(s)                         | (per verse) 1× Verse↔Club                                                 |
+| **Holistic recitation** (full) | (something)                    | full citation + content              | N× Phrase + VerseRef + Verse↔Chapter + Verse↔Book                         |
+
+**FTV (Finish The Verse)** deserves explicit mention because it's a standard Bible-quizzer format.
+The quiz official reads the verse's beginning (often phrase 1, sometimes the first few words); the
+quizzer must produce the rest. Two variants:
+
+* _Without citation_: the user just produces the remaining phrases. Grades phrase 2..N.
+* _With citation_: the user also identifies the verse (book, chapter, verse number). Grades phrase
+  2..N + the three citation bindings.
+
+Both are composite cards — they don't introduce new state elements. The "verse beginning" used as
+cue is just phrase 1 (or a sub-phrase of it); FTV doesn't need its own dedicated state for "the
+beginning" because the beginning is already captured as Phrase 1 and tested by the existing
+phrase-recall machinery.
+
+The cue may be shorter than phrase 1 in some quiz formats — the first few words rather than the
+whole first phrase. The cue choice is a card-design parameter; the grading targets stay the same
+(the phrases produced after the cue).
 
 A typical 4-phrase verse with full ref machinery:
 
 * 6 atomic card types per verse (Phrase × N + 5 verse-level binding cards).
-* 2-3 composite card types (recitation, citation, possibly holistic).
+* 3-4 composite card types (recitation, citation, FTV, possibly holistic).
 * Heading and club cards added per heading/club the verse participates in.
 
 Atomic cards exist so every FSRS state has a route to direct grading (avoids drift). Composite cards
-exist for efficiency and realism — each holistic recitation produces 3+N grades in one review
-session.
+exist for efficiency and realism — each holistic recitation produces 3+N grades; FTV produces N (or
+N+2 with citation).
 
 #### Why this generalizes
 
