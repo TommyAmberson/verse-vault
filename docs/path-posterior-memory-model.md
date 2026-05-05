@@ -15,6 +15,7 @@
 * [Motivation](#motivation)
 * [Two architectural approaches](#two-architectural-approaches)
 * [Pursuing Approach 2](#pursuing-approach-2)
+* [FSRS-stateful test taxonomy (HSRS-aligned)](#fsrs-stateful-test-taxonomy-hsrs-aligned)
 * [The three-layer model](#the-three-layer-model)
 * [Notation](#notation)
 * [Card state](#card-state)
@@ -300,6 +301,195 @@ The remaining open questions in the active design are now:
 
 These are the questions the rest of the design needs to answer, now framed clearly as Approach-2
 questions.
+
+## FSRS-stateful test taxonomy (HSRS-aligned)
+
+Under Approach 2, every distinct test gets its own FSRS state. The design preference is _maximize
+the count of stateful tests_: more granular state means richer diagnostics and lets the FSRS
+forgetting curve do its work on each cuing-direction independently. The cost is more state to track,
+but FSRS state is small (roughly 16 bytes per test) and update math is local.
+
+This section enumerates what tests verse-vault should have. The taxonomy aligns deliberately with
+HSRS's "per-element FSRS state, propagated updates via probabilistic FSRS" pattern, generalised from
+HSRS's tree topology to verse-vault's graph topology.
+
+### Test taxonomy
+
+For each verse with N phrases, the verse generates these tests:
+
+**Phrase tests (verbatim recall):**
+
+| Test                                | Cue source                     | Target                | Count |
+| ----------------------------------- | ------------------------------ | --------------------- | ----- |
+| Phrase-from-chain (forward)         | preceding phrase or ref        | a Phrase              | N     |
+| Phrase-from-context (fill-in-blank) | ref + all other phrases        | a Phrase              | N     |
+| Phrase-from-fragment                | partial cue (e.g., first word) | a Phrase              | N     |
+| Phrase-recognition                  | a Phrase                       | which verse it's from | N     |
+
+**Reference component tests:**
+
+| Test                                     | Cue source                  | Target            | Count       |
+| ---------------------------------------- | --------------------------- | ----------------- | ----------- |
+| Book-from-content                        | verse content               | book name         | 1           |
+| Chapter-from-content                     | verse content               | chapter number    | 1           |
+| Verse-number-from-content                | verse content               | verse number      | 1           |
+| Chapter-from-verse (containment)         | a VerseRef                  | parent ChapterRef | 1           |
+| Book-from-chapter (containment)          | a ChapterRef                | parent BookRef    | per chapter |
+| Verse-from-chapter (reverse containment) | a ChapterRef + verse number | a VerseRef        | 1           |
+| Chapter-from-book (reverse containment)  | a BookRef + chapter number  | a ChapterRef      | per chapter |
+| Book-name                                | book context (any)          | book name         | per book    |
+
+**Verse-gist association tests:**
+
+| Test                                 | Cue source   | Target                       | Count |
+| ------------------------------------ | ------------ | ---------------------------- | ----- |
+| Ref-to-content (forward association) | full ref     | "this binds to that content" | 1     |
+| Content-to-ref (reverse association) | full content | "this binds to that ref"     | 1     |
+
+**Heading tests** (if/when headings are added):
+
+| Test               | Cue source | Target      |
+| ------------------ | ---------- | ----------- |
+| Passage-to-heading | a passage  | its heading |
+| Heading-to-passage | a heading  | its passage |
+
+For a 4-phrase verse with full ref machinery, this is roughly **4N + 8 = 24** tests per verse, plus
+1-2 shared per chapter and per book. For a 100-verse memorisation, **~2400-3000 tests** total. At
+~16 bytes per test for FSRS state, that's ~50KB of memory state — trivial storage.
+
+### Per-test state (HSRS-aligned)
+
+Each test carries:
+
+```
+struct TestState {
+    stability: f32,                  // FSRS S
+    difficulty: f32,                 // FSRS D
+    last_seen_secs: i64,             // HSRS lastSeen — set on any update (direct or propagated)
+    last_base_secs: i64,             // HSRS lastBase — used in forgetting curve, interpolated by weight
+    last_root_secs: i64,             // last direct-grade observation (ground-truth anchor)
+}
+```
+
+This matches HSRS's pattern faithfully:
+
+* **`stability`, `difficulty`** are the usual FSRS state.
+* **`last_seen`** advances whenever the test is touched (direct grade or propagation). Useful for
+  "when was this last looked at?" diagnostics; not used in the forgetting curve.
+* **`last_base`** is what the forgetting curve uses: `R(t) = forgetting_curve(S, D, t - last_base)`.
+  For direct grades, `last_base` advances to `now`. For propagated updates, `last_base` interpolates
+  linearly toward `now` proportional to the propagation weight (HSRS pattern). Soft updates produce
+  soft clock advances, not full refreshes.
+* **`last_root`** is the timestamp of the last direct grade (HSRS's `lastRoot` analogue). The
+  scheduler uses staleness of `last_root` to bias toward direct observations of tests that have been
+  getting only propagated updates, which prevents drift.
+
+### Update semantics (HSRS-aligned)
+
+Two kinds of updates:
+
+**Direct grade.** Some card runs this test and the user produces a graded response.
+
+```
+1. Apply standard FSRS step:
+   (S, D) ← FSRS_step(S, D, now - last_base, grade)
+2. Refresh timestamps:
+   last_seen ← now
+   last_base ← now
+   last_root ← now
+```
+
+This is exactly FSRS as designed. No partial-credit machinery, no inference. The test was directly
+observed; its state is updated.
+
+**Propagated update.** Some other test was directly graded, and this related test should be nudged.
+Weight `w ∈ [0, 1]` reflects how strongly the observation about the other test informs this one.
+
+```
+1. Compute the next state under the same grade:
+   (S', D') = FSRS_step(S, D, now - last_base, grade)
+2. Compute current and next retrievabilities at now:
+   R_now = R(S, D, now - last_base)
+   R_next = R(S', D', now - last_base)
+3. Linearly interpolate retrievabilities:
+   R_blend = (1 - w) · R_now + w · R_next
+4. Solve for stability that produces R_blend:
+   S_blend = invert_R(R_blend, now - last_base)
+5. Linearly interpolate difficulty:
+   D_blend = (1 - w) · D + w · D'
+6. Refresh timestamps:
+   last_seen ← now
+   last_base ← (1 - w) · last_base + w · now      (interpolated)
+   last_root unchanged                              (this was not a direct observation)
+```
+
+This is HSRS's "probabilistic FSRS update with retrievability-space interpolation." Steps 1-4 are
+the math we already adopted as Q2's resolution; steps 5-6 are the timestamp dual-pattern addition.
+Together they form a complete propagated-update primitive.
+
+Crucially: the propagation **doesn't produce a separate kind of state**. It's an FSRS-shaped update
+with a weight. The state stays uniformly `(S, D, last_seen, last_base, last_root)` — no separate
+"association strength" or "Hebbian weight" needed for graded tests. HSRS's insight is that all
+updates can use this one uniform shape, parameterised by weight.
+
+### Propagation: where weights come from
+
+The remaining question is: when test A is directly graded, what weights do we use to propagate to
+test B?
+
+The weight should reflect "how much does observing A inform B?" — which is a function of:
+
+* How much do A and B share targets in the memory graph? (Strongest signal: same target → high
+  weight. Different targets in the same verse → moderate. Cross-verse → low.)
+* How much do A's and B's cue sources overlap? (Shared cuing implies shared retrieval pathways.)
+* How structurally similar are A and B in test category? (Two phrase-from-chain tests are more
+  similar than a phrase-from-chain and a ref-component-from-content test.)
+
+A reasonable propagation-weight rule:
+
+```
+w(A → B) = γ · target_overlap(A, B) · cue_overlap(A, B) · category_compatibility(A, B)
+```
+
+with `γ` a small global constant (~0.1-0.3), and the three factors all in `[0, 1]`. The specifics of
+each factor are open questions — see below.
+
+### What HSRS gives us
+
+By aligning with HSRS, we inherit several things:
+
+* **A proven update primitive** for partial observations (the retrievability-space interpolation).
+* **A proven timestamp pattern** (`last_seen` / `last_base` / `last_root`) that handles the "soft
+  updates shouldn't lie about freshness" problem (the original audit's S3) cleanly.
+* **A proven scheduling pattern** (bias toward stale `last_root`) to prevent inferred-update drift.
+* **An empirical pedigree**: HSRS is deployed and the math is calibrated. We can borrow parameter
+  values as starting points rather than tuning from scratch.
+
+### What we adapt rather than copy
+
+HSRS's tree topology becomes verse-vault's graph topology. Specifically:
+
+* HSRS has one grade per review (the user grades the whole tree); verse-vault has multiple grades
+  per card review (one per test the card runs). This is just an extension — each grade in a
+  multi-grade card review is processed independently as a direct update on its respective test.
+* HSRS's Bayesian inference for "which leaf caused the failure" doesn't directly apply (we have
+  direct grades). But the propagation weights between related tests serve a similar role:
+  distributing observation evidence across the graph of tests.
+
+### Implications for the rest of the doc
+
+The cards-primary content in the body of this doc was already moving toward this architecture in a
+roundabout way. With HSRS alignment baked in, several earlier sections simplify:
+
+* **Path posterior, AGG-FlowJoint, partial-credit machinery** were all about handling multi-target
+  observations under Approach 1 (state on memorable atoms). Under Approach 2 with this taxonomy,
+  multi-target cards just produce multiple independent direct updates, one per target. The Bayesian
+  path inference is no longer needed for the _direct_ update semantics.
+* **Bayesian inference is still useful** — but for the propagation question (which related tests
+  should be nudged, and by how much) rather than for the direct-update question. That's a much more
+  bounded role.
+* The **graded-thing variant** at the end of the doc is preserved as the Approach-1 alternative, but
+  the active design is this section + HSRS-style propagation.
 
 ## The three-layer model
 
