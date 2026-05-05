@@ -693,52 +693,80 @@ than a transitive consequence of verse→chapter→book.
 Working list for verse-vault under HSRS-state, with **position identities, containment, and thematic
 groupings as separate stateful elements**:
 
+**Every stateful element is a binding.** What looked like "identities" (BookRef, ChapterRef
+position, etc.) are actually bindings whose theoretical endpoints aren't all modelled as separate
+states. The FSRS state for "ChapterRef of John 3:16" represents the user's memory of the whole
+relational path — verse content ↔ chapter as a unit ↔ position number — not a free- floating memory
+of "3."
+
+The practical distinction isn't identity-vs-binding; it's:
+
+* How many endpoints of the binding have stateful representation in the model (this determines
+  whether endpoint propagation applies).
+* Whether the binding is **atomic** (single relational fact) or **compositional** (substance
+  composes over many constituent bindings).
+
 Per verse:
 
-| Element                         | Type     | Endpoints / Constituents                                       | Position value |
-| ------------------------------- | -------- | -------------------------------------------------------------- | -------------- |
-| **Phrase × N**                  | identity | none                                                           | n/a            |
-| **VerseRef position**           | identity | none                                                           | verse number   |
-| **Verse ↔ Chapter containment** | binding  | endpoints: verse phrases + ChapterRef                          | n/a            |
-| **Verse ↔ Book containment**    | binding  | endpoints: verse phrases + BookRef                             | n/a            |
-| **Verse ↔ Heading association** | binding  | endpoints: verse phrases + HeadingText                         | n/a            |
-| **Verse ↔ Club association**    | binding  | endpoints: verse phrases + ClubText (often multiple per verse) | n/a            |
+| Element                         | Kind           | Endpoints / constituents in the model         | Position value |
+| ------------------------------- | -------------- | --------------------------------------------- | -------------- |
+| **Phrase × N**                  | atomic binding | none stateful                                 | n/a            |
+| **VerseRef position**           | atomic binding | phrases (verse content endpoint)              | verse number   |
+| **Verse ↔ Chapter containment** | atomic binding | phrases + ChapterRef                          | n/a            |
+| **Verse ↔ Book containment**    | atomic binding | phrases + BookRef                             | n/a            |
+| **Verse ↔ Heading association** | atomic binding | phrases + HeadingText                         | n/a            |
+| **Verse ↔ Club association**    | atomic binding | phrases + ClubText (often multiple per verse) | n/a            |
 
 Per chapter:
 
-| Element                        | Type     | Endpoints            | Position value |
-| ------------------------------ | -------- | -------------------- | -------------- |
-| **ChapterRef position**        | identity | none                 | chapter number |
-| **Chapter ↔ Book containment** | binding  | ChapterRef + BookRef | n/a            |
+| Element                        | Kind           | Endpoints in the model | Position value |
+| ------------------------------ | -------------- | ---------------------- | -------------- |
+| **ChapterRef position**        | atomic binding | none stateful          | chapter number |
+| **Chapter ↔ Book containment** | atomic binding | ChapterRef + BookRef   | n/a            |
 
 Per book:
 
-| Element     | Type                     |
-| ----------- | ------------------------ |
-| **BookRef** | identity — the book name |
+| Element     | Kind           | Endpoints in the model |
+| ----------- | -------------- | ---------------------- |
+| **BookRef** | atomic binding | none stateful          |
 
 Per heading:
 
-| Element                                   | Type      | Endpoints / Constituents                                     |
-| ----------------------------------------- | --------- | ------------------------------------------------------------ |
-| **HeadingText**                           | identity  | none                                                         |
-| **HeadingPassageAssociation**             | composite | constituents: per-verse Verse↔Heading bindings + HeadingText |
-| **HeadingHierarchy** (per parent → child) | binding   | endpoints: parent + child HeadingText                        |
+| Element                                   | Kind           | Endpoints / constituents in the model          |
+| ----------------------------------------- | -------------- | ---------------------------------------------- |
+| **HeadingText**                           | atomic binding | none stateful                                  |
+| **HeadingPassageAssociation**             | compositional  | per-verse Verse↔Heading bindings + HeadingText |
+| **HeadingHierarchy** (per parent → child) | atomic binding | parent + child HeadingText                     |
 
 Per club (Bible-quizzer thematic groupings):
 
-| Element      | Type                                     |
-| ------------ | ---------------------------------------- |
-| **ClubText** | identity — the club's name / theme label |
+| Element      | Kind           | Endpoints in the model |
+| ------------ | -------------- | ---------------------- |
+| **ClubText** | atomic binding | none stateful          |
 
-**Summary by type:**
+**Summary by structure:**
 
-* _Identities_ (standalone state): Phrase, VerseRef position, ChapterRef position, BookRef,
-  HeadingText, ClubText.
-* _Bindings_ (relational state): Verse↔Chapter, Verse↔Book, Verse↔Heading, Verse↔Club, Chapter↔Book,
-  HeadingHierarchy.
-* _Composites_ (compositional state): HeadingPassageAssociation. (Few in number — most multi-element
-  relations are bindings, not composites.)
+* _Atomic bindings_ (most elements): single relational facts. Most have at least one stateful
+  endpoint in the model; some (BookRef, ChapterRef position, HeadingText, ClubText, plain Phrase)
+  have no stateful endpoints — their content endpoint isn't modelled as a separate state.
+* _Compositional bindings_ (HeadingPassageAssociation): substance composes over many constituent
+  bindings. Different propagation rules apply.
+
+#### Why VerseRef position has phrases as an endpoint
+
+The "verse number" of a verse is the user's memory of the relationship between the verse's content
+and its position number. The verse's content _is_ modelled (as phrases), so VerseRef position has
+phrases as a stateful endpoint. Reviewing phrases mildly propagates to VerseRef position; reviewing
+VerseRef position mildly reinforces phrase memory.
+
+This is more cognitively realistic than treating VerseRef position as a free-floating "the number
+16" memory. It captures that knowing the content cues the number recall, which matches quizzer
+practice — heavy phrase study does anchor verse-number memory.
+
+For ChapterRef position and BookRef, the theoretical content endpoints (chapter-as-a-unit,
+book-as-a-unit) aren't modelled as states. So they have no stateful endpoints to scaffold from.
+Their states update via direct grades plus whatever graph-mediated cross-element propagation the
+architecture provides between sibling chapter or book elements.
 
 The graph topology under HSRS-style: stateful elements are nodes; pure structural relationships are
 edges. Containment relationships have FSRS state, so they're modelled as nodes themselves (with
