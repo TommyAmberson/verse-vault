@@ -1,20 +1,20 @@
 # Path-posterior memory model
 
-> **Status:** brainstorm. The verse-vault project is still working out its theory of memory — what
-> units carry state, how observations propagate through the graph, what the graph actually
-> contributes mathematically. The fundamental architectural choice — _what is the unit that carries
-> FSRS state?_ — has two coherent answers, articulated in **Two architectural approaches** near the
-> top: model the memory of the material (state per memorable atom), or model the memory of specific
-> tests (state per cue/target pair). The doc explores variants of both. Detailed math exists for one
-> architecture (cards-primary with edge associations); a sibling variant (redesigned graph:
-> graded-thing architecture, _Variant: redesigned graph_ section near the end) takes the per-atom
-> path more seriously. Multiple options are documented where real design choices exist; resolved
-> choices are marked in _Open questions_.
+> **Status:** brainstorm with a chosen direction. The fundamental architectural choice — _what is
+> the unit that carries FSRS state?_ — has two coherent answers, articulated in **Two architectural
+> approaches**: model the memory of the material (state per memorable atom), or model the memory of
+> specific tests (state per cue/target pair). **As of 2026-05 the project is pursuing Approach 2**
+> (state per test) for the FSRS calibration efficiency, with the goal of capturing as much per-atom
+> diagnostic value as possible through structure-driven cross-test propagation. See _Pursuing
+> Approach 2_ for the active architecture; the cards-primary core of the doc is the math behind
+> Approach 2 with "card" read as "test." The graded-thing variant near the end remains documented as
+> the considered-but-not-pursued Approach 1.
 
 ## Contents
 
 * [Motivation](#motivation)
 * [Two architectural approaches](#two-architectural-approaches)
+* [Pursuing Approach 2](#pursuing-approach-2)
 * [The three-layer model](#the-three-layer-model)
 * [Notation](#notation)
 * [Card state](#card-state)
@@ -179,6 +179,127 @@ behaviour the per-atom version misses.
 The doc's exploration so far suggests verse memorization leans toward Approach 1 (shared memory
 across cuings, with cuing being retrieval scaffolding rather than separate skills), but this is
 worth simulating before committing.
+
+## Pursuing Approach 2
+
+**Decision (2026-05):** pursue Approach 2 for the FSRS calibration efficiency. The challenge is to
+capture as much of Approach 1's per-atom diagnostic value as possible through structure-driven
+cross-test propagation, rather than trying to build a partial-credit-on-atoms machinery that fights
+FSRS's design.
+
+The primary reason: Approach 1 requires inventing a partial-credit theory (the path posterior +
+AGG-FlowJoint machinery, multi-atom aggregation, etc.) to handle one card review producing updates
+across many state-bearing atoms. That theory is plausible but novel and unvalidated. Approach 2 lets
+every FSRS state be exactly what FSRS was designed for: one test, one grade, one update. The novel
+piece becomes "how do related tests inform each other" — which is a much better-bounded problem with
+established analogues in knowledge tracing, Bayesian Knowledge Tracing, and graph-mediated belief
+propagation.
+
+### Architecture under Approach 2
+
+**Tests are the unit of state.** Each test is a `(cue category, target)` pair with an FSRS state.
+
+**Memory graph is metadata.** The graph (phrases, ref components, gist hub, containment edges,
+adjacency edges, anchor/confusion edges) does **not** carry FSRS state. It's used for two things:
+
+1. _Defining tests_: a test is generated for each meaningful `(cue category, target)` combination
+   the card-type catalogue supports.
+2. _Driving propagation_: when one test is updated, related tests are nudged. Relatedness is
+   computed from memory-graph proximity (do their targets share neighbourhoods? do their cue sources
+   overlap?).
+
+**Cards are presentation.** A card is the UI/interaction layer that runs one or more tests in a
+single review. A multi-target card (recitation, full ref-id) runs N tests in one review session;
+each test produces its own grade and its own FSRS update.
+
+**Propagation is the graph's contribution.** This is what Approach 2 must be principled about, since
+it's the channel through which approach-1-style "the user has forgotten phrase X" insight becomes
+available — derived from observing many tests, all of whose retrievabilities reflect the underlying
+memory of phrase X.
+
+### What is a test in verse-vault
+
+Each test corresponds to a specific kind of probe of a specific atom of the material. Test
+categories the doc has been gesturing at:
+
+| Test category              | Cue source                        | Target                                        | Example test instance                        |
+| -------------------------- | --------------------------------- | --------------------------------------------- | -------------------------------------------- |
+| Phrase-from-chain          | preceding phrase / ref            | a Phrase                                      | "phrase 2 of John 3:16, given preceding cue" |
+| Phrase-from-context        | surrounding phrases + ref         | a Phrase                                      | "phrase 2 fill-in-blank"                     |
+| Ref-component-from-content | verse content                     | a ref component (book, chapter, verse-number) | "verse-number from content of John 3:16"     |
+| Ref-component-from-sibling | adjacent ref component            | a ref component                               | "chapter from verse, John 3:16's chapter"    |
+| Containment                | a ref component                   | its parent ref component                      | "chapter of John 3:16 → John 3"              |
+| Verse-gist association     | content or ref                    | the binding                                   | "John 3:16: ref ↔ content binding"           |
+| Heading association        | (TBD when heading taxonomy added) | ...                                           | ...                                          |
+
+Each instance gets one FSRS state. For a 4-phrase verse with full ref machinery, that's roughly:
+
+* 4 phrase-from-chain tests
+* 4 phrase-from-context tests (one per phrase that could be hidden in fill-in-blank)
+* 3 ref-component-from-content tests (book, chapter, verse-number)
+* 2 containment tests (verse → chapter, chapter → book)
+* 1 verse-gist association test
+
+= ~14 tests per verse. For 100 verses, ~1400 test states. Comfortably manageable.
+
+### What's gained vs. lost relative to Approach 1
+
+**Gained:**
+
+* Direct FSRS calibration. Each test is exactly the unit FSRS was tuned for. No new theory needed
+  for the core update.
+* Out-of-app practice handled automatically by FSRS's own state-recalibration property.
+* No partial-credit-on-shared-state problem. Each grade in a multi-target review hits its own test's
+  state cleanly.
+* Standard scheduling logic per test.
+
+**Lost (and how to recover via propagation):**
+
+* _Per-atom diagnostics_: under Approach 1, "phrase X is weak" was a single fact. Under Approach 2,
+  it's derived from observing that all tests targeting phrase X have low retrievability. Recovery:
+  define a derived "atom mastery" metric that aggregates the FSRS retrievabilities of tests
+  targeting it, used for scheduler decisions and UI displays. This isn't state, it's a query on test
+  states.
+
+* _Cross-cuing memory sharing_: if forward and reverse recall of phrase X share underlying memory
+  cognitively, Approach 1 captures this for free (one state). Approach 2 has separate states.
+  Recovery: graph-mediated propagation. When test "phrase X from chain" is updated, test "phrase X
+  from context" gets a partial update via the shared-target graph edge. The strength of this
+  propagation is the empirical question — if cuing dissociation is small, propagation should be
+  aggressive (high coupling); if large, propagation should be weaker.
+
+* _Total state count_: Approach 1 has fewer state items. Approach 2 multiplies by the number of test
+  categories. The trade-off is per-state simplicity (FSRS-native) vs. fewer items (Approach 1).
+
+### What this means for the rest of the doc
+
+The cards-primary architecture in the core sections of this doc is essentially Approach 2 with
+"card" read as "test." The path-posterior + log-odds-update + AGG-FlowJoint machinery from those
+sections is the propagation layer — the formalism for how observation on one test/card informs
+related tests/cards through the graph structure.
+
+The graded-thing variant near the end is the principled Approach 1 alternative; it's preserved for
+reference but is not the active direction.
+
+The remaining open questions in the active design are now:
+
+1. **Test categorisation granularity.** What counts as the same test category? Is "phrase from ref
+   alone" the same test as "phrase from ref + p1"? (Probably yes — same underlying memory; chain
+   length is just a cue richness factor.)
+2. **Propagation strength between tests sharing target.** How strongly does observing "phrase X from
+   chain" inform "phrase X from context"? Empirical / hyperparameter question.
+3. **Propagation strength between tests sharing cue.** Probably weaker than shared-target
+   propagation but non-zero.
+4. **Discount for cuing-direction asymmetry.** If two tests target the same atom but with very
+   different cue paths (e.g., forward recall vs. reverse recall), does propagation discount for
+   that?
+5. **Identifiability and state explosion management.** Some test instances may have very few
+   observations (e.g., a fill-in-blank for a phrase that's almost always shown). Their FSRS states
+   sit near priors. Does that matter? Should low-observation tests be deduplicated / merged with
+   related tests for stability?
+
+These are the questions the rest of the design needs to answer, now framed clearly as Approach-2
+questions.
 
 ## The three-layer model
 
