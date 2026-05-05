@@ -2,15 +2,19 @@
 
 > **Status:** brainstorm. The verse-vault project is still working out its theory of memory — what
 > units carry state, how observations propagate through the graph, what the graph actually
-> contributes mathematically. This document captures the active exploration, with detailed math for
-> one architecture (cards-primary with edge associations) and a sketched alternative variant
-> (redesigned graph: graded-thing architecture, _Variant: redesigned graph_ section near the end)
-> that is increasingly looking like the right direction. Multiple options are documented where real
-> design choices exist; resolved choices are marked in _Open questions_.
+> contributes mathematically. The fundamental architectural choice — _what is the unit that carries
+> FSRS state?_ — has two coherent answers, articulated in **Two architectural approaches** near the
+> top: model the memory of the material (state per memorable atom), or model the memory of specific
+> tests (state per cue/target pair). The doc explores variants of both. Detailed math exists for one
+> architecture (cards-primary with edge associations); a sibling variant (redesigned graph:
+> graded-thing architecture, _Variant: redesigned graph_ section near the end) takes the per-atom
+> path more seriously. Multiple options are documented where real design choices exist; resolved
+> choices are marked in _Open questions_.
 
 ## Contents
 
 * [Motivation](#motivation)
+* [Two architectural approaches](#two-architectural-approaches)
 * [The three-layer model](#the-three-layer-model)
 * [Notation](#notation)
 * [Card state](#card-state)
@@ -85,6 +89,96 @@ The path-posterior step is the mathematical contribution of the graph: it turns 
 observation into evidence about which edges fired, which propagates to other cards whose recall
 flows through the same machinery. The audit issues dissolve because their preconditions
 (FSRS-on-edges, partial-credit-on-FSRS) are removed.
+
+## Two architectural approaches
+
+A more fundamental framing of the choice in front of us, surfaced after working through the specific
+options below: there are two genuinely different ways to think about what we're modelling, and the
+rest of this document explores variants of each.
+
+### Approach 1 — Model the memory of the material
+
+Every memorable atom in the material has its own state. The graph **is** the user's memory model:
+each phrase, each ref component, each containment relationship is a noun in the model and carries
+its own state describing the user's current memory of it. Tests are tools designed to probe and
+update specific atoms; scheduling has a dual goal of keeping the state accurate (alignment with
+reality) and driving retention up (review).
+
+This is what the current edge-FSRS implementation attempts: state lives on graph elements
+(originally edges, possibly nodes/edges in the graded-thing variant), and the graph is a faithful
+representation of what the user has memorized.
+
+**Pros:**
+
+* Conceptually clean — the model represents the material directly.
+* One state per memorable atom; multiple card types updating the same state are just multiple
+  observations of the same underlying memory.
+* Diagnoses that "the user has forgotten this specific phrase" are first-class.
+* Cross-card-type reuse: forward recall and reverse recall of the same phrase share state, which is
+  cognitively defensible for verbatim text recall (the underlying memory is shared even if cuing
+  differs).
+
+**Cons:**
+
+* FSRS was designed for the unit "test = state." Putting state on memorable atoms (rather than on
+  tests) means each atom's state is updated by multiple test events with different cuing,
+  difficulty, and grading semantics. The empirical FSRS calibration doesn't directly apply.
+* Multi-atom card observations need partial-credit machinery (path posterior, AGG-FlowJoint) to
+  attribute observations across atoms — substantial additional theory.
+* The S1/S2/S3 audit issues are specific symptoms of FSRS-on-atoms with partial credit; the
+  graded-thing variant fixes them but the underlying tension remains.
+
+### Approach 2 — Model the memory of specific tests
+
+Every distinct test has its own FSRS state. A "test" is a specific (cue, target) pair: "given this
+prompt, produce this answer." Different cues for the same memorable atom are different tests with
+different states. A single card review may run multiple tests (one per `(cue, hidden atom)` pair),
+each updating its own FSRS state. The graph is **structural metadata** that captures relationships
+between tests for cross-test propagation.
+
+This matches FSRS's design: each test is one trackable thing, calibrated independently, with a
+forgetting curve that fits empirical reality.
+
+**Pros:**
+
+* FSRS calibration applies directly. Each test has the same shape as an Anki card; the 21-parameter
+  model is doing exactly what it was tuned for.
+* No partial-credit problem: each test gets its own grade, its own update.
+* Out-of-app practice handled correctly: state is per-test, recalibrates from observation gaps.
+* Standard scheduling logic applies per-test.
+
+**Cons:**
+
+* State explodes: the same memorable atom can have many tests (different cues, different
+  directions). Each test's state must be tracked and predicted.
+* Cross-test propagation is needed to share evidence between related tests — otherwise the user has
+  to review every cuing-direction independently.
+* Empirically defensible cuing-dependent dissociation may be over-modelled for verbatim text recall,
+  where the underlying memory is mostly shared across cues.
+
+### The thread connecting them
+
+These approaches differ on a single core question: **what's the unit that has FSRS state?**
+
+* Approach 1: the unit is a memorable atom (phrase, ref component, containment relationship).
+  Multiple card types updating the same atom share state.
+* Approach 2: the unit is a test (cue + target pair). Different cuings of the same atom are
+  different tests with different states; structure connects them for propagation.
+
+The graded-thing variant near the end of this document is a refinement of Approach 1 (adding the
+1-to-1-grading constraint to limit which atoms get state). The cards-primary architecture in the
+core sections is more naturally Approach 2 if we read "card" as "test." Both are still being
+explored; this section names the choice rather than resolving it.
+
+For verse-vault specifically, the empirical question is whether cuing-direction asymmetries are
+strong enough to justify per-test state. If forward recitation, reference identification, and
+holistic recitation share substantial underlying memory (Approach 1 wins), per-atom state is more
+parsimonious. If they're substantially dissociable (Approach 2 wins), per-test state captures real
+behaviour the per-atom version misses.
+
+The doc's exploration so far suggests verse memorization leans toward Approach 1 (shared memory
+across cuings, with cuing being retrieval scaffolding rather than separate skills), but this is
+worth simulating before committing.
 
 ## The three-layer model
 
@@ -1001,33 +1095,45 @@ Three structural insights:
 
 **Graded edges (carry FSRS state):**
 
-| Edge                   | Granularity   | Updated by          |
-| ---------------------- | ------------- | ------------------- |
-| Verse-gist association | one per verse | Holistic recitation |
+| Edge                                | Granularity     | Updated by                       |
+| ----------------------------------- | --------------- | -------------------------------- |
+| VerseRef ↔ ChapterRef (containment) | one per verse   | "What chapter is this verse in?" |
+| ChapterRef ↔ BookRef (containment)  | one per chapter | "What book is that chapter in?"  |
+| Verse-gist association              | one per verse   | Holistic recitation              |
 
 The verse-gist association edge is the thing that gets graded when a recitation correctly binds a
 body of content to a reference. It connects the verse's content (the set of phrases) to the
 reference (the book/chapter/verse triple). It's an edge rather than a node because it represents a
 _relationship_ between two existing identities.
 
+The containment edges between ref components are graded by dedicated "what's this thing's parent?"
+cards. They capture the user's memory of the hierarchical relationship — separable from the identity
+of either endpoint. A user can have a strong VerseRef identity ("verse 16") with a weak VerseRef ↔
+ChapterRef containment ("forgot which chapter, but I remember the verse number"), or vice versa.
+
 **Structural elements (no FSRS state, propagation only):**
 
-| Element                                                 | Role                                                                               |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| VerseGist node (if retained as a hub)                   | Connects phrases to the verse's identity; can be a structural hub or absent        |
-| Phrase ↔ Phrase adjacency edges (forward)               | Sequence; participates in propagation but not directly graded                      |
-| Phrase ↔ VerseGist (membership)                         | Connects phrases to the verse hub                                                  |
-| BookRef ↔ ChapterRef, ChapterRef ↔ VerseRef (hierarchy) | Structural ref-chain; not directly graded                                          |
-| Anchor edges (cross-verse, content-similarity)          | Hybrid (option C): explicit edges for high-similarity pairs only                   |
-| Confusion edges (cross-verse, content-similarity)       | Hybrid (option C): explicit edges for high-similarity-divergent-continuation pairs |
+| Element                                           | Role                                                                               |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| VerseGist node (if retained as a hub)             | Connects phrases to the verse's identity; can be a structural hub or absent        |
+| Phrase ↔ Phrase adjacency edges (forward)         | Sequence; participates in propagation but not directly graded                      |
+| Phrase ↔ VerseGist (membership)                   | Connects phrases to the verse hub                                                  |
+| Anchor edges (cross-verse, content-similarity)    | Hybrid (option C): explicit edges for high-similarity pairs only                   |
+| Confusion edges (cross-verse, content-similarity) | Hybrid (option C): explicit edges for high-similarity-divergent-continuation pairs |
 
 Structural elements have **association weights** (Hebbian-updated, log-odds form per Q2), used in
 path probabilities and propagation. They don't have FSRS dynamics because they're not directly
 graded.
 
+> Containment edges between ref components (`VerseRef ↔ ChapterRef`, `ChapterRef ↔ BookRef`) are
+> moved out of "structural" because containment is dissociable from identity — a user can know "this
+> is verse 16" while having forgotten which chapter or book it's in. Those edges are graded by
+> dedicated cards ("what chapter is this verse in?", "what book is that chapter in?") and carry
+> their own FSRS state.
+
 ### Notes on what's _not_ graded
 
-A few things the user explicitly excluded from the grading taxonomy that are worth flagging:
+A few things excluded from the grading taxonomy worth flagging:
 
 * **Adjacency edges are not directly graded.** Continuation cards ("what comes after p2?") are
   essentially fill-in-blank for the next phrase — they grade the phrase node, not the adjacency
@@ -1036,9 +1142,6 @@ A few things the user explicitly excluded from the grading taxonomy that are wor
   card type in this taxonomy. The verse's holistic mastery is _derived_ from the states of its
   constituent graded atoms (phrases, ref-parts, association edge), not tracked as a separate hub
   state.
-* **Hierarchy edges between ref components are not directly graded.** The book/chapter/verse parts
-  are graded individually as separate nodes; the relationships between them (BookRef → ChapterRef →
-  VerseRef) are structural.
 * **Membership edges (VerseGist ↔ Phrase) are not directly graded.** Phrase recall is graded; the
   membership relationship is structural.
 
