@@ -491,6 +491,75 @@ roundabout way. With HSRS alignment baked in, several earlier sections simplify:
 * The **graded-thing variant** at the end of the doc is preserved as the Approach-1 alternative, but
   the active design is this section + HSRS-style propagation.
 
+### Implications for memory complexity (atomicity)
+
+The standard SuperMemo / FSRS-community recommendation is that "individual flashcards should be
+atomic; complex knowledge should be decomposed into small independent pieces"
+([awesome-fsrs wiki, Memory Complexity](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/Spaced-Repetition-Algorithm:-A-Three%E2%80%90Day-Journey-from-Novice-to-Expert#memory-complexity)).
+The argument: composite memory has effective stability `S_composite = ∏ S_component`, which decays
+to zero as components multiply. Putting one FSRS state on "the whole verse" suffers exactly this
+problem: any one phrase failure breaks the whole, and the composite stability is much lower than any
+individual phrase's stability.
+
+The HSRS-aligned test taxonomy structurally implements this recommendation:
+
+* No FSRS state represents "the whole verse." The verse's mastery is _derived_ from its constituent
+  atomic test states, not stored as a single brittle quantity.
+* Each test is roughly atomic in the article's sense: one specific cue → one specific target.
+* Decomposition into ~24 tests per verse mirrors what the SuperMemo argument prescribes.
+
+So the memory-complexity issue is _addressed by the architecture_ rather than needing a separate
+mechanism. Single-FSRS-state-per-card systems (standard Anki, naive verse-as-card setups) suffer the
+issue; this architecture doesn't.
+
+### Sibling interference and scheduling discipline
+
+A separate issue, often confused with memory complexity but actually distinct: **sibling tests
+priming each other when scheduled close together**. Two tests that share a target or have heavy
+cue/target overlap (e.g., forward `ref → content` and reverse `content → ref` for the same verse)
+interfere positively when reviewed back-to-back. The user "passes" the second test trivially because
+the answer was just rehearsed in the first — but that's working-memory carryover, not real memory
+state.
+
+This isn't a flaw in the FSRS update math; it's a **scheduling problem**. The observed grade on the
+second test is contaminated by recent exposure to the first.
+
+The Anki precedent is **bury siblings**: forbid scheduling siblings within the same session
+(typically ≥ 24 hours apart). This is exactly the right intervention for the right reason.
+
+**For verse-vault under Approach 2**, define test-level siblinghood structurally:
+
+| Sibling type            | Definition                                                   | Example                                                                |
+| ----------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| **Strong sibling**      | Tests with the same target                                   | "Phrase 2 from chain" and "Phrase 2 from context"                      |
+| **Inverse sibling**     | Tests with cue and target swapped                            | Forward `ref → content` and reverse `content → ref` for the same verse |
+| **Cue-overlap sibling** | Tests sharing significant cue content                        | Two phrase tests of the same verse with overlapping cue phrases        |
+| **Containment sibling** | Tests on related ref components or containment relationships | "Verse-number from content" and "verse-number-from-chapter"            |
+
+The scheduler enforces a **minimum gap between sibling tests**. Defaults to roughly 24 hours for
+strong/inverse siblings, possibly tunable per user.
+
+**Two sub-options for handling overdue siblings:**
+
+1. **Hard burial**: refuse to schedule sibling B if sibling A was tested within the gap. Defer B.
+   Simple, matches Anki's approach.
+2. **Soft burial with discount**: schedule sibling B but treat the grade as a partial observation
+   (smaller weight in the FSRS update). Captures "we saw it but the observation is contaminated."
+
+Hard burial is the primary recommendation. Soft burial is available as a fallback if many siblings
+are simultaneously due and deferring all of them creates a backlog problem.
+
+Importantly, sibling burial is **distinct from cross-test propagation**. Propagation moves state
+between related tests on a _direct grade event_. Burial prevents _new direct grade events_ from
+happening too close together. Both mechanisms address related-but-different concerns:
+
+* Propagation: "observation on test A should partially update test B even if B isn't directly
+  tested" (saves review time, shares evidence).
+* Burial: "observation on test B is unreliable if test A was just tested" (avoids contaminated
+  observations).
+
+Both are needed. Neither replaces the other.
+
 ## The three-layer model
 
 Three layers of state, each with a distinct role and update rule:
