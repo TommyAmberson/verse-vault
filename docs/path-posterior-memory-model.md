@@ -1,14 +1,17 @@
 # Path-posterior memory model
 
-> **Status:** brainstorm with a chosen direction. The fundamental architectural choice — _what is
-> the unit that carries FSRS state?_ — has two coherent answers, articulated in **Two architectural
-> approaches**: model the memory of the material (state per memorable atom), or model the memory of
-> specific tests (state per cue/target pair). **As of 2026-05 the project is pursuing Approach 2**
-> (state per test) for the FSRS calibration efficiency, with the goal of capturing as much per-atom
-> diagnostic value as possible through structure-driven cross-test propagation. See _Pursuing
-> Approach 2_ for the active architecture; the cards-primary core of the doc is the math behind
-> Approach 2 with "card" read as "test." The graded-thing variant near the end remains documented as
-> the considered-but-not-pursued Approach 1.
+> **Status:** brainstorm with a chosen direction.
+>
+> **Driving principle:** the graph is being redesigned so that **every FSRS-stateful element has a
+> card that directly tests it**. This makes HSRS-style update math work properly — every state is
+> grounded in direct observations, and propagation between states is a layered enhancement on top of
+> that foundation rather than a substitute for it.
+>
+> Everything else (the element list, the card catalogue, the propagation rules) follows from this
+> principle. The fundamental architectural choice — _what is the unit that carries FSRS state?_ —
+> resolves to Approach 2 (state per test, decided 2026-05) precisely because it's the answer that
+> lets us satisfy the 1-to-1 grading rule. See _Pursuing Approach 2_ → _The driving design
+> principle_ for the rationale, and the active architecture description that follows.
 
 ## Contents
 
@@ -195,6 +198,28 @@ every FSRS state be exactly what FSRS was designed for: one test, one grade, one
 piece becomes "how do related tests inform each other" — which is a much better-bounded problem with
 established analogues in knowledge tracing, Bayesian Knowledge Tracing, and graph-mediated belief
 propagation.
+
+### The driving design principle
+
+Everything else in this architecture follows from one commitment: **the graph is being redesigned so
+that every FSRS-stateful element has at least one card that directly tests it**, satisfying the
+1-to-1 grading rule that lets HSRS-style update math work properly.
+
+This drives the rest:
+
+* The element list (phrases, position bindings, containment bindings, association bindings,
+  HeadingPassageAssociation, etc.) is determined by what cards exist or could plausibly exist for
+  verse-vault's domain — every memorable thing the user is tested on becomes a stateful element.
+* The card catalogue is paired with the element list — every element has its atomic direct-grade
+  card; composite cards multiply efficiency by running many tests at once.
+* The "more granular state, the better" preference works because each new element comes with a card
+  that grades it; we're not adding latent state that drifts without observation.
+* Bindings (the majority of elements) get state because they correspond to specific testable facts.
+  Elements without testable cards don't get state — see _Why no VerseGist node_ later in the doc.
+
+This is what makes HSRS proper applicable: every state gets ground-truth observations from direct
+grades, and propagation between states is a layered enhancement on top of that solid foundation
+rather than a substitute for it.
 
 ### Architecture under Approach 2
 
