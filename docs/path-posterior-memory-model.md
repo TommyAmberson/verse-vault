@@ -501,64 +501,94 @@ to zero as components multiply. Putting one FSRS state on "the whole verse" suff
 problem: any one phrase failure breaks the whole, and the composite stability is much lower than any
 individual phrase's stability.
 
-The HSRS-aligned test taxonomy structurally implements this recommendation:
+**Crucial distinction: the recommendation is about FSRS _state_, not _cards_.** Composite cards
+(holistic recitation, multi-phrase fill-in-blank) are valuable for several reasons:
 
-* No FSRS state represents "the whole verse." The verse's mastery is _derived_ from its constituent
-  atomic test states, not stored as a single brittle quantity.
-* Each test is roughly atomic in the article's sense: one specific cue → one specific target.
-* Decomposition into ~24 tests per verse mirrors what the SuperMemo argument prescribes.
+* **Efficiency**: one card review produces many test-grade events at once, less UI / setup overhead
+  per test.
+* **Realism**: holistic recitation mirrors how quizzers actually use the knowledge in competition or
+  practice.
+* **Sequential structure**: recitation tests the phrase chain, not just isolated phrases. The user
+  produces phrase 2 _after_ phrase 1, exercising the adjacency machinery in a way fill-in-blank
+  doesn't.
 
-So the memory-complexity issue is _addressed by the architecture_ rather than needing a separate
-mechanism. Single-FSRS-state-per-card systems (standard Anki, naive verse-as-card setups) suffer the
-issue; this architecture doesn't.
+The architecture supports composite cards naturally because **cards (presentation) and tests (FSRS
+state) are decoupled**:
 
-### Sibling interference and scheduling discipline
+* A composite card is a UI / interaction unit that runs many tests in one review.
+* Each test the card runs has its own atomic FSRS state, updated by its own grade.
+* A holistic recitation card running ~8 tests per 4-phrase verse fires 8 independent direct updates,
+  each on its own atomic state.
 
-A separate issue, often confused with memory complexity but actually distinct: **sibling tests
-priming each other when scheduled close together**. Two tests that share a target or have heavy
-cue/target overlap (e.g., forward `ref → content` and reverse `content → ref` for the same verse)
-interfere positively when reviewed back-to-back. The user "passes" the second test trivially because
-the answer was just rehearsed in the first — but that's working-memory carryover, not real memory
-state.
+This is the best of both: efficient practice (composite cards) without the brittle composite-
+stability problem (atomic FSRS state). Single-FSRS-state-per-card systems (standard Anki, naive
+verse-as-card setups) suffer the SuperMemo issue; this architecture doesn't because the FSRS state
+isn't on the card, it's on the tests the card runs.
 
-This isn't a flaw in the FSRS update math; it's a **scheduling problem**. The observed grade on the
-second test is contaminated by recent exposure to the first.
+### Sibling interference and scheduling
 
-The Anki precedent is **bury siblings**: forbid scheduling siblings within the same session
-(typically ≥ 24 hours apart). This is exactly the right intervention for the right reason.
+A separate issue, often confused with memory complexity but actually distinct: **back-to-back
+testing of related tests primes the second observation via working-memory carryover**. After testing
+forward (`ref → content`), the content is briefly in working memory; testing reverse
+(`content → ref`) shortly after measures "can you do this 2 minutes after activation?" rather than
+"can you do this from cold memory?"
 
-**For verse-vault under Approach 2**, define test-level siblinghood structurally:
+The honest assessment of this issue:
+
+**The mechanism is real but short-lived.** Working-memory traces decay in seconds to minutes; even
+meaningful priming is mostly gone within an hour. Anki's conventional 24-hour sibling burial is much
+longer than necessary to clear the contamination — it's community heuristic, not derived from
+cognitive psychology.
+
+**The contamination is probably small for verbatim text.** Unlike vocab cards where the cue binds
+tightly to a single answer, verbatim recall involves sequential production work. Even under priming,
+reciting 4 phrases in order is non-trivial; the grade isn't trivially inflated.
+
+**FSRS averages over noise.** A few mildly-inflated observations don't permanently corrupt state;
+the next cold-memory test recalibrates. The system is self-correcting in the long run.
+
+**Practical recommendation:** a short cooldown between sibling tests, much shorter than Anki's
+24-hour burial. Some plausible defaults:
+
+* "Don't schedule strong / inverse siblings in the same session" (clears working-memory carryover
+  for any reasonable session length).
+* Configurable minimum gap of, say, 30 minutes for fine-grained control.
+* Possibly nothing for cue-overlap and containment siblings, where the contamination is weaker.
+
+This is a noise source the architecture knows about; the right intervention strength is empirical
+and probably small. Treat it as a scheduler-policy knob to be tuned with data, not as a hard
+architectural constraint.
+
+**Sibling categories** (for scheduler reference):
 
 | Sibling type            | Definition                                                   | Example                                                                |
 | ----------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------- |
 | **Strong sibling**      | Tests with the same target                                   | "Phrase 2 from chain" and "Phrase 2 from context"                      |
 | **Inverse sibling**     | Tests with cue and target swapped                            | Forward `ref → content` and reverse `content → ref` for the same verse |
 | **Cue-overlap sibling** | Tests sharing significant cue content                        | Two phrase tests of the same verse with overlapping cue phrases        |
-| **Containment sibling** | Tests on related ref components or containment relationships | "Verse-number from content" and "verse-number-from-chapter"            |
+| **Containment sibling** | Tests on related ref components or containment relationships | "Verse-number from content" and "Verse-number-from-chapter"            |
 
-The scheduler enforces a **minimum gap between sibling tests**. Defaults to roughly 24 hours for
-strong/inverse siblings, possibly tunable per user.
+**Cooldown policy (proposed default):**
 
-**Two sub-options for handling overdue siblings:**
+* Strong / inverse siblings: short cooldown (e.g., 30 minutes or "session-end").
+* Cue-overlap siblings: very short cooldown or none.
+* Containment siblings: none by default.
 
-1. **Hard burial**: refuse to schedule sibling B if sibling A was tested within the gap. Defer B.
-   Simple, matches Anki's approach.
-2. **Soft burial with discount**: schedule sibling B but treat the grade as a partial observation
-   (smaller weight in the FSRS update). Captures "we saw it but the observation is contaminated."
+**Soft alternative:** if a sibling is overdue and the cooldown blocks it, optionally schedule anyway
+but treat the grade as a partial observation (smaller weight in the FSRS update), acknowledging
+contamination without losing the review opportunity.
 
-Hard burial is the primary recommendation. Soft burial is available as a fallback if many siblings
-are simultaneously due and deferring all of them creates a backlog problem.
-
-Importantly, sibling burial is **distinct from cross-test propagation**. Propagation moves state
-between related tests on a _direct grade event_. Burial prevents _new direct grade events_ from
+Importantly, sibling cooldown is **distinct from cross-test propagation**. Propagation moves state
+between related tests on a _direct grade event_. Cooldown prevents _new direct grade events_ from
 happening too close together. Both mechanisms address related-but-different concerns:
 
 * Propagation: "observation on test A should partially update test B even if B isn't directly
   tested" (saves review time, shares evidence).
-* Burial: "observation on test B is unreliable if test A was just tested" (avoids contaminated
-  observations).
+* Cooldown: "observation on test B is partially contaminated if test A was just tested" (small noise
+  reduction in observations).
 
-Both are needed. Neither replaces the other.
+Both are documented; cooldown is a much weaker intervention than initially proposed. Whether it's
+worth implementing at all is an empirical question, not a settled architectural commitment.
 
 ## The three-layer model
 
