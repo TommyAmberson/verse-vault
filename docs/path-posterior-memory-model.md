@@ -705,59 +705,97 @@ mostly because they're how containment is referred to. A user who knows "this ve
 but isn't sure of the verse number is closer to fully knowing the citation than a user who knows
 "this is verse 16" but can't place it.
 
-Working list for verse-vault under HSRS-state, with **position identities and containment kept
-separate**:
+**Gist-centric containment.** A further refinement: containment relationships are owned by the gist,
+not by the position-identity nodes. The user's memory of "this verse is in Romans" is typically a
+direct fact about the gist's location, not derived from chapter-then-book traversal. Quizzers
+commonly know "this is in Romans" without first recalling which chapter, which means gist-to-book is
+its own memory rather than a transitive consequence of gist→chapter→book.
 
-| Element                               | Type                  | Constituents                        | Position value |
-| ------------------------------------- | --------------------- | ----------------------------------- | -------------- |
-| **Phrase**                            | identity (standalone) | none                                | n/a            |
-| **VerseGist**                         | composite             | Phrases of the verse                | n/a            |
-| **VerseRef**                          | identity (standalone) | none                                | verse number   |
-| **VerseRef ↔ ChapterRef containment** | composite             | VerseGist + VerseRef + ChapterRef   | n/a            |
-| **ChapterRef**                        | identity (standalone) | none                                | chapter number |
-| **ChapterRef ↔ BookRef containment**  | composite             | ChapterRef + BookRef                | n/a            |
-| **BookRef**                           | identity (standalone) | none                                | n/a            |
-| **ChapterGist** (optional)            | composite             | VerseGists in the chapter           | n/a            |
-| **HeadingText**                       | identity              | none                                | n/a            |
-| **HeadingPassageAssociation**         | composite             | HeadingText + VerseGists in passage | n/a            |
-| **HeadingHierarchy (parent → child)** | composite             | Parent + child heading nodes        | n/a            |
+Working list for verse-vault under HSRS-state, with **position identities, containment, and thematic
+groupings as separate stateful elements**:
+
+Per verse:
+
+| Element                        | Type                  | Constituents                                   | Position value |
+| ------------------------------ | --------------------- | ---------------------------------------------- | -------------- |
+| **Phrase × N**                 | identity (standalone) | none                                           | n/a            |
+| **VerseGist**                  | composite             | Phrases of the verse                           | n/a            |
+| **VerseRef position**          | identity (standalone) | none                                           | verse number   |
+| **Gist ↔ Chapter containment** | composite             | VerseGist + ChapterRef                         | n/a            |
+| **Gist ↔ Book containment**    | composite             | VerseGist + BookRef                            | n/a            |
+| **Gist ↔ Heading association** | composite             | VerseGist + HeadingText                        | n/a            |
+| **Gist ↔ Club association**    | composite             | VerseGist + ClubText (often multiple per gist) | n/a            |
+
+Per chapter:
+
+| Element                        | Type                  | Constituents              | Position value |
+| ------------------------------ | --------------------- | ------------------------- | -------------- |
+| **ChapterRef position**        | identity (standalone) | none                      | chapter number |
+| **Chapter ↔ Book containment** | composite             | ChapterRef + BookRef      | n/a            |
+| **ChapterGist** (optional)     | composite             | VerseGists in the chapter | n/a            |
+
+Per book:
+
+| Element     | Type                                  |
+| ----------- | ------------------------------------- |
+| **BookRef** | identity (standalone) — the book name |
+
+Per heading:
+
+| Element                                   | Type                         |
+| ----------------------------------------- | ---------------------------- |
+| **HeadingText**                           | identity                     |
+| **HeadingPassageAssociation**             | composite (gists in passage) |
+| **HeadingHierarchy** (per parent → child) | composite                    |
+
+Per club (Bible-quizzer thematic groupings):
+
+| Element      | Type                                     |
+| ------------ | ---------------------------------------- |
+| **ClubText** | identity (the club's name / theme label) |
 
 The graph topology under HSRS-style: stateful elements are nodes; pure structural relationships are
-edges. Containment relationships have FSRS state, so they're either modelled as nodes themselves
-(with structural edges to their endpoints) or as state-bearing edges — implementation detail; the
-model is the same either way.
+edges. Containment relationships have FSRS state, so they're modelled as nodes themselves (with
+structural edges to their endpoint constituents) or as state-bearing edges — implementation detail;
+the model is the same either way.
 
-The hierarchy of composites means scaffolding flows transitively up multiple levels:
+The hierarchy of composites means scaffolding flows multiple levels:
 
 ```
-phrases ─→ VerseGist
-              │
-              ├─→ VerseRef ↔ ChapterRef containment    (along with VerseRef + ChapterRef)
-              │
-              └─→ HeadingPassageAssociation            (along with HeadingText)
+phrases ─→ VerseGist ─→ Gist ↔ Chapter (with ChapterRef)
+                    │
+                    ├─→ Gist ↔ Book (with BookRef) — direct, not via chapter
+                    │
+                    ├─→ Gist ↔ Heading (with HeadingText)
+                    │
+                    └─→ Gist ↔ Club × multiple (with ClubText)
 
-ChapterRef + BookRef ─→ ChapterRef ↔ BookRef containment
+ChapterRef + BookRef ─→ Chapter ↔ Book containment
 ```
 
 When a phrase is reviewed:
 
 1. Phrase update → VerseGist propagation.
-2. VerseGist update → VerseRef ↔ ChapterRef containment propagation (gist is a constituent).
-3. VerseGist update → HeadingPassageAssociation propagation.
+2. VerseGist update → Gist↔Chapter, Gist↔Book, Gist↔Heading, Gist↔Club propagation in parallel.
 
-When ChapterRef is reviewed directly (e.g., "what chapter number is that chapter?"):
+When VerseRef position is reviewed directly:
+
+1. VerseRef update directly.
+2. (Standalone identity — no constituents to update.)
+
+When ChapterRef is reviewed directly:
 
 1. ChapterRef update directly.
-2. ChapterRef update → VerseRef ↔ ChapterRef containment propagation for every verse in the chapter
-   (chapter is a constituent of containment).
-3. ChapterRef update → ChapterRef ↔ BookRef containment propagation.
+2. ChapterRef update → Gist↔Chapter propagation for every gist in the chapter.
+3. ChapterRef update → Chapter↔Book containment propagation.
 
 When BookRef is reviewed directly:
 
 1. BookRef update directly.
-2. BookRef update → ChapterRef ↔ BookRef containment propagation for every chapter in the book.
+2. BookRef update → Gist↔Book propagation for every gist in the book.
+3. BookRef update → Chapter↔Book propagation for every chapter in the book.
 
-When a containment is reviewed directly (e.g., "what chapter is this verse in?"):
+When a containment is reviewed directly:
 
 1. Containment update directly.
 2. Small partial updates propagate _down_ to constituents — but per the asymmetric propagation rule,
@@ -794,32 +832,58 @@ only memorized the constituent verses (via phrases → gist → heading propagat
 scaffolded retrievability. The combine function lets either path produce high effective
 retrievability.
 
-#### Gist-related card types
+#### Card-type catalogue
 
-Under the 1-to-1 grading rule, VerseGist needs at least one card type that grades it directly.
-Plausible candidates (which match real quizzer practices):
+Per the 1-to-1 grading rule, every FSRS-stateful element needs at least one card type that grades it
+directly. The catalogue below covers all elements above; composite cards (which produce multiple
+grades from one review) supplement it for efficiency.
 
-| Card              | Cue                         | Target         | Direct grade target     |
-| ----------------- | --------------------------- | -------------- | ----------------------- |
-| Gist-from-content | verse content (paraphrased) | gist statement | VerseGist               |
-| Topic-to-verse    | topic / theme description   | verse identity | VerseGist + binding     |
-| Gist-from-ref     | ref                         | gist statement | VerseGist + binding     |
-| Verse-from-gist   | gist description            | ref            | binding (and VerseGist) |
+**Atomic cards (one direct grade per card per element):**
 
-If verse-vault decides not to support gist-targeted card types, VerseGist could be downgraded to a
-structural-only intermediate (no FSRS state, just a propagation conduit). The cleaner option is to
-support gist cards — they correspond to real quizzer questions and provide direct observations of
-the gist node, anchoring its state against drift.
+| Card                                 | Cue                                | User produces  | Direct grade target                          |
+| ------------------------------------ | ---------------------------------- | -------------- | -------------------------------------------- |
+| Phrase fill-in / continuation        | ref + other phrases (or preceding) | the phrase     | 1× Phrase                                    |
+| Gist-from-content                    | verse content (paraphrased)        | gist           | 1× VerseGist                                 |
+| Topic-to-gist                        | topic / theme                      | verse          | 1× VerseGist                                 |
+| **VerseGist is at verseref**         | versetext + book + chapter         | verse number   | 1× VerseRef position                         |
+| **VerseGist is in chapter**          | versetext + book + verse           | chapter        | 1× Gist↔Chapter containment                  |
+| **VerseGist is in book**             | versetext + chapter + verse        | book           | 1× Gist↔Book containment                     |
+| What chapter number is that chapter? | chapter context                    | chapter number | 1× ChapterRef position                       |
+| What book is that chapter in?        | a chapter                          | book           | 1× Chapter↔Book containment                  |
+| What's the book name?                | book context                       | book name      | 1× BookRef                                   |
+| **VerseGist is in heading**          | versetext                          | heading        | 1× Gist↔Heading association                  |
+| **VerseGist is in club**             | versetext or ref                   | club name      | 1× Gist↔Club association                     |
+| Heading text from passage            | passage content                    | heading text   | 1× HeadingText (+ HeadingPassageAssociation) |
+| Heading-hierarchy                    | sub-heading or parent              | parent or sub  | 1× HeadingHierarchy                          |
+
+**Composite cards (multiple grades per review):**
+
+| Card                           | Cue                    | User produces                           | Grades                                                                                            |
+| ------------------------------ | ---------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Recitation: ref → text**     | book + chapter + verse | full verse content (gist + each phrase) | N× Phrase + 1× VerseGist                                                                          |
+| **Citation: gist → ref**       | gist (verse content)   | full citation (verse, chapter, book)    | 1× VerseRef position + 1× Gist↔Chapter + 1× Gist↔Book                                             |
+| **Heading: passage → heading** | a range of verses      | the heading text                        | 1× HeadingText + 1× HeadingPassageAssociation + (per gist in passage) 1× Gist↔Heading             |
+| **Club: gist → club**          | versetext or ref       | club name(s)                            | 1× ClubText + (per gist) 1× Gist↔Club                                                             |
+| **Holistic recitation** (full) | (something)            | full citation + content                 | N× Phrase + VerseGist + VerseRef + Gist↔Chapter + Gist↔Book + ChapterRef + Chapter↔Book + BookRef |
+
+A typical 4-phrase verse with full ref machinery has roughly:
+
+* ~12-15 atomic card types (some shared at chapter/book level).
+* 2-3 composite card types (recitation, citation, possibly holistic).
+* Heading and club cards added per heading/club the verse participates in.
+
+Atomic cards exist so every FSRS state has a route to direct grading (avoids drift). Composite cards
+exist for efficiency and realism — each holistic recitation produces 7+N grades in one review
+session.
 
 #### Why this generalizes
 
-The same machinery handles all composites uniformly. No special-case "heading logic" or "binding
-logic" — every composite has the same shape (self-state + constituent scaffolding + asymmetric
-propagation), differentiated only by what its constituents are. The two-level hierarchy through
-VerseGist is just one example of the general principle: composites can be constituents of larger
-composites, and the propagation rules compose recursively. This is what makes HSRS-state attractive:
-one set of mechanics covers verses, gists, ref components, containments, bindings, headings, and any
-future content type.
+The same machinery handles all composites uniformly. No special-case "heading logic" or "club logic"
+or "containment logic" — every composite has the same shape (self-state + constituent scaffolding +
+asymmetric propagation), differentiated only by what its constituents are. Containments, bindings,
+gist-X associations, heading hierarchies all use the same update math and the same card-grade
+routing. New content types (other thematic groupings, cross-references, etc.) plug in by adding new
+node types and the cards that grade them.
 
 ## The three-layer model
 
