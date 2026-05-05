@@ -590,6 +590,118 @@ happening too close together. Both mechanisms address related-but-different conc
 Both are documented; cooldown is a much weaker intervention than initially proposed. Whether it's
 worth implementing at all is an empirical question, not a settled architectural commitment.
 
+### Composite memory: scaffolding from constituents
+
+A real cognitive effect that the architecture should capture explicitly: **some elements are
+composite in the sense that their recall depends on recalling their constituents**. The clearest
+example is headings: "The Beatitudes" is much easier to recall when you know the verses it labels;
+much harder when you don't know any. But the same principle applies elsewhere — the verse-gist
+association is scaffolded by phrase recall + ref-component recall, containment relations are
+scaffolded by knowing the endpoints, etc.
+
+This is the same composite-stability phenomenon the SuperMemo memory-complexity argument warns
+about, applied at the prediction layer rather than the state-storage layer. We addressed storage by
+keeping FSRS state atomic; we now need to address prediction by computing composite retrievability
+from constituents.
+
+**Asymmetric scaffolding.** The cognitive effect is one-directional:
+
+* **Components → composite: strong.** Knowing a phrase makes the verse's binding easier; knowing the
+  verses makes the heading recallable.
+* **Composite → components: weak.** Knowing "The Beatitudes is a heading in Matthew 5" doesn't help
+  you produce verse 3 word-for-word.
+
+The architecture must reflect this asymmetry in both prediction and propagation.
+
+#### Compositional retrievability prediction
+
+For a composite element `C` with self-state retrievability `R_self(C, t)` and constituents
+`c_1, ..., c_n` (with retrievabilities `R(c_i, t)`), the **effective retrievability** for scheduling
+purposes is:
+
+```
+R_eff(C, t) = combine(R_self(C, t), scaffolded(R(c_1, t), ..., R(c_n, t)))
+```
+
+Adopted form: **noisy-OR combine with max-component scaffolding** (Option A from the design
+discussion):
+
+```
+scaffolded(C, t) = max_i  (R(c_i, t) · binding_strength(c_i, C))
+combine(a, b)    = 1 - (1 - a) · (1 - b)
+```
+
+Interpretation: the user can recall C through _any_ successful path — direct memory of C, or through
+any constituent whose binding to C is strong enough. Multiple paths multiply the chances of success
+rather than averaging them. Captures the cognitive intuition that "remembering The Beatitudes" can
+succeed via direct heading-text memory or via any one of the constituent verses cuing the heading
+association.
+
+Alternatives considered:
+
+* _Bounded by components_: `R_eff = min(R_self, mean(R(c_i)) · scaffold_factor)`. Cleaner
+  semantically (composite is bounded by components on average), but loses the multi-path benefit and
+  is overly pessimistic when the user has a strong direct memory.
+* _Additive in log-odds space_: aligns with the log-odds Hebbian update form, treats each source as
+  independent evidence. Mathematically clean but harder to interpret.
+
+#### Asymmetric propagation
+
+When components are reviewed, composites get partial updates reflecting the predicted retrievability
+change:
+
+```
+on direct grade of c_i:
+  Standard FSRS step on c_i.
+  For each composite C containing c_i:
+    Recompute R_eff(C, t) with c_i's updated state.
+    If R_eff(C, t) changed by ΔR:
+      Apply HSRS-style probabilistic FSRS update to C with weight w ∝ |ΔR|.
+```
+
+When composites are reviewed, components get _very small_ updates (essentially zero):
+
+```
+on direct grade of C:
+  Standard FSRS step on C's self-state.
+  For each component c_i:
+    Apply tiny partial FSRS update with weight ε (small, possibly zero).
+```
+
+The asymmetry is enforced by the propagation magnitudes, not just by the prediction math. Reviews of
+constituents lift composite states substantially; reviews of composites barely lift constituent
+states.
+
+#### Which elements are composites?
+
+Working list for verse-vault:
+
+| Composite                         | Constituents                                           |
+| --------------------------------- | ------------------------------------------------------ |
+| Verse-gist association            | All phrases + book/chapter/verse-number ref components |
+| VerseRef ↔ ChapterRef containment | VerseRef + ChapterRef (the endpoints)                  |
+| ChapterRef ↔ BookRef containment  | ChapterRef + BookRef (the endpoints)                   |
+| HeadingPassageAssociation         | All verses in the passage range                        |
+| HeadingHierarchy (parent → child) | Parent and child heading nodes                         |
+
+A natural rule: an element is a composite if it represents a _binding_ or _relation_ between other
+stateful elements. Standalone elements (a phrase, a book name, a heading text) are not composites —
+their retrievability is just `R_self`.
+
+Composite elements still have FSRS state of their own; the compositional prediction _augments_ their
+stored state rather than replacing it. A user who has memorized "The Beatitudes" as a label-passage
+binding directly (via heading-recall cards) builds up the composite's self-state; a user who has
+only memorized the constituent verses builds up scaffolded retrievability. The combine function lets
+either path produce high effective retrievability.
+
+#### Why this generalizes
+
+The same machinery handles all composites uniformly. No special-case "heading logic" or "binding
+logic" — every composite has the same shape (self-state + constituent scaffolding + asymmetric
+propagation), differentiated only by what its constituents are. This is what makes HSRS-state
+attractive: one set of mechanics covers verses, ref components, containments, bindings, headings,
+and any future content type.
+
 ## The three-layer model
 
 Three layers of state, each with a distinct role and update rule:
