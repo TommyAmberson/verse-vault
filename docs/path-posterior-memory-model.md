@@ -674,33 +674,82 @@ states.
 
 #### Which elements are composites?
 
-Working list for verse-vault:
+The graph structure uses **VerseGist as a stateful intermediate node** representing the user's
+memory of the verse's meaning / identity (distinct from verbatim phrases and the citation triple).
+This bridges the verbatim layer (phrases) and the identifier layer (refs, headings) — a verse gist
+is what the user "knows about" the verse independent of remembering its exact wording or its
+citation.
 
-| Composite                         | Constituents                                           |
-| --------------------------------- | ------------------------------------------------------ |
-| Verse-gist association            | All phrases + book/chapter/verse-number ref components |
-| VerseRef ↔ ChapterRef containment | VerseRef + ChapterRef (the endpoints)                  |
-| ChapterRef ↔ BookRef containment  | ChapterRef + BookRef (the endpoints)                   |
-| HeadingPassageAssociation         | All verses in the passage range                        |
-| HeadingHierarchy (parent → child) | Parent and child heading nodes                         |
+Cognitively, the VerseGist is real: people can know "John 3:16 is the verse about God loving the
+world and giving His Son" without remembering the exact wording, and can know the wording without
+confidently knowing the citation. The gist is its own memorable thing.
 
-A natural rule: an element is a composite if it represents a _binding_ or _relation_ between other
-stateful elements. Standalone elements (a phrase, a book name, a heading text) are not composites —
-their retrievability is just `R_self`.
+Working list for verse-vault, with **two-level composite hierarchy** centred on VerseGist:
+
+| Composite                         | Constituents                          |
+| --------------------------------- | ------------------------------------- |
+| **VerseGist**                     | Phrases of the verse                  |
+| Verse-gist association            | VerseGist + VerseRef                  |
+| VerseRef ↔ ChapterRef containment | VerseRef + ChapterRef (the endpoints) |
+| ChapterRef ↔ BookRef containment  | ChapterRef + BookRef (the endpoints)  |
+| HeadingPassageAssociation         | The VerseGists in the passage range   |
+| HeadingHierarchy (parent → child) | Parent and child heading nodes        |
+
+The two-level structure means scaffolding flows transitively:
+
+```
+Phrases of verse v ──→ VerseGist of v ──→ Verse-gist association of v
+                              └─→ HeadingPassageAssociation (where v is in the passage)
+```
+
+So when a phrase is reviewed:
+
+1. Phrase update → VerseGist propagation (constituent → composite).
+2. VerseGist update → both Verse-gist association and HeadingPassageAssociation propagation.
+3. The heading and ref-binding states reflect constituent strength transitively.
+
+This is much cleaner than a flat "heading → all phrases" composite structure. The
+HeadingPassageAssociation composes over verse-level abstractions (~10 gists for a 10-verse passage)
+rather than over individual phrases (~30+ phrases for the same passage).
+
+A natural rule: an element is a composite if it represents a _binding_, _relation_, or _aggregation_
+over other stateful elements. Standalone elements (a phrase, a book name, a heading text) are not
+composites — their retrievability is just `R_self`. VerseGist is a composite (it aggregates phrases
+into a verse-level memory).
 
 Composite elements still have FSRS state of their own; the compositional prediction _augments_ their
 stored state rather than replacing it. A user who has memorized "The Beatitudes" as a label-passage
 binding directly (via heading-recall cards) builds up the composite's self-state; a user who has
-only memorized the constituent verses builds up scaffolded retrievability. The combine function lets
-either path produce high effective retrievability.
+only memorized the constituent verses (via phrases → gist → heading propagation) builds up
+scaffolded retrievability. The combine function lets either path produce high effective
+retrievability.
+
+#### Gist-related card types
+
+Under the 1-to-1 grading rule, VerseGist needs at least one card type that grades it directly.
+Plausible candidates (which match real quizzer practices):
+
+| Card              | Cue                         | Target         | Direct grade target     |
+| ----------------- | --------------------------- | -------------- | ----------------------- |
+| Gist-from-content | verse content (paraphrased) | gist statement | VerseGist               |
+| Topic-to-verse    | topic / theme description   | verse identity | VerseGist + binding     |
+| Gist-from-ref     | ref                         | gist statement | VerseGist + binding     |
+| Verse-from-gist   | gist description            | ref            | binding (and VerseGist) |
+
+If verse-vault decides not to support gist-targeted card types, VerseGist could be downgraded to a
+structural-only intermediate (no FSRS state, just a propagation conduit). The cleaner option is to
+support gist cards — they correspond to real quizzer questions and provide direct observations of
+the gist node, anchoring its state against drift.
 
 #### Why this generalizes
 
 The same machinery handles all composites uniformly. No special-case "heading logic" or "binding
 logic" — every composite has the same shape (self-state + constituent scaffolding + asymmetric
-propagation), differentiated only by what its constituents are. This is what makes HSRS-state
-attractive: one set of mechanics covers verses, ref components, containments, bindings, headings,
-and any future content type.
+propagation), differentiated only by what its constituents are. The two-level hierarchy through
+VerseGist is just one example of the general principle: composites can be constituents of larger
+composites, and the propagation rules compose recursively. This is what makes HSRS-state attractive:
+one set of mechanics covers verses, gists, ref components, containments, bindings, headings, and any
+future content type.
 
 ## The three-layer model
 
