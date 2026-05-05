@@ -724,30 +724,23 @@ containment were considered and dropped — see _Why no chapter or book identiti
 be cleanly tested in isolation, and the verse-rooted Verse↔Chapter and Verse↔Book bindings already
 capture everything we can directly observe.
 
-Per verse:
+Per verse (the only stateful elements in the architecture):
 
-| Element                         | Kind           | Endpoints / constituents in the model         | Position value           |
-| ------------------------------- | -------------- | --------------------------------------------- | ------------------------ |
-| **Phrase × N**                  | atomic binding | none stateful                                 | n/a                      |
-| **VerseRef position**           | atomic binding | phrases (verse content endpoint)              | verse number             |
-| **Verse ↔ Chapter binding**     | atomic binding | phrases (verse content)                       | chapter number (bundled) |
-| **Verse ↔ Book binding**        | atomic binding | phrases (verse content)                       | book name (bundled)      |
-| **Verse ↔ Heading association** | atomic binding | phrases + HeadingText                         | n/a                      |
-| **Verse ↔ Club association**    | atomic binding | phrases + ClubText (often multiple per verse) | n/a                      |
+| Element                         | Kind           | Endpoints / constituents in the model                                    | Position value           |
+| ------------------------------- | -------------- | ------------------------------------------------------------------------ | ------------------------ |
+| **Phrase × N**                  | atomic binding | none stateful                                                            | n/a                      |
+| **VerseRef position**           | atomic binding | phrases (verse content endpoint)                                         | verse number             |
+| **Verse ↔ Chapter binding**     | atomic binding | phrases (chapter number bundled as binding value)                        | chapter number (bundled) |
+| **Verse ↔ Book binding**        | atomic binding | phrases (book name bundled as binding value)                             | book name (bundled)      |
+| **Verse ↔ Heading association** | atomic binding | phrases (heading label is structural metadata)                           | heading label (bundled)  |
+| **Verse ↔ Club association**    | atomic binding | phrases (club label is structural metadata; possibly multiple per verse) | club label (bundled)     |
 
-Per heading:
+Heading and club labels (HeadingText, ClubText) are **structural metadata** attached to the
+per-verse association, not separately-stateful elements. The "passage" of a heading is a derived
+property (the set of verses with Verse↔Heading associations to that heading). Headings are strictly
+sequential bands — no nesting, no hierarchy.
 
-| Element                                   | Kind           | Endpoints / constituents in the model          |
-| ----------------------------------------- | -------------- | ---------------------------------------------- |
-| **HeadingText**                           | atomic binding | none stateful                                  |
-| **HeadingPassageAssociation**             | compositional  | per-verse Verse↔Heading bindings + HeadingText |
-| **HeadingHierarchy** (per parent → child) | atomic binding | parent + child HeadingText                     |
-
-Per club (Bible-quizzer thematic groupings):
-
-| Element      | Kind           | Endpoints in the model |
-| ------------ | -------------- | ---------------------- |
-| **ClubText** | atomic binding | none stateful          |
+See _Why no heading or club identities_ below for the rationale.
 
 #### Why no chapter or book identities
 
@@ -772,13 +765,37 @@ to the binding. The card "verse is in chapter (versetext + book + verse cue → 
 Verse↔Chapter binding directly, with the chapter number being part of what's produced. No separate
 ChapterRef state needed.
 
+#### Why no heading or club identities
+
+Earlier drafts had HeadingText, ClubText, HeadingPassageAssociation, and HeadingHierarchy as
+stateful elements. All dropped:
+
+* **HeadingText / ClubText.** The label itself ("The Beatitudes," "Romans Road") isn't a separately
+  memorable thing — it's a structural identifier for the association. There's no card that tests
+  "what is the name of this heading?" in a way that doesn't already test the association ("what
+  verses are in this heading?" tests Verse↔Heading associations; "what's the heading for these
+  verses?" also tests Verse↔Heading associations from the verse side). Following the 1-to-1 rule, no
+  isolated direct-grade card → no separate state.
+* **HeadingPassageAssociation.** The "passage" — the set of verses a heading covers — is just the
+  union of per-verse Verse↔Heading associations. Knowing the passage means knowing each per-verse
+  fact. No additional state holds it.
+* **HeadingHierarchy.** Headings don't nest in verse-vault's content model — they're sequential
+  bands through the text. No parent-child relationships to track.
+
+The remaining heading-related state is per-verse Verse↔Heading associations: each verse has its own
+state for "this verse is in this heading." The heading label is bundled into the binding as
+metadata. Aggregating across verses recovers the passage range as a derived property.
+
+Same pattern for clubs: per-verse Verse↔Club associations, club label as bundled metadata.
+
 **Summary by structure:**
 
-* _Atomic bindings_ (most elements): single relational facts. Most have at least one stateful
-  endpoint in the model; some (BookRef, ChapterRef position, HeadingText, ClubText, plain Phrase)
-  have no stateful endpoints — their content endpoint isn't modelled as a separate state.
-* _Compositional bindings_ (HeadingPassageAssociation): substance composes over many constituent
-  bindings. Different propagation rules apply.
+* _Atomic bindings_ — every stateful element. Single relational facts, with the verse content
+  (phrases) as the stateful endpoint and the binding-specific value (chapter number, book name,
+  heading label, club label) bundled as metadata.
+* No compositional bindings remain in the active architecture. The only candidate
+  (HeadingPassageAssociation) was dropped in favour of deriving passage ranges from per-verse
+  Verse↔Heading associations.
 
 #### Why VerseRef position has phrases as an endpoint
 
@@ -902,30 +919,31 @@ grades from one review) supplement it for efficiency.
 
 **Atomic cards (one direct grade per card per element):**
 
-| Card                          | Cue                                | User produces | Direct grade target                          |
-| ----------------------------- | ---------------------------------- | ------------- | -------------------------------------------- |
-| Phrase fill-in / continuation | ref + other phrases (or preceding) | the phrase    | 1× Phrase                                    |
-| **Verse is at verseref**      | versetext + book + chapter         | verse number  | 1× VerseRef position                         |
-| **Verse is in chapter**       | versetext + book + verse           | chapter       | 1× Verse↔Chapter binding                     |
-| **Verse is in book**          | versetext + chapter + verse        | book          | 1× Verse↔Book binding                        |
-| **Verse is in heading**       | versetext                          | heading       | 1× Verse↔Heading association                 |
-| **Verse is in club**          | versetext or ref                   | club name     | 1× Verse↔Club association                    |
-| Heading text from passage     | passage content                    | heading text  | 1× HeadingText (+ HeadingPassageAssociation) |
-| Heading-hierarchy             | sub-heading or parent              | parent or sub | 1× HeadingHierarchy                          |
+| Card                          | Cue                                | User produces | Direct grade target          |
+| ----------------------------- | ---------------------------------- | ------------- | ---------------------------- |
+| Phrase fill-in / continuation | ref + other phrases (or preceding) | the phrase    | 1× Phrase                    |
+| **Verse is at verseref**      | versetext + book + chapter         | verse number  | 1× VerseRef position         |
+| **Verse is in chapter**       | versetext + book + verse           | chapter       | 1× Verse↔Chapter binding     |
+| **Verse is in book**          | versetext + chapter + verse        | book          | 1× Verse↔Book binding        |
+| **Verse is in heading**       | versetext                          | heading       | 1× Verse↔Heading association |
+| **Verse is in club**          | versetext or ref                   | club name     | 1× Verse↔Club association    |
+
+That's the complete atomic card set: per-phrase + 5 per-verse binding cards.
 
 **Composite cards (multiple grades per review):**
 
-| Card                           | Cue                    | User produces                        | Grades                                                                                  |
-| ------------------------------ | ---------------------- | ------------------------------------ | --------------------------------------------------------------------------------------- |
-| **Recitation: ref → text**     | book + chapter + verse | full verse content                   | N× Phrase                                                                               |
-| **Citation: verse → ref**      | verse content          | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                                 |
-| **Heading: passage → heading** | a range of verses      | the heading text                     | 1× HeadingText + 1× HeadingPassageAssociation + (per verse in passage) 1× Verse↔Heading |
-| **Club: verse → club**         | versetext or ref       | club name(s)                         | 1× ClubText + (per verse) 1× Verse↔Club                                                 |
-| **Holistic recitation** (full) | (something)            | full citation + content              | N× Phrase + VerseRef + Verse↔Chapter + Verse↔Book                                       |
+| Card                           | Cue                    | User produces                        | Grades                                                  |
+| ------------------------------ | ---------------------- | ------------------------------------ | ------------------------------------------------------- |
+| **Recitation: ref → text**     | book + chapter + verse | full verse content                   | N× Phrase                                               |
+| **Citation: verse → ref**      | verse content          | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book |
+| **Heading: passage → heading** | a range of verses      | the heading                          | (per verse in passage) 1× Verse↔Heading                 |
+| **Heading: heading → passage** | the heading            | the verse range                      | (per verse in passage) 1× Verse↔Heading                 |
+| **Club: verse → club**         | versetext or ref       | club name(s)                         | (per verse) 1× Verse↔Club                               |
+| **Holistic recitation** (full) | (something)            | full citation + content              | N× Phrase + VerseRef + Verse↔Chapter + Verse↔Book       |
 
-A typical 4-phrase verse with full ref machinery has roughly:
+A typical 4-phrase verse with full ref machinery:
 
-* ~6 atomic card types per verse (1× phrase × N, plus 5 verse-level binding cards).
+* 6 atomic card types per verse (Phrase × N + 5 verse-level binding cards).
 * 2-3 composite card types (recitation, citation, possibly holistic).
 * Heading and club cards added per heading/club the verse participates in.
 
