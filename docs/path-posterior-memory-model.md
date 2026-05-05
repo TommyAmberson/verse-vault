@@ -14,7 +14,7 @@
 * [Card state](#card-state)
 * [Edge associations](#edge-associations)
 * [Path posterior at review time](#path-posterior-at-review-time)
-* [Edge updates via the posterior](#edge-updates-via-the-posterior)
+* [Edge updates via Bayesian inference](#edge-updates-via-bayesian-inference)
 * [Card-to-card propagation](#card-to-card-propagation)
 * [Multi-atom cards](#multi-atom-cards)
 * [Verse-chunk layer (optional)](#verse-chunk-layer-optional)
@@ -283,8 +283,10 @@ This is optional and can be deferred.
 
 ## Path posterior at review time
 
-The path posterior is the inferential bridge between a card-level observation and edge /
-related-card updates. It is computed fresh at each review and not stored.
+The path posterior is intermediate computation in the single Bayesian update on edge associations
+(see _Edge updates via Bayesian inference_). It is computed fresh at each review and not stored.
+This section sets up the prior, likelihood, and posterior; the next section uses them to derive the
+edge update.
 
 ### Path enumeration
 
@@ -314,58 +316,38 @@ get little prior weight.
 ### Likelihood
 
 `P(g | π)` — given that the user actually used path `π`, what is the probability of observing grade
-`g`? This is the central modeling choice and admits multiple options.
-
-**Option L1 — Bernoulli on path retrievability:**
+`g`? Adopted form (graded outcomes peaked at the path-strength they're most consistent with):
 
 ```
-P(success | π) = R(π)
-P(failure | π) = 1 - R(π)
+P(Again | π) ∝ (1 - R(π))²
+P(Hard  | π) ∝ R(π) · (1 - R(π))
+P(Good  | π) ∝ R(π)²
+P(Easy  | π) ∝ R(π)^k       // with k ≥ 2; sharpens toward strongest paths
 ```
 
-Map grades to `success` / `failure`:
+Each likelihood peaks at the path-strength most consistent with that grade:
 
-```
-P(Again | π) = 1 - R(π)
-P(Hard | π) = ?            // see below
-P(Good | π) = R(π)
-P(Easy | π) = R(π)         // possibly with a slight shift toward stronger paths
-```
+* **Again** peaks at low `R` — failures are most likely on weak paths.
+* **Hard** peaks at intermediate `R` ≈ 0.5 — effortful-but-successful recall most likely came
+  through a path of middling strength.
+* **Good** peaks at high `R` — clean success implies a strong path fired.
+* **Easy** peaks at very high `R` — effortless recall implies a very strong path.
 
-The **Hard** grade is genuinely ambiguous — it indicates "passed but with effort." Several
-reasonable likelihoods:
+This is the cleanest closed-form likelihood with no free parameters beyond `k` for Easy. It captures
+the empirical claim that a Hard grade is genuinely _informative_ about which path fired (not just an
+alternative grading of the same path), which becomes important in the next section.
 
-* _Hard as soft success:_ `P(Hard | π) = R(π)` (treat same as Good, but the card-level update
-  applies a Hard-strength delta).
-* _Hard as ambiguous-strength:_ `P(Hard | π) ∝ R(π) · (1 - R(π))` peaks at `R = 0.5` — paths of
-  intermediate strength are most likely to produce Hard outcomes. Encodes the intuition that
-  effortful recall came through a not-quite-strong path.
-* _Hard as weighted mixture:_ `P(Hard | π) = θ · R(π) + (1-θ) · (1 - R(π))` with `θ ≈ 0.7`. Tunable.
+**Alternative likelihood forms considered and rejected:**
 
-**Option L2 — sigmoid threshold:**
-
-```
-P(success | π) = σ(k · (R(π) - τ))
-```
-
-with `τ` a soft-threshold retrievability and `k` a sharpness parameter. Paths below threshold mostly
-fail; paths above mostly succeed. More realistic than pure Bernoulli (humans don't fail at exactly
-rate `1 - R` on intermediate-strength paths) but adds two free parameters per likelihood.
-
-**Option L3 — multinomial logistic on grades:**
-
-Directly model `P(g | π)` as a four-way logistic on `R(π)`:
-
-```
-P(g | π) = exp(β_g · R(π) + α_g) / Σ_{g'} exp(β_{g'} · R(π) + α_{g'})
-```
-
-with `(α_g, β_g)` parameters fit per-grade. Most flexible, requires data to fit, hardest to reason
-about.
-
-**Recommended starting point:** Option L1 with Hard-as-ambiguous-strength. Captures the qualitative
-behaviour we want with no free parameters beyond what FSRS already specifies, and the math is
-closed-form for posterior inference.
+* _Bernoulli with Hard mapped to soft-success_ (`P(Hard | π) = R(π)`): treats Hard the same as Good
+  for attribution, losing the information that effortful recall implies a not-fully-strong path.
+  Simpler but loses signal.
+* _Sigmoid threshold:_ `P(success | π) = σ(k · (R(π) - τ))` with parameters `τ, k`. Realistic but
+  adds free parameters per likelihood with no obvious advantage over the closed-form bell-curve
+  shapes above.
+* _Multinomial logistic:_ `P(g | π) ∝ exp(β_g · R(π) + α_g)` with parameters fit per-grade. Most
+  flexible, but requires data to fit and is hardest to reason about. Worth revisiting once user data
+  exists.
 
 ### Posterior
 
@@ -375,52 +357,122 @@ By Bayes:
 P(π | g) = P(g | π) · P(π) / Σ_{π' ∈ Π_c} P(g | π') · P(π')
 ```
 
-This is normalised across `Π_c`. After observed success, the posterior concentrates on strong paths
-(those that _probably did fire_). After observed failure, the posterior concentrates on weak paths
-(those that _probably were the bottleneck_).
+This is normalised across `Π_c`. The path posterior is _not_ a separate semantic step; it appears as
+an intermediate quantity when we compute the Bayesian update on edge associations (see below).
 
-### Marginal edge posterior
+After observed success, the posterior concentrates on paths whose strength is consistent with
+success. After observed failure, on paths whose strength is consistent with failure. After Hard, on
+paths of intermediate strength. The posterior is asking "which path is most likely to have fired
+given _both_ what we knew before and what we just observed?"
 
-For each edge `e` appearing in any of `c`'s paths:
+## Edge updates via Bayesian inference
 
-```
-post_e := P(e was used during recall | g, c) = Σ_{π : e ∈ π} P(π | g)
-```
+There is one operation here, not two: **adjust each `a_e` given the observed grade, marginalising
+over which path actually fired**. The path posterior `P(π | g)` from the previous section is
+intermediate computation in this single update; it is not a separate "attribution" step.
 
-This is the probability that edge `e` was on the path the user actually took. Edges on multiple
-high-posterior paths get high `post_e`; edges only on low-posterior paths get small `post_e`.
+### The single update we want
 
-The vector `{post_e}` is the central output of the path-posterior step. It is consumed by:
-
-1. The edge association update (each edge nudged by `α · post_e`).
-2. The card-to-card propagation (related cards weighted by alignment with high-`post_e` edges).
-
-## Edge updates via the posterior
-
-Each edge in `c`'s path set receives an association update weighted by its marginal posterior.
-Combining with the Hebbian forms above:
-
-**Using Option A (saturating linear):**
+Treat each `a_e` as a parameter we're learning. The Bayesian update is:
 
 ```
-on success: a_e ← a_e + α · post_e · (1 - a_e)
-on failure: a_e ← a_e - α · post_e · a_e
+prior:        current value of a_e
+likelihood:   P(g | {a_e}) = Σ_π P(g | π) · P(π | {a_e})
+posterior:    new a_e proportional to prior · likelihood
 ```
 
-**Interaction with multi-atom cards:** when card `c` has multiple hidden atoms with separate grades,
-posteriors are computed per-atom and per-edge posteriors are summed across atoms. The Hebbian update
-applies once per edge with the aggregated weight. _Care needed:_ aggregated `post_e` across atoms
-can exceed 1 if an edge appears in paths to many atoms — see the multi-atom section for handling.
+The likelihood marginalises over paths because we don't observe which path fired — only the grade.
+
+### The gradient form
+
+For a small step on `a_e`, the gradient of the log-posterior is what determines the update direction
+and magnitude. By the standard EM identity:
+
+```
+∂/∂a_e  log P(g | {a_e})  =  E_{P(π | g, {a_e})} [ ∂/∂a_e log P(g, π | {a_e}) ]
+```
+
+i.e. the gradient is the path-posterior-weighted expectation of the per-path gradient. This is where
+the path posterior `P(π | g)` enters: as a _weight_ in the gradient computation, not as a separate
+computation we do for some other purpose.
+
+For each edge `e`, the per-path gradient simplifies (under our chosen likelihood form):
+
+```
+∂/∂a_e log P(g, π | {a_e}) = (∂/∂a_e log R(π)) · (something depending on g and R(π))
+                            = (1{e ∈ π} / a_e)  · (something depending on g and R(π))
+```
+
+The bracketed `something` reduces to a signed surprise-like quantity: positive for grades that are
+"better than this path's R would predict", negative for grades that are "worse than this path's R
+would predict". For our likelihood:
+
+| Grade | Per-path gradient sign on `a_e` (for `e ∈ π`)                                |
+| ----- | ---------------------------------------------------------------------------- |
+| Easy  | strongly positive                                                            |
+| Good  | positive                                                                     |
+| Hard  | sign depends on `R(π)` — _negative_ if `R(π) > 0.5_, positive if`R(π) < 0.5` |
+| Again | strongly negative                                                            |
+
+This is the user-side intuition mathematically: **a Hard grade on a path the model thought was
+strong (`R(π) > 0.5`) decrements that path's edges**, because the strong-path hypothesis predicts
+Good or Easy — Hard is evidence against that path's strength estimate. Conversely, Hard on a path
+the model thought was weak _reinforces_ those edges.
+
+### Practical update rule
+
+The exact gradient is well-defined but somewhat fiddly to compute and numerically delicate. The
+following Hebbian-style approximation captures the same qualitative behaviour with simple closed
+form:
+
+```
+expected_R = Σ_π P(π | {a_e}) · R(π)         // model's predicted recall strength for this card
+observed_R = grade_to_score(g)                // {Easy: 1.0, Good: 0.85, Hard: 0.6, Again: 0.0}
+surprise   = observed_R - expected_R          // signed; can be negative
+
+post_e := Σ_{π : e ∈ π} P(π | g)              // marginal posterior that edge e was used
+
+a_e ← a_e + α · post_e · surprise · saturate(a_e, sign(surprise))
+```
+
+where `saturate(a, +)` = `(1 - a)` and `saturate(a, -)` = `a`, keeping `a_e ∈ [0, 1]` without hard
+clamps.
+
+This rule has the right qualitative properties:
+
+| Predicted      | Observed | Surprise  | Effect on high-posterior edges                          |
+| -------------- | -------- | --------- | ------------------------------------------------------- |
+| Strong (R≈0.9) | Easy     | +0.10     | Small reinforcement                                     |
+| Strong         | Good     | -0.05     | Tiny correction (Good is barely below "perfect strong") |
+| Strong         | **Hard** | **-0.30** | **Decrement** — model overestimated                     |
+| Strong         | Again    | -0.90     | Strong decrement                                        |
+| Weak (R≈0.3)   | Easy     | +0.70     | Strong reinforcement                                    |
+| Weak           | Good     | +0.55     | Reinforcement                                           |
+| Weak           | Hard     | +0.30     | Reinforcement (better than predicted)                   |
+| Weak           | Again    | -0.30     | Decrement                                               |
+
+The path posterior `P(π | g)` enters via `post_e` — edges only get updated to the extent they're
+likely to have actually been used. Edges on paths the posterior says probably didn't fire get small
+updates regardless of surprise.
 
 ### Why this is principled
 
-The Hebbian update with posterior weighting is approximating Bayesian inference on the edge's "is
-this a real connection?" probability. After many reviews, `a_e` converges toward
-`P(edge fires successfully | history)` under reasonable assumptions, which is exactly what a
-graph-association strength should encode.
+After many reviews, the Hebbian-style update with surprise weighting converges toward the same fixed
+point as the exact Bayesian update: `a_e` settles where its current value best predicts observed
+grades for cards depending on edge `e`. Specifically, `a_e` converges toward the rate at which
+recall flowing through `e` succeeds, which is exactly the cognitive content we want for a
+graph-association strength.
 
 The math is local — no joint posterior over all edges, no convergence loops. Each review's posterior
-involves only `c`'s paths, computed in one pass.
+involves only `c`'s paths, computed in one pass, and the gradient (or its approximation) is applied
+once per edge.
+
+### Multi-atom cards
+
+When `c` has multiple hidden atoms with separate grades, the posterior is computed per-atom and the
+per-edge posteriors are summed across atoms. The update applies once per edge with the aggregated
+weight. _Care needed:_ aggregated `post_e` across atoms can exceed 1 if an edge appears in paths to
+many atoms — see the multi-atom section for handling.
 
 ## Card-to-card propagation
 
@@ -742,9 +794,16 @@ The graph adds structure (which cards are related) without requiring a complete 
 
 To answer iteratively as the architecture is prototyped:
 
-1. **Likelihood form for Hard grade.** Three candidates (L1 with Hard-as-ambiguous-strength, L2
-   sigmoid threshold, L3 multinomial logistic) need empirical comparison or principled selection.
-   Likely the simplest defensible choice is L1 + ambiguous-strength.
+1. ~~**Likelihood form for Hard grade.**~~ **Resolved.** The likelihood is
+   `P(g | π) ∝ R(π)^a · (1 - R(π))^b` with `(a, b)` matched to the grade — Again at `(0, 2)`, Hard
+   at `(1, 1)`, Good at `(2, 0)`, Easy at `(k, 0)` for `k ≥ 2`. Each grade peaks at the
+   path-strength most consistent with that outcome. Crucially, the original "two steps" framing
+   (path attribution then parameter update) was wrong — there is one Bayesian update on `a_e` that
+   marginalises over paths; the path posterior is intermediate computation in that single update.
+   Hard given a model-predicted-strong path automatically decrements that path's edges because the
+   Hard observation is unlikely under the strong-path hypothesis. The surprise-based Hebbian rule
+   (`Δa_e ∝ post_e · (observed_R - expected_R) · saturate`) is the practical approximation of the
+   exact gradient. See _Edge updates via Bayesian inference_ for the derivation.
 
 2. **Hebbian update form.** Options A/B/C above produce different convergence behaviour. Should be
    picked based on simulation sensitivity analysis once a prototype exists.
