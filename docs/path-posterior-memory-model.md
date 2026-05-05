@@ -2,9 +2,11 @@
 
 > **Status:** brainstorm. The verse-vault project is still working out its theory of memory — what
 > units carry state, how observations propagate through the graph, what the graph actually
-> contributes mathematically. This document proposes one coherent architecture that resolves several
-> issues we ran into with the current edge-FSRS implementation, and sketches the math with multiple
-> options where real design choices exist.
+> contributes mathematically. This document captures the active exploration, with detailed math for
+> one architecture (cards-primary with edge associations) and a sketched alternative variant
+> (redesigned graph: graded-thing architecture, _Variant: redesigned graph_ section near the end)
+> that is increasingly looking like the right direction. Multiple options are documented where real
+> design choices exist; resolved choices are marked in _Open questions_.
 
 ## Contents
 
@@ -19,6 +21,7 @@
 * [Multi-atom cards](#multi-atom-cards)
 * [Verse-chunk layer (optional)](#verse-chunk-layer-optional)
 * [Ground truth and drift prevention](#ground-truth-and-drift-prevention)
+* [Variant: redesigned graph (graded-thing architecture)](#variant-redesigned-graph-graded-thing-architecture)
 * [Open questions](#open-questions)
 
 ## Motivation
@@ -926,6 +929,249 @@ logic. This proposal — like FSRS — uses summary state plus Bayesian-flavoure
 observation discrepancies naturally.
 
 The graph adds structure (which cards are related) without requiring a complete event history.
+
+## Variant: redesigned graph (graded-thing architecture)
+
+> **Status:** active brainstorm. The earlier sections of this doc describe a "cards-primary"
+> architecture: cards carry FSRS state, edges carry Hebbian associations, the graph is mostly the
+> structure that was inherited from the previous edge-FSRS implementation. This section explores a
+> more substantial rethink under three deliberate constraints. It is sibling to (not replacing) the
+> cards-primary architecture; both are documented while the design space is still open.
+
+### The constraints
+
+Three commitments that shape this variant:
+
+1. **A thing with FSRS state must be 1-to-1 with grade events.** Every FSRS-stateful element in the
+   graph must correspond to something the user can directly grade. No FSRS state on internal
+   scaffolding that never receives a direct observation. This rules out FSRS state on
+   structural-only nodes (e.g., hierarchical scaffolding without dedicated card types) and on edges
+   that no card type tests.
+
+2. **Both nodes _and_ edges can carry FSRS state**, depending on whether some card type grades them
+   directly. The architecture is not "FSRS on cards" or "FSRS on nodes" or "FSRS on edges" — it's
+   "FSRS on the things that get graded, regardless of whether those are nodes or edges." Things that
+   don't get graded are pure structure / connection weights.
+
+3. **Anchors and confusion edges are content-similarity-driven, hybrid of explicit and ignored.**
+   For pairs of similar nodes/edges above some similarity threshold, include explicit Anchor or
+   Confusion edges with content-derived priors. Below threshold, ignore (no implicit cross-talk,
+   avoiding combinatorial explosion). This is option **C** from earlier in the design discussion.
+
+The cards-primary architecture also satisfies (1) and (2) trivially — only cards are graded, and
+only cards have FSRS state — but it loses the granularity benefit of node-level / edge-level state.
+This variant explores making the state-bearing units finer-grained while preserving the
+1-to-1-grading invariant.
+
+### What gets graded in verse-vault
+
+Walking through plausible card types and identifying what each grades:
+
+| Card type                            | Directly graded                                                    |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| Per-phrase recitation                | Each Phrase node                                                   |
+| Holistic recitation                  | (optionally) the Verse node, as one grade for the whole            |
+| Fill-in-blank                        | The hidden Phrase node                                             |
+| Reference identification             | The Reference node                                                 |
+| Continuation ("what comes after X?") | Either the next-Phrase node, OR the adjacency edge — design choice |
+| Discrimination                       | Either the Verse node, OR the Verse-Reference binding edge         |
+| Hierarchy ("what chapter is X in?")  | The ChapterRef / BookRef node                                      |
+| Holistic gist                        | The Verse node (gist as the verse's holistic memory)               |
+
+The takeaway: depending on which card types verse-vault commits to, both nodes and edges can be
+"directly graded." A continuation card is essentially a probe of an adjacency edge; that edge
+carries its own FSRS state and is updated directly by the grade.
+
+### Graph elements
+
+**Nodes:**
+
+| Node                | FSRS state?                    | Updated by                                      |
+| ------------------- | ------------------------------ | ----------------------------------------------- |
+| Phrase              | Yes                            | Recitation, fill-in-blank                       |
+| Verse               | Yes (if holistic cards exist)  | Holistic recitation, gist cards, discrimination |
+| Reference           | Yes                            | Reference identification, discrimination        |
+| ChapterRef, BookRef | Yes (if hierarchy cards exist) | Hierarchy queries                               |
+
+The current architecture's distinction between **VerseGist** and **Verse** dissolves under this
+variant: there is just one Verse node per verse, representing it as a memorized entity. It's graded
+by holistic recitation or gist cards.
+
+**Edges:**
+
+| Edge                                                 | FSRS state?                                                                             | Updated by                                                   |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Phrase → Phrase (forward adjacency)                  | Yes (if continuation cards exist)                                                       | Continuation cards; structural propagation                   |
+| Phrase → Phrase (reverse adjacency)                  | Yes (if reverse-continuation cards exist; usually no)                                   | Reverse continuation cards                                   |
+| Verse ↔ Phrase (membership)                          | No                                                                                      | Pure structural; participates in propagation                 |
+| Verse ↔ Reference (binding)                          | Yes (if discrimination cards exist) OR No (if implied by Verse + Reference node grades) | Discrimination cards                                         |
+| Verse ↔ ChapterRef, ChapterRef ↔ BookRef (hierarchy) | No (typically)                                                                          | Pure structural                                              |
+| Anchor (cross-verse, similarity-driven)              | No                                                                                      | Pure structural; content-derived prior on association weight |
+| Confusion (cross-verse, similarity-driven)           | No                                                                                      | Structural with negative-coupling prior                      |
+
+Most edges in this variant don't carry FSRS state. They have _association weights_ (used in path
+probabilities and propagation) but those weights are either fixed (structural) or Hebbian-updated
+(learned from observation co-occurrence).
+
+### What state actually looks like per element
+
+**Graded elements (nodes or edges with FSRS state):**
+
+```
+struct GradedState {
+    stability: f32,
+    difficulty: f32,
+    last_updated_secs: i64,            // any update — direct or propagated
+    last_directly_graded_secs: i64,    // last direct-grade observation
+}
+```
+
+The two timestamps are the HSRS pattern: `last_updated` advances on every update (full or partial);
+`last_directly_graded` only advances on direct grades, and is the scheduler's ground-truth-staleness
+signal.
+
+For graded elements, retrievability `R(t) = forgetting_curve(S, D, t - last_updated)` doubles as the
+**association strength** for path-probability computations. A graded element doesn't need a separate
+"association weight" — its FSRS retrievability already provides one with rich dynamics.
+
+**Structural elements (no FSRS state):**
+
+```
+struct StructuralState {
+    association_log_odds: f32,         // λ — current association strength
+    association_variance: f32,         // σ² under VI; optional under deterministic heuristics
+    last_used_secs: i64,
+    prior_log_odds: f32,               // type-specific prior, content-derived for Anchor/Confusion
+}
+```
+
+Updated by Hebbian rules (log-odds conjugate update from Q2). No FSRS dynamics; slow decay toward
+the prior between updates.
+
+### Update flow for a card review
+
+1. **Grade events.** The card produces one or more `(target, grade)` pairs, where `target` is either
+   a graded node or a graded edge.
+2. **Direct updates.** For each grade event, apply a standard FSRS step to `target.GradedState`.
+   Refresh both `last_updated_secs` and `last_directly_graded_secs`.
+3. **Path posterior.** Compute the path posterior for the card review (same machinery as the
+   cards-primary architecture, but with `R(t)` of graded elements + association strengths of
+   structural edges as the input weights).
+4. **Propagation.** Walk from each directly-graded element through its outgoing edges. For each
+   reachable graded element, apply a partial FSRS step weighted by the propagation weight. Refresh
+   `last_updated_secs` (interpolated proportional to weight); leave `last_directly_graded_secs`
+   alone.
+5. **Hebbian updates** on structural-edge association strengths from observed co-occurrence patterns
+   (same as before).
+
+### How nodes and edges interact under propagation
+
+A grade event on a Phrase node propagates to:
+
+* Adjacent Phrase nodes via adjacency edges (graded or structural).
+* The Verse node via membership edges.
+* Other Phrases in the same verse via Verse → Phrase pathways.
+* Cross-verse similar Phrases via Anchor / Confusion edges.
+
+A grade event on an adjacency edge propagates to:
+
+* The source and target Phrase nodes (the grade event implies both were activated).
+* Other adjacency edges in the same verse (correlated as part of the verse's recall sequence).
+* Possibly the Verse node (a successful continuation implies activation reached this point in the
+  sequence).
+
+The propagation rule respects the noisy-AND / activation-flow analysis from the multi-atom section:
+graded edges act as both observable elements and as connections between graded nodes. Mathematically
+there's no special-case logic — the same path-posterior + AGG-FlowJoint machinery applies, just with
+more elements that can be the "directly graded" focal points.
+
+### Anchor and Confusion under option C
+
+Computed at content-authoring time (or precomputed once per translation):
+
+1. **Lexical similarity:** n-gram overlap between phrases / verses.
+2. **Semantic similarity:** content embeddings (small model, offline).
+3. **Continuation analysis:** for high-similarity pairs, do the continuations diverge or match?
+
+Producing two thresholds:
+
+* High similarity + matching continuations → **Anchor**: explicit edge between the similar elements,
+  with a high-prior association strength reflecting the similarity score. Reviews of one pull the
+  other along.
+* High similarity + divergent continuations → **Confusion**: explicit edge with a _negative_
+  coupling prior — reviews of one should _suppress_ the other in propagation (lateral inhibition).
+  Used by interleaving / discrimination card scheduling.
+* Below threshold → no explicit edge. Cross-verse interactions are absent for these pairs.
+
+Anchor and Confusion edges are structural (no FSRS state) — they're not directly tested by any card
+type. They participate in the propagation network with their content-derived priors, shrinking back
+toward those priors via slow decay between updates.
+
+### What this variant gives you
+
+**Compared to cards-primary:**
+
+* Finer-grained state. Each phrase has its own (S, D), separable from the verse it lives in.
+  Per-phrase mastery is tracked individually.
+* More natural handling of card types that test specific connections (continuation, ref-
+  identification, hierarchy queries) — those become directly-graded edges/nodes rather than derived
+  from broader card outcomes.
+* Hub variables (Verse) are explicit, fixing mean-field VI's blind spot for shared structure.
+* Cross-verse interference (Anchor, Confusion) is integrated into the graph rather than living in
+  side-band metadata.
+
+**Compared to the original edge-FSRS architecture:**
+
+* FSRS state is only where directly observable, not on every edge in the graph. The S1/S2/S3 audit
+  issues don't recur because they were specific to FSRS-on-everything.
+* Edge associations and FSRS retrievabilities serve different roles cleanly: FSRS for graded
+  elements (what the user is being directly tested on), Hebbian for structural connections (how the
+  graph propagates information).
+
+### What's still open under this variant
+
+A handful of things that need to be decided before implementing:
+
+* **Verse vs. VerseGist:** are these one node or two? Argument for one: simpler, the "memorized
+  verse" is a single thing accessible via ref or content. Argument for two: gist (meaning) and verse
+  (verbatim text) might be cognitively dissociable for some users. Default for this variant:
+  collapse to one Verse node unless gist-only cards become a distinct workflow.
+* **Continuation-card grading:** does a continuation card grade the next-phrase node, the adjacency
+  edge, or both? Has implications for which receives the strongest signal.
+* **Discrimination-card grading:** does a discrimination card grade the verse node, the binding
+  edge, or the reference node? Probably the binding edge is most natural, but there's a case for the
+  verse if discrimination is testing "do you remember this _verse_ well enough to distinguish it
+  from confusables."
+* **Holistic recitation grading:** is there a single Verse-level grade, or only per-phrase grades,
+  or both? If both, are they aggregated or independent?
+* **Cold-start values:** new content has no observation history. Each graded element needs default
+  FSRS state (per FSRS standard); each structural edge needs an initial association strength (from
+  type-specific prior). Anchor/Confusion edges get priors from similarity scores.
+* **Direction of edges:** the symmetry pushback says most non-adjacency edges should be symmetric /
+  undirected. Adjacency stays directional for sequence reasons. But: do Anchor/Confusion edges have
+  direction? Probably not — similarity is symmetric. Hierarchy edges? Probably weakly directional
+  (parent → child has a different cognitive role from child → parent).
+* **How Hebbian updates work on edges that are sometimes graded:** if continuation cards exist,
+  adjacency edges have FSRS state. But there are also propagation events that nudge them. Are those
+  propagated updates partial-FSRS-steps (treating the edge like a graded node), or Hebbian updates
+  on a separate association strength? Probably the former — once an edge is FSRS-stateful, all
+  updates go through FSRS dynamics, even propagated ones.
+* **Identifiability under VI:** if some edge always co-occurs with its endpoints (e.g., a membership
+  edge that's never on its own path), the variational posterior won't distinguish edge effects from
+  node effects. Need to check that the chosen card types produce identifiable path patterns for each
+  FSRS-stateful element.
+
+### Relation to the cards-primary architecture
+
+This variant is _not_ a strict superset or refinement of the cards-primary architecture — it's a
+sibling. The fundamental modeling commitment is different:
+
+* Cards-primary: a card is the unit of memory; the graph is for propagation.
+* This variant: nodes and edges are the units of memory; cards are events that grade them.
+
+Both architectures could implement the same set of card types and produce qualitatively similar
+predictions, but their state-bearing units are different and their growth paths diverge. Worth
+comparing on simulation data once both are prototyped.
 
 ## Open questions
 
