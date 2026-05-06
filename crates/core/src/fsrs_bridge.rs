@@ -142,6 +142,21 @@ impl FsrsBridge {
         }
     }
 
+    /// Predict retrievability at `now_secs` from this test's current state.
+    pub fn retrievability_of(&self, state: &TestState, now_secs: i64) -> f32 {
+        let elapsed = state.elapsed_days(now_secs).max(0.0);
+        power_forgetting_curve(elapsed, state.stability, FSRS6_DEFAULT_DECAY)
+    }
+
+    /// The wall-clock time when this test will reach `target_r` retrievability,
+    /// measured from `last_base_secs`.
+    pub fn due_at(&self, state: &TestState, target_r: f32) -> i64 {
+        let factor = (0.9_f32.ln() / -FSRS6_DEFAULT_DECAY).exp() - 1.0;
+        let interval_days =
+            state.stability * (target_r.powf(-1.0 / FSRS6_DEFAULT_DECAY) - 1.0) / factor;
+        state.last_base_secs + (interval_days * SECS_PER_DAY as f32) as i64
+    }
+
     /// HSRS-style probabilistic FSRS update with retrievability-space interpolation.
     /// `weight` in [0, 1] determines how strongly to apply the grade. weight=1.0 is
     /// equivalent to direct_step except `last_root_secs` is not advanced. weight=0.0
@@ -384,6 +399,41 @@ mod tests {
         assert!(
             after.stability >= ts.stability,
             "audit B1: Hard at delta=0 must not decrease S"
+        );
+    }
+
+    #[test]
+    fn retrievability_of_at_zero_elapsed_is_one() {
+        let bridge = FsrsBridge::new(0.9);
+        let ts = TestState {
+            stability: 10.0,
+            difficulty: 5.0,
+            last_seen_secs: 100,
+            last_base_secs: 100,
+            last_root_secs: 100,
+        };
+        let r = bridge.retrievability_of(&ts, 100);
+        assert!((r - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn due_at_returns_now_plus_interval() {
+        let bridge = FsrsBridge::new(0.9);
+        let ts = TestState {
+            stability: 10.0,
+            difficulty: 5.0,
+            last_seen_secs: 0,
+            last_base_secs: 0,
+            last_root_secs: 0,
+        };
+        let due = bridge.due_at(&ts, 0.9);
+        let secs_from_base = due - ts.last_base_secs;
+        // With FSRS-6 the interval at R=0.9 from S=10 is roughly 9-11 days
+        assert!(
+            secs_from_base >= 86400 * 8 && secs_from_base <= 86400 * 12,
+            "due interval out of range: {} secs ({} days)",
+            secs_from_base,
+            secs_from_base / 86400
         );
     }
 
