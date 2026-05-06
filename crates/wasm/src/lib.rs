@@ -12,6 +12,7 @@ use verse_vault_core::builder::build;
 use verse_vault_core::content::MaterialData;
 use verse_vault_core::element::ElementId;
 use verse_vault_core::engine::{ReviewEngine, TestUpdate, UpdateKind};
+use verse_vault_core::schedule::next_card;
 use verse_vault_core::test_kind::{TestKey, TestKind};
 use verse_vault_core::test_state::TestState;
 use verse_vault_core::types::{CardId, Grade};
@@ -158,6 +159,25 @@ impl WasmEngine {
         let wire: Vec<TestUpdateWire> = outcome.updates.iter().map(TestUpdateWire::from).collect();
         serde_json::to_string(&wire)
             .map_err(|e| JsError::new(&format!("response serialise error: {e}")))
+    }
+
+    /// Snapshot every `TestState` known to the engine as a JSON array of
+    /// `TestStateEntry`. Persist this between sessions to resume.
+    pub fn export_test_states(&self) -> Result<String, JsError> {
+        let entries: Vec<TestStateEntry> = self
+            .engine
+            .tests
+            .iter()
+            .map(|(k, s)| TestStateEntry::from_pair(*k, s))
+            .collect();
+        serde_json::to_string(&entries)
+            .map_err(|e| JsError::new(&format!("export serialise error: {e}")))
+    }
+
+    /// Pick the next card to review at `now_secs`, or `None` if every card
+    /// is currently above the target retention threshold.
+    pub fn next_card(&self, now_secs: i64) -> Option<u32> {
+        next_card(&self.engine, now_secs).map(|c| c.0)
     }
 }
 

@@ -2,7 +2,7 @@
 //! as both `cdylib` and `rlib`, so we can drive its public API from a plain
 //! Rust integration test without spinning up `wasm-pack`.
 
-use verse_vault_wasm::WasmEngine;
+use verse_vault_wasm::{TestStateEntry, WasmEngine};
 
 const MATERIAL_JSON: &str = r#"{
     "year": 3,
@@ -60,4 +60,26 @@ fn replay_event_returns_at_least_one_direct_update() {
     assert!(!updates.is_empty(), "review should produce updates");
     let direct = updates.iter().filter(|u| u["kind"] == "Direct").count();
     assert!(direct >= 1, "expected at least one Direct update");
+}
+
+#[test]
+fn export_test_states_after_review_round_trips() {
+    let now = 86400 * 365;
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", 0.9, now).unwrap();
+    let (card_id, grades_json) = first_card_with_grades(now);
+    let _ = engine
+        .replay_event(card_id, &grades_json, now + 86400 * 30)
+        .unwrap();
+    let exported = engine.export_test_states().unwrap();
+    let entries: Vec<TestStateEntry> = serde_json::from_str(&exported).unwrap();
+    assert!(!entries.is_empty(), "export should be non-empty");
+}
+
+#[test]
+fn next_card_returns_some_when_due() {
+    // Build at t=0; every test seeds with last_base = -365 days. By the time
+    // we ask at +60 days past t=365d, retrievability is well below 0.9.
+    let engine = WasmEngine::new(MATERIAL_JSON, "", 0.9, 0).unwrap();
+    let pick = engine.next_card(86400 * 365 + 86400 * 60);
+    assert!(pick.is_some(), "expected a due card");
 }
