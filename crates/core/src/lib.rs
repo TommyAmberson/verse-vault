@@ -12,6 +12,7 @@ pub mod fsrs_bridge;
 pub mod graph;
 pub mod node;
 pub mod path;
+pub mod propagate;
 pub mod schedule;
 pub mod session;
 pub mod test_kind;
