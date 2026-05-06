@@ -12,6 +12,9 @@ pub enum CardState {
     Relearning,
 }
 
+/// What this card asks the learner. Atomic kinds grade exactly one test;
+/// composite kinds (`Recitation`, `Citation`, `Ftv`, `Holistic`) grade
+/// several at once. The exact set is computed by `Card::tests`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CardKind {
     // atomic — each grades exactly one test
@@ -43,6 +46,9 @@ pub enum CardKind {
     Reading,
 }
 
+/// One reviewable item, scoped to a single verse. The `(kind, verse_id)`
+/// pair plus the verse's `VerseAtoms` fully determines which tests this
+/// card grades (`Card::tests`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Card {
     pub id: CardId,
@@ -107,7 +113,11 @@ pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<
 }
 
 impl Card {
-    /// The set of tests this card grades when reviewed.
+    /// Tests this card grades when reviewed. The caller passes the
+    /// `VerseAtoms` for `self.verse_id` so the function stays pure (no
+    /// engine reference). `Recitation`, `Citation`, `Ftv`, and `Holistic`
+    /// expand into multiple tests; the atomic kinds return a single-element
+    /// vec.
     pub fn tests(&self, atoms: &VerseAtoms) -> Vec<TestKey> {
         let verse_id = self.verse_id;
         match self.kind {

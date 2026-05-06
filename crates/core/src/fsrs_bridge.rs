@@ -83,14 +83,18 @@ impl FsrsBridge {
         }
     }
 
-    /// Predict retrievability at `now_secs` from this test's current state.
+    /// Predicted probability of recall at `now_secs` given the FSRS power
+    /// forgetting curve and this test's `(stability, last_base_secs)`. The
+    /// scheduler treats a card as due when its weakest test's retrievability
+    /// drops below `ScheduleParams::target_retention`.
     pub fn retrievability_of(&self, state: &TestState, now_secs: i64) -> f32 {
         let elapsed = state.elapsed_days(now_secs).max(0.0);
         power_forgetting_curve(elapsed, state.stability, FSRS6_DEFAULT_DECAY)
     }
 
-    /// The wall-clock time when this test will reach `target_r` retrievability,
-    /// measured from `last_base_secs`.
+    /// Wall-clock time at which this test's retrievability will hit `target_r`,
+    /// measured from `last_base_secs`. Closed-form inverse of the forgetting
+    /// curve — no binary search.
     pub fn due_at(&self, state: &TestState, target_r: f32) -> i64 {
         let factor = (0.9_f32.ln() / -FSRS6_DEFAULT_DECAY).exp() - 1.0;
         let interval_days =
@@ -98,10 +102,15 @@ impl FsrsBridge {
         state.last_base_secs + (interval_days * SECS_PER_DAY as f32) as i64
     }
 
-    /// HSRS-style probabilistic FSRS update with retrievability-space interpolation.
-    /// `weight` in [0, 1] determines how strongly to apply the grade. weight=1.0 is
-    /// equivalent to direct_step except `last_root_secs` is not advanced. weight=0.0
-    /// is identity (only `last_seen_secs` advances).
+    /// HSRS partial update applied to a related (non-graded) test.
+    ///
+    /// Interpolates in retrievability space between the current state and the
+    /// hypothetical post-direct state by `weight ∈ [0, 1]`. weight=0 is
+    /// identity except for `last_seen_secs`; weight=1 matches `direct_step`
+    /// except `last_root_secs` is preserved (the load-bearing invariant —
+    /// propagation never claims the test was directly reviewed).
+    ///
+    /// See `docs/path-posterior-memory-model.md` for derivation.
     pub fn propagated_step(
         &self,
         state: &TestState,
@@ -128,6 +137,9 @@ impl FsrsBridge {
         }
     }
 
+    /// Full FSRS-6 update for a directly-graded test: advances all three
+    /// timestamps to `now_secs` and applies the standard FSRS state
+    /// transition. Stability and difficulty are clamped to FSRS-6 bounds.
     pub fn direct_step(&self, state: &TestState, grade: Grade, now_secs: i64) -> TestState {
         let elapsed_days = state.elapsed_days(now_secs).max(0.0);
         let memory: MemoryState = state.into();
