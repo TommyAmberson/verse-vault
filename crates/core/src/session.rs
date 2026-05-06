@@ -68,6 +68,22 @@ impl Session {
         });
     }
 
+    /// The staged sequence for introducing a new verse:
+    /// `[Reading, PhraseFill 0, ..., PhraseFill N-1, Recitation]`.
+    ///
+    /// `verse_id` is currently informational — the returned kinds don't carry
+    /// it — but is taken so callers state intent and so we can extend the
+    /// signature later without a breaking change.
+    pub fn new_verse_progression(&self, _verse_id: u32, phrase_count: u16) -> Vec<CardKind> {
+        let mut out = Vec::with_capacity(phrase_count as usize + 2);
+        out.push(CardKind::Reading);
+        for p in 0..phrase_count {
+            out.push(CardKind::PhraseFill { position: p });
+        }
+        out.push(CardKind::Recitation);
+        out
+    }
+
     /// Decide whether to insert a re-drill. Only Recitation reviews trigger
     /// re-drills; other kinds always return `None`.
     ///
@@ -177,6 +193,21 @@ mod tests {
                 kind: ReDrillKind::FullRecitation,
             })
         ));
+    }
+
+    #[test]
+    fn new_verse_progresses_reading_then_fill_in_then_recitation() {
+        let s = Session::new();
+        let progression = s.new_verse_progression(7, 4);
+        assert!(matches!(progression[0], CardKind::Reading));
+        assert_eq!(
+            progression
+                .iter()
+                .filter(|k| matches!(k, CardKind::PhraseFill { .. }))
+                .count(),
+            4
+        );
+        assert!(matches!(progression.last(), Some(CardKind::Recitation)));
     }
 
     #[test]
