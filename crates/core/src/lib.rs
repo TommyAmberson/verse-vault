@@ -14,4 +14,5 @@ pub mod node;
 pub mod path;
 pub mod schedule;
 pub mod session;
+pub mod test_kind;
 pub mod types;
