@@ -116,8 +116,22 @@ impl Card {
                     },
                 })
                 .collect(),
-            // composites filled in by tasks 3.5 / 3.6 / 3.7 — placeholder for now
-            CardKind::Citation | CardKind::Ftv { .. } | CardKind::Holistic => Vec::new(),
+            CardKind::Citation => vec![
+                TestKey {
+                    kind: TestKind::VerseRefPosition,
+                    element: ElementId::VerseRefPosition { verse_id },
+                },
+                TestKey {
+                    kind: TestKind::VerseChapter,
+                    element: ElementId::VerseChapterBinding { verse_id },
+                },
+                TestKey {
+                    kind: TestKind::VerseBook,
+                    element: ElementId::VerseBookBinding { verse_id },
+                },
+            ],
+            // composites filled in by tasks 3.6 / 3.7 — placeholder for now
+            CardKind::Ftv { .. } | CardKind::Holistic => Vec::new(),
         }
     }
 }
@@ -255,6 +269,22 @@ mod tests {
                 }
             }]
         );
+    }
+
+    #[test]
+    fn citation_grades_three_bindings() {
+        let c = atomic_card(0, CardKind::Citation, 7);
+        let tests = c.tests(&sample_atoms(7, 4));
+        assert_eq!(tests.len(), 3);
+        let kinds: std::collections::HashSet<_> = tests.iter().map(|t| t.kind).collect();
+        let expected: std::collections::HashSet<_> = [
+            TestKind::VerseRefPosition,
+            TestKind::VerseChapter,
+            TestKind::VerseBook,
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(kinds, expected);
     }
 
     #[test]
