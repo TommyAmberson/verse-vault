@@ -65,6 +65,37 @@ impl VerseAtoms {
     }
 }
 
+pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<TestKey> {
+    let start: u16 = match (&atoms.ftv, &atoms.phrase_zero_text) {
+        (Some(ftv), Some(p0)) if ftv == p0 => 1,
+        _ => 0,
+    };
+    let mut out: Vec<TestKey> = (start..atoms.phrase_count)
+        .map(|p| TestKey {
+            kind: TestKind::PhraseFromChain,
+            element: ElementId::Phrase {
+                verse_id,
+                position: p,
+            },
+        })
+        .collect();
+    if with_citation {
+        out.push(TestKey {
+            kind: TestKind::VerseRefPosition,
+            element: ElementId::VerseRefPosition { verse_id },
+        });
+        out.push(TestKey {
+            kind: TestKind::VerseChapter,
+            element: ElementId::VerseChapterBinding { verse_id },
+        });
+        out.push(TestKey {
+            kind: TestKind::VerseBook,
+            element: ElementId::VerseBookBinding { verse_id },
+        });
+    }
+    out
+}
+
 impl Card {
     /// The set of tests this card grades when reviewed.
     /// Returns empty if the card is legacy (kind is None).
@@ -130,8 +161,9 @@ impl Card {
                     element: ElementId::VerseBookBinding { verse_id },
                 },
             ],
-            // composites filled in by tasks 3.6 / 3.7 — placeholder for now
-            CardKind::Ftv { .. } | CardKind::Holistic => Vec::new(),
+            CardKind::Ftv { with_citation } => ftv_tests(verse_id, atoms, with_citation),
+            // composite filled in by task 3.7 — placeholder for now
+            CardKind::Holistic => Vec::new(),
         }
     }
 }
@@ -269,6 +301,70 @@ mod tests {
                 }
             }]
         );
+    }
+
+    #[test]
+    fn ftv_strict_prefix_grades_all_phrases() {
+        let atoms = VerseAtoms {
+            verse_id: 7,
+            phrase_count: 4,
+            headings: vec![],
+            clubs: vec![],
+            ftv: Some("For God".into()),
+            phrase_zero_text: Some("For God so loved the world".into()),
+        };
+        let c = atomic_card(
+            0,
+            CardKind::Ftv {
+                with_citation: false,
+            },
+            7,
+        );
+        let tests = c.tests(&atoms);
+        assert_eq!(tests.len(), 4);
+        assert!(tests.iter().all(|t| t.kind == TestKind::PhraseFromChain));
+    }
+
+    #[test]
+    fn ftv_equal_to_phrase_zero_grades_n_minus_one() {
+        let atoms = VerseAtoms {
+            verse_id: 7,
+            phrase_count: 4,
+            headings: vec![],
+            clubs: vec![],
+            ftv: Some("For God so loved the world".into()),
+            phrase_zero_text: Some("For God so loved the world".into()),
+        };
+        let c = atomic_card(
+            0,
+            CardKind::Ftv {
+                with_citation: false,
+            },
+            7,
+        );
+        let tests = c.tests(&atoms);
+        assert_eq!(tests.len(), 3);
+    }
+
+    #[test]
+    fn ftv_with_citation_adds_three_tests() {
+        let atoms = VerseAtoms {
+            verse_id: 7,
+            phrase_count: 4,
+            headings: vec![],
+            clubs: vec![],
+            ftv: Some("For God".into()),
+            phrase_zero_text: Some("For God so loved the world".into()),
+        };
+        let c = atomic_card(
+            0,
+            CardKind::Ftv {
+                with_citation: true,
+            },
+            7,
+        );
+        let tests = c.tests(&atoms);
+        assert_eq!(tests.len(), 7); // 4 phrase + 3 citation
     }
 
     #[test]
