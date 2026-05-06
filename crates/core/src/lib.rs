@@ -6,6 +6,7 @@ pub mod cascade;
 pub mod content;
 pub mod credit;
 pub mod edge;
+pub mod element;
 pub mod engine;
 pub mod fsrs_bridge;
 pub mod graph;
