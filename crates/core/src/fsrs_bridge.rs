@@ -343,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn propagated_step_zero_weight_is_identity() {
+    fn propagated_step_zero_weight_preserves_state() {
         let bridge = FsrsBridge::new(0.9);
         let ts = TestState {
             stability: 10.0,
@@ -352,11 +352,22 @@ mod tests {
             last_base_secs: 0,
             last_root_secs: 0,
         };
-        let after = bridge.propagated_step(&ts, Grade::Good, 0.0, 86400 * 7);
-        assert!((after.stability - ts.stability).abs() < 1e-3);
-        assert_eq!(after.last_seen_secs, 86400 * 7);
-        assert_eq!(after.last_base_secs, ts.last_base_secs); // unchanged
-        assert_eq!(after.last_root_secs, ts.last_root_secs); // unchanged
+        // Across all grades and a range of times, weight=0 must leave
+        // (stability, difficulty, last_base, last_root) unchanged and only
+        // advance last_seen.
+        for grade in [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy] {
+            for now in [86400, 86400 * 7, 86400 * 30, 86400 * 365] {
+                let after = bridge.propagated_step(&ts, grade, 0.0, now);
+                assert!(
+                    (after.stability - ts.stability).abs() < 1e-3,
+                    "grade={grade:?} now={now}: stability changed",
+                );
+                assert!((after.difficulty - ts.difficulty).abs() < 1e-3);
+                assert_eq!(after.last_seen_secs, now);
+                assert_eq!(after.last_base_secs, ts.last_base_secs);
+                assert_eq!(after.last_root_secs, ts.last_root_secs);
+            }
+        }
     }
 
     #[test]
@@ -380,6 +391,29 @@ mod tests {
         assert!((prop.difficulty - direct.difficulty).abs() < 0.1);
         assert_eq!(prop.last_root_secs, ts.last_root_secs); // last_root never advances on propagation
         assert_eq!(prop.last_base_secs, 86400 * 7); // (1-1)·old + 1·now = now
+    }
+
+    #[test]
+    fn last_root_monotonic_under_propagation() {
+        // Property: a series of propagated_steps with varying grades, weights,
+        // and times never advances last_root_secs. This is the load-bearing
+        // HSRS invariant — propagation cannot impersonate a direct review.
+        let bridge = FsrsBridge::new(0.9);
+        let mut s = TestState {
+            stability: 5.0,
+            difficulty: 5.0,
+            last_seen_secs: 100,
+            last_base_secs: 100,
+            last_root_secs: 100,
+        };
+        let grades = [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy];
+        let weights = [0.05_f32, 0.1, 0.3, 0.5, 0.7, 1.0];
+        for t in 200..1000i64 {
+            let grade = grades[(t as usize) % grades.len()];
+            let weight = weights[(t as usize) % weights.len()];
+            s = bridge.propagated_step(&s, grade, weight, t);
+            assert_eq!(s.last_root_secs, 100, "last_root advanced at t={t}");
+        }
     }
 
     #[test]
