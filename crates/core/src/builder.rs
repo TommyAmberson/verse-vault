@@ -21,6 +21,11 @@ pub struct BuildResult {
     pub element_meta: HashMap<ElementId, ElementMeta>,
     pub cards: Vec<Card>,
     pub tests: HashMap<TestKey, TestState>,
+    /// Per-verse atom data (phrase_count + ftv + phrase_zero_text). The
+    /// engine consumes this so it can rebuild a `VerseAtoms` for any verse
+    /// at review/scheduling time without re-deriving from the source
+    /// `MaterialData`.
+    pub verse_atoms_data: HashMap<u32, VerseAtoms>,
 }
 
 /// Tier-subset rule: in the Anki export a verse tagged "150" is implicitly a
@@ -269,6 +274,7 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
         element_meta,
         cards,
         tests,
+        verse_atoms_data: verse_atoms_by_id,
     }
 }
 

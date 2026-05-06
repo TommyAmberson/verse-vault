@@ -22,6 +22,10 @@ impl VerseIndex {
         self.verses.insert(verse_id, e);
     }
 
+    pub fn elements_of(&self, verse_id: u32) -> Option<&VerseElements> {
+        self.verses.get(&verse_id)
+    }
+
     pub fn phrases_of(&self, verse_id: u32) -> Vec<ElementId> {
         self.verses
             .get(&verse_id)
