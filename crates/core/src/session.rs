@@ -158,4 +158,34 @@ mod tests {
             })
         ));
     }
+
+    #[test]
+    fn redrill_on_majority_failure() {
+        // 3 of 4 phrases failed → trigger full recitation.
+        let mut grades = HashMap::new();
+        grades.insert(phrase_key(7, 0), Grade::Again);
+        grades.insert(phrase_key(7, 1), Grade::Again);
+        grades.insert(phrase_key(7, 2), Grade::Again);
+        grades.insert(phrase_key(7, 3), Grade::Good);
+        let mut s = Session::new();
+        s.stage_review(CardKind::Recitation, 7, grades);
+        let next = s.next_drill_after(ReviewOutcome::default());
+        assert!(matches!(
+            next,
+            Some(SessionAction::ReDrill {
+                verse_id: 7,
+                kind: ReDrillKind::FullRecitation,
+            })
+        ));
+    }
+
+    #[test]
+    fn no_redrill_when_all_pass() {
+        let mut grades = HashMap::new();
+        grades.insert(phrase_key(7, 0), Grade::Good);
+        grades.insert(phrase_key(7, 1), Grade::Good);
+        let mut s = Session::new();
+        s.stage_review(CardKind::Recitation, 7, grades);
+        assert!(s.next_drill_after(ReviewOutcome::default()).is_none());
+    }
 }
