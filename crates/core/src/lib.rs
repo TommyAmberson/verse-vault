@@ -1,6 +1,5 @@
 pub mod builder;
 pub mod card;
-pub mod card_types;
 pub mod content;
 pub mod element;
 pub mod engine;
