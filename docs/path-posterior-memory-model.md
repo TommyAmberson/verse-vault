@@ -15,10 +15,15 @@
 
 ## Contents
 
+**Active architecture** (read this first):
+
 * [Motivation](#motivation)
 * [Two architectural approaches](#two-architectural-approaches)
 * [Pursuing Approach 2](#pursuing-approach-2)
 * [FSRS-stateful test taxonomy (HSRS-aligned)](#fsrs-stateful-test-taxonomy-hsrs-aligned)
+
+**Appendix A — historical exploration** (paths considered but not taken):
+
 * [The three-layer model](#the-three-layer-model)
 * [Notation](#notation)
 * [Card state](#card-state)
@@ -30,7 +35,7 @@
 * [Verse-chunk layer (optional)](#verse-chunk-layer-optional)
 * [Ground truth and drift prevention](#ground-truth-and-drift-prevention)
 * [Variant: redesigned graph (graded-thing architecture)](#variant-redesigned-graph-graded-thing-architecture)
-* [Open questions](#open-questions)
+* [Open questions (mostly resolved)](#open-questions)
 
 ## Motivation
 
@@ -992,6 +997,16 @@ asymmetric propagation), differentiated only by what its constituents are. Conta
 verse-X associations, heading hierarchies all use the same update math and the same card-grade
 routing. New content types (other thematic groupings, cross-references, etc.) plug in by adding new
 node types and the cards that grade them.
+
+---
+
+## Appendix A: historical exploration
+
+> Everything below this line is the design exploration that led to the active architecture above. It
+> is preserved for historical reference, including alternative approaches considered and rejected
+> (Approach 1 / cards-primary / path-posterior / AGG-FlowJoint / three-layer model / graded-thing
+> variant). **For the current architecture, read above the appendix line. The sections below
+> describe paths not taken.**
 
 ## The three-layer model
 
