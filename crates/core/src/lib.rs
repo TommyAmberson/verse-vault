@@ -17,3 +17,4 @@ pub mod session;
 pub mod test_kind;
 pub mod test_state;
 pub mod types;
+pub mod verse_index;
