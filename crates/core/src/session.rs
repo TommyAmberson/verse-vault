@@ -7,9 +7,9 @@
 
 use std::collections::HashMap;
 
-use crate::card::CardKind;
+use crate::card::{Card, CardKind};
 use crate::element::ElementId;
-use crate::engine::ReviewOutcome;
+use crate::engine::{ReviewEngine, ReviewOutcome};
 use crate::test_kind::{TestKey, TestKind};
 use crate::types::Grade;
 
@@ -50,11 +50,34 @@ struct InFlight {
 #[derive(Debug, Default)]
 pub struct Session {
     in_flight: Option<InFlight>,
+    upcoming_cards: Vec<Card>,
 }
 
 impl Session {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Build a session seeded from the engine's catalog. The initial
+    /// `upcoming_cards` queue contains the FTV cards present in the engine
+    /// (one per eligible verse, with and without citation). The scheduler
+    /// itself still drives card-picking via `next_card`; this queue is used
+    /// for high-priority surfaces like FTV.
+    pub fn start(engine: &ReviewEngine, _now_secs: i64) -> Self {
+        let upcoming_cards = engine
+            .cards
+            .iter()
+            .filter(|c| matches!(c.kind, CardKind::Ftv { .. }))
+            .cloned()
+            .collect();
+        Self {
+            in_flight: None,
+            upcoming_cards,
+        }
+    }
+
+    pub fn upcoming_cards(&self) -> &[Card] {
+        &self.upcoming_cards
     }
 
     /// Record the kind/verse_id and per-test grades for the card just sent
@@ -132,6 +155,29 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::builder::build;
+    use crate::content::MaterialData;
+
+    fn sample_material_with_ftv() -> MaterialData {
+        serde_json::from_str(
+            r#"{
+                "year": 3,
+                "books": ["John"],
+                "chapters": [{"book": "John", "number": 3, "start_verse": 16, "end_verse": 16}],
+                "verses": [
+                    {
+                        "book": "John", "chapter": 3, "verse": 16,
+                        "text": "For God so loved the world that he gave",
+                        "phrases": ["For God", "so loved", "the world", "that he gave"],
+                        "ftv": "For God",
+                        "clubs": []
+                    }
+                ],
+                "headings": []
+            }"#,
+        )
+        .unwrap()
+    }
 
     fn phrase_key(verse_id: u32, position: u16) -> TestKey {
         TestKey {
@@ -208,6 +254,20 @@ mod tests {
             4
         );
         assert!(matches!(progression.last(), Some(CardKind::Recitation)));
+    }
+
+    #[test]
+    fn session_includes_ftv_card_when_material_has_ftv() {
+        let m = sample_material_with_ftv();
+        let r = build(&m, 0);
+        let engine = ReviewEngine::new(r, 0.9);
+        let session = Session::start(&engine, 86400 * 400);
+        assert!(
+            session
+                .upcoming_cards()
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::Ftv { .. }))
+        );
     }
 
     #[test]
