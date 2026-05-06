@@ -26,12 +26,11 @@ const SECONDS_PER_DAY: i64 = 86_400;
 fn parse_reviews_arg() -> usize {
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
-        if arg == "--reviews" {
-            if let Some(n) = args.next() {
-                if let Ok(parsed) = n.parse::<usize>() {
-                    return parsed;
-                }
-            }
+        if arg == "--reviews"
+            && let Some(n) = args.next()
+            && let Ok(parsed) = n.parse::<usize>()
+        {
+            return parsed;
         }
     }
     DEFAULT_REVIEWS
