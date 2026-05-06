@@ -142,6 +142,36 @@ impl FsrsBridge {
         }
     }
 
+    /// HSRS-style probabilistic FSRS update with retrievability-space interpolation.
+    /// `weight` in [0, 1] determines how strongly to apply the grade. weight=1.0 is
+    /// equivalent to direct_step except `last_root_secs` is not advanced. weight=0.0
+    /// is identity (only `last_seen_secs` advances).
+    pub fn propagated_step(
+        &self,
+        state: &TestState,
+        grade: Grade,
+        weight: f32,
+        now_secs: i64,
+    ) -> TestState {
+        let w = weight.clamp(0.0, 1.0);
+        let direct = self.direct_step(state, grade, now_secs);
+        let elapsed = state.elapsed_days(now_secs).max(0.0);
+        let r_now = power_forgetting_curve(elapsed, state.stability, FSRS6_DEFAULT_DECAY);
+        let r_direct = power_forgetting_curve(elapsed, direct.stability, FSRS6_DEFAULT_DECAY);
+        let r_blend = (1.0 - w) * r_now + w * r_direct;
+        let s_blend = invert_r(r_blend, elapsed.max(0.001), FSRS6_DEFAULT_DECAY);
+        let d_blend = (1.0 - w) * state.difficulty + w * direct.difficulty;
+        let base_blend_f =
+            (1.0 - w as f64) * state.last_base_secs as f64 + w as f64 * now_secs as f64;
+        TestState {
+            stability: s_blend.clamp(S_MIN, S_MAX),
+            difficulty: d_blend.clamp(D_MIN, D_MAX),
+            last_seen_secs: now_secs,
+            last_base_secs: base_blend_f as i64,
+            last_root_secs: state.last_root_secs,
+        }
+    }
+
     pub fn direct_step(&self, state: &TestState, grade: Grade, now_secs: i64) -> TestState {
         let elapsed_days = state.elapsed_days(now_secs).max(0.0);
         let memory: MemoryState = state.into();
@@ -355,6 +385,46 @@ mod tests {
             after.stability >= ts.stability,
             "audit B1: Hard at delta=0 must not decrease S"
         );
+    }
+
+    #[test]
+    fn propagated_step_zero_weight_is_identity() {
+        let bridge = FsrsBridge::new(0.9);
+        let ts = TestState {
+            stability: 10.0,
+            difficulty: 5.0,
+            last_seen_secs: 0,
+            last_base_secs: 0,
+            last_root_secs: 0,
+        };
+        let after = bridge.propagated_step(&ts, Grade::Good, 0.0, 86400 * 7);
+        assert!((after.stability - ts.stability).abs() < 1e-3);
+        assert_eq!(after.last_seen_secs, 86400 * 7);
+        assert_eq!(after.last_base_secs, ts.last_base_secs); // unchanged
+        assert_eq!(after.last_root_secs, ts.last_root_secs); // unchanged
+    }
+
+    #[test]
+    fn propagated_step_full_weight_matches_direct_modulo_root() {
+        let bridge = FsrsBridge::new(0.9);
+        let ts = TestState {
+            stability: 10.0,
+            difficulty: 5.0,
+            last_seen_secs: 0,
+            last_base_secs: 0,
+            last_root_secs: 0,
+        };
+        let direct = bridge.direct_step(&ts, Grade::Good, 86400 * 7);
+        let prop = bridge.propagated_step(&ts, Grade::Good, 1.0, 86400 * 7);
+        assert!(
+            (prop.stability - direct.stability).abs() < 0.5,
+            "stability close: {} vs {}",
+            prop.stability,
+            direct.stability
+        );
+        assert!((prop.difficulty - direct.difficulty).abs() < 0.1);
+        assert_eq!(prop.last_root_secs, ts.last_root_secs); // last_root never advances on propagation
+        assert_eq!(prop.last_base_secs, 86400 * 7); // (1-1)·old + 1·now = now
     }
 
     #[test]
