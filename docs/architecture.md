@@ -1,12 +1,13 @@
 # Architecture
 
-> **Memory model:** the canonical reference for the memory model is
-> [`docs/path-posterior-memory-model.md`](./path-posterior-memory-model.md), which describes the
-> active HSRS-state architecture: per-test FSRS state on per-verse atomic bindings, atomic +
-> composite cards driven by `Card::tests()` routing, HSRS-style propagation between related tests.
-> The descriptions below of the core crate's responsibilities (graph, credit assignment, etc.)
-> reflect the prior edge-FSRS implementation and are being migrated; treat the HSRS memory-model doc
-> as authoritative for what the core builds.
+> **Memory model:** the canonical reference is
+> [`docs/path-posterior-memory-model.md`](./path-posterior-memory-model.md). It describes the active
+> HSRS-state architecture: per-test FSRS state on per-verse atomic bindings, atomic + composite
+> cards driven by `Card::tests()` routing, and HSRS-style propagation between related tests. The
+> sibling docs ([`graph.md`](./graph.md), [`review.md`](./review.md),
+> [`scheduling.md`](./scheduling.md)) cover their own subtopics — the verse element index, the
+> per-test review pipeline, and the per-test scheduler — and defer to the canonical spec for
+> memory-model details.
 
 ## System overview
 
@@ -74,9 +75,10 @@ limits for larger verse sets). See `docs/deployment.md`.
 ## See also
 
 * `docs/path-posterior-memory-model.md` — **canonical memory model** (HSRS-state architecture)
-* `docs/graph.md` — memory graph model (legacy edge-FSRS; being migrated)
-* `docs/review.md` — credit assignment (legacy; subsumed by HSRS direct-grade model)
-* `docs/scheduling.md` — card DB + priority (being migrated to per-test scheduling)
+* `docs/graph.md` — verse element index (`VerseIndex`, `ElementId`, bindings)
+* `docs/review.md` — review pipeline: direct + propagated FSRS updates
+* `docs/scheduling.md` — per-test FSRS scheduling and sibling cooldown
 * `docs/session.md` — within-session flow
 * `docs/wasm-api.md` — WASM boundary contract
 * `docs/persistence.md` — database schema + event sourcing
+* `docs/audit-fsrs6-2026-04-28.md` — historical audit notes folded into the migration

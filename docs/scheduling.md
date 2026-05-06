@@ -1,267 +1,130 @@
 # Scheduling
 
-How the system decides what to show the learner and when. Depends on the graph structure
-([graph.md](graph.md)) and review model ([review.md](review.md)).
+How the engine decides which card to review next. Per-test FSRS, no path enumeration, no
+priority-score arithmetic. For the memory model see
+[`path-posterior-memory-model.md`](path-posterior-memory-model.md); for the review pipeline that
+produces the state this scheduler reads see [`review.md`](review.md). Element layer:
+[`graph.md`](graph.md).
 
-## Goal
+## What changed
 
-Maximize total retained memory, minimize review effort. The scheduler picks the card where each unit
-of learner effort produces the most memory maintenance.
+The old design pre-computed a `due_date` and `priority` per card by binary searching the time at
+which a path-enumerated effective retrievability would hit the target. That table lived in a "card
+DB" alongside the edge memory state and was recomputed in a post-review cascade.
 
-## Architecture
+In the HSRS architecture there is no path enumeration and no card-level state. Each test carries its
+own FSRS `(stability, difficulty)`, and the scheduler computes "is this card due?" on the fly by
+reading those tests.
 
-Scheduling uses two database layers:
+## The two questions
 
-```
-Edge DB (memory):     edge_id, S, D, last_review_time
-Card DB (cards):      card_id, shown_atoms, hidden_atoms, due_R, due_date, priority
-Edge→Card mapping:    edge_id → [card_ids that depend on this edge]
-```
+`schedule.rs` answers exactly two questions, both for a card and a moment in time `now_secs`:
 
-The **edge DB** tracks memory state. The **card DB** tracks scheduling state. Scheduling is a simple
-query on the card DB — no graph computation at schedule time.
+1. **Is this card past its sibling cooldown?** (`is_in_cooldown`)
+2. **What is the lowest predicted retrievability across this card's tests?** (`card_min_r`)
 
-## Card catalog
+The scheduler picks the card with the lowest min-r among cards that are below the target and out of
+cooldown. That is the entire policy.
 
-Each verse has ~10 candidate cards. Each chapter has ~5–10. Total: ~5,200 card records for a
-500-verse season.
+## Per-test due time
 
-Per verse (N=4 phrases):
-
-| Card               | Shown                | Hidden           |
-| ------------------ | -------------------- | ---------------- |
-| full recitation    | {ref}                | {p1, p2, p3, p4} |
-| fill-in-blank (×N) | {ref, other phrases} | {one phrase}     |
-| first words → rest | {p1}                 | {p2, p3, p4}     |
-| verse → ref        | {p1, p2, p3, p4}     | {ref}            |
-| verse → heading    | {ref} or {phrases}   | {heading}        |
-| ref → heading      | {ref}                | {heading}        |
-| cross-verse        | {prev last phrase}   | {p1, p2, p3, p4} |
-
-Per chapter:
-
-| Card                | Shown                | Hidden           |
-| ------------------- | -------------------- | ---------------- |
-| club 150 listing    | {chapter_gist}       | {150 verse refs} |
-| club 300 listing    | {chapter_gist}       | {300 verse refs} |
-| heading → next      | {heading}            | {next heading}   |
-| heading → prev      | {heading}            | {prev heading}   |
-| ref range → heading | {start ref, end ref} | {heading}        |
-
-## Computing due_R
-
-A card is due when any of its hidden atoms drops below target retention. `due_R` is the R_eff of the
-weakest hidden atom:
+A test's due time is closed-form — `FsrsBridge::due_at(state, target_r)` inverts the FSRS power
+forgetting curve directly:
 
 ```
-due_R(card) = min over hidden atoms h: R_eff(h, shown_atoms)
+R = (1 + factor·t/S)^(-decay)
+t = S · (R^(-1/decay) - 1) / factor
 ```
 
-Where R_eff(h, shown_atoms) = parallel composition over all paths from shown atoms to h (up to 5
-hops). See [review.md](review.md).
+where `factor = exp(ln(0.9) / -decay) - 1`. No binary search. The result is a wall-clock timestamp
+measured from `state.last_base_secs` (the HSRS-style base, which advances fully on direct review and
+partially on propagated updates — see the canonical spec).
 
-For cards where the hidden atom is a reference, anchor transfer applies (see
-[review.md](review.md)).
+Predicting present-time retrievability is the symmetric call, `retrievability_of(state, now_secs)`.
 
-A card is **due** when `due_R < target_retention`.
+## Card min-r
 
-## Computing due_date
+A card grades several tests at once (composite cards like `Recitation`, `Citation`, `Ftv`,
+`Holistic`; atomic cards like `PhraseFill` or `VerseInChapter` grade exactly one). The card's
+effective retrievability is the minimum across its tests — the weakest link decides whether the card
+is overdue:
 
-R_eff(t) is deterministic and monotonically decreasing as edge R values decay. The due_date is when
-the weakest hidden atom crosses target_retention. Solved via binary search:
-
-```
-low = now
-high = now + 365 days
-while high - low > 1 hour:
-    mid = (low + high) / 2
-    if min_R_eff_at(mid) > target_retention:
-        low = mid
-    else:
-        high = mid
-due_date = high
+```rust
+fn card_min_r(card, now_secs) -> Option<f32> {
+    card.tests(atoms)
+        .iter()
+        .filter_map(|tk| tests.get(tk).map(|s| fsrs.retrievability_of(s, now_secs)))
+        .min()
+}
 ```
 
-Computing min_R_eff_at(t) = for each hidden atom, evaluate path enumeration with each edge's R
-projected to time t: `R_edge(t) = (1 + (t - last_review) / (9 · S))^(-1)`. Take the min.
+If any of a Recitation card's phrase tests has decayed past the target, the whole Recitation
+surfaces.
 
-Cost: ~20 iterations × ~120 ops = ~2,400 ops per card. Sub-millisecond.
+A card is **due** when `card_min_r < schedule_params.target_retention`. The default target is `0.9`,
+matching the FSRS-6 default desired retention.
 
-## Computing priority
+## Sibling cooldown
 
-The scheduler's goal: maximize memory maintained per unit of review effort. The priority score
-captures this by combining **cost of delay** and **review cost**.
+Cards on the same verse overlap heavily — a Recitation grades every phrase directly, then
+propagation lifts the verse-binding tests. A PhraseFill on the same verse has a propagation-touched
+test even if it hasn't been reviewed itself. Showing both in quick succession is wasted effort.
 
-### Cost of delay
+`is_in_cooldown(card_id, now_secs)` returns `true` if any test this card grades has
+`now_secs - last_seen_secs < schedule_params.sibling_cooldown_secs` (default 30 minutes). The
+scheduler filters those out. `last_seen_secs` is advanced by both direct and propagated updates, so
+cooldown captures both forms of recent activity.
 
-The cost of skipping a review is highest for barely-due edges — they have the most
-stability-compounding momentum to lose. Very overdue edges have already lost their momentum;
-delaying further costs little extra.
+## next_card
 
-For each edge on a path from shown to hidden:
-
-```
-cost_of_delay(edge) = R(edge)    if R(edge) < target_retention (edge is due)
-                    = 0          if R(edge) ≥ target_retention (edge is fine)
-```
-
-Higher R among due edges = more to lose from delay.
-
-Total cost of delay for the card = sum across all due edges the card exercises:
-
-```
-total_delay(card) = Σ R(edge) for each due edge on paths from shown to hidden
-```
-
-This is a byproduct of the path enumeration already done when computing due_R — just flag which
-edges are on paths and below target.
-
-### Review cost
-
-Review effort scales sub-linearly with hidden atoms. Typing a full verse flows sequentially (each
-phrase cues the next) and has fixed per-review overhead.
-
-```
-review_cost(card) = N_hidden ^ α      where α ∈ (0.5, 0.8), default 0.6
+```rust
+pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
+    engine.cards.iter()
+        .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
+        .filter_map(|c| Some((c.id, engine.card_min_r(c, now_secs)?)))
+        .filter(|(_, r)| *r < engine.schedule_params.target_retention)
+        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .map(|(id, _)| id)
+}
 ```
 
-| Card type          | N_hidden | Cost (α=0.6) |
-| ------------------ | -------- | ------------ |
-| fill-in-blank      | 1        | 1.0          |
-| verse → ref        | 1        | 1.0          |
-| first words → rest | 3        | 1.9          |
-| full recitation    | 4        | 2.3          |
-| club 150 listing   | 7        | 3.4          |
+Linear scan over the card list. At the few-thousand-card scale this engine is designed for, the scan
+is well under a millisecond and avoids the write-amplification of maintaining a cached priority
+queue.
 
-α can be calibrated from observed review durations once users are active.
-
-### Reinforcement bonus
-
-A card also passively reinforces edges between shown atoms (see exposure reinforcement in
-[review.md](review.md)). Edges between shown atoms that are below target contribute a β-discounted
-bonus to the priority:
-
-```
-reinforcement_bonus(card) = Σ R(edge) for due edges between shown atoms
-```
-
-This gives a card credit for doing "double duty" — testing hidden atoms while also exposing due
-shown-atom edges.
-
-### Priority formula
-
-```
-priority(card) = (total_delay(card) + β × reinforcement_bonus(card)) / review_cost(card)
-```
-
-Where β ≈ 0.1–0.3 (same discount as exposure reinforcement in credit assignment).
-
-Reinforcement bonus sums both directions of each shown↔shown edge (each directed edge contributes
-separately).
-
-**Examples** (β=0.2, α=0.6):
-
-Note: in these examples, "due edges" means all directed edges on paths from shown to hidden that
-have R < target. A full recitation card with 4 hidden phrases has paths through hub edges
-(verse→p1..p4), sequential edges (p1→p2, p2→p3, p3→p4), and ref→verse — typically 8+ directed edges.
-The examples use simplified counts for clarity.
-
-```
-All phrase-related edges barely due (R=0.88):
-  Full recitation (shown={ref}, hidden={p1,p2,p3,p4}):
-    delay = 8 × 0.88 = 7.04 (ref→verse, verse→p1..p4, p1→p2, p2→p3, p3→p4)
-    reinf = 0 (only one shown atom, no shown↔shown edges)
-    cost = 4^0.6 = 2.3
-    priority = 7.04 / 2.3 = 3.06
-
-  Fill-in-blank for p2 (shown={ref,p1,p3,p4}, hidden={p2}):
-    delay = 0.88 (p1→p2 is the main due edge on paths to p2)
-    reinf = p3→p4 + p4→p3 = 2 × 0.88 = 1.76 (only direct shown↔shown pair)
-    cost = 1^0.6 = 1.0
-    priority = (0.88 + 0.2 × 1.76) / 1.0 = 1.23
-  → Full recitation wins — covers all due edges in one review ✓
-
-Ref edge due, phrase→phrase edges also due:
-  verse→ref (shown={p1,p2,p3,p4}, hidden={ref}):
-    delay = 0.88 (verse→ref is the main due edge on paths to ref)
-    reinf = p1↔p2 + p2↔p3 + p3↔p4 = 6 × 0.88 = 5.28 (3 bi pairs = 6 directed)
-    cost = 1^0.6 = 1.0
-    priority = (0.88 + 0.2 × 5.28) / 1.0 = 1.94
-  → verse→ref wins — reinforces 6 phrase edges while testing ref ✓
-
-Only 1 edge due, nothing else weak:
-  Full recitation:  delay=0.88, reinf=0, cost=2.3 → priority = 0.38
-  Fill-in-blank:    delay=0.88, reinf=0, cost=1.0 → priority = 0.88
-  → Fill-in-blank wins — don't waste effort on non-due edges ✓
-```
-
-## Post-review cascade
-
-After each review:
-
-1. **Credit assignment** updates edges in the edge DB (new S, D, last_review_time).
-2. **Find affected cards** via the edge→card mapping. Most edges are within one verse, so ~10 cards
-   are affected. Cross-verse edges add ~20 more. Typically ~30 cards total.
-3. **Recompute due_R, due_date, and priority** for each affected card using the updated edge values
-   and binary search.
-4. **Write** updated values to the card DB.
-
-Cost: ~30 cards × ~2,400 ops = ~72,000 ops. Sub-millisecond. The cascade runs as part of the review
-completion — no background job needed.
-
-## Picking the next review
-
-Scheduling is a database query:
-
-```sql
-SELECT * FROM cards
-WHERE due_date <= now
-ORDER BY priority DESC
-LIMIT N
-```
-
-No graph computation at schedule time. The expensive work (path enumeration, binary search, priority
-scoring) is fully amortized into the post-review cascade.
+`next_card` returns `None` when nothing is both due and out of cooldown — the session loop
+interprets that as "you're caught up".
 
 ## Sessions
 
-### Fixed-size sessions
+Within-session behaviour (composite-card re-drilling, progressive reveal of new verses, FTV cards)
+lives in [`session.md`](session.md) and `crates/core/src/session.rs`. The scheduler proper is
+stateless across sessions; the session layer adds short-lived in-memory queueing on top.
 
-Defined by count or time, not "drain everything due":
+## ScheduleParams
 
-* "Give me 20 reviews"
-* "I have 15 minutes"
+```rust
+pub struct ScheduleParams {
+    pub target_retention: f32,        // default 0.9
+    pub sibling_cooldown_secs: i64,   // default 30 * 60
+}
+```
 
-Each review is heavier than an Anki card (type a verse, grade multiple phrases), so sessions have
-fewer reviews but richer signal.
+`target_retention` is also fed into `FsrsBridge::desired_retention` so that `due_at` answers _"when
+will this hit the target the scheduler is using?"_ without an extra plumbing argument.
 
-### Within-session adaptation
+## What this gives up vs. the old design
 
-After each review, the cascade updates affected cards. If the next planned card's due_date moved
-past now (no longer due), skip to the next one. This avoids wasted reviews when one review
-reinforces shared edges.
+The old priority score combined a "cost of delay" (how much momentum is about to be lost) with a
+"review cost" exponent and a reinforcement bonus for cards whose shown-side covers other due edges.
+None of that is implemented here — the new scheduler picks the most-overdue card and stops.
 
-## New verse introduction
+That is sufficient because:
 
-* Do not introduce new verses until the daily review target is met.
-* Limit to 1–3 new verses per session.
-* First review should be full recitation (ref → verse) to establish all forward edges.
-* All edges start at initial S from FSRS parameters.
-* New verse cards start with due_R and priority based on initial edge states.
+* Composite cards naturally cover many tests in one review.
+* Sibling cooldown prevents pile-ups on overlapping cards.
+* Propagation lifts related tests as a side effect of the chosen review, so "double duty" is a
+  property of the model, not a scoring term.
 
-## Phrase boundaries
-
-Phrases define where the edges go inside a verse.
-
-**Default**: AI-generated boundaries. KJV and other translations have consistent clause structure
-(commas, semicolons, conjunctions) that LLMs segment reliably. One-time pipeline per translation.
-
-**Override**: editable per verse, per user or per editor.
-
-## Open questions
-
-* **α calibration**: default 0.6 is a guess. Calibrate from observed review durations per card type
-  once real usage data exists.
-* **Session-level optimization**: the greedy approach (pick highest priority next) doesn't account
-  for covering multiple due edges in one broad card vs. several targeted cards. A knapsack-style
-  optimizer could improve session efficiency but adds complexity.
+If session-level optimisation becomes worth the complexity later, it lives on top of `next_card`,
+not in place of it.
