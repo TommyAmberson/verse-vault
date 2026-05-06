@@ -3,6 +3,8 @@
 //! `cdylib` (via `wasm-pack`) and an `rlib` so the wire types and helpers
 //! can be unit-tested with plain `cargo test`.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -12,6 +14,7 @@ use verse_vault_core::element::ElementId;
 use verse_vault_core::engine::{ReviewEngine, TestUpdate, UpdateKind};
 use verse_vault_core::test_kind::{TestKey, TestKind};
 use verse_vault_core::test_state::TestState;
+use verse_vault_core::types::{CardId, Grade};
 
 #[wasm_bindgen(start)]
 pub fn init() {
@@ -138,6 +141,37 @@ impl WasmEngine {
 
         Ok(WasmEngine { engine })
     }
+
+    /// Apply a card review. `grades_json` is a JSON array of
+    /// `{ "key": <TestKey>, "grade": <Grade> }` records — one entry per
+    /// expected test (must match `card.tests(atoms)` exactly). Returns the
+    /// resulting list of `TestUpdateWire`s as JSON.
+    pub fn replay_event(
+        &mut self,
+        card_id: u32,
+        grades_json: &str,
+        now_secs: i64,
+    ) -> Result<String, JsError> {
+        let grades = parse_grades(grades_json)
+            .map_err(|e| JsError::new(&format!("grades_json parse error: {e}")))?;
+        let outcome = self.engine.review(CardId(card_id), grades, now_secs);
+        let wire: Vec<TestUpdateWire> = outcome.updates.iter().map(TestUpdateWire::from).collect();
+        serde_json::to_string(&wire)
+            .map_err(|e| JsError::new(&format!("response serialise error: {e}")))
+    }
+}
+
+/// Parse a `[{"key": <TestKey>, "grade": <Grade>}, ...]` blob into a map.
+/// Encoding `TestKey` as a JSON value (rather than a string) keeps the wire
+/// format introspectable without committing to a specific stringification.
+fn parse_grades(grades_json: &str) -> Result<HashMap<TestKey, Grade>, serde_json::Error> {
+    #[derive(Deserialize)]
+    struct GradeEntry {
+        key: TestKey,
+        grade: Grade,
+    }
+    let entries: Vec<GradeEntry> = serde_json::from_str(grades_json)?;
+    Ok(entries.into_iter().map(|e| (e.key, e.grade)).collect())
 }
 
 #[cfg(test)]
