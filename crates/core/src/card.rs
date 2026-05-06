@@ -162,8 +162,32 @@ impl Card {
                 },
             ],
             CardKind::Ftv { with_citation } => ftv_tests(verse_id, atoms, with_citation),
-            // composite filled in by task 3.7 — placeholder for now
-            CardKind::Holistic => Vec::new(),
+            CardKind::Holistic => {
+                let mut out: Vec<TestKey> = atoms
+                    .phrase_positions()
+                    .into_iter()
+                    .map(|p| TestKey {
+                        kind: TestKind::PhraseFromChain,
+                        element: ElementId::Phrase {
+                            verse_id,
+                            position: p,
+                        },
+                    })
+                    .collect();
+                out.push(TestKey {
+                    kind: TestKind::VerseRefPosition,
+                    element: ElementId::VerseRefPosition { verse_id },
+                });
+                out.push(TestKey {
+                    kind: TestKind::VerseChapter,
+                    element: ElementId::VerseChapterBinding { verse_id },
+                });
+                out.push(TestKey {
+                    kind: TestKind::VerseBook,
+                    element: ElementId::VerseBookBinding { verse_id },
+                });
+                out
+            }
         }
     }
 }
@@ -301,6 +325,13 @@ mod tests {
                 }
             }]
         );
+    }
+
+    #[test]
+    fn holistic_grades_n_plus_three() {
+        let c = atomic_card(0, CardKind::Holistic, 7);
+        let tests = c.tests(&sample_atoms(7, 4));
+        assert_eq!(tests.len(), 7); // 4 phrase + 3 citation
     }
 
     #[test]
