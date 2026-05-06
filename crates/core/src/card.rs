@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::element::{ClubTier, ElementId};
 use crate::test_kind::{TestKey, TestKind};
-use crate::types::{CardId, NodeId};
+use crate::types::CardId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CardState {
@@ -32,13 +32,9 @@ pub enum CardKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Card {
     pub id: CardId,
-    pub shown: Vec<NodeId>,
-    pub hidden: Vec<NodeId>,
+    pub kind: CardKind,
+    pub verse_id: u32,
     pub state: CardState,
-    #[serde(default)]
-    pub kind: Option<CardKind>,
-    #[serde(default)]
-    pub verse_id: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,13 +94,9 @@ pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<
 
 impl Card {
     /// The set of tests this card grades when reviewed.
-    /// Returns empty if the card is legacy (kind is None).
     pub fn tests(&self, atoms: &VerseAtoms) -> Vec<TestKey> {
-        let Some(kind) = self.kind else {
-            return Vec::new();
-        };
-        let verse_id = self.verse_id.unwrap_or(atoms.verse_id);
-        match kind {
+        let verse_id = self.verse_id;
+        match self.kind {
             CardKind::PhraseFill { position } => vec![TestKey {
                 kind: TestKind::PhraseFromContext,
                 element: ElementId::Phrase { verse_id, position },
@@ -210,11 +202,9 @@ mod tests {
     fn atomic_card(id: u32, kind: CardKind, verse_id: u32) -> Card {
         Card {
             id: CardId(id),
-            shown: vec![],
-            hidden: vec![],
+            kind,
+            verse_id,
             state: CardState::Review,
-            kind: Some(kind),
-            verse_id: Some(verse_id),
         }
     }
 
