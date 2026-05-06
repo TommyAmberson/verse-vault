@@ -1,14 +1,14 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::builder::BuildResult;
 use crate::card::{Card, VerseAtoms};
 use crate::element::ElementId;
 use crate::element::ElementMeta;
 use crate::fsrs_bridge::FsrsBridge;
-use crate::propagate::PropagationParams;
+use crate::propagate::{PropagationParams, related_tests};
 use crate::test_kind::TestKey;
 use crate::test_state::TestState;
-use crate::types::CardId;
+use crate::types::{CardId, Grade};
 use crate::verse_index::VerseIndex;
 
 #[derive(Debug, Clone, Copy)]
@@ -112,12 +112,93 @@ impl ReviewEngine {
             phrase_zero_text: None,
         }
     }
+
+    /// Apply a per-test grade map to this card. The set of keys must equal
+    /// `card.tests(atoms)` exactly.
+    ///
+    /// Pipeline (D5):
+    /// 1. Validate `grades.keys() == card.tests(atoms)`.
+    /// 2. Apply `direct_step` to each graded test.
+    /// 3. For each direct, enumerate `related_tests` and apply
+    ///    `propagated_step` with the direct grade and the edge weight.
+    ///
+    /// If two directs propagate to the same target, the second sees the
+    /// first's updated state. That matches HSRS semantics: each propagation
+    /// is just another partial update applied in arrival order.
+    pub fn review(
+        &mut self,
+        card_id: CardId,
+        grades: HashMap<TestKey, Grade>,
+        now_secs: i64,
+    ) -> ReviewOutcome {
+        let card = self
+            .card(card_id)
+            .unwrap_or_else(|| panic!("review: unknown card {card_id:?}"))
+            .clone();
+        let atoms = self.atoms_for(card.verse_id);
+        let expected: HashSet<TestKey> = card.tests(&atoms).into_iter().collect();
+        let actual: HashSet<TestKey> = grades.keys().copied().collect();
+        assert_eq!(
+            actual, expected,
+            "review: graded tests must equal card.tests(atoms)"
+        );
+
+        let mut updates: Vec<TestUpdate> = Vec::with_capacity(expected.len() * 4);
+
+        // 1. Direct updates.
+        let direct_pairs: Vec<(TestKey, Grade)> = grades.iter().map(|(&k, &g)| (k, g)).collect();
+        for (key, grade) in &direct_pairs {
+            let before = *self
+                .tests
+                .get(key)
+                .unwrap_or_else(|| panic!("review: missing TestState for direct key {key:?}"));
+            let after = self.fsrs.direct_step(&before, *grade, now_secs);
+            self.tests.insert(*key, after);
+            updates.push(TestUpdate {
+                key: *key,
+                kind: UpdateKind::Direct,
+                before,
+                after,
+            });
+        }
+
+        // 2. Propagated updates. Each direct's grade fans out via static
+        //    edges from `related_tests`. We skip self-targets (a direct never
+        //    propagates to itself) but allow the same target from multiple
+        //    directs — later applications see earlier updates' state.
+        for (direct_key, grade) in &direct_pairs {
+            let edges = related_tests(*direct_key, &self.verse_index, &self.propagation_params);
+            for edge in edges {
+                if edge.target == *direct_key {
+                    continue;
+                }
+                let before = match self.tests.get(&edge.target) {
+                    Some(s) => *s,
+                    None => continue, // target not in card universe — skip silently.
+                };
+                let after = self
+                    .fsrs
+                    .propagated_step(&before, *grade, edge.weight, now_secs);
+                self.tests.insert(edge.target, after);
+                updates.push(TestUpdate {
+                    key: edge.target,
+                    kind: UpdateKind::Propagated,
+                    before,
+                    after,
+                });
+            }
+        }
+
+        ReviewOutcome { updates }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::card::CardKind;
     use crate::content::MaterialData;
+    use crate::test_kind::TestKind;
 
     fn sample_material_one_verse() -> MaterialData {
         serde_json::from_str(
@@ -156,5 +237,132 @@ mod tests {
         assert_eq!(atoms.phrase_count, 4);
         assert_eq!(atoms.ftv.as_deref(), Some("For God"));
         assert_eq!(atoms.phrase_zero_text.as_deref(), Some("For God"));
+    }
+
+    #[test]
+    fn review_citation_card_updates_three_tests() {
+        let mut engine = build_engine();
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::Citation))
+            .unwrap()
+            .id;
+        let atoms = engine.atoms_for(0);
+        let card = engine.card(card_id).unwrap().clone();
+        let grades: HashMap<_, _> = card
+            .tests(&atoms)
+            .into_iter()
+            .map(|t| (t, Grade::Good))
+            .collect();
+        let now = 86400 * 365 + 86400 * 7;
+        let outcome = engine.review(card_id, grades, now);
+        let direct_count = outcome
+            .updates
+            .iter()
+            .filter(|u| u.kind == UpdateKind::Direct)
+            .count();
+        assert_eq!(direct_count, 3);
+        // Direct binding tests get last_root advanced.
+        let s = engine
+            .test_state(TestKey {
+                kind: TestKind::VerseRefPosition,
+                element: ElementId::VerseRefPosition { verse_id: 0 },
+            })
+            .unwrap();
+        assert_eq!(s.last_root_secs, now);
+    }
+
+    #[test]
+    fn review_propagates_to_related_tests() {
+        let mut engine = build_engine();
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        let atoms = engine.atoms_for(0);
+        let card = engine.card(card_id).unwrap().clone();
+        let grades: HashMap<_, _> = card
+            .tests(&atoms)
+            .into_iter()
+            .map(|t| (t, Grade::Good))
+            .collect();
+        let now = 86400 * 365 + 86400 * 7;
+        let outcome = engine.review(card_id, grades, now);
+        assert!(
+            outcome
+                .updates
+                .iter()
+                .any(|u| u.kind == UpdateKind::Propagated)
+        );
+        // The propagated VerseChapter binding should have been touched but
+        // its last_root must remain at the seeded (initial) value.
+        let chapter_state = engine
+            .test_state(TestKey {
+                kind: TestKind::VerseChapter,
+                element: ElementId::VerseChapterBinding { verse_id: 0 },
+            })
+            .unwrap();
+        assert_eq!(chapter_state.last_seen_secs, now);
+        // Initial `last_root_secs` is `now_at_build - 365 days` (build time was 0).
+        let initial_root = TestState::new_unseen(0).last_root_secs;
+        assert_eq!(chapter_state.last_root_secs, initial_root);
+    }
+
+    #[test]
+    fn review_phrasefill_has_one_direct_and_propagated() {
+        let mut engine = build_engine();
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        let atoms = engine.atoms_for(0);
+        let card = engine.card(card_id).unwrap().clone();
+        let grades: HashMap<_, _> = card
+            .tests(&atoms)
+            .into_iter()
+            .map(|t| (t, Grade::Good))
+            .collect();
+        let now = 86400 * 365 + 86400 * 7;
+        let outcome = engine.review(card_id, grades, now);
+        let direct = outcome
+            .updates
+            .iter()
+            .filter(|u| u.kind == UpdateKind::Direct)
+            .count();
+        let propagated = outcome
+            .updates
+            .iter()
+            .filter(|u| u.kind == UpdateKind::Propagated)
+            .count();
+        assert_eq!(direct, 1);
+        // 1 sibling + 3 verse-binding endpoints (no headings, no clubs).
+        assert_eq!(propagated, 4);
+    }
+
+    #[test]
+    #[should_panic(expected = "graded tests must equal")]
+    fn review_panics_on_mismatched_grades() {
+        let mut engine = build_engine();
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::Citation))
+            .unwrap()
+            .id;
+        let mut grades: HashMap<TestKey, Grade> = HashMap::new();
+        // missing the other two — Citation grades 3.
+        grades.insert(
+            TestKey {
+                kind: TestKind::VerseRefPosition,
+                element: ElementId::VerseRefPosition { verse_id: 0 },
+            },
+            Grade::Good,
+        );
+        engine.review(card_id, grades, 86400 * 365);
     }
 }
