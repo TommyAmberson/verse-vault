@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::element::ClubTier;
+use crate::element::{ClubTier, ElementId};
+use crate::test_kind::{TestKey, TestKind};
 use crate::types::{CardId, NodeId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,9 +65,80 @@ impl VerseAtoms {
     }
 }
 
+impl Card {
+    /// The set of tests this card grades when reviewed.
+    /// Returns empty if the card is legacy (kind is None).
+    pub fn tests(&self, atoms: &VerseAtoms) -> Vec<TestKey> {
+        let Some(kind) = self.kind else {
+            return Vec::new();
+        };
+        let verse_id = self.verse_id.unwrap_or(atoms.verse_id);
+        match kind {
+            CardKind::PhraseFill { position } => vec![TestKey {
+                kind: TestKind::PhraseFromContext,
+                element: ElementId::Phrase { verse_id, position },
+            }],
+            CardKind::PhraseChain { position } => vec![TestKey {
+                kind: TestKind::PhraseFromChain,
+                element: ElementId::Phrase { verse_id, position },
+            }],
+            CardKind::VerseAtVerseRef => vec![TestKey {
+                kind: TestKind::VerseRefPosition,
+                element: ElementId::VerseRefPosition { verse_id },
+            }],
+            CardKind::VerseInChapter => vec![TestKey {
+                kind: TestKind::VerseChapter,
+                element: ElementId::VerseChapterBinding { verse_id },
+            }],
+            CardKind::VerseInBook => vec![TestKey {
+                kind: TestKind::VerseBook,
+                element: ElementId::VerseBookBinding { verse_id },
+            }],
+            CardKind::VerseInHeading { heading_idx } => vec![TestKey {
+                kind: TestKind::VerseHeading,
+                element: ElementId::VerseHeadingBinding {
+                    verse_id,
+                    heading_idx,
+                },
+            }],
+            CardKind::VerseInClub { tier } => vec![TestKey {
+                kind: TestKind::VerseClub,
+                element: ElementId::VerseClubBinding { verse_id, tier },
+            }],
+            // composites filled in by tasks 3.4 / 3.5 / 3.6 / 3.7 — placeholder for now
+            CardKind::Recitation
+            | CardKind::Citation
+            | CardKind::Ftv { .. }
+            | CardKind::Holistic => Vec::new(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_atoms(verse_id: u32, phrase_count: u16) -> VerseAtoms {
+        VerseAtoms {
+            verse_id,
+            phrase_count,
+            headings: vec![0, 1, 2],
+            clubs: vec![ClubTier::First, ClubTier::Second, ClubTier::Third],
+            ftv: None,
+            phrase_zero_text: None,
+        }
+    }
+
+    fn atomic_card(id: u32, kind: CardKind, verse_id: u32) -> Card {
+        Card {
+            id: CardId(id),
+            shown: vec![],
+            hidden: vec![],
+            state: CardState::Review,
+            kind: Some(kind),
+            verse_id: Some(verse_id),
+        }
+    }
 
     #[test]
     fn card_kind_serializes() {
@@ -87,5 +159,115 @@ mod tests {
             phrase_zero_text: Some("For God so loved".into()),
         };
         assert_eq!(atoms.phrase_positions(), vec![0u16, 1, 2]);
+    }
+
+    #[test]
+    fn phrase_fill_grades_one_test() {
+        let c = atomic_card(0, CardKind::PhraseFill { position: 1 }, 7);
+        let atoms = sample_atoms(7, 4);
+        let tests = c.tests(&atoms);
+        assert_eq!(
+            tests,
+            vec![TestKey {
+                kind: TestKind::PhraseFromContext,
+                element: ElementId::Phrase {
+                    verse_id: 7,
+                    position: 1
+                }
+            }]
+        );
+    }
+
+    #[test]
+    fn phrase_chain_grades_one_test() {
+        let c = atomic_card(0, CardKind::PhraseChain { position: 2 }, 7);
+        let tests = c.tests(&sample_atoms(7, 4));
+        assert_eq!(
+            tests,
+            vec![TestKey {
+                kind: TestKind::PhraseFromChain,
+                element: ElementId::Phrase {
+                    verse_id: 7,
+                    position: 2
+                }
+            }]
+        );
+    }
+
+    #[test]
+    fn verse_at_verseref_grades_position() {
+        let c = atomic_card(0, CardKind::VerseAtVerseRef, 7);
+        let tests = c.tests(&sample_atoms(7, 4));
+        assert_eq!(
+            tests,
+            vec![TestKey {
+                kind: TestKind::VerseRefPosition,
+                element: ElementId::VerseRefPosition { verse_id: 7 }
+            }]
+        );
+    }
+
+    #[test]
+    fn verse_in_chapter_grades_chapter_binding() {
+        let c = atomic_card(0, CardKind::VerseInChapter, 7);
+        let tests = c.tests(&sample_atoms(7, 4));
+        assert_eq!(
+            tests,
+            vec![TestKey {
+                kind: TestKind::VerseChapter,
+                element: ElementId::VerseChapterBinding { verse_id: 7 }
+            }]
+        );
+    }
+
+    #[test]
+    fn verse_in_book_grades_book_binding() {
+        let c = atomic_card(0, CardKind::VerseInBook, 7);
+        let tests = c.tests(&sample_atoms(7, 4));
+        assert_eq!(
+            tests,
+            vec![TestKey {
+                kind: TestKind::VerseBook,
+                element: ElementId::VerseBookBinding { verse_id: 7 }
+            }]
+        );
+    }
+
+    #[test]
+    fn verse_in_heading_grades_heading_binding() {
+        let c = atomic_card(0, CardKind::VerseInHeading { heading_idx: 2 }, 7);
+        let tests = c.tests(&sample_atoms(7, 4));
+        assert_eq!(
+            tests,
+            vec![TestKey {
+                kind: TestKind::VerseHeading,
+                element: ElementId::VerseHeadingBinding {
+                    verse_id: 7,
+                    heading_idx: 2
+                }
+            }]
+        );
+    }
+
+    #[test]
+    fn verse_in_club_grades_club_binding() {
+        let c = atomic_card(
+            0,
+            CardKind::VerseInClub {
+                tier: ClubTier::Second,
+            },
+            7,
+        );
+        let tests = c.tests(&sample_atoms(7, 4));
+        assert_eq!(
+            tests,
+            vec![TestKey {
+                kind: TestKind::VerseClub,
+                element: ElementId::VerseClubBinding {
+                    verse_id: 7,
+                    tier: ClubTier::Second
+                }
+            }]
+        );
     }
 }
