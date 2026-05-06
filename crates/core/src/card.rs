@@ -15,18 +15,32 @@ pub enum CardState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CardKind {
     // atomic — each grades exactly one test
-    PhraseFill { position: u16 },
-    PhraseChain { position: u16 },
+    PhraseFill {
+        position: u16,
+    },
+    PhraseChain {
+        position: u16,
+    },
     VerseAtVerseRef,
     VerseInChapter,
     VerseInBook,
-    VerseInHeading { heading_idx: u16 },
-    VerseInClub { tier: ClubTier },
+    VerseInHeading {
+        heading_idx: u16,
+    },
+    VerseInClub {
+        tier: ClubTier,
+    },
     // composite — each grades many tests
     Recitation,
     Citation,
-    Ftv { with_citation: bool },
+    Ftv {
+        with_citation: bool,
+    },
     Holistic,
+    /// UX-only: progressive-reveal entry that shows the verse text to the
+    /// learner. Carries no FSRS state and is never emitted by `builder::build`;
+    /// it only appears in `Session::new_verse_progression`.
+    Reading,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -154,6 +168,7 @@ impl Card {
                 },
             ],
             CardKind::Ftv { with_citation } => ftv_tests(verse_id, atoms, with_citation),
+            CardKind::Reading => Vec::new(),
             CardKind::Holistic => {
                 let mut out: Vec<TestKey> = atoms
                     .phrase_positions()
@@ -416,6 +431,13 @@ mod tests {
                 .iter()
                 .all(|t| matches!(t.element, ElementId::Phrase { verse_id: 7, .. }))
         );
+    }
+
+    #[test]
+    fn reading_grades_no_tests() {
+        let c = atomic_card(0, CardKind::Reading, 7);
+        let tests = c.tests(&sample_atoms(7, 4));
+        assert!(tests.is_empty());
     }
 
     #[test]
