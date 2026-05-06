@@ -5,6 +5,7 @@
 //! Reference: <https://github.com/open-spaced-repetition/fsrs-rs>
 
 use crate::edge::EdgeState;
+use crate::test_state::TestState;
 use crate::types::Grade;
 
 const SECS_PER_DAY: f64 = 86400.0;
@@ -44,6 +45,15 @@ pub const DEFAULT_PARAMETERS: [f32; 21] = [
 pub struct MemoryState {
     pub stability: f32,
     pub difficulty: f32,
+}
+
+impl From<&TestState> for MemoryState {
+    fn from(ts: &TestState) -> Self {
+        MemoryState {
+            stability: ts.stability,
+            difficulty: ts.difficulty,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -282,6 +292,20 @@ mod tests {
             difficulty: 5.0,
             last_review_secs: -secs_ago,
         }
+    }
+
+    #[test]
+    fn test_state_to_memory_round_trip() {
+        let ts = TestState {
+            stability: 12.0,
+            difficulty: 6.5,
+            last_seen_secs: 0,
+            last_base_secs: 0,
+            last_root_secs: 0,
+        };
+        let ms: MemoryState = (&ts).into();
+        assert_eq!(ms.stability, 12.0);
+        assert_eq!(ms.difficulty, 6.5);
     }
 
     #[test]
