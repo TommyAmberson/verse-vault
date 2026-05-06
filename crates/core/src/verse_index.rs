@@ -85,7 +85,7 @@ mod tests {
             VerseElements {
                 phrases: vec![0],
                 headings: vec![0],
-                clubs: vec![ClubTier::First],
+                clubs: vec![ClubTier::Club150],
             },
         );
         let bindings = idx.bindings_of(7);

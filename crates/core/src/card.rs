@@ -201,7 +201,7 @@ mod tests {
             verse_id,
             phrase_count,
             headings: vec![0, 1, 2],
-            clubs: vec![ClubTier::First, ClubTier::Second, ClubTier::Third],
+            clubs: vec![ClubTier::Club150, ClubTier::Club300],
             ftv: None,
             phrase_zero_text: None,
         }
@@ -232,7 +232,7 @@ mod tests {
             verse_id: 1,
             phrase_count: 3,
             headings: vec![0],
-            clubs: vec![ClubTier::First],
+            clubs: vec![ClubTier::Club150],
             ftv: Some("For God".into()),
             phrase_zero_text: Some("For God so loved".into()),
         };
@@ -433,7 +433,7 @@ mod tests {
         let c = atomic_card(
             0,
             CardKind::VerseInClub {
-                tier: ClubTier::Second,
+                tier: ClubTier::Club300,
             },
             7,
         );
@@ -444,7 +444,7 @@ mod tests {
                 kind: TestKind::VerseClub,
                 element: ElementId::VerseClubBinding {
                     verse_id: 7,
-                    tier: ClubTier::Second
+                    tier: ClubTier::Club300
                 }
             }]
         );
