@@ -236,18 +236,24 @@ mod tests {
             shown: vec![r],
             hidden: vec![p1, p2, p3],
             state: CardState::Review,
+            kind: None,
+            verse_id: None,
         };
         let fill_p2 = Card {
             id: CardId(1),
             shown: vec![r, p1, p3],
             hidden: vec![p2],
             state: CardState::Review,
+            kind: None,
+            verse_id: None,
         };
         let verse_to_ref = Card {
             id: CardId(2),
             shown: vec![p1, p2, p3],
             hidden: vec![r],
             state: CardState::Review,
+            kind: None,
+            verse_id: None,
         };
 
         (g, vec![full, fill_p2, verse_to_ref], r, v, p1, p2, p3)

@@ -177,6 +177,8 @@ fn run(data_path: &str, chapter_filter: Option<u16>, days: i64) -> Result<(), St
                 shown,
                 hidden,
                 state: verse_vault_core::card::CardState::Review,
+                kind: None,
+                verse_id: None,
             };
             let grades = learner.review(&engine.graph, &temp_card, now);
             let all_passed = grades.values().all(|g| g.is_pass());

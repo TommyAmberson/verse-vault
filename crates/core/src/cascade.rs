@@ -150,18 +150,24 @@ mod tests {
             shown: vec![r],
             hidden: vec![p1, p2],
             state: CardState::Review,
+            kind: None,
+            verse_id: None,
         };
         let fill_in_p1 = Card {
             id: CardId(1),
             shown: vec![r, p2],
             hidden: vec![p1],
             state: CardState::Review,
+            kind: None,
+            verse_id: None,
         };
         let verse_to_ref = Card {
             id: CardId(2),
             shown: vec![p1, p2],
             hidden: vec![r],
             state: CardState::Review,
+            kind: None,
+            verse_id: None,
         };
 
         (g, vec![full_recitation, fill_in_p1, verse_to_ref])
