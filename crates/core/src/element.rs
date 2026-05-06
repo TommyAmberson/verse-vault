@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+/// Bible-quizzer club tier: verses are grouped into clubs by total
+/// memorisation count (the 150-verse club, the 300-verse club, etc.).
+/// A verse tagged at one tier is implicitly in higher tiers too — see
+/// the tier-subset rule in `builder::expand_tiers`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ClubTier {
-    First,
-    Second,
-    Third,
+    Club150,
+    Club300,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

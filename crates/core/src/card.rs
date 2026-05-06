@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::element::{ClubTier, ElementId};
 use crate::test_kind::{TestKey, TestKind};
-use crate::types::{CardId, NodeId};
+use crate::types::CardId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CardState {
@@ -32,13 +32,9 @@ pub enum CardKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Card {
     pub id: CardId,
-    pub shown: Vec<NodeId>,
-    pub hidden: Vec<NodeId>,
+    pub kind: CardKind,
+    pub verse_id: u32,
     pub state: CardState,
-    #[serde(default)]
-    pub kind: Option<CardKind>,
-    #[serde(default)]
-    pub verse_id: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,13 +94,9 @@ pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<
 
 impl Card {
     /// The set of tests this card grades when reviewed.
-    /// Returns empty if the card is legacy (kind is None).
     pub fn tests(&self, atoms: &VerseAtoms) -> Vec<TestKey> {
-        let Some(kind) = self.kind else {
-            return Vec::new();
-        };
-        let verse_id = self.verse_id.unwrap_or(atoms.verse_id);
-        match kind {
+        let verse_id = self.verse_id;
+        match self.kind {
             CardKind::PhraseFill { position } => vec![TestKey {
                 kind: TestKind::PhraseFromContext,
                 element: ElementId::Phrase { verse_id, position },
@@ -201,7 +193,7 @@ mod tests {
             verse_id,
             phrase_count,
             headings: vec![0, 1, 2],
-            clubs: vec![ClubTier::First, ClubTier::Second, ClubTier::Third],
+            clubs: vec![ClubTier::Club150, ClubTier::Club300],
             ftv: None,
             phrase_zero_text: None,
         }
@@ -210,11 +202,9 @@ mod tests {
     fn atomic_card(id: u32, kind: CardKind, verse_id: u32) -> Card {
         Card {
             id: CardId(id),
-            shown: vec![],
-            hidden: vec![],
+            kind,
+            verse_id,
             state: CardState::Review,
-            kind: Some(kind),
-            verse_id: Some(verse_id),
         }
     }
 
@@ -232,7 +222,7 @@ mod tests {
             verse_id: 1,
             phrase_count: 3,
             headings: vec![0],
-            clubs: vec![ClubTier::First],
+            clubs: vec![ClubTier::Club150],
             ftv: Some("For God".into()),
             phrase_zero_text: Some("For God so loved".into()),
         };
@@ -433,7 +423,7 @@ mod tests {
         let c = atomic_card(
             0,
             CardKind::VerseInClub {
-                tier: ClubTier::Second,
+                tier: ClubTier::Club300,
             },
             7,
         );
@@ -444,7 +434,7 @@ mod tests {
                 kind: TestKind::VerseClub,
                 element: ElementId::VerseClubBinding {
                     verse_id: 7,
-                    tier: ClubTier::Second
+                    tier: ClubTier::Club300
                 }
             }]
         );

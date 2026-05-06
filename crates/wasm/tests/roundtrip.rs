@@ -1,42 +1,9 @@
-//! Verifies the JSON shape used for WASM boundary loading.
-//! Run with: cargo test -p verse-vault-wasm
-
-use verse_vault_core::card::{Card, CardState};
-use verse_vault_core::graph::Graph;
-use verse_vault_core::node::NodeKind;
-use verse_vault_core::types::{CardId, NodeId};
+//! The legacy roundtrip test exercised graph + node JSON shapes that have been
+//! deleted as part of the HSRS migration. The Phase 7 WASM rewrite will add new
+//! roundtrip coverage for `TestStateEntry` etc.
 
 #[test]
+#[ignore]
 fn print_graph_json_shape() {
-    let mut g = Graph::new();
-    let r = g.add_node(NodeKind::VerseRef {
-        chapter: 3,
-        verse: 16,
-    });
-    let v = g.add_node(NodeKind::VerseGist {
-        chapter: 3,
-        verse: 16,
-    });
-    g.add_bi_edge(v, r);
-
-    let graph_json = serde_json::to_string_pretty(&g).unwrap();
-    println!("Graph JSON:\n{graph_json}");
-
-    let card = Card {
-        id: CardId(0),
-        shown: vec![r],
-        hidden: vec![v],
-        state: CardState::New,
-        kind: None,
-        verse_id: None,
-    };
-    let card_json = serde_json::to_string_pretty(&card).unwrap();
-    println!("Card JSON:\n{card_json}");
-
-    let id = NodeId(42);
-    println!("NodeId JSON: {}", serde_json::to_string(&id).unwrap());
-
-    // Roundtrip the graph
-    let parsed: Graph = serde_json::from_str(&graph_json).unwrap();
-    assert_eq!(parsed.node_count(), 2);
+    // Phase 4: legacy types deleted; new wire format ships in Phase 7.
 }

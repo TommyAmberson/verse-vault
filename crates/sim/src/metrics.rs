@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub struct Prediction {
     pub predicted_r: f32,
     pub actual_pass: bool,
