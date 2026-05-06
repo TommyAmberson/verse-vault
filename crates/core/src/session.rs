@@ -581,6 +581,8 @@ mod tests {
             shown: vec![r],
             hidden: vec![p1, p2, p3],
             state: CardState::Review,
+            kind: None,
+            verse_id: None,
         };
         let engine = ReviewEngine::new(g, vec![full], 0.9);
         (engine, r, v, p1, p2, p3)

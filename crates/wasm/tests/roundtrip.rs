@@ -27,6 +27,8 @@ fn print_graph_json_shape() {
         shown: vec![r],
         hidden: vec![v],
         state: CardState::New,
+        kind: None,
+        verse_id: None,
     };
     let card_json = serde_json::to_string_pretty(&card).unwrap();
     println!("Card JSON:\n{card_json}");

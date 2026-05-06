@@ -785,6 +785,8 @@ fn generate_chapter_club_cards(
             shown,
             hidden,
             state: CardState::New,
+            kind: None,
+            verse_id: None,
         });
     }
 }
@@ -814,6 +816,8 @@ fn generate_heading_cards(
             shown,
             hidden,
             state: CardState::New,
+            kind: None,
+            verse_id: None,
         });
     }
 }
@@ -865,6 +869,8 @@ fn resolve_card(
         shown,
         hidden,
         state: CardState::New,
+        kind: None,
+        verse_id: None,
     })
 }
 

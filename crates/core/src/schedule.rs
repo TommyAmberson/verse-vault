@@ -285,6 +285,8 @@ mod tests {
             shown: vec![r],
             hidden: vec![p1, p2],
             state: CardState::Review,
+            kind: None,
+            verse_id: None,
         };
 
         (g, card)
@@ -421,12 +423,16 @@ mod tests {
             shown: vec![r],
             hidden: phrases.clone(),
             state: crate::card::CardState::Review,
+            kind: None,
+            verse_id: None,
         };
         let fill_in = Card {
             id: CardId(1),
             shown: vec![r, phrases[0], phrases[2], phrases[3]],
             hidden: vec![phrases[1]],
             state: crate::card::CardState::Review,
+            kind: None,
+            verse_id: None,
         };
 
         let params = ScheduleParams::default();
