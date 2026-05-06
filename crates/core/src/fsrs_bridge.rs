@@ -282,6 +282,19 @@ fn power_forgetting_curve(t: f32, s: f32, decay: f32) -> f32 {
     (t / s * factor + 1.0).powf(-decay)
 }
 
+/// Inverse of the FSRS power forgetting curve: given a target retrievability,
+/// elapsed days, and decay, return the stability that produces that retrievability.
+/// Used by HSRS-style retrievability-space interpolation in propagated_step.
+pub fn invert_r(r: f32, elapsed_days: f32, decay: f32) -> f32 {
+    // R = (1 + factor·t/S)^(-decay), so S = factor·t / (R^(-1/decay) - 1)
+    let factor = (0.9_f32.ln() / -decay).exp() - 1.0;
+    let denom = r.powf(-1.0 / decay) - 1.0;
+    if denom.abs() < 1e-9 {
+        return S_MAX;
+    }
+    (factor * elapsed_days / denom).clamp(S_MIN, S_MAX)
+}
+
 fn grade_to_state(next: &NextStates, grade: Grade) -> &MemoryState {
     match grade {
         Grade::Again => &next.again,
@@ -342,6 +355,15 @@ mod tests {
             after.stability >= ts.stability,
             "audit B1: Hard at delta=0 must not decrease S"
         );
+    }
+
+    #[test]
+    fn invert_r_round_trip() {
+        let s = 10.0;
+        let elapsed_days = 5.0;
+        let r = power_forgetting_curve(elapsed_days, s, FSRS6_DEFAULT_DECAY);
+        let s_back = invert_r(r, elapsed_days, FSRS6_DEFAULT_DECAY);
+        assert!((s - s_back).abs() < 0.01, "round trip: {} vs {}", s, s_back);
     }
 
     #[test]
