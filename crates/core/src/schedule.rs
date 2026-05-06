@@ -3,6 +3,23 @@ use crate::engine::ReviewEngine;
 use crate::types::CardId;
 
 impl ReviewEngine {
+    /// True when any test this card grades was touched (directly or via
+    /// propagation) within `schedule_params.sibling_cooldown_secs`.
+    /// Used to suppress reviews of overlapping cards inside one session.
+    pub fn is_in_cooldown(&self, card_id: CardId, now_secs: i64) -> bool {
+        let card = match self.card(card_id) {
+            Some(c) => c,
+            None => return false,
+        };
+        let atoms = self.atoms_for(card.verse_id);
+        let cd = self.schedule_params.sibling_cooldown_secs;
+        card.tests(&atoms).iter().any(|tk| {
+            self.tests
+                .get(tk)
+                .is_some_and(|s| now_secs - s.last_seen_secs < cd)
+        })
+    }
+
     /// The minimum predicted retrievability across this card's tests, at
     /// `now_secs`. The card is "due" when this falls below the scheduler's
     /// target retention. Returns None if the card has no tests with state.
@@ -24,11 +41,13 @@ impl ReviewEngine {
 }
 
 /// Pick the card whose weakest test is furthest below the target retention.
-/// Cards above target are skipped — they're not yet due.
+/// Cards above target are skipped — they're not yet due. Cards whose tests
+/// were touched within the sibling cooldown are also skipped.
 pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
     engine
         .cards
         .iter()
+        .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
         .filter_map(|c| Some((c.id, engine.card_min_r(c, now_secs)?)))
         .filter(|(_, r)| *r < engine.schedule_params.target_retention)
         .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
@@ -38,7 +57,32 @@ pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::card::CardKind;
     use crate::content::MaterialData;
+    use crate::test_kind::TestKey;
+    use crate::types::Grade;
+    use std::collections::HashMap;
+
+    fn sample_material_one_verse() -> MaterialData {
+        serde_json::from_str(
+            r#"{
+                "year": 3,
+                "books": ["John"],
+                "chapters": [{"book": "John", "number": 3, "start_verse": 16, "end_verse": 16}],
+                "verses": [
+                    {
+                        "book": "John", "chapter": 3, "verse": 16,
+                        "text": "For God so loved the world that he gave",
+                        "phrases": ["For God", "so loved", "the world", "that he gave"],
+                        "ftv": "For God",
+                        "clubs": []
+                    }
+                ],
+                "headings": []
+            }"#,
+        )
+        .unwrap()
+    }
 
     fn sample_material_two_verses() -> MaterialData {
         serde_json::from_str(
@@ -81,6 +125,42 @@ mod tests {
         let now = 86400 * 365 + 86400 * 60;
         let pick = next_card(&engine, now);
         assert!(pick.is_some());
+    }
+
+    #[test]
+    fn sibling_cooldown_blocks_phrasefill_after_recitation() {
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        let now = 86400 * 365;
+        let recit_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::Recitation))
+            .unwrap()
+            .id;
+        let atoms = engine.atoms_for(0);
+        let card = engine.card(recit_id).unwrap().clone();
+        let grades: HashMap<TestKey, Grade> = card
+            .tests(&atoms)
+            .into_iter()
+            .map(|t| (t, Grade::Good))
+            .collect();
+        engine.review(recit_id, grades, now);
+
+        let pf_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        // Recitation grades all PhraseFromChain phrases directly. Phrase from
+        // PhraseFill (PhraseFromContext) gets propagated through the sibling
+        // edge → its last_seen also advances. So the PhraseFill card is in
+        // cooldown one minute after the Recitation.
+        assert!(engine.is_in_cooldown(pf_id, now + 60));
+        // One day later (default cooldown is 30 minutes), it's free again.
+        assert!(!engine.is_in_cooldown(pf_id, now + 86400));
     }
 
     #[test]
