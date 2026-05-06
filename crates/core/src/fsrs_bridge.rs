@@ -142,6 +142,19 @@ impl FsrsBridge {
         }
     }
 
+    pub fn direct_step(&self, state: &TestState, grade: Grade, now_secs: i64) -> TestState {
+        let elapsed_days = state.elapsed_days(now_secs).max(0.0);
+        let memory: MemoryState = state.into();
+        let next = self.step(Some(memory), elapsed_days, grade as u32);
+        TestState {
+            stability: next.stability.clamp(S_MIN, S_MAX),
+            difficulty: next.difficulty.clamp(D_MIN, D_MAX),
+            last_seen_secs: now_secs,
+            last_base_secs: now_secs,
+            last_root_secs: now_secs,
+        }
+    }
+
     fn compute_next_states(&self, current: Option<EdgeState>, days_elapsed: u32) -> NextStates {
         let delta_t = days_elapsed as f32;
         let mut states = [MemoryState {
@@ -149,8 +162,12 @@ impl FsrsBridge {
             difficulty: 0.0,
         }; 4];
 
+        let memory = current.map(|c| MemoryState {
+            stability: c.stability,
+            difficulty: c.difficulty,
+        });
         for (i, rating) in [1u32, 2, 3, 4].iter().copied().enumerate() {
-            states[i] = self.step(current, delta_t, rating);
+            states[i] = self.step(memory, delta_t, rating);
         }
 
         NextStates {
@@ -162,7 +179,7 @@ impl FsrsBridge {
     }
 
     /// FSRS state transition. `current=None` means new card (use initial state).
-    fn step(&self, current: Option<EdgeState>, delta_t: f32, rating: u32) -> MemoryState {
+    fn step(&self, current: Option<MemoryState>, delta_t: f32, rating: u32) -> MemoryState {
         let is_initial = current.is_none();
 
         let (last_s, last_d) = match current {
@@ -292,6 +309,39 @@ mod tests {
             difficulty: 5.0,
             last_review_secs: -secs_ago,
         }
+    }
+
+    #[test]
+    fn direct_step_good_increases_stability() {
+        let bridge = FsrsBridge::new(0.9);
+        let now0 = 86400 * 365;
+        let ts = TestState::new_unseen(now0);
+        let now1 = now0 + 86400 * 7;
+        let after = bridge.direct_step(&ts, Grade::Good, now1);
+        // Note: TestState::new_unseen sets last_base = now0 - 365 days,
+        // so elapsed at now1 ≈ 372 days. After Good review, stability should rise.
+        assert!(after.stability > ts.stability);
+        assert_eq!(after.last_seen_secs, now1);
+        assert_eq!(after.last_base_secs, now1);
+        assert_eq!(after.last_root_secs, now1);
+    }
+
+    #[test]
+    fn direct_step_hard_at_zero_delta_does_not_decrease_stability() {
+        let bridge = FsrsBridge::new(0.9);
+        let now = 86400 * 365;
+        let ts = TestState {
+            stability: 10.0,
+            difficulty: 5.0,
+            last_seen_secs: now,
+            last_base_secs: now,
+            last_root_secs: now,
+        };
+        let after = bridge.direct_step(&ts, Grade::Hard, now);
+        assert!(
+            after.stability >= ts.stability,
+            "audit B1: Hard at delta=0 must not decrease S"
+        );
     }
 
     #[test]
