@@ -48,6 +48,12 @@ pub struct ReviewOutcome {
     pub updates: Vec<TestUpdate>,
 }
 
+/// Owns the entire HSRS review state: cards, per-test memory states, the
+/// FSRS bridge, and the schedule / propagation tunables. Mutated only via
+/// `review`; `next_card` reads it.
+///
+/// Fields are `pub` so persistence layers (WASM, future server) can
+/// snapshot and replay without going through accessors.
 pub struct ReviewEngine {
     pub verse_index: VerseIndex,
     pub element_meta: HashMap<ElementId, ElementMeta>,
@@ -77,17 +83,22 @@ impl ReviewEngine {
         }
     }
 
+    /// Look up a card by id. Linear scan — fine for the few-thousand-card
+    /// scale this engine is designed for.
     pub fn card(&self, id: CardId) -> Option<&Card> {
         self.cards.iter().find(|c| c.id == id)
     }
 
+    /// Borrow a test's memory state, or `None` if the test was never seeded.
     pub fn test_state(&self, k: TestKey) -> Option<&TestState> {
         self.tests.get(&k)
     }
 
-    /// Return the `VerseAtoms` for a verse. Falls back to a phrase-count-only
-    /// reconstruction from `verse_index` if the verse isn't in the populated
-    /// data map (shouldn't happen for cards built via `builder::build`).
+    /// Return the `VerseAtoms` for a verse — the data needed by `Card::tests`
+    /// to expand composite cards into per-test grade keys. Falls back to a
+    /// phrase-count-only reconstruction from `verse_index` if the verse isn't
+    /// in the populated data map (shouldn't happen for cards built via
+    /// `builder::build`).
     pub fn atoms_for(&self, verse_id: u32) -> VerseAtoms {
         if let Some(atoms) = self.verse_atoms_data.get(&verse_id) {
             return atoms.clone();
@@ -113,18 +124,20 @@ impl ReviewEngine {
         }
     }
 
-    /// Apply a per-test grade map to this card. The set of keys must equal
-    /// `card.tests(atoms)` exactly.
+    /// Apply a per-test grade map to this card and return the resulting
+    /// updates (for replay / persistence).
     ///
-    /// Pipeline (D5):
-    /// 1. Validate `grades.keys() == card.tests(atoms)`.
-    /// 2. Apply `direct_step` to each graded test.
-    /// 3. For each direct, enumerate `related_tests` and apply
-    ///    `propagated_step` with the direct grade and the edge weight.
+    /// `grades.keys()` must equal `card.tests(atoms)` exactly — the engine
+    /// panics on mismatch rather than silently dropping or seeding tests.
     ///
-    /// If two directs propagate to the same target, the second sees the
-    /// first's updated state. That matches HSRS semantics: each propagation
-    /// is just another partial update applied in arrival order.
+    /// Pipeline:
+    /// 1. `direct_step` each graded test.
+    /// 2. For each direct, fan out `related_tests` and apply
+    ///    `propagated_step` with that direct's grade and the edge weight.
+    ///
+    /// If two directs propagate to the same target the second sees the
+    /// first's update — propagations are just partial updates applied in
+    /// arrival order. See `docs/review.md`.
     pub fn review(
         &mut self,
         card_id: CardId,

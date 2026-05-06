@@ -83,14 +83,18 @@ impl FsrsBridge {
         }
     }
 
-    /// Predict retrievability at `now_secs` from this test's current state.
+    /// Predicted probability of recall at `now_secs` given the FSRS power
+    /// forgetting curve and this test's `(stability, last_base_secs)`. The
+    /// scheduler treats a card as due when its weakest test's retrievability
+    /// drops below `ScheduleParams::target_retention`.
     pub fn retrievability_of(&self, state: &TestState, now_secs: i64) -> f32 {
         let elapsed = state.elapsed_days(now_secs).max(0.0);
         power_forgetting_curve(elapsed, state.stability, FSRS6_DEFAULT_DECAY)
     }
 
-    /// The wall-clock time when this test will reach `target_r` retrievability,
-    /// measured from `last_base_secs`.
+    /// Wall-clock time at which this test's retrievability will hit `target_r`,
+    /// measured from `last_base_secs`. Closed-form inverse of the forgetting
+    /// curve — no binary search.
     pub fn due_at(&self, state: &TestState, target_r: f32) -> i64 {
         let factor = (0.9_f32.ln() / -FSRS6_DEFAULT_DECAY).exp() - 1.0;
         let interval_days =
@@ -98,10 +102,15 @@ impl FsrsBridge {
         state.last_base_secs + (interval_days * SECS_PER_DAY as f32) as i64
     }
 
-    /// HSRS-style probabilistic FSRS update with retrievability-space interpolation.
-    /// `weight` in [0, 1] determines how strongly to apply the grade. weight=1.0 is
-    /// equivalent to direct_step except `last_root_secs` is not advanced. weight=0.0
-    /// is identity (only `last_seen_secs` advances).
+    /// HSRS partial update applied to a related (non-graded) test.
+    ///
+    /// Interpolates in retrievability space between the current state and the
+    /// hypothetical post-direct state by `weight ∈ [0, 1]`. weight=0 is
+    /// identity except for `last_seen_secs`; weight=1 matches `direct_step`
+    /// except `last_root_secs` is preserved (the load-bearing invariant —
+    /// propagation never claims the test was directly reviewed).
+    ///
+    /// See `docs/path-posterior-memory-model.md` for derivation.
     pub fn propagated_step(
         &self,
         state: &TestState,
@@ -128,6 +137,9 @@ impl FsrsBridge {
         }
     }
 
+    /// Full FSRS-6 update for a directly-graded test: advances all three
+    /// timestamps to `now_secs` and applies the standard FSRS state
+    /// transition. Stability and difficulty are clamped to FSRS-6 bounds.
     pub fn direct_step(&self, state: &TestState, grade: Grade, now_secs: i64) -> TestState {
         let elapsed_days = state.elapsed_days(now_secs).max(0.0);
         let memory: MemoryState = state.into();
@@ -323,7 +335,7 @@ mod tests {
         let secs_from_base = due - ts.last_base_secs;
         // With FSRS-6 the interval at R=0.9 from S=10 is roughly 9-11 days
         assert!(
-            secs_from_base >= 86400 * 8 && secs_from_base <= 86400 * 12,
+            (86_400 * 8..=86_400 * 12).contains(&secs_from_base),
             "due interval out of range: {} secs ({} days)",
             secs_from_base,
             secs_from_base / 86400
@@ -331,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn propagated_step_zero_weight_is_identity() {
+    fn propagated_step_zero_weight_preserves_state() {
         let bridge = FsrsBridge::new(0.9);
         let ts = TestState {
             stability: 10.0,
@@ -340,11 +352,22 @@ mod tests {
             last_base_secs: 0,
             last_root_secs: 0,
         };
-        let after = bridge.propagated_step(&ts, Grade::Good, 0.0, 86400 * 7);
-        assert!((after.stability - ts.stability).abs() < 1e-3);
-        assert_eq!(after.last_seen_secs, 86400 * 7);
-        assert_eq!(after.last_base_secs, ts.last_base_secs); // unchanged
-        assert_eq!(after.last_root_secs, ts.last_root_secs); // unchanged
+        // Across all grades and a range of times, weight=0 must leave
+        // (stability, difficulty, last_base, last_root) unchanged and only
+        // advance last_seen.
+        for grade in [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy] {
+            for now in [86400, 86400 * 7, 86400 * 30, 86400 * 365] {
+                let after = bridge.propagated_step(&ts, grade, 0.0, now);
+                assert!(
+                    (after.stability - ts.stability).abs() < 1e-3,
+                    "grade={grade:?} now={now}: stability changed",
+                );
+                assert!((after.difficulty - ts.difficulty).abs() < 1e-3);
+                assert_eq!(after.last_seen_secs, now);
+                assert_eq!(after.last_base_secs, ts.last_base_secs);
+                assert_eq!(after.last_root_secs, ts.last_root_secs);
+            }
+        }
     }
 
     #[test]
@@ -368,6 +391,29 @@ mod tests {
         assert!((prop.difficulty - direct.difficulty).abs() < 0.1);
         assert_eq!(prop.last_root_secs, ts.last_root_secs); // last_root never advances on propagation
         assert_eq!(prop.last_base_secs, 86400 * 7); // (1-1)·old + 1·now = now
+    }
+
+    #[test]
+    fn last_root_monotonic_under_propagation() {
+        // Property: a series of propagated_steps with varying grades, weights,
+        // and times never advances last_root_secs. This is the load-bearing
+        // HSRS invariant — propagation cannot impersonate a direct review.
+        let bridge = FsrsBridge::new(0.9);
+        let mut s = TestState {
+            stability: 5.0,
+            difficulty: 5.0,
+            last_seen_secs: 100,
+            last_base_secs: 100,
+            last_root_secs: 100,
+        };
+        let grades = [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy];
+        let weights = [0.05_f32, 0.1, 0.3, 0.5, 0.7, 1.0];
+        for t in 200..1000i64 {
+            let grade = grades[(t as usize) % grades.len()];
+            let weight = weights[(t as usize) % weights.len()];
+            s = bridge.propagated_step(&s, grade, weight, t);
+            assert_eq!(s.last_root_secs, 100, "last_root advanced at t={t}");
+        }
     }
 
     #[test]

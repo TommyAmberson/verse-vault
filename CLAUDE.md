@@ -37,12 +37,15 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 ## Design docs
 
 * `docs/architecture.md` — system overview, crates/packages/clients, data flow
-* `docs/graph.md` — memory graph: node types, edge types, directionality
-* `docs/review.md` — credit assignment: 6-step algorithm, fallback chain, anchor transfer
-* `docs/scheduling.md` — card DB, priority scoring, binary search due dates
+* `docs/path-posterior-memory-model.md` — **canonical memory model** (HSRS-state architecture);
+  defer to this for memory-model details
+* `docs/graph.md` — verse element index: `VerseIndex`, `ElementId`, bindings
+* `docs/review.md` — review pipeline: direct + propagated FSRS updates driven by `Card::tests`
+* `docs/scheduling.md` — per-test FSRS scheduling, `next_card`, sibling cooldown
 * `docs/session.md` — within-session flow (re-drills, progressive reveal)
 * `docs/validation.md` — proofs, simulation framework, test scenarios
 * `docs/wasm-api.md` — WASM boundary: exposed functions, JSON shapes
+* `docs/audit-fsrs6-2026-04-28.md` — historical audit folded into the HSRS migration
 
 ## Pre-commit checks
 

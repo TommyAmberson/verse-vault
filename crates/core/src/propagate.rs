@@ -2,9 +2,16 @@ use crate::element::ElementId;
 use crate::test_kind::{TestKey, TestKind};
 use crate::verse_index::VerseIndex;
 
+/// Edge weights for the propagation graph (D4 architecture). Weights are
+/// applied as `weight` to `FsrsBridge::propagated_step`, so values closer
+/// to 1.0 mean stronger transfer. Defaults follow the rationale in
+/// `docs/path-posterior-memory-model.md`.
 #[derive(Debug, Clone, Copy)]
 pub struct PropagationParams {
+    /// Same-element opposite-cuing-direction phrase test (e.g. a
+    /// PhraseFromChain direct lifts the matching PhraseFromContext).
     pub gamma_sibling: f32,
+    /// Endpoint↔binding edges (phrase ↔ verse-binding tests).
     pub gamma_endpoint: f32,
 }
 
@@ -17,6 +24,8 @@ impl Default for PropagationParams {
     }
 }
 
+/// One outgoing edge from a directly-graded test: the target test to nudge
+/// and the weight to feed `FsrsBridge::propagated_step`.
 #[derive(Debug, Clone, Copy)]
 pub struct PropagationEdge {
     pub target: TestKey,

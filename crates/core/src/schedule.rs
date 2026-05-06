@@ -40,9 +40,12 @@ impl ReviewEngine {
     }
 }
 
-/// Pick the card whose weakest test is furthest below the target retention.
-/// Cards above target are skipped — they're not yet due. Cards whose tests
-/// were touched within the sibling cooldown are also skipped.
+/// Pick the card whose weakest test is furthest below
+/// `schedule_params.target_retention`. Cards at or above target are skipped
+/// (not yet due); cards in sibling cooldown are also skipped. Returns `None`
+/// when no card is both due and out of cooldown.
+///
+/// See `docs/scheduling.md` for the full per-test FSRS scheduling story.
 pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
     engine
         .cards
