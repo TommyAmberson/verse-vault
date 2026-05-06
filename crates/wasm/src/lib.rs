@@ -6,8 +6,10 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
+use verse_vault_core::builder::build;
+use verse_vault_core::content::MaterialData;
 use verse_vault_core::element::ElementId;
-use verse_vault_core::engine::{TestUpdate, UpdateKind};
+use verse_vault_core::engine::{ReviewEngine, TestUpdate, UpdateKind};
 use verse_vault_core::test_kind::{TestKey, TestKind};
 use verse_vault_core::test_state::TestState;
 
@@ -95,22 +97,46 @@ impl From<&TestUpdate> for TestUpdateWire {
     }
 }
 
+/// Engine handle exposed to JS. Wraps a `ReviewEngine` and translates JSON
+/// payloads at the boundary.
 #[wasm_bindgen]
 pub struct WasmEngine {
-    _placeholder: u8,
+    engine: ReviewEngine,
 }
 
 #[wasm_bindgen]
 impl WasmEngine {
+    /// Build the engine from a `MaterialData` JSON blob and (optionally) a
+    /// list of persisted `TestStateEntry` records to overlay onto the freshly
+    /// seeded test states.
+    ///
+    /// `now_secs` is the wall-clock time used to seed unseen tests; pass the
+    /// same Unix-seconds value the rest of the system uses (browser callers
+    /// can do `BigInt(Math.floor(Date.now() / 1000))`).
+    /// `persisted_states_json` may be `""` or `"[]"` to start fresh.
     #[wasm_bindgen(constructor)]
-    pub fn new() -> WasmEngine {
-        WasmEngine { _placeholder: 0 }
-    }
-}
+    pub fn new(
+        material_json: &str,
+        persisted_states_json: &str,
+        desired_retention: f32,
+        now_secs: i64,
+    ) -> Result<WasmEngine, JsError> {
+        let material: MaterialData = serde_json::from_str(material_json)
+            .map_err(|e| JsError::new(&format!("material_json parse error: {e}")))?;
+        let build_result = build(&material, now_secs);
+        let mut engine = ReviewEngine::new(build_result, desired_retention);
 
-impl Default for WasmEngine {
-    fn default() -> Self {
-        Self::new()
+        let trimmed = persisted_states_json.trim();
+        if !trimmed.is_empty() {
+            let entries: Vec<TestStateEntry> = serde_json::from_str(trimmed)
+                .map_err(|e| JsError::new(&format!("persisted_states_json parse error: {e}")))?;
+            for entry in entries {
+                let (key, state) = entry.into_pair();
+                engine.tests.insert(key, state);
+            }
+        }
+
+        Ok(WasmEngine { engine })
     }
 }
 
