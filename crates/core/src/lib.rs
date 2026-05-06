@@ -15,4 +15,5 @@ pub mod path;
 pub mod schedule;
 pub mod session;
 pub mod test_kind;
+pub mod test_state;
 pub mod types;
