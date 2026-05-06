@@ -1,8 +1,12 @@
 # WASM API
 
-The `verse-vault-wasm` crate exposes the core engine to JavaScript. The API is intentionally small:
-load, session, export. Data crosses the boundary as JSON strings (easy to debug,
-forward-compatible).
+The `verse-vault-wasm` crate exposes the HSRS engine to JavaScript. The boundary stays small: load,
+review, export. Data crosses as JSON strings — debuggable, version-tolerant, and free of
+`wasm-bindgen` value-conversion gotchas.
+
+The active memory model is documented in
+[`path-posterior-memory-model.md`](./path-posterior-memory-model.md); this doc only describes the
+wire shapes a JS caller sees.
 
 ## Building
 
@@ -12,153 +16,156 @@ wasm-pack build crates/wasm --target nodejs --out-dir pkg
 
 For the browser: `--target web`.
 
+The crate is also a plain `rlib`, so `cargo test -p verse-vault-wasm` runs the wire-format unit
+tests and the `roundtrip` integration smoke without needing `wasm-pack`.
+
 ## `class WasmEngine`
 
 ### Constructor
 
 ```ts
 new WasmEngine(
-  graph_json: string,
-  cards_json: string,
-  edge_states_json: string,   // '' or '[]' for fresh state
-  card_states_json: string,   // '' or '[]' for fresh state
-  desired_retention: number,  // e.g. 0.9
+  material_json: string,         // MaterialData JSON
+  persisted_states_json: string, // '' or '[]' for fresh state
+  desired_retention: number,     // e.g. 0.9
+  now_secs: bigint,              // unix seconds; seeds unseen TestStates
 )
 ```
 
-Loads the graph and card catalog. If edge/card states are provided, they override the initial state
-built from the graph (this is how you resume a user's progress from the database).
+The constructor parses `material_json` into `MaterialData`, calls `build` to derive the cards and
+seeded `TestState` table, then overlays any persisted entries (so the JS layer can resume a user's
+progress from the database).
 
-### Session lifecycle
+`now_secs` is used to seed every fresh `TestState::new_unseen` — the seeded states have
+`last_base_secs = now_secs - 365 days`, which puts them well below the target retention so the
+scheduler will treat them as immediately due.
 
-```ts
-start_session(now_secs: bigint, new_verses_json: string, params_json: string): void
-session_next(): string | undefined  // JSON SessionCard, or undefined if done
-session_review(grades_json: string, now_secs: bigint): string  // JSON ReviewOutcome
-session_abort(): void
-session_is_done(): boolean
-session_remaining(): number
-```
+Throws a JS `Error` (mapped from `JsError`) on malformed JSON.
 
-`start_session` transitions any `New` cards for the provided verses to `Learning` (progressive
-reveal). Calling `session_abort` rolls them back to `New`.
-
-### Direct engine access (no session)
+### Reviewing a card
 
 ```ts
-next_due_card(now_secs: bigint): number | undefined  // card_id of highest-priority due card
-
-replay_event(
-  shown_json: string,   // JSON number[]
-  hidden_json: string,  // JSON number[]
-  grades_json: string,  // JSON Grade[], or '' for []
-  now_secs: bigint,
-): string                // JSON ReviewOutcome
+replay_event(card_id: number, grades_json: string, now_secs: bigint): string
 ```
 
-`replay_event` runs the same credit assignment + FSRS + schedule cascade as `session_review`, but
-without requiring an active session. It's the primitive used by the server's sync endpoint to apply
-offline events.
+Applies a card review. `grades_json` is a JSON array of one entry per test the card grades:
 
-### Export for persistence
+```json
+[
+  { "key": { "kind": "PhraseFromChain", "element": { "kind": "Phrase", "verse_id": 0, "position": 1 } }, "grade": "Good" },
+  ...
+]
+```
+
+`Grade` is one of `"Again" | "Hard" | "Good" | "Easy"`. The set of `key`s must match
+`card.tests(atoms)` exactly — the engine asserts on mismatch.
+
+Returns a JSON array of `TestUpdateWire` — one entry per state transition produced by the review,
+including both directly graded tests and propagated neighbours:
+
+```json
+[
+  {
+    "key": { "kind": "PhraseFromChain", "element": { "kind": "Phrase", "verse_id": 0, "position": 1 } },
+    "kind": "Direct",
+    "before": { "stability": 1.0, "difficulty": 5.0, "last_seen_secs": ..., "last_base_secs": ..., "last_root_secs": ... },
+    "after":  { ... }
+  },
+  ...
+]
+```
+
+`kind` is `"Direct"` for the tests the card grades directly and `"Propagated"` for neighbours
+touched via the static propagation table. `before` / `after` are full `TestState` snapshots — the
+schema mirrors `verse_vault_core::test_state::TestState`.
+
+### Picking the next card
 
 ```ts
-export_edge_states(): string   // JSON: EdgeStateEntry[]
-export_card_states(): string   // JSON: CardStateEntry[]
+next_card(now_secs: bigint): number | undefined
 ```
 
-Call these after each review (or batched) to persist to the database.
+Returns the `card_id` of the card whose weakest test is furthest below the target retention, or
+`undefined` if every card is currently above target. Cards whose tests were touched within the
+sibling-cooldown window are skipped.
+
+### Exporting state for persistence
+
+```ts
+export_test_states(): string
+```
+
+Returns a JSON array of `TestStateEntry` — one entry per known `(TestKind, ElementId)` pair:
+
+```json
+[
+  {
+    "element": { "kind": "Phrase", "verse_id": 0, "position": 1 },
+    "test_kind": "PhraseFromChain",
+    "stability": 12.3,
+    "difficulty": 5.5,
+    "last_seen_secs": 1700000000,
+    "last_base_secs": 1699000000,
+    "last_root_secs": 1690000000
+  },
+  ...
+]
+```
+
+Persist this array between sessions and feed it back to the constructor as `persisted_states_json`
+to resume.
 
 ## JSON shapes
 
-### Graph
-
-The `Graph` type serializes as:
+### `TestKey`
 
 ```json
 {
-  "nodes": { "<NodeId>": { "id": <NodeId>, "kind": <NodeKind> }, ... },
-  "edges": { "<EdgeId>": { "id": <EdgeId>, "source": <NodeId>, "target": <NodeId>, "state": {...}, "role": "FirstChild" | "LastChild" | null }, ... },
-  "outgoing": { "<NodeId>": [<EdgeId>, ...], ... },
-  "incoming": { "<NodeId>": [<EdgeId>, ...], ... },
-  "next_node_id": <u32>,
-  "next_edge_id": <u32>
+  "kind": "PhraseFromChain" | "PhraseFromContext" | "VerseRefPosition" | "VerseChapter"
+        | "VerseBook" | "VerseHeading" | "VerseClub",
+  "element": { "kind": "<ElementKind>", ... }
 }
 ```
 
-Edges do not carry a `kind` tag — an edge's retrieval proposition is derived from
-`(source.kind, target.kind, role)`. `role` is omitted (or `null`) on the majority of edges; it's
-only set to `FirstChild` / `LastChild` on parent→first/last endpoint edges.
-
-Note that HashMap keys in JSON are always strings, even though the underlying NodeId/EdgeId are
-`u32` newtypes. NodeIds appearing as values (not keys) serialize as plain numbers.
-
-### Card
+### `ElementId` (tagged on `kind`)
 
 ```json
-{ "id": <u32>, "shown": [<NodeId>, ...], "hidden": [<NodeId>, ...], "state": "New" | "Learning" | "Review" | "Relearning" }
+{ "kind": "Phrase", "verse_id": <u32>, "position": <u16> }
+{ "kind": "VerseRefPosition", "verse_id": <u32> }
+{ "kind": "VerseChapterBinding", "verse_id": <u32> }
+{ "kind": "VerseBookBinding", "verse_id": <u32> }
+{ "kind": "VerseHeadingBinding", "verse_id": <u32>, "heading_idx": <u16> }
+{ "kind": "VerseClubBinding", "verse_id": <u32>, "tier": "Club150" | "Club300" }
 ```
 
-### NewVerseInfo (input to `start_session`)
+### `Grade`
 
 ```json
-[{ "verse_ref": <u32>, "verse_phrases": [<u32>, ...] }, ...]
+"Again" | "Hard" | "Good" | "Easy"
 ```
 
-### SessionCard (returned by `session_next`)
+### `TestState`
 
 ```json
 {
-  "shown": [<u32>, ...],
-  "hidden": [<u32>, ...],
-  "is_reading": <bool>,
-  "source_kind": "scheduled" | "redrill" | "new_verse",
-  "source_card_id": <u32> | null
+  "stability": <f32>,
+  "difficulty": <f32>,
+  "last_seen_secs": <i64>,
+  "last_base_secs": <i64>,
+  "last_root_secs": <i64>
 }
 ```
 
-### Grades (input to `session_review`)
-
-```json
-[{ "node_id": <u32>, "grade": 1 | 2 | 3 | 4 }, ...]
-// 1=Again, 2=Hard, 3=Good, 4=Easy
-```
-
-For reading-stage cards, pass `[]`.
-
-### ReviewOutcome (returned by `session_review`)
-
-```json
-{
-  "edge_updates": [{ "edge_id": <u32>, "grade": <1-4>, "weight": <f32> }, ...],
-  "redrills_inserted": <usize>
-}
-```
-
-### EdgeStateEntry (export / resume)
-
-```json
-{ "edge_id": <u32>, "stability": <f32>, "difficulty": <f32>, "last_review_secs": <i64> }
-```
-
-### CardStateEntry (export / resume)
-
-```json
-{
-  "card_id": <u32>,
-  "state": "new" | "learning" | "review" | "relearning",
-  "due_r": <f32> | null,
-  "due_date_secs": <i64> | null,
-  "priority": <f32> | null
-}
-```
+`last_seen_secs` is bumped on every update (direct or propagated). `last_base_secs` is the anchor
+point for the forgetting curve — propagation interpolates it rather than resetting it.
+`last_root_secs` only advances on direct grades; the scheduler uses it to bias toward stale roots.
 
 ## Timestamps
 
-All timestamps are Unix seconds, passed as `bigint` (JavaScript can't represent `i64` as a regular
-number). Convert with `BigInt(Math.floor(Date.now() / 1000))`.
+All timestamps are Unix seconds, passed as `bigint` (JS `number` can't safely represent `i64`).
+Convert with `BigInt(Math.floor(Date.now() / 1000))`.
 
 ## Errors
 
-Constructor and methods that parse JSON will throw JS `Error` on bad input (mapped from Rust
-`JsError`).
+The constructor and `replay_event` throw a JS `Error` (mapped from `JsError`) on bad JSON or
+parse-time failures. `next_card` and `export_test_states` are infallible.
