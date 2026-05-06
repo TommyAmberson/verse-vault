@@ -105,11 +105,19 @@ impl Card {
                 kind: TestKind::VerseClub,
                 element: ElementId::VerseClubBinding { verse_id, tier },
             }],
-            // composites filled in by tasks 3.4 / 3.5 / 3.6 / 3.7 — placeholder for now
-            CardKind::Recitation
-            | CardKind::Citation
-            | CardKind::Ftv { .. }
-            | CardKind::Holistic => Vec::new(),
+            CardKind::Recitation => atoms
+                .phrase_positions()
+                .into_iter()
+                .map(|p| TestKey {
+                    kind: TestKind::PhraseFromChain,
+                    element: ElementId::Phrase {
+                        verse_id,
+                        position: p,
+                    },
+                })
+                .collect(),
+            // composites filled in by tasks 3.5 / 3.6 / 3.7 — placeholder for now
+            CardKind::Citation | CardKind::Ftv { .. } | CardKind::Holistic => Vec::new(),
         }
     }
 }
@@ -246,6 +254,20 @@ mod tests {
                     heading_idx: 2
                 }
             }]
+        );
+    }
+
+    #[test]
+    fn recitation_grades_n_phrases() {
+        let c = atomic_card(0, CardKind::Recitation, 7);
+        let atoms = sample_atoms(7, 4);
+        let tests = c.tests(&atoms);
+        assert_eq!(tests.len(), 4);
+        assert!(tests.iter().all(|t| t.kind == TestKind::PhraseFromChain));
+        assert!(
+            tests
+                .iter()
+                .all(|t| matches!(t.element, ElementId::Phrase { verse_id: 7, .. }))
         );
     }
 
