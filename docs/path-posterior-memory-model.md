@@ -932,33 +932,47 @@ That's the complete atomic card set: per-phrase + 5 per-verse binding cards.
 
 **Composite cards (multiple grades per review):**
 
-| Card                           | Cue                            | User produces                        | Grades                                                                    |
-| ------------------------------ | ------------------------------ | ------------------------------------ | ------------------------------------------------------------------------- |
-| **Recitation: ref → text**     | book + chapter + verse         | full verse content                   | N× Phrase                                                                 |
-| **Citation: verse → ref**      | verse content                  | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                   |
-| **FTV (Finish The Verse)**     | first phrase / verse beginning | rest of the verse content            | (N − 1)× Phrase                                                           |
-| **FTV with citation**          | first phrase / verse beginning | rest of content + full citation      | (N − 1)× Phrase + 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book |
-| **Heading: passage → heading** | a range of verses              | the heading                          | (per verse in passage) 1× Verse↔Heading                                   |
-| **Heading: heading → passage** | the heading                    | the verse range                      | (per verse in passage) 1× Verse↔Heading                                   |
-| **Club: verse → club**         | versetext or ref               | club name(s)                         | (per verse) 1× Verse↔Club                                                 |
-| **Holistic recitation** (full) | (something)                    | full citation + content              | N× Phrase + VerseRef + Verse↔Chapter + Verse↔Book                         |
+| Card                           | Cue                          | User produces                        | Grades                                                                                  |
+| ------------------------------ | ---------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------- |
+| **Recitation: ref → text**     | book + chapter + verse       | full verse content                   | N× Phrase                                                                               |
+| **Citation: verse → ref**      | verse content                | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                                 |
+| **FTV (Finish The Verse)**     | the saved FTV opening string | rest of the verse content            | up to N× Phrase (typical: all N if FTV ⊂ phrase 1; N − 1 if FTV = phrase 1)             |
+| **FTV with citation**          | the saved FTV opening string | rest of content + full citation      | the same Phrase grades as FTV + 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book |
+| **Heading: passage → heading** | a range of verses            | the heading                          | (per verse in passage) 1× Verse↔Heading                                                 |
+| **Heading: heading → passage** | the heading                  | the verse range                      | (per verse in passage) 1× Verse↔Heading                                                 |
+| **Club: verse → club**         | versetext or ref             | club name(s)                         | (per verse) 1× Verse↔Club                                                               |
+| **Holistic recitation** (full) | (something)                  | full citation + content              | N× Phrase + VerseRef + Verse↔Chapter + Verse↔Book                                       |
 
-**FTV (Finish The Verse)** deserves explicit mention because it's a standard Bible-quizzer format.
-The quiz official reads the verse's beginning (often phrase 1, sometimes the first few words); the
-quizzer must produce the rest. Two variants:
+**FTV (Finish The Verse)** deserves explicit mention because it's a standard Bible-quizzer format
+and uses **content metadata** that other card types don't.
 
-* _Without citation_: the user just produces the remaining phrases. Grades phrase 2..N.
-* _With citation_: the user also identifies the verse (book, chapter, verse number). Grades phrase
-  2..N + the three citation bindings.
+For each verse, the content pipeline stores an `ftv` field: the minimal opening string sufficient to
+uniquely identify the verse. This is set per-verse during content authoring (often a few words),
+distinct from the phrase decomposition. The FTV string is a strict prefix of the verse's content; in
+typical use it's shorter than phrase 1.
 
-Both are composite cards — they don't introduce new state elements. The "verse beginning" used as
-cue is just phrase 1 (or a sub-phrase of it); FTV doesn't need its own dedicated state for "the
-beginning" because the beginning is already captured as Phrase 1 and tested by the existing
-phrase-recall machinery.
+The card mechanics:
 
-The cue may be shorter than phrase 1 in some quiz formats — the first few words rather than the
-whole first phrase. The cue choice is a card-design parameter; the grading targets stay the same
-(the phrases produced after the cue).
+* _Cue_: the saved FTV string (just the opening — typically a few words).
+* _User produces_: everything that follows — the rest of phrase 1 (if FTV is a strict prefix of it),
+  then phrases 2..N.
+* _Grades_: each Phrase the user produces. If FTV is a strict prefix of phrase 1 (the typical case),
+  all N phrases get graded — including phrase 1, since the user produced the part of it that wasn't
+  in the cue. If FTV happens to equal phrase 1 exactly, only phrases 2..N are graded.
+
+Two variants:
+
+* _Without citation_: user just completes the verse content.
+* _With citation_: user also identifies the verse, adding 1× VerseRef position + 1× Verse↔Chapter
+  * 1× Verse↔Book to the grade list.
+
+No new state elements. The FTV string is content metadata, not a state-bearing element. The phrases
+tested are the existing Phrase nodes for the verse.
+
+**Grading-time display.** When the user has produced their answer, the UI can reveal the full verse
+including citation, headings, and other context. This is the standard self-grading flow: produce →
+reveal → grade. Useful for FTV because the user may need to verify their recall against the
+canonical wording.
 
 A typical 4-phrase verse with full ref machinery:
 
