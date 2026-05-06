@@ -323,7 +323,7 @@ mod tests {
         let secs_from_base = due - ts.last_base_secs;
         // With FSRS-6 the interval at R=0.9 from S=10 is roughly 9-11 days
         assert!(
-            secs_from_base >= 86400 * 8 && secs_from_base <= 86400 * 12,
+            (86_400 * 8..=86_400 * 12).contains(&secs_from_base),
             "due interval out of range: {} secs ({} days)",
             secs_from_base,
             secs_from_base / 86400
