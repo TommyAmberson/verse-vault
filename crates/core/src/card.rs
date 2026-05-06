@@ -48,6 +48,22 @@ pub struct CardSchedule {
     pub priority: f32,
 }
 
+#[derive(Debug, Clone)]
+pub struct VerseAtoms {
+    pub verse_id: u32,
+    pub phrase_count: u16,
+    pub headings: Vec<u16>,
+    pub clubs: Vec<ClubTier>,
+    pub ftv: Option<String>,
+    pub phrase_zero_text: Option<String>,
+}
+
+impl VerseAtoms {
+    pub fn phrase_positions(&self) -> Vec<u16> {
+        (0..self.phrase_count).collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,5 +74,18 @@ mod tests {
         let j = serde_json::to_string(&k).unwrap();
         let r: CardKind = serde_json::from_str(&j).unwrap();
         assert_eq!(k, r);
+    }
+
+    #[test]
+    fn verse_atoms_phrase_positions() {
+        let atoms = VerseAtoms {
+            verse_id: 1,
+            phrase_count: 3,
+            headings: vec![0],
+            clubs: vec![ClubTier::First],
+            ftv: Some("For God".into()),
+            phrase_zero_text: Some("For God so loved".into()),
+        };
+        assert_eq!(atoms.phrase_positions(), vec![0u16, 1, 2]);
     }
 }
