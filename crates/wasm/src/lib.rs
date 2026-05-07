@@ -153,12 +153,8 @@ impl WasmEngine {
         grades_json: &str,
         now_secs: i64,
     ) -> Result<String, JsError> {
-        let grades = parse_grades(grades_json)
-            .map_err(|e| JsError::new(&format!("grades_json parse error: {e}")))?;
-        let outcome = self.engine.review(CardId(card_id), grades, now_secs);
-        let wire: Vec<TestUpdateWire> = outcome.updates.iter().map(TestUpdateWire::from).collect();
-        serde_json::to_string(&wire)
-            .map_err(|e| JsError::new(&format!("response serialise error: {e}")))
+        self.replay_event_inner(card_id, grades_json, now_secs)
+            .map_err(|e| JsError::new(&e))
     }
 
     /// Snapshot every `TestState` known to the engine as a JSON array of
@@ -178,6 +174,54 @@ impl WasmEngine {
     /// is currently above the target retention threshold.
     pub fn next_card(&self, now_secs: i64) -> Option<u32> {
         next_card(&self.engine, now_secs).map(|c| c.0)
+    }
+}
+
+impl WasmEngine {
+    /// Native-Rust shim for `replay_event` so integration tests can drive
+    /// the validation paths without triggering a `JsError` (which calls a
+    /// wasm-bindgen import that panics on non-wasm targets).
+    pub fn replay_event_for_test(
+        &mut self,
+        card_id: u32,
+        grades_json: &str,
+        now_secs: i64,
+    ) -> Result<String, String> {
+        self.replay_event_inner(card_id, grades_json, now_secs)
+    }
+
+    /// Validate at the WASM boundary so a stale / drifted JS payload returns
+    /// a recoverable error instead of panicking through `engine.review` and
+    /// aborting the entire WASM instance. Kept outside the `#[wasm_bindgen]`
+    /// impl so we can test it as plain Rust (constructing a `JsError` panics
+    /// on non-wasm targets).
+    fn replay_event_inner(
+        &mut self,
+        card_id: u32,
+        grades_json: &str,
+        now_secs: i64,
+    ) -> Result<String, String> {
+        let grades =
+            parse_grades(grades_json).map_err(|e| format!("grades_json parse error: {e}"))?;
+        let card = self
+            .engine
+            .card(CardId(card_id))
+            .ok_or_else(|| format!("unknown card id {card_id}"))?
+            .clone();
+        let atoms = self.engine.atoms_for(card.verse_id);
+        let expected: std::collections::HashSet<_> = card.tests(&atoms).into_iter().collect();
+        let actual: std::collections::HashSet<_> = grades.keys().copied().collect();
+        if actual != expected {
+            return Err(format!(
+                "grades for card {card_id} do not match card.tests(atoms): \
+                 missing={:?} extra={:?}",
+                expected.difference(&actual).collect::<Vec<_>>(),
+                actual.difference(&expected).collect::<Vec<_>>(),
+            ));
+        }
+        let outcome = self.engine.review(CardId(card_id), grades, now_secs);
+        let wire: Vec<TestUpdateWire> = outcome.updates.iter().map(TestUpdateWire::from).collect();
+        serde_json::to_string(&wire).map_err(|e| format!("response serialise error: {e}"))
     }
 }
 
