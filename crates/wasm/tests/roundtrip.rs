@@ -75,6 +75,30 @@ fn export_test_states_after_review_round_trips() {
     assert!(!entries.is_empty(), "export should be non-empty");
 }
 
+// `JsError::new` calls a wasm-bindgen import that panics on native targets,
+// so we exercise the validation logic via the testable `replay_event_inner`
+// hook (kept private to the crate, accessible via `pub(crate)`).
+
+#[test]
+fn replay_event_unknown_card_id_returns_error() {
+    let now = 86400 * 365;
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", 0.9, now).unwrap();
+    let bogus_id: u32 = 999_999;
+    let result = engine.replay_event_for_test(bogus_id, "[]", now);
+    let err = result.expect_err("unknown card id should yield Err, not panic");
+    assert!(err.contains("unknown card id"), "got: {err}");
+}
+
+#[test]
+fn replay_event_mismatched_grades_returns_error() {
+    let now = 86400 * 365;
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", 0.9, now).unwrap();
+    let (card_id, _) = first_card_with_grades(now);
+    let result = engine.replay_event_for_test(card_id, "[]", now);
+    let err = result.expect_err("mismatched grade set should yield Err, not panic");
+    assert!(err.contains("do not match"), "got: {err}");
+}
+
 #[test]
 fn next_card_returns_some_when_due() {
     // Build at t=0; every test seeds with last_base = -365 days. By the time

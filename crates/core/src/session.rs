@@ -14,6 +14,12 @@ use crate::schedule;
 use crate::test_kind::{TestKey, TestKind};
 use crate::types::{CardId, Grade};
 
+// Cooldown lives on the engine: `propagated_step` and `direct_step` both
+// stamp `last_seen_secs = now_secs`, and `schedule::next_card` filters
+// cards via `engine.is_in_cooldown` against that field. The session
+// shouldn't keep a parallel timestamp map — it would just duplicate
+// information already on `engine.tests`.
+
 /// A planned slot in the session queue. Mirrors a `Card` but in queue-shaped
 /// terms (with a due time) and without persistent state — re-drills and
 /// progressive-reveal entries don't have to correspond to engine cards.
@@ -52,11 +58,6 @@ struct InFlight {
 pub struct Session {
     in_flight: Option<InFlight>,
     upcoming_cards: Vec<Card>,
-    /// Last time (in `now_secs`) each test key was graded by `review_card`.
-    /// Drives the session-level sibling cooldown filter so an immediately-
-    /// following pick can't grade the same test again within the cooldown
-    /// window.
-    recently_seen_test_keys: HashMap<TestKey, i64>,
 }
 
 impl Session {
@@ -79,7 +80,6 @@ impl Session {
         Self {
             in_flight: None,
             upcoming_cards,
-            recently_seen_test_keys: HashMap::new(),
         }
     }
 
@@ -87,10 +87,8 @@ impl Session {
         &self.upcoming_cards
     }
 
-    /// Send a card review through the engine and record session bookkeeping
-    /// (in-flight context + per-test cooldown timestamps). Returns the
-    /// engine's outcome for the caller to inspect or feed into
-    /// `next_drill_after`.
+    /// Send a card review through the engine and stash the in-flight context
+    /// so `next_drill_after` can interpret the outcome.
     pub fn review_card(
         &mut self,
         engine: &mut ReviewEngine,
@@ -102,9 +100,6 @@ impl Session {
             .card(card_id)
             .unwrap_or_else(|| panic!("review_card: unknown card {card_id:?}"))
             .clone();
-        for tk in grades.keys() {
-            self.recently_seen_test_keys.insert(*tk, now_secs);
-        }
         self.in_flight = Some(InFlight {
             kind: card.kind,
             verse_id: card.verse_id,
@@ -113,35 +108,13 @@ impl Session {
         engine.review(card_id, grades, now_secs)
     }
 
-    /// Pick the next card to show, applying the engine's scheduling on top of
-    /// a session-level cooldown filter: cards whose tests were just graded
-    /// inside this session are skipped until the cooldown elapses.
+    /// Pick the next card. Cooldown is enforced by `schedule::next_card`
+    /// against `engine.tests[*].last_seen_secs`, which `engine.review`
+    /// updates for every direct and propagated test of the just-reviewed
+    /// card.
     pub fn next_card<'e>(&self, engine: &'e ReviewEngine, now_secs: i64) -> Option<&'e Card> {
-        let cd = engine.schedule_params.sibling_cooldown_secs;
-        let mut candidate = schedule::next_card(engine, now_secs);
-        // The engine's own cooldown only tracks `last_seen_secs` written by
-        // `review`. Session-level cooldown is stricter: we track by exact
-        // test-key grade events so we can suppress siblings even if the
-        // engine's per-state timestamps drift.
-        while let Some(id) = candidate {
-            let card = engine.card(id)?;
-            let atoms = engine.atoms_for(card.verse_id);
-            let overlaps = card.tests(&atoms).iter().any(|tk| {
-                self.recently_seen_test_keys
-                    .get(tk)
-                    .is_some_and(|&t| now_secs - t < cd)
-            });
-            if !overlaps {
-                return Some(card);
-            }
-            // Fall back: try the engine's next pick after excluding this id.
-            // The engine doesn't expose an `exclude` arg; for the in-session
-            // overlap case we return None rather than re-implementing the
-            // priority loop here. Phase-6 contract is just that immediate
-            // siblings are blocked.
-            candidate = None;
-        }
-        None
+        let id = schedule::next_card(engine, now_secs)?;
+        engine.card(id)
     }
 
     /// Record the kind/verse_id and per-test grades for the card just sent
