@@ -130,14 +130,23 @@ impl ReviewEngine {
     /// `grades.keys()` must equal `card.tests(atoms)` exactly — the engine
     /// panics on mismatch rather than silently dropping or seeding tests.
     ///
-    /// Pipeline:
-    /// 1. `direct_step` each graded test.
-    /// 2. For each direct, fan out `related_tests` and apply
-    ///    `propagated_step` with that direct's grade and the edge weight.
+    /// Pipeline (HSRS-style: one update per `TestKey` per review):
     ///
-    /// If two directs propagate to the same target the second sees the
-    /// first's update — propagations are just partial updates applied in
-    /// arrival order. See `docs/review.md`.
+    /// 1. Build the propagation set: for each direct, fan out
+    ///    `related_tests`. Drop targets that are themselves direct-graded
+    ///    this review (a real grade is stronger evidence than a related
+    ///    test's nudge). If multiple directs propagate to the same target,
+    ///    keep the highest-weight edge.
+    /// 2. `direct_step` every graded test.
+    /// 3. `propagated_step` every (deduped) propagation target — exactly
+    ///    once each.
+    ///
+    /// This mirrors HSRS's `getLearningCardDiff` which dedupes flattened
+    /// learnings by `cardId` so each target receives at most one update per
+    /// observation. Without the dedup, a direct already stamped at
+    /// `now_secs` would receive a propagated update with `elapsed = 0`,
+    /// which falls into `invert_r`'s `r ≈ 1.0` short-circuit and saturates
+    /// the test's stability to `S_MAX`.
     pub fn review(
         &mut self,
         card_id: CardId,
@@ -158,8 +167,27 @@ impl ReviewEngine {
 
         let mut updates: Vec<TestUpdate> = Vec::with_capacity(expected.len() * 4);
 
-        // 1. Direct updates.
+        // 1. Build the propagation set, deduping against directs and across
+        //    multiple directs. `prop_targets[target] = (grade, weight)` —
+        //    the strongest-weight edge wins on collision.
         let direct_pairs: Vec<(TestKey, Grade)> = grades.iter().map(|(&k, &g)| (k, g)).collect();
+        let direct_keys: HashSet<TestKey> = direct_pairs.iter().map(|(k, _)| *k).collect();
+        let mut prop_targets: HashMap<TestKey, (Grade, f32)> = HashMap::new();
+        for (direct_key, grade) in &direct_pairs {
+            for edge in related_tests(*direct_key, &self.verse_index, &self.propagation_params) {
+                if direct_keys.contains(&edge.target) {
+                    continue;
+                }
+                let entry = prop_targets
+                    .entry(edge.target)
+                    .or_insert((*grade, edge.weight));
+                if edge.weight > entry.1 {
+                    *entry = (*grade, edge.weight);
+                }
+            }
+        }
+
+        // 2. Direct updates.
         for (key, grade) in &direct_pairs {
             let before = *self
                 .tests
@@ -175,31 +203,20 @@ impl ReviewEngine {
             });
         }
 
-        // 2. Propagated updates. Each direct's grade fans out via static
-        //    edges from `related_tests`. We skip self-targets (a direct never
-        //    propagates to itself) but allow the same target from multiple
-        //    directs — later applications see earlier updates' state.
-        for (direct_key, grade) in &direct_pairs {
-            let edges = related_tests(*direct_key, &self.verse_index, &self.propagation_params);
-            for edge in edges {
-                if edge.target == *direct_key {
-                    continue;
-                }
-                let before = match self.tests.get(&edge.target) {
-                    Some(s) => *s,
-                    None => continue, // target not in card universe — skip silently.
-                };
-                let after = self
-                    .fsrs
-                    .propagated_step(&before, *grade, edge.weight, now_secs);
-                self.tests.insert(edge.target, after);
-                updates.push(TestUpdate {
-                    key: edge.target,
-                    kind: UpdateKind::Propagated,
-                    before,
-                    after,
-                });
-            }
+        // 3. Propagated updates — each target hit exactly once.
+        for (target, (grade, weight)) in prop_targets {
+            let before = match self.tests.get(&target) {
+                Some(s) => *s,
+                None => continue, // target not in card universe — skip silently.
+            };
+            let after = self.fsrs.propagated_step(&before, grade, weight, now_secs);
+            self.tests.insert(target, after);
+            updates.push(TestUpdate {
+                key: target,
+                kind: UpdateKind::Propagated,
+                before,
+                after,
+            });
         }
 
         ReviewOutcome { updates }

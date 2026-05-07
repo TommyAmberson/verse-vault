@@ -127,3 +127,63 @@ fn recitation_lifts_phrases_directly_and_bindings_via_propagation() {
         "binding last_seen must advance under propagation",
     );
 }
+
+/// Holistic grades both phrases and verse-bindings directly in the same
+/// review. Without HSRS-style dedup of the propagation set against the
+/// direct set, a phrase direct's propagation would land on a verse-binding
+/// that was already direct-stepped this tick — its `last_base_secs` would
+/// equal `now_secs`, `elapsed = 0`, and `invert_r(r ≈ 1.0, 0.001, decay)`
+/// would saturate stability to `S_MAX`. Regression test for that.
+#[test]
+fn holistic_does_not_saturate_bindings_to_s_max() {
+    let material = one_verse_material();
+    let build_now = 0;
+    let r = build(&material, build_now);
+    let mut engine = ReviewEngine::new(r, 0.9);
+
+    let holistic_id = engine
+        .cards
+        .iter()
+        .find(|c| matches!(c.kind, CardKind::Holistic))
+        .expect("Holistic card built")
+        .id;
+
+    let now = build_now + 86_400 * 365;
+    let card = engine.card(holistic_id).unwrap().clone();
+    let atoms = engine.atoms_for(card.verse_id);
+    let grades: HashMap<TestKey, Grade> = card
+        .tests(&atoms)
+        .into_iter()
+        .map(|t| (t, Grade::Good))
+        .collect();
+    engine.review(holistic_id, grades, now);
+
+    // After one Holistic review: phrase tests are direct-graded, binding
+    // tests are direct-graded too. Neither should be anywhere near S_MAX.
+    let chapter_binding = TestKey {
+        kind: TestKind::VerseChapter,
+        element: ElementId::VerseChapterBinding { verse_id: 0 },
+    };
+    let phrase_chain_0 = TestKey {
+        kind: TestKind::PhraseFromChain,
+        element: ElementId::Phrase {
+            verse_id: 0,
+            position: 0,
+        },
+    };
+    let chapter_state = engine.test_state(chapter_binding).copied().unwrap();
+    let phrase_state = engine.test_state(phrase_chain_0).copied().unwrap();
+
+    // 365 days is roughly HSRS's softClamp ceiling. Anything well above
+    // that on a single Good review is the saturation bug.
+    assert!(
+        chapter_state.stability < 365.0,
+        "binding stability ballooned to {} — saturation bug regressed",
+        chapter_state.stability,
+    );
+    assert!(
+        phrase_state.stability < 365.0,
+        "phrase stability ballooned to {} — saturation bug regressed",
+        phrase_state.stability,
+    );
+}
