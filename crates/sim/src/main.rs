@@ -6,7 +6,6 @@
 //! engine can be smoke-tested under real fixture data without hand-rolled
 //! input.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use verse_vault_core::builder::build;
@@ -70,15 +69,10 @@ fn main() {
             .cloned()
             .expect("scheduler must point at an existing card");
         let atoms = engine.atoms_for(card.verse_id);
-        let grades: HashMap<_, _> = card
-            .tests(&atoms)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
-        if grades.is_empty() {
+        if card.tests(&atoms).is_empty() {
             continue;
         }
-        let outcome = engine.review(card_id, grades, now);
+        let outcome = engine.review(card_id, Grade::Good, now);
         for u in &outcome.updates {
             match u.kind {
                 UpdateKind::Root => total_root += 1,

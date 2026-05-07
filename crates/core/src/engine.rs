@@ -1,11 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::builder::BuildResult;
 use crate::card::{Card, VerseAtoms};
 use crate::element::ElementId;
 use crate::element::ElementMeta;
 use crate::fsrs_bridge::FsrsBridge;
-use crate::propagate::{PropagationParams, related_tests};
 use crate::test_kind::TestKey;
 use crate::test_state::TestState;
 use crate::types::{CardId, Grade};
@@ -16,7 +15,7 @@ pub struct ScheduleParams {
     /// Per-test retrievability target the scheduler aims at.
     pub target_retention: f32,
     /// Cooldown window during which a card with any test recently touched
-    /// (directly or via propagation) is hidden from the scheduler.
+    /// is hidden from the scheduler.
     pub sibling_cooldown_secs: i64,
 }
 
@@ -65,7 +64,6 @@ pub struct ReviewEngine {
     pub tests: HashMap<TestKey, TestState>,
     pub fsrs: FsrsBridge,
     pub schedule_params: ScheduleParams,
-    pub propagation_params: PropagationParams,
     /// Per-verse VerseAtoms. Populated at build time so `atoms_for` is O(1).
     pub verse_atoms_data: HashMap<u32, VerseAtoms>,
 }
@@ -82,7 +80,6 @@ impl ReviewEngine {
                 target_retention: desired_retention,
                 ..ScheduleParams::default()
             },
-            propagation_params: PropagationParams::default(),
             verse_atoms_data: b.verse_atoms_data,
         }
     }
@@ -128,151 +125,83 @@ impl ReviewEngine {
         }
     }
 
-    /// Apply a per-test grade map to this card and return the resulting
-    /// updates (for replay / persistence).
+    /// Apply a single grade to a card and return the resulting test
+    /// updates.
     ///
-    /// `grades.keys()` must equal `card.tests(atoms)` exactly — the engine
-    /// panics on mismatch rather than silently dropping or seeding tests.
+    /// Atomic cards (one contained test) update that test as a full FSRS
+    /// step (`UpdateKind::Root`, `last_root_secs` advances). Composite
+    /// cards (multiple contained tests, e.g. `Recitation`) distribute the
+    /// grade across their contained tests via HSRS's Bayesian-share weight
+    /// `(1 - p_i) / (1 - p_total)` — credit concentrates on the test
+    /// whose pass was least expected. Composite-card sub-updates use
+    /// `UpdateKind::Sub` and never advance `last_root_secs`.
     ///
-    /// Pipeline (HSRS-style: one update per `TestKey` per review):
+    /// Cards with no contained tests (`Reading`) return an empty outcome.
     ///
-    /// 1. Build the propagation set: for each direct, fan out
-    ///    `related_tests`. Drop targets that are themselves direct-graded
-    ///    this review (a real grade is stronger evidence than a related
-    ///    test's nudge). If multiple directs propagate to the same target,
-    ///    keep the highest-weight edge.
-    /// 2. `direct_step` every graded test.
-    /// 3. `propagated_step` every (deduped) propagation target — exactly
-    ///    once each.
-    ///
-    /// This mirrors HSRS's `getLearningCardDiff` which dedupes flattened
-    /// learnings by `cardId` so each target receives at most one update per
-    /// observation. Without the dedup, a direct already stamped at
-    /// `now_secs` would receive a propagated update with `elapsed = 0`,
-    /// which falls into `invert_r`'s `r ≈ 1.0` short-circuit and saturates
-    /// the test's stability to `S_MAX`.
-    ///
-    /// Propagation weight is HSRS's Bayesian conditional probability share
-    /// `(1 - p_i) / (1 - p_total)` (where `p_i` is the test's pre-review
-    /// retrievability and `p_total` is the joint product over all tests in
-    /// the observation), multiplied by the propagation edge's `gamma`. The
-    /// Bayesian factor concentrates "credit" on tests where the outcome was
-    /// least expected, then the static gamma scales by edge type.
-    #[allow(deprecated)] // transitional: collapses to single-grade pipeline in Phase 3
-    pub fn review(
-        &mut self,
-        card_id: CardId,
-        grades: HashMap<TestKey, Grade>,
-        now_secs: i64,
-    ) -> ReviewOutcome {
+    /// This mirrors HSRS's `getLearningCardDiff`: one user grade per card,
+    /// decomposed across the elements the card contains.
+    pub fn review(&mut self, card_id: CardId, grade: Grade, now_secs: i64) -> ReviewOutcome {
         let card = self
             .card(card_id)
             .unwrap_or_else(|| panic!("review: unknown card {card_id:?}"))
             .clone();
         let atoms = self.atoms_for(card.verse_id);
-        let expected: HashSet<TestKey> = card.tests(&atoms).into_iter().collect();
-        let actual: HashSet<TestKey> = grades.keys().copied().collect();
-        assert_eq!(
-            actual, expected,
-            "review: graded tests must equal card.tests(atoms)"
-        );
+        let tests = card.tests(&atoms);
 
-        let mut updates: Vec<TestUpdate> = Vec::with_capacity(expected.len() * 4);
-
-        // 1. Build the propagation set, deduping against directs and across
-        //    multiple directs. `prop_targets[target] = (grade, weight)` —
-        //    the strongest-weight edge wins on collision.
-        let direct_pairs: Vec<(TestKey, Grade)> = grades.iter().map(|(&k, &g)| (k, g)).collect();
-        let direct_keys: HashSet<TestKey> = direct_pairs.iter().map(|(k, _)| *k).collect();
-        let mut prop_targets: HashMap<TestKey, (Grade, f32)> = HashMap::new();
-        for (direct_key, grade) in &direct_pairs {
-            for edge in related_tests(*direct_key, &self.verse_index, &self.propagation_params) {
-                if direct_keys.contains(&edge.target) {
-                    continue;
-                }
-                let entry = prop_targets
-                    .entry(edge.target)
-                    .or_insert((*grade, edge.weight));
-                if edge.weight > entry.1 {
-                    *entry = (*grade, edge.weight);
-                }
-            }
+        if tests.is_empty() {
+            return ReviewOutcome::default();
         }
 
-        // 2. Compute the Bayesian factor over all tests in the observation
-        //    (directs + prop targets). HSRS's formula:
-        //      successProb_i = retrievability_at(now)
-        //      totalSuccessProb = ∏ successProb_i
-        //      bayesian_i = (1 - successProb_i) / (1 - totalSuccessProb)
-        //    With p_i ∈ [0, 1] the factor is also in [0, 1] (the joint is
-        //    no greater than any individual probability).
-        let observation_keys: Vec<TestKey> = direct_pairs
-            .iter()
-            .map(|(k, _)| *k)
-            .chain(prop_targets.keys().copied())
-            .collect();
-        let probs: HashMap<TestKey, f32> = observation_keys
+        if tests.len() == 1 {
+            // Atomic: full FSRS step, advances last_root.
+            let key = tests[0];
+            let before = *self
+                .tests
+                .get(&key)
+                .unwrap_or_else(|| panic!("review: missing TestState for {key:?}"));
+            let after = self.fsrs.update(&before, grade, 1.0, true, now_secs);
+            self.tests.insert(key, after);
+            return ReviewOutcome {
+                updates: vec![TestUpdate {
+                    key,
+                    kind: UpdateKind::Root,
+                    before,
+                    after,
+                }],
+            };
+        }
+
+        // Composite: HSRS Bayesian-share decomposition over contained tests.
+        let probs: Vec<f32> = tests
             .iter()
             .map(|k| {
-                let p = self
-                    .tests
+                self.tests
                     .get(k)
                     .map(|s| self.fsrs.retrievability_of(s, now_secs))
-                    .unwrap_or(1.0);
-                (*k, p)
+                    .unwrap_or(1.0)
             })
             .collect();
-        let total_prob: f32 = probs.values().copied().product();
-        let bayesian = |k: &TestKey| -> f32 {
-            if observation_keys.len() <= 1 {
-                return 1.0;
-            }
-            if total_prob >= 1.0 - 1e-9 {
-                return 0.0;
-            }
-            let p = probs.get(k).copied().unwrap_or(1.0);
-            ((1.0 - p) / (1.0 - total_prob)).clamp(0.0, 1.0)
-        };
-
-        // 3. Direct updates — always full FSRS step. The user's per-test
-        //    grade is the strongest signal we have for that test; we don't
-        //    dilute directs by the Bayesian factor (HSRS does because in
-        //    its model only the root cardId carries an explicit user grade
-        //    and the rest are inferred — verse-vault has explicit grades
-        //    for every direct via the multi-test card design).
-        for (key, grade) in &direct_pairs {
+        let p_total: f32 = probs.iter().product();
+        let mut updates: Vec<TestUpdate> = Vec::with_capacity(tests.len());
+        for (key, p_i) in tests.iter().zip(&probs) {
+            let weight = if p_total >= 1.0 - 1e-9 {
+                0.0
+            } else {
+                ((1.0 - p_i) / (1.0 - p_total)).clamp(0.0, 1.0)
+            };
             let before = *self
                 .tests
                 .get(key)
-                .unwrap_or_else(|| panic!("review: missing TestState for direct key {key:?}"));
-            let after = self.fsrs.direct_step(&before, *grade, now_secs);
+                .unwrap_or_else(|| panic!("review: missing TestState for {key:?}"));
+            let after = self.fsrs.update(&before, grade, weight, false, now_secs);
             self.tests.insert(*key, after);
             updates.push(TestUpdate {
                 key: *key,
-                kind: UpdateKind::Root,
-                before,
-                after,
-            });
-        }
-
-        // 4. Propagated updates — each target hit exactly once with weight
-        //    = bayesian × gamma_edge_type.
-        for (target, (grade, edge_gamma)) in prop_targets {
-            let before = match self.tests.get(&target) {
-                Some(s) => *s,
-                None => continue,
-            };
-            let weight = (bayesian(&target) * edge_gamma).clamp(0.0, 1.0);
-            let after = self.fsrs.propagated_step(&before, grade, weight, now_secs);
-            self.tests.insert(target, after);
-            updates.push(TestUpdate {
-                key: target,
                 kind: UpdateKind::Sub,
                 before,
                 after,
             });
         }
-
         ReviewOutcome { updates }
     }
 }
@@ -325,7 +254,24 @@ mod tests {
     }
 
     #[test]
-    fn review_citation_card_updates_three_tests() {
+    fn review_atomic_card_full_update_advances_last_root() {
+        let mut engine = build_engine();
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        let now = 86400 * 365 + 86400 * 7;
+        let outcome = engine.review(card_id, Grade::Good, now);
+        // Atomic = exactly one Root update.
+        assert_eq!(outcome.updates.len(), 1);
+        assert_eq!(outcome.updates[0].kind, UpdateKind::Root);
+        assert_eq!(outcome.updates[0].after.last_root_secs, now);
+    }
+
+    #[test]
+    fn review_composite_distributes_grade_to_contained_tests() {
         let mut engine = build_engine();
         let card_id = engine
             .cards
@@ -333,103 +279,55 @@ mod tests {
             .find(|c| matches!(c.kind, CardKind::Citation))
             .unwrap()
             .id;
-        let atoms = engine.atoms_for(0);
-        let card = engine.card(card_id).unwrap().clone();
-        let grades: HashMap<_, _> = card
-            .tests(&atoms)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
         let now = 86400 * 365 + 86400 * 7;
-        let outcome = engine.review(card_id, grades, now);
-        let direct_count = outcome
-            .updates
-            .iter()
-            .filter(|u| u.kind == UpdateKind::Root)
-            .count();
-        assert_eq!(direct_count, 3);
-        // Direct binding tests get last_root advanced.
-        let s = engine
-            .test_state(TestKey {
-                kind: TestKind::VerseRefPosition,
-                element: ElementId::VerseRefPosition { verse_id: 0 },
-            })
-            .unwrap();
-        assert_eq!(s.last_root_secs, now);
+        let outcome = engine.review(card_id, Grade::Good, now);
+        // Citation contains 3 tests; all should appear as Sub updates.
+        assert_eq!(outcome.updates.len(), 3);
+        assert!(outcome.updates.iter().all(|u| u.kind == UpdateKind::Sub));
     }
 
     #[test]
-    fn review_propagates_to_related_tests() {
+    fn review_composite_does_not_advance_last_root_anywhere() {
         let mut engine = build_engine();
         let card_id = engine
             .cards
             .iter()
-            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .find(|c| matches!(c.kind, CardKind::Recitation))
             .unwrap()
             .id;
-        let atoms = engine.atoms_for(0);
-        let card = engine.card(card_id).unwrap().clone();
-        let grades: HashMap<_, _> = card
-            .tests(&atoms)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
-        let now = 86400 * 365 + 86400 * 7;
-        let outcome = engine.review(card_id, grades, now);
-        assert!(outcome.updates.iter().any(|u| u.kind == UpdateKind::Sub));
-        // The propagated VerseChapter binding should have been touched but
-        // its last_root must remain at the seeded (initial) value.
-        let chapter_state = engine
-            .test_state(TestKey {
-                kind: TestKind::VerseChapter,
-                element: ElementId::VerseChapterBinding { verse_id: 0 },
-            })
-            .unwrap();
-        assert_eq!(chapter_state.last_seen_secs, now);
-        // Initial `last_root_secs` is `now_at_build - 365 days` (build time was 0).
         let initial_root = TestState::new_unseen(0).last_root_secs;
-        assert_eq!(chapter_state.last_root_secs, initial_root);
-    }
-
-    #[test]
-    fn review_phrasefill_has_one_direct_and_propagated() {
-        let mut engine = build_engine();
-        let card_id = engine
-            .cards
-            .iter()
-            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
-            .unwrap()
-            .id;
-        let atoms = engine.atoms_for(0);
-        let card = engine.card(card_id).unwrap().clone();
-        let grades: HashMap<_, _> = card
-            .tests(&atoms)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
         let now = 86400 * 365 + 86400 * 7;
-        let outcome = engine.review(card_id, grades, now);
-        let direct = outcome
-            .updates
-            .iter()
-            .filter(|u| u.kind == UpdateKind::Root)
-            .count();
-        let propagated = outcome
-            .updates
-            .iter()
-            .filter(|u| u.kind == UpdateKind::Sub)
-            .count();
-        assert_eq!(direct, 1);
-        // 1 sibling + 3 verse-binding endpoints (no headings, no clubs).
-        assert_eq!(propagated, 4);
+        let outcome = engine.review(card_id, Grade::Good, now);
+        for u in &outcome.updates {
+            assert_eq!(u.kind, UpdateKind::Sub);
+            assert_eq!(
+                u.after.last_root_secs, initial_root,
+                "composite Sub update must preserve last_root_secs"
+            );
+        }
     }
 
     #[test]
-    fn bayesian_concentrates_propagation_on_low_retr_targets() {
-        // Build two engines from the same material. Pre-condition them so
-        // one has a high-retr binding test and the other has a low-retr
-        // binding test. The Bayesian factor should give the low-retr
-        // binding a larger propagation weight (more "surprise").
+    fn review_reading_card_is_no_op() {
+        let mut engine = build_engine();
+        // Reading is never emitted by the builder. Insert one ad hoc.
+        let reading_id = CardId(u32::MAX);
+        engine.cards.push(crate::card::Card {
+            id: reading_id,
+            kind: CardKind::Reading,
+            verse_id: 0,
+            state: crate::card::CardState::Review,
+        });
+        let outcome = engine.review(reading_id, Grade::Good, 86400 * 365);
+        assert!(outcome.updates.is_empty());
+    }
+
+    #[test]
+    fn bayesian_concentrates_on_low_retr_targets() {
+        // Recitation contains the chapter binding directly; pre-condition
+        // it once with high stability and once with low. Bayesian share
+        // should give the low-retr (more surprising pass) binding a larger
+        // fractional lift.
         let m: MaterialData = serde_json::from_str(
             r#"{
                 "year": 3,
@@ -452,7 +350,6 @@ mod tests {
         let make_engine = |chapter_stability: f32| {
             let r = build(&m, 0);
             let mut engine = ReviewEngine::new(r, 0.9);
-            // Force the chapter binding's stability to a known value at t=0.
             let chapter_key = TestKey {
                 kind: TestKind::VerseChapter,
                 element: ElementId::VerseChapterBinding { verse_id: 0 },
@@ -465,11 +362,11 @@ mod tests {
             engine
         };
 
-        let card_id = |engine: &ReviewEngine| {
+        let recitation_id = |engine: &ReviewEngine| {
             engine
                 .cards
                 .iter()
-                .find(|c| matches!(c.kind, CardKind::PhraseFill { position: 0 }))
+                .find(|c| matches!(c.kind, CardKind::Recitation))
                 .unwrap()
                 .id
         };
@@ -478,41 +375,22 @@ mod tests {
             element: ElementId::VerseChapterBinding { verse_id: 0 },
         };
 
-        // Strong binding (high retrievability at review time): expected to pass.
-        let mut engine_strong = make_engine(1000.0);
-        let pf_strong = card_id(&engine_strong);
         let now = 86400; // 1 day later
-        let card = engine_strong.card(pf_strong).unwrap().clone();
-        let atoms_s = engine_strong.atoms_for(card.verse_id);
-        let grades: HashMap<_, _> = card
-            .tests(&atoms_s)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
+
+        let mut engine_strong = make_engine(1000.0);
+        let id_strong = recitation_id(&engine_strong);
         let s_before = engine_strong.test_state(chapter_key).copied().unwrap();
-        engine_strong.review(pf_strong, grades, now);
+        engine_strong.review(id_strong, Grade::Good, now);
         let s_after_strong = engine_strong.test_state(chapter_key).copied().unwrap();
 
-        // Weak binding (low retrievability at review time): surprising pass.
         let mut engine_weak = make_engine(0.5);
-        let pf_weak = card_id(&engine_weak);
-        let card = engine_weak.card(pf_weak).unwrap().clone();
-        let atoms_w = engine_weak.atoms_for(card.verse_id);
-        let grades: HashMap<_, _> = card
-            .tests(&atoms_w)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
+        let id_weak = recitation_id(&engine_weak);
         let w_before = engine_weak.test_state(chapter_key).copied().unwrap();
-        engine_weak.review(pf_weak, grades, now);
+        engine_weak.review(id_weak, Grade::Good, now);
         let s_after_weak = engine_weak.test_state(chapter_key).copied().unwrap();
 
-        // Both should have moved their last_seen up.
         assert_eq!(s_after_strong.last_seen_secs, now);
         assert_eq!(s_after_weak.last_seen_secs, now);
-        // Stability should rise in both, but the *fractional* lift on the
-        // weak (low-retr) binding should be greater — Bayesian concentrates
-        // credit there. Compare relative growth.
         let strong_growth = s_after_strong.stability / s_before.stability;
         let weak_growth = s_after_weak.stability / w_before.stability;
         assert!(
@@ -526,27 +404,5 @@ mod tests {
             s_after_strong.stability,
             strong_growth,
         );
-    }
-
-    #[test]
-    #[should_panic(expected = "graded tests must equal")]
-    fn review_panics_on_mismatched_grades() {
-        let mut engine = build_engine();
-        let card_id = engine
-            .cards
-            .iter()
-            .find(|c| matches!(c.kind, CardKind::Citation))
-            .unwrap()
-            .id;
-        let mut grades: HashMap<TestKey, Grade> = HashMap::new();
-        // missing the other two — Citation grades 3.
-        grades.insert(
-            TestKey {
-                kind: TestKind::VerseRefPosition,
-                element: ElementId::VerseRefPosition { verse_id: 0 },
-            },
-            Grade::Good,
-        );
-        engine.review(card_id, grades, 86400 * 365);
     }
 }

@@ -3,8 +3,6 @@
 //! `cdylib` (via `wasm-pack`) and an `rlib` so the wire types and helpers
 //! can be unit-tested with plain `cargo test`.
 
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -143,17 +141,17 @@ impl WasmEngine {
         Ok(WasmEngine { engine })
     }
 
-    /// Apply a card review. `grades_json` is a JSON array of
-    /// `{ "key": <TestKey>, "grade": <Grade> }` records — one entry per
-    /// expected test (must match `card.tests(atoms)` exactly). Returns the
-    /// resulting list of `TestUpdateWire`s as JSON.
+    /// Apply a card review. `grade` is the FSRS-style integer rating
+    /// (1=Again, 2=Hard, 3=Good, 4=Easy). Composite cards distribute the
+    /// grade across their contained tests via the engine's Bayesian-share
+    /// weight. Returns the resulting list of `TestUpdateWire`s as JSON.
     pub fn replay_event(
         &mut self,
         card_id: u32,
-        grades_json: &str,
+        grade: u8,
         now_secs: i64,
     ) -> Result<String, JsError> {
-        self.replay_event_inner(card_id, grades_json, now_secs)
+        self.replay_event_inner(card_id, grade, now_secs)
             .map_err(|e| JsError::new(&e))
     }
 
@@ -184,10 +182,10 @@ impl WasmEngine {
     pub fn replay_event_for_test(
         &mut self,
         card_id: u32,
-        grades_json: &str,
+        grade: u8,
         now_secs: i64,
     ) -> Result<String, String> {
-        self.replay_event_inner(card_id, grades_json, now_secs)
+        self.replay_event_inner(card_id, grade, now_secs)
     }
 
     /// Validate at the WASM boundary so a stale / drifted JS payload returns
@@ -198,44 +196,23 @@ impl WasmEngine {
     fn replay_event_inner(
         &mut self,
         card_id: u32,
-        grades_json: &str,
+        grade: u8,
         now_secs: i64,
     ) -> Result<String, String> {
-        let grades =
-            parse_grades(grades_json).map_err(|e| format!("grades_json parse error: {e}"))?;
-        let card = self
-            .engine
-            .card(CardId(card_id))
-            .ok_or_else(|| format!("unknown card id {card_id}"))?
-            .clone();
-        let atoms = self.engine.atoms_for(card.verse_id);
-        let expected: std::collections::HashSet<_> = card.tests(&atoms).into_iter().collect();
-        let actual: std::collections::HashSet<_> = grades.keys().copied().collect();
-        if actual != expected {
-            return Err(format!(
-                "grades for card {card_id} do not match card.tests(atoms): \
-                 missing={:?} extra={:?}",
-                expected.difference(&actual).collect::<Vec<_>>(),
-                actual.difference(&expected).collect::<Vec<_>>(),
-            ));
+        let g = match grade {
+            1 => Grade::Again,
+            2 => Grade::Hard,
+            3 => Grade::Good,
+            4 => Grade::Easy,
+            _ => return Err(format!("invalid grade {grade}: expected 1..=4")),
+        };
+        if self.engine.card(CardId(card_id)).is_none() {
+            return Err(format!("unknown card id {card_id}"));
         }
-        let outcome = self.engine.review(CardId(card_id), grades, now_secs);
+        let outcome = self.engine.review(CardId(card_id), g, now_secs);
         let wire: Vec<TestUpdateWire> = outcome.updates.iter().map(TestUpdateWire::from).collect();
         serde_json::to_string(&wire).map_err(|e| format!("response serialise error: {e}"))
     }
-}
-
-/// Parse a `[{"key": <TestKey>, "grade": <Grade>}, ...]` blob into a map.
-/// Encoding `TestKey` as a JSON value (rather than a string) keeps the wire
-/// format introspectable without committing to a specific stringification.
-fn parse_grades(grades_json: &str) -> Result<HashMap<TestKey, Grade>, serde_json::Error> {
-    #[derive(Deserialize)]
-    struct GradeEntry {
-        key: TestKey,
-        grade: Grade,
-    }
-    let entries: Vec<GradeEntry> = serde_json::from_str(grades_json)?;
-    Ok(entries.into_iter().map(|e| (e.key, e.grade)).collect())
 }
 
 #[cfg(test)]
