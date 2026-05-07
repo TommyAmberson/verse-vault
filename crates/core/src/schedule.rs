@@ -62,9 +62,7 @@ mod tests {
     use super::*;
     use crate::card::CardKind;
     use crate::content::MaterialData;
-    use crate::test_kind::TestKey;
     use crate::types::Grade;
-    use std::collections::HashMap;
 
     fn sample_material_one_verse() -> MaterialData {
         serde_json::from_str(
