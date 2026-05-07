@@ -84,7 +84,7 @@ impl FsrsBridge {
     }
 
     /// Predicted probability of recall at `now_secs` given the FSRS power
-    /// forgetting curve and this test's `(stability, last_base_secs)`. The
+    /// forgetting curve and this test's `(stability, last_seen_secs)`. The
     /// scheduler treats a card as due when its weakest test's retrievability
     /// drops below `ScheduleParams::target_retention`.
     pub fn retrievability_of(&self, state: &TestState, now_secs: i64) -> f32 {
@@ -93,8 +93,10 @@ impl FsrsBridge {
     }
 
     /// Wall-clock time at which this test's retrievability will hit `target_r`,
-    /// measured from `last_base_secs`. Closed-form inverse of the forgetting
-    /// curve — no binary search.
+    /// measured from `last_base_secs` (the scheduling anchor — interpolated
+    /// under propagation so the next-due estimate stays conservative when
+    /// evidence is weak). Closed-form inverse of the forgetting curve — no
+    /// binary search.
     pub fn due_at(&self, state: &TestState, target_r: f32) -> i64 {
         let factor = (0.9_f32.ln() / -FSRS6_DEFAULT_DECAY).exp() - 1.0;
         let interval_days =
@@ -391,6 +393,38 @@ mod tests {
         assert!((prop.difficulty - direct.difficulty).abs() < 0.1);
         assert_eq!(prop.last_root_secs, ts.last_root_secs); // last_root never advances on propagation
         assert_eq!(prop.last_base_secs, 86400 * 7); // (1-1)·old + 1·now = now
+    }
+
+    #[test]
+    fn forgetting_elapsed_resets_after_propagation() {
+        // HSRS: any update (direct OR propagated) advances `last_seen` to
+        // `now`, so the next forgetting computation sees only the time
+        // since that update — not the full pre-propagation interval.
+        let bridge = FsrsBridge::new(0.9);
+        let ts = TestState {
+            stability: 10.0,
+            difficulty: 5.0,
+            last_seen_secs: 0,
+            last_base_secs: 0,
+            last_root_secs: 0,
+        };
+        // At t=30d before any update, retrievability has decayed.
+        let r_before = bridge.retrievability_of(&ts, 86400 * 30);
+        assert!(r_before < 0.95, "should have decayed: {r_before}");
+        // Apply a small-weight propagation at t=30d. last_seen jumps to 30d,
+        // last_base barely moves (interpolated by the small weight).
+        let after_prop = bridge.propagated_step(&ts, Grade::Good, 0.07, 86400 * 30);
+        assert_eq!(after_prop.last_seen_secs, 86400 * 30);
+        assert!(after_prop.last_base_secs < 86400 * 30 / 2);
+        // Right after the prop, the forgetting curve should see ~0 elapsed,
+        // so retrievability should be essentially 1.0 — well above the
+        // pre-prop value at t=30d.
+        let r_right_after = bridge.retrievability_of(&after_prop, 86400 * 30);
+        assert!(
+            r_right_after > 0.99,
+            "elapsed should be ~0 after prop: r={r_right_after} (was {r_before} before)",
+        );
+        assert!(r_right_after > r_before);
     }
 
     #[test]
