@@ -1,23 +1,34 @@
-//! Minimal HSRS-engine simulation loop.
+//! HSRS-engine simulation with a probabilistic learner.
 //!
-//! Loads the bundled `data/corinthians.json` fixture, builds a `ReviewEngine`,
-//! then drives a fixed number of "ideal student" reviews — picking the next
-//! due card and grading it `Good`. Prints aggregate metrics (cards, tests,
-//! Root vs. Sub update counts) so the engine can be smoke-tested under real
-//! fixture data without hand-rolled input.
+//! Loads `data/corinthians.json`, builds a `ReviewEngine`, and steps a
+//! per-day review loop. A `ProbLearner` maintains parallel ground-truth
+//! per-test FSRS state; on each review it samples pass/fail per contained
+//! test from its true retrievability, derives a card-level grade, feeds the
+//! grade to the engine, and updates its truth from the per-test outcomes.
+//!
+//! Outputs aggregate calibration metrics (log_loss / AUC / RMSE-binned)
+//! over `(engine_predicted_r, actual_pass)` pairs, plus engine-vs-truth
+//! state drift.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use verse_vault_core::builder::build;
 use verse_vault_core::content::MaterialData;
 use verse_vault_core::engine::{ReviewEngine, UpdateKind};
 use verse_vault_core::schedule::next_card;
+use verse_vault_core::test_kind::TestKey;
 use verse_vault_core::types::Grade;
 
+mod learner;
 mod metrics;
+
+use learner::ProbLearner;
+use metrics::{Prediction, auc, log_loss, rmse_binned};
 
 const DEFAULT_REVIEWS: usize = 100;
 const SECONDS_PER_DAY: i64 = 86_400;
+const RNG_SEED: u64 = 0xC0FFEE;
 
 fn parse_reviews_arg() -> usize {
     let mut args = std::env::args().skip(1);
@@ -44,21 +55,28 @@ fn main() {
     let json = std::fs::read_to_string(&path).expect("corinthians fixture should exist");
     let material: MaterialData = serde_json::from_str(&json).expect("fixture parses");
 
-    // Seed the build a year before "now" so initial retrievabilities have
-    // decayed below the 0.9 target — otherwise `next_card` returns None.
-    let build_time = SECONDS_PER_DAY * 365;
-    let result = build(&material, 0);
+    // Engine is seeded as if "now = 0" so unseen tests have last_seen one
+    // year in the past. The simulation clock starts a year later so they're
+    // already due. Learner uses the same seed so its truth stays aligned.
+    let initial_seed_secs = 0;
+    let result = build(&material, initial_seed_secs);
     let total_cards = result.cards.len();
     let total_tests = result.tests.len();
     let mut engine = ReviewEngine::new(result, 0.9);
+    let mut learner = ProbLearner::new(RNG_SEED, 0.9, initial_seed_secs);
 
-    let mut now = build_time;
+    let mut predictions: Vec<Prediction> = Vec::new();
+    let mut day_review_counts: HashMap<i64, usize> = HashMap::new();
+    let mut grades_count = [0usize; 4];
+
+    let mut now = SECONDS_PER_DAY * 365;
     let mut completed = 0usize;
     let mut total_root = 0usize;
     let mut total_sub = 0usize;
+    let mut pass_count = 0usize;
+    let mut fail_count = 0usize;
 
     for _ in 0..reviews {
-        // Step the clock forward each iteration to clear sibling cooldown.
         now += SECONDS_PER_DAY;
         let card_id = match next_card(&engine, now) {
             Some(id) => id,
@@ -69,21 +87,117 @@ fn main() {
             .cloned()
             .expect("scheduler must point at an existing card");
         let atoms = engine.atoms_for(card.verse_id);
-        if card.tests(&atoms).is_empty() {
+        let tests = card.tests(&atoms);
+        if tests.is_empty() {
             continue;
         }
-        let outcome = engine.review(card_id, Grade::Good, now);
+
+        // Capture engine predictions BEFORE the review.
+        let pre_predictions: Vec<(TestKey, f32)> = tests
+            .iter()
+            .map(|&k| {
+                let r = engine
+                    .test_state(k)
+                    .map(|s| engine.fsrs.retrievability_of(s, now))
+                    .unwrap_or(1.0);
+                (k, r)
+            })
+            .collect();
+
+        // Learner samples per-test outcomes.
+        let outcomes = learner.observe_card(&tests, now);
+        for ((_, predicted_r), (_, pass)) in pre_predictions.iter().zip(outcomes.iter()) {
+            predictions.push(Prediction {
+                predicted_r: *predicted_r,
+                actual_pass: *pass,
+            });
+            if *pass {
+                pass_count += 1;
+            } else {
+                fail_count += 1;
+            }
+        }
+
+        // Aggregate to a card-level grade and feed engine + truth.
+        let grade = learner.card_grade_from_outcomes(&outcomes);
+        grades_count[grade_index(grade)] += 1;
+
+        let outcome = engine.review(card_id, grade, now);
         for u in &outcome.updates {
             match u.kind {
                 UpdateKind::Root => total_root += 1,
                 UpdateKind::Sub => total_sub += 1,
             }
         }
+        learner.record(&outcomes, now);
+
         completed += 1;
+        *day_review_counts.entry(now / SECONDS_PER_DAY).or_default() += 1;
     }
 
+    // Calibration metrics.
+    let ll = log_loss(&predictions);
+    let auroc = auc(&predictions);
+    let rmse = rmse_binned(&predictions);
+
+    // Engine-vs-truth state drift over tests both sides have updated.
+    let (drift_n, drift_rms) = stability_drift(&engine, &learner);
+
+    let avg_per_day = if !day_review_counts.is_empty() {
+        completed as f32 / day_review_counts.len() as f32
+    } else {
+        0.0
+    };
+
     println!(
-        "verse-vault-sim: cards={total_cards} tests={total_tests} reviews_done={completed} \
-         root_updates={total_root} sub_updates={total_sub}"
+        "verse-vault-sim:\n  \
+         catalog: cards={total_cards} tests={total_tests}\n  \
+         reviews_done={completed} root_updates={total_root} sub_updates={total_sub}\n  \
+         outcomes: pass={pass_count} fail={fail_count}\n  \
+         grades: again={} hard={} good={} easy={}\n  \
+         calibration: log_loss={:.4} auc={:.4} rmse_binned={:.4} predictions={}\n  \
+         drift: n={} rms_stability_diff={:.4}\n  \
+         schedule: days_active={} avg_reviews_per_day={:.1}",
+        grades_count[0],
+        grades_count[1],
+        grades_count[2],
+        grades_count[3],
+        ll,
+        auroc,
+        rmse,
+        predictions.len(),
+        drift_n,
+        drift_rms,
+        day_review_counts.len(),
+        avg_per_day,
     );
+}
+
+fn grade_index(g: Grade) -> usize {
+    match g {
+        Grade::Again => 0,
+        Grade::Hard => 1,
+        Grade::Good => 2,
+        Grade::Easy => 3,
+    }
+}
+
+/// RMS difference between engine.tests[k].stability and learner.truth[k].stability
+/// over keys present in both maps.
+fn stability_drift(engine: &ReviewEngine, learner: &ProbLearner) -> (usize, f32) {
+    let truth = learner.truth();
+    let mut sq_sum = 0.0f64;
+    let mut n = 0usize;
+    for (k, t) in truth.iter() {
+        if let Some(e) = engine.test_state(*k) {
+            let d = (e.stability - t.stability) as f64;
+            sq_sum += d * d;
+            n += 1;
+        }
+    }
+    if n == 0 {
+        (0, 0.0)
+    } else {
+        (n, ((sq_sum / n as f64).sqrt()) as f32)
+    }
 }
