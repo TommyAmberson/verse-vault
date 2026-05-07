@@ -154,6 +154,7 @@ impl ReviewEngine {
     /// the observation), multiplied by the propagation edge's `gamma`. The
     /// Bayesian factor concentrates "credit" on tests where the outcome was
     /// least expected, then the static gamma scales by edge type.
+    #[allow(deprecated)] // transitional: collapses to single-grade pipeline in Phase 3
     pub fn review(
         &mut self,
         card_id: CardId,

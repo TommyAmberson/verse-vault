@@ -226,13 +226,10 @@ impl FsrsBridge {
 
     /// HSRS partial update applied to a related (non-graded) test.
     ///
-    /// Interpolates in retrievability space between the current state and the
-    /// hypothetical post-direct state by `weight ∈ [0, 1]`. weight=0 is
-    /// identity except for `last_seen_secs`; weight=1 matches `direct_step`
-    /// except `last_root_secs` is preserved (the load-bearing invariant —
-    /// propagation never claims the test was directly reviewed).
-    ///
-    /// See `docs/path-posterior-memory-model.md` for derivation.
+    /// Forwards to [`FsrsBridge::update`] with `is_root = false`. Kept
+    /// while the engine transitions to the unified primitive in Phase 3;
+    /// scheduled for removal once all callers have migrated.
+    #[deprecated(note = "use FsrsBridge::update")]
     pub fn propagated_step(
         &self,
         state: &TestState,
@@ -240,40 +237,18 @@ impl FsrsBridge {
         weight: f32,
         now_secs: i64,
     ) -> TestState {
-        let w = weight.clamp(0.0, 1.0);
-        let direct = self.direct_step(state, grade, now_secs);
-        let elapsed = state.elapsed_days(now_secs).max(0.0);
-        let r_now = power_forgetting_curve(elapsed, state.stability, FSRS6_DEFAULT_DECAY);
-        let r_direct = power_forgetting_curve(elapsed, direct.stability, FSRS6_DEFAULT_DECAY);
-        let r_blend = (1.0 - w) * r_now + w * r_direct;
-        let s_blend = invert_r(r_blend, elapsed.max(0.001), FSRS6_DEFAULT_DECAY);
-        let d_blend = (1.0 - w) * state.difficulty + w * direct.difficulty;
-        let base_blend_f =
-            (1.0 - w as f64) * state.last_base_secs as f64 + w as f64 * now_secs as f64;
-        TestState {
-            stability: apply_stability_clamp(s_blend),
-            difficulty: d_blend.clamp(D_MIN, D_MAX),
-            last_seen_secs: now_secs,
-            last_base_secs: base_blend_f as i64,
-            last_root_secs: state.last_root_secs,
-        }
+        self.update(state, grade, weight, false, now_secs)
     }
 
-    /// Full FSRS-6 update for a directly-graded test: advances all three
-    /// timestamps to `now_secs` and applies the standard FSRS state
-    /// transition. Stability is asymptotically clamped via `soft_clamp`;
-    /// difficulty stays inside the FSRS `[1, 10]` range.
+    /// Full FSRS-6 update for a directly-graded test.
+    ///
+    /// Forwards to [`FsrsBridge::update`] with `weight = 1.0` and
+    /// `is_root = true`. Kept while the engine transitions to the unified
+    /// primitive in Phase 3; scheduled for removal once all callers have
+    /// migrated.
+    #[deprecated(note = "use FsrsBridge::update")]
     pub fn direct_step(&self, state: &TestState, grade: Grade, now_secs: i64) -> TestState {
-        let elapsed_days = state.elapsed_days(now_secs).max(0.0);
-        let memory: MemoryState = state.into();
-        let next = self.step(Some(memory), elapsed_days, grade as u32);
-        TestState {
-            stability: apply_stability_clamp(next.stability),
-            difficulty: next.difficulty.clamp(D_MIN, D_MAX),
-            last_seen_secs: now_secs,
-            last_base_secs: now_secs,
-            last_root_secs: now_secs,
-        }
+        self.update(state, grade, 1.0, true, now_secs)
     }
 
     /// FSRS state transition. `current=None` means new card (use initial state).
@@ -394,6 +369,7 @@ pub fn invert_r(r: f32, elapsed_days: f32, decay: f32) -> f32 {
 }
 
 #[cfg(test)]
+#[allow(deprecated)] // tests still cover direct_step / propagated_step until 3.4 removes them
 mod tests {
     use super::*;
 
