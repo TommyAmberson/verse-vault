@@ -1,10 +1,10 @@
-//! Scenario tests from `docs/path-posterior-memory-model.md`: many
-//! Recitation reviews on a verse should lift the directly-graded phrase
-//! tests' stability, and via propagation also lift the verse-binding tests'
-//! stability — but the bindings stay strictly below an equivalently-aged
-//! direct phrase test, and their `last_root_secs` never advances.
-
-use std::collections::HashMap;
+//! Scenario tests for the single-grade Recitation pipeline.
+//!
+//! Recitation now contains every phrase plus the citation triple. Grading
+//! the card distributes one user grade across all those tests via HSRS's
+//! Bayesian-share decomposition — every contained test sees a sub-update
+//! (`last_seen` advances, stability climbs) but `last_root_secs` never
+//! advances on any of them, since no atomic-card review fired.
 
 use verse_vault_core::builder::build;
 use verse_vault_core::card::CardKind;
@@ -37,7 +37,7 @@ fn one_verse_material() -> MaterialData {
 }
 
 #[test]
-fn recitation_lifts_phrases_directly_and_bindings_via_propagation() {
+fn recitation_lifts_phrases_and_bindings_without_advancing_last_root() {
     let material = one_verse_material();
     let build_now = 0;
     let r = build(&material, build_now);
@@ -55,18 +55,13 @@ fn recitation_lifts_phrases_directly_and_bindings_via_propagation() {
     // Grade the Recitation Good 5 times, spaced 7 days apart.
     let mut now = build_now + 86_400 * 365;
     for _ in 0..5 {
-        let card = engine.card(recitation_id).unwrap().clone();
-        let atoms = engine.atoms_for(card.verse_id);
-        let grades: HashMap<TestKey, Grade> = card
-            .tests(&atoms)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
-        engine.review(recitation_id, grades, now);
+        engine.review(recitation_id, Grade::Good, now);
         now += 86_400 * 7;
     }
 
-    // Recitation grades PhraseFromChain for every phrase directly.
+    let phrase_initial = TestState::new_unseen(build_now);
+
+    // Recitation contains PhraseFromChain for every phrase.
     let phrase_chain_0 = TestKey {
         kind: TestKind::PhraseFromChain,
         element: ElementId::Phrase {
@@ -78,21 +73,16 @@ fn recitation_lifts_phrases_directly_and_bindings_via_propagation() {
         .test_state(phrase_chain_0)
         .copied()
         .expect("phrase test seeded");
-    let phrase_initial = TestState::new_unseen(build_now);
     assert!(
         phrase_state.stability > phrase_initial.stability,
-        "directly-graded phrase stability must climb (got {} vs initial {})",
+        "phrase stability must climb under repeated Recitation reviews \
+         (got {} vs initial {})",
         phrase_state.stability,
         phrase_initial.stability,
     );
-    assert!(
-        phrase_state.last_root_secs > initial_root,
-        "phrase last_root must advance under direct review",
-    );
 
-    // VerseChapterBinding only sees propagated updates from Recitation —
-    // its stability should rise, but stay strictly below the directly-graded
-    // phrase test's stability.
+    // Recitation also contains the chapter binding directly. Stability
+    // should rise from sub-updates.
     let chapter_binding = TestKey {
         kind: TestKind::VerseChapter,
         element: ElementId::VerseChapterBinding { verse_id: 0 },
@@ -103,63 +93,47 @@ fn recitation_lifts_phrases_directly_and_bindings_via_propagation() {
         .expect("chapter binding test seeded");
     assert!(
         chapter_state.stability > phrase_initial.stability,
-        "binding stability must climb via propagation (got {})",
+        "binding stability must climb (got {})",
         chapter_state.stability,
-    );
-    assert!(
-        chapter_state.stability < phrase_state.stability,
-        "binding stability must stay below directly-graded phrase ({} vs {})",
-        chapter_state.stability,
-        phrase_state.stability,
     );
 
-    // The load-bearing HSRS invariant: propagation never advances
-    // last_root_secs. The chapter binding was only ever propagated to.
+    // The load-bearing HSRS invariant for the new pipeline: Recitation is
+    // a composite card, so every contained test gets a Sub update —
+    // `last_root_secs` never advances on any of them.
+    assert_eq!(
+        phrase_state.last_root_secs, initial_root,
+        "phrase last_root must stay at initial under composite-only review",
+    );
     assert_eq!(
         chapter_state.last_root_secs, initial_root,
-        "binding last_root must remain at initial value under propagation",
+        "binding last_root must stay at initial under composite-only review",
     );
 
-    // last_seen on the binding should still have advanced — propagation
-    // does refresh that timestamp so sibling cooldown applies.
-    assert!(
-        chapter_state.last_seen_secs > initial_root,
-        "binding last_seen must advance under propagation",
-    );
+    // last_seen on both should still have advanced.
+    assert!(phrase_state.last_seen_secs > initial_root);
+    assert!(chapter_state.last_seen_secs > initial_root);
 }
 
-/// Holistic grades both phrases and verse-bindings directly in the same
-/// review. Without HSRS-style dedup of the propagation set against the
-/// direct set, a phrase direct's propagation would land on a verse-binding
-/// that was already direct-stepped this tick — its `last_base_secs` would
-/// equal `now_secs`, `elapsed = 0`, and `invert_r(r ≈ 1.0, 0.001, decay)`
-/// would saturate stability to `S_MAX`. Regression test for that.
+/// One Recitation review at delta_t > 0 must not saturate any of its
+/// contained tests' stabilities to S_MAX. Regression for the
+/// `invert_r(r ≈ 1.0, ε)` saturation bug.
 #[test]
-fn holistic_does_not_saturate_bindings_to_s_max() {
+fn recitation_does_not_saturate_bindings_to_s_max() {
     let material = one_verse_material();
     let build_now = 0;
     let r = build(&material, build_now);
     let mut engine = ReviewEngine::new(r, 0.9);
 
-    let holistic_id = engine
+    let recitation_id = engine
         .cards
         .iter()
-        .find(|c| matches!(c.kind, CardKind::Holistic))
-        .expect("Holistic card built")
+        .find(|c| matches!(c.kind, CardKind::Recitation))
+        .expect("Recitation card built")
         .id;
 
     let now = build_now + 86_400 * 365;
-    let card = engine.card(holistic_id).unwrap().clone();
-    let atoms = engine.atoms_for(card.verse_id);
-    let grades: HashMap<TestKey, Grade> = card
-        .tests(&atoms)
-        .into_iter()
-        .map(|t| (t, Grade::Good))
-        .collect();
-    engine.review(holistic_id, grades, now);
+    engine.review(recitation_id, Grade::Good, now);
 
-    // After one Holistic review: phrase tests are direct-graded, binding
-    // tests are direct-graded too. Neither should be anywhere near S_MAX.
     let chapter_binding = TestKey {
         kind: TestKind::VerseChapter,
         element: ElementId::VerseChapterBinding { verse_id: 0 },
@@ -174,7 +148,7 @@ fn holistic_does_not_saturate_bindings_to_s_max() {
     let chapter_state = engine.test_state(chapter_binding).copied().unwrap();
     let phrase_state = engine.test_state(phrase_chain_0).copied().unwrap();
 
-    // 365 days is roughly HSRS's softClamp ceiling. Anything well above
+    // 365 days is roughly the soft-clamp ceiling. Anything well above
     // that on a single Good review is the saturation bug.
     assert!(
         chapter_state.stability < 365.0,
