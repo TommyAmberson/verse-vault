@@ -31,8 +31,12 @@ impl Default for ScheduleParams {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateKind {
-    Direct,
-    Propagated,
+    /// Atomic-card review: the card's single test is updated as a full
+    /// FSRS step, advancing all three timestamps.
+    Root,
+    /// Composite-card review: one of the contained tests gets a Bayesian-
+    /// share sub-update; `last_root_secs` is preserved.
+    Sub,
 }
 
 #[derive(Debug, Clone)]
@@ -245,7 +249,7 @@ impl ReviewEngine {
             self.tests.insert(*key, after);
             updates.push(TestUpdate {
                 key: *key,
-                kind: UpdateKind::Direct,
+                kind: UpdateKind::Root,
                 before,
                 after,
             });
@@ -263,7 +267,7 @@ impl ReviewEngine {
             self.tests.insert(target, after);
             updates.push(TestUpdate {
                 key: target,
-                kind: UpdateKind::Propagated,
+                kind: UpdateKind::Sub,
                 before,
                 after,
             });
@@ -341,7 +345,7 @@ mod tests {
         let direct_count = outcome
             .updates
             .iter()
-            .filter(|u| u.kind == UpdateKind::Direct)
+            .filter(|u| u.kind == UpdateKind::Root)
             .count();
         assert_eq!(direct_count, 3);
         // Direct binding tests get last_root advanced.
@@ -372,12 +376,7 @@ mod tests {
             .collect();
         let now = 86400 * 365 + 86400 * 7;
         let outcome = engine.review(card_id, grades, now);
-        assert!(
-            outcome
-                .updates
-                .iter()
-                .any(|u| u.kind == UpdateKind::Propagated)
-        );
+        assert!(outcome.updates.iter().any(|u| u.kind == UpdateKind::Sub));
         // The propagated VerseChapter binding should have been touched but
         // its last_root must remain at the seeded (initial) value.
         let chapter_state = engine
@@ -413,12 +412,12 @@ mod tests {
         let direct = outcome
             .updates
             .iter()
-            .filter(|u| u.kind == UpdateKind::Direct)
+            .filter(|u| u.kind == UpdateKind::Root)
             .count();
         let propagated = outcome
             .updates
             .iter()
-            .filter(|u| u.kind == UpdateKind::Propagated)
+            .filter(|u| u.kind == UpdateKind::Sub)
             .count();
         assert_eq!(direct, 1);
         // 1 sibling + 3 verse-binding endpoints (no headings, no clubs).

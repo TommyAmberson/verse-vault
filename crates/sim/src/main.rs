@@ -55,8 +55,8 @@ fn main() {
 
     let mut now = build_time;
     let mut completed = 0usize;
-    let mut total_direct = 0usize;
-    let mut total_propagated = 0usize;
+    let mut total_root = 0usize;
+    let mut total_sub = 0usize;
 
     for _ in 0..reviews {
         // Step the clock forward each iteration to clear sibling cooldown.
@@ -81,8 +81,8 @@ fn main() {
         let outcome = engine.review(card_id, grades, now);
         for u in &outcome.updates {
             match u.kind {
-                UpdateKind::Direct => total_direct += 1,
-                UpdateKind::Propagated => total_propagated += 1,
+                UpdateKind::Root => total_root += 1,
+                UpdateKind::Sub => total_sub += 1,
             }
         }
         completed += 1;
@@ -90,6 +90,6 @@ fn main() {
 
     println!(
         "verse-vault-sim: cards={total_cards} tests={total_tests} reviews_done={completed} \
-         direct_updates={total_direct} propagated_updates={total_propagated}"
+         root_updates={total_root} sub_updates={total_sub}"
     );
 }

@@ -77,15 +77,15 @@ pub struct TestUpdateWire {
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
 pub enum UpdateKindWire {
-    Direct,
-    Propagated,
+    Root,
+    Sub,
 }
 
 impl From<UpdateKind> for UpdateKindWire {
     fn from(k: UpdateKind) -> Self {
         match k {
-            UpdateKind::Direct => UpdateKindWire::Direct,
-            UpdateKind::Propagated => UpdateKindWire::Propagated,
+            UpdateKind::Root => UpdateKindWire::Root,
+            UpdateKind::Sub => UpdateKindWire::Sub,
         }
     }
 }
@@ -292,7 +292,7 @@ mod tests {
         let after = TestState::new_unseen(86400);
         let wire = TestUpdateWire {
             key,
-            kind: UpdateKindWire::Direct,
+            kind: UpdateKindWire::Root,
             before,
             after,
         };

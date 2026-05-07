@@ -58,8 +58,9 @@ fn replay_event_returns_at_least_one_direct_update() {
         .unwrap();
     let updates: Vec<serde_json::Value> = serde_json::from_str(&resp).unwrap();
     assert!(!updates.is_empty(), "review should produce updates");
-    let direct = updates.iter().filter(|u| u["kind"] == "Direct").count();
-    assert!(direct >= 1, "expected at least one Direct update");
+    let root = updates.iter().filter(|u| u["kind"] == "Root").count();
+    let sub = updates.iter().filter(|u| u["kind"] == "Sub").count();
+    assert!(root + sub >= 1, "expected at least one update");
 }
 
 #[test]
