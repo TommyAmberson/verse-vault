@@ -132,9 +132,9 @@ impl FsrsBridge {
 
     /// Wall-clock time at which this test's retrievability will hit `target_r`,
     /// measured from `last_base_secs` (the scheduling anchor — interpolated
-    /// under propagation so the next-due estimate stays conservative when
-    /// evidence is weak). Closed-form inverse of the forgetting curve — no
-    /// binary search.
+    /// under composite-card sub-updates so the next-due estimate stays
+    /// conservative when evidence is weak). Closed-form inverse of the
+    /// forgetting curve — no binary search.
     pub fn due_at(&self, state: &TestState, target_r: f32) -> i64 {
         let factor = (0.9_f32.ln() / -FSRS6_DEFAULT_DECAY).exp() - 1.0;
         let interval_days =
@@ -222,33 +222,6 @@ impl FsrsBridge {
             last_base_secs: now_secs,
             last_root_secs: now_secs,
         }
-    }
-
-    /// HSRS partial update applied to a related (non-graded) test.
-    ///
-    /// Forwards to [`FsrsBridge::update`] with `is_root = false`. Kept
-    /// while the engine transitions to the unified primitive in Phase 3;
-    /// scheduled for removal once all callers have migrated.
-    #[deprecated(note = "use FsrsBridge::update")]
-    pub fn propagated_step(
-        &self,
-        state: &TestState,
-        grade: Grade,
-        weight: f32,
-        now_secs: i64,
-    ) -> TestState {
-        self.update(state, grade, weight, false, now_secs)
-    }
-
-    /// Full FSRS-6 update for a directly-graded test.
-    ///
-    /// Forwards to [`FsrsBridge::update`] with `weight = 1.0` and
-    /// `is_root = true`. Kept while the engine transitions to the unified
-    /// primitive in Phase 3; scheduled for removal once all callers have
-    /// migrated.
-    #[deprecated(note = "use FsrsBridge::update")]
-    pub fn direct_step(&self, state: &TestState, grade: Grade, now_secs: i64) -> TestState {
-        self.update(state, grade, 1.0, true, now_secs)
     }
 
     /// FSRS state transition. `current=None` means new card (use initial state).
@@ -357,7 +330,7 @@ fn power_forgetting_curve(t: f32, s: f32, decay: f32) -> f32 {
 
 /// Inverse of the FSRS power forgetting curve: given a target retrievability,
 /// elapsed days, and decay, return the stability that produces that retrievability.
-/// Used by HSRS-style retrievability-space interpolation in propagated_step.
+/// Used by HSRS-style retrievability-space interpolation in `update`.
 pub fn invert_r(r: f32, elapsed_days: f32, decay: f32) -> f32 {
     // R = (1 + factor·t/S)^(-decay), so S = factor·t / (R^(-1/decay) - 1)
     let factor = (0.9_f32.ln() / -decay).exp() - 1.0;
@@ -369,19 +342,18 @@ pub fn invert_r(r: f32, elapsed_days: f32, decay: f32) -> f32 {
 }
 
 #[cfg(test)]
-#[allow(deprecated)] // tests still cover direct_step / propagated_step until 3.4 removes them
 mod tests {
     use super::*;
 
     #[test]
-    fn direct_step_good_increases_stability() {
+    fn root_update_good_increases_stability() {
         let bridge = FsrsBridge::new(0.9);
         let now0 = 86400 * 365;
         let ts = TestState::new_unseen(now0);
         let now1 = now0 + 86400 * 7;
-        let after = bridge.direct_step(&ts, Grade::Good, now1);
-        // Note: TestState::new_unseen sets last_base = now0 - 365 days,
-        // so elapsed at now1 ≈ 372 days. After Good review, stability should rise.
+        let after = bridge.update(&ts, Grade::Good, 1.0, true, now1);
+        // TestState::new_unseen sets last_base = now0 - 365 days, so elapsed
+        // at now1 ≈ 372 days. After Good review, stability should rise.
         assert!(after.stability > ts.stability);
         assert_eq!(after.last_seen_secs, now1);
         assert_eq!(after.last_base_secs, now1);
@@ -389,7 +361,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_step_hard_at_zero_delta_does_not_decrease_stability() {
+    fn root_update_hard_at_zero_delta_does_not_decrease_stability() {
         let bridge = FsrsBridge::new(0.9);
         let now = 86400 * 365;
         let ts = TestState {
@@ -399,7 +371,7 @@ mod tests {
             last_base_secs: now,
             last_root_secs: now,
         };
-        let after = bridge.direct_step(&ts, Grade::Hard, now);
+        let after = bridge.update(&ts, Grade::Hard, 1.0, true, now);
         assert!(
             after.stability >= ts.stability,
             "audit B1: Hard at delta=0 must not decrease S"
@@ -442,7 +414,10 @@ mod tests {
     }
 
     #[test]
-    fn propagated_step_zero_weight_preserves_state() {
+    fn forgetting_elapsed_resets_after_sub_update() {
+        // Any update advances `last_seen` to `now`, so the next forgetting
+        // computation sees only the time since that update — not the full
+        // pre-update interval.
         let bridge = FsrsBridge::new(0.9);
         let ts = TestState {
             stability: 10.0,
@@ -451,84 +426,25 @@ mod tests {
             last_base_secs: 0,
             last_root_secs: 0,
         };
-        // Across all grades and a range of times, weight=0 must leave
-        // (stability, difficulty, last_base, last_root) unchanged and only
-        // advance last_seen.
-        for grade in [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy] {
-            for now in [86400, 86400 * 7, 86400 * 30, 86400 * 365] {
-                let after = bridge.propagated_step(&ts, grade, 0.0, now);
-                assert!(
-                    (after.stability - ts.stability).abs() < 1e-3,
-                    "grade={grade:?} now={now}: stability changed",
-                );
-                assert!((after.difficulty - ts.difficulty).abs() < 1e-3);
-                assert_eq!(after.last_seen_secs, now);
-                assert_eq!(after.last_base_secs, ts.last_base_secs);
-                assert_eq!(after.last_root_secs, ts.last_root_secs);
-            }
-        }
-    }
-
-    #[test]
-    fn propagated_step_full_weight_matches_direct_modulo_root() {
-        let bridge = FsrsBridge::new(0.9);
-        let ts = TestState {
-            stability: 10.0,
-            difficulty: 5.0,
-            last_seen_secs: 0,
-            last_base_secs: 0,
-            last_root_secs: 0,
-        };
-        let direct = bridge.direct_step(&ts, Grade::Good, 86400 * 7);
-        let prop = bridge.propagated_step(&ts, Grade::Good, 1.0, 86400 * 7);
-        assert!(
-            (prop.stability - direct.stability).abs() < 0.5,
-            "stability close: {} vs {}",
-            prop.stability,
-            direct.stability
-        );
-        assert!((prop.difficulty - direct.difficulty).abs() < 0.1);
-        assert_eq!(prop.last_root_secs, ts.last_root_secs); // last_root never advances on propagation
-        assert_eq!(prop.last_base_secs, 86400 * 7); // (1-1)·old + 1·now = now
-    }
-
-    #[test]
-    fn forgetting_elapsed_resets_after_propagation() {
-        // HSRS: any update (direct OR propagated) advances `last_seen` to
-        // `now`, so the next forgetting computation sees only the time
-        // since that update — not the full pre-propagation interval.
-        let bridge = FsrsBridge::new(0.9);
-        let ts = TestState {
-            stability: 10.0,
-            difficulty: 5.0,
-            last_seen_secs: 0,
-            last_base_secs: 0,
-            last_root_secs: 0,
-        };
-        // At t=30d before any update, retrievability has decayed.
         let r_before = bridge.retrievability_of(&ts, 86400 * 30);
         assert!(r_before < 0.95, "should have decayed: {r_before}");
-        // Apply a small-weight propagation at t=30d. last_seen jumps to 30d,
-        // last_base barely moves (interpolated by the small weight).
-        let after_prop = bridge.propagated_step(&ts, Grade::Good, 0.07, 86400 * 30);
-        assert_eq!(after_prop.last_seen_secs, 86400 * 30);
-        assert!(after_prop.last_base_secs < 86400 * 30 / 2);
-        // Right after the prop, the forgetting curve should see ~0 elapsed,
-        // so retrievability should be essentially 1.0 — well above the
-        // pre-prop value at t=30d.
-        let r_right_after = bridge.retrievability_of(&after_prop, 86400 * 30);
+        let after = bridge.update(&ts, Grade::Good, 0.07, false, 86400 * 30);
+        assert_eq!(after.last_seen_secs, 86400 * 30);
+        assert!(after.last_base_secs < 86400 * 30 / 2);
+        let r_right_after = bridge.retrievability_of(&after, 86400 * 30);
         assert!(
             r_right_after > 0.99,
-            "elapsed should be ~0 after prop: r={r_right_after} (was {r_before} before)",
+            "elapsed should be ~0 after update: r={r_right_after} (was {r_before} before)",
         );
         assert!(r_right_after > r_before);
     }
 
     #[test]
-    fn last_root_monotonic_under_propagation() {
-        // Property: a series of propagated_steps with varying grades, weights,
-        // and times never advances last_root_secs. This is the load-bearing
-        // HSRS invariant — propagation cannot impersonate a direct review.
+    fn last_root_monotonic_under_sub_updates() {
+        // Property: a series of sub-updates (is_root=false) with varying
+        // grades, weights, and times never advances last_root_secs. This
+        // is the load-bearing HSRS invariant — composite-card sub-updates
+        // cannot impersonate an atomic-card root review.
         let bridge = FsrsBridge::new(0.9);
         let mut s = TestState {
             stability: 5.0,
@@ -542,7 +458,7 @@ mod tests {
         for t in 200..1000i64 {
             let grade = grades[(t as usize) % grades.len()];
             let weight = weights[(t as usize) % weights.len()];
-            s = bridge.propagated_step(&s, grade, weight, t);
+            s = bridge.update(&s, grade, weight, false, t);
             assert_eq!(s.last_root_secs, 100, "last_root advanced at t={t}");
         }
     }
@@ -559,11 +475,9 @@ mod tests {
     #[test]
     fn soft_clamp_caps_pathological_inputs() {
         // Even pathologically large inputs (e.g. invert_r's S_MAX) get
-        // pulled to the cap. This is the regression for the bug where
-        // Holistic propagation pinned bindings to S_MAX = 36500. The
-        // exponential saturation underflows in f32 so the output can hit
-        // max exactly — that's fine; what matters is that S_MAX (~36500)
-        // can't survive an update.
+        // pulled to the cap. The exponential saturation underflows in f32
+        // so the output can hit max exactly — that's fine; what matters
+        // is that S_MAX (~36500) can't survive an update.
         let out = soft_clamp(36500.0, 365.0, 0.5);
         assert!(out <= 365.0 + 1e-3, "exceeded cap: {out}");
         assert!(out > 360.0, "should approach cap: {out}");
@@ -595,55 +509,6 @@ mod tests {
             last_seen_secs: 0,
             last_base_secs: 0,
             last_root_secs: 0,
-        }
-    }
-
-    #[test]
-    fn update_weight_one_root_matches_old_direct_step() {
-        let bridge = FsrsBridge::new(0.9);
-        let s = sample_state();
-        for grade in [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy] {
-            for now in [86400, 86400 * 7, 86400 * 30, 86400 * 365] {
-                let direct = bridge.direct_step(&s, grade, now);
-                let unified = bridge.update(&s, grade, 1.0, true, now);
-                assert!(
-                    (unified.stability - direct.stability).abs() < 1e-3,
-                    "stability mismatch grade={grade:?} now={now}: {} vs {}",
-                    unified.stability,
-                    direct.stability,
-                );
-                assert!(
-                    (unified.difficulty - direct.difficulty).abs() < 1e-3,
-                    "difficulty mismatch"
-                );
-                assert_eq!(unified.last_seen_secs, direct.last_seen_secs);
-                assert_eq!(unified.last_base_secs, direct.last_base_secs);
-                assert_eq!(unified.last_root_secs, direct.last_root_secs);
-            }
-        }
-    }
-
-    #[test]
-    fn update_partial_weight_no_root_matches_old_propagated_step() {
-        let bridge = FsrsBridge::new(0.9);
-        let s = sample_state();
-        for grade in [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy] {
-            for w in [0.05_f32, 0.1, 0.3, 0.5, 0.7] {
-                for now in [86400, 86400 * 7, 86400 * 30] {
-                    let prop = bridge.propagated_step(&s, grade, w, now);
-                    let unified = bridge.update(&s, grade, w, false, now);
-                    assert!(
-                        (unified.stability - prop.stability).abs() < 1e-2,
-                        "stability mismatch grade={grade:?} w={w} now={now}: {} vs {}",
-                        unified.stability,
-                        prop.stability,
-                    );
-                    assert!((unified.difficulty - prop.difficulty).abs() < 1e-2);
-                    assert_eq!(unified.last_seen_secs, prop.last_seen_secs);
-                    assert_eq!(unified.last_base_secs, prop.last_base_secs);
-                    assert_eq!(unified.last_root_secs, prop.last_root_secs);
-                }
-            }
         }
     }
 
