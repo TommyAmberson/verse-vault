@@ -2,9 +2,9 @@
 //!
 //! Loads the bundled `data/corinthians.json` fixture, builds a `ReviewEngine`,
 //! then drives a fixed number of "ideal student" reviews — picking the next
-//! due card and grading every test `Good`. Prints aggregate metrics so the
-//! engine can be smoke-tested under real fixture data without hand-rolled
-//! input.
+//! due card and grading it `Good`. Prints aggregate metrics (cards, tests,
+//! Root vs. Sub update counts) so the engine can be smoke-tested under real
+//! fixture data without hand-rolled input.
 
 use std::path::PathBuf;
 
