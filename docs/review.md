@@ -14,14 +14,24 @@ grade map and returns a `ReviewOutcome` listing every test it touched, tagged `D
 1. Look up the card and its `VerseAtoms`.
 2. Compute `card.tests(atoms)` and assert that `grades.keys()` matches it exactly. (Mismatch panics
    — the engine refuses to silently skip or seed.)
-3. For each `(test, grade)` pair, apply `FsrsBridge::direct_step` and record a `Direct` update.
-4. For each direct, enumerate `propagate::related_tests(direct, …)` and apply
-   `FsrsBridge::propagated_step` to each non-self target with the direct's grade and the edge's
-   weight; record `Propagated` updates.
+3. **Build the propagation set, deduped.** For each direct, fan out
+   `propagate::related_tests(direct, …)`. Drop targets that are themselves direct-graded this
+   review. If multiple directs propagate to the same target, keep the highest-weight edge.
+4. For each `(test, grade)` pair, apply `FsrsBridge::direct_step` and record a `Direct` update.
+5. For each (deduped) propagation target, apply `FsrsBridge::propagated_step` with the chosen grade
+   and weight; record a `Propagated` update.
 
 That's it. No path enumeration, no source-set expansion, no fallback chain, no anchor transfer. All
 of that machinery from the legacy 6-step credit-assignment algorithm was subsumed by per-test state
 plus HSRS-style propagation.
+
+The dedup in step 3 is load-bearing. It mirrors HSRS's `getLearningCardDiff` (which dedupes
+flattened learnings via `_.uniqBy(res, l => l.cardId)`) so each `TestKey` receives **at most one
+update per review**. Without it, a composite card like `Holistic` — which directly grades both
+phrase and binding tests — would re-touch a binding's freshly-stamped state with `elapsed = 0`,
+falling into `invert_r`'s `r ≈ 1.0` branch and saturating stability to `S_MAX`. A real direct grade
+is stronger evidence than any partial nudge a related test could supply, so the directs win and the
+propagation is dropped.
 
 ## Cards grade tests, not atoms
 
@@ -82,13 +92,17 @@ two cases:
 The function returns `[]` for verses unknown to the index — propagation is verse-local by
 construction.
 
-## Ordering when directs share a target
+## When directs share a propagation target
 
 Composite cards can have two directs that propagate to the same target (e.g. a Recitation grades all
-phrases directly, and each phrase propagates to the same `VerseChapterBinding`). The engine applies
-them in arrival order; the second `propagated_step` sees the state the first one wrote. That matches
-HSRS semantics — each propagation is just another partial update — and keeps the implementation a
-straight loop.
+phrases directly, and each phrase propagates to the same `VerseChapterBinding`). The engine keeps
+**one** propagation per target — the highest-weight edge wins. The other directs' edges to the same
+target are dropped. This matches HSRS's "one update per cardId per observation" invariant; layering
+multiple partial updates on the same test in arrival order would compound soft evidence beyond what
+any single direct grade represents.
+
+If the target is itself in the direct set, the propagation is dropped entirely — see step 3 of the
+pipeline above.
 
 ## Audit fixes folded in
 
