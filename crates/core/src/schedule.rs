@@ -62,9 +62,7 @@ mod tests {
     use super::*;
     use crate::card::CardKind;
     use crate::content::MaterialData;
-    use crate::test_kind::TestKey;
     use crate::types::Grade;
-    use std::collections::HashMap;
 
     fn sample_material_one_verse() -> MaterialData {
         serde_json::from_str(
@@ -131,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn sibling_cooldown_blocks_phrasefill_after_recitation() {
+    fn recitation_does_not_cooldown_phrasefill_under_single_grade() {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
@@ -142,14 +140,7 @@ mod tests {
             .find(|c| matches!(c.kind, CardKind::Recitation))
             .unwrap()
             .id;
-        let atoms = engine.atoms_for(0);
-        let card = engine.card(recit_id).unwrap().clone();
-        let grades: HashMap<TestKey, Grade> = card
-            .tests(&atoms)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
-        engine.review(recit_id, grades, now);
+        engine.review(recit_id, Grade::Good, now);
 
         let pf_id = engine
             .cards
@@ -157,13 +148,12 @@ mod tests {
             .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
             .unwrap()
             .id;
-        // Recitation grades all PhraseFromChain phrases directly. Phrase from
-        // PhraseFill (PhraseFromContext) gets propagated through the sibling
-        // edge → its last_seen also advances. So the PhraseFill card is in
-        // cooldown one minute after the Recitation.
-        assert!(engine.is_in_cooldown(pf_id, now + 60));
-        // One day later (default cooldown is 30 minutes), it's free again.
-        assert!(!engine.is_in_cooldown(pf_id, now + 86400));
+        // Recitation contains PhraseFromChain for every phrase plus the
+        // citation triple — but not PhraseFromContext (the cuing direction
+        // tested by PhraseFill). Cooldown is keyed off the *card's* tests'
+        // last_seen, so the PhraseFromContext test was not touched by the
+        // Recitation review and the PhraseFill card is *not* in cooldown.
+        assert!(!engine.is_in_cooldown(pf_id, now + 60));
     }
 
     #[test]

@@ -4,7 +4,6 @@ pub mod content;
 pub mod element;
 pub mod engine;
 pub mod fsrs_bridge;
-pub mod propagate;
 pub mod schedule;
 pub mod session;
 pub mod test_kind;

@@ -12,12 +12,14 @@ pub enum CardState {
     Relearning,
 }
 
-/// What this card asks the learner. Atomic kinds grade exactly one test;
-/// composite kinds (`Recitation`, `Citation`, `Ftv`, `Holistic`) grade
-/// several at once. The exact set is computed by `Card::tests`.
+/// What this card asks the learner. Atomic kinds contain exactly one test;
+/// composite kinds (`Recitation`, `Citation`, `Ftv`) contain several. The
+/// exact set is computed by `Card::tests`. A review submits a single grade
+/// per card; composite cards distribute it via the engine's Bayesian-share
+/// decomposition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CardKind {
-    // atomic — each grades exactly one test
+    // atomic — each contains exactly one test
     PhraseFill {
         position: u16,
     },
@@ -33,13 +35,15 @@ pub enum CardKind {
     VerseInClub {
         tier: ClubTier,
     },
-    // composite — each grades many tests
+    // composite — each contains many tests
+    /// Whole-verse recitation. Contains every phrase plus the citation
+    /// triple (verseref position, chapter binding, book binding) — the
+    /// "say it all" card.
     Recitation,
     Citation,
     Ftv {
         with_citation: bool,
     },
-    Holistic,
     /// UX-only: progressive-reveal entry that shows the verse text to the
     /// learner. Carries no FSRS state and is never emitted by `builder::build`;
     /// it only appears in `Session::new_verse_progression`.
@@ -113,11 +117,10 @@ pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<
 }
 
 impl Card {
-    /// Tests this card grades when reviewed. The caller passes the
-    /// `VerseAtoms` for `self.verse_id` so the function stays pure (no
-    /// engine reference). `Recitation`, `Citation`, `Ftv`, and `Holistic`
-    /// expand into multiple tests; the atomic kinds return a single-element
-    /// vec.
+    /// Tests this card contains. The caller passes the `VerseAtoms` for
+    /// `self.verse_id` so the function stays pure (no engine reference).
+    /// `Recitation`, `Citation`, and `Ftv` expand into multiple tests; the
+    /// atomic kinds return a single-element vec; `Reading` returns empty.
     pub fn tests(&self, atoms: &VerseAtoms) -> Vec<TestKey> {
         let verse_id = self.verse_id;
         match self.kind {
@@ -152,34 +155,7 @@ impl Card {
                 kind: TestKind::VerseClub,
                 element: ElementId::VerseClubBinding { verse_id, tier },
             }],
-            CardKind::Recitation => atoms
-                .phrase_positions()
-                .into_iter()
-                .map(|p| TestKey {
-                    kind: TestKind::PhraseFromChain,
-                    element: ElementId::Phrase {
-                        verse_id,
-                        position: p,
-                    },
-                })
-                .collect(),
-            CardKind::Citation => vec![
-                TestKey {
-                    kind: TestKind::VerseRefPosition,
-                    element: ElementId::VerseRefPosition { verse_id },
-                },
-                TestKey {
-                    kind: TestKind::VerseChapter,
-                    element: ElementId::VerseChapterBinding { verse_id },
-                },
-                TestKey {
-                    kind: TestKind::VerseBook,
-                    element: ElementId::VerseBookBinding { verse_id },
-                },
-            ],
-            CardKind::Ftv { with_citation } => ftv_tests(verse_id, atoms, with_citation),
-            CardKind::Reading => Vec::new(),
-            CardKind::Holistic => {
+            CardKind::Recitation => {
                 let mut out: Vec<TestKey> = atoms
                     .phrase_positions()
                     .into_iter()
@@ -205,6 +181,22 @@ impl Card {
                 });
                 out
             }
+            CardKind::Citation => vec![
+                TestKey {
+                    kind: TestKind::VerseRefPosition,
+                    element: ElementId::VerseRefPosition { verse_id },
+                },
+                TestKey {
+                    kind: TestKind::VerseChapter,
+                    element: ElementId::VerseChapterBinding { verse_id },
+                },
+                TestKey {
+                    kind: TestKind::VerseBook,
+                    element: ElementId::VerseBookBinding { verse_id },
+                },
+            ],
+            CardKind::Ftv { with_citation } => ftv_tests(verse_id, atoms, with_citation),
+            CardKind::Reading => Vec::new(),
         }
     }
 }
@@ -343,10 +335,19 @@ mod tests {
     }
 
     #[test]
-    fn holistic_grades_n_plus_three() {
-        let c = atomic_card(0, CardKind::Holistic, 7);
+    fn recitation_grades_phrases_plus_citation_triple() {
+        let c = atomic_card(0, CardKind::Recitation, 7);
         let tests = c.tests(&sample_atoms(7, 4));
-        assert_eq!(tests.len(), 7); // 4 phrase + 3 citation
+        // 4 phrases + 3 citation tests (verseref, chapter, book).
+        assert_eq!(tests.len(), 7);
+        let phrase_count = tests
+            .iter()
+            .filter(|t| t.kind == TestKind::PhraseFromChain)
+            .count();
+        assert_eq!(phrase_count, 4);
+        assert!(tests.iter().any(|t| t.kind == TestKind::VerseRefPosition));
+        assert!(tests.iter().any(|t| t.kind == TestKind::VerseChapter));
+        assert!(tests.iter().any(|t| t.kind == TestKind::VerseBook));
     }
 
     #[test]
@@ -430,14 +431,17 @@ mod tests {
     }
 
     #[test]
-    fn recitation_grades_n_phrases() {
+    fn recitation_phrase_tests_target_correct_verse() {
         let c = atomic_card(0, CardKind::Recitation, 7);
         let atoms = sample_atoms(7, 4);
         let tests = c.tests(&atoms);
-        assert_eq!(tests.len(), 4);
-        assert!(tests.iter().all(|t| t.kind == TestKind::PhraseFromChain));
+        let phrase_tests: Vec<_> = tests
+            .iter()
+            .filter(|t| t.kind == TestKind::PhraseFromChain)
+            .collect();
+        assert_eq!(phrase_tests.len(), 4);
         assert!(
-            tests
+            phrase_tests
                 .iter()
                 .all(|t| matches!(t.element, ElementId::Phrase { verse_id: 7, .. }))
         );

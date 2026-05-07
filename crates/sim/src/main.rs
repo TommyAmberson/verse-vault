@@ -2,11 +2,10 @@
 //!
 //! Loads the bundled `data/corinthians.json` fixture, builds a `ReviewEngine`,
 //! then drives a fixed number of "ideal student" reviews — picking the next
-//! due card and grading every test `Good`. Prints aggregate metrics so the
-//! engine can be smoke-tested under real fixture data without hand-rolled
-//! input.
+//! due card and grading it `Good`. Prints aggregate metrics (cards, tests,
+//! Root vs. Sub update counts) so the engine can be smoke-tested under real
+//! fixture data without hand-rolled input.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use verse_vault_core::builder::build;
@@ -55,8 +54,8 @@ fn main() {
 
     let mut now = build_time;
     let mut completed = 0usize;
-    let mut total_direct = 0usize;
-    let mut total_propagated = 0usize;
+    let mut total_root = 0usize;
+    let mut total_sub = 0usize;
 
     for _ in 0..reviews {
         // Step the clock forward each iteration to clear sibling cooldown.
@@ -70,19 +69,14 @@ fn main() {
             .cloned()
             .expect("scheduler must point at an existing card");
         let atoms = engine.atoms_for(card.verse_id);
-        let grades: HashMap<_, _> = card
-            .tests(&atoms)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
-        if grades.is_empty() {
+        if card.tests(&atoms).is_empty() {
             continue;
         }
-        let outcome = engine.review(card_id, grades, now);
+        let outcome = engine.review(card_id, Grade::Good, now);
         for u in &outcome.updates {
             match u.kind {
-                UpdateKind::Direct => total_direct += 1,
-                UpdateKind::Propagated => total_propagated += 1,
+                UpdateKind::Root => total_root += 1,
+                UpdateKind::Sub => total_sub += 1,
             }
         }
         completed += 1;
@@ -90,6 +84,6 @@ fn main() {
 
     println!(
         "verse-vault-sim: cards={total_cards} tests={total_tests} reviews_done={completed} \
-         direct_updates={total_direct} propagated_updates={total_propagated}"
+         root_updates={total_root} sub_updates={total_sub}"
     );
 }

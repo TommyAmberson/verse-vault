@@ -203,10 +203,9 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
             );
         }
 
-        // Composite: Recitation, Citation, Holistic
+        // Composite: Recitation (phrases + citation triple) and Citation.
         push_card(CardKind::Recitation, &mut cards, &mut next_card_id);
         push_card(CardKind::Citation, &mut cards, &mut next_card_id);
-        push_card(CardKind::Holistic, &mut cards, &mut next_card_id);
 
         // Composite: Ftv (with and without citation). Eligibility requires an
         // FTV that's short enough, that the verse has phrases, and that the
@@ -439,7 +438,6 @@ mod tests {
                 .any(|c| matches!(c.kind, CardKind::Recitation))
         );
         assert!(r.cards.iter().any(|c| matches!(c.kind, CardKind::Citation)));
-        assert!(r.cards.iter().any(|c| matches!(c.kind, CardKind::Holistic)));
         // FTV "For God" is a strict prefix of phrase zero "For God" (equal),
         // so both Ftv variants are emitted.
         let ftv_cards = r

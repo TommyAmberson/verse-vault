@@ -5,20 +5,15 @@
 //! through a progressive-reveal sequence. All FSRS state lives in the engine —
 //! session bookkeeping is purely about ordering and visibility.
 
-use std::collections::HashMap;
-
 use crate::card::{Card, CardKind};
-use crate::element::ElementId;
 use crate::engine::{ReviewEngine, ReviewOutcome};
 use crate::schedule;
-use crate::test_kind::{TestKey, TestKind};
 use crate::types::{CardId, Grade};
 
-// Cooldown lives on the engine: `propagated_step` and `direct_step` both
-// stamp `last_seen_secs = now_secs`, and `schedule::next_card` filters
-// cards via `engine.is_in_cooldown` against that field. The session
-// shouldn't keep a parallel timestamp map — it would just duplicate
-// information already on `engine.tests`.
+// Cooldown lives on the engine: every `update` advances `last_seen_secs`,
+// and `schedule::next_card` filters cards via `engine.is_in_cooldown`
+// against that field. The session shouldn't keep a parallel timestamp
+// map — it would duplicate information already on `engine.tests`.
 
 /// A planned slot in the session queue. Mirrors a `Card` but in queue-shaped
 /// terms (with a due time) and without persistent state — re-drills and
@@ -30,11 +25,13 @@ pub struct SessionCard {
     pub due_at: i64,
 }
 
-/// Re-drill flavour. Inserted into the queue after a Recitation lapses.
+/// Re-drill flavour. Inserted into the queue after an `Again`. With the
+/// single-grade-per-card pipeline there's no way to tell *which* phrase the
+/// learner missed, so the only sensible recovery is re-queueing the same
+/// card later in the session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReDrillKind {
-    FillInBlank { position: u16 },
-    FullRecitation,
+    SameCard { kind: CardKind },
 }
 
 /// What the session wants to do next after a review.
@@ -47,11 +44,10 @@ pub enum SessionAction {
 
 /// Bookkeeping for the most-recently-reviewed card. Used by
 /// `next_drill_after` to decide whether (and how) to re-drill.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 struct InFlight {
     kind: CardKind,
     verse_id: u32,
-    grades: HashMap<TestKey, Grade>,
 }
 
 #[derive(Debug, Default)]
@@ -93,7 +89,7 @@ impl Session {
         &mut self,
         engine: &mut ReviewEngine,
         card_id: CardId,
-        grades: HashMap<TestKey, Grade>,
+        grade: Grade,
         now_secs: i64,
     ) -> ReviewOutcome {
         let card = engine
@@ -103,29 +99,23 @@ impl Session {
         self.in_flight = Some(InFlight {
             kind: card.kind,
             verse_id: card.verse_id,
-            grades: grades.clone(),
         });
-        engine.review(card_id, grades, now_secs)
+        engine.review(card_id, grade, now_secs)
     }
 
     /// Pick the next card. Cooldown is enforced by `schedule::next_card`
     /// against `engine.tests[*].last_seen_secs`, which `engine.review`
-    /// updates for every direct and propagated test of the just-reviewed
-    /// card.
+    /// updates for every test the just-reviewed card touched.
     pub fn next_card<'e>(&self, engine: &'e ReviewEngine, now_secs: i64) -> Option<&'e Card> {
         let id = schedule::next_card(engine, now_secs)?;
         engine.card(id)
     }
 
-    /// Record the kind/verse_id and per-test grades for the card just sent
-    /// to the engine. Required before `next_drill_after` so the session can
-    /// interpret the review outcome.
-    pub fn stage_review(&mut self, kind: CardKind, verse_id: u32, grades: HashMap<TestKey, Grade>) {
-        self.in_flight = Some(InFlight {
-            kind,
-            verse_id,
-            grades,
-        });
+    /// Record the kind/verse_id of the card just sent to the engine.
+    /// Required before `next_drill_after` so the session can interpret the
+    /// review outcome.
+    pub fn stage_review(&mut self, kind: CardKind, verse_id: u32) {
+        self.in_flight = Some(InFlight { kind, verse_id });
     }
 
     /// The staged sequence for introducing a new verse:
@@ -144,48 +134,20 @@ impl Session {
         out
     }
 
-    /// Decide whether to insert a re-drill. Only Recitation reviews trigger
-    /// re-drills; other kinds always return `None`.
-    ///
-    /// Rules for Recitation (where N = phrase tests graded):
-    /// - majority failure (`fails >= ceil(N/2)`) → `FullRecitation`
-    /// - exactly one failure → `FillInBlank { position }`
-    /// - otherwise → `None`
-    pub fn next_drill_after(&self, _outcome: ReviewOutcome) -> Option<SessionAction> {
-        let in_flight = self.in_flight.as_ref()?;
-        if !matches!(in_flight.kind, CardKind::Recitation) {
-            return None;
-        }
-        let phrase_fails: Vec<u16> = in_flight
-            .grades
-            .iter()
-            .filter(|(k, g)| k.kind == TestKind::PhraseFromChain && matches!(g, Grade::Again))
-            .filter_map(|(k, _)| match k.element {
-                ElementId::Phrase { position, .. } => Some(position),
-                _ => None,
-            })
-            .collect();
-        let total_phrase_tests = in_flight
-            .grades
-            .keys()
-            .filter(|k| k.kind == TestKind::PhraseFromChain)
-            .count();
-        let majority_threshold = total_phrase_tests.div_ceil(2);
-        if total_phrase_tests > 0 && phrase_fails.len() >= majority_threshold {
-            return Some(SessionAction::ReDrill {
+    /// Decide whether to insert a re-drill. With a single grade per card,
+    /// any `Again` re-queues the same card; anything else returns `None`.
+    pub fn next_drill_after(&mut self, grade: Grade) -> Option<SessionAction> {
+        let in_flight = self.in_flight.take()?;
+        if grade == Grade::Again {
+            Some(SessionAction::ReDrill {
                 verse_id: in_flight.verse_id,
-                kind: ReDrillKind::FullRecitation,
-            });
-        }
-        if phrase_fails.len() == 1 {
-            return Some(SessionAction::ReDrill {
-                verse_id: in_flight.verse_id,
-                kind: ReDrillKind::FillInBlank {
-                    position: phrase_fails[0],
+                kind: ReDrillKind::SameCard {
+                    kind: in_flight.kind,
                 },
-            });
+            })
+        } else {
+            None
         }
-        None
     }
 }
 
@@ -216,25 +178,6 @@ mod tests {
         .unwrap()
     }
 
-    fn phrase_key(verse_id: u32, position: u16) -> TestKey {
-        TestKey {
-            kind: TestKind::PhraseFromChain,
-            element: ElementId::Phrase { verse_id, position },
-        }
-    }
-
-    fn sample_session_with_recitation_in_progress() -> Session {
-        // 4-phrase recitation on verse 7: phrase 1 = Again, others = Good.
-        let mut grades = HashMap::new();
-        grades.insert(phrase_key(7, 0), Grade::Good);
-        grades.insert(phrase_key(7, 1), Grade::Again);
-        grades.insert(phrase_key(7, 2), Grade::Good);
-        grades.insert(phrase_key(7, 3), Grade::Good);
-        let mut s = Session::new();
-        s.stage_review(CardKind::Recitation, 7, grades);
-        s
-    }
-
     #[test]
     fn session_card_holds_cardkind() {
         let sc = SessionCard {
@@ -246,34 +189,42 @@ mod tests {
     }
 
     #[test]
-    fn redrill_on_phrase_failure() {
-        let s = sample_session_with_recitation_in_progress();
-        let next = s.next_drill_after(ReviewOutcome::default());
+    fn redrill_on_again_requeues_same_card() {
+        let mut s = Session::new();
+        s.stage_review(CardKind::Recitation, 7);
+        let next = s.next_drill_after(Grade::Again);
         assert!(matches!(
             next,
             Some(SessionAction::ReDrill {
                 verse_id: 7,
-                kind: ReDrillKind::FillInBlank { position: 1 },
+                kind: ReDrillKind::SameCard {
+                    kind: CardKind::Recitation,
+                },
             })
         ));
     }
 
     #[test]
-    fn redrill_on_majority_failure() {
-        // 3 of 4 phrases failed → trigger full recitation.
-        let mut grades = HashMap::new();
-        grades.insert(phrase_key(7, 0), Grade::Again);
-        grades.insert(phrase_key(7, 1), Grade::Again);
-        grades.insert(phrase_key(7, 2), Grade::Again);
-        grades.insert(phrase_key(7, 3), Grade::Good);
+    fn no_redrill_when_pass() {
         let mut s = Session::new();
-        s.stage_review(CardKind::Recitation, 7, grades);
-        let next = s.next_drill_after(ReviewOutcome::default());
+        s.stage_review(CardKind::Recitation, 7);
+        assert!(s.next_drill_after(Grade::Good).is_none());
+    }
+
+    #[test]
+    fn redrill_works_for_atomic_cards_too() {
+        // Any kind triggers a SameCard re-drill on Again — the session no
+        // longer special-cases Recitation.
+        let mut s = Session::new();
+        s.stage_review(CardKind::PhraseFill { position: 2 }, 7);
+        let next = s.next_drill_after(Grade::Again);
         assert!(matches!(
             next,
             Some(SessionAction::ReDrill {
                 verse_id: 7,
-                kind: ReDrillKind::FullRecitation,
+                kind: ReDrillKind::SameCard {
+                    kind: CardKind::PhraseFill { position: 2 },
+                },
             })
         ));
     }
@@ -308,7 +259,11 @@ mod tests {
     }
 
     #[test]
-    fn session_cooldown_blocks_sibling_after_review() {
+    fn session_cooldown_blocks_overlapping_card_after_review() {
+        // After grading Recitation (which contains the chapter binding
+        // test), the VerseInChapter card — whose only test is that same
+        // binding — must be in cooldown. Pick the next card and assert
+        // it's not VerseInChapter.
         let m = sample_material_with_ftv();
         let r = build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
@@ -319,29 +274,12 @@ mod tests {
             .find(|c| matches!(c.kind, CardKind::Recitation))
             .unwrap()
             .id;
-        let card = engine.card(recit_id).unwrap().clone();
-        let atoms = engine.atoms_for(0);
-        let grades: HashMap<TestKey, Grade> = card
-            .tests(&atoms)
-            .into_iter()
-            .map(|t| (t, Grade::Good))
-            .collect();
         let mut session = Session::start(&engine, now);
-        session.review_card(&mut engine, recit_id, grades, now);
+        session.review_card(&mut engine, recit_id, Grade::Good, now);
         let next = session.next_card(&engine, now + 60);
         assert!(!matches!(
             next.map(|c| c.kind),
-            Some(CardKind::PhraseFill { .. })
+            Some(CardKind::VerseInChapter)
         ));
-    }
-
-    #[test]
-    fn no_redrill_when_all_pass() {
-        let mut grades = HashMap::new();
-        grades.insert(phrase_key(7, 0), Grade::Good);
-        grades.insert(phrase_key(7, 1), Grade::Good);
-        let mut s = Session::new();
-        s.stage_review(CardKind::Recitation, 7, grades);
-        assert!(s.next_drill_after(ReviewOutcome::default()).is_none());
     }
 }
