@@ -7,135 +7,99 @@ see [`graph.md`](graph.md); for what the scheduler does with the resulting state
 
 ## The shape of a review
 
-`ReviewEngine::review(card_id, grades, now_secs)` is the single entry point. It takes a per-test
-grade map and returns a `ReviewOutcome` listing every test it touched, tagged `Direct` or
-`Propagated`. The pipeline is small enough to state in full:
+Every card carries one grade. `ReviewEngine::review(card_id, grade, now_secs)` is the single entry
+point and returns a `ReviewOutcome` listing every test it touched, tagged `Root` or `Sub`.
+
+Atomic cards (one contained test) act like vanilla FSRS — the grade is applied as a full FSRS step
+to that one test, advancing all three timestamps. Composite cards (multiple contained tests, e.g.
+`Recitation`) distribute the same grade across their contained tests via HSRS's Bayesian-share
+weight `(1 − p_i) / (1 − p_total)`. This is the same decomposition HSRS's `getLearningCardDiff`
+performs to spread one user grade across an "observation" of multiple memory elements.
+
+The pipeline is small enough to state in full:
 
 1. Look up the card and its `VerseAtoms`.
-2. Compute `card.tests(atoms)` and assert that `grades.keys()` matches it exactly. (Mismatch panics
-   — the engine refuses to silently skip or seed.)
-3. **Build the propagation set, deduped.** For each direct, fan out
-   `propagate::related_tests(direct, …)`. Drop targets that are themselves direct-graded this
-   review. If multiple directs propagate to the same target, keep the highest-weight edge.
-4. For each `(test, grade)` pair, apply `FsrsBridge::direct_step` and record a `Direct` update.
-5. For each (deduped) propagation target, apply `FsrsBridge::propagated_step` with the chosen grade
-   and weight; record a `Propagated` update.
+2. Compute `tests = card.tests(atoms)`.
+3. **Empty** (`Reading`) — return `ReviewOutcome::default()`.
+4. **One test** (atomic) — `update(state, grade, weight=1.0, is_root=true, now)` and emit one `Root`
+   `TestUpdate`.
+5. **Multiple tests** (composite) — for each contained test, compute its retrievability `p_i` at
+   `now`; let `p_total = ∏ p_i`; let `weight = (1 − p_i) / (1 − p_total)` (clamped, with
+   `p_total ≈ 1` collapsing to weight 0); apply `update(state, grade, weight, is_root=false, now)`
+   and emit a `Sub` `TestUpdate`.
 
-That's it. No path enumeration, no source-set expansion, no fallback chain, no anchor transfer. All
-of that machinery from the legacy 6-step credit-assignment algorithm was subsumed by per-test state
-plus HSRS-style propagation.
+There is no propagation set, no fan-out to "related" tests, no edge gamma. Every cross-test
+influence comes from a card explicitly containing those tests.
 
-The dedup in step 3 is load-bearing. It mirrors HSRS's `getLearningCardDiff` (which dedupes
-flattened learnings via `_.uniqBy(res, l => l.cardId)`) so each `TestKey` receives **at most one
-update per review**. Without it, a composite card like `Holistic` — which directly grades both
-phrase and binding tests — would re-touch a binding's freshly-stamped state with `elapsed = 0`,
-falling into `invert_r`'s `r ≈ 1.0` branch and saturating stability to `S_MAX`. A real direct grade
-is stronger evidence than any partial nudge a related test could supply, so the directs win and the
-propagation is dropped.
+## The unified update primitive
 
-## Cards grade tests, not atoms
+`FsrsBridge::update(state, grade, weight, is_root, now_secs)` is the single update entry point.
 
-In the new model a card is a routing object: given the verse's `VerseAtoms` it tells you _which
-`TestKey`s this review will grade_. `Card::tests` is pure — same card + atoms always yields the same
-set:
+* `weight = 1.0`, `is_root = true` — full FSRS-6 transition. All three timestamps advance to `now`.
+  This is what an atomic card's review uses.
+* `weight < 1.0`, `is_root = false` — HSRS-style sub-update. Stability and difficulty interpolate
+  between the current state and the hypothetical post-FSRS-step state by `weight`; `last_base_secs`
+  interpolates the same way; `last_seen_secs` advances to `now`; `last_root_secs` is preserved. This
+  is what each contained test of a composite card uses.
 
-| Card kind               | Tests graded                                                |
-| ----------------------- | ----------------------------------------------------------- |
-| `PhraseFill { p }`      | 1 — `PhraseFromContext` at phrase `p`                       |
-| `PhraseChain { p }`     | 1 — `PhraseFromChain` at phrase `p`                         |
-| `VerseAtVerseRef`       | 1 — `VerseRefPosition` binding                              |
-| `VerseInChapter`        | 1 — `VerseChapter` binding                                  |
-| `VerseInBook`           | 1 — `VerseBook` binding                                     |
-| `VerseInHeading`        | 1 — `VerseHeading` binding                                  |
-| `VerseInClub`           | 1 — `VerseClub` binding                                     |
-| `Recitation`            | N — `PhraseFromChain` for every phrase                      |
-| `Citation`              | 3 — `VerseRefPosition`, `VerseChapter`, `VerseBook`         |
-| `Ftv { with_citation }` | phrases (less FTV prefix) + optionally the 3 citation tests |
-| `Holistic`              | N phrases + 3 citation bindings                             |
-| `Reading`               | 0 — UX-only progressive-reveal card, never persisted        |
+The "never advance `last_root_secs` on a sub-update" invariant is load-bearing: it stops
+composite-card sub-updates from impersonating an atomic-card root review to the scheduler. A test
+that has only ever been touched via composite-card sub-updates carries a `last_root_secs` from its
+seed value, marking it as never having been directly grilled in isolation.
 
-The grade map the caller passes to `review` therefore has one entry per test, not one entry per atom
-— the unit of FSRS observation is the test, in keeping with the canonical spec.
+## Cards contain tests
 
-## Direct vs. propagated updates
+`Card::tests(&atoms)` is a pure routing function: same card + atoms always yields the same set.
+Atomic cards return a 1-element vec; composites return their contained tests:
 
-`FsrsBridge` exposes two update primitives:
+| Card kind               | Tests contained                                                                   | Atomic? |
+| ----------------------- | --------------------------------------------------------------------------------- | ------- |
+| `PhraseFill { p }`      | 1 — `PhraseFromContext` at phrase `p`                                             | yes     |
+| `PhraseChain { p }`     | 1 — `PhraseFromChain` at phrase `p`                                               | yes     |
+| `VerseAtVerseRef`       | 1 — `VerseRefPosition` binding                                                    | yes     |
+| `VerseInChapter`        | 1 — `VerseChapter` binding                                                        | yes     |
+| `VerseInBook`           | 1 — `VerseBook` binding                                                           | yes     |
+| `VerseInHeading { h }`  | 1 — `VerseHeading` binding                                                        | yes     |
+| `VerseInClub { tier }`  | 1 — `VerseClub` binding                                                           | yes     |
+| `Recitation`            | N phrases (`PhraseFromChain`) + `VerseRefPosition` + `VerseChapter` + `VerseBook` | no      |
+| `Citation`              | 3 — `VerseRefPosition`, `VerseChapter`, `VerseBook`                               | no      |
+| `Ftv { with_citation }` | phrases-after-FTV-prefix [+ citation triple]                                      | no      |
+| `Reading`               | 0 — UX-only progressive-reveal card, never persisted                              | n/a     |
 
-* `direct_step(state, grade, now_secs)` — full FSRS-6 transition. Advances all three timestamps
-  (`last_seen_secs`, `last_base_secs`, `last_root_secs`) to `now_secs`.
-* `propagated_step(state, grade, weight, now_secs)` — HSRS-style partial update. Interpolates in
-  retrievability space between the current state and the hypothetical post-direct state by
-  `weight ∈ [0, 1]`, blends difficulty linearly, and blends `last_base_secs` linearly. Crucially, it
-  **never advances `last_root_secs`** — propagation cannot impersonate a direct review. That
-  invariant is what stops propagated tests from looking like recently-rehearsed ones to the
-  scheduler.
+Recitation is the "say it all" card; it now contains everything the old `Holistic` did. There is no
+separate Holistic kind in the new model.
 
-`weight` for a propagation update is the product of two factors:
+## Bayesian share, in one paragraph
 
-* **Bayesian conditional probability share** `(1 − p_i) / (1 − p_total)` where `p_i` is the test's
-  pre-review retrievability and `p_total = ∏ p_j` is the joint probability over every test in the
-  observation (directs + propagation targets). This concentrates credit on tests where the outcome
-  was least expected — a binding that was about to lapse gets a stronger nudge from a successful
-  Recitation than a binding that was already strong. Mirrors HSRS's
-  `(1 - successProb) / (1 - totalSuccessProb)` in `getLearningCardDiff`.
+Suppose a Recitation contains 4 phrase tests and the citation triple. At review time each contained
+test has some predicted retrievability `p_i`. The joint probability of the entire observation (every
+contained test passing) is `p_total = ∏ p_i`. The Bayesian share for test `i` is
 
-* **Static edge gamma** from `PropagationParams`:
-  * `gamma_sibling = 0.5` for same-element opposite-cuing-direction phrase edges (a
-    `PhraseFromChain` direct lifts the matching `PhraseFromContext`).
-  * `gamma_endpoint = 0.07` for endpoint↔binding edges (phrase ↔ verse binding tests, in either
-    direction).
+```
+weight_i = (1 − p_i) / (1 − p_total)
+```
 
-  These edge weights encode verse-vault's D4 architecture choice — that endpoint signal is weaker
-  than sibling signal — and play the same role HSRS's depth-based retention offset plays in its tree
-  topology.
+— the probability mass on test `i` failing, divided by the probability mass on the joint observation
+failing. Tests whose pass was most surprising (low `p_i`) get the largest share; tests whose pass
+was already expected get a small share. The shares lie in `[0, 1]` and the engine clamps to that
+range. When `p_total ≈ 1` the formula's denominator collapses; the engine treats that case as
+`weight = 0` (every test was certain to pass anyway, so there's no surprise to credit).
 
-Directs always get a full `direct_step` regardless of the Bayesian factor: in verse-vault every
-direct carries an explicit user grade for that specific test, so the user's signal is the strongest
-evidence available. Propagations get `bayesian × gamma`.
+This is exactly HSRS's `(1 - successProb) / (1 - totalSuccessProb)` in `getLearningCardDiff`,
+applied to the contents of the card the user just graded rather than to a flattened tree of related
+items.
 
-## related_tests
+## Re-drills
 
-`propagate::related_tests(direct, idx, params)` returns the propagation fan for one direct test. The
-two cases:
-
-* **Phrase direct.** Emits the same-position opposite-cuing phrase test (weight `gamma_sibling`),
-  plus every verse binding the verse has (`gamma_endpoint`).
-* **Binding direct.** Emits both `PhraseFromChain` and `PhraseFromContext` for every phrase of the
-  verse (`gamma_endpoint`).
-
-The function returns `[]` for verses unknown to the index — propagation is verse-local by
-construction.
-
-## When directs share a propagation target
-
-Composite cards can have two directs that propagate to the same target (e.g. a Recitation grades all
-phrases directly, and each phrase propagates to the same `VerseChapterBinding`). The engine keeps
-**one** propagation per target — the highest-weight edge wins. The other directs' edges to the same
-target are dropped. This matches HSRS's "one update per cardId per observation" invariant; layering
-multiple partial updates on the same test in arrival order would compound soft evidence beyond what
-any single direct grade represents.
-
-If the target is itself in the direct set, the propagation is dropped entirely — see step 3 of the
-pipeline above.
-
-## Audit fixes folded in
-
-The migration absorbed several issues from `audit-fsrs6-2026-04-28.md`:
-
-* **B1 sinc clamp.** `stability_short_term` now clamps the
-  `sinc = exp(w17·(rating-3+w18)) · S^(-w19)` factor at 1.0 for Hard/Good/Easy, so a Hard grade at
-  `delta_t = 0` cannot decrease stability. Covered by
-  `direct_step_hard_at_zero_delta_does_not_decrease_stability` in `fsrs_bridge.rs`.
-* **B2 stability ceiling.** `direct_step` and `propagated_step` clamp stability to `[S_MIN, S_MAX]`,
-  fixing the unconditional `.max(S_MIN)` the audit flagged.
-* **S1 / S3 (linear stability blending, last-review reset on partial weight).** Resolved by
-  construction: HSRS interpolates in retrievability space, and `last_root_secs` is preserved under
-  propagation.
-* **S2 (unbounded weight per edge).** Resolved by switching from a per-edge accumulator to
-  per-direct fan-out with bounded `gamma_sibling` / `gamma_endpoint` weights.
+A re-drill is a session-layer concept. The session stages each card through `stage_review` and calls
+`next_drill_after(grade)`. Under the single-grade pipeline that's a simple rule: any `Again`
+re-queues the same card later in the session (`ReDrillKind::SameCard { kind }`); anything else
+returns `None`. The old "majority-of-phrases failed → FullRecitation; one phrase failed →
+FillInBlank" branching is gone — it depended on per-phrase grades that the new pipeline doesn't
+have.
 
 ## Out-of-app practice
 
 The HSRS model accepts that learners practise outside the app. Because state is per-test rather than
-tied to a specific path through a graph, an unexpectedly-strong direct review just produces a normal
-FSRS update — no history-trace consistency check rejects it.
+tied to a specific path through a graph, an unexpectedly-strong review just produces a normal FSRS
+update — no history-trace consistency check rejects it.
