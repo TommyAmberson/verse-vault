@@ -9,10 +9,48 @@ use crate::types::Grade;
 
 const SECS_PER_DAY: f64 = 86400.0;
 
+/// Hard floor on stability — any update keeps `S >= S_MIN`. Set just above
+/// zero so the forgetting curve doesn't blow up on near-zero stabilities.
 const S_MIN: f32 = 0.001;
+/// Hard ceiling on stability. Effectively unreachable through update paths
+/// because `apply_stability_clamp`'s `soft_clamp` pulls anything large back
+/// toward `STABILITY_SOFT_CAP`. Kept as the saturation return value for
+/// `invert_r` when `r ≈ 1.0` (its caller then re-applies `soft_clamp`).
 const S_MAX: f32 = 36500.0;
 const D_MIN: f32 = 1.0;
 const D_MAX: f32 = 10.0;
+
+/// Asymptotic ceiling for stability (in days). Updates are linear up to
+/// `STABILITY_SOFT_CAP * STABILITY_SOFT_RATIO` and then bend toward the cap
+/// — the same shape HSRS uses (`softClamp(stability, 365, 0.5)`). At the
+/// soft cap the forgetting curve at the engine's default 0.9 retention is
+/// in the range of years, so this is plenty for long-term memorisation.
+const STABILITY_SOFT_CAP: f32 = 365.0;
+const STABILITY_SOFT_RATIO: f32 = 0.5;
+
+/// Floor at which a freshly-graded card lands its first day post-review.
+/// Mirrors HSRS's `getLearnTargetStability(w) / 4` — keeps very-low
+/// stabilities from collapsing to zero.
+const STABILITY_FLOOR: f32 = 0.25;
+
+/// Asymptotic clamp toward `max`. Below `max * ratio` the function is the
+/// identity; above, it bends so it never reaches `max`. Mirrors HSRS's
+/// `softClamp` exactly.
+fn soft_clamp(n: f32, max: f32, ratio: f32) -> f32 {
+    let max_linear = max * ratio;
+    if n < max_linear {
+        n
+    } else {
+        max_linear
+            + (max - max_linear) * (1.0 - (-(1.0 / (max - max_linear)) * (n - max_linear)).exp())
+    }
+}
+
+/// Compose the stability-floor + soft-cap clamp used by every update path.
+fn apply_stability_clamp(s: f32) -> f32 {
+    let capped = soft_clamp(s, STABILITY_SOFT_CAP, STABILITY_SOFT_RATIO);
+    capped.max(STABILITY_FLOOR)
+}
 
 pub const FSRS6_DEFAULT_DECAY: f32 = 0.1542;
 
@@ -84,7 +122,7 @@ impl FsrsBridge {
     }
 
     /// Predicted probability of recall at `now_secs` given the FSRS power
-    /// forgetting curve and this test's `(stability, last_base_secs)`. The
+    /// forgetting curve and this test's `(stability, last_seen_secs)`. The
     /// scheduler treats a card as due when its weakest test's retrievability
     /// drops below `ScheduleParams::target_retention`.
     pub fn retrievability_of(&self, state: &TestState, now_secs: i64) -> f32 {
@@ -93,8 +131,10 @@ impl FsrsBridge {
     }
 
     /// Wall-clock time at which this test's retrievability will hit `target_r`,
-    /// measured from `last_base_secs`. Closed-form inverse of the forgetting
-    /// curve — no binary search.
+    /// measured from `last_base_secs` (the scheduling anchor — interpolated
+    /// under propagation so the next-due estimate stays conservative when
+    /// evidence is weak). Closed-form inverse of the forgetting curve — no
+    /// binary search.
     pub fn due_at(&self, state: &TestState, target_r: f32) -> i64 {
         let factor = (0.9_f32.ln() / -FSRS6_DEFAULT_DECAY).exp() - 1.0;
         let interval_days =
@@ -129,7 +169,7 @@ impl FsrsBridge {
         let base_blend_f =
             (1.0 - w as f64) * state.last_base_secs as f64 + w as f64 * now_secs as f64;
         TestState {
-            stability: s_blend.clamp(S_MIN, S_MAX),
+            stability: apply_stability_clamp(s_blend),
             difficulty: d_blend.clamp(D_MIN, D_MAX),
             last_seen_secs: now_secs,
             last_base_secs: base_blend_f as i64,
@@ -139,13 +179,14 @@ impl FsrsBridge {
 
     /// Full FSRS-6 update for a directly-graded test: advances all three
     /// timestamps to `now_secs` and applies the standard FSRS state
-    /// transition. Stability and difficulty are clamped to FSRS-6 bounds.
+    /// transition. Stability is asymptotically clamped via `soft_clamp`;
+    /// difficulty stays inside the FSRS `[1, 10]` range.
     pub fn direct_step(&self, state: &TestState, grade: Grade, now_secs: i64) -> TestState {
         let elapsed_days = state.elapsed_days(now_secs).max(0.0);
         let memory: MemoryState = state.into();
         let next = self.step(Some(memory), elapsed_days, grade as u32);
         TestState {
-            stability: next.stability.clamp(S_MIN, S_MAX),
+            stability: apply_stability_clamp(next.stability),
             difficulty: next.difficulty.clamp(D_MIN, D_MAX),
             last_seen_secs: now_secs,
             last_base_secs: now_secs,
@@ -188,7 +229,7 @@ impl FsrsBridge {
         };
 
         MemoryState {
-            stability: new_s.clamp(S_MIN, S_MAX),
+            stability: apply_stability_clamp(new_s),
             difficulty: new_d,
         }
     }
@@ -394,6 +435,38 @@ mod tests {
     }
 
     #[test]
+    fn forgetting_elapsed_resets_after_propagation() {
+        // HSRS: any update (direct OR propagated) advances `last_seen` to
+        // `now`, so the next forgetting computation sees only the time
+        // since that update — not the full pre-propagation interval.
+        let bridge = FsrsBridge::new(0.9);
+        let ts = TestState {
+            stability: 10.0,
+            difficulty: 5.0,
+            last_seen_secs: 0,
+            last_base_secs: 0,
+            last_root_secs: 0,
+        };
+        // At t=30d before any update, retrievability has decayed.
+        let r_before = bridge.retrievability_of(&ts, 86400 * 30);
+        assert!(r_before < 0.95, "should have decayed: {r_before}");
+        // Apply a small-weight propagation at t=30d. last_seen jumps to 30d,
+        // last_base barely moves (interpolated by the small weight).
+        let after_prop = bridge.propagated_step(&ts, Grade::Good, 0.07, 86400 * 30);
+        assert_eq!(after_prop.last_seen_secs, 86400 * 30);
+        assert!(after_prop.last_base_secs < 86400 * 30 / 2);
+        // Right after the prop, the forgetting curve should see ~0 elapsed,
+        // so retrievability should be essentially 1.0 — well above the
+        // pre-prop value at t=30d.
+        let r_right_after = bridge.retrievability_of(&after_prop, 86400 * 30);
+        assert!(
+            r_right_after > 0.99,
+            "elapsed should be ~0 after prop: r={r_right_after} (was {r_before} before)",
+        );
+        assert!(r_right_after > r_before);
+    }
+
+    #[test]
     fn last_root_monotonic_under_propagation() {
         // Property: a series of propagated_steps with varying grades, weights,
         // and times never advances last_root_secs. This is the load-bearing
@@ -414,6 +487,38 @@ mod tests {
             s = bridge.propagated_step(&s, grade, weight, t);
             assert_eq!(s.last_root_secs, 100, "last_root advanced at t={t}");
         }
+    }
+
+    #[test]
+    fn soft_clamp_is_identity_below_linear_threshold() {
+        // Inputs strictly below max*ratio pass through unchanged.
+        for n in [0.5_f32, 50.0, 100.0, 180.0] {
+            let out = soft_clamp(n, 365.0, 0.5);
+            assert!((out - n).abs() < 1e-3, "n={n} clamped to {out}");
+        }
+    }
+
+    #[test]
+    fn soft_clamp_caps_pathological_inputs() {
+        // Even pathologically large inputs (e.g. invert_r's S_MAX) get
+        // pulled to the cap. This is the regression for the bug where
+        // Holistic propagation pinned bindings to S_MAX = 36500. The
+        // exponential saturation underflows in f32 so the output can hit
+        // max exactly — that's fine; what matters is that S_MAX (~36500)
+        // can't survive an update.
+        let out = soft_clamp(36500.0, 365.0, 0.5);
+        assert!(out <= 365.0 + 1e-3, "exceeded cap: {out}");
+        assert!(out > 360.0, "should approach cap: {out}");
+    }
+
+    #[test]
+    fn apply_stability_clamp_floors_low_stabilities() {
+        // Stabilities below the floor get pushed up to it, so a near-zero
+        // stability after a lapse doesn't persist forever.
+        assert!(apply_stability_clamp(0.0001) >= 0.25);
+        assert!(apply_stability_clamp(0.1) >= 0.25);
+        // Values inside the working range pass through unchanged.
+        assert!((apply_stability_clamp(10.0) - 10.0).abs() < 1e-3);
     }
 
     #[test]

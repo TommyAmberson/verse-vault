@@ -13,11 +13,16 @@ pub struct TestState {
     /// FSRS difficulty in `[1, 10]`.
     pub difficulty: f32,
     /// Wall-clock time of the most recent touch, direct or propagated.
-    /// Used by sibling cooldown to suppress overlapping cards in a session.
+    /// Drives the forgetting-curve elapsed input — see `elapsed_days`.
+    /// HSRS calls this `lastSeen` and uses it the same way: every update
+    /// advances it to `now`, so the next review's forgetting math sees the
+    /// true wall-clock interval since the previous touch.
     pub last_seen_secs: i64,
-    /// Wall-clock anchor for the forgetting curve. Advances fully on a
-    /// direct review and partially (interpolated by edge weight) on a
-    /// propagated update.
+    /// Scheduling anchor for the next due-date computation. Advances fully
+    /// on a direct review and partially (interpolated by edge weight) on a
+    /// propagated update — soft updates produce a soft due-date refresh,
+    /// keeping the scheduler conservative when evidence is weak. Mirrors
+    /// HSRS's `lastBase`. Not used in the forgetting curve.
     pub last_base_secs: i64,
     /// Wall-clock time of the most recent *direct* review. Never advances
     /// under propagation — that is the load-bearing invariant of HSRS that
@@ -40,10 +45,11 @@ impl TestState {
         }
     }
 
-    /// Days elapsed since `last_base_secs`, the input the FSRS forgetting
-    /// curve takes. Clamped at zero so future-dated bases don't go negative.
+    /// Days elapsed since `last_seen_secs` — the input the FSRS forgetting
+    /// curve takes. Mirrors HSRS's `now - state.lastSeen`. Clamped at zero
+    /// so future-dated timestamps don't yield negative elapsed.
     pub fn elapsed_days(&self, now_secs: i64) -> f32 {
-        ((now_secs - self.last_base_secs).max(0) as f64 / 86400.0) as f32
+        ((now_secs - self.last_seen_secs).max(0) as f64 / 86400.0) as f32
     }
 }
 

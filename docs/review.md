@@ -70,14 +70,28 @@ The grade map the caller passes to `review` therefore has one entry per test, no
   invariant is what stops propagated tests from looking like recently-rehearsed ones to the
   scheduler.
 
-`weight` comes from `PropagationParams`:
+`weight` for a propagation update is the product of two factors:
 
-* `gamma_sibling = 0.5` for same-element opposite-cuing-direction phrase edges (e.g. a
-  `PhraseFromChain` direct lifts the matching `PhraseFromContext`).
-* `gamma_endpoint = 0.07` for endpoint↔binding edges (phrase ↔ verse binding tests, in either
-  direction).
+* **Bayesian conditional probability share** `(1 − p_i) / (1 − p_total)` where `p_i` is the test's
+  pre-review retrievability and `p_total = ∏ p_j` is the joint probability over every test in the
+  observation (directs + propagation targets). This concentrates credit on tests where the outcome
+  was least expected — a binding that was about to lapse gets a stronger nudge from a successful
+  Recitation than a binding that was already strong. Mirrors HSRS's
+  `(1 - successProb) / (1 - totalSuccessProb)` in `getLearningCardDiff`.
 
-These defaults are the D4 architecture choice; the canonical spec walks through the rationale.
+* **Static edge gamma** from `PropagationParams`:
+  * `gamma_sibling = 0.5` for same-element opposite-cuing-direction phrase edges (a
+    `PhraseFromChain` direct lifts the matching `PhraseFromContext`).
+  * `gamma_endpoint = 0.07` for endpoint↔binding edges (phrase ↔ verse binding tests, in either
+    direction).
+
+  These edge weights encode verse-vault's D4 architecture choice — that endpoint signal is weaker
+  than sibling signal — and play the same role HSRS's depth-based retention offset plays in its tree
+  topology.
+
+Directs always get a full `direct_step` regardless of the Bayesian factor: in verse-vault every
+direct carries an explicit user grade for that specific test, so the user's signal is the strongest
+evidence available. Propagations get `bayesian × gamma`.
 
 ## related_tests
 

@@ -147,6 +147,13 @@ impl ReviewEngine {
     /// `now_secs` would receive a propagated update with `elapsed = 0`,
     /// which falls into `invert_r`'s `r ≈ 1.0` short-circuit and saturates
     /// the test's stability to `S_MAX`.
+    ///
+    /// Propagation weight is HSRS's Bayesian conditional probability share
+    /// `(1 - p_i) / (1 - p_total)` (where `p_i` is the test's pre-review
+    /// retrievability and `p_total` is the joint product over all tests in
+    /// the observation), multiplied by the propagation edge's `gamma`. The
+    /// Bayesian factor concentrates "credit" on tests where the outcome was
+    /// least expected, then the static gamma scales by edge type.
     pub fn review(
         &mut self,
         card_id: CardId,
@@ -187,7 +194,47 @@ impl ReviewEngine {
             }
         }
 
-        // 2. Direct updates.
+        // 2. Compute the Bayesian factor over all tests in the observation
+        //    (directs + prop targets). HSRS's formula:
+        //      successProb_i = retrievability_at(now)
+        //      totalSuccessProb = ∏ successProb_i
+        //      bayesian_i = (1 - successProb_i) / (1 - totalSuccessProb)
+        //    With p_i ∈ [0, 1] the factor is also in [0, 1] (the joint is
+        //    no greater than any individual probability).
+        let observation_keys: Vec<TestKey> = direct_pairs
+            .iter()
+            .map(|(k, _)| *k)
+            .chain(prop_targets.keys().copied())
+            .collect();
+        let probs: HashMap<TestKey, f32> = observation_keys
+            .iter()
+            .map(|k| {
+                let p = self
+                    .tests
+                    .get(k)
+                    .map(|s| self.fsrs.retrievability_of(s, now_secs))
+                    .unwrap_or(1.0);
+                (*k, p)
+            })
+            .collect();
+        let total_prob: f32 = probs.values().copied().product();
+        let bayesian = |k: &TestKey| -> f32 {
+            if observation_keys.len() <= 1 {
+                return 1.0;
+            }
+            if total_prob >= 1.0 - 1e-9 {
+                return 0.0;
+            }
+            let p = probs.get(k).copied().unwrap_or(1.0);
+            ((1.0 - p) / (1.0 - total_prob)).clamp(0.0, 1.0)
+        };
+
+        // 3. Direct updates — always full FSRS step. The user's per-test
+        //    grade is the strongest signal we have for that test; we don't
+        //    dilute directs by the Bayesian factor (HSRS does because in
+        //    its model only the root cardId carries an explicit user grade
+        //    and the rest are inferred — verse-vault has explicit grades
+        //    for every direct via the multi-test card design).
         for (key, grade) in &direct_pairs {
             let before = *self
                 .tests
@@ -203,12 +250,14 @@ impl ReviewEngine {
             });
         }
 
-        // 3. Propagated updates — each target hit exactly once.
-        for (target, (grade, weight)) in prop_targets {
+        // 4. Propagated updates — each target hit exactly once with weight
+        //    = bayesian × gamma_edge_type.
+        for (target, (grade, edge_gamma)) in prop_targets {
             let before = match self.tests.get(&target) {
                 Some(s) => *s,
-                None => continue, // target not in card universe — skip silently.
+                None => continue,
             };
+            let weight = (bayesian(&target) * edge_gamma).clamp(0.0, 1.0);
             let after = self.fsrs.propagated_step(&before, grade, weight, now_secs);
             self.tests.insert(target, after);
             updates.push(TestUpdate {
@@ -226,6 +275,7 @@ impl ReviewEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::builder::build;
     use crate::card::CardKind;
     use crate::content::MaterialData;
     use crate::test_kind::TestKind;
@@ -372,6 +422,110 @@ mod tests {
         assert_eq!(direct, 1);
         // 1 sibling + 3 verse-binding endpoints (no headings, no clubs).
         assert_eq!(propagated, 4);
+    }
+
+    #[test]
+    fn bayesian_concentrates_propagation_on_low_retr_targets() {
+        // Build two engines from the same material. Pre-condition them so
+        // one has a high-retr binding test and the other has a low-retr
+        // binding test. The Bayesian factor should give the low-retr
+        // binding a larger propagation weight (more "surprise").
+        let m: MaterialData = serde_json::from_str(
+            r#"{
+                "year": 3,
+                "books": ["John"],
+                "chapters": [{"book": "John", "number": 3, "start_verse": 16, "end_verse": 16}],
+                "verses": [
+                    {
+                        "book": "John", "chapter": 3, "verse": 16,
+                        "text": "For God so loved",
+                        "phrases": ["For God", "so loved"],
+                        "ftv": "",
+                        "clubs": []
+                    }
+                ],
+                "headings": []
+            }"#,
+        )
+        .unwrap();
+
+        let make_engine = |chapter_stability: f32| {
+            let r = build(&m, 0);
+            let mut engine = ReviewEngine::new(r, 0.9);
+            // Force the chapter binding's stability to a known value at t=0.
+            let chapter_key = TestKey {
+                kind: TestKind::VerseChapter,
+                element: ElementId::VerseChapterBinding { verse_id: 0 },
+            };
+            let cs = engine.tests.get_mut(&chapter_key).unwrap();
+            cs.stability = chapter_stability;
+            cs.last_seen_secs = 0;
+            cs.last_base_secs = 0;
+            cs.last_root_secs = 0;
+            engine
+        };
+
+        let card_id = |engine: &ReviewEngine| {
+            engine
+                .cards
+                .iter()
+                .find(|c| matches!(c.kind, CardKind::PhraseFill { position: 0 }))
+                .unwrap()
+                .id
+        };
+        let chapter_key = TestKey {
+            kind: TestKind::VerseChapter,
+            element: ElementId::VerseChapterBinding { verse_id: 0 },
+        };
+
+        // Strong binding (high retrievability at review time): expected to pass.
+        let mut engine_strong = make_engine(1000.0);
+        let pf_strong = card_id(&engine_strong);
+        let now = 86400; // 1 day later
+        let card = engine_strong.card(pf_strong).unwrap().clone();
+        let atoms_s = engine_strong.atoms_for(card.verse_id);
+        let grades: HashMap<_, _> = card
+            .tests(&atoms_s)
+            .into_iter()
+            .map(|t| (t, Grade::Good))
+            .collect();
+        let s_before = engine_strong.test_state(chapter_key).copied().unwrap();
+        engine_strong.review(pf_strong, grades, now);
+        let s_after_strong = engine_strong.test_state(chapter_key).copied().unwrap();
+
+        // Weak binding (low retrievability at review time): surprising pass.
+        let mut engine_weak = make_engine(0.5);
+        let pf_weak = card_id(&engine_weak);
+        let card = engine_weak.card(pf_weak).unwrap().clone();
+        let atoms_w = engine_weak.atoms_for(card.verse_id);
+        let grades: HashMap<_, _> = card
+            .tests(&atoms_w)
+            .into_iter()
+            .map(|t| (t, Grade::Good))
+            .collect();
+        let w_before = engine_weak.test_state(chapter_key).copied().unwrap();
+        engine_weak.review(pf_weak, grades, now);
+        let s_after_weak = engine_weak.test_state(chapter_key).copied().unwrap();
+
+        // Both should have moved their last_seen up.
+        assert_eq!(s_after_strong.last_seen_secs, now);
+        assert_eq!(s_after_weak.last_seen_secs, now);
+        // Stability should rise in both, but the *fractional* lift on the
+        // weak (low-retr) binding should be greater — Bayesian concentrates
+        // credit there. Compare relative growth.
+        let strong_growth = s_after_strong.stability / s_before.stability;
+        let weak_growth = s_after_weak.stability / w_before.stability;
+        assert!(
+            weak_growth > strong_growth,
+            "low-retr binding should get more relative lift: \
+             weak {} → {} (×{:.4}) vs strong {} → {} (×{:.4})",
+            w_before.stability,
+            s_after_weak.stability,
+            weak_growth,
+            s_before.stability,
+            s_after_strong.stability,
+            strong_growth,
+        );
     }
 
     #[test]
