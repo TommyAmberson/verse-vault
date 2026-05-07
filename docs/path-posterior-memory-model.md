@@ -416,73 +416,60 @@ This matches HSRS's pattern faithfully:
 
 ### Update semantics (HSRS-aligned)
 
-Two kinds of updates:
+A single primitive `update(state, grade, weight, is_root, now)` covers both shapes:
 
-**Direct grade.** Some card runs this test and the user produces a graded response.
+**Root update** (`weight = 1.0`, `is_root = true`). Used when an atomic card (one contained test) is
+reviewed.
 
 ```
-1. Apply standard FSRS step:
-   (S, D) ← FSRS_step(S, D, now - last_base, grade)
-2. Refresh timestamps:
-   last_seen ← now
+1. (S, D) ← FSRS_step(S, D, now - last_base, grade)
+2. last_seen ← now
    last_base ← now
    last_root ← now
 ```
 
-This is exactly FSRS as designed. No partial-credit machinery, no inference. The test was directly
-observed; its state is updated.
+This is exactly FSRS as designed. The card's only test was directly observed; its state is updated.
 
-**Propagated update.** Some other test was directly graded, and this related test should be nudged.
-Weight `w ∈ [0, 1]` reflects how strongly the observation about the other test informs this one.
+**Sub update** (`weight < 1.0`, `is_root = false`). Used when a composite card is reviewed: the
+single user grade is decomposed across the card's contained tests, and each contained test receives
+one sub-update.
 
 ```
-1. Compute the next state under the same grade:
-   (S', D') = FSRS_step(S, D, now - last_base, grade)
-2. Compute current and next retrievabilities at now:
-   R_now = R(S, D, now - last_base)
+1. (S', D') = FSRS_step(S, D, now - last_base, grade)
+2. R_now  = R(S, D, now - last_base)
    R_next = R(S', D', now - last_base)
-3. Linearly interpolate retrievabilities:
-   R_blend = (1 - w) · R_now + w · R_next
-4. Solve for stability that produces R_blend:
-   S_blend = invert_R(R_blend, now - last_base)
-5. Linearly interpolate difficulty:
-   D_blend = (1 - w) · D + w · D'
-6. Refresh timestamps:
-   last_seen ← now
+3. R_blend = (1 - w) · R_now + w · R_next
+4. S_blend = invert_R(R_blend, now - last_base)
+5. D_blend = (1 - w) · D + w · D'
+6. last_seen ← now
    last_base ← (1 - w) · last_base + w · now      (interpolated)
-   last_root unchanged                              (this was not a direct observation)
+   last_root unchanged                              (sub-updates never advance last_root)
 ```
 
-This is HSRS's "probabilistic FSRS update with retrievability-space interpolation." Steps 1-4 are
-the math we already adopted as Q2's resolution; steps 5-6 are the timestamp dual-pattern addition.
-Together they form a complete propagated-update primitive.
+This is HSRS's "probabilistic FSRS update with retrievability-space interpolation." Sub-updates
+**don't produce a separate kind of state**. The state stays uniformly
+`(S, D, last_seen, last_base, last_root)` — no separate "association strength" or "Hebbian weight"
+needed.
 
-Crucially: the propagation **doesn't produce a separate kind of state**. It's an FSRS-shaped update
-with a weight. The state stays uniformly `(S, D, last_seen, last_base, last_root)` — no separate
-"association strength" or "Hebbian weight" needed for graded tests. HSRS's insight is that all
-updates can use this one uniform shape, parameterised by weight.
+### Where sub-update weights come from
 
-### Propagation: where weights come from
-
-The remaining question is: when test A is directly graded, what weights do we use to propagate to
-test B?
-
-The weight should reflect "how much does observing A inform B?" — which is a function of:
-
-* How much do A and B share targets in the memory graph? (Strongest signal: same target → high
-  weight. Different targets in the same verse → moderate. Cross-verse → low.)
-* How much do A's and B's cue sources overlap? (Shared cuing implies shared retrieval pathways.)
-* How structurally similar are A and B in test category? (Two phrase-from-chain tests are more
-  similar than a phrase-from-chain and a ref-component-from-content test.)
-
-A reasonable propagation-weight rule:
+Composite cards distribute a single user grade across their contained tests using HSRS's
+Bayesian-share weight:
 
 ```
-w(A → B) = γ · target_overlap(A, B) · cue_overlap(A, B) · category_compatibility(A, B)
+weight_i = (1 − p_i) / (1 − p_total)
 ```
 
-with `γ` a small global constant (~0.1-0.3), and the three factors all in `[0, 1]`. The specifics of
-each factor are open questions — see below.
+where `p_i` is test `i`'s predicted retrievability at `now` and `p_total = ∏ p_j` is the joint
+probability over the contents of the card the user just graded. Tests whose pass was most surprising
+(low `p_i`) get the largest share; tests whose pass was already expected get a small share. The
+weights lie in `[0, 1]` and the engine clamps to that range. The denominator collapses when
+`p_total ≈ 1` (every test was certain to pass anyway); the engine treats that case as `weight = 0`.
+
+This is exactly the math HSRS's `getLearningCardDiff` runs on its tree of memory elements, applied
+here to the contents of a single card. There is no separate `related_tests` graph, no edge `gamma`,
+and no cross-element propagation — every cross-test influence comes from a card explicitly
+containing the affected tests.
 
 ### What HSRS gives us
 
@@ -497,14 +484,14 @@ By aligning with HSRS, we inherit several things:
 
 ### What we adapt rather than copy
 
-HSRS's tree topology becomes verse-vault's graph topology. Specifically:
+HSRS's tree topology becomes verse-vault's graph topology, but the grade decomposition is the same:
 
-* HSRS has one grade per review (the user grades the whole tree); verse-vault has multiple grades
-  per card review (one per test the card runs). This is just an extension — each grade in a
-  multi-grade card review is processed independently as a direct update on its respective test.
-* HSRS's Bayesian inference for "which leaf caused the failure" doesn't directly apply (we have
-  direct grades). But the propagation weights between related tests serve a similar role:
-  distributing observation evidence across the graph of tests.
+* HSRS has one grade per review and decomposes it across the elements the reviewed card touches.
+  verse-vault matches this exactly: cards take one grade and `Card::tests(atoms)` returns the set of
+  contained tests; the engine then applies the Bayesian-share decomposition to spread the grade
+  across them.
+* Atomic cards short-circuit the decomposition (single test → full FSRS root update); composite
+  cards apply the decomposition. This is a structural simplification, not an extension of HSRS.
 
 ### Implications for the rest of the doc
 
@@ -640,67 +627,20 @@ isn't _made of_ the verse. They're related, not composed.
 Most "containment" or "association" elements in verse-vault are bindings, not composites. A small
 number of multi-element relations (HeadingPassageAssociation) are true composites.
 
-**Asymmetric propagation, with different strengths for the two cases:**
-
-* **Constituent → composite (strong).** Knowing the parts is what constitutes knowing the whole.
-  When a constituent is reviewed, the composite's state lifts substantially. Strength
-  `γ_constituent ≈ 0.15-0.25`.
-* **Composite → constituent (very weak / zero).** Knowing the whole as a unit doesn't directly give
-  you the parts.
-* **Endpoint ↔ binding (mild, possibly symmetric).** Knowing the endpoints scaffolds the binding via
-  cuing; reviewing the binding can mildly reinforce the endpoint memory. Strength
-  `γ_endpoint ≈ 0.05-0.10`, much smaller than constituent propagation.
-
-The two-tier strength reflects the distinction: composition is a stronger semantic relationship than
-mere binding, so the propagation weights differ.
-
-#### Propagation rules
-
-For composite elements (HeadingPassageAssociation and the rare few like it), use the
-constituent-to-composite asymmetric rule with strong weight:
-
-```
-on direct grade of constituent c_i:
-  Standard FSRS step on c_i.
-  For each composite C containing c_i:
-    Apply HSRS-style probabilistic FSRS update with weight w_constituent  (~0.15-0.25)
-on direct grade of composite C:
-  Standard FSRS step on C.
-  For each constituent c_i:
-    Apply tiny partial update with weight ε (often zero).
-```
-
-For binding elements (the majority — Verse↔Chapter, Verse↔Book, etc.), use endpoint-binding mild
-propagation. Both directions get small updates:
-
-```
-on direct grade of endpoint e:
-  Standard FSRS step on e.
-  For each binding B with e as endpoint:
-    Apply partial update with weight w_endpoint  (~0.05-0.10)
-on direct grade of binding B:
-  Standard FSRS step on B.
-  For each endpoint e of B:
-    Apply small partial update with weight w_endpoint  (or smaller; could be zero)
-```
-
-The reason composites get stronger propagation: knowing the constituents is what _constitutes_
-knowing the whole; the composite's substance lives in the parts. The reason bindings get weaker
-propagation: the binding is its own fact, just contextually scaffolded by the endpoints.
+In the active design, this composition / binding distinction shapes _which cards exist_ rather than
+driving cross-test edge weights. Composition lives in the contents of composite cards: a
+`Recitation` card contains all of a verse's phrases plus the citation triple, so the Bayesian share
+automatically distributes credit between the parts. There is no separate "constituent → composite"
+or "endpoint ↔ binding" propagation graph; cross-test influence flows only through the contents of
+cards the user actually reviewed. (Earlier drafts of this section specified `γ_constituent` /
+`γ_endpoint` weights driving a `related_tests` fan-out; that machinery was removed when the engine
+collapsed to one grade per card. See Appendix A for the historical exploration.)
 
 #### Effective retrievability
 
-For composites only (not bindings), effective retrievability for scheduling combines self-state with
-constituent-derived scaffolding:
-
-```
-R_eff(C, t) = combine(R_self(C, t), scaffolded(R(c_1, t), ..., R(c_n, t)))
-            = 1 - (1 - R_self) · (1 - max_i (R(c_i) · binding_strength(c_i, C)))
-```
-
-Noisy-OR combine: the user can recall C through any successful path (direct or via a strong
-constituent). For bindings, predicted retrievability is just `R_self` — no compositional combine,
-because the endpoints don't constitute the binding's substance.
+For scheduling, predicted retrievability is just `R_self` per test — the engine's `card_min_r` takes
+the minimum over the card's contained tests, with no noisy-OR combine over external constituents.
+Composition is captured by which tests a card contains, not by a side-channel retrievability blend.
 
 #### Which elements are composites?
 
