@@ -142,6 +142,88 @@ impl FsrsBridge {
         state.last_base_secs + (interval_days * SECS_PER_DAY as f32) as i64
     }
 
+    /// Unified HSRS-style update primitive.
+    ///
+    /// `weight ∈ [0, 1]` interpolates in retrievability space between the
+    /// current state and the hypothetical post-FSRS-step state. `is_root`
+    /// controls whether `last_root_secs` advances (the load-bearing HSRS
+    /// invariant: only direct, atomic-card reviews can advance it).
+    ///
+    /// Special cases:
+    /// * `weight = 1.0`, `is_root = true` — full FSRS step, all three
+    ///   timestamps advance to `now_secs`.
+    /// * `weight < 1.0`, `is_root = false` — Bayesian-share sub-update on a
+    ///   composite card's contained test. `last_seen_secs` advances; other
+    ///   timestamps interpolate / are preserved.
+    /// * mixed cases are well-defined and consistent with the math above.
+    ///
+    /// See `docs/path-posterior-memory-model.md` and `docs/review.md`.
+    pub fn update(
+        &self,
+        state: &TestState,
+        grade: Grade,
+        weight: f32,
+        is_root: bool,
+        now_secs: i64,
+    ) -> TestState {
+        let w = weight.clamp(0.0, 1.0);
+        let direct = self.direct_full_step(state, grade, now_secs);
+        // weight=1: take the direct step's already-clamped values verbatim
+        // (re-clamping would soft-clamp twice and bend the high-stability
+        // ceiling). weight<1: interpolate in retrievability space and apply
+        // the clamp once on the blended stability.
+        if (w - 1.0).abs() < 1e-9 {
+            return TestState {
+                stability: direct.stability,
+                difficulty: direct.difficulty,
+                last_seen_secs: now_secs,
+                last_base_secs: now_secs,
+                last_root_secs: if is_root {
+                    now_secs
+                } else {
+                    state.last_root_secs
+                },
+            };
+        }
+        let elapsed = state.elapsed_days(now_secs).max(0.0);
+        let r_now = power_forgetting_curve(elapsed, state.stability, FSRS6_DEFAULT_DECAY);
+        let r_direct = power_forgetting_curve(elapsed, direct.stability, FSRS6_DEFAULT_DECAY);
+        let r_blend = (1.0 - w) * r_now + w * r_direct;
+        let s_blend = invert_r(r_blend, elapsed.max(0.001), FSRS6_DEFAULT_DECAY);
+        let d_blend = (1.0 - w) * state.difficulty + w * direct.difficulty;
+        let base_blend_f =
+            (1.0 - w as f64) * state.last_base_secs as f64 + w as f64 * now_secs as f64;
+        TestState {
+            stability: apply_stability_clamp(s_blend),
+            difficulty: d_blend.clamp(D_MIN, D_MAX),
+            last_seen_secs: now_secs,
+            last_base_secs: base_blend_f as i64,
+            last_root_secs: if is_root {
+                now_secs
+            } else {
+                state.last_root_secs
+            },
+        }
+    }
+
+    /// Inner helper: a full FSRS-6 step that returns just the post-step
+    /// `(stability, difficulty)` packed in a fresh `TestState` (with all
+    /// timestamps set to `now_secs`). The `update` primitive uses this as
+    /// the "hypothetical direct" reference state for retrievability-space
+    /// interpolation.
+    fn direct_full_step(&self, state: &TestState, grade: Grade, now_secs: i64) -> TestState {
+        let elapsed_days = state.elapsed_days(now_secs).max(0.0);
+        let memory: MemoryState = state.into();
+        let next = self.step(Some(memory), elapsed_days, grade as u32);
+        TestState {
+            stability: apply_stability_clamp(next.stability),
+            difficulty: next.difficulty.clamp(D_MIN, D_MAX),
+            last_seen_secs: now_secs,
+            last_base_secs: now_secs,
+            last_root_secs: now_secs,
+        }
+    }
+
     /// HSRS partial update applied to a related (non-graded) test.
     ///
     /// Interpolates in retrievability space between the current state and the
@@ -528,6 +610,92 @@ mod tests {
         let r = power_forgetting_curve(elapsed_days, s, FSRS6_DEFAULT_DECAY);
         let s_back = invert_r(r, elapsed_days, FSRS6_DEFAULT_DECAY);
         assert!((s - s_back).abs() < 0.01, "round trip: {} vs {}", s, s_back);
+    }
+
+    fn sample_state() -> TestState {
+        TestState {
+            stability: 10.0,
+            difficulty: 5.0,
+            last_seen_secs: 0,
+            last_base_secs: 0,
+            last_root_secs: 0,
+        }
+    }
+
+    #[test]
+    fn update_weight_one_root_matches_old_direct_step() {
+        let bridge = FsrsBridge::new(0.9);
+        let s = sample_state();
+        for grade in [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy] {
+            for now in [86400, 86400 * 7, 86400 * 30, 86400 * 365] {
+                let direct = bridge.direct_step(&s, grade, now);
+                let unified = bridge.update(&s, grade, 1.0, true, now);
+                assert!(
+                    (unified.stability - direct.stability).abs() < 1e-3,
+                    "stability mismatch grade={grade:?} now={now}: {} vs {}",
+                    unified.stability,
+                    direct.stability,
+                );
+                assert!(
+                    (unified.difficulty - direct.difficulty).abs() < 1e-3,
+                    "difficulty mismatch"
+                );
+                assert_eq!(unified.last_seen_secs, direct.last_seen_secs);
+                assert_eq!(unified.last_base_secs, direct.last_base_secs);
+                assert_eq!(unified.last_root_secs, direct.last_root_secs);
+            }
+        }
+    }
+
+    #[test]
+    fn update_partial_weight_no_root_matches_old_propagated_step() {
+        let bridge = FsrsBridge::new(0.9);
+        let s = sample_state();
+        for grade in [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy] {
+            for w in [0.05_f32, 0.1, 0.3, 0.5, 0.7] {
+                for now in [86400, 86400 * 7, 86400 * 30] {
+                    let prop = bridge.propagated_step(&s, grade, w, now);
+                    let unified = bridge.update(&s, grade, w, false, now);
+                    assert!(
+                        (unified.stability - prop.stability).abs() < 1e-2,
+                        "stability mismatch grade={grade:?} w={w} now={now}: {} vs {}",
+                        unified.stability,
+                        prop.stability,
+                    );
+                    assert!((unified.difficulty - prop.difficulty).abs() < 1e-2);
+                    assert_eq!(unified.last_seen_secs, prop.last_seen_secs);
+                    assert_eq!(unified.last_base_secs, prop.last_base_secs);
+                    assert_eq!(unified.last_root_secs, prop.last_root_secs);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn update_zero_weight_advances_only_last_seen() {
+        let bridge = FsrsBridge::new(0.9);
+        let s = sample_state();
+        for grade in [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy] {
+            for now in [86400, 86400 * 7, 86400 * 30] {
+                let after = bridge.update(&s, grade, 0.0, false, now);
+                assert!((after.stability - s.stability).abs() < 1e-3);
+                assert!((after.difficulty - s.difficulty).abs() < 1e-3);
+                assert_eq!(after.last_seen_secs, now);
+                assert_eq!(after.last_base_secs, s.last_base_secs);
+                assert_eq!(after.last_root_secs, s.last_root_secs);
+            }
+        }
+    }
+
+    #[test]
+    fn update_root_advances_last_root() {
+        let bridge = FsrsBridge::new(0.9);
+        let s = sample_state();
+        let now = 86400 * 30;
+        let rooted = bridge.update(&s, Grade::Good, 1.0, true, now);
+        assert_eq!(rooted.last_root_secs, now);
+        let sub = bridge.update(&s, Grade::Good, 0.5, false, now);
+        assert_eq!(sub.last_root_secs, s.last_root_secs);
     }
 
     #[test]
