@@ -16,7 +16,7 @@ API.Bible Minimum Acceptable Use (paraphrased):
     https://api.bible in any UI surfacing the content.
 
 Usage:
-    export API_BIBLE_KEY=<your key>
+    export BIBLE_API_KEY=<your key>     # or API_BIBLE_KEY
     python3 tools/check_against_apibible.py \\
         data/corinthians.json \\
         --book "1 Corinthians" --chapter 1 \\
@@ -172,9 +172,9 @@ def main():
     )
     args = ap.parse_args()
 
-    api_key = os.environ.get("API_BIBLE_KEY")
+    api_key = os.environ.get("BIBLE_API_KEY") or os.environ.get("API_BIBLE_KEY")
     if not api_key:
-        sys.exit("API_BIBLE_KEY not set in environment")
+        sys.exit("BIBLE_API_KEY (or API_BIBLE_KEY) not set in environment")
 
     with open(args.input, "r", encoding="utf-8") as f:
         data = json.load(f)
