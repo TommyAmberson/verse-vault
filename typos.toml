@@ -8,3 +8,4 @@ extend-exclude = [
 
 [default.extend-words]
 OT = "OT" # old testament
+NAM = "NAM" # USX book code for Nahum

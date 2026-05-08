@@ -58,6 +58,29 @@ imports stay cheap:
 python3 tools/extract_phrases.py data/corinthians.json data/corinthians-phrases.json
 ```
 
+### 5. Verify against canonical NKJV (optional)
+
+The Anki deck is the source of truth in this pipeline, but it can drift from the canonical NKJV text
+— typos slipping in during edits, etc. `check_against_apibible.py` fetches the chapter via api.bible
+(NKJV by default), strips the deck's `<b>`/`<i>`/`<span>` markup, and reports any verses whose
+wording diverges:
+
+```bash
+export API_BIBLE_KEY=<your api.bible key>
+python3 tools/check_against_apibible.py data/corinthians.json \
+    --book "1 Corinthians" --chapter 1
+```
+
+Subject to the
+[API.Bible Minimum Acceptable Use Agreement](https://docs.api.bible/guides/terms-of-use):
+
+* Fetched passages are cached at `data/apibible-cache.json` and re-fetched after 30 days per the
+  cache-refresh requirement.
+* Output prints the required citation line.
+* The cached content is for **runtime diagnostic use only** — not for training generative AI.
+* Starter-plan callers must include a visible citation + link to https://api.bible in any UI
+  surfacing the content.
+
 ## Legacy path: text export
 
 ```
