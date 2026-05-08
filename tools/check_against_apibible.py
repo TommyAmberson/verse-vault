@@ -88,13 +88,24 @@ def fetch_passage(bible_id: str, pid: str, api_key: str) -> dict:
         "include-verse-spans": "false",
     })
     url = f"{API_BASE}/bibles/{bible_id}/passages/{urllib.parse.quote(pid)}?{qs}"
+    return _get_json(url, api_key, pid)
+
+
+def fetch_sections(bible_id: str, book_code: str, api_key: str) -> list[dict]:
+    """GET /books/{bookId}/sections. Returns the sections list directly."""
+    url = f"{API_BASE}/bibles/{bible_id}/books/{book_code}/sections"
+    data = _get_json(url, api_key, f"sections/{book_code}")
+    return data.get("data", []) or []
+
+
+def _get_json(url: str, api_key: str, label: str) -> dict:
     req = urllib.request.Request(url, headers={"api-key": api_key, "accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", "replace")
-        raise SystemExit(f"api.bible HTTP {e.code} for {pid}: {body[:200]}")
+        raise SystemExit(f"api.bible HTTP {e.code} for {label}: {body[:200]}")
 
 
 def load_cache(path: str | None) -> dict:
@@ -112,7 +123,7 @@ def save_cache(path: str, cache: dict) -> None:
 
 def get_passage(bible_id: str, pid: str, api_key: str, cache: dict) -> str:
     """Cache-aware passage fetch. Returns the plain-text passage."""
-    key = f"{bible_id}|{pid}"
+    key = f"{bible_id}|passage|{pid}"
     entry = cache.get(key)
     now = int(time.time())
     if entry and now - entry.get("fetched_at", 0) < CACHE_TTL_SECS:
@@ -121,6 +132,29 @@ def get_passage(bible_id: str, pid: str, api_key: str, cache: dict) -> str:
     content = data.get("data", {}).get("content", "")
     cache[key] = {"content": content, "fetched_at": now, "passageId": pid}
     return content
+
+
+def get_sections(bible_id: str, book_code: str, api_key: str, cache: dict) -> list[dict]:
+    """Cache-aware sections fetch."""
+    key = f"{bible_id}|sections|{book_code}"
+    entry = cache.get(key)
+    now = int(time.time())
+    if entry and now - entry.get("fetched_at", 0) < CACHE_TTL_SECS:
+        return entry["sections"]
+    sections = fetch_sections(bible_id, book_code, api_key)
+    cache[key] = {"sections": sections, "fetched_at": now, "bookCode": book_code}
+    return sections
+
+
+VERSE_ID = re.compile(r"^([A-Z0-9]+)\.(\d+)\.(\d+)$")
+
+
+def parse_verse_id(vid: str) -> tuple[str, int, int]:
+    """`1CO.1.3` → (`1CO`, 1, 3). Errors out on a malformed input."""
+    m = VERSE_ID.match(vid)
+    if not m:
+        raise SystemExit(f"Cannot parse verseId: {vid!r}")
+    return m.group(1), int(m.group(2)), int(m.group(3))
 
 
 # api.bible returns chapter text with verse numbers inline like
@@ -161,16 +195,28 @@ def normalize_api_text(s: str) -> str:
     return s
 
 
+def normalize_title(s: str) -> str:
+    """Compare titles case-insensitively with curly→straight apostrophes."""
+    s = s.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
+    return s.strip().lower()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("input", help="verse-vault chunked JSON (e.g. data/corinthians.json)")
+    ap.add_argument(
+        "--mode",
+        choices=("verses", "headings"),
+        default="verses",
+        help="What to compare: verse text (default) or section headings",
+    )
     ap.add_argument("--book", help="Limit to one book name (e.g. '1 Corinthians')")
-    ap.add_argument("--chapter", type=int, help="Limit to one chapter")
+    ap.add_argument("--chapter", type=int, help="(verses mode only) Limit to one chapter")
     ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")
     ap.add_argument(
         "--cache",
         default="data/apibible-cache.json",
-        help="Cache file for fetched passages (refreshed every 30 days per API terms)",
+        help="Cache file (refreshed every 30 days per API terms)",
     )
     args = ap.parse_args()
 
@@ -182,8 +228,22 @@ def main():
         data = json.load(f)
 
     cache = load_cache(args.cache)
+    try:
+        if args.mode == "verses":
+            check_verses(data, args, api_key, cache)
+        else:
+            check_headings(data, args, api_key, cache)
+    finally:
+        save_cache(args.cache, cache)
 
-    # Group verses by (book, chapter) so we fetch one passage per chapter.
+    print(
+        "\nNKJV © Thomas Nelson. Used by permission via API.Bible "
+        "(https://api.bible). Cached entries refreshed every 30 days "
+        "per the Minimum Acceptable Use Agreement."
+    )
+
+
+def check_verses(data: dict, args, api_key: str, cache: dict) -> None:
     by_chapter: dict[tuple[str, int], list[dict]] = {}
     for v in data.get("verses", []):
         if args.book and v["book"] != args.book:
@@ -219,8 +279,6 @@ def main():
                     "canonical": ours,
                 })
 
-    save_cache(args.cache, cache)
-
     print(f"Compared {total} verses; {len(diffs)} diffs found.\n")
     for d in diffs:
         print(f"--- {d['ref']} ({d['kind']})")
@@ -229,11 +287,86 @@ def main():
             print(f"  canonical: {d['canonical'][:200]}")
         print()
 
-    print(
-        "NKJV © Thomas Nelson. Used by permission via API.Bible "
-        "(https://api.bible). Cached entries refreshed every 30 days "
-        "per the Minimum Acceptable Use Agreement."
-    )
+
+def check_headings(data: dict, args, api_key: str, cache: dict) -> None:
+    deck_by_book: dict[str, list[dict]] = {}
+    for h in data.get("headings", []):
+        if args.book and h["book"] != args.book:
+            continue
+        deck_by_book.setdefault(h["book"], []).append(h)
+
+    books = list(deck_by_book.keys())
+    if not args.book:
+        # Also include books that have canonical sections but no deck headings.
+        books = sorted({h["book"] for h in data.get("headings", [])} | set(deck_by_book.keys()))
+    if not books:
+        print("No headings to compare.")
+        return
+
+    diffs: list[dict] = []
+    deck_count = 0
+    canonical_count = 0
+    for book in sorted(books):
+        code = BOOK_CODES.get(book)
+        if code is None:
+            print(f"!! No USX code mapped for {book!r}; skipping")
+            continue
+        sections = get_sections(args.bible, code, api_key, cache)
+        # Map both sides keyed by start (chapter, verse).
+        canonical_by_start = {}
+        for s in sections:
+            _, ch, v = parse_verse_id(s["firstVerseId"])
+            _, ech, ev = parse_verse_id(s["lastVerseId"])
+            canonical_by_start[(ch, v)] = {
+                "title": s.get("title", ""),
+                "start": (ch, v),
+                "end": (ech, ev),
+            }
+        deck_by_start = {}
+        for h in deck_by_book.get(book, []):
+            deck_by_start[(h["start_chapter"], h["start_verse"])] = {
+                "title": h.get("text", ""),
+                "start": (h["start_chapter"], h["start_verse"]),
+                "end": (h["end_chapter"], h["end_verse"]),
+            }
+        deck_count += len(deck_by_start)
+        canonical_count += len(canonical_by_start)
+
+        for start, deck in sorted(deck_by_start.items()):
+            canon = canonical_by_start.get(start)
+            if canon is None:
+                diffs.append({"book": book, "kind": "extra-in-deck", "deck": deck})
+                continue
+            title_match = normalize_title(deck["title"]) == normalize_title(canon["title"])
+            range_match = deck["end"] == canon["end"]
+            if not title_match or not range_match:
+                diffs.append({
+                    "book": book,
+                    "kind": "title-mismatch" if not title_match else "range-mismatch",
+                    "deck": deck,
+                    "canonical": canon,
+                })
+        for start, canon in sorted(canonical_by_start.items()):
+            if start not in deck_by_start:
+                diffs.append({"book": book, "kind": "missing-in-deck", "canonical": canon})
+
+    print(f"Compared headings: {deck_count} deck vs {canonical_count} canonical; {len(diffs)} diffs.\n")
+    for d in diffs:
+        ref = format_range(d.get("deck") or d["canonical"])
+        print(f"--- {d['book']} {ref} ({d['kind']})")
+        if "deck" in d:
+            print(f"  deck     : {d['deck']['title']}  [{format_range(d['deck'])}]")
+        if "canonical" in d:
+            print(f"  canonical: {d['canonical']['title']}  [{format_range(d['canonical'])}]")
+        print()
+
+
+def format_range(h: dict) -> str:
+    sc, sv = h["start"]
+    ec, ev = h["end"]
+    if sc == ec:
+        return f"{sc}:{sv}-{ev}" if sv != ev else f"{sc}:{sv}"
+    return f"{sc}:{sv}-{ec}:{ev}"
 
 
 if __name__ == "__main__":
