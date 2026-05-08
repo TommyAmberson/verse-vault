@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev:api": "pnpm --filter @verse-vault/api dev",
+    "dev:web": "pnpm --filter @verse-vault/web dev",
+    "dev:all": "pnpm --parallel --filter @verse-vault/api --filter @verse-vault/web dev",
     "type-check": "pnpm --filter '*' type-check",
     "test": "pnpm --filter '*' test",
     "lint": "eslint",
