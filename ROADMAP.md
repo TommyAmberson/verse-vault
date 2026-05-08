@@ -112,7 +112,16 @@ promote to issues when a phase picks them up.
 
 Long-horizon ideas; not filed as issues yet.
 
-* Per-user FSRS parameter optimization (from review history)
+* HSRS-aware FSRS parameter optimizer (from verse-vault review history). Standard FSRS optimizers
+  (Anki, fsrs-rs) assume each review is an independent observation under a single-card FSRS step;
+  feeding their fits into verse-vault's HSRS engine double-counts the cross-reinforcement that
+  composite cards already model via Bayesian decomposition, producing biased predictions either way
+  (params absorb cross-reinforcement when fit on Anki-style histories; standard fits over-attribute
+  partial-weight updates as full FSRS steps when fit on HSRS-style histories). Need a custom
+  optimizer whose forward pass is `engine.review` (the HSRS-style decomposed step), then fit `w` via
+  gradient descent or grid search against actual user review history. The probabilistic-learner sim
+  (`crates/sim/`) is most of the infrastructure; swap synthetic outcomes for real history to make it
+  a fitter. Until this exists, defaults are a better starting point than imported Anki params.
 * Multiple translations (ESV, NIV — with licensing)
 * Team features for QuizMeet teams
 * Customizable learning flow
