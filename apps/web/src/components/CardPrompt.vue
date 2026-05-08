@@ -47,47 +47,47 @@ const clubLabel = computed(() => props.card.verse.clubs[0] ?? '')
   <div class="prompt">
     <div class="meta">{{ promptLabel }}</div>
 
-    <!-- Phrase-position cards: show all phrases except the target. -->
+    <!-- Phrase-position cards: show all phrases except the target.
+         v-html renders <b>/<i>/<span> markup from the curated source data
+         (NKJV typography: bold / bold-italic keywords + small-caps LORD).
+         Safe: content originates from the server-side material catalog, not
+         user input. -->
     <div v-if="card.kind === 'PhraseFill'" class="phrases">
-      <div
-        v-for="(phrase, i) in card.verse.phrases"
-        :key="i"
-        :class="['phrase', { 'phrase-hidden': i === card.position && !revealed }]"
-      >
-        {{ i === card.position && !revealed ? '___' : phrase }}
-      </div>
+      <template v-for="(phrase, i) in card.verse.phrases" :key="i">
+        <div v-if="i === card.position && !revealed" class="phrase phrase-hidden">___</div>
+        <div v-else class="phrase" v-html="phrase" />
+      </template>
       <div class="ref small">{{ ref }}</div>
     </div>
 
     <div v-else-if="card.kind === 'PhraseChain'" class="phrases">
-      <div class="phrase">{{ card.verse.phrases[card.position! - 1] }}</div>
-      <div class="phrase phrase-hidden">
-        {{ revealed ? card.verse.phrases[card.position!] : '___' }}
-      </div>
+      <div class="phrase" v-html="card.verse.phrases[card.position! - 1]" />
+      <div v-if="revealed" class="phrase phrase-hidden" v-html="card.verse.phrases[card.position!]" />
+      <div v-else class="phrase phrase-hidden">___</div>
       <div class="ref small">{{ ref }}</div>
     </div>
 
     <div v-else-if="card.kind === 'VerseAtVerseRef'" class="centered">
       <div class="ref">{{ ref }}</div>
-      <div v-if="revealed" class="verse-text">{{ card.verse.text }}</div>
+      <div v-if="revealed" class="verse-text" v-html="card.verse.text" />
       <div v-else class="placeholder">…recite the verse…</div>
     </div>
 
     <div v-else-if="card.kind === 'VerseInChapter' || card.kind === 'VerseInBook'" class="centered">
-      <div class="verse-text">{{ card.verse.text }}</div>
+      <div class="verse-text" v-html="card.verse.text" />
       <div v-if="revealed" class="ref">{{ ref }}</div>
       <div v-else class="placeholder">…what {{ card.kind === 'VerseInBook' ? 'book' : 'chapter' }}?…</div>
     </div>
 
     <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
-      <div class="verse-text">{{ card.verse.text }}</div>
+      <div class="verse-text" v-html="card.verse.text" />
       <div class="ref small">{{ ref }}</div>
       <div v-if="revealed" class="answer">Heading: {{ headingText }}</div>
       <div v-else class="placeholder">…what heading?…</div>
     </div>
 
     <div v-else-if="card.kind === 'VerseInClub'" class="centered">
-      <div class="verse-text">{{ card.verse.text }}</div>
+      <div class="verse-text" v-html="card.verse.text" />
       <div class="ref small">{{ ref }}</div>
       <div v-if="revealed" class="answer">Club: {{ clubLabel }}</div>
       <div v-else class="placeholder">…which club?…</div>
@@ -95,26 +95,26 @@ const clubLabel = computed(() => props.card.verse.clubs[0] ?? '')
 
     <div v-else-if="card.kind === 'Recitation'" class="centered">
       <div class="ref">{{ ref }}</div>
-      <div v-if="revealed" class="verse-text">{{ card.verse.text }}</div>
+      <div v-if="revealed" class="verse-text" v-html="card.verse.text" />
       <div v-else class="placeholder">…recite the whole verse…</div>
     </div>
 
     <div v-else-if="card.kind === 'Citation'" class="centered">
-      <div class="verse-text">{{ card.verse.text }}</div>
+      <div class="verse-text" v-html="card.verse.text" />
       <div v-if="revealed" class="ref">{{ ref }}</div>
       <div v-else class="placeholder">…what is the reference?…</div>
     </div>
 
     <div v-else-if="card.kind === 'Ftv'" class="centered">
-      <div class="verse-text ftv">{{ card.verse.ftv }}…</div>
-      <div v-if="revealed" class="verse-text">{{ card.verse.text }}</div>
+      <div class="verse-text ftv" v-html="`${card.verse.ftv ?? ''}…`" />
+      <div v-if="revealed" class="verse-text" v-html="card.verse.text" />
       <div v-else class="placeholder">…continue the verse…</div>
       <div v-if="revealed && card.withCitation" class="ref">{{ ref }}</div>
     </div>
 
     <div v-else-if="card.kind === 'Reading'" class="centered">
       <div class="ref">{{ ref }}</div>
-      <div class="verse-text">{{ card.verse.text }}</div>
+      <div class="verse-text" v-html="card.verse.text" />
     </div>
   </div>
 </template>
@@ -178,6 +178,24 @@ const clubLabel = computed(() => props.card.verse.clubs[0] ?? '')
 
 .verse-text.ftv {
   font-style: italic;
+}
+
+/* NKJV markup, rendered via v-html in verse-text and phrase blocks.
+   :deep() reaches inside since Vue's scoped CSS doesn't tag dynamically
+   inserted nodes. */
+.verse-text :deep(b),
+.phrase :deep(b) {
+  font-weight: 600;
+}
+
+.verse-text :deep(i),
+.phrase :deep(i) {
+  font-style: italic;
+}
+
+.verse-text :deep(span[style*='small-caps']),
+.phrase :deep(span[style*='small-caps']) {
+  font-variant: small-caps;
 }
 
 .placeholder {
