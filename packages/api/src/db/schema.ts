@@ -95,8 +95,9 @@ export const userMaterials = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
 );
 
-// The graph + card catalog built from content. Rebuilt when content changes;
-// versioned so existing events can be replayed against a known snapshot.
+// The bundled MaterialData blob the engine builds from. Rebuilt when content
+// changes; versioned so existing events can be replayed against a known
+// snapshot.
 export const graphSnapshots = sqliteTable(
   'graph_snapshots',
   {
@@ -106,8 +107,7 @@ export const graphSnapshots = sqliteTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     materialId: text('material_id').notNull(),
     version: integer('version').notNull(),
-    graphData: blob('graph_data', { mode: 'buffer' }).notNull(),
-    cardsData: blob('cards_data', { mode: 'buffer' }).notNull(),
+    materialData: blob('material_data', { mode: 'buffer' }).notNull(),
     createdAt: integer('created_at').notNull(),
   },
   (t) => ({
@@ -115,7 +115,8 @@ export const graphSnapshots = sqliteTable(
   }),
 );
 
-// Append-only review log. Source of truth — edge/card states are derived.
+// Append-only review log. Source of truth — test_states are derived by
+// replaying these.
 export const reviewEvents = sqliteTable(
   'review_events',
   {
@@ -126,14 +127,12 @@ export const reviewEvents = sqliteTable(
     materialId: text('material_id').notNull(),
     snapshotVersion: integer('snapshot_version').notNull(),
     timestampSecs: integer('timestamp_secs').notNull(),
-    cardId: integer('card_id'), // null for transient (re-drill / progressive reveal)
+    cardId: integer('card_id').notNull(),
+    grade: integer('grade').notNull(), // 1=Again, 2=Hard, 3=Good, 4=Easy
     // Client-supplied ID that makes uploads idempotent across retries. For
     // online reviews the server generates a UUID; for offline reviews the
     // client sends its own UUID.
     clientEventId: text('client_event_id').notNull(),
-    shown: blob('shown', { mode: 'buffer' }).notNull(),
-    hidden: blob('hidden', { mode: 'buffer' }).notNull(),
-    grades: blob('grades', { mode: 'buffer' }).notNull(),
     createdAt: integer('created_at').notNull(),
   },
   (t) => ({
@@ -154,35 +153,25 @@ export const reviewEvents = sqliteTable(
   }),
 );
 
-// Materialized edge state (recomputable by replaying review_events).
-export const edgeStates = sqliteTable(
-  'edge_states',
+// Materialized per-test FSRS state (recomputable by replaying review_events).
+// `element` is the serde-tagged JSON form of `core::ElementId`; opaque to
+// the API — passed through verbatim from `WasmEngine.export_test_states()`.
+export const testStates = sqliteTable(
+  'test_states',
   {
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     materialId: text('material_id').notNull(),
-    edgeId: integer('edge_id').notNull(),
+    testKind: text('test_kind').notNull(),
+    element: text('element').notNull(),
     stability: real('stability').notNull(),
     difficulty: real('difficulty').notNull(),
-    lastReviewSecs: integer('last_review_secs').notNull(),
+    lastSeenSecs: integer('last_seen_secs').notNull(),
+    lastBaseSecs: integer('last_base_secs').notNull(),
+    lastRootSecs: integer('last_root_secs').notNull(),
   },
-  (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId, t.edgeId] }) }),
-);
-
-// Materialized card state + schedule (recomputable).
-export const cardStates = sqliteTable(
-  'card_states',
-  {
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    materialId: text('material_id').notNull(),
-    cardId: integer('card_id').notNull(),
-    state: text('state', { enum: ['new', 'learning', 'review', 'relearning'] }).notNull(),
-    dueR: real('due_r'),
-    dueDateSecs: integer('due_date_secs'),
-    priority: real('priority'),
-  },
-  (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId, t.cardId] }) }),
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.materialId, t.testKind, t.element] }),
+  }),
 );
