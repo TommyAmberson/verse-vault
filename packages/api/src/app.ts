@@ -40,17 +40,18 @@ export function createApp(deps: AppDeps) {
   const app = new Hono<{ Variables: SessionVariables }>();
 
   app.use('*', logger());
+  const isProd = process.env.NODE_ENV === 'production';
   app.use(
     '*',
     cors({
-      // In dev (VV_DEV_USER_ID set), accept any localhost origin so the
-      // Vue thin client running on whatever port Vite picked can talk to
-      // the API without a coordinated WEB_BASE_URL env. In prod, only the
+      // Outside production, accept any http://localhost:PORT origin so the
+      // thin client running on whatever port Vite picked can talk to the
+      // API without a coordinated WEB_BASE_URL. In production only the
       // configured webOrigin is allowed.
       origin: (origin) => {
         if (origin === deps.authEnv.webOrigin) return origin;
         if (
-          process.env.VV_DEV_USER_ID &&
+          !isProd &&
           origin &&
           /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
         ) {
