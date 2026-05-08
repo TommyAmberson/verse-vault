@@ -109,10 +109,23 @@ def _get_json(url: str, api_key: str, label: str) -> dict:
 
 
 def load_cache(path: str | None) -> dict:
+    """Load the on-disk cache, dropping any entries that have expired.
+
+    The API terms require all cached api.bible content to be refreshed
+    every 30 days. Pruning on load makes that guarantee structural: the
+    file never holds entries past CACHE_TTL_SECS, so even if a passage
+    isn't read again it can't sit stale in storage.
+    """
     if not path or not os.path.exists(path):
         return {}
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        raw = json.load(f)
+    now = int(time.time())
+    pruned = {k: v for k, v in raw.items() if now - v.get("fetched_at", 0) < CACHE_TTL_SECS}
+    dropped = len(raw) - len(pruned)
+    if dropped:
+        print(f"Pruned {dropped} cache entries older than 30 days from {path}")
+    return pruned
 
 
 def save_cache(path: str, cache: dict) -> None:
