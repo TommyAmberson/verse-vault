@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
 import { and, eq } from 'drizzle-orm';
+import { WasmEngine } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { NotEnrolledError } from './engine.js';
-import { type UserMaterial, jsonBlob } from './keys.js';
-import { type MaterialCard, buildMaterialTemplate, getMaterial } from './materials.js';
+import { NotEnrolledError, type TestStateEntry } from './engine.js';
+import type { UserMaterial } from './keys.js';
+import { getMaterial, getMaterialJson } from './materials.js';
 
 /** better-sqlite3 surfaces constraint violations on `.code`. */
 function isUserMaterialsPkViolation(err: unknown): boolean {
@@ -24,6 +25,10 @@ export interface EnrollArgs {
   materialId: string;
   clubTier?: number | null;
   now?: () => number;
+  /** Optional override for the bundled MaterialData JSON. Tests pass a tiny
+   * inline material to avoid loading multi-hundred-kB blobs from disk. */
+  materialJson?: string;
+  desiredRetention?: number;
 }
 
 export class UnknownMaterialError extends Error {
@@ -40,10 +45,10 @@ export class AlreadyEnrolledError extends Error {
   }
 }
 
+const DEFAULT_DESIRED_RETENTION = 0.9;
+
 /**
  * Returns the user_materials row for the caller, or throws NotEnrolledError.
- * Route handlers `try { … } catch (NotEnrolledError)` → 404, matching the
- * sync-endpoint pattern.
  */
 export function requireEnrollment(
   db: DB,
@@ -65,23 +70,35 @@ export function requireEnrollment(
 
 /**
  * Enrolls a user in a material. Inserts the `user_materials` row, the initial
- * `graph_snapshots` row from the material template, and seeds `card_states`
- * so status queries can hit a populated table even before the first review.
+ * `graph_snapshots` row from the material JSON, and seeds `test_states` from
+ * the freshly-built engine (one row per `TestKey` reachable from any card)
+ * so stats queries hit a populated table even before the first review.
  *
- * The user_materials PK on (user_id, material_id) is the authoritative guard
- * against duplicate enrollment — a concurrent double-enroll is mapped to
- * AlreadyEnrolledError rather than bubbling up as a 500.
+ * The `user_materials` PK on (user_id, material_id) is the authoritative
+ * guard against duplicate enrollment — a concurrent double-enroll is mapped
+ * to `AlreadyEnrolledError` rather than bubbling up as a 500.
  */
 export function enrollUser(args: EnrollArgs): { snapshotId: string; version: number } {
   const { db, userId, materialId } = args;
   const now = args.now ?? (() => Math.floor(Date.now() / 1000));
+  const desiredRetention = args.desiredRetention ?? DEFAULT_DESIRED_RETENTION;
 
   const material = getMaterial(materialId);
   if (!material) throw new UnknownMaterialError(materialId);
 
-  const template = buildMaterialTemplate(materialId);
+  const materialJson = args.materialJson ?? getMaterialJson(materialId);
   const snapshotId = randomUUID();
   const createdAt = now();
+
+  // Build a fresh engine to seed test_states. Free it once the export is
+  // serialised — it's recreated per request by EngineStore on first load.
+  const seedEngine = new WasmEngine(materialJson, '', desiredRetention, BigInt(createdAt));
+  let testStates: TestStateEntry[];
+  try {
+    testStates = JSON.parse(seedEngine.export_test_states()) as TestStateEntry[];
+  } finally {
+    seedEngine.free();
+  }
 
   try {
     db.transaction((tx) => {
@@ -99,26 +116,27 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
           userId,
           materialId,
           version: 1,
-          graphData: jsonBlob(template.graph),
-          cardsData: jsonBlob(template.cards),
+          materialData: Buffer.from(materialJson, 'utf8'),
           createdAt,
         })
         .run();
 
-      // MaterialCard.state stays PascalCase because that's what Rust's serde
-      // produces for the CardState enum on the WASM side; card_states on the
-      // DB is the lowercase union so we normalize on the way in.
-      const cardRows = template.cards.map((c: MaterialCard) => ({
-        userId,
-        materialId,
-        cardId: c.id,
-        state: c.state.toLowerCase() as Lowercase<MaterialCard['state']>,
-        dueR: null,
-        dueDateSecs: null,
-        priority: null,
-      }));
-      if (cardRows.length > 0) {
-        tx.insert(schema.cardStates).values(cardRows).run();
+      if (testStates.length > 0) {
+        tx.insert(schema.testStates)
+          .values(
+            testStates.map((s) => ({
+              userId,
+              materialId,
+              testKind: s.test_kind,
+              element: JSON.stringify(s.element),
+              stability: s.stability,
+              difficulty: s.difficulty,
+              lastSeenSecs: s.last_seen_secs,
+              lastBaseSecs: s.last_base_secs,
+              lastRootSecs: s.last_root_secs,
+            })),
+          )
+          .run();
       }
     });
   } catch (err) {

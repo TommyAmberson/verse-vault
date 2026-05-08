@@ -1,20 +1,15 @@
-import { randomUUID } from 'node:crypto';
-
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import {
-  type CardStateEntry,
-  type EdgeStateEntry,
   EngineStore,
   NotEnrolledError,
-  readCardStateEntries,
-  readEdgeStateEntries,
+  type TestStateEntry,
+  readTestStateEntries,
 } from '../lib/engine.js';
-import { jsonBlob } from '../lib/keys.js';
-import { type Grade, type ReviewOutcome, persistEngineState } from '../lib/review-log.js';
+import { type Grade, persistEngineState } from '../lib/review-log.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface SyncRoutesDeps {
@@ -30,18 +25,20 @@ interface ReviewEventUpload {
   clientEventId: string;
   timestampSecs: number;
   snapshotVersion: number;
-  cardId: number | null;
-  shown: number[];
-  hidden: number[];
-  grades: Grade[];
+  cardId: number;
+  grade: Grade;
 }
 
 interface UploadBody {
   events: ReviewEventUpload[];
 }
 
+interface TestUpdateWire {
+  key: { kind: string; element: unknown };
+  kind: 'Root' | 'Sub';
+}
+
 export function syncRoutes(deps: SyncRoutesDeps) {
-  const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
   const app = new Hono<{ Variables: SessionVariables }>();
 
   app.use('*', requireAuth());
@@ -68,11 +65,11 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     return c.json({
       snapshot: {
         version: snapshot.version,
-        graphData: JSON.parse(snapshot.graphData.toString('utf8')) as unknown,
-        cardsData: JSON.parse(snapshot.cardsData.toString('utf8')) as unknown,
+        // The MaterialData blob is stored as utf8 JSON; round-trip it as a
+        // structured object for clients that don't want to re-parse strings.
+        materialData: JSON.parse(snapshot.materialData.toString('utf8')) as unknown,
       },
-      edgeStates: readEdgeStateEntries(deps.db, key),
-      cardStates: readCardStateEntries(deps.db, key),
+      testStates: readTestStateEntries(deps.db, key),
       lastEventId: latestEventId(deps.db, user.id, materialId),
     });
   });
@@ -131,7 +128,6 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       .all();
     const seen = new Set(existing.map((r) => r.clientEventId));
 
-    // Sort so multi-device uploads stay deterministic regardless of arrival order.
     const fresh = events
       .filter((e) => !seen.has(e.clientEventId))
       .sort((a, b) =>
@@ -144,58 +140,47 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       return c.json(unchangedResponse(deps.db, key, 0, events.length));
     }
 
-    const changedEdgeIds = new Set<number>();
-    for (const e of fresh) {
-      const outcome = JSON.parse(
-        loaded.engine.replay_event(
-          JSON.stringify(e.shown),
-          JSON.stringify(e.hidden),
-          JSON.stringify(e.grades),
-          BigInt(e.timestampSecs),
-        ),
-      ) as ReviewOutcome;
-      for (const u of outcome.edge_updates) changedEdgeIds.add(u.edge_id);
-    }
+    return deps.engines.withLock(key, async () => {
+      const touchedKeys = new Set<string>();
+      for (const e of fresh) {
+        const updates = JSON.parse(
+          loaded.engine.replay_event(e.cardId, e.grade, BigInt(e.timestampSecs)),
+        ) as TestUpdateWire[];
+        for (const u of updates) {
+          touchedKeys.add(`${u.key.kind}|${JSON.stringify(u.key.element)}`);
+        }
+      }
 
-    const allEdges = JSON.parse(loaded.engine.export_edge_states()) as EdgeStateEntry[];
-    const changedEdges = allEdges.filter((e) => changedEdgeIds.has(e.edge_id));
-    const allCards = JSON.parse(loaded.engine.export_card_states()) as CardStateEntry[];
-    const createdAt = now();
-    const eventRows = fresh.map((e) => ({
-      id: randomUUID(),
-      userId: user.id,
-      materialId,
-      snapshotVersion: e.snapshotVersion,
-      timestampSecs: e.timestampSecs,
-      cardId: e.cardId,
-      clientEventId: e.clientEventId,
-      shown: jsonBlob(e.shown),
-      hidden: jsonBlob(e.hidden),
-      grades: jsonBlob(e.grades),
-      createdAt,
-    }));
+      const allStates = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
+      const changed = allStates.filter((s) =>
+        touchedKeys.has(`${s.test_kind}|${JSON.stringify(s.element)}`),
+      );
 
-    deps.db.transaction((tx) => {
-      persistEngineState(tx, {
-        userId: user.id,
-        materialId,
-        eventRows,
-        changedEdges,
-        allCards,
+      deps.db.transaction((tx) => {
+        persistEngineState(tx, {
+          userId: user.id,
+          materialId,
+          events: fresh.map((e) => ({
+            userId: user.id,
+            materialId,
+            snapshotVersion: e.snapshotVersion,
+            timestampSecs: e.timestampSecs,
+            cardId: e.cardId,
+            grade: e.grade,
+            clientEventId: e.clientEventId,
+          })),
+          testStateUpdates: changed,
+        });
       });
-    });
 
-    // Response carries the engine's full edge/card state so fat clients can
-    // replace their local cache in one shot; DB writes are filtered above.
-    // `lastEventId` must agree with GET /state so clients can use it as a
-    // resume cursor — both report the chronologically latest event, not the
-    // last one in this batch (which may be older than pre-existing rows).
-    return c.json({
-      accepted: fresh.length,
-      duplicates: events.length - fresh.length,
-      edgeStates: allEdges,
-      cardStates: allCards,
-      lastEventId: latestEventId(deps.db, user.id, materialId),
+      return c.json({
+        accepted: fresh.length,
+        duplicates: events.length - fresh.length,
+        // Send the full state so fat clients can replace their cache in one
+        // shot; DB writes were filtered above to just the touched keys.
+        testStates: allStates,
+        lastEventId: latestEventId(deps.db, user.id, materialId),
+      });
     });
   });
 
@@ -211,8 +196,7 @@ function unchangedResponse(
   return {
     accepted,
     duplicates,
-    edgeStates: readEdgeStateEntries(db, key),
-    cardStates: readCardStateEntries(db, key),
+    testStates: readTestStateEntries(db, key),
     lastEventId: latestEventId(db, key.userId, key.materialId),
   };
 }
@@ -235,19 +219,17 @@ function latestEventId(db: DB, userId: string, materialId: string): string | nul
 
 function validateUpload(e: ReviewEventUpload): string | null {
   if (typeof e.clientEventId !== 'string' || !e.clientEventId) return 'clientEventId required';
-  // NaN/Infinity/non-integer floats reach BigInt() at the engine boundary and
-  // throw RangeError → 500; reject them at the edge as 400 instead.
   if (!Number.isInteger(e.timestampSecs) || e.timestampSecs < 0) {
     return 'timestampSecs must be a non-negative integer';
   }
   if (!Number.isInteger(e.snapshotVersion) || e.snapshotVersion < 1) {
     return 'snapshotVersion must be a positive integer';
   }
-  if (e.cardId !== null && (!Number.isInteger(e.cardId) || e.cardId < 0)) {
-    return 'cardId must be a non-negative integer or null';
+  if (!Number.isInteger(e.cardId) || e.cardId < 0) {
+    return 'cardId must be a non-negative integer';
   }
-  if (!Array.isArray(e.shown)) return 'shown must be an array';
-  if (!Array.isArray(e.hidden)) return 'hidden must be an array';
-  if (!Array.isArray(e.grades)) return 'grades must be an array';
+  if (![1, 2, 3, 4].includes(e.grade)) {
+    return 'grade must be 1..=4';
+  }
   return null;
 }

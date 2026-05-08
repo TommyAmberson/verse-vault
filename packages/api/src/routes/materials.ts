@@ -74,43 +74,21 @@ export function materialsRoutes(deps: MaterialsRoutesDeps) {
       throw err;
     }
 
-    const counts = deps.db
-      .select({
-        state: schema.cardStates.state,
-        count: sql<number>`count(*)`.as('count'),
-      })
-      .from(schema.cardStates)
+    const testCountRow = deps.db
+      .select({ count: sql<number>`count(*)`.as('count') })
+      .from(schema.testStates)
       .where(
         and(
-          eq(schema.cardStates.userId, user.id),
-          eq(schema.cardStates.materialId, materialId),
+          eq(schema.testStates.userId, user.id),
+          eq(schema.testStates.materialId, materialId),
         ),
       )
-      .groupBy(schema.cardStates.state)
-      .all();
-
-    const byState = { new: 0, learning: 0, review: 0, relearning: 0 };
-    for (const row of counts) byState[row.state] = row.count;
-
-    const nextDue = deps.db
-      .select({ dueDateSecs: schema.cardStates.dueDateSecs })
-      .from(schema.cardStates)
-      .where(
-        and(
-          eq(schema.cardStates.userId, user.id),
-          eq(schema.cardStates.materialId, materialId),
-          sql`${schema.cardStates.dueDateSecs} IS NOT NULL`,
-        ),
-      )
-      .orderBy(schema.cardStates.dueDateSecs)
-      .limit(1)
       .get();
 
     return c.json({
       materialId,
       clubTier: enrolled.clubTier,
-      cardCounts: byState,
-      nextDueSecs: nextDue?.dueDateSecs ?? null,
+      testCount: testCountRow?.count ?? 0,
     });
   });
 

@@ -5,7 +5,7 @@ import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import { NotEnrolledError } from '../lib/engine.js';
 import { requireEnrollment } from '../lib/enrollment.js';
-import { type Grade, isPass } from '../lib/review-log.js';
+import { isPass } from '../lib/review-log.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface StatsRoutesDeps {
@@ -14,6 +14,8 @@ export interface StatsRoutesDeps {
 
 /** Stability buckets in days, tuned roughly to "how long until you'd forget it". */
 type BucketLabel = 'weak' | 'learning' | 'familiar' | 'strong' | 'mastered';
+
+const STABILITY_FAMILIAR_DAYS = 7;
 
 export function statsRoutes(deps: StatsRoutesDeps) {
   const app = new Hono<{ Variables: SessionVariables }>();
@@ -30,20 +32,8 @@ export function statsRoutes(deps: StatsRoutesDeps) {
       throw err;
     }
 
-    const versesLearnedRow = deps.db
-      .select({ count: sql<number>`count(*)`.as('count') })
-      .from(schema.cardStates)
-      .where(
-        and(
-          eq(schema.cardStates.userId, user.id),
-          eq(schema.cardStates.materialId, materialId),
-          eq(schema.cardStates.state, 'review'),
-        ),
-      )
-      .get();
-
     const events = deps.db
-      .select({ grades: schema.reviewEvents.grades })
+      .select({ grade: schema.reviewEvents.grade })
       .from(schema.reviewEvents)
       .where(
         and(
@@ -52,17 +42,10 @@ export function statsRoutes(deps: StatsRoutesDeps) {
         ),
       )
       .all();
-    let gradeCount = 0;
-    let passCount = 0;
-    for (const row of events) {
-      const grades = JSON.parse(row.grades.toString('utf8')) as Grade[];
-      for (const g of grades) {
-        gradeCount += 1;
-        if (isPass(g)) passCount += 1;
-      }
-    }
+    const gradeCount = events.length;
+    const passCount = events.reduce((acc, e) => acc + (isPass(e.grade) ? 1 : 0), 0);
 
-    const stability = schema.edgeStates.stability;
+    const stability = schema.testStates.stability;
     const histogram = deps.db
       .select({
         weak: sql<number>`coalesce(sum(case when ${stability} < 1 then 1 else 0 end), 0)`,
@@ -71,15 +54,15 @@ export function statsRoutes(deps: StatsRoutesDeps) {
         strong: sql<number>`coalesce(sum(case when ${stability} >= 30 and ${stability} < 90 then 1 else 0 end), 0)`,
         mastered: sql<number>`coalesce(sum(case when ${stability} >= 90 then 1 else 0 end), 0)`,
       })
-      .from(schema.edgeStates)
+      .from(schema.testStates)
       .where(
         and(
-          eq(schema.edgeStates.userId, user.id),
-          eq(schema.edgeStates.materialId, materialId),
+          eq(schema.testStates.userId, user.id),
+          eq(schema.testStates.materialId, materialId),
         ),
       )
       .get();
-    const edgeDistribution: Record<BucketLabel, number> = histogram ?? {
+    const testDistribution: Record<BucketLabel, number> = histogram ?? {
       weak: 0,
       learning: 0,
       familiar: 0,
@@ -87,12 +70,31 @@ export function statsRoutes(deps: StatsRoutesDeps) {
       mastered: 0,
     };
 
+    // versesLearned: distinct verse_ids with at least one familiar+ test.
+    // The element column is a serde-tagged JSON object — every variant
+    // includes verse_id, so extracting via SQLite's json_extract works
+    // uniformly.
+    const versesLearnedRows = deps.db
+      .select({
+        verseId: sql<number>`json_extract(${schema.testStates.element}, '$.verse_id')`,
+      })
+      .from(schema.testStates)
+      .where(
+        and(
+          eq(schema.testStates.userId, user.id),
+          eq(schema.testStates.materialId, materialId),
+          sql`${schema.testStates.stability} >= ${STABILITY_FAMILIAR_DAYS}`,
+        ),
+      )
+      .groupBy(sql`json_extract(${schema.testStates.element}, '$.verse_id')`)
+      .all();
+
     return c.json({
       materialId,
-      versesLearned: versesLearnedRow?.count ?? 0,
+      versesLearned: versesLearnedRows.length,
       retentionRate: gradeCount > 0 ? passCount / gradeCount : null,
       totalGrades: gradeCount,
-      edgeDistribution,
+      testDistribution,
     });
   });
 

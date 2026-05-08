@@ -12,8 +12,7 @@ interface ListResponse {
 interface StatusResponse {
   materialId: string;
   clubTier: number | null;
-  cardCounts: { new: number; learning: number; review: number; relearning: number };
-  nextDueSecs: number | null;
+  testCount: number;
 }
 
 describe('materials routes', () => {
@@ -106,7 +105,7 @@ describe('materials routes', () => {
     expect(res.status).toBe(404);
   });
 
-  it('reports card counts after enrollment', async () => {
+  it('reports test_states count after enrollment', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
@@ -118,8 +117,6 @@ describe('materials routes', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as StatusResponse;
     expect(body.materialId).toBe(MATERIAL_ID);
-    expect(body.cardCounts.new).toBeGreaterThan(0);
-    expect(body.cardCounts.review).toBe(0);
-    expect(body.nextDueSecs).toBeNull();
+    expect(body.testCount).toBeGreaterThan(0);
   });
 });

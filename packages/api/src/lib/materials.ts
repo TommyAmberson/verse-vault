@@ -1,7 +1,8 @@
 /**
- * Material catalog. Today this is a static manifest; once the content
- * pipeline lands, the templates will come from the pipeline's output and
- * this file will read them off disk or a shared store.
+ * Material catalog. Today this is a static manifest with bundled JSON
+ * fixtures; once the content pipeline lands, the JSON will come from the
+ * pipeline's output and this file will read them off disk or a shared
+ * store. Kept inline so tests don't need to wire up a data directory.
  */
 
 export interface Material {
@@ -15,7 +16,7 @@ export const MATERIALS: readonly Material[] = [
     id: 'nkjv-1cor',
     title: '1 Corinthians (NKJV)',
     description:
-      'Placeholder sample material — a single verse of 1 Corinthians until the content pipeline produces a full graph.',
+      'Placeholder sample material — a single verse stand-in until the content pipeline produces a full graph.',
   },
 ];
 
@@ -23,78 +24,39 @@ export function getMaterial(id: string): Material | undefined {
   return MATERIALS.find((m) => m.id === id);
 }
 
-export interface MaterialGraph {
-  nodes: Record<string, { id: number; kind: unknown }>;
-  edges: Record<string, MaterialEdge>;
-  outgoing: Record<string, number[]>;
-  incoming: Record<string, number[]>;
-  next_node_id: number;
-  next_edge_id: number;
-}
-
-interface MaterialEdge {
-  id: number;
-  source: number;
-  target: number;
-  state: { stability: number; difficulty: number; last_review_secs: number };
-  role?: 'FirstChild' | 'LastChild';
-}
-
-export interface MaterialCard {
-  id: number;
-  shown: number[];
-  hidden: number[];
-  state: 'New' | 'Learning' | 'Review' | 'Relearning';
-}
-
-export interface MaterialTemplate {
-  graph: MaterialGraph;
-  cards: MaterialCard[];
-}
-
-export function buildMaterialTemplate(id: string): MaterialTemplate {
-  if (id === 'nkjv-1cor') return buildSingleVerseTemplate();
-  throw new Error(`Unknown material: ${id}`);
-}
-
-/** Mirrors `crates/wasm/test-smoke.js` — minimum graph the engine accepts. */
-function buildSingleVerseTemplate(): MaterialTemplate {
-  const edgeState = { stability: 5.0, difficulty: 5.0, last_review_secs: 0 };
-  const graph: MaterialGraph = {
-    nodes: {
-      '0': { id: 0, kind: { VerseRef: { chapter: 3, verse: 16 } } },
-      '1': { id: 1, kind: { VerseGist: { chapter: 3, verse: 16 } } },
-      '2': { id: 2, kind: { Phrase: { text: 'phrase one', verse_id: 0, position: 0 } } },
-      '3': { id: 3, kind: { Phrase: { text: 'phrase two', verse_id: 0, position: 1 } } },
-      '4': { id: 4, kind: { Phrase: { text: 'phrase three', verse_id: 0, position: 2 } } },
+/** Stand-in MaterialData for `nkjv-1cor` — one verse from John 3:16, sized
+ *  to round-trip through the WASM engine in tests. Mirrors the fixture in
+ *  `crates/wasm/test-smoke.js`. The content pipeline will replace this with
+ *  the real Corinthians dataset when it lands. */
+const NKJV_1COR_FIXTURE = {
+  year: 3,
+  books: ['John'],
+  chapters: [{ book: 'John', number: 3, start_verse: 16, end_verse: 16 }],
+  verses: [
+    {
+      book: 'John',
+      chapter: 3,
+      verse: 16,
+      text: 'For God so loved the world that he gave',
+      phrases: ['For God', 'so loved', 'the world', 'that he gave'],
+      ftv: 'For God',
+      clubs: [],
     },
-    edges: {},
-    outgoing: { '0': [], '1': [], '2': [], '3': [], '4': [] },
-    incoming: { '0': [], '1': [], '2': [], '3': [], '4': [] },
-    next_node_id: 5,
-    next_edge_id: 0,
-  };
+  ],
+  headings: [],
+};
 
-  const addBi = (a: number, b: number) => {
-    const fwd = graph.next_edge_id++;
-    const bwd = graph.next_edge_id++;
-    graph.edges[String(fwd)] = { id: fwd, source: a, target: b, state: edgeState };
-    graph.edges[String(bwd)] = { id: bwd, source: b, target: a, state: edgeState };
-    graph.outgoing[String(a)]!.push(fwd);
-    graph.incoming[String(b)]!.push(fwd);
-    graph.outgoing[String(b)]!.push(bwd);
-    graph.incoming[String(a)]!.push(bwd);
-  };
+const MATERIAL_DATA: Record<string, unknown> = {
+  'nkjv-1cor': NKJV_1COR_FIXTURE,
+};
 
-  // Edge identity derives from endpoint node kinds — no `kind` field.
-  addBi(1, 0); // VerseGist ↔ VerseRef
-  addBi(2, 1); // Phrase ↔ VerseGist
-  addBi(3, 1);
-  addBi(4, 1);
-  addBi(2, 3); // Phrase ↔ Phrase
-  addBi(3, 4);
-
-  const cards: MaterialCard[] = [{ id: 0, shown: [0], hidden: [2, 3, 4], state: 'New' }];
-
-  return { graph, cards };
+/**
+ * Bundled `MaterialData` JSON for a material id. Returns the JSON string
+ * — the WASM constructor parses it server-side. Throws if the id is
+ * unknown.
+ */
+export function getMaterialJson(id: string): string {
+  const data = MATERIAL_DATA[id];
+  if (data === undefined) throw new Error(`Unknown material: ${id}`);
+  return JSON.stringify(data);
 }
