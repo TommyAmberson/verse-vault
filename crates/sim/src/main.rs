@@ -114,28 +114,20 @@ fn main() {
     let total_cards = result.cards.len();
     let total_tests = result.tests.len();
     let mut engine = ReviewEngine::new(result, 0.9);
-    let learner_label;
     let mut learner = match &learner_params {
-        Some(params) => {
-            learner_label = format!("custom (decay={:.4})", params.last().unwrap_or(&0.0));
-            ProbLearner::with_parameters(RNG_SEED, 0.9, params, initial_seed_secs)
-        }
-        None => {
-            learner_label = "default".to_string();
-            ProbLearner::new(RNG_SEED, 0.9, initial_seed_secs)
-        }
+        Some(params) => ProbLearner::with_parameters(RNG_SEED, 0.9, params, initial_seed_secs),
+        None => ProbLearner::new(RNG_SEED, 0.9, initial_seed_secs),
     };
 
     let mut predictions: Vec<Prediction> = Vec::new();
     let mut day_review_counts: HashMap<i64, usize> = HashMap::new();
     let mut grades_count = [0usize; 4];
 
-    // Day boundary starts a year past the build seed so unseen tests are due.
     let mut day_start = SECONDS_PER_DAY * 365;
-    // Within a day, advance the clock by `step_secs` per review so same-day
-    // sibling cooldown still applies. Pace evenly across the configured day
-    // budget; never exceed (day - 1s) so reviews stay strictly inside today.
-    let step_secs = (SECONDS_PER_DAY - 1) / reviews_per_day as i64;
+    // Pace reviews evenly across the day-1s window so same-day sibling
+    // cooldown still applies. `.max(1)` guards against `reviews_per_day`
+    // values larger than 86399 silently making the clock stand still.
+    let step_secs = ((SECONDS_PER_DAY - 1) / reviews_per_day as i64).max(1);
     let mut intra_day = 0usize;
 
     let mut completed = 0usize;
@@ -236,6 +228,11 @@ fn main() {
         completed as f32 / day_review_counts.len() as f32
     } else {
         0.0
+    };
+
+    let learner_label = match &learner_params {
+        Some(p) => format!("custom (decay={:.4})", p.last().unwrap_or(&0.0)),
+        None => "default".to_string(),
     };
 
     println!(
