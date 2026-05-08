@@ -74,6 +74,10 @@ dprint check          # formatting for docs (also runs via lint-staged)
 
 * Always use a merge commit, never squash: `gh pr merge <N> --merge --delete-branch`. The individual
   branch commits must land on master so `git log` shows the actual progression.
+* Merge-commit subjects follow conventional-commits, same as regular commits — typically
+  `chore: merge <branch-name>`. For local merges, set this via `git merge --no-ff -m "..."`. For
+  PRs, pass `--subject "chore: merge <branch>"` to `gh pr merge` (or edit before confirming) —
+  GitHub's default `Merge pull request #N from …` template doesn't conform.
 
 ### Rewriting history
 
