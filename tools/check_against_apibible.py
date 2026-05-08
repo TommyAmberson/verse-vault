@@ -38,10 +38,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-# api.bible's well-known NKJV id (English, Thomas Nelson). Override via
-# --bible if needed; full list at GET /v1/bibles.
-DEFAULT_NKJV_ID = "de4e12af7f28f599-01"
-API_BASE = "https://api.scripture.api.bible/v1"
+# api.bible's NKJV id. Override via --bible if your account exposes a
+# different one (run `curl -H "api-key: $BIBLE_API_KEY"
+# 'https://rest.api.bible/v1/bibles?language=eng&abbreviation=NKJV'`
+# to discover yours).
+DEFAULT_NKJV_ID = "63097d2a0a2f7db3-01"
+API_BASE = "https://rest.api.bible/v1"
 CACHE_TTL_SECS = 30 * 24 * 60 * 60  # 30 days per the API terms
 
 # USX book codes used by api.bible's passageId.
