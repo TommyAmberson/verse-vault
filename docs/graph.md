@@ -66,9 +66,10 @@ accessors cover everything the rest of the core needs:
 * `bindings_of(verse_id) -> Vec<ElementId>` — every verse-binding element (ref, chapter, book, plus
   any headings and club tiers this verse has).
 
-`bindings_of` is the spine of HSRS propagation: when a phrase is graded directly, every binding
-returned here is nudged via `propagated_step`, and vice versa. The index does not store edges —
-`crates/core/src/propagate.rs` recomputes the relevant set on demand.
+`bindings_of` is what composite cards reach for when they enumerate their contained tests: a
+`Recitation` card grabs every phrase plus the verse-binding triple (ref position, chapter, book) so
+the engine can decompose a single grade across them. The index does not store edges; cross-test
+influence flows only through cards that explicitly contain multiple tests.
 
 ## ElementMeta
 
@@ -81,8 +82,9 @@ to?"_ you look here. Treat it as opaque metadata.
 
 * `builder::build` → produces a `BuildResult` containing the `VerseIndex`, the `element_meta` map,
   the per-verse `VerseAtoms`, the cards, and seeded `TestState`s for every test the cards touch.
-* `ReviewEngine` owns the `VerseIndex` and uses it to (1) expand composite cards via `Card::tests`,
-  and (2) enumerate propagation targets via `related_tests`.
+* `ReviewEngine` owns the `VerseIndex` and uses it to expand composite cards via `Card::tests` — the
+  routing function that turns a `CardKind` into the set of `TestKey`s the engine should decompose a
+  grade across.
 * `Card`s are built once and never mutate after the build. Memory state lives in the per-test
   `TestState` map, not on cards or elements.
 

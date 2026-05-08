@@ -3,19 +3,19 @@
 > **Memory model:** the canonical reference is
 > [`docs/path-posterior-memory-model.md`](./path-posterior-memory-model.md). It describes the active
 > HSRS-state architecture: per-test FSRS state on per-verse atomic bindings, atomic + composite
-> cards driven by `Card::tests()` routing, and HSRS-style propagation between related tests. The
-> sibling docs ([`graph.md`](./graph.md), [`review.md`](./review.md),
-> [`scheduling.md`](./scheduling.md)) cover their own subtopics — the verse element index, the
-> per-test review pipeline, and the per-test scheduler — and defer to the canonical spec for
-> memory-model details.
+> cards driven by `Card::tests()` routing, and HSRS-style Bayesian-share decomposition of a single
+> card grade across the card's contained tests. The sibling docs ([`graph.md`](./graph.md),
+> [`review.md`](./review.md), [`scheduling.md`](./scheduling.md)) cover their own subtopics — the
+> verse element index, the single-grade review pipeline, and the per-test scheduler — and defer to
+> the canonical spec for memory-model details.
 
 ## System overview
 
 verse-vault is structured as:
 
 * **Rust core (`crates/core/`)** — pure algorithm: per-test FSRS state, atomic + composite cards,
-  HSRS-style propagation, scheduling, sessions. No I/O, no async. Runs the same way on any target
-  (native, WASM, mobile).
+  HSRS-style Bayesian-share decomposition, scheduling, sessions. No I/O, no async. Runs the same way
+  on any target (native, WASM, mobile).
 * **WASM bindings (`crates/wasm/`)** — wraps the core for JavaScript consumers via `wasm-bindgen`.
   Used by the TypeScript server and the browser frontend.
 * **Simulation binary (`crates/sim/`)** — offline validation tool. Runs a synthetic learner against
@@ -46,7 +46,7 @@ desktop) runs the same compiled Rust.
                        ▼
 ┌──────────────────────────────────────────────────────┐
 │            verse-vault-core (crates/core)            │
-│  TestState, ReviewEngine, Session, FSRS, propagate   │
+│   TestState, ReviewEngine, Session, FsrsBridge       │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -76,7 +76,7 @@ limits for larger verse sets). See `docs/deployment.md`.
 
 * `docs/path-posterior-memory-model.md` — **canonical memory model** (HSRS-state architecture)
 * `docs/graph.md` — verse element index (`VerseIndex`, `ElementId`, bindings)
-* `docs/review.md` — review pipeline: direct + propagated FSRS updates
+* `docs/review.md` — review pipeline: single-grade decomposition into root/sub FSRS updates
 * `docs/scheduling.md` — per-test FSRS scheduling and sibling cooldown
 * `docs/session.md` — within-session flow
 * `docs/wasm-api.md` — WASM boundary contract

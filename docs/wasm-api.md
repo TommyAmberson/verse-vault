@@ -45,29 +45,34 @@ Throws a JS `Error` (mapped from `JsError`) on malformed JSON.
 ### Reviewing a card
 
 ```ts
-replay_event(card_id: number, grades_json: string, now_secs: bigint): string
+replay_event(card_id: number, grade: number, now_secs: bigint): string
 ```
 
-Applies a card review. `grades_json` is a JSON array of one entry per test the card grades:
+Applies a card review. `grade` is the FSRS-style integer rating:
 
-```json
-[
-  { "key": { "kind": "PhraseFromChain", "element": { "kind": "Phrase", "verse_id": 0, "position": 1 } }, "grade": "Good" },
-  ...
-]
-```
+| value | meaning |
+| ----- | ------- |
+| 1     | Again   |
+| 2     | Hard    |
+| 3     | Good    |
+| 4     | Easy    |
 
-`Grade` is one of `"Again" | "Hard" | "Good" | "Easy"`. The set of `key`s must match
-`card.tests(atoms)` exactly — the engine asserts on mismatch.
+The engine routes the grade through `Card::tests(atoms)`:
 
-Returns a JSON array of `TestUpdateWire` — one entry per state transition produced by the review,
-including both directly graded tests and propagated neighbours:
+* **Atomic cards** (one contained test, e.g. `PhraseFill`, `VerseInChapter`) take a full FSRS step
+  on that test — equivalent to vanilla FSRS.
+* **Composite cards** (`Recitation`, `Citation`, `Ftv`) decompose the single grade across their
+  contained tests via HSRS's Bayesian-share weight `(1 − p_i) / (1 − p_total)`. Tests whose pass was
+  most surprising absorb the largest share; tests already certain to pass absorb a vanishing share.
+* **Reading** cards have no contained tests and are a no-op.
+
+Returns a JSON array of `TestUpdateWire` — one entry per state transition produced by the review:
 
 ```json
 [
   {
     "key": { "kind": "PhraseFromChain", "element": { "kind": "Phrase", "verse_id": 0, "position": 1 } },
-    "kind": "Direct",
+    "kind": "Sub",
     "before": { "stability": 1.0, "difficulty": 5.0, "last_seen_secs": ..., "last_base_secs": ..., "last_root_secs": ... },
     "after":  { ... }
   },
@@ -75,9 +80,12 @@ including both directly graded tests and propagated neighbours:
 ]
 ```
 
-`kind` is `"Direct"` for the tests the card grades directly and `"Propagated"` for neighbours
-touched via the static propagation table. `before` / `after` are full `TestState` snapshots — the
-schema mirrors `verse_vault_core::test_state::TestState`.
+`kind` is `"Root"` for an atomic card's single full FSRS update (advances `last_root_secs`) and
+`"Sub"` for each contained test of a composite card (interpolates `last_base_secs` toward `now`,
+leaves `last_root_secs` untouched). `before` / `after` are full `TestState` snapshots — the schema
+mirrors `verse_vault_core::test_state::TestState`.
+
+Throws a JS `Error` if the card id is unknown or `grade` is outside `1..=4`.
 
 ### Picking the next card
 
@@ -88,6 +96,37 @@ next_card(now_secs: bigint): number | undefined
 Returns the `card_id` of the card whose weakest test is furthest below the target retention, or
 `undefined` if every card is currently above target. Cards whose tests were touched within the
 sibling-cooldown window are skipped.
+
+### Rendering a card
+
+```ts
+get_card_render(card_id: number): string
+```
+
+Returns the JSON the frontend needs to render a card prompt and its expected answer:
+
+```json
+{
+  "cardId": 42,
+  "verseId": 0,
+  "kind": { "kind": "PhraseFill", "position": 1 },
+  "verse": {
+    "book": "1 Corinthians",
+    "chapter": 13,
+    "verse": 4,
+    "text": "Love suffers long and is kind; ...",
+    "phrases": ["Love suffers long", "and is kind", "..."],
+    "ftv": "Love suffers long",
+    "headings": [{ "headingIdx": 0, "text": "..." }],
+    "clubs": ["Club150"]
+  }
+}
+```
+
+`kind` is the card kind tagged with any kind-specific fields (`position`, `headingIdx`, `tier`,
+`withCitation`). `verse` is the verse's render payload — full text, phrase splits, the FTV prefix,
+and the headings / club tiers this verse belongs to. Throws if the card id is unknown or the verse
+has no render data.
 
 ### Exporting state for persistence
 
@@ -140,8 +179,25 @@ to resume.
 
 ### `Grade`
 
+`replay_event` takes the FSRS-style integer rating directly (1=Again, 2=Hard, 3=Good, 4=Easy); no
+string form crosses the WASM boundary.
+
+### `CardKind`
+
+Returned by `get_card_render` under `card.kind`. Serialised with internal tagging on `kind`:
+
 ```json
-"Again" | "Hard" | "Good" | "Easy"
+{ "kind": "PhraseFill", "position": <u16> }
+{ "kind": "PhraseChain", "position": <u16> }
+{ "kind": "VerseAtVerseRef" }
+{ "kind": "VerseInChapter" }
+{ "kind": "VerseInBook" }
+{ "kind": "VerseInHeading", "headingIdx": <u16> }
+{ "kind": "VerseInClub", "tier": "Club150" | "Club300" }
+{ "kind": "Recitation" }
+{ "kind": "Citation" }
+{ "kind": "Ftv", "withCitation": <bool> }
+{ "kind": "Reading" }
 ```
 
 ### `TestState`
@@ -156,9 +212,10 @@ to resume.
 }
 ```
 
-`last_seen_secs` is bumped on every update (direct or propagated). `last_base_secs` is the anchor
-point for the forgetting curve — propagation interpolates it rather than resetting it.
-`last_root_secs` only advances on direct grades; the scheduler uses it to bias toward stale roots.
+`last_seen_secs` is bumped on every update — root or sub. `last_base_secs` is the anchor point for
+the forgetting curve; sub-updates interpolate it linearly toward `now` proportional to the
+Bayesian-share weight rather than resetting it. `last_root_secs` only advances on a root update from
+an atomic-card review; the scheduler uses it to bias toward stale roots.
 
 ## Timestamps
 
@@ -167,5 +224,6 @@ Convert with `BigInt(Math.floor(Date.now() / 1000))`.
 
 ## Errors
 
-The constructor and `replay_event` throw a JS `Error` (mapped from `JsError`) on bad JSON or
-parse-time failures. `next_card` and `export_test_states` are infallible.
+The constructor throws a JS `Error` (mapped from `JsError`) on malformed JSON. `replay_event` and
+`get_card_render` throw on unknown card ids; `replay_event` additionally rejects grades outside
+`1..=4`. `next_card` and `export_test_states` are infallible.

@@ -742,50 +742,36 @@ Same pattern for clubs: per-verse Verse↔Club associations, club label as bundl
   (HeadingPassageAssociation) was dropped in favour of deriving passage ranges from per-verse
   Verse↔Heading associations.
 
-#### Why VerseRef position has phrases as an endpoint
+#### Why VerseRef position groups with phrases in Recitation
 
 The "verse number" of a verse is the user's memory of the relationship between the verse's content
-and its position number. The verse's content _is_ modelled (as phrases), so VerseRef position has
-phrases as a stateful endpoint. Reviewing phrases mildly propagates to VerseRef position; reviewing
-VerseRef position mildly reinforces phrase memory.
+and its position number. The verse's content _is_ modelled (as phrases), so the Recitation composite
+contains both — phrases plus the citation triple (`VerseRefPosition`, `VerseChapter`, `VerseBook`).
+One grade on a Recitation distributes credit/blame across all of those tests at once via Bayesian
+shares.
 
-This is more cognitively realistic than treating VerseRef position as a free-floating "the number
-16" memory. It captures that knowing the content cues the number recall, which matches quizzer
-practice — heavy phrase study does anchor verse-number memory.
+This captures the cognitive coupling without a side-channel: heavy Recitation practice anchors
+verse-number memory because every Recitation review is also an observation about `VerseRefPosition`.
+The atomic `VerseAtVerseRef` card stays available for direct, isolated practice on the position
+alone — useful when a learner wants to drill the citation without re-running the full verse.
 
-For ChapterRef position and BookRef, the theoretical content endpoints (chapter-as-a-unit,
-book-as-a-unit) aren't modelled as states. So they have no stateful endpoints to scaffold from.
-Their states update via direct grades plus whatever graph-mediated cross-element propagation the
-architecture provides between sibling chapter or book elements.
-
-The graph topology under HSRS-style: stateful elements are nodes; pure structural relationships are
-edges. Containment relationships have FSRS state, so they're modelled as nodes themselves (with
-structural edges to their endpoint constituents) or as state-bearing edges — implementation detail;
-the model is the same either way.
-
-The hierarchy of composites means scaffolding flows directly from phrases to bindings:
+The hierarchy is verse-scoped: every binding lives on the verse, with no separate chapter, book,
+heading, or club identity (see _Why no chapter or book identities_ above):
 
 ```
-phrases ─→ Verse ↔ Chapter (with ChapterRef)
-       ─→ Verse ↔ Book (with BookRef)         — direct, not via chapter
-       ─→ Verse ↔ Heading (with HeadingText)
-       ─→ Verse ↔ Club × multiple (with ClubText)
+phrases ─→ contained by Recitation alongside the citation triple
+        ─→ otherwise grade only their own Phrase test (atomic PhraseFill / PhraseChain)
 
-per-verse Verse ↔ Heading associations ─→ HeadingPassageAssociation (with HeadingText)
-
-ChapterRef + BookRef ─→ Chapter ↔ Book containment
+per-verse bindings (Verse↔Chapter, Verse↔Book, Verse↔Heading, Verse↔Club, VerseRef position):
+  ─→ each has an atomic card grading it directly
+  ─→ also grouped into Recitation / Citation / FTV-with-citation composites
 ```
 
-When a phrase is reviewed:
-
-1. Phrase update directly.
-2. Phrase update → all binding composites that include this verse's phrases as constituents
-   (Verse↔Chapter, Verse↔Book, Verse↔Heading, Verse↔Club) propagate in parallel.
-
-When VerseRef position is reviewed directly:
-
-1. VerseRef update directly.
-2. (Standalone identity — no constituents to update.)
+Reviewing an atomic card (e.g. `PhraseFill`, `VerseInChapter`, `VerseAtVerseRef`) is a vanilla FSRS
+step on that card's single contained test — full update, advances `last_root`. There is no
+side-channel propagation to other tests; the only way one test influences another is by sharing a
+composite card, in which case the engine's Bayesian-share decomposition distributes the composite's
+grade across the tests it contains.
 
 #### Why no VerseGist node
 
@@ -808,23 +794,12 @@ So the architecture drops VerseGist and lets binding composites take phrases as 
 Cards previously framed as "gist-testing" (topic-to-verse, etc.) get re-routed to grade the relevant
 bindings.
 
-When ChapterRef is reviewed directly:
-
-1. ChapterRef update directly.
-2. ChapterRef update → Gist↔Chapter propagation for every gist in the chapter.
-3. ChapterRef update → Chapter↔Book containment propagation.
-
-When BookRef is reviewed directly:
-
-1. BookRef update directly.
-2. BookRef update → Gist↔Book propagation for every gist in the book.
-3. BookRef update → Chapter↔Book propagation for every chapter in the book.
-
-When a containment is reviewed directly:
-
-1. Containment update directly.
-2. Small partial updates propagate _down_ to constituents — but per the asymmetric propagation rule,
-   these are very small or zero (composite review barely lifts constituents).
+There is no ChapterRef, BookRef, or standalone containment element in the active design — earlier
+drafts modelled chapter and book as separately stateful identities with their own propagation rules,
+but the implementation collapses everything to per-verse bindings (`VerseChapterBinding`,
+`VerseBookBinding`, etc). Reviewing the atomic `VerseInChapter` card is a single FSRS step on that
+verse's `Verse↔Chapter` binding — nothing flows to or from a chapter-level state because no such
+state exists.
 
 #### Why position identity and containment are separate
 
@@ -862,9 +837,9 @@ Per the 1-to-1 grading rule, every FSRS-stateful element needs at least one card
 directly. The catalogue below covers all elements above; composite cards (which produce multiple
 grades from one review) supplement it for efficiency.
 
-**Atomic cards (one direct grade per card per element):**
+**Atomic cards (one contained test, full FSRS step):**
 
-| Card                          | Cue                                | User produces | Direct grade target          |
+| Card                          | Cue                                | User produces | Contained test               |
 | ----------------------------- | ---------------------------------- | ------------- | ---------------------------- |
 | Phrase fill-in / continuation | ref + other phrases (or preceding) | the phrase    | 1× Phrase                    |
 | **Verse is at verseref**      | versetext + book + chapter         | verse number  | 1× VerseRef position         |
@@ -875,18 +850,14 @@ grades from one review) supplement it for efficiency.
 
 That's the complete atomic card set: per-phrase + 5 per-verse binding cards.
 
-**Composite cards (multiple grades per review):**
+**Composite cards (one grade decomposed across the contained tests via Bayesian-share weights):**
 
-| Card                           | Cue                          | User produces                        | Grades                                                                                  |
-| ------------------------------ | ---------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------- |
-| **Recitation: ref → text**     | book + chapter + verse       | full verse content                   | N× Phrase                                                                               |
-| **Citation: verse → ref**      | verse content                | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                                 |
-| **FTV (Finish The Verse)**     | the saved FTV opening string | rest of the verse content            | up to N× Phrase (typical: all N if FTV ⊂ phrase 1; N − 1 if FTV = phrase 1)             |
-| **FTV with citation**          | the saved FTV opening string | rest of content + full citation      | the same Phrase grades as FTV + 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book |
-| **Heading: passage → heading** | a range of verses            | the heading                          | (per verse in passage) 1× Verse↔Heading                                                 |
-| **Heading: heading → passage** | the heading                  | the verse range                      | (per verse in passage) 1× Verse↔Heading                                                 |
-| **Club: verse → club**         | versetext or ref             | club name(s)                         | (per verse) 1× Verse↔Club                                                               |
-| **Holistic recitation** (full) | (something)                  | full citation + content              | N× Phrase + VerseRef + Verse↔Chapter + Verse↔Book                                       |
+| Card                       | Cue                          | User produces                        | Contained tests                                                                        |
+| -------------------------- | ---------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
+| **Recitation: ref → text** | book + chapter + verse       | full verse content + citation        | N× Phrase + 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                    |
+| **Citation: verse → ref**  | verse content                | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                                |
+| **FTV (Finish The Verse)** | the saved FTV opening string | rest of the verse content            | up to N× Phrase (typical: all N if FTV ⊂ phrase 1; N − 1 if FTV = phrase 1)            |
+| **FTV with citation**      | the saved FTV opening string | rest of content + full citation      | the same Phrase tests as FTV + 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book |
 
 **FTV (Finish The Verse)** deserves explicit mention because it's a standard Bible-quizzer format
 and uses **content metadata** that other card types don't.
@@ -922,12 +893,13 @@ canonical wording.
 A typical 4-phrase verse with full ref machinery:
 
 * 6 atomic card types per verse (Phrase × N + 5 verse-level binding cards).
-* 3-4 composite card types (recitation, citation, FTV, possibly holistic).
+* 3 composite card types (Recitation, Citation, FTV — with or without citation).
 * Heading and club cards added per heading/club the verse participates in.
 
-Atomic cards exist so every FSRS state has a route to direct grading (avoids drift). Composite cards
-exist for efficiency and realism — each holistic recitation produces 3+N grades; FTV produces N (or
-N+2 with citation).
+Atomic cards exist so every FSRS state has a route to a root update (which advances `last_root` and
+avoids drift on tests that would otherwise only ever receive sub-updates). Composite cards exist for
+efficiency: a Recitation touches every phrase plus the citation triple in one review, distributing a
+single grade across them via the Bayesian-share weights.
 
 #### Why this generalizes
 

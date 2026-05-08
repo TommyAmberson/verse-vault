@@ -1,75 +1,84 @@
 # Sessions
 
-How within-session flow works: re-drills after lapses, progressive reveal for new verses. Depends on
-the graph ([graph.md](graph.md)), review model ([review.md](review.md)), and scheduling
-([scheduling.md](scheduling.md)).
+How within-session flow works: re-drills after lapses, progressive reveal for new verses. Memory
+state lives entirely on the engine's per-test `TestState` table — see [`review.md`](review.md) for
+the review pipeline and [`scheduling.md`](scheduling.md) for card selection.
 
 ## Design principle
 
-The session is a **queue manager, not a memory tracker**. All memory state lives on edges (tracked
-by FSRS). The session decides what card to show next and when to insert re-drills. All reviews flow
-through the ReviewEngine — no separate session-local stability.
+The session is a **queue manager, not a memory tracker**. Every memory update is the engine's job: a
+single grade per card flows through `ReviewEngine::review`, which decomposes it across the card's
+contained tests via HSRS's Bayesian-share weights. The session decides ordering and when to insert
+re-drills — nothing more.
 
-## Session flow
+Sibling cooldown is enforced by the engine: `engine.review` advances `last_seen_secs` on every test
+it touches, and `schedule::next_card` filters cards whose tests are still inside the cooldown
+window. The session does not keep a parallel timestamp map.
 
-1. Build a queue from due cards (by priority) + new verse introductions
-2. Present cards one at a time
-3. After each review: credit assignment updates edges, cascade updates card schedules
-4. If any atom is graded Again: insert re-drill cards into the queue
-5. Session ends when the queue is empty
+## Session API
 
-## Re-drill cards
+```rust
+let mut session = Session::start(&engine, now_secs);   // seeds the FTV queue
 
-Re-drill cards are **transient** — constructed on the fly, not persisted to the card catalog. When
-an atom fails during a review, the session creates a targeted card:
+// One review:
+session.stage_review(card.kind, card.verse_id);
+let outcome = session.review_card(&mut engine, card_id, grade, now_secs);
+match session.next_drill_after(grade) {
+    Some(SessionAction::ReDrill { verse_id, kind }) => /* re-queue */,
+    Some(SessionAction::NextScheduled) | None      => /* fall through to schedule::next_card */,
+    Some(SessionAction::Done)                       => /* session over */,
+}
+```
 
-| Condition                   | Re-drill type                 |
-| --------------------------- | ----------------------------- |
-| 1 atom failed               | Fill-in-blank for that atom   |
-| 2+ failed, ≤ half of hidden | Fill-in-blank per failed atom |
-| > half of hidden failed     | Full recitation               |
+`Session::next_card(&engine, now_secs)` is a thin wrapper around `schedule::next_card` for the
+common case where the session has no priority entry to surface.
 
-Re-drills are inserted near the front of the queue (after 1-2 other cards for spacing). The FSRS
-short-term formula (w17-w19) handles same-day review scheduling naturally.
+## Re-drill on Again
 
-After a re-drill succeeds, the edges on paths to the re-drilled atom have been updated by normal
-credit assignment. If effective_R is still below target, the session can insert another re-drill. No
-special tracking — the edge state IS the tracking.
+Under a single grade per card, the session has no per-phrase signal — it can't tell which phrase of
+a Recitation the learner blanked on. The only sensible recovery is to re-queue the same card later
+in the session and let the engine's normal cooldown + scheduling handle the timing:
+
+```rust
+pub enum ReDrillKind {
+    SameCard { kind: CardKind },
+}
+```
+
+`next_drill_after(grade)` returns `Some(SessionAction::ReDrill { SameCard })` on `Grade::Again` and
+`None` otherwise. The earlier "fill-in-blank vs. full-recitation" branching depended on per-phrase
+grades the new pipeline doesn't produce; it has been removed.
 
 ## Progressive reveal (new verses)
 
-When introducing a new verse, the session creates a sequence of cards:
+`Session::new_verse_progression(verse_id, phrase_count)` returns the staged sequence used to
+introduce a new verse:
 
-1. **Reading**: show reference + all phrases. No grading. Learner reads the verse.
-2. **Fill-in-blank per phrase**: test each phrase individually, in position order. If a phrase fails
-   → insert re-drill, don't advance until it passes.
-3. **Full recitation**: show reference, hide all phrases. Tests the complete chain. If any phrase
-   fails → insert re-drills, then retry full recitation.
-4. **Done**: all reviews flow through ReviewEngine, edges have initial FSRS state.
+```
+[ Reading, PhraseFill 0, ..., PhraseFill N-1, Recitation ]
+```
 
-All reviews (including progressive reveal) use the same credit assignment algorithm. No special
-handling — the progressive reveal is just a sequence of cards in the queue.
+* **Reading** — has no contained tests; the engine treats it as a no-op review. The frontend uses it
+  to display the full verse.
+* **PhraseFill 0..N-1** — atomic cards, one per phrase position. Each one is a vanilla FSRS step on
+  `PhraseFromContext` for that phrase.
+* **Recitation** — composite card containing every phrase plus the citation triple
+  (`VerseRefPosition`, `VerseChapter`, `VerseBook`). One grade decomposes across all of them via the
+  engine's Bayesian-share weights.
 
-## Re-drill card construction
+The progression is just a list of `CardKind`s; the session walks it in order, gating advancement
+through the same `next_drill_after` machinery any other review uses.
 
-A re-drill needs to know the verse context: which reference and which phrases. The graph provides
-this via `verse_context(atom)` — traverses from the atom to its VerseGist hub, then collects the
-VerseRef and all Phrases (sorted by position).
+## FTV priority queue
 
-Fill-in-blank: `shown = {ref, all other phrases}`, `hidden = {failed phrase}` Full recitation:
-`shown = {ref}`, `hidden = {all phrases}`
+`Session::start` seeds an `upcoming_cards` queue with every `Ftv` card the engine emitted (one per
+eligible verse, with and without citation, depending on configuration). FTV is the highest- priority
+surface in normal operation; the session is expected to drain that queue before falling back to
+`schedule::next_card`. This lets the scheduler ignore FTV altogether — its retrievability is tracked
+the same way as any other card, but the surfacing decision is queue-driven.
 
-## Session parameters
+## Parameters
 
-| Parameter                      | Default | Meaning                                                     |
-| ------------------------------ | ------- | ----------------------------------------------------------- |
-| max_session_size               | 20      | Maximum cards in a session                                  |
-| max_new_verses                 | 3       | New verses introduced per session                           |
-| fail_ratio_for_full_recitation | 0.5     | If > 50% of hidden atoms fail, use full recitation re-drill |
-
-## FSRS parameters
-
-Default FSRS parameters are used. The user's Anki parameters are calibrated for whole-verse cards
-(reflecting Woźniak memory complexity). Edge-level phrase transitions are simpler memory units and
-should have higher initial stabilities closer to defaults. Per-user parameter optimization is
-planned for later.
+There are no session-level parameters under the current design. Cooldowns and target retention live
+on the engine (`ScheduleParams`); FSRS parameters live on `FsrsBridge`. The session is entirely a
+queueing layer on top.
