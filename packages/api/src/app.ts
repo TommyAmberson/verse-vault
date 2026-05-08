@@ -5,10 +5,9 @@ import { logger } from 'hono/logger';
 import type { DB } from './db/client.js';
 import { type AuthEnv, createAuth } from './lib/auth.js';
 import { EngineStore } from './lib/engine.js';
-import { SessionStore } from './lib/sessions.js';
 import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
+import { cardsRoutes } from './routes/cards.js';
 import { materialsRoutes } from './routes/materials.js';
-import { sessionRoutes } from './routes/sessions.js';
 import { statsRoutes } from './routes/stats.js';
 import { syncRoutes } from './routes/sync.js';
 
@@ -20,8 +19,7 @@ export interface AppDeps {
 
 export function createApp(deps: AppDeps) {
   const auth = createAuth(deps.db, deps.authEnv);
-  const engines = new EngineStore(deps.db);
-  const sessions = new SessionStore();
+  const engines = new EngineStore(deps.db, undefined, deps.now);
   const app = new Hono<{ Variables: SessionVariables }>();
 
   app.use('*', logger());
@@ -47,7 +45,7 @@ export function createApp(deps: AppDeps) {
 
   app.get('/api/me', requireAuth(), (c) => c.json({ user: getUser(c) }));
 
-  app.route('/api/sessions', sessionRoutes({ db: deps.db, engines, sessions, now: deps.now }));
+  app.route('/api/cards', cardsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/sync', syncRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/materials', materialsRoutes({ db: deps.db, now: deps.now }));
   app.route('/api/stats', statsRoutes({ db: deps.db }));

@@ -11,7 +11,26 @@ interface StatsResponse {
   versesLearned: number;
   retentionRate: number | null;
   totalGrades: number;
-  edgeDistribution: Record<'weak' | 'learning' | 'familiar' | 'strong' | 'mastered', number>;
+  testDistribution: Record<'weak' | 'learning' | 'familiar' | 'strong' | 'mastered', number>;
+}
+
+interface UploadEvent {
+  clientEventId: string;
+  timestampSecs: number;
+  snapshotVersion: number;
+  cardId: number;
+  grade: 1 | 2 | 3 | 4;
+}
+
+function event(overrides: Partial<UploadEvent> = {}): UploadEvent {
+  return {
+    clientEventId: randomUUID(),
+    timestampSecs: 1_700_000_000,
+    snapshotVersion: 1,
+    cardId: 0,
+    grade: 3,
+    ...overrides,
+  };
 }
 
 describe('stats routes', () => {
@@ -44,7 +63,7 @@ describe('stats routes', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns baseline zeros after enrollment, no reviews yet', async () => {
+  it('returns baseline buckets after enrollment, no reviews yet', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
@@ -54,10 +73,14 @@ describe('stats routes', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as StatsResponse;
     expect(body.materialId).toBe(MATERIAL_ID);
-    expect(body.versesLearned).toBe(0);
     expect(body.retentionRate).toBeNull();
     expect(body.totalGrades).toBe(0);
-    for (const count of Object.values(body.edgeDistribution)) expect(count).toBe(0);
+    // versesLearned counts verses with at least one familiar+ test; freshly
+    // seeded states sit at the engine's default initial stability, which
+    // lands in the "weak" bucket — versesLearned should be 0.
+    expect(body.versesLearned).toBe(0);
+    const total = Object.values(body.testDistribution).reduce((a, b) => a + b, 0);
+    expect(total).toBeGreaterThan(0);
   });
 
   it('counts Hard (grade 2) as a pass, matching the core scheduler', async () => {
@@ -66,24 +89,11 @@ describe('stats routes', () => {
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
     await enrollViaApi(test, cookie, MATERIAL_ID);
 
-    // Upload a synthetic event via sync so we control the exact grades.
-    const event = {
-      clientEventId: randomUUID(),
-      timestampSecs: 1_700_000_000,
-      snapshotVersion: 1,
-      cardId: 0,
-      shown: [0],
-      hidden: [2, 3, 4],
-      grades: [
-        { node_id: 2, grade: 2 as const },
-        { node_id: 3, grade: 3 as const },
-        { node_id: 4, grade: 4 as const },
-      ],
-    };
+    const events = [event({ grade: 2 }), event({ grade: 3 }), event({ grade: 4 })];
     const uploadRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ events: [event] }),
+      body: JSON.stringify({ events }),
     });
     expect(uploadRes.status).toBe(200);
 
@@ -94,47 +104,22 @@ describe('stats routes', () => {
     expect(body.retentionRate).toBe(1);
   });
 
-  it('reflects review activity', async () => {
+  it('counts Again (grade 1) as a fail', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
     await enrollViaApi(test, cookie, MATERIAL_ID);
 
-    const startRes = await test.app.request('/api/sessions/start', {
+    const events = [event({ grade: 1 }), event({ grade: 3 })];
+    await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({
-        materialId: MATERIAL_ID,
-        newVerses: [{ verse_ref: 0, verse_phrases: [2, 3, 4] }],
-      }),
+      body: JSON.stringify({ events }),
     });
-    const start = (await startRes.json()) as {
-      sessionId: string;
-      card: { shown: number[]; hidden: number[]; is_reading: boolean };
-    };
-
-    let card = start.card;
-    let guard = 0;
-    while (card) {
-      const grades = card.is_reading
-        ? []
-        : card.hidden.map((node_id) => ({ node_id, grade: 3 as const }));
-      const reviewRes = await test.app.request(`/api/sessions/${start.sessionId}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', cookie },
-        body: JSON.stringify({ grades }),
-      });
-      const body = (await reviewRes.json()) as { done: boolean; card: typeof card | null };
-      if (body.done || !body.card) break;
-      card = body.card;
-      if (++guard > 30) throw new Error('loop guard');
-    }
 
     const res = await test.app.request(`/api/stats/${MATERIAL_ID}`, { headers: { cookie } });
     const body = (await res.json()) as StatsResponse;
-    expect(body.totalGrades).toBeGreaterThan(0);
-    expect(body.retentionRate).toBe(1); // all grades were 3 = pass
-    const edgeTotal = Object.values(body.edgeDistribution).reduce((a, b) => a + b, 0);
-    expect(edgeTotal).toBeGreaterThan(0);
+    expect(body.totalGrades).toBe(2);
+    expect(body.retentionRate).toBe(0.5);
   });
 });

@@ -3,117 +3,84 @@
 
 import { WasmEngine } from './pkg/verse_vault_wasm.js';
 
-const edgeState = { stability: 5.0, difficulty: 5.0, last_review_secs: 0 };
-
-function makeEdge(id, source, target) {
-  return { id, source, target, state: edgeState };
-}
-
-const graph = {
-  nodes: {
-    '0': { id: 0, kind: { VerseRef: { chapter: 3, verse: 16 } } },
-    '1': { id: 1, kind: { VerseGist: { chapter: 3, verse: 16 } } },
-    '2': { id: 2, kind: { Phrase: { text: 'phrase one', verse_id: 0, position: 0 } } },
-    '3': { id: 3, kind: { Phrase: { text: 'phrase two', verse_id: 0, position: 1 } } },
-    '4': { id: 4, kind: { Phrase: { text: 'phrase three', verse_id: 0, position: 2 } } },
-  },
-  edges: {},
-  outgoing: { '0': [], '1': [], '2': [], '3': [], '4': [] },
-  incoming: { '0': [], '1': [], '2': [], '3': [], '4': [] },
-  next_node_id: 5,
-  next_edge_id: 0,
+const material = {
+  year: 3,
+  books: ['John'],
+  chapters: [{ book: 'John', number: 3, start_verse: 16, end_verse: 16 }],
+  verses: [
+    {
+      book: 'John',
+      chapter: 3,
+      verse: 16,
+      text: 'For God so loved the world that he gave',
+      phrases: ['For God', 'so loved', 'the world', 'that he gave'],
+      ftv: 'For God',
+      clubs: [],
+    },
+  ],
+  headings: [],
 };
 
-function addBi(a, b) {
-  const fwd = graph.next_edge_id++;
-  const bwd = graph.next_edge_id++;
-  graph.edges[String(fwd)] = makeEdge(fwd, a, b);
-  graph.edges[String(bwd)] = makeEdge(bwd, b, a);
-  graph.outgoing[String(a)].push(fwd);
-  graph.incoming[String(b)].push(fwd);
-  graph.outgoing[String(b)].push(bwd);
-  graph.incoming[String(a)].push(bwd);
-}
-
-// Edge identity derives from endpoint node kinds; no `kind` field needed.
-addBi(1, 0); // VerseGist ↔ VerseRef
-addBi(2, 1); // Phrase ↔ VerseGist
-addBi(3, 1);
-addBi(4, 1);
-addBi(2, 3); // Phrase ↔ Phrase
-addBi(3, 4);
-
-const cards = [
-  {
-    id: 0,
-    shown: [0],
-    hidden: [2, 3, 4],
-    state: 'New',
-  },
-];
+const NOW = BigInt(Math.floor(Date.UTC(2026, 4, 8) / 1000));
 
 console.log('Loading engine...');
-const engine = new WasmEngine(
-  JSON.stringify(graph),
-  JSON.stringify(cards),
-  '',
-  '',
-  0.9,
-);
+const engine = new WasmEngine(JSON.stringify(material), '', 0.9, NOW);
 
-console.log('Starting session with the new verse...');
-const newVerses = [
-  { verse_ref: 0, verse_phrases: [2, 3, 4] },
-];
-engine.start_session(0n, JSON.stringify(newVerses), '');
-
-console.log('Session remaining:', engine.session_remaining());
-
-let step = 0;
-while (!engine.session_is_done()) {
-  const cardJson = engine.session_next();
-  if (!cardJson) break;
-  const card = JSON.parse(cardJson);
-  console.log(`Step ${step}: source=${card.source_kind} reading=${card.is_reading} shown=${card.shown.length} hidden=${card.hidden.length}`);
-
-  const grades = card.is_reading
-    ? []
-    : card.hidden.map((node_id) => ({ node_id, grade: 3 /* Good */ }));
-
-  const outcomeJson = engine.session_review(
-    JSON.stringify(grades),
-    BigInt(step * 86400), // one day apart
-  );
-  const outcome = JSON.parse(outcomeJson);
-  console.log(`  → edges updated: ${outcome.edge_updates.length}, redrills: ${outcome.redrills_inserted}`);
-
-  step++;
-  if (step > 20) {
-    console.error('Infinite loop guard tripped');
-    process.exit(1);
-  }
+const initialStates = JSON.parse(engine.export_test_states());
+console.log(`Seeded ${initialStates.length} test states`);
+if (initialStates.length === 0) {
+  console.error('FAIL: engine seeded no test states');
+  process.exit(1);
 }
 
-console.log('Session done after', step, 'steps');
+console.log('Stepping through reviews...');
+let step = 0;
+let now = NOW;
+while (step < 20) {
+  const cardId = engine.next_card(now);
+  if (cardId === undefined) {
+    console.log(`Step ${step}: next_card returned undefined; loop done`);
+    break;
+  }
+
+  if (step === 0) {
+    // Spot-check the render shape for the first card we touch.
+    const renderJson = engine.get_card_render(cardId);
+    const render = JSON.parse(renderJson);
+    console.log(
+      `  render: kind=${render.kind} verse=${render.verse.book} ${render.verse.chapter}:${render.verse.verse} (${render.verse.phrases.length} phrases)`,
+    );
+    if (typeof render.verse.text !== 'string' || render.verse.text.length === 0) {
+      console.error('FAIL: render.verse.text missing or empty');
+      process.exit(1);
+    }
+  }
+
+  const wireJson = engine.replay_event(cardId, 3, now);
+  const updates = JSON.parse(wireJson);
+  console.log(
+    `Step ${step}: cardId=${cardId} → ${updates.length} test update(s)` +
+      (updates.length > 0 ? ` (${updates.map((u) => u.kind).join(',')})` : ''),
+  );
+
+  now += 86400n; // one day forward per step
+  step++;
+}
+
+if (step === 0) {
+  console.error('FAIL: never reviewed any card');
+  process.exit(1);
+}
 
 console.log('\nExporting state...');
-const edgeStates = JSON.parse(engine.export_edge_states());
-const cardStates = JSON.parse(engine.export_card_states());
-console.log(`Edge states: ${edgeStates.length} edges`);
-console.log(`Card states: ${cardStates.length} cards`);
-console.log(`Card 0 state: ${cardStates[0].state}, due_date=${cardStates[0].due_date_secs}`);
+const finalStates = JSON.parse(engine.export_test_states());
+console.log(`Final: ${finalStates.length} test states`);
 
-if (cardStates[0].state !== 'review') {
-  console.error(`FAIL: expected card state 'review', got '${cardStates[0].state}'`);
+const movedStates = finalStates.filter((s) => BigInt(s.last_seen_secs) > NOW);
+console.log(`${movedStates.length} test states had last_seen advance`);
+if (movedStates.length === 0) {
+  console.error('FAIL: no test state had last_seen advance');
   process.exit(1);
 }
-
-const updatedEdges = edgeStates.filter((e) => Math.abs(e.stability - 5.0) > 0.001);
-console.log('Sample edge stabilities:', edgeStates.slice(0, 4).map((e) => e.stability.toFixed(3)));
-if (updatedEdges.length === 0) {
-  console.error('FAIL: no edges were updated');
-  process.exit(1);
-}
-console.log(`${updatedEdges.length} edges changed stability (of ${edgeStates.length})`);
 
 console.log('\n✓ All smoke-test assertions passed');

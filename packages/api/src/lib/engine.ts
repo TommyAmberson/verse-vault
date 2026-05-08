@@ -22,62 +22,66 @@ export class NotEnrolledError extends Error {
   }
 }
 
-/** Wire shapes must stay in sync with crates/wasm/src/lib.rs. */
-export interface EdgeStateEntry {
-  edge_id: number;
+/**
+ * Wire shape mirrors `verse-vault-wasm` `TestStateEntry`. The `element` field
+ * is the serde-tagged JSON form of `ElementId` (e.g. `{"kind":"Phrase",
+ * "verse_id":0,"position":2}`); kept opaque on the API side and round-
+ * tripped verbatim through the database. `test_kind` is one of the seven
+ * `TestKind` variants exposed by the core (PhraseFromContext, PhraseFromChain,
+ * VerseRefPosition, VerseChapter, VerseBook, VerseHeading, VerseClub).
+ */
+export interface TestStateEntry {
+  element: unknown;
+  test_kind: string;
   stability: number;
   difficulty: number;
-  last_review_secs: number;
+  last_seen_secs: number;
+  last_base_secs: number;
+  last_root_secs: number;
 }
 
-export interface CardStateEntry {
-  card_id: number;
-  state: 'new' | 'learning' | 'review' | 'relearning';
-  due_r: number | null;
-  due_date_secs: number | null;
-  priority: number | null;
-}
-
-export function readEdgeStateEntries(db: DB, key: EngineKey): EdgeStateEntry[] {
+export function readTestStateEntries(db: DB, key: EngineKey): TestStateEntry[] {
   return db
     .select()
-    .from(schema.edgeStates)
+    .from(schema.testStates)
     .where(
-      and(eq(schema.edgeStates.userId, key.userId), eq(schema.edgeStates.materialId, key.materialId)),
+      and(eq(schema.testStates.userId, key.userId), eq(schema.testStates.materialId, key.materialId)),
     )
     .all()
-    .map((e) => ({
-      edge_id: e.edgeId,
-      stability: e.stability,
-      difficulty: e.difficulty,
-      last_review_secs: e.lastReviewSecs,
+    .map((r) => ({
+      // `r.element` is a JSON-text column; parse it back into the tagged
+      // ElementId object the WASM side expects.
+      element: JSON.parse(r.element) as unknown,
+      test_kind: r.testKind,
+      stability: r.stability,
+      difficulty: r.difficulty,
+      last_seen_secs: r.lastSeenSecs,
+      last_base_secs: r.lastBaseSecs,
+      last_root_secs: r.lastRootSecs,
     }));
 }
 
-export function readCardStateEntries(db: DB, key: EngineKey): CardStateEntry[] {
-  return db
-    .select()
-    .from(schema.cardStates)
-    .where(
-      and(eq(schema.cardStates.userId, key.userId), eq(schema.cardStates.materialId, key.materialId)),
-    )
-    .all()
-    .map((c) => ({
-      card_id: c.cardId,
-      state: c.state,
-      due_r: c.dueR,
-      due_date_secs: c.dueDateSecs,
-      priority: c.priority,
-    }));
-}
-
-/** Long-running Node process, so engines live across requests; no eviction yet. */
+/**
+ * Per-(user, material) engine cache + serialisation.
+ *
+ * Cache: WasmEngine instances live across requests so we don't re-parse the
+ * MaterialData blob on every call.
+ *
+ * Serialisation: `WasmEngine.replay_event` is `&mut self` at the WASM
+ * boundary. Two concurrent reviews for the same (user, material) — e.g.
+ * a fast double-click — must not interleave their mutate-then-export
+ * sequences, since that races the order of upserts against `timestamp_secs`.
+ * `withLock` queues callers per key on a tail Promise; cheap and good
+ * enough for single-tab usage.
+ */
 export class EngineStore {
   private readonly cache = new Map<string, LoadedEngine>();
+  private readonly tails = new Map<string, Promise<unknown>>();
 
   constructor(
     private readonly db: DB,
     private readonly desiredRetention: number = DEFAULT_DESIRED_RETENTION,
+    private readonly now: () => number = () => Math.floor(Date.now() / 1000),
   ) {}
 
   async load(key: EngineKey): Promise<LoadedEngine> {
@@ -100,15 +104,13 @@ export class EngineStore {
       throw new NotEnrolledError(key);
     }
 
-    const edgeJson = readEdgeStateEntries(this.db, key);
-    const cardJson = readCardStateEntries(this.db, key);
-
+    const testStates = readTestStateEntries(this.db, key);
+    const materialJson = snapshot.materialData.toString('utf8');
     const engine = new WasmEngine(
-      snapshot.graphData.toString('utf8'),
-      snapshot.cardsData.toString('utf8'),
-      JSON.stringify(edgeJson),
-      JSON.stringify(cardJson),
+      materialJson,
+      JSON.stringify(testStates),
       this.desiredRetention,
+      BigInt(this.now()),
     );
 
     const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
@@ -116,14 +118,26 @@ export class EngineStore {
     return loaded;
   }
 
-  invalidate(key: EngineKey): void {
+  /**
+   * Run `fn` exclusively against the (user, material) engine. Concurrent
+   * callers queue on the tail promise so engine mutations + their DB
+   * upserts apply in submission order. Doesn't catch errors — fn rejection
+   * is propagated to the caller while the lock advances normally.
+   */
+  async withLock<T>(key: EngineKey, fn: () => Promise<T>): Promise<T> {
     const k = userMaterialKey(key);
-    this.cache.get(k)?.engine.free();
-    this.cache.delete(k);
+    const prev = this.tails.get(k) ?? Promise.resolve();
+    const next = prev.then(fn, fn);
+    this.tails.set(
+      k,
+      next.catch(() => {}),
+    );
+    return next;
   }
 
   clear(): void {
     for (const loaded of this.cache.values()) loaded.engine.free();
     this.cache.clear();
+    this.tails.clear();
   }
 }

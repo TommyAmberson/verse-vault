@@ -136,3 +136,42 @@ fn next_card_returns_some_when_due() {
     let pick = engine.next_card(86400 * 365 + 86400 * 60);
     assert!(pick.is_some(), "expected a due card");
 }
+
+#[test]
+fn get_card_render_for_phrase_fill_includes_phrases_and_position() {
+    let engine = WasmEngine::new(MATERIAL_JSON, "", 0.9, 0).unwrap();
+    let card_id = first_card_id_where(|k| matches!(k, CardKind::PhraseFill { position: 1 }));
+    let json = engine.get_card_render_for_test(card_id).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(v["cardId"], card_id);
+    assert_eq!(v["kind"], "PhraseFill");
+    assert_eq!(v["position"], 1);
+    assert_eq!(v["verse"]["book"], "John");
+    assert_eq!(v["verse"]["chapter"], 3);
+    assert_eq!(v["verse"]["verse"], 16);
+    assert_eq!(v["verse"]["phrases"].as_array().unwrap().len(), 4);
+    assert_eq!(v["verse"]["phrases"][0], "For God");
+}
+
+#[test]
+fn get_card_render_for_recitation_has_full_verse_data() {
+    let engine = WasmEngine::new(MATERIAL_JSON, "", 0.9, 0).unwrap();
+    let card_id = first_card_id_where(|k| matches!(k, CardKind::Recitation));
+    let json = engine.get_card_render_for_test(card_id).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(v["kind"], "Recitation");
+    assert_eq!(
+        v["verse"]["text"],
+        "For God so loved the world that he gave"
+    );
+    assert_eq!(v["verse"]["ftv"], "For God");
+    assert!(v["verse"]["headings"].as_array().unwrap().is_empty());
+    assert!(v["verse"]["clubs"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn get_card_render_unknown_card_id_returns_error() {
+    let engine = WasmEngine::new(MATERIAL_JSON, "", 0.9, 0).unwrap();
+    let err = engine.get_card_render_for_test(999_999).unwrap_err();
+    assert!(err.contains("unknown card id"), "got: {err}");
+}

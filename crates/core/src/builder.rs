@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::card::{Card, CardKind, CardState, VerseAtoms};
 use crate::content::{HeadingData, MaterialData};
 use crate::element::{ClubTier, ElementId, ElementMeta};
+use crate::render::{HeadingRender, VerseRender};
 use crate::test_kind::TestKey;
 use crate::test_state::TestState;
 use crate::types::CardId;
@@ -26,6 +27,11 @@ pub struct BuildResult {
     /// at review/scheduling time without re-deriving from the source
     /// `MaterialData`.
     pub verse_atoms_data: HashMap<u32, VerseAtoms>,
+    /// Per-verse rendering data (book / chapter / verse number, full text,
+    /// phrase strings, ftv, heading labels, club tiers). Retained so
+    /// frontends can render any card without re-parsing the source
+    /// `MaterialData`.
+    pub verse_render_data: HashMap<u32, VerseRender>,
 }
 
 /// Tier-subset rule: in the Anki export a verse tagged "150" is implicitly a
@@ -99,6 +105,7 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
     // Per-verse VerseAtoms so we can compute `card.tests(...)` after all cards
     // are emitted and feed them into the test-state seed map.
     let mut verse_atoms_by_id: HashMap<u32, VerseAtoms> = HashMap::new();
+    let mut verse_render_by_id: HashMap<u32, VerseRender> = HashMap::new();
 
     for (verse_id_usize, verse) in data.verses_with_text().enumerate() {
         let verse_id = verse_id_usize as u32;
@@ -240,6 +247,30 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
             }
         }
 
+        let heading_renders: Vec<HeadingRender> = headings
+            .iter()
+            .filter_map(|&h_idx| {
+                data.headings.get(h_idx as usize).map(|h| HeadingRender {
+                    heading_idx: h_idx,
+                    text: h.text.clone(),
+                })
+            })
+            .collect();
+
+        verse_render_by_id.insert(
+            verse_id,
+            VerseRender {
+                book: verse.book.clone(),
+                chapter: verse.chapter,
+                verse: verse.verse,
+                text: verse.text.clone(),
+                phrases: verse.phrases.clone(),
+                ftv: ftv_text.clone(),
+                headings: heading_renders,
+                clubs: clubs.clone(),
+            },
+        );
+
         verse_atoms_by_id.insert(
             verse_id,
             VerseAtoms {
@@ -274,6 +305,7 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
         cards,
         tests,
         verse_atoms_data: verse_atoms_by_id,
+        verse_render_data: verse_render_by_id,
     }
 }
 

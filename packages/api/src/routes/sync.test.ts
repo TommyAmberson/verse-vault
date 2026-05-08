@@ -2,46 +2,58 @@ import { randomUUID } from 'node:crypto';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { cardStates, edgeStates, reviewEvents } from '../db/schema.js';
+import { reviewEvents, testStates } from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { type TestApp, createTestApp, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-1cor';
 
-interface EdgeEntry {
-  edge_id: number;
+interface TestStateWire {
+  element: unknown;
+  test_kind: string;
   stability: number;
   difficulty: number;
-  last_review_secs: number;
+  last_seen_secs: number;
+  last_base_secs: number;
+  last_root_secs: number;
 }
-interface CardEntry {
-  card_id: number;
-  state: 'new' | 'learning' | 'review' | 'relearning';
-  due_r: number | null;
-  due_date_secs: number | null;
-  priority: number | null;
-}
+
 interface StateResponse {
-  snapshot: { version: number; graphData: unknown; cardsData: unknown };
-  edgeStates: EdgeEntry[];
-  cardStates: CardEntry[];
-  lastEventId: string | null;
-}
-interface UploadResponse {
-  accepted: number;
-  duplicates: number;
-  edgeStates: EdgeEntry[];
-  cardStates: CardEntry[];
+  snapshot: { version: number; materialData: unknown };
+  testStates: TestStateWire[];
   lastEventId: string | null;
 }
 
-async function enroll(
-  test: TestApp,
-  email: string,
-): Promise<{ cookie: string; userId: string }> {
+interface UploadResponse {
+  accepted: number;
+  duplicates: number;
+  testStates: TestStateWire[];
+  lastEventId: string | null;
+}
+
+async function enroll(test: TestApp, email: string): Promise<{ cookie: string; userId: string }> {
   const { cookie, userId } = await signUpTestUser(test, email);
   seedUserWithFixture({ db: test.db, userId, materialId: MATERIAL_ID, createUser: false });
   return { cookie, userId };
+}
+
+function event(overrides: Partial<UploadEvent> = {}): UploadEvent {
+  return {
+    clientEventId: randomUUID(),
+    timestampSecs: 1_700_000_000,
+    snapshotVersion: 1,
+    cardId: 0,
+    grade: 3,
+    ...overrides,
+  };
+}
+
+interface UploadEvent {
+  clientEventId: string;
+  timestampSecs: number;
+  snapshotVersion: number;
+  cardId: number;
+  grade: 1 | 2 | 3 | 4;
 }
 
 describe('sync routes', () => {
@@ -79,24 +91,12 @@ describe('sync routes', () => {
     const eventsRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({
-        events: [
-          {
-            clientEventId: randomUUID(),
-            timestampSecs: 1_700_000_000,
-            snapshotVersion: 1,
-            cardId: 0,
-            shown: [0],
-            hidden: [2],
-            grades: [{ node_id: 2, grade: 3 }],
-          },
-        ],
-      }),
+      body: JSON.stringify({ events: [event()] }),
     });
     expect(eventsRes.status).toBe(404);
   });
 
-  it('returns snapshot + empty state for a newly-enrolled user', async () => {
+  it('returns snapshot + seeded test_states for a newly-enrolled user', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await enroll(test, 'alice@example.com');
@@ -105,56 +105,38 @@ describe('sync routes', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as StateResponse;
     expect(body.snapshot.version).toBe(1);
-    expect(body.snapshot.graphData).toBeTruthy();
-    expect(body.snapshot.cardsData).toBeTruthy();
-    expect(body.edgeStates).toEqual([]);
-    // Enrollment seeds card_states with all cards in 'new' so the status
-    // endpoint can report accurate counts without a review happening first.
-    expect(body.cardStates.length).toBeGreaterThan(0);
-    expect(body.cardStates.every((c) => c.state === 'new')).toBe(true);
+    expect(body.snapshot.materialData).toBeTruthy();
+    // Enrollment seeds test_states from the freshly-built engine, so a brand
+    // new user already has the full seed set even before any review.
+    expect(body.testStates.length).toBeGreaterThan(0);
     expect(body.lastEventId).toBeNull();
   });
 
-  it('accepts an offline event batch and persists merged state', async () => {
+  it('accepts an event batch and persists merged state', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await enroll(test, 'alice@example.com');
 
-    const event = {
-      clientEventId: randomUUID(),
-      timestampSecs: 1_700_000_000,
-      snapshotVersion: 1,
-      cardId: 0,
-      shown: [0],
-      hidden: [2, 3, 4],
-      grades: [
-        { node_id: 2, grade: 3 as const },
-        { node_id: 3, grade: 3 as const },
-        { node_id: 4, grade: 3 as const },
-      ],
-    };
-
+    const e = event();
     const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ events: [event] }),
+      body: JSON.stringify({ events: [e] }),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as UploadResponse;
     expect(body.accepted).toBe(1);
     expect(body.duplicates).toBe(0);
-    expect(body.edgeStates.length).toBeGreaterThan(0);
-    expect(body.cardStates.length).toBeGreaterThan(0);
+    expect(body.testStates.length).toBeGreaterThan(0);
     expect(body.lastEventId).not.toBeNull();
 
     const persistedEvents = test.db.select().from(reviewEvents).all();
     expect(persistedEvents).toHaveLength(1);
-    expect(persistedEvents[0].clientEventId).toBe(event.clientEventId);
+    expect(persistedEvents[0].clientEventId).toBe(e.clientEventId);
+    expect(persistedEvents[0].grade).toBe(3);
 
-    const persistedEdges = test.db.select().from(edgeStates).all();
-    expect(persistedEdges.length).toBeGreaterThan(0);
-    const persistedCards = test.db.select().from(cardStates).all();
-    expect(persistedCards.length).toBeGreaterThan(0);
+    const persistedStates = test.db.select().from(testStates).all();
+    expect(persistedStates.length).toBeGreaterThan(0);
   });
 
   it('is idempotent on re-upload of the same client_event_id', async () => {
@@ -162,32 +144,19 @@ describe('sync routes', () => {
     cleanup = test.cleanup;
     const { cookie } = await enroll(test, 'alice@example.com');
 
-    const event = {
-      clientEventId: randomUUID(),
-      timestampSecs: 1_700_000_000,
-      snapshotVersion: 1,
-      cardId: 0,
-      shown: [0],
-      hidden: [2, 3, 4],
-      grades: [
-        { node_id: 2, grade: 3 as const },
-        { node_id: 3, grade: 3 as const },
-        { node_id: 4, grade: 3 as const },
-      ],
-    };
-
+    const e = event();
     await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ events: [event] }),
+      body: JSON.stringify({ events: [e] }),
     });
 
-    const afterFirst = test.db.select().from(edgeStates).all();
+    const afterFirst = test.db.select().from(testStates).all();
 
     const second = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ events: [event] }),
+      body: JSON.stringify({ events: [e] }),
     });
     expect(second.status).toBe(200);
     const body = (await second.json()) as UploadResponse;
@@ -195,8 +164,7 @@ describe('sync routes', () => {
     expect(body.duplicates).toBe(1);
 
     expect(test.db.select().from(reviewEvents).all()).toHaveLength(1);
-    // Engine state should be unchanged — no events were re-applied.
-    const afterSecond = test.db.select().from(edgeStates).all();
+    const afterSecond = test.db.select().from(testStates).all();
     expect(afterSecond).toEqual(afterFirst);
   });
 
@@ -205,24 +173,8 @@ describe('sync routes', () => {
     cleanup = test.cleanup;
     const { cookie } = await enroll(test, 'alice@example.com');
 
-    const newer = {
-      clientEventId: randomUUID(),
-      timestampSecs: 2_000_000_000,
-      snapshotVersion: 1,
-      cardId: 0,
-      shown: [0],
-      hidden: [2],
-      grades: [{ node_id: 2, grade: 3 as const }],
-    };
-    const older = {
-      clientEventId: randomUUID(),
-      timestampSecs: 1_000_000_000,
-      snapshotVersion: 1,
-      cardId: 0,
-      shown: [0],
-      hidden: [2],
-      grades: [{ node_id: 2, grade: 3 as const }],
-    };
+    const newer = event({ timestampSecs: 2_000_000_000 });
+    const older = event({ timestampSecs: 1_000_000_000 });
 
     const firstRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
@@ -255,15 +207,7 @@ describe('sync routes', () => {
     cleanup = test.cleanup;
     const { cookie } = await enroll(test, 'alice@example.com');
 
-    const events = Array.from({ length: 501 }, () => ({
-      clientEventId: randomUUID(),
-      timestampSecs: 1_700_000_000,
-      snapshotVersion: 1,
-      cardId: 0,
-      shown: [0],
-      hidden: [2],
-      grades: [{ node_id: 2, grade: 3 as const }],
-    }));
+    const events = Array.from({ length: 501 }, () => event());
     const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
@@ -277,27 +221,21 @@ describe('sync routes', () => {
     cleanup = test.cleanup;
     const { cookie } = await enroll(test, 'alice@example.com');
 
-    const base = {
-      clientEventId: randomUUID(),
-      snapshotVersion: 1,
-      cardId: 0,
-      shown: [0],
-      hidden: [2],
-      grades: [{ node_id: 2, grade: 3 as const }],
-    };
     const bad = [
-      { ...base, timestampSecs: Number.NaN },
-      { ...base, timestampSecs: Number.POSITIVE_INFINITY },
-      { ...base, timestampSecs: 1.5 },
-      { ...base, timestampSecs: -1 },
-      { ...base, timestampSecs: 1_700_000_000, snapshotVersion: 0 },
-      { ...base, timestampSecs: 1_700_000_000, cardId: 1.5 },
+      event({ timestampSecs: Number.NaN }),
+      event({ timestampSecs: Number.POSITIVE_INFINITY }),
+      event({ timestampSecs: 1.5 }),
+      event({ timestampSecs: -1 }),
+      event({ snapshotVersion: 0 }),
+      event({ cardId: 1.5 }),
+      event({ grade: 0 as 1 }),
+      event({ grade: 5 as 1 }),
     ];
-    for (const event of bad) {
+    for (const e of bad) {
       const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', cookie },
-        body: JSON.stringify({ events: [event] }),
+        body: JSON.stringify({ events: [e] }),
       });
       expect(res.status).toBe(400);
     }
@@ -311,113 +249,8 @@ describe('sync routes', () => {
     const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({
-        events: [
-          {
-            clientEventId: randomUUID(),
-            timestampSecs: 1_700_000_000,
-            snapshotVersion: 99,
-            cardId: 0,
-            shown: [0],
-            hidden: [2],
-            grades: [{ node_id: 2, grade: 3 }],
-          },
-        ],
-      }),
+      body: JSON.stringify({ events: [event({ snapshotVersion: 99 })] }),
     });
     expect(res.status).toBe(409);
   });
-
-  it('reaches the same edge state whether a review is done online or via sync', async () => {
-    const test = createTestApp();
-    cleanup = test.cleanup;
-
-    const alice = await enroll(test, 'alice@example.com');
-    const bob = await enroll(test, 'bob@example.com');
-
-    // Alice: review via live session — drive through reading stages until a
-    // drill card produces a logged event.
-    const startRes = await test.app.request('/api/sessions/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie: alice.cookie },
-      body: JSON.stringify({
-        materialId: MATERIAL_ID,
-        newVerses: [{ verse_ref: 0, verse_phrases: [2, 3, 4] }],
-      }),
-    });
-    const start = (await startRes.json()) as {
-      sessionId: string;
-      card: { shown: number[]; hidden: number[]; is_reading: boolean };
-    };
-
-    let card = start.card;
-    let loops = 0;
-    while (test.db.select().from(reviewEvents).all().length === 0) {
-      const grades = card.is_reading
-        ? []
-        : card.hidden.map((node_id) => ({ node_id, grade: 3 as const }));
-      const reviewRes = await test.app.request(`/api/sessions/${start.sessionId}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', cookie: alice.cookie },
-        body: JSON.stringify({ grades }),
-      });
-      expect(reviewRes.status).toBe(200);
-      const body = (await reviewRes.json()) as {
-        card: typeof card | null;
-        done: boolean;
-      };
-      if (body.done || !body.card) break;
-      card = body.card;
-      if (++loops > 20) throw new Error('loop guard: no drill card emitted');
-    }
-
-    const aliceEvents = test.db.select().from(reviewEvents).all();
-    expect(aliceEvents.length).toBeGreaterThan(0);
-    const aliceEvent = aliceEvents[0];
-
-    const uploadRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie: bob.cookie },
-      body: JSON.stringify({
-        events: [
-          {
-            clientEventId: randomUUID(),
-            timestampSecs: aliceEvent.timestampSecs,
-            snapshotVersion: aliceEvent.snapshotVersion,
-            cardId: aliceEvent.cardId,
-            shown: JSON.parse(aliceEvent.shown.toString('utf8')),
-            hidden: JSON.parse(aliceEvent.hidden.toString('utf8')),
-            grades: JSON.parse(aliceEvent.grades.toString('utf8')),
-          },
-        ],
-      }),
-    });
-    expect(uploadRes.status).toBe(200);
-
-    const aliceEdges = sortEdges(
-      test.db
-        .select()
-        .from(edgeStates)
-        .all()
-        .filter((e) => e.userId === alice.userId),
-    );
-    const bobEdges = sortEdges(
-      test.db
-        .select()
-        .from(edgeStates)
-        .all()
-        .filter((e) => e.userId === bob.userId),
-    );
-    expect(bobEdges.length).toBe(aliceEdges.length);
-    for (let i = 0; i < bobEdges.length; i++) {
-      expect(bobEdges[i].edgeId).toBe(aliceEdges[i].edgeId);
-      expect(bobEdges[i].stability).toBeCloseTo(aliceEdges[i].stability, 4);
-      expect(bobEdges[i].difficulty).toBeCloseTo(aliceEdges[i].difficulty, 4);
-      expect(bobEdges[i].lastReviewSecs).toBe(aliceEdges[i].lastReviewSecs);
-    }
-  });
 });
-
-function sortEdges<T extends { edgeId: number }>(rows: T[]): T[] {
-  return [...rows].sort((a, b) => a.edgeId - b.edgeId);
-}

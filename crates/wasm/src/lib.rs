@@ -7,9 +7,11 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 use verse_vault_core::builder::build;
+use verse_vault_core::card::CardKind;
 use verse_vault_core::content::MaterialData;
-use verse_vault_core::element::ElementId;
+use verse_vault_core::element::{ClubTier, ElementId};
 use verse_vault_core::engine::{ReviewEngine, TestUpdate, UpdateKind};
+use verse_vault_core::render::{HeadingRender, VerseRender};
 use verse_vault_core::schedule::next_card;
 use verse_vault_core::test_kind::{TestKey, TestKind};
 use verse_vault_core::test_state::TestState;
@@ -71,6 +73,113 @@ pub struct TestUpdateWire {
     pub kind: UpdateKindWire,
     pub before: TestState,
     pub after: TestState,
+}
+
+/// JS-friendly mirror of `card::CardKind`. Serializes with internal `kind`
+/// tagging so the JS side gets `{ "kind": "PhraseFill", "position": 1 }`
+/// instead of Rust's externally-tagged `{ "PhraseFill": { "position": 1 } }`.
+#[derive(Serialize, Clone, Debug)]
+#[serde(tag = "kind")]
+pub enum CardKindWire {
+    PhraseFill {
+        position: u16,
+    },
+    PhraseChain {
+        position: u16,
+    },
+    VerseAtVerseRef,
+    VerseInChapter,
+    VerseInBook,
+    VerseInHeading {
+        #[serde(rename = "headingIdx")]
+        heading_idx: u16,
+    },
+    VerseInClub {
+        tier: ClubTier,
+    },
+    Recitation,
+    Citation,
+    Ftv {
+        #[serde(rename = "withCitation")]
+        with_citation: bool,
+    },
+    Reading,
+}
+
+impl From<CardKind> for CardKindWire {
+    fn from(k: CardKind) -> Self {
+        match k {
+            CardKind::PhraseFill { position } => CardKindWire::PhraseFill { position },
+            CardKind::PhraseChain { position } => CardKindWire::PhraseChain { position },
+            CardKind::VerseAtVerseRef => CardKindWire::VerseAtVerseRef,
+            CardKind::VerseInChapter => CardKindWire::VerseInChapter,
+            CardKind::VerseInBook => CardKindWire::VerseInBook,
+            CardKind::VerseInHeading { heading_idx } => {
+                CardKindWire::VerseInHeading { heading_idx }
+            }
+            CardKind::VerseInClub { tier } => CardKindWire::VerseInClub { tier },
+            CardKind::Recitation => CardKindWire::Recitation,
+            CardKind::Citation => CardKindWire::Citation,
+            CardKind::Ftv { with_citation } => CardKindWire::Ftv { with_citation },
+            CardKind::Reading => CardKindWire::Reading,
+        }
+    }
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct HeadingRenderWire {
+    pub heading_idx: u16,
+    pub text: String,
+}
+
+impl From<&HeadingRender> for HeadingRenderWire {
+    fn from(h: &HeadingRender) -> Self {
+        Self {
+            heading_idx: h.heading_idx,
+            text: h.text.clone(),
+        }
+    }
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct VerseRenderWire {
+    pub book: String,
+    pub chapter: u16,
+    pub verse: u16,
+    pub text: String,
+    pub phrases: Vec<String>,
+    pub ftv: Option<String>,
+    pub headings: Vec<HeadingRenderWire>,
+    pub clubs: Vec<ClubTier>,
+}
+
+impl From<&VerseRender> for VerseRenderWire {
+    fn from(v: &VerseRender) -> Self {
+        Self {
+            book: v.book.clone(),
+            chapter: v.chapter,
+            verse: v.verse,
+            text: v.text.clone(),
+            phrases: v.phrases.clone(),
+            ftv: v.ftv.clone(),
+            headings: v.headings.iter().map(HeadingRenderWire::from).collect(),
+            clubs: v.clubs.clone(),
+        }
+    }
+}
+
+/// Wire shape returned by `WasmEngine::get_card_render` — everything the
+/// frontend needs to render a card prompt and its answer.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CardRenderWire {
+    pub card_id: u32,
+    pub verse_id: u32,
+    #[serde(flatten)]
+    pub kind: CardKindWire,
+    pub verse: VerseRenderWire,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
@@ -173,6 +282,31 @@ impl WasmEngine {
     pub fn next_card(&self, now_secs: i64) -> Option<u32> {
         next_card(&self.engine, now_secs).map(|c| c.0)
     }
+
+    /// Render data for a card: kind, verse_id, plus the verse's render data
+    /// (book / chapter / verse number, full text, phrases, ftv, headings,
+    /// clubs). Returns JSON of `CardRenderWire`. Errors when the card id
+    /// is unknown or the verse has no render data.
+    pub fn get_card_render(&self, card_id: u32) -> Result<String, JsError> {
+        let card = self
+            .engine
+            .card(CardId(card_id))
+            .ok_or_else(|| JsError::new(&format!("unknown card id {card_id}")))?;
+        let verse = self.engine.verse_render(card.verse_id).ok_or_else(|| {
+            JsError::new(&format!(
+                "no render data for verse {} (card {card_id})",
+                card.verse_id
+            ))
+        })?;
+        let wire = CardRenderWire {
+            card_id,
+            verse_id: card.verse_id,
+            kind: card.kind.into(),
+            verse: VerseRenderWire::from(verse),
+        };
+        serde_json::to_string(&wire)
+            .map_err(|e| JsError::new(&format!("render serialise error: {e}")))
+    }
 }
 
 impl WasmEngine {
@@ -186,6 +320,28 @@ impl WasmEngine {
         now_secs: i64,
     ) -> Result<String, String> {
         self.replay_event_inner(card_id, grade, now_secs)
+    }
+
+    /// Native-Rust shim for `get_card_render`. Same JsError-on-native
+    /// caveat as `replay_event_for_test`.
+    pub fn get_card_render_for_test(&self, card_id: u32) -> Result<String, String> {
+        let card = self
+            .engine
+            .card(CardId(card_id))
+            .ok_or_else(|| format!("unknown card id {card_id}"))?;
+        let verse = self.engine.verse_render(card.verse_id).ok_or_else(|| {
+            format!(
+                "no render data for verse {} (card {card_id})",
+                card.verse_id
+            )
+        })?;
+        let wire = CardRenderWire {
+            card_id,
+            verse_id: card.verse_id,
+            kind: card.kind.into(),
+            verse: VerseRenderWire::from(verse),
+        };
+        serde_json::to_string(&wire).map_err(|e| format!("render serialise error: {e}"))
     }
 
     /// Validate at the WASM boundary so a stale / drifted JS payload returns
