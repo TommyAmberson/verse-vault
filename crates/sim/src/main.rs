@@ -31,15 +31,21 @@ const DEFAULT_REVIEWS_PER_DAY: usize = 50;
 const SECONDS_PER_DAY: i64 = 86_400;
 const RNG_SEED: u64 = 0xC0FFEE;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct SimArgs {
     reviews: usize,
     reviews_per_day: usize,
+    /// Optional 21-value FSRS-6 parameter vector for the learner's ground
+    /// truth. The engine always uses defaults — passing this flag lets the
+    /// sim measure how well the engine's default-params predictions
+    /// calibrate against a user-fitted truth.
+    learner_params: Option<Vec<f32>>,
 }
 
 fn parse_args() -> SimArgs {
     let mut reviews = DEFAULT_REVIEWS;
     let mut reviews_per_day = DEFAULT_REVIEWS_PER_DAY;
+    let mut learner_params: Option<Vec<f32>> = None;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -57,12 +63,30 @@ fn parse_args() -> SimArgs {
                     reviews_per_day = parsed.max(1);
                 }
             }
+            "--learner-params" => {
+                if let Some(spec) = args.next() {
+                    let parsed: Result<Vec<f32>, _> = spec
+                        .split(|c: char| c == ',' || c.is_whitespace())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.parse::<f32>())
+                        .collect();
+                    match parsed {
+                        Ok(v) if v.len() == 21 => learner_params = Some(v),
+                        Ok(v) => eprintln!(
+                            "--learner-params: expected 21 values, got {} — ignoring",
+                            v.len()
+                        ),
+                        Err(e) => eprintln!("--learner-params: parse error {e} — ignoring"),
+                    }
+                }
+            }
             _ => {}
         }
     }
     SimArgs {
         reviews,
         reviews_per_day,
+        learner_params,
     }
 }
 
@@ -76,6 +100,7 @@ fn main() {
     let SimArgs {
         reviews,
         reviews_per_day,
+        learner_params,
     } = parse_args();
     let path = fixture_path();
     let json = std::fs::read_to_string(&path).expect("corinthians fixture should exist");
@@ -89,7 +114,17 @@ fn main() {
     let total_cards = result.cards.len();
     let total_tests = result.tests.len();
     let mut engine = ReviewEngine::new(result, 0.9);
-    let mut learner = ProbLearner::new(RNG_SEED, 0.9, initial_seed_secs);
+    let learner_label;
+    let mut learner = match &learner_params {
+        Some(params) => {
+            learner_label = format!("custom (decay={:.4})", params.last().unwrap_or(&0.0));
+            ProbLearner::with_parameters(RNG_SEED, 0.9, params, initial_seed_secs)
+        }
+        None => {
+            learner_label = "default".to_string();
+            ProbLearner::new(RNG_SEED, 0.9, initial_seed_secs)
+        }
+    };
 
     let mut predictions: Vec<Prediction> = Vec::new();
     let mut day_review_counts: HashMap<i64, usize> = HashMap::new();
@@ -206,6 +241,7 @@ fn main() {
     println!(
         "verse-vault-sim:\n  \
          catalog: cards={total_cards} tests={total_tests}\n  \
+         learner_params={learner_label}\n  \
          reviews_done={completed} root_updates={total_root} sub_updates={total_sub}\n  \
          outcomes: pass={pass_count} fail={fail_count}\n  \
          grades: again={} hard={} good={} easy={}\n  \

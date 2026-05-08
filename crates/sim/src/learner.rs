@@ -65,6 +65,24 @@ impl ProbLearner {
         }
     }
 
+    /// Construct a learner whose ground-truth FSRS uses a custom parameter
+    /// vector (e.g. a real user's Anki-fitted FSRS-6 weights). The engine
+    /// is unaffected — letting the sim probe how well the engine's default-
+    /// params predictions calibrate against a user-shaped truth.
+    pub fn with_parameters(
+        seed: u64,
+        desired_retention: f32,
+        params: &[f32],
+        initial_seed_secs: i64,
+    ) -> Self {
+        Self {
+            fsrs: FsrsBridge::with_parameters(params, desired_retention),
+            truth: HashMap::new(),
+            rng: SmallRng::seed_from_u64(seed),
+            initial_seed_secs,
+        }
+    }
+
     /// Learner's true retrievability for a test at `now_secs`. Unseen tests
     /// fall back to the same `new_unseen` seeding the engine uses.
     pub fn true_retrievability(&self, key: TestKey, now_secs: i64) -> f32 {
