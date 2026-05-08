@@ -20,7 +20,7 @@ Usage:
     python3 tools/check_against_apibible.py \\
         data/corinthians.json \\
         --book "1 Corinthians" --chapter 1 \\
-        [--bible de4e12af7f28f599-01]   # NKJV id; well-known
+        [--bible 63097d2a0a2f7db3-01]   # NKJV (account-specific; see DEFAULT_NKJV_ID)
         [--cache data/apibible-cache.json]
 
 The cache stores fetched passages keyed by (bibleId, passageId) with a
