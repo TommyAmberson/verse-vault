@@ -44,29 +44,35 @@ HEADING_FIELDS = ("Sort", "Front", "Back", "Add Reverse")
 ANKI_FIELD_SEP = "\x1f"
 
 
+COLLECTION_CANDIDATES = ("collection.anki21b", "collection.anki21", "collection.anki2")
+
+
 def extract_collection(colpkg_path: str, dest_dir: str) -> str:
-    """Extract the .colpkg, return path to the readable SQLite collection."""
+    """Extract the .colpkg's collection file, return path to readable SQLite.
+
+    A .colpkg also contains media files (potentially MB of images) — extract
+    just the collection candidates we care about.
+    """
     with zipfile.ZipFile(colpkg_path) as zf:
-        zf.extractall(dest_dir)
+        names = set(zf.namelist())
+        present = [c for c in COLLECTION_CANDIDATES if c in names]
+        for name in present:
+            zf.extract(name, dest_dir)
+    if not present:
+        sys.exit(f"No {'/'.join(COLLECTION_CANDIDATES)} found in {colpkg_path}")
 
-    anki21b = os.path.join(dest_dir, "collection.anki21b")
-    anki21 = os.path.join(dest_dir, "collection.anki21")
-    anki2 = os.path.join(dest_dir, "collection.anki2")
-
-    if os.path.exists(anki21b):
+    if "collection.anki21b" in present:
+        src = os.path.join(dest_dir, "collection.anki21b")
         out = os.path.join(dest_dir, "collection.real.anki21")
         zstd = shutil.which("zstd")
         if zstd is None:
             sys.exit("zstd binary not found on PATH (needed to decompress collection.anki21b)")
-        subprocess.run([zstd, "-d", "-q", "-f", anki21b, "-o", out], check=True)
+        subprocess.run([zstd, "-d", "-q", "-f", src, "-o", out], check=True)
         return out
-    if os.path.exists(anki21):
-        return anki21
-    if os.path.exists(anki2):
-        # Legacy fallback. In modern .colpkg files anki2 is a 1-row stub —
-        # the caller should sanity-check note count after.
-        return anki2
-    sys.exit(f"No collection.anki21b/anki21/anki2 found in {colpkg_path}")
+    # Legacy fallback for anki2: in modern backups it's a 1-row stub — the
+    # caller should sanity-check note count after.
+    chosen = "collection.anki21" if "collection.anki21" in present else "collection.anki2"
+    return os.path.join(dest_dir, chosen)
 
 
 def query_notes(db_path: str):
@@ -176,13 +182,9 @@ def process(db_path: str, year_prefix: str, cache: dict[str, dict]):
                 continue
             text = parse_anki.clean_text(text_html)
             ftv = parse_anki.clean_text(ftv_html) if ftv_html else ""
-            clubs = []
-            if "150" in club:
-                clubs.append(150)
-            if "300" in club:
-                clubs.append(300)
+            clubs = parse_anki.parse_clubs(club)
 
-            ref_key = f"{book} {chapter}:{verse}"
+            ref_key = parse_anki.format_reference(book, chapter, verse)
             if not text:
                 phrases = []
                 stats["empty"] += 1
@@ -209,7 +211,7 @@ def process(db_path: str, year_prefix: str, cache: dict[str, dict]):
         elif notetype == "Heading":
             if len(fields) < 3:
                 continue
-            sort_field, front, back, *_ = (*fields, "")
+            sort_field, front, back, *_ = fields
             heading_text = back.strip()
             try:
                 start_ch, start_v, end_ch, end_v = parse_anki.parse_heading_id(sort_field)

@@ -23,7 +23,8 @@ Output shape (keyed by 'Book Chapter:Verse'; `text` is the fingerprint):
 import argparse
 import json
 import os
-import sys
+
+import parse_anki
 
 
 def main():
@@ -38,16 +39,12 @@ def main():
     cache: dict[str, dict] = {}
     skipped = 0
     for v in data.get("verses", []):
-        ref = f"{v['book']} {v['chapter']}:{v['verse']}"
+        ref = parse_anki.format_reference(v["book"], v["chapter"], v["verse"])
         text = v.get("text", "")
         phrases = v.get("phrases", [])
         if not text or not isinstance(phrases, list) or not phrases:
             skipped += 1
             continue
-        # Skip entries that are still placeholder [whole verse] — caching
-        # those defeats the purpose. A single-element phrase list whose
-        # joined value equals the text isn't necessarily a placeholder
-        # (some short verses are one phrase), so leave that case alone.
         cache[ref] = {"text": text, "phrases": phrases}
 
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)

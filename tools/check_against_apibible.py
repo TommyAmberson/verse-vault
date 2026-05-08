@@ -38,6 +38,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import parse_anki
+
 # api.bible's NKJV id. Override via --bible if your account exposes a
 # different one (run `curl -H "api-key: $BIBLE_API_KEY"
 # 'https://rest.api.bible/v1/bibles?language=eng&abbreviation=NKJV'`
@@ -189,12 +191,10 @@ def parse_verses_from_passage(passage: str) -> dict[int, str]:
     return out
 
 
-# Strip the deck markup so we compare apples to apples.
-DECK_MARKUP = re.compile(r"<[^>]+>")
-
-
 def normalize_deck_text(s: str) -> str:
-    s = DECK_MARKUP.sub("", s)
+    # Strip the deck markup so we compare apples to apples; reuses the same
+    # tag regex parse_anki.strip_tags applies during deck import.
+    s = parse_anki.strip_tags(s)
     s = re.sub(r"\s+", " ", s).strip()
     # api.bible's plain text uses curly quotes by default; deck text may use
     # straight quotes. Normalise both ways.
@@ -281,12 +281,13 @@ def check_verses(data: dict, args, api_key: str, cache: dict) -> None:
             total += 1
             theirs = normalize_deck_text(v["text"])
             ours = normalize_api_text(canonical.get(v["verse"], ""))
+            ref = parse_anki.format_reference(book, chapter, v["verse"])
             if not ours:
-                diffs.append({"ref": f"{book} {chapter}:{v['verse']}", "kind": "missing-canonical", "deck": theirs})
+                diffs.append({"ref": ref, "kind": "missing-canonical", "deck": theirs})
                 continue
             if theirs != ours:
                 diffs.append({
-                    "ref": f"{book} {chapter}:{v['verse']}",
+                    "ref": ref,
                     "kind": "diff",
                     "deck": theirs,
                     "canonical": ours,
