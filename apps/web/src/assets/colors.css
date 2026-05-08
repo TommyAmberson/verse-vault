@@ -1,0 +1,52 @@
+:root {
+  --color-bg: #f5f2ec;
+  --color-bg-card: #ffffff;
+  --color-text: #2a2724;
+  --color-muted: #78716c;
+  --color-border: #e0ddd4;
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-accent-soft: #dbeafe;
+  --color-grade-again: #b91c1c;
+  --color-grade-again-bg: #fee2e2;
+  --color-grade-hard: #c2410c;
+  --color-grade-hard-bg: #ffedd5;
+  --color-grade-good: #15803d;
+  --color-grade-good-bg: #dcfce7;
+  --color-grade-easy: #1e40af;
+  --color-grade-easy-bg: #dbeafe;
+  --color-success: #15803d;
+  --color-success-bg: #dcfce7;
+  --color-error: #b91c1c;
+  --color-error-bg: #fee2e2;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
