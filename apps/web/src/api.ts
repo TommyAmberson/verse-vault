@@ -1,9 +1,8 @@
 /**
  * Typed fetch wrapper for the verse-vault Hono API. Mirrors the
  * `createApiClient` factory pattern from `~/Code/qzr-sheet`. All endpoints
- * here require an authenticated user; in dev we attach the
- * `x-vv-dev-user: 1` header so the API's env-gated bypass triggers (real
- * Better Auth integration is out of scope for v1).
+ * require an authenticated user; the Better Auth session cookie flows
+ * through `credentials: 'include'`.
  */
 
 export type Grade = 1 | 2 | 3 | 4
@@ -79,14 +78,9 @@ export interface ApiClient {
   getStats(materialId: string): Promise<StatsResponse>
 }
 
-/**
- * Build an API client targeting `apiUrl`. Always sends `credentials:
- * 'include'` so future Better Auth cookies flow through. In dev,
- * additionally attaches the dev bypass header.
- */
-export function createApiClient(apiUrl: string, opts?: { devBypass?: boolean }): ApiClient {
-  const devBypass = opts?.devBypass ?? import.meta.env.DEV
-
+/** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
+ *  so the Better Auth session cookie flows through on every call. */
+export function createApiClient(apiUrl: string): ApiClient {
   async function request<T>(
     method: 'GET' | 'POST',
     path: string,
@@ -94,7 +88,6 @@ export function createApiClient(apiUrl: string, opts?: { devBypass?: boolean }):
   ): Promise<T> {
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
-    if (devBypass) headers['x-vv-dev-user'] = '1'
     const res = await fetch(`${apiUrl}${path}`, {
       method,
       headers,

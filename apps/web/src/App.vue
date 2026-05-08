@@ -1,14 +1,29 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
+
+import { useAuth } from '@/composables/useAuth'
+
+const { session, signOut } = useAuth()
+const router = useRouter()
+
+const user = computed(() => session.value?.data?.user ?? null)
+
+async function onSignOut() {
+  signOut()
+  await router.push('/signin')
+}
 </script>
 
 <template>
   <div class="site">
     <header class="site-header">
       <RouterLink to="/" class="brand">verse-vault</RouterLink>
-      <nav class="nav">
+      <nav v-if="user" class="nav">
         <RouterLink to="/session">Session</RouterLink>
         <RouterLink to="/stats">Stats</RouterLink>
+        <span class="who">{{ user.email }}</span>
+        <button type="button" class="sign-out" @click="onSignOut">Sign out</button>
       </nav>
     </header>
     <main class="site-main">
@@ -42,6 +57,7 @@ import { RouterLink, RouterView } from 'vue-router'
 
 .nav {
   display: flex;
+  align-items: center;
   gap: 1rem;
 }
 
@@ -55,6 +71,24 @@ import { RouterLink, RouterView } from 'vue-router'
 .nav :deep(a.router-link-active) {
   color: var(--color-accent);
   background: var(--color-accent-soft);
+}
+
+.who {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.sign-out {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.sign-out:hover {
+  color: var(--color-text);
 }
 
 .site-main {
