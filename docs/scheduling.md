@@ -37,17 +37,17 @@ t = S · (R^(-1/decay) - 1) / factor
 ```
 
 where `factor = exp(ln(0.9) / -decay) - 1`. No binary search. The result is a wall-clock timestamp
-measured from `state.last_base_secs` (the HSRS-style base, which advances fully on direct review and
-partially on propagated updates — see the canonical spec).
+measured from `state.last_base_secs` (the HSRS-style base, which advances fully on a root update
+from an atomic-card review and partially on sub-updates from a composite-card review — see the
+canonical spec).
 
 Predicting present-time retrievability is the symmetric call, `retrievability_of(state, now_secs)`.
 
 ## Card min-r
 
-A card grades several tests at once (composite cards like `Recitation`, `Citation`, `Ftv`,
-`Holistic`; atomic cards like `PhraseFill` or `VerseInChapter` grade exactly one). The card's
-effective retrievability is the minimum across its tests — the weakest link decides whether the card
-is overdue:
+A card touches several tests at once (composite cards like `Recitation`, `Citation`, `Ftv`; atomic
+cards like `PhraseFill` or `VerseInChapter` touch exactly one). The card's effective retrievability
+is the minimum across its tests — the weakest link decides whether the card is overdue:
 
 ```rust
 fn card_min_r(card, now_secs) -> Option<f32> {
@@ -66,14 +66,14 @@ matching the FSRS-6 default desired retention.
 
 ## Sibling cooldown
 
-Cards on the same verse overlap heavily — a Recitation grades every phrase directly, then
-propagation lifts the verse-binding tests. A PhraseFill on the same verse has a propagation-touched
-test even if it hasn't been reviewed itself. Showing both in quick succession is wasted effort.
+Cards on the same verse overlap heavily — a Recitation contains every phrase plus the citation
+triple, so reviewing it touches all of those tests in one go. Following up immediately with a
+PhraseFill that grades a phrase the Recitation just touched is wasted effort.
 
-`is_in_cooldown(card_id, now_secs)` returns `true` if any test this card grades has
+`is_in_cooldown(card_id, now_secs)` returns `true` if any test this card touches has
 `now_secs - last_seen_secs < schedule_params.sibling_cooldown_secs` (default 30 minutes). The
-scheduler filters those out. `last_seen_secs` is advanced by both direct and propagated updates, so
-cooldown captures both forms of recent activity.
+scheduler filters those out. `last_seen_secs` is advanced by every update — root or sub — so
+cooldown captures any recent activity on the test, regardless of which card drove it.
 
 ## next_card
 
@@ -121,10 +121,11 @@ None of that is implemented here — the new scheduler picks the most-overdue ca
 
 That is sufficient because:
 
-* Composite cards naturally cover many tests in one review.
+* Composite cards naturally cover many tests in one review — a Recitation distributes one grade
+  across every phrase plus the citation triple via the engine's Bayesian-share decomposition.
 * Sibling cooldown prevents pile-ups on overlapping cards.
-* Propagation lifts related tests as a side effect of the chosen review, so "double duty" is a
-  property of the model, not a scoring term.
+* "Double duty" is a property of card containment, not a scoring term: cross-test influence flows
+  only through cards that explicitly contain the affected tests.
 
 If session-level optimisation becomes worth the complexity later, it lives on top of `next_card`,
 not in place of it.
