@@ -43,6 +43,19 @@ while (step < 20) {
     break;
   }
 
+  if (step === 0) {
+    // Spot-check the render shape for the first card we touch.
+    const renderJson = engine.get_card_render(cardId);
+    const render = JSON.parse(renderJson);
+    console.log(
+      `  render: kind=${render.kind} verse=${render.verse.book} ${render.verse.chapter}:${render.verse.verse} (${render.verse.phrases.length} phrases)`,
+    );
+    if (typeof render.verse.text !== 'string' || render.verse.text.length === 0) {
+      console.error('FAIL: render.verse.text missing or empty');
+      process.exit(1);
+    }
+  }
+
   const wireJson = engine.replay_event(cardId, 3, now);
   const updates = JSON.parse(wireJson);
   console.log(
