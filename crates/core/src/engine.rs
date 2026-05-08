@@ -5,6 +5,7 @@ use crate::card::{Card, VerseAtoms};
 use crate::element::ElementId;
 use crate::element::ElementMeta;
 use crate::fsrs_bridge::FsrsBridge;
+use crate::render::VerseRender;
 use crate::test_kind::TestKey;
 use crate::test_state::TestState;
 use crate::types::{CardId, Grade};
@@ -66,6 +67,9 @@ pub struct ReviewEngine {
     pub schedule_params: ScheduleParams,
     /// Per-verse VerseAtoms. Populated at build time so `atoms_for` is O(1).
     pub verse_atoms_data: HashMap<u32, VerseAtoms>,
+    /// Per-verse rendering data — verse text, phrase strings, heading
+    /// labels — for consumers that need to display the card to a learner.
+    pub verse_render_data: HashMap<u32, VerseRender>,
 }
 
 impl ReviewEngine {
@@ -81,7 +85,14 @@ impl ReviewEngine {
                 ..ScheduleParams::default()
             },
             verse_atoms_data: b.verse_atoms_data,
+            verse_render_data: b.verse_render_data,
         }
+    }
+
+    /// Borrow the per-verse render data for a verse, or `None` if the verse
+    /// isn't in the catalog.
+    pub fn verse_render(&self, verse_id: u32) -> Option<&VerseRender> {
+        self.verse_render_data.get(&verse_id)
     }
 
     /// Look up a card by id. Linear scan — fine for the few-thousand-card
