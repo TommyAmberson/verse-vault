@@ -102,6 +102,20 @@ def parse_reference(ref_str: str) -> tuple[str, int, int]:
     return match.group(1), int(match.group(2)), int(match.group(3))
 
 
+def format_reference(book: str, chapter: int, verse: int) -> str:
+    return f"{book} {chapter}:{verse}"
+
+
+def parse_clubs(club_str: str) -> list[int]:
+    """Parse the Anki `club` field into the canonical 150/300 tier list."""
+    clubs: list[int] = []
+    if "150" in club_str:
+        clubs.append(150)
+    if "300" in club_str:
+        clubs.append(300)
+    return clubs
+
+
 def parse_heading_id(id_str: str) -> tuple[int, int, int, int]:
     parts = id_str.strip().rstrip(",").split(",")
     if len(parts) != 2:
@@ -146,11 +160,7 @@ def parse_anki_export(filepath: str, year_prefix: str):
                 cleaned = clean_text(text_html)
                 ftv_clean = clean_text(ftv) if ftv else ""
 
-                clubs = []
-                if "150" in club:
-                    clubs.append(150)
-                if "300" in club:
-                    clubs.append(300)
+                clubs = parse_clubs(club)
 
                 verses.append({
                     "book": book,

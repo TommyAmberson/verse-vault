@@ -4,6 +4,85 @@ Scripts for converting Bible content into verse-vault's intermediate JSON format
 
 ## Pipeline overview
 
+The fast path imports an Anki `.colpkg` backup directly and reuses already-chunked phrases from a
+sidecar cache, so the LLM step only runs for verses whose text actually changed:
+
+```
+Anki .colpkg backup
+    │
+    ▼
+import_colpkg.py + phrases cache ──→ JSON
+    │
+    ▼
+(if any verses lacked a cached split)
+prepare_batches.py / LLM agents / validate_and_merge.py
+    │
+    ▼
+extract_phrases.py ──→ updated phrases cache (commit)
+```
+
+The legacy path (text export → parse_anki.py) still works and is documented at the bottom.
+
+## Fast path: re-importing from a colpkg
+
+### 1. Drop the .colpkg in `data/`
+
+Anki desktop: `File → Export → Anki Collection Package → with scheduling/media as you like`.
+
+### 2. Run the importer with the cached phrases
+
+```bash
+python3 tools/import_colpkg.py \
+    data/collection-2026-05-08.colpkg \
+    data/corinthians.json \
+    --year 3-C \
+    --phrases data/corinthians-phrases.json
+```
+
+The script extracts the SQLite (handles zstd-compressed `collection.anki21b`), reads the `Verse` and
+`Heading` notetypes, and merges in cached splits from the phrases sidecar. Verses whose text matches
+the cache reuse the cached phrases; mismatches fall back to `[whole verse]` and are listed at exit.
+
+### 3. Re-chunk only the verses that changed
+
+If `import_colpkg.py` reported any verses needing re-chunking, run the LLM pipeline (steps in
+"Legacy path" below) on a subset, then merge. Or — if the changes look like incidental noise (typos,
+quote stripping) — fix them in Anki and re-export.
+
+### 4. Refresh the phrases cache
+
+After validate_and_merge produces a fresh `corinthians.json`, dump the cache so future `.colpkg`
+imports stay cheap:
+
+```bash
+python3 tools/extract_phrases.py data/corinthians.json data/corinthians-phrases.json
+```
+
+### 5. Verify against canonical NKJV (optional)
+
+The Anki deck is the source of truth in this pipeline, but it can drift from the canonical NKJV text
+— typos slipping in during edits, etc. `check_against_apibible.py` fetches the chapter via api.bible
+(NKJV by default), strips the deck's `<b>`/`<i>`/`<span>` markup, and reports any verses whose
+wording diverges:
+
+```bash
+export API_BIBLE_KEY=<your api.bible key>
+python3 tools/check_against_apibible.py data/corinthians.json \
+    --book "1 Corinthians" --chapter 1
+```
+
+Subject to the
+[API.Bible Minimum Acceptable Use Agreement](https://docs.api.bible/guides/terms-of-use):
+
+* Fetched passages are cached at `data/apibible-cache.json` and re-fetched after 30 days per the
+  cache-refresh requirement.
+* Output prints the required citation line.
+* The cached content is for **runtime diagnostic use only** — not for training generative AI.
+* Starter-plan callers must include a visible citation + link to https://api.bible in any UI
+  surfacing the content.
+
+## Legacy path: text export
+
 ```
 Anki export (.txt)
     │
@@ -19,8 +98,6 @@ LLM agents (Claude Code subagents) ──→ chunks-N.json files
     ▼
 validate_and_merge.py ──→ final JSON (phrases = [chunked phrases])
 ```
-
-## Step-by-step
 
 ### 1. Parse the Anki export
 
