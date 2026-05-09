@@ -131,8 +131,8 @@ impl ReviewEngine {
             phrase_count: phrases.len() as u16,
             headings,
             clubs,
-            ftv: None,
-            phrase_zero_text: None,
+            ftv_word_count: None,
+            phrase_zero_word_count: 0,
         }
     }
 
@@ -226,6 +226,8 @@ mod tests {
     use crate::test_kind::TestKind;
 
     fn sample_material_one_verse() -> MaterialData {
+        // John 3:16 — 9 words split into 4 phrases of 2/2/2/3 words.
+        // FTV "For God" = 2 words = phrase 0.
         serde_json::from_str(
             r#"{
                 "year": 3,
@@ -234,9 +236,9 @@ mod tests {
                 "verses": [
                     {
                         "book": "John", "chapter": 3, "verse": 16,
-                        "text": "For God so loved the world that he gave",
-                        "phrases": ["For God", "so loved", "the world", "that he gave"],
-                        "ftv": "For God",
+                        "phraseWordCounts": [2, 2, 2, 3],
+                        "annotations": [],
+                        "ftvWordCount": 2,
                         "clubs": []
                     }
                 ],
@@ -257,11 +259,11 @@ mod tests {
         let engine = build_engine();
         assert!(!engine.cards.is_empty());
         assert!(!engine.tests.is_empty());
-        // atoms_for round-trips ftv + phrase_zero_text from build.
+        // atoms_for round-trips ftv_word_count + phrase_zero_word_count.
         let atoms = engine.atoms_for(0);
         assert_eq!(atoms.phrase_count, 4);
-        assert_eq!(atoms.ftv.as_deref(), Some("For God"));
-        assert_eq!(atoms.phrase_zero_text.as_deref(), Some("For God"));
+        assert_eq!(atoms.ftv_word_count, Some(2));
+        assert_eq!(atoms.phrase_zero_word_count, 2);
     }
 
     #[test]
@@ -347,9 +349,9 @@ mod tests {
                 "verses": [
                     {
                         "book": "John", "chapter": 3, "verse": 16,
-                        "text": "For God so loved",
-                        "phrases": ["For God", "so loved"],
-                        "ftv": "",
+                        "phraseWordCounts": [2, 2],
+                        "annotations": [],
+                        "ftvWordCount": null,
                         "clubs": []
                     }
                 ],

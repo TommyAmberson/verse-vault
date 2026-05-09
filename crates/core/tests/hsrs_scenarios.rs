@@ -24,9 +24,9 @@ fn one_verse_material() -> MaterialData {
             "verses": [
                 {
                     "book": "John", "chapter": 3, "verse": 16,
-                    "text": "For God so loved the world that he gave",
-                    "phrases": ["For God", "so loved", "the world", "that he gave"],
-                    "ftv": "",
+                    "phraseWordCounts": [2, 2, 2, 3],
+                    "annotations": [],
+                    "ftvWordCount": null,
                     "clubs": []
                 }
             ],

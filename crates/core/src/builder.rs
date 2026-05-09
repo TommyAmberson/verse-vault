@@ -107,10 +107,11 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
     let mut verse_atoms_by_id: HashMap<u32, VerseAtoms> = HashMap::new();
     let mut verse_render_by_id: HashMap<u32, VerseRender> = HashMap::new();
 
-    for (verse_id_usize, verse) in data.verses_with_text().enumerate() {
+    for (verse_id_usize, verse) in data.verses_with_content().enumerate() {
         let verse_id = verse_id_usize as u32;
-        let phrase_count = verse.phrases.len() as u16;
+        let phrase_count = verse.phrase_word_counts.len() as u16;
         let phrases: Vec<u16> = (0..phrase_count).collect();
+        let phrase_zero_word_count = verse.phrase_word_counts.first().copied().unwrap_or(0);
 
         let heading_idx = heading_lookup
             .get(&(verse.book.clone(), verse.chapter, verse.verse))
@@ -129,7 +130,8 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
         );
 
         // Element metadata: the parallel table of "what does this binding
-        // actually display?" (chapter number, book name, etc.).
+        // actually display?" Heading labels are no longer in core — the
+        // API render path resolves them against api.bible's sections.
         element_meta.insert(
             ElementId::VerseRefPosition { verse_id },
             ElementMeta::VerseNumber(verse.verse),
@@ -142,26 +144,8 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
             ElementId::VerseBookBinding { verse_id },
             ElementMeta::BookName(verse.book.clone()),
         );
-        for &h_idx in &headings {
-            if let Some(h) = data.headings.get(h_idx as usize) {
-                element_meta.insert(
-                    ElementId::VerseHeadingBinding {
-                        verse_id,
-                        heading_idx: h_idx,
-                    },
-                    ElementMeta::HeadingLabel(h.text.clone()),
-                );
-            }
-        }
 
         // ---- Emit cards ----
-        let phrase_zero_text = verse.phrases.first().cloned();
-        let ftv_text = if verse.ftv.is_empty() {
-            None
-        } else {
-            Some(verse.ftv.clone())
-        };
-
         let push_card = |kind: CardKind, cards: &mut Vec<Card>, next: &mut u32| {
             cards.push(Card {
                 id: CardId(*next),
@@ -214,37 +198,29 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
         push_card(CardKind::Recitation, &mut cards, &mut next_card_id);
         push_card(CardKind::Citation, &mut cards, &mut next_card_id);
 
-        // Composite: Ftv (with and without citation). Eligibility requires an
-        // FTV that's short enough, that the verse has phrases, and that the
-        // FTV is a strict prefix of phrase zero (or equal to it).
-        if let Some(ftv) = &ftv_text
+        // Composite: Ftv (with and without citation). Eligibility:
+        // verse has phrases, FTV is short enough, FTV doesn't exceed
+        // phrase 0 length. derive_structure verified the prefix invariant
+        // when emitting ftv_word_count, so we trust it here.
+        if let Some(ftv_words) = verse.ftv_word_count
             && phrase_count > 0
-            && ftv.split_whitespace().count() <= FTV_MAX_WORDS
+            && (ftv_words as usize) <= FTV_MAX_WORDS
+            && ftv_words <= phrase_zero_word_count
         {
-            let invariant_ok = phrase_zero_text
-                .as_deref()
-                .is_some_and(|p0| p0.starts_with(ftv.as_str()) || ftv == p0);
-            if invariant_ok {
-                push_card(
-                    CardKind::Ftv {
-                        with_citation: false,
-                    },
-                    &mut cards,
-                    &mut next_card_id,
-                );
-                push_card(
-                    CardKind::Ftv {
-                        with_citation: true,
-                    },
-                    &mut cards,
-                    &mut next_card_id,
-                );
-            } else {
-                eprintln!(
-                    "ftv invariant violated for verse {}:{}:{}; skipping FTV cards",
-                    verse.book, verse.chapter, verse.verse
-                );
-            }
+            push_card(
+                CardKind::Ftv {
+                    with_citation: false,
+                },
+                &mut cards,
+                &mut next_card_id,
+            );
+            push_card(
+                CardKind::Ftv {
+                    with_citation: true,
+                },
+                &mut cards,
+                &mut next_card_id,
+            );
         }
 
         let heading_renders: Vec<HeadingRender> = headings
@@ -252,7 +228,10 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
             .filter_map(|&h_idx| {
                 data.headings.get(h_idx as usize).map(|h| HeadingRender {
                     heading_idx: h_idx,
-                    text: h.text.clone(),
+                    start_chapter: h.start_chapter,
+                    start_verse: h.start_verse,
+                    end_chapter: h.end_chapter,
+                    end_verse: h.end_verse,
                 })
             })
             .collect();
@@ -263,9 +242,9 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
                 book: verse.book.clone(),
                 chapter: verse.chapter,
                 verse: verse.verse,
-                text: verse.text.clone(),
-                phrases: verse.phrases.clone(),
-                ftv: ftv_text.clone(),
+                phrase_word_counts: verse.phrase_word_counts.clone(),
+                annotations: verse.annotations.clone(),
+                ftv_word_count: verse.ftv_word_count,
                 headings: heading_renders,
                 clubs: clubs.clone(),
             },
@@ -278,8 +257,8 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
                 phrase_count,
                 headings,
                 clubs,
-                ftv: ftv_text,
-                phrase_zero_text,
+                ftv_word_count: verse.ftv_word_count,
+                phrase_zero_word_count,
             },
         );
     }
@@ -323,9 +302,9 @@ mod tests {
                 "verses": [
                     {
                         "book": "John", "chapter": 3, "verse": 16,
-                        "text": "For God so loved the world that he gave",
-                        "phrases": ["For God", "so loved", "the world", "that he gave"],
-                        "ftv": "",
+                        "phraseWordCounts": [2, 2, 2, 3],
+                        "annotations": [],
+                        "ftvWordCount": null,
                         "clubs": []
                     }
                 ],
@@ -344,17 +323,16 @@ mod tests {
                 "verses": [
                     {
                         "book": "John", "chapter": 3, "verse": 16,
-                        "text": "For God so loved the world that he gave",
-                        "phrases": ["For God", "so loved", "the world", "that he gave"],
-                        "ftv": "For God",
+                        "phraseWordCounts": [2, 2, 2, 3],
+                        "annotations": [],
+                        "ftvWordCount": 2,
                         "clubs": [150]
                     }
                 ],
                 "headings": [{
-                    "text": "God's Love",
                     "book": "John",
-                    "start_chapter": 3, "start_verse": 16,
-                    "end_chapter": 3, "end_verse": 17
+                    "startChapter": 3, "startVerse": 16,
+                    "endChapter": 3, "endVerse": 17
                 }]
             }"#,
         )
@@ -481,17 +459,19 @@ mod tests {
     }
 
     #[test]
-    fn builder_skips_ftv_when_invariant_violated() {
-        // FTV "Hello" is not a prefix of phrase zero "For God" → skip.
+    fn builder_skips_ftv_when_word_count_absent() {
+        // ftvWordCount = null → no FTV cards. derive_structure emits null
+        // when the prefix invariant is violated upstream, so the builder
+        // can trust the structural data without re-checking strings.
         let json = r#"{
             "year": 3,
             "books": ["John"],
             "chapters": [{"book": "John", "number": 3, "start_verse": 16, "end_verse": 16}],
             "verses": [{
                 "book": "John", "chapter": 3, "verse": 16,
-                "text": "For God so loved",
-                "phrases": ["For God", "so loved"],
-                "ftv": "Hello",
+                "phraseWordCounts": [2, 2],
+                "annotations": [],
+                "ftvWordCount": null,
                 "clubs": []
             }],
             "headings": []
@@ -508,16 +488,18 @@ mod tests {
 
     #[test]
     fn builder_skips_ftv_when_too_long() {
-        // FTV with 6 words exceeds FTV_MAX_WORDS=5.
+        // ftvWordCount 6 exceeds FTV_MAX_WORDS=5. The builder enforces
+        // the length cap even when the structural data says the prefix
+        // invariant holds.
         let json = r#"{
             "year": 3,
             "books": ["John"],
             "chapters": [{"book": "John", "number": 3, "start_verse": 16, "end_verse": 16}],
             "verses": [{
                 "book": "John", "chapter": 3, "verse": 16,
-                "text": "one two three four five six rest",
-                "phrases": ["one two three four five six", "rest"],
-                "ftv": "one two three four five six",
+                "phraseWordCounts": [6, 1],
+                "annotations": [],
+                "ftvWordCount": 6,
                 "clubs": []
             }],
             "headings": []
@@ -562,8 +544,8 @@ mod tests {
                 phrase_count,
                 headings,
                 clubs,
-                ftv: None,
-                phrase_zero_text: None,
+                ftv_word_count: None,
+                phrase_zero_word_count: 0,
             };
             for tk in card.tests(&atoms) {
                 assert!(
@@ -587,8 +569,8 @@ mod tests {
                 {"book": "John", "number": 3, "start_verse": 1, "end_verse": 2}
             ],
             "verses": [
-                {"book": "John", "chapter": 3, "verse": 1, "text": "a", "phrases": ["a"], "clubs": []},
-                {"book": "John", "chapter": 3, "verse": 2, "text": "b", "phrases": ["b"], "clubs": []}
+                {"book": "John", "chapter": 3, "verse": 1, "phraseWordCounts": [1], "annotations": [], "clubs": []},
+                {"book": "John", "chapter": 3, "verse": 2, "phraseWordCounts": [1], "annotations": [], "clubs": []}
             ],
             "headings": []
         }"#;
@@ -607,8 +589,8 @@ mod tests {
             "books": ["John"],
             "chapters": [{"book": "John", "number": 3, "start_verse": 1, "end_verse": 2}],
             "verses": [
-                {"book": "John", "chapter": 3, "verse": 1, "text": "", "phrases": [], "clubs": []},
-                {"book": "John", "chapter": 3, "verse": 2, "text": "b", "phrases": ["b"], "clubs": []}
+                {"book": "John", "chapter": 3, "verse": 1, "phraseWordCounts": [], "annotations": [], "clubs": []},
+                {"book": "John", "chapter": 3, "verse": 2, "phraseWordCounts": [1], "annotations": [], "clubs": []}
             ],
             "headings": []
         }"#;

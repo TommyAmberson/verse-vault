@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 
 use verse_vault_core::builder::build;
 use verse_vault_core::card::CardKind;
-use verse_vault_core::content::MaterialData;
+use verse_vault_core::content::{Annotation, AnnotationKind, MaterialData};
 use verse_vault_core::element::{ClubTier, ElementId};
 use verse_vault_core::engine::{ReviewEngine, TestUpdate, UpdateKind};
 use verse_vault_core::render::{HeadingRender, VerseRender};
@@ -126,31 +126,59 @@ impl From<CardKind> for CardKindWire {
     }
 }
 
+/// JS-friendly mirror of `core::render::HeadingRender`. Carries only the
+/// heading-binding identifier and its verse range; the title is resolved
+/// server-side against api.bible's sections endpoint.
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct HeadingRenderWire {
     pub heading_idx: u16,
-    pub text: String,
+    pub start_chapter: u16,
+    pub start_verse: u16,
+    pub end_chapter: u16,
+    pub end_verse: u16,
 }
 
 impl From<&HeadingRender> for HeadingRenderWire {
     fn from(h: &HeadingRender) -> Self {
         Self {
             heading_idx: h.heading_idx,
-            text: h.text.clone(),
+            start_chapter: h.start_chapter,
+            start_verse: h.start_verse,
+            end_chapter: h.end_chapter,
+            end_verse: h.end_verse,
         }
     }
 }
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct AnnotationWire {
+    pub word_index: u16,
+    pub kind: AnnotationKind,
+}
+
+impl From<Annotation> for AnnotationWire {
+    fn from(a: Annotation) -> Self {
+        Self {
+            word_index: a.word_index,
+            kind: a.kind,
+        }
+    }
+}
+
+/// Structural render data — phrase word counts, annotation indices, FTV
+/// length. The actual NKJV verse text is composed server-side at request
+/// time from the api.bible cache; never crosses this wire.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct VerseRenderWire {
     pub book: String,
     pub chapter: u16,
     pub verse: u16,
-    pub text: String,
-    pub phrases: Vec<String>,
-    pub ftv: Option<String>,
+    pub phrase_word_counts: Vec<u16>,
+    pub annotations: Vec<AnnotationWire>,
+    pub ftv_word_count: Option<u16>,
     pub headings: Vec<HeadingRenderWire>,
     pub clubs: Vec<ClubTier>,
 }
@@ -161,9 +189,14 @@ impl From<&VerseRender> for VerseRenderWire {
             book: v.book.clone(),
             chapter: v.chapter,
             verse: v.verse,
-            text: v.text.clone(),
-            phrases: v.phrases.clone(),
-            ftv: v.ftv.clone(),
+            phrase_word_counts: v.phrase_word_counts.clone(),
+            annotations: v
+                .annotations
+                .iter()
+                .copied()
+                .map(AnnotationWire::from)
+                .collect(),
+            ftv_word_count: v.ftv_word_count,
             headings: v.headings.iter().map(HeadingRenderWire::from).collect(),
             clubs: v.clubs.clone(),
         }

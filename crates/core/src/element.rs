@@ -26,7 +26,6 @@ pub enum ElementId {
 pub enum ElementMeta {
     ChapterNumber(u16),
     BookName(String),
-    HeadingLabel(String),
     VerseNumber(u16),
 }
 

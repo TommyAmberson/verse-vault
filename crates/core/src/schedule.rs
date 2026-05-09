@@ -73,9 +73,9 @@ mod tests {
                 "verses": [
                     {
                         "book": "John", "chapter": 3, "verse": 16,
-                        "text": "For God so loved the world that he gave",
-                        "phrases": ["For God", "so loved", "the world", "that he gave"],
-                        "ftv": "For God",
+                        "phraseWordCounts": [2, 2, 2, 3],
+                        "annotations": [],
+                        "ftvWordCount": 2,
                         "clubs": []
                     }
                 ],
@@ -96,16 +96,16 @@ mod tests {
                 "verses": [
                     {
                         "book": "John", "chapter": 3, "verse": 16,
-                        "text": "For God so loved",
-                        "phrases": ["For God", "so loved"],
-                        "ftv": "",
+                        "phraseWordCounts": [2, 2],
+                        "annotations": [],
+                        "ftvWordCount": null,
                         "clubs": []
                     },
                     {
                         "book": "John", "chapter": 3, "verse": 17,
-                        "text": "For God did not send",
-                        "phrases": ["For God", "did not send"],
-                        "ftv": "",
+                        "phraseWordCounts": [2, 3],
+                        "annotations": [],
+                        "ftvWordCount": null,
                         "clubs": []
                     }
                 ],

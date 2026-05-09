@@ -75,8 +75,11 @@ pub struct VerseAtoms {
     pub phrase_count: u16,
     pub headings: Vec<u16>,
     pub clubs: Vec<ClubTier>,
-    pub ftv: Option<String>,
-    pub phrase_zero_text: Option<String>,
+    /// Word count of the FTV prompt, or None when this verse has no FTV.
+    pub ftv_word_count: Option<u16>,
+    /// Word count of phrase 0, used to detect the equals-whole-phrase case
+    /// where we'd otherwise schedule a redundant FromChain test for phrase 0.
+    pub phrase_zero_word_count: u16,
 }
 
 impl VerseAtoms {
@@ -86,8 +89,10 @@ impl VerseAtoms {
 }
 
 pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<TestKey> {
-    let start: u16 = match (&atoms.ftv, &atoms.phrase_zero_text) {
-        (Some(ftv), Some(p0)) if ftv == p0 => 1,
+    // When the FTV equals all of phrase 0, scheduling a FromChain test for
+    // phrase 0 would just be the FTV again — skip it.
+    let start: u16 = match atoms.ftv_word_count {
+        Some(ftv_words) if ftv_words == atoms.phrase_zero_word_count => 1,
         _ => 0,
     };
     let mut out: Vec<TestKey> = (start..atoms.phrase_count)
@@ -211,8 +216,8 @@ mod tests {
             phrase_count,
             headings: vec![0, 1, 2],
             clubs: vec![ClubTier::Club150, ClubTier::Club300],
-            ftv: None,
-            phrase_zero_text: None,
+            ftv_word_count: None,
+            phrase_zero_word_count: 0,
         }
     }
 
@@ -240,8 +245,8 @@ mod tests {
             phrase_count: 3,
             headings: vec![0],
             clubs: vec![ClubTier::Club150],
-            ftv: Some("For God".into()),
-            phrase_zero_text: Some("For God so loved".into()),
+            ftv_word_count: Some(2),
+            phrase_zero_word_count: 4,
         };
         assert_eq!(atoms.phrase_positions(), vec![0u16, 1, 2]);
     }
@@ -357,8 +362,8 @@ mod tests {
             phrase_count: 4,
             headings: vec![],
             clubs: vec![],
-            ftv: Some("For God".into()),
-            phrase_zero_text: Some("For God so loved the world".into()),
+            ftv_word_count: Some(2),
+            phrase_zero_word_count: 6,
         };
         let c = atomic_card(
             0,
@@ -379,8 +384,8 @@ mod tests {
             phrase_count: 4,
             headings: vec![],
             clubs: vec![],
-            ftv: Some("For God so loved the world".into()),
-            phrase_zero_text: Some("For God so loved the world".into()),
+            ftv_word_count: Some(6),
+            phrase_zero_word_count: 6,
         };
         let c = atomic_card(
             0,
@@ -400,8 +405,8 @@ mod tests {
             phrase_count: 4,
             headings: vec![],
             clubs: vec![],
-            ftv: Some("For God".into()),
-            phrase_zero_text: Some("For God so loved the world".into()),
+            ftv_word_count: Some(2),
+            phrase_zero_word_count: 6,
         };
         let c = atomic_card(
             0,
