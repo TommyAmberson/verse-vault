@@ -63,35 +63,43 @@ export function persistEngineState(tx: Tx, args: PersistArgs): void {
   }
 
   if (testStateUpdates.length > 0) {
-    tx.insert(schema.testStates)
-      .values(
-        testStateUpdates.map((s) => ({
-          userId,
-          materialId,
-          testKind: s.test_kind,
-          element: JSON.stringify(s.element),
-          stability: s.stability,
-          difficulty: s.difficulty,
-          lastSeenSecs: s.last_seen_secs,
-          lastBaseSecs: s.last_base_secs,
-          lastRootSecs: s.last_root_secs,
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [
-          schema.testStates.userId,
-          schema.testStates.materialId,
-          schema.testStates.testKind,
-          schema.testStates.element,
-        ],
-        set: {
-          stability: sql`excluded.stability`,
-          difficulty: sql`excluded.difficulty`,
-          lastSeenSecs: sql`excluded.last_seen_secs`,
-          lastBaseSecs: sql`excluded.last_base_secs`,
-          lastRootSecs: sql`excluded.last_root_secs`,
-        },
-      })
-      .run();
+    // SQLite caps bind parameters at 999; chunk the upsert at 100 rows
+    // (9 columns each) to stay clear. Sync replays can touch hundreds of
+    // keys at once.
+    const BATCH = 100;
+    for (let i = 0; i < testStateUpdates.length; i += BATCH) {
+      const slice = testStateUpdates.slice(i, i + BATCH);
+      if (slice.length === 0) continue;
+      tx.insert(schema.testStates)
+        .values(
+          slice.map((s) => ({
+            userId,
+            materialId,
+            testKind: s.test_kind,
+            element: JSON.stringify(s.element),
+            stability: s.stability,
+            difficulty: s.difficulty,
+            lastSeenSecs: s.last_seen_secs,
+            lastBaseSecs: s.last_base_secs,
+            lastRootSecs: s.last_root_secs,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [
+            schema.testStates.userId,
+            schema.testStates.materialId,
+            schema.testStates.testKind,
+            schema.testStates.element,
+          ],
+          set: {
+            stability: sql`excluded.stability`,
+            difficulty: sql`excluded.difficulty`,
+            lastSeenSecs: sql`excluded.last_seen_secs`,
+            lastBaseSecs: sql`excluded.last_base_secs`,
+            lastRootSecs: sql`excluded.last_root_secs`,
+          },
+        })
+        .run();
+    }
   }
 }

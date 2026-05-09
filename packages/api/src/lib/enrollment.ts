@@ -121,10 +121,16 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
         })
         .run();
 
-      if (testStates.length > 0) {
+      // SQLite caps bind parameters at 999 by default; test_states has
+      // 9 columns, so chunk inserts at 100 rows for headroom. The full
+      // Corinthians fixture seeds many thousands of test states.
+      const BATCH = 100;
+      for (let i = 0; i < testStates.length; i += BATCH) {
+        const slice = testStates.slice(i, i + BATCH);
+        if (slice.length === 0) continue;
         tx.insert(schema.testStates)
           .values(
-            testStates.map((s) => ({
+            slice.map((s) => ({
               userId,
               materialId,
               testKind: s.test_kind,
