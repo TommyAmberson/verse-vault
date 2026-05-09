@@ -175,3 +175,32 @@ export const testStates = sqliteTable(
     pk: primaryKey({ columns: [t.userId, t.materialId, t.testKind, t.element] }),
   }),
 );
+
+// Cached api.bible content. Per the API.Bible Minimum Acceptable Use
+// Agreement, cached entries must be refreshed within 30 days of fetch.
+// `ApibibleCache` enforces both via TTL-on-read and prune-on-load.
+//
+// `apibible_passages` holds chapter HTML (one row per (bibleId, "{USX}.{ch}")).
+// `apibible_sections` holds the per-book section list as a JSON string (one
+// row per (bibleId, USX bookCode)).
+export const apibiblePassages = sqliteTable(
+  'apibible_passages',
+  {
+    bibleId: text('bible_id').notNull(),
+    passageId: text('passage_id').notNull(),
+    contentHtml: text('content_html').notNull(),
+    fetchedAt: integer('fetched_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.bibleId, t.passageId] }) }),
+);
+
+export const apibibleSections = sqliteTable(
+  'apibible_sections',
+  {
+    bibleId: text('bible_id').notNull(),
+    bookCode: text('book_code').notNull(),
+    sectionsJson: text('sections_json').notNull(),
+    fetchedAt: integer('fetched_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.bibleId, t.bookCode] }) }),
+);

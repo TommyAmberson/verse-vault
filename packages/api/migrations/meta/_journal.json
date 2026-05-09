@@ -43,6 +43,20 @@
       "when": 1778263385187,
       "tag": "0005_little_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1778370695041,
+      "tag": "0006_pink_daimon_hellstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1778370800000,
+      "tag": "0007_purge_pre_structural_rows",
+      "breakpoints": true
     }
   ]
 }
