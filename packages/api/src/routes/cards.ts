@@ -5,12 +5,8 @@ import { Hono } from 'hono';
 import type { DB } from '../db/client.js';
 import { ApibibleCache } from '../lib/apibible-cache.js';
 import { EngineStore, NotEnrolledError, type TestStateEntry } from '../lib/engine.js';
-import {
-  type ComposedRender,
-  bookCodeOf,
-  composeRender,
-  passageIdOf,
-} from '../lib/render.js';
+import { bookCodeOf } from '../lib/book-codes.js';
+import { type ComposedRender, composeRender } from '../lib/render.js';
 import { type Grade, persistEngineState } from '../lib/review-log.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
@@ -116,17 +112,15 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
       return c.json({ error: (err as Error).message }, 404);
     }
 
-    // Compose the HTML server-side from the api.bible cache + structural
-    // metadata. If the cache is unavailable (test deps may omit it), fall
-    // back to returning the bare structural wire shape — clients can
-    // render at least the prompt/grade UI.
+    // Cache may be omitted in tests; degrade to the bare wire so the
+    // client can still render the prompt/grade UI.
     let composed: ComposedRender | null = null;
     if (deps.apibibleCache) {
       const bibleId = deps.bibleId ?? DEFAULT_NKJV_BIBLE_ID;
       try {
         const verse = renderWire.verse;
-        const passageId = passageIdOf(verse.book, verse.chapter);
         const bookCode = bookCodeOf(verse.book);
+        const passageId = `${bookCode}.${verse.chapter}`;
         const [chapterHtml, sections] = await Promise.all([
           deps.apibibleCache.getPassageHtml(bibleId, passageId),
           verse.headings.length > 0
@@ -135,8 +129,6 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
         ]);
         composed = composeRender(verse, chapterHtml, sections);
       } catch (err) {
-        // Surface the api.bible failure but don't block the response —
-        // log and return composed:null so the client can degrade.
         console.warn(`apibible cache failure for card ${cardId}: ${(err as Error).message}`);
       }
     }
@@ -181,8 +173,6 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
         return c.json({ error: (err as Error).message }, 400);
       }
 
-      // Filter export to just the touched (test_kind, element) pairs to avoid
-      // upserting the entire test_states table per review.
       const touchedKeys = new Set(
         updates.map((u) => `${u.key.kind}|${JSON.stringify(u.key.element)}`),
       );

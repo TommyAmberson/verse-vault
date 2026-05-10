@@ -1,6 +1,9 @@
 import { type HTMLElement, type Node, NodeType, parse } from 'node-html-parser';
 
 import type { Section } from './apibible-cache.js';
+import { bookCodeOf } from './book-codes.js';
+
+export { bookCodeOf, passageIdOf } from './book-codes.js';
 
 /**
  * Server-side composer: combine api.bible's chapter HTML with the deck's
@@ -36,31 +39,6 @@ export interface ComposedRender {
   phraseHtml: string[];
   ftvHtml: string | null;
   headings: { headingIdx: number; title: string | null }[];
-}
-
-/** USX book codes — book name → 3-letter API code. */
-const BOOK_CODES: Record<string, string> = {
-  '1 Corinthians': '1CO',
-  '2 Corinthians': '2CO',
-  Genesis: 'GEN',
-  Exodus: 'EXO',
-  Matthew: 'MAT',
-  Mark: 'MRK',
-  Luke: 'LUK',
-  John: 'JHN',
-  Acts: 'ACT',
-  Romans: 'ROM',
-  // Add more as needed when the catalog grows.
-};
-
-export function bookCodeOf(book: string): string {
-  const code = BOOK_CODES[book];
-  if (code === undefined) throw new Error(`No USX code mapped for book: ${book}`);
-  return code;
-}
-
-export function passageIdOf(book: string, chapter: number): string {
-  return `${bookCodeOf(book)}.${chapter}`;
 }
 
 /** Compose HTML for one verse from cached chapter HTML + structural data. */
