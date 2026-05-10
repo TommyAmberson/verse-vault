@@ -36,6 +36,64 @@ export interface PersistArgs {
 
 type Tx = Parameters<Parameters<DB['transaction']>[0]>[0];
 
+/** SQLite caps bind parameters at 999; test_states has 9 columns, so 100
+ *  rows leaves headroom. Sync replays and seeding both can hit thousands. */
+const TEST_STATES_BATCH = 100;
+
+interface UpsertOpts {
+  /** When false, plain insert (used for fresh seeding where keys are unique). */
+  onConflict: boolean;
+}
+
+/** Chunked upsert of `test_states` rows, shared between online review writes,
+ *  sync replay, and enrollment seeding. */
+export function writeTestStates(
+  tx: Tx,
+  userId: string,
+  materialId: string,
+  entries: TestStateEntry[],
+  opts: UpsertOpts,
+): void {
+  if (entries.length === 0) return;
+  for (let i = 0; i < entries.length; i += TEST_STATES_BATCH) {
+    const slice = entries.slice(i, i + TEST_STATES_BATCH);
+    if (slice.length === 0) continue;
+    const values = slice.map((s) => ({
+      userId,
+      materialId,
+      testKind: s.test_kind,
+      element: JSON.stringify(s.element),
+      stability: s.stability,
+      difficulty: s.difficulty,
+      lastSeenSecs: s.last_seen_secs,
+      lastBaseSecs: s.last_base_secs,
+      lastRootSecs: s.last_root_secs,
+    }));
+    const stmt = tx.insert(schema.testStates).values(values);
+    if (opts.onConflict) {
+      stmt
+        .onConflictDoUpdate({
+          target: [
+            schema.testStates.userId,
+            schema.testStates.materialId,
+            schema.testStates.testKind,
+            schema.testStates.element,
+          ],
+          set: {
+            stability: sql`excluded.stability`,
+            difficulty: sql`excluded.difficulty`,
+            lastSeenSecs: sql`excluded.last_seen_secs`,
+            lastBaseSecs: sql`excluded.last_base_secs`,
+            lastRootSecs: sql`excluded.last_root_secs`,
+          },
+        })
+        .run();
+    } else {
+      stmt.run();
+    }
+  }
+}
+
 /**
  * Shared write path for online reviews and offline sync replay. Append the
  * events and upsert the touched test_states in one transaction so the event
@@ -62,44 +120,5 @@ export function persistEngineState(tx: Tx, args: PersistArgs): void {
       .run();
   }
 
-  if (testStateUpdates.length > 0) {
-    // SQLite caps bind parameters at 999; chunk the upsert at 100 rows
-    // (9 columns each) to stay clear. Sync replays can touch hundreds of
-    // keys at once.
-    const BATCH = 100;
-    for (let i = 0; i < testStateUpdates.length; i += BATCH) {
-      const slice = testStateUpdates.slice(i, i + BATCH);
-      if (slice.length === 0) continue;
-      tx.insert(schema.testStates)
-        .values(
-          slice.map((s) => ({
-            userId,
-            materialId,
-            testKind: s.test_kind,
-            element: JSON.stringify(s.element),
-            stability: s.stability,
-            difficulty: s.difficulty,
-            lastSeenSecs: s.last_seen_secs,
-            lastBaseSecs: s.last_base_secs,
-            lastRootSecs: s.last_root_secs,
-          })),
-        )
-        .onConflictDoUpdate({
-          target: [
-            schema.testStates.userId,
-            schema.testStates.materialId,
-            schema.testStates.testKind,
-            schema.testStates.element,
-          ],
-          set: {
-            stability: sql`excluded.stability`,
-            difficulty: sql`excluded.difficulty`,
-            lastSeenSecs: sql`excluded.last_seen_secs`,
-            lastBaseSecs: sql`excluded.last_base_secs`,
-            lastRootSecs: sql`excluded.last_root_secs`,
-          },
-        })
-        .run();
-    }
-  }
+  writeTestStates(tx, userId, materialId, testStateUpdates, { onConflict: true });
 }
