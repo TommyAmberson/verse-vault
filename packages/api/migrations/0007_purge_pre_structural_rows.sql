@@ -6,8 +6,10 @@
 -- rebuild.
 --
 -- No live users exist (single-developer dogfooding only); purge so the
--- next enrolment seeds fresh against the structural shape.
+-- next enrolment seeds fresh against the structural shape. user_materials
+-- is included so the PK guard in enrollUser doesn't block re-enrolment.
 
 DELETE FROM review_events;--> statement-breakpoint
 DELETE FROM test_states;--> statement-breakpoint
-DELETE FROM graph_snapshots;
+DELETE FROM graph_snapshots;--> statement-breakpoint
+DELETE FROM user_materials;
