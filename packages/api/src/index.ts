@@ -30,7 +30,15 @@ const authEnv = {
 const dbPath = process.env.DATABASE_PATH ?? resolve(import.meta.dirname, '../data/verse-vault.db');
 runMigrations(dbPath);
 
-const app = createApp({ db: createDb(dbPath), authEnv });
+const app = createApp({
+  db: createDb(dbPath),
+  authEnv,
+  // BIBLE_API_KEY (or API_BIBLE_KEY) gates the api.bible cache. Without
+  // it, GET /api/cards/:id returns the structural metadata only (composed:
+  // null); the frontend can still render the prompt/grade UI.
+  bibleApiKey: process.env.BIBLE_API_KEY ?? process.env.API_BIBLE_KEY,
+  bibleId: process.env.NKJV_BIBLE_ID,
+});
 
 const port = Number(process.env.PORT ?? 3000);
 serve({ fetch: app.fetch, port }, (info) => {

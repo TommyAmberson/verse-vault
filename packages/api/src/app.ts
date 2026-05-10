@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
 import type { DB } from './db/client.js';
+import { ApibibleCache } from './lib/apibible-cache.js';
 import { type AuthEnv, createAuth } from './lib/auth.js';
 import { EngineStore } from './lib/engine.js';
 import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
@@ -14,12 +15,22 @@ import { syncRoutes } from './routes/sync.js';
 export interface AppDeps {
   db: DB;
   authEnv: AuthEnv;
+  /** api.bible API key. When unset, GET /api/cards/:id renders without
+   *  the canonical-text composition (composed: null). The structural
+   *  metadata is unchanged. */
+  bibleApiKey?: string;
+  /** NKJV bible id on the api.bible account. Defaults to the account's
+   *  current NKJV when unset; override via env. */
+  bibleId?: string;
   now?: () => number;
 }
 
 export function createApp(deps: AppDeps) {
   const auth = createAuth(deps.db, deps.authEnv);
   const engines = new EngineStore(deps.db, undefined, deps.now);
+  const apibibleCache = deps.bibleApiKey
+    ? new ApibibleCache(deps.db, deps.bibleApiKey, deps.now)
+    : undefined;
   const app = new Hono<{ Variables: SessionVariables }>();
 
   app.use('*', logger());
@@ -45,7 +56,16 @@ export function createApp(deps: AppDeps) {
 
   app.get('/api/me', requireAuth(), (c) => c.json({ user: getUser(c) }));
 
-  app.route('/api/cards', cardsRoutes({ db: deps.db, engines, now: deps.now }));
+  app.route(
+    '/api/cards',
+    cardsRoutes({
+      db: deps.db,
+      engines,
+      apibibleCache,
+      bibleId: deps.bibleId,
+      now: deps.now,
+    }),
+  );
   app.route('/api/sync', syncRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/materials', materialsRoutes({ db: deps.db, now: deps.now }));
   app.route('/api/stats', statsRoutes({ db: deps.db }));
