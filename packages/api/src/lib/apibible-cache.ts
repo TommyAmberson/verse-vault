@@ -4,25 +4,14 @@ import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 
 /**
- * Server-side cache for api.bible content. Backed by SQLite tables
- * (`apibible_passages`, `apibible_sections`); writes go through the same
- * `better-sqlite3` connection as the rest of the API.
+ * Server-side cache for api.bible content, backed by SQLite. The TOS
+ * (API.Bible Minimum Acceptable Use Agreement) requires that cached
+ * scripture content be refreshed within 30 days of fetch and not used
+ * to train an AI/LLM; this class is runtime plumbing only.
  *
- * **TOS** (API.Bible Minimum Acceptable Use Agreement, paraphrased):
- *   - Cached content must be refreshed within 30 days of fetch.
- *   - Don't modify scripture content. The cache stores api.bible's HTML
- *     verbatim — composition layers user annotations on top without
- *     altering the underlying text.
- *   - Don't use the content to train an AI/LLM. This class is runtime
- *     plumbing only.
- *
- * The TTL is enforced two ways: every read checks `now - fetchedAt`,
- * and `pruneExpired` runs in the constructor so the on-disk cache never
- * holds entries past the TTL even if a passage is never re-read.
- *
- * Concurrent requests for the same uncached key go through a per-key
- * single-flight `inflight` map (mirrors the `EngineStore.withLock`
- * pattern) so two cold requests don't fire two api.bible round-trips.
+ * The TTL is enforced both at read (every lookup checks `now - fetchedAt`)
+ * and at startup (`pruneExpired` runs in the constructor) so on-disk
+ * rows never sit past the TTL even when a passage is never re-read.
  */
 export const CACHE_TTL_SECS = 30 * 24 * 60 * 60;
 const API_BASE = 'https://rest.api.bible/v1';
@@ -62,58 +51,48 @@ export class ApibibleCache {
   /** Plain-HTML chapter content, cache-aware. `passageId` is the api.bible
    *  shape `{USX_BOOK}.{chapter}` (e.g. `"1CO.1"`). */
   async getPassageHtml(bibleId: string, passageId: string): Promise<string> {
-    const key = `${bibleId}|${passageId}`;
-    const row = this.db
-      .select()
-      .from(schema.apibiblePassages)
-      .where(
-        and(
-          eq(schema.apibiblePassages.bibleId, bibleId),
-          eq(schema.apibiblePassages.passageId, passageId),
-        ),
-      )
-      .get();
-    const now = this.nowSecs();
-    if (row && now - row.fetchedAt < CACHE_TTL_SECS) {
-      return row.contentHtml;
-    }
-
-    const existing = this.inflightPassages.get(key);
-    if (existing) return existing;
-
-    const promise = this.fetchAndCachePassage(bibleId, passageId, now).finally(() => {
-      this.inflightPassages.delete(key);
-    });
-    this.inflightPassages.set(key, promise);
-    return promise;
+    return this.readThrough(
+      this.inflightPassages,
+      `${bibleId}|${passageId}`,
+      () => {
+        const row = this.db
+          .select()
+          .from(schema.apibiblePassages)
+          .where(
+            and(
+              eq(schema.apibiblePassages.bibleId, bibleId),
+              eq(schema.apibiblePassages.passageId, passageId),
+            ),
+          )
+          .get();
+        return row ? { fetchedAt: row.fetchedAt, value: row.contentHtml } : null;
+      },
+      (now) => this.fetchAndCachePassage(bibleId, passageId, now),
+    );
   }
 
   /** Section list for a book, cache-aware. */
   async getSections(bibleId: string, bookCode: string): Promise<Section[]> {
-    const key = `${bibleId}|${bookCode}`;
-    const row = this.db
-      .select()
-      .from(schema.apibibleSections)
-      .where(
-        and(
-          eq(schema.apibibleSections.bibleId, bibleId),
-          eq(schema.apibibleSections.bookCode, bookCode),
-        ),
-      )
-      .get();
-    const now = this.nowSecs();
-    if (row && now - row.fetchedAt < CACHE_TTL_SECS) {
-      return JSON.parse(row.sectionsJson) as Section[];
-    }
-
-    const existing = this.inflightSections.get(key);
-    if (existing) return existing;
-
-    const promise = this.fetchAndCacheSections(bibleId, bookCode, now).finally(() => {
-      this.inflightSections.delete(key);
-    });
-    this.inflightSections.set(key, promise);
-    return promise;
+    return this.readThrough(
+      this.inflightSections,
+      `${bibleId}|${bookCode}`,
+      () => {
+        const row = this.db
+          .select()
+          .from(schema.apibibleSections)
+          .where(
+            and(
+              eq(schema.apibibleSections.bibleId, bibleId),
+              eq(schema.apibibleSections.bookCode, bookCode),
+            ),
+          )
+          .get();
+        return row
+          ? { fetchedAt: row.fetchedAt, value: JSON.parse(row.sectionsJson) as Section[] }
+          : null;
+      },
+      (now) => this.fetchAndCacheSections(bibleId, bookCode, now),
+    );
   }
 
   /** Drop entries past the TTL from the on-disk cache. Runs in the
@@ -128,6 +107,26 @@ export class ApibibleCache {
       .delete(schema.apibibleSections)
       .where(lt(schema.apibibleSections.fetchedAt, cutoff))
       .run();
+  }
+
+  /** Cache read-through with single-flight: dedupe concurrent cold fetches
+   *  for the same key so two callers don't fire two api.bible round-trips. */
+  private async readThrough<T>(
+    inflight: Map<string, Promise<T>>,
+    key: string,
+    dbRead: () => { fetchedAt: number; value: T } | null,
+    fetchFresh: (now: number) => Promise<T>,
+  ): Promise<T> {
+    const hit = dbRead();
+    const now = this.nowSecs();
+    if (hit && now - hit.fetchedAt < CACHE_TTL_SECS) return hit.value;
+
+    const existing = inflight.get(key);
+    if (existing) return existing;
+
+    const promise = fetchFresh(now).finally(() => inflight.delete(key));
+    inflight.set(key, promise);
+    return promise;
   }
 
   private async fetchAndCachePassage(
