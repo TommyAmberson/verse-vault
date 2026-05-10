@@ -21,14 +21,6 @@ pub enum ElementId {
     VerseClubBinding { verse_id: u32, tier: ClubTier },
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "value")]
-pub enum ElementMeta {
-    ChapterNumber(u16),
-    BookName(String),
-    VerseNumber(u16),
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -42,12 +34,5 @@ mod tests {
         let j = serde_json::to_string(&e).unwrap();
         let r: ElementId = serde_json::from_str(&j).unwrap();
         assert_eq!(e, r);
-    }
-
-    #[test]
-    fn element_meta_chapter_number() {
-        let m = ElementMeta::ChapterNumber(3);
-        let j = serde_json::to_string(&m).unwrap();
-        assert_eq!(j, r#"{"kind":"ChapterNumber","value":3}"#);
     }
 }

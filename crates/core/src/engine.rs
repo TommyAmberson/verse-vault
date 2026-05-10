@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 use crate::builder::BuildResult;
 use crate::card::{Card, VerseAtoms};
-use crate::element::ElementId;
-use crate::element::ElementMeta;
 use crate::fsrs_bridge::FsrsBridge;
 use crate::render::VerseRender;
 use crate::test_kind::TestKey;
@@ -60,7 +58,6 @@ pub struct ReviewOutcome {
 /// snapshot and replay without going through accessors.
 pub struct ReviewEngine {
     pub verse_index: VerseIndex,
-    pub element_meta: HashMap<ElementId, ElementMeta>,
     pub cards: Vec<Card>,
     pub tests: HashMap<TestKey, TestState>,
     pub fsrs: FsrsBridge,
@@ -76,7 +73,6 @@ impl ReviewEngine {
     pub fn new(b: BuildResult, desired_retention: f32) -> Self {
         Self {
             verse_index: b.verse_index,
-            element_meta: b.element_meta,
             cards: b.cards,
             tests: b.tests,
             fsrs: FsrsBridge::new(desired_retention),
@@ -223,6 +219,7 @@ mod tests {
     use crate::builder::build;
     use crate::card::CardKind;
     use crate::content::MaterialData;
+    use crate::element::ElementId;
     use crate::test_kind::TestKind;
 
     fn sample_material_one_verse() -> MaterialData {

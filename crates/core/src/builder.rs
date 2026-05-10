@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::card::{Card, CardKind, CardState, VerseAtoms};
 use crate::content::{HeadingData, MaterialData};
-use crate::element::{ClubTier, ElementId, ElementMeta};
+use crate::element::ClubTier;
 use crate::render::{HeadingRender, VerseRender};
 use crate::test_kind::TestKey;
 use crate::test_state::TestState;
@@ -19,7 +19,6 @@ const MAX_VERSES_PER_CHAPTER: u16 = 200;
 #[derive(Debug, Default)]
 pub struct BuildResult {
     pub verse_index: VerseIndex,
-    pub element_meta: HashMap<ElementId, ElementMeta>,
     pub cards: Vec<Card>,
     pub tests: HashMap<TestKey, TestState>,
     /// Per-verse atom data (phrase_count + ftv + phrase_zero_text). The
@@ -99,7 +98,6 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
     let heading_lookup = build_heading_lookup(&data.headings);
 
     let mut verse_index = VerseIndex::new();
-    let mut element_meta: HashMap<ElementId, ElementMeta> = HashMap::new();
     let mut cards: Vec<Card> = Vec::new();
     let mut next_card_id: u32 = 0;
     // Per-verse VerseAtoms so we can compute `card.tests(...)` after all cards
@@ -127,22 +125,6 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
                 headings: headings.clone(),
                 clubs: clubs.clone(),
             },
-        );
-
-        // Element metadata: the parallel table of "what does this binding
-        // actually display?" Heading labels are no longer in core — the
-        // API render path resolves them against api.bible's sections.
-        element_meta.insert(
-            ElementId::VerseRefPosition { verse_id },
-            ElementMeta::VerseNumber(verse.verse),
-        );
-        element_meta.insert(
-            ElementId::VerseChapterBinding { verse_id },
-            ElementMeta::ChapterNumber(verse.chapter),
-        );
-        element_meta.insert(
-            ElementId::VerseBookBinding { verse_id },
-            ElementMeta::BookName(verse.book.clone()),
         );
 
         // ---- Emit cards ----
@@ -280,7 +262,6 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
 
     BuildResult {
         verse_index,
-        element_meta,
         cards,
         tests,
         verse_atoms_data: verse_atoms_by_id,
@@ -291,6 +272,7 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::element::ElementId;
     use crate::test_kind::TestKind;
 
     fn material_one_verse_simple() -> MaterialData {
@@ -366,21 +348,6 @@ mod tests {
             bindings
                 .iter()
                 .any(|e| matches!(e, ElementId::VerseBookBinding { .. }))
-        );
-        assert_eq!(
-            r.element_meta
-                .get(&ElementId::VerseChapterBinding { verse_id: 0 }),
-            Some(&ElementMeta::ChapterNumber(3)),
-        );
-        assert_eq!(
-            r.element_meta
-                .get(&ElementId::VerseBookBinding { verse_id: 0 }),
-            Some(&ElementMeta::BookName("John".into())),
-        );
-        assert_eq!(
-            r.element_meta
-                .get(&ElementId::VerseRefPosition { verse_id: 0 }),
-            Some(&ElementMeta::VerseNumber(16)),
         );
     }
 
@@ -521,7 +488,6 @@ mod tests {
         let r = build(&m, now);
         // every test referenced by some card should have a seeded TestState.
         for card in &r.cards {
-            // Reconstruct atoms from VerseIndex + element_meta.
             let phrases = r.verse_index.phrases_of(card.verse_id);
             let phrase_count = phrases.len() as u16;
             let bindings = r.verse_index.bindings_of(card.verse_id);
@@ -598,11 +564,7 @@ mod tests {
         let r = build(&m, 0);
         // Only the second verse counts. It gets verse_id 0 (skipping the empty).
         assert!(r.cards.iter().all(|c| c.verse_id == 0));
-        assert_eq!(
-            r.element_meta
-                .get(&ElementId::VerseRefPosition { verse_id: 0 }),
-            Some(&ElementMeta::VerseNumber(2)),
-        );
+        assert_eq!(r.verse_render_data.get(&0).map(|v| v.verse), Some(2),);
     }
 
     #[test]
