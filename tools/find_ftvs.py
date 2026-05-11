@@ -111,11 +111,15 @@ def main() -> None:
 
     conn = open_cache(args.db)
     try:
+        # Include every deck verse in the prefix-uniqueness check —
+        # even ones with empty ``phraseWordCounts`` — because an opening
+        # cue collides with the *canonical text*, not with whatever
+        # structural data the deck happens to have. Otherwise verses
+        # missing structural data (e.g. 2 Cor 9:6) silently let other
+        # verses claim shorter unique prefixes than they actually have.
         keyed_tokens: List[Tuple[Tuple[str, int, int], List[str]]] = []
         chapter_cache: Dict[Tuple[str, int], Dict[int, List[str]]] = {}
         for v in deck.get("verses", []):
-            if not v.get("phraseWordCounts"):
-                continue
             book = v["book"]
             chapter = v["chapter"]
             ckey = (book, chapter)
@@ -123,6 +127,8 @@ def main() -> None:
                 html = get_chapter_html(conn, book, chapter, bible_id=args.bible)
                 chapter_cache[ckey] = extract_chapter_verses(html, book, chapter)
             tokens = chapter_cache[ckey].get(v["verse"], [])
+            if not tokens:
+                continue  # no canonical text — can't compute a prefix
             keyed_tokens.append(((book, chapter, v["verse"]), tokens))
     finally:
         conn.close()
