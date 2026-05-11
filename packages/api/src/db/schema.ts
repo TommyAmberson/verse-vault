@@ -191,7 +191,10 @@ export const apibiblePassages = sqliteTable(
     contentHtml: text('content_html').notNull(),
     fetchedAt: integer('fetched_at').notNull(),
   },
-  (t) => ({ pk: primaryKey({ columns: [t.bibleId, t.passageId] }) }),
+  (t) => ({
+    pk: primaryKey({ columns: [t.bibleId, t.passageId] }),
+    fetchedAtIdx: index('idx_apibible_passages_fetched_at').on(t.fetchedAt),
+  }),
 );
 
 export const apibibleSections = sqliteTable(
@@ -202,5 +205,8 @@ export const apibibleSections = sqliteTable(
     sectionsJson: text('sections_json').notNull(),
     fetchedAt: integer('fetched_at').notNull(),
   },
-  (t) => ({ pk: primaryKey({ columns: [t.bibleId, t.bookCode] }) }),
+  (t) => ({
+    pk: primaryKey({ columns: [t.bibleId, t.bookCode] }),
+    fetchedAtIdx: index('idx_apibible_sections_fetched_at').on(t.fetchedAt),
+  }),
 );
