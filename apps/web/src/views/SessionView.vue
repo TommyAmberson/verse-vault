@@ -129,7 +129,7 @@ onMounted(async () => {
 <style scoped>
 .session {
   width: 100%;
-  max-width: 880px;
+  max-width: 720px;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
