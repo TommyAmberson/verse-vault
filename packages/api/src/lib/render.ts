@@ -2,6 +2,7 @@ import { type HTMLElement, type Node, NodeType, parse } from 'node-html-parser';
 
 import type { Section } from './apibible-cache.js';
 import { bookCodeOf } from './book-codes.js';
+import { DEFAULT_DIALECT, type Dialect, applyDialect } from './spelling.js';
 
 export { bookCodeOf, passageIdOf } from './book-codes.js';
 
@@ -41,15 +42,23 @@ export interface ComposedRender {
   headings: { headingIdx: number; title: string | null }[];
 }
 
-/** Compose HTML for one verse from cached chapter HTML + structural data. */
+/** Compose HTML for one verse from cached chapter HTML + structural data.
+ *  The `dialect` knob runs the final HTML strings through a US → UK
+ *  substitution when `'british'` (default). api.bible always ships
+ *  American spelling, so `'american'` is a no-op. */
 export function composeRender(
   input: VerseRenderInput,
   chapterHtml: string,
   sections: Section[],
+  dialect: Dialect = DEFAULT_DIALECT,
 ): ComposedRender {
   const verseNodes = extractVerseNodes(chapterHtml, input.book, input.chapter, input.verse);
   const tokens = tokenize(verseNodes);
   const expectedTokens = input.phraseWordCounts.reduce((a, b) => a + b, 0);
+  const headings = input.headings.map((h) => ({
+    headingIdx: h.headingIdx,
+    title: resolveHeadingTitle(h, input.book, sections),
+  }));
   if (tokens.length !== expectedTokens && expectedTokens > 0) {
     // Token count mismatch — likely an api.bible/deck divergence (typo,
     // punctuation difference). Fall back to api.bible's tokens, dropping
@@ -57,27 +66,22 @@ export function composeRender(
     // verse still renders, just without the keyword highlights.
     const fallbackPhrases = approximatePhrases(tokens, input.phraseWordCounts);
     return {
-      phraseHtml: fallbackPhrases,
+      phraseHtml: fallbackPhrases.map((p) => applyDialect(p, dialect)),
       ftvHtml:
         input.ftvWordCount != null && input.ftvWordCount > 0
-          ? tokens.slice(0, input.ftvWordCount).join(' ')
+          ? applyDialect(tokens.slice(0, input.ftvWordCount).join(' '), dialect)
           : null,
-      headings: input.headings.map((h) => ({
-        headingIdx: h.headingIdx,
-        title: resolveHeadingTitle(h, input.book, sections),
-      })),
+      headings,
     };
   }
   const annotated = applyAnnotations(tokens, input.annotations);
-  const phraseHtml = splitIntoPhrases(annotated, input.phraseWordCounts);
+  const phraseHtml = splitIntoPhrases(annotated, input.phraseWordCounts).map((p) =>
+    applyDialect(p, dialect),
+  );
   const ftvHtml =
     input.ftvWordCount != null && input.ftvWordCount > 0
-      ? annotated.slice(0, input.ftvWordCount).join(' ')
+      ? applyDialect(annotated.slice(0, input.ftvWordCount).join(' '), dialect)
       : null;
-  const headings = input.headings.map((h) => ({
-    headingIdx: h.headingIdx,
-    title: resolveHeadingTitle(h, input.book, sections),
-  }));
   return { phraseHtml, ftvHtml, headings };
 }
 

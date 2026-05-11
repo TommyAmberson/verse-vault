@@ -6,6 +6,7 @@ import type { DB } from './db/client.js';
 import { ApibibleCache } from './lib/apibible-cache.js';
 import { type AuthEnv, createAuth } from './lib/auth.js';
 import { EngineStore } from './lib/engine.js';
+import { type Dialect } from './lib/spelling.js';
 import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
 import { cardsRoutes } from './routes/cards.js';
 import { materialsRoutes } from './routes/materials.js';
@@ -22,6 +23,11 @@ export interface AppDeps {
   /** NKJV bible id on the api.bible account. Defaults to the account's
    *  current NKJV when unset; override via env. */
   bibleId?: string;
+  /** Spelling dialect for rendered verse HTML. Defaults to ``canadian``
+   *  inside ``composeRender``; pass ``american`` to keep api.bible's
+   *  original NKJV spelling untouched. Sourced from the ``RENDER_DIALECT``
+   *  env var at boot; will move to a per-user setting later. */
+  dialect?: Dialect;
   now?: () => number;
 }
 
@@ -63,6 +69,7 @@ export function createApp(deps: AppDeps) {
       engines,
       apibibleCache,
       bibleId: deps.bibleId,
+      dialect: deps.dialect,
       now: deps.now,
     }),
   );

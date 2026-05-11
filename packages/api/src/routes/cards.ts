@@ -8,6 +8,7 @@ import { EngineStore, NotEnrolledError, type TestStateEntry } from '../lib/engin
 import { bookCodeOf } from '../lib/book-codes.js';
 import { type ComposedRender, composeRender } from '../lib/render.js';
 import { type Grade, persistEngineState } from '../lib/review-log.js';
+import { DEFAULT_DIALECT, type Dialect } from '../lib/spelling.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface CardsRoutesDeps {
@@ -19,6 +20,9 @@ export interface CardsRoutesDeps {
   /** Bible id to use when resolving canonical text. Defaults to NKJV
    *  (account-specific id; see DEFAULT_NKJV_BIBLE_ID). */
   bibleId?: string;
+  /** Spelling dialect for the rendered verse HTML. Defaults to ``british``.
+   *  Server-wide for now; per-user override comes later via a setting. */
+  dialect?: Dialect;
   now?: () => number;
 }
 
@@ -127,7 +131,7 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
             ? deps.apibibleCache.getSections(bibleId, bookCode)
             : Promise.resolve([]),
         ]);
-        composed = composeRender(verse, chapterHtml, sections);
+        composed = composeRender(verse, chapterHtml, sections, deps.dialect ?? DEFAULT_DIALECT);
       } catch (err) {
         console.warn(`apibible cache failure for card ${cardId}: ${(err as Error).message}`);
       }
