@@ -72,18 +72,19 @@ const composedMissing = computed(() => props.card.composed === null)
          keyword <b>/<i> annotations. Source is the server-composed
          output, never user input. -->
     <template v-else>
-      <div v-if="card.kind === 'PhraseFill'" class="phrases">
-        <template v-for="(phrase, i) in phraseHtml" :key="i">
-          <div v-if="i === card.position && !revealed" class="phrase phrase-hidden">___</div>
-          <div v-else class="phrase" v-html="phrase" />
-        </template>
+      <div v-if="card.kind === 'PhraseFill'" class="centered">
+        <div class="verse-text" :style="{ color: verseColour }">
+          <template v-for="(phrase, i) in phraseHtml" :key="i">
+            <span v-if="i === card.position && !revealed" class="phrase-hidden">___</span><span v-else v-html="phrase" /><template v-if="i &lt; phraseHtml.length - 1">{{ ' ' }}</template>
+          </template>
+        </div>
         <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
       </div>
 
-      <div v-else-if="card.kind === 'PhraseChain'" class="phrases">
-        <div class="phrase" v-html="phraseHtml[card.position! - 1]" />
-        <div v-if="revealed" class="phrase phrase-hidden" v-html="phraseHtml[card.position!]" />
-        <div v-else class="phrase phrase-hidden">___</div>
+      <div v-else-if="card.kind === 'PhraseChain'" class="centered">
+        <div class="verse-text" :style="{ color: verseColour }">
+          <span v-html="phraseHtml[card.position! - 1]" />{{ ' ' }}<span v-if="revealed" class="phrase-hidden" v-html="phraseHtml[card.position!]" /><span v-else class="phrase-hidden">___</span>
+        </div>
         <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
       </div>
 
@@ -91,13 +92,13 @@ const composedMissing = computed(() => props.card.composed === null)
         <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         <template v-if="revealed">
           <hr class="type" />
-          <div class="verse-text" v-html="verseHtml" />
+          <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         </template>
         <div v-else class="placeholder">…recite the verse…</div>
       </div>
 
       <div v-else-if="card.kind === 'VerseInChapter' || card.kind === 'VerseInBook'" class="centered">
-        <div class="verse-text" v-html="verseHtml" />
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <template v-if="revealed">
           <hr class="type" />
           <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
@@ -106,7 +107,7 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
-        <div class="verse-text" v-html="verseHtml" />
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         <template v-if="revealed">
           <hr class="type" />
@@ -116,7 +117,7 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'VerseInClub'" class="centered">
-        <div class="verse-text" v-html="verseHtml" />
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         <template v-if="revealed">
           <hr class="type" />
@@ -129,13 +130,13 @@ const composedMissing = computed(() => props.card.composed === null)
         <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         <template v-if="revealed">
           <hr class="type" />
-          <div class="verse-text" v-html="verseHtml" />
+          <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         </template>
         <div v-else class="placeholder">…recite the whole verse…</div>
       </div>
 
       <div v-else-if="card.kind === 'Citation'" class="centered">
-        <div class="verse-text" v-html="verseHtml" />
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <template v-if="revealed">
           <hr class="type" />
           <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
@@ -144,10 +145,10 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'Ftv'" class="centered">
-        <div class="verse-text ftv" v-html="`${ftvHtml ?? ''}…`" />
+        <div class="verse-text ftv" :style="{ color: verseColour }" v-html="`${ftvHtml ?? ''}…`" />
         <template v-if="revealed">
           <hr class="type" />
-          <div class="verse-text" v-html="verseHtml" />
+          <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
           <div v-if="card.withCitation" class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         </template>
         <div v-else class="placeholder">…continue the verse…</div>
@@ -155,7 +156,7 @@ const composedMissing = computed(() => props.card.composed === null)
 
       <div v-else-if="card.kind === 'Reading'" class="centered">
         <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
-        <div class="verse-text" v-html="verseHtml" />
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
       </div>
     </template>
   </div>
@@ -176,23 +177,15 @@ const composedMissing = computed(() => props.card.composed === null)
   letter-spacing: 0.05em;
 }
 
-.phrases {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.phrase {
-  font-size: 1.15rem;
-  line-height: 1.5;
-}
-
+/* PhraseFill/PhraseChain blanks render inline within the verse-text run
+   so the surrounding phrases keep flowing naturally. */
 .phrase-hidden {
   background: var(--color-accent-soft);
   border-radius: 4px;
-  padding: 0.25rem 0.5rem;
-  display: inline-block;
-  width: fit-content;
+  padding: 0 0.4rem;
+  /* Cancel the verse colour cascade on the placeholder text only — the
+     chrome stays visible regardless of the verse hue. */
+  color: var(--color-text);
 }
 
 .centered {
@@ -229,26 +222,21 @@ const composedMissing = computed(() => props.card.composed === null)
    inserted nodes. */
 /* User keyword annotations: deck convention is bold-900 + underlined.
    api.bible's divine-name `.bd` stays bold-only (no underline). */
-.verse-text :deep(b),
-.phrase :deep(b) {
+.verse-text :deep(b) {
   font-weight: 900;
   text-decoration: underline;
 }
 
-.verse-text :deep(.bd),
-.phrase :deep(.bd) {
+.verse-text :deep(.bd) {
   font-weight: 700;
 }
 
 .verse-text :deep(i),
-.phrase :deep(i),
-.verse-text :deep(.it),
-.phrase :deep(.it) {
+.verse-text :deep(.it) {
   font-style: italic;
 }
 
-.verse-text :deep(.sc),
-.phrase :deep(.sc) {
+.verse-text :deep(.sc) {
   font-variant: small-caps;
 }
 
