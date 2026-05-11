@@ -216,8 +216,6 @@ const composedMissing = computed(() => props.card.composed === null)
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  flex: 1;
-  min-height: 0;
 }
 
 .meta {
@@ -235,9 +233,8 @@ const composedMissing = computed(() => props.card.composed === null)
    (a thin line at the deck's OKLCH lightness looks noticeably darker
    than anti-aliased text on either light or dark backgrounds).
 
-   Fills the available height inside .prompt so the inner frame
-   tracks the outer card. Content is centred vertically so short
-   verses don't pin themselves to the top. */
+   Hugs its content; the verse, ref, and any reveal sit at the top
+   of the frame rather than spreading to fill the outer card. */
 .card-box {
   border-width: 5px;
   border-style: solid;
@@ -245,10 +242,7 @@ const composedMissing = computed(() => props.card.composed === null)
   padding: 2rem 1.75rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 1rem;
-  flex: 1;
-  min-height: 0;
 }
 
 @media (max-width: 600px) {

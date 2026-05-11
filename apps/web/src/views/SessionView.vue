@@ -173,10 +173,8 @@ onMounted(async () => {
 
 /* Outer card surface: white-on-page with a neutral border, holding
    the meta label, the verse-coloured flashcard box (rendered by
-   CardPrompt), and the grade buttons. Stretches to fill the
-   available vertical space inside .session so the card occupies the
-   whole reading area regardless of how much content the flashcard
-   itself holds. */
+   CardPrompt), and the grade buttons. Sizes to its content so the
+   card stays compact regardless of how tall the viewport is. */
 .card {
   background: var(--color-bg-card);
   border: 1.5px solid var(--color-text);
@@ -186,7 +184,6 @@ onMounted(async () => {
   flex-direction: column;
   gap: 1.75rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  flex: 1;
 }
 
 /* Narrow viewports: tighten padding so the card doesn't crowd the
