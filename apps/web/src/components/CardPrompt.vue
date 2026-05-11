@@ -53,15 +53,16 @@ function escapeHtml(s: string): string {
 }
 
 /** Renders the reference with each part either revealed or shown as a
- *  `?` placeholder. The verse number carries the verse-colour inline so
- *  it picks up the same hue as the verse text. */
+ *  `?` placeholder. The verse number references the same `--active-
+ *  verse-colour` custom property as the card-box border, so the two
+ *  are guaranteed to render with the identical CSS value. */
 const refHtml = computed(() => {
   const { showBook, showChapter, showVerse } = refParts.value
   const hidden = '<span class="ref-hidden">?</span>'
   const book = showBook ? escapeHtml(props.card.verse.book) : hidden
   const chap = showChapter ? String(props.card.verse.chapter) : hidden
   const verse = showVerse
-    ? `<span style="color: ${verseColour.value}">${props.card.verse.verse}</span>`
+    ? `<span class="verse-number">${props.card.verse.verse}</span>`
     : hidden
   return `${book} ${chap}:${verse}`
 })
@@ -108,8 +109,10 @@ const composedMissing = computed(() => props.card.composed === null)
     <!-- The bordered content box wears the verse-number colour on its
          edge so each verse has a consistent visual identity. When the
          verse number is hidden (Citation pre-reveal) the border falls
-         back to neutral so it doesn't leak the answer. -->
-    <div class="card-box" :style="{ borderColor: borderColour }">
+         back to neutral so it doesn't leak the answer. Both the border
+         and the verse-number span resolve `--active-verse-colour` from
+         this scope, guaranteeing they render the same hue. -->
+    <div class="card-box" :style="{ '--active-verse-colour': verseColour, borderColor: borderColour }">
       <div v-if="composedMissing" class="placeholder">
         Canonical text unavailable. Set <code>BIBLE_API_KEY</code> on the server to render NKJV verses.
       </div>
@@ -280,6 +283,12 @@ const composedMissing = computed(() => props.card.composed === null)
   padding: 0 0.4rem;
   color: var(--color-muted);
   font-weight: 600;
+}
+
+/* Verse-number digit inside the ref. Pulls from the same custom
+   property as the card-box border so the two always match. */
+.ref :deep(.verse-number) {
+  color: var(--active-verse-colour);
 }
 
 .verse-text {
