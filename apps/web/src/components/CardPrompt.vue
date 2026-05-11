@@ -73,19 +73,19 @@ const composedMissing = computed(() => props.card.composed === null)
          output, never user input. -->
     <template v-else>
       <div v-if="card.kind === 'PhraseFill'" class="centered">
+        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         <div class="verse-text" :style="{ color: verseColour }">
           <template v-for="(phrase, i) in phraseHtml" :key="i">
             <span v-if="i === card.position && !revealed" class="phrase-hidden">___</span><span v-else v-html="phrase" /><template v-if="i &lt; phraseHtml.length - 1">{{ ' ' }}</template>
           </template>
         </div>
-        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
       </div>
 
       <div v-else-if="card.kind === 'PhraseChain'" class="centered">
+        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         <div class="verse-text" :style="{ color: verseColour }">
           <span v-html="phraseHtml[card.position! - 1]" />{{ ' ' }}<span v-if="revealed" class="phrase-hidden" v-html="phraseHtml[card.position!]" /><span v-else class="phrase-hidden">___</span>
         </div>
-        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
       </div>
 
       <div v-else-if="card.kind === 'VerseAtVerseRef'" class="centered">
@@ -97,18 +97,21 @@ const composedMissing = computed(() => props.card.composed === null)
         <div v-else class="placeholder">…recite the verse…</div>
       </div>
 
+      <!-- Ref-as-answer cards: ref slot is empty before reveal so we don't
+           give the answer away; on reveal it appears above the verse, with
+           hr.type marking the now-above answer vs the prompt below. -->
       <div v-else-if="card.kind === 'VerseInChapter' || card.kind === 'VerseInBook'" class="centered">
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <template v-if="revealed">
-          <hr class="type" />
           <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+          <hr class="type" />
         </template>
-        <div v-else class="placeholder">…what {{ card.kind === 'VerseInBook' ? 'book' : 'chapter' }}?…</div>
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+        <div v-if="!revealed" class="placeholder">…what {{ card.kind === 'VerseInBook' ? 'book' : 'chapter' }}?…</div>
       </div>
 
       <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <template v-if="revealed">
           <hr class="type" />
           <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
@@ -117,8 +120,8 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'VerseInClub'" class="centered">
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <template v-if="revealed">
           <hr class="type" />
           <div class="answer">Club: {{ clubLabel }}</div>
@@ -136,20 +139,20 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'Citation'" class="centered">
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <template v-if="revealed">
-          <hr class="type" />
           <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+          <hr class="type" />
         </template>
-        <div v-else class="placeholder">…what is the reference?…</div>
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+        <div v-if="!revealed" class="placeholder">…what is the reference?…</div>
       </div>
 
       <div v-else-if="card.kind === 'Ftv'" class="centered">
+        <div v-if="revealed && card.withCitation" class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         <div class="verse-text ftv" :style="{ color: verseColour }" v-html="`${ftvHtml ?? ''}…`" />
         <template v-if="revealed">
           <hr class="type" />
           <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-          <div v-if="card.withCitation" class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         </template>
         <div v-else class="placeholder">…continue the verse…</div>
       </div>
