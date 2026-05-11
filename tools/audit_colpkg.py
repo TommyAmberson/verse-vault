@@ -182,7 +182,8 @@ def _normalise_for_diff(text: str) -> str:
     for k, v in _QUOTE_PAIRS.items():
         text = text.replace(k, v)
     text = (
-        text.replace("&amp;", "&")
+        text.replace("&nbsp;", " ")
+        .replace("&amp;", "&")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&quot;", '"')
@@ -257,7 +258,10 @@ def compare_verse(
 
     if "text" in checks:
         anki_plain = _normalise_for_diff(anki_text)
-        canon_plain = " ".join(canonical_tokens)
+        # Normalise the canonical side too so the diff isn't dominated
+        # by typography (curly vs straight quotes) — the actual concern
+        # is wording.
+        canon_plain = _normalise_for_diff(" ".join(canonical_tokens))
         if canonical_tokens and anki_plain != canon_plain:
             diffs.append({
                 "ref": ref,

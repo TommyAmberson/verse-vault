@@ -184,6 +184,17 @@ def _decode_entities(s: str) -> str:
     return s
 
 
+def _strip_to_text(chunk: str) -> str:
+    """Drop tags but inject a space at paragraph boundaries — api.bible's
+    poetry verses (e.g. 1 Cor 2:9) split lines into separate ``<p>``
+    elements with no whitespace between them, so a naive tag strip
+    glues ``man`` and ``The`` into ``manThe``. Same fix
+    ``render.ts``'s DOM walker gets for free."""
+    chunk = re.sub(r"</p\s*>", " ", chunk, flags=re.IGNORECASE)
+    chunk = _TAG_RE.sub("", chunk)
+    return _decode_entities(chunk)
+
+
 def extract_verse_tokens(html: str, book: str, chapter: int, verse: int) -> List[str]:
     """Pull the visible-token stream for a single verse out of the
     chapter HTML. Tokens are whitespace-separated after stripping all
@@ -200,10 +211,7 @@ def extract_verse_tokens(html: str, book: str, chapter: int, verse: int) -> List
             continue
         start = m.end()
         end = markers[i + 1].start() if i + 1 < len(markers) else len(html)
-        chunk = html[start:end]
-        chunk = _TAG_RE.sub("", chunk)
-        chunk = _decode_entities(chunk)
-        return chunk.split()
+        return _strip_to_text(html[start:end]).split()
     return []
 
 
@@ -227,7 +235,5 @@ def extract_chapter_verses(
             continue
         start = m.end()
         end = markers[i + 1].start() if i + 1 < len(markers) else len(html)
-        chunk = _TAG_RE.sub("", html[start:end])
-        chunk = _decode_entities(chunk)
-        out[v] = chunk.split()
+        out[v] = _strip_to_text(html[start:end]).split()
     return out
