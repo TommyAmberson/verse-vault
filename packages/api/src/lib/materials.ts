@@ -82,7 +82,8 @@ export function getMaterialJson(id: string): string {
 
   const fallback = INLINE_FIXTURES[id];
   if (fallback === undefined) throw new Error(`Unknown material: ${id}`);
-  const json = JSON.stringify(fallback);
-  cache.set(id, json);
-  return json;
+  // Don't cache the fallback: if a dev process started before the pipeline
+  // wrote data/corinthians.json, we want the next request to re-check disk
+  // and pick up the real file instead of being stuck on the inline stub.
+  return JSON.stringify(fallback);
 }
