@@ -5,7 +5,7 @@ Scripts for converting Bible content into verse-vault's intermediate JSON format
 ## Pipeline overview
 
 The fast path imports an Anki `.colpkg` backup directly and reuses already-chunked phrases from a
-sidecar cache, so the LLM step only runs for verses whose text actually changed:
+sidecar cache, so the splitter only runs for verses whose text actually changed:
 
 ```
 Anki .colpkg backup
@@ -14,14 +14,21 @@ Anki .colpkg backup
 import_colpkg.py + phrases cache ──→ JSON
     │
     ▼
-(if any verses lacked a cached split)
-prepare_batches.py / LLM agents / validate_and_merge.py
+(if any verses lacked a cached split — or any are flagged as low-quality)
+evaluate_phrases.py ──→ report.json (worst splits, with reasons)
+    │
+    ▼
+split_phrases.py print-prompt ──→ LLM ──→ split_phrases.py apply
     │
     ▼
 extract_phrases.py ──→ updated phrases cache (commit)
+    │
+    ▼
+derive_structure.py ──→ structural corinthians.json (commit)
 ```
 
-The legacy path (text export → parse_anki.py) still works and is documented at the bottom.
+The "from text export" path (`parse_anki.py` → splitter → cache) still works and is documented at
+the bottom.
 
 ## Fast path: re-importing from a colpkg
 
@@ -34,7 +41,7 @@ Anki desktop: `File → Export → Anki Collection Package → with scheduling/m
 ```bash
 python3 tools/import_colpkg.py \
     data/collection-2026-05-08.colpkg \
-    data/corinthians.json \
+    data/corinthians-parsed.json \
     --year 3-C \
     --phrases data/corinthians-phrases.json
 ```
@@ -43,22 +50,80 @@ The script extracts the SQLite (handles zstd-compressed `collection.anki21b`), r
 `Heading` notetypes, and merges in cached splits from the phrases sidecar. Verses whose text matches
 the cache reuse the cached phrases; mismatches fall back to `[whole verse]` and are listed at exit.
 
-### 3. Re-chunk only the verses that changed
+### 3. Audit splits
 
-If `import_colpkg.py` reported any verses needing re-chunking, run the LLM pipeline (steps in
-"Legacy path" below) on a subset, then merge. Or — if the changes look like incidental noise (typos,
-quote stripping) — fix them in Anki and re-export.
-
-### 4. Refresh the phrases cache
-
-After validate_and_merge produces a fresh `corinthians.json`, dump the cache so future `.colpkg`
-imports stay cheap:
+Run the evaluator over the phrase cache to surface the verses that need attention — both new verses
+still on the placeholder split and existing verses with quality issues:
 
 ```bash
-python3 tools/extract_phrases.py data/corinthians.json data/corinthians-phrases.json
+python3 tools/evaluate_phrases.py data/corinthians-phrases.json --top 20
 ```
 
-### 5. Verify against canonical NKJV (optional)
+The evaluator runs deterministic checks (rejoin invariant, 3-12 word bounds per phrase, balanced
+HTML, missing-split detection on 10+ word single-phrase verses) and ranks issues by severity
+(`blocker` > `high` > `medium` > `low`). Pass `--llm-judge` to also ask Claude Haiku to audit the
+splits that passed the deterministic checks; that requires the `anthropic` package and
+`ANTHROPIC_API_KEY` in the environment. Pass `--out report.json` to capture the report for the next
+step.
+
+### 4. Re-split the flagged verses
+
+`split_phrases.py print-prompt` emits the LLM prompt for each ref. The prompt lives in
+`tools/phrase_splitter/prompts.py` and is shared with the phrase-splitter skill so iterations land
+in one place.
+
+```bash
+# Print prompts for the worst 10 entries in the report
+python3 tools/split_phrases.py print-prompt data/corinthians-phrases.json \
+    --from-report report.json --top 10 --json > /tmp/prompts.json
+
+# Or target specific refs directly
+python3 tools/split_phrases.py print-prompt data/corinthians-phrases.json \
+    --refs "1 Cor 12:11,1 Cor 1:26"
+```
+
+Feed each prompt to an LLM (Claude in the terminal, the phrase-splitter skill, the Anthropic API —
+any of them), then collect the responses into a JSON file of `{ref, phrases}` objects:
+
+```json
+[
+  {
+    "ref": "1 Corinthians 12:11",
+    "phrases": [
+      "But one and the same Spirit works all these things,",
+      "<b>distributing</b> to each one individually as He wills."
+    ]
+  }
+]
+```
+
+Apply with deterministic validation (rejoin + bounds + HTML balance):
+
+```bash
+python3 tools/split_phrases.py apply data/corinthians-phrases.json \
+    --input /tmp/proposed.json --dry-run    # check without writing
+python3 tools/split_phrases.py apply data/corinthians-phrases.json \
+    --input /tmp/proposed.json              # write to cache
+```
+
+Failures (rejoin mismatch, out-of-bounds phrase, unbalanced HTML) are reported with reasons and the
+exit code is non-zero; survivors are written to the cache.
+
+### 5. Refresh the structural deck file
+
+After the cache changes, regenerate the committed structural JSON so consumers see the new word
+counts and annotation offsets:
+
+```bash
+python3 tools/extract_phrases.py data/corinthians-parsed.json data/corinthians-phrases.json
+python3 tools/derive_structure.py data/corinthians-phrases.json data/corinthians.json
+```
+
+`derive_structure.py` strips the verse text and emits the structural shape (`phraseWordCounts`,
+`annotations`, `ftvWordCount`, heading ranges, clubs) — the only thing the server and clients
+consume at runtime.
+
+### 6. Verify against canonical NKJV (optional)
 
 The Anki deck is the source of truth in this pipeline, but it can drift from the canonical NKJV text
 — typos slipping in during edits, etc. `check_against_apibible.py` fetches the chapter via api.bible
@@ -67,7 +132,7 @@ wording diverges:
 
 ```bash
 export API_BIBLE_KEY=<your api.bible key>
-python3 tools/check_against_apibible.py data/corinthians.json \
+python3 tools/check_against_apibible.py data/corinthians-phrases.json \
     --book "1 Corinthians" --chapter 1
 ```
 
@@ -81,7 +146,9 @@ Subject to the
 * Starter-plan callers must include a visible citation + link to https://api.bible in any UI
   surfacing the content.
 
-## Legacy path: text export
+## Fresh start: from a text export
+
+Use this path when there is no existing phrase cache to seed from.
 
 ```
 Anki export (.txt)
@@ -90,13 +157,13 @@ Anki export (.txt)
 parse_anki.py ──→ parsed JSON (phrases = [whole verse])
     │
     ▼
-prepare_batches.py ──→ batch-N-input.txt files + agent prompt template
+evaluate_phrases.py ──→ flags every long verse as "missing split"
     │
     ▼
-LLM agents (Claude Code subagents) ──→ chunks-N.json files
+split_phrases.py print-prompt → LLM → split_phrases.py apply
     │
     ▼
-validate_and_merge.py ──→ final JSON (phrases = [chunked phrases])
+extract_phrases.py + derive_structure.py
 ```
 
 ### 1. Parse the Anki export
@@ -117,67 +184,22 @@ JSON. Phrases are initially set to `[whole verse]` as placeholder.
 * Multi-word `<b>`/`<i>` spans normalized to per-word tags
 * Spaces moved outside tags
 
-### 2. Prepare batch files for LLM chunking
+### 2. Build a phrase cache from the placeholder splits
 
 ```bash
-python3 tools/prepare_batches.py data/corinthians-parsed.json --batch-size 50
+python3 tools/extract_phrases.py data/corinthians-parsed.json data/corinthians-phrases.json
 ```
 
-Splits verses into `data/batch-N-input.txt` files (50 verses each, one per line) and prints the
-agent prompt template.
+Every verse will sit in the cache with a single-phrase placeholder, ready for the splitter.
 
-### 3. Dispatch LLM agents
+### 3. Audit and split
 
-Use Claude Code to dispatch background Haiku agents. Each agent reads one batch file, splits verses
-into phrases, and writes a `data/chunks-N.json` file.
-
-**Agent prompt** (from prepare_batches.py output):
-
-```
-Read /path/to/data/batch-N-input.txt using the Read tool.
-There are M lines, each a Bible verse that may contain HTML tags (<b>, <i>, <span>).
-
-Split each line into memorization phrases (4-12 words). Rules:
-- Break AFTER commas, semicolons, colons
-- Break BEFORE conjunctions: and, but, for, that, who, which, or
-- Short verses (< 8 words) stay as one phrase
-- CRITICAL: Preserve ALL text exactly, including HTML tags. Do NOT modify
-  any text, fix typos, or change quotes. Phrases joined with " " MUST
-  exactly equal the original line.
-
-Write ONLY valid JSON to /path/to/data/chunks-N.json — an array of M arrays of strings.
-IMPORTANT: Some verses contain literal " (double quote) characters. In JSON
-strings these MUST be escaped as \". For example: "He said: \"Come here.\""
-Do NOT use Bash or Python. Use only Read and Write tools.
-```
-
-**Known issue:** LLM agents sometimes fail to escape `"` in JSON strings, producing invalid JSON.
-The `validate_and_merge.py` script attempts to fix this automatically. If a batch still has invalid
-JSON after the fix attempt, manually fix the `chunks-N.json` file or re-dispatch that batch.
-
-**Key settings for dispatch:**
-
-* Model: `haiku` (cheaper, sufficient for this task)
-* Run in background: `true`
-* Some agents may fail due to permissions or content filtering — retry failed batches
-
-### 4. Validate and merge
-
-```bash
-python3 tools/validate_and_merge.py data/corinthians-parsed.json data/corinthians.json
-```
-
-Validates that each verse's phrases rejoin to the original text exactly. Reports:
-
-* **Clean**: phrases match original ✓
-* **Typo flagged**: LLM changed text slightly (likely corrected a typo in source)
-* **Fallback**: too many changes, uses whole verse as single phrase
-
-Typo-flagged verses show the original and suggested text so you can decide which is correct.
+Same as the fast path steps 3–5 — `evaluate_phrases.py` flags every long verse as a missing-split
+case; `split_phrases.py` runs the splitter; `derive_structure.py` produces the committed file.
 
 ## File format
 
-The intermediate JSON (`corinthians.json`):
+The intermediate parsed JSON (`corinthians-parsed.json`):
 
 ```json
 {
@@ -211,3 +233,25 @@ The `text` field contains clean text with preserved HTML formatting:
 * `<b>word</b>` — bold keyword
 * `<i><b>word</b></i>` — bold italic keyword
 * `L<span style="font-variant: small-caps;">ord</span>` — LORD small caps
+
+The committed structural file (`corinthians.json`, produced by `derive_structure.py`) drops the
+verse text and phrase strings — only `phraseWordCounts`, `annotations`, `ftvWordCount`, heading
+ranges, and clubs remain. Consumers fetch the canonical NKJV text from api.bible at render time.
+
+## Phrase quality checks
+
+The deterministic checks in `tools/evaluate_phrases.py` codify the project's memorisation-quality
+rules:
+
+| Check                                         | Severity | What it catches                                             |
+| --------------------------------------------- | -------- | ----------------------------------------------------------- |
+| Rejoin invariant: `" ".join(phrases) == text` | blocker  | The LLM mangled text or dropped HTML                        |
+| Empty / non-string phrase                     | blocker  | A phrase entry is `""` or not a string                      |
+| HTML tag balance per phrase                   | blocker  | A split sliced a `<b>…</b>` open from its close             |
+| Phrase > 12 words                             | high     | Run too long to chunk in working memory                     |
+| Phrase < 3 words, mid-verse                   | high     | Stranded fragment like `"But one"` in 1 Cor 12:11           |
+| Phrase < 3 words, at edge                     | medium   | Likely a stylistic intro/outro, often fine but worth a look |
+| Single phrase, verse > 10 words               | high     | No split applied where one is needed                        |
+
+The split prompt + LLM judge prompt are in `tools/phrase_splitter/prompts.py`. Iterate there; the
+CLI and the phrase-splitter skill both import from that module.
