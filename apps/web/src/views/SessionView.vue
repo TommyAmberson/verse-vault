@@ -171,29 +171,13 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* Outer card surface: white-on-page with a neutral border, holding
-   the meta label, the verse-coloured flashcard box (rendered by
-   CardPrompt), and the grade buttons. Sizes to its content so the
-   card stays compact regardless of how tall the viewport is. */
+/* Layout wrapper only — no surface or border. Meta label, the inner
+   verse-coloured flashcard box (rendered by CardPrompt), and the
+   grade buttons sit directly on the page background as siblings. */
 .card {
-  background: var(--color-bg-card);
-  border: 1.5px solid var(--color-text);
-  border-radius: 12px;
-  padding: 2.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-/* Narrow viewports: tighten padding so the card doesn't crowd the
-   screen edges on phones. Below ~600px the outer container would
-   otherwise consume most of the screen with padding alone. */
-@media (max-width: 600px) {
-  .card {
-    padding: 1.25rem;
-    border-radius: 8px;
-  }
+  gap: 1.5rem;
 }
 
 .actions {

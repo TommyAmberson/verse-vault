@@ -226,15 +226,10 @@ const composedMissing = computed(() => props.card.composed === null)
   text-align: center;
 }
 
-/* Verse-coloured inner box — the flashcard frame. Sits inside the
-   outer SessionView card surface, so it shares that white background
-   and only the border tints. Width and weight are tuned so the line
-   reads with the same perceived saturation as the verse-number digit
-   (a thin line at the deck's OKLCH lightness looks noticeably darker
-   than anti-aliased text on either light or dark backgrounds).
-
-   Hugs its content; the verse, ref, and any reveal sit at the top
-   of the frame rather than spreading to fill the outer card. */
+/* Verse-coloured flashcard box — the only bordered surface on the
+   page. Min-height reserves enough room that the box doesn't pop
+   bigger when reveal adds the answer text — content sits at the top
+   of a fixed-height frame, with empty space below before reveal. */
 .card-box {
   border-width: 5px;
   border-style: solid;
@@ -243,6 +238,8 @@ const composedMissing = computed(() => props.card.composed === null)
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: 18rem;
+  background: var(--color-bg-card);
 }
 
 @media (max-width: 600px) {
@@ -250,6 +247,7 @@ const composedMissing = computed(() => props.card.composed === null)
     border-width: 4px;
     padding: 1.25rem 1rem;
     border-radius: 8px;
+    min-height: 14rem;
   }
 }
 
