@@ -37,9 +37,10 @@ pub struct VerseData {
     #[serde(default)]
     pub annotations: Vec<Annotation>,
     /// Number of leading words that form the FTV (First-Two-Verses-style)
-    /// prompt. None when the verse has no FTV. Always ≤ phrase_word_counts[0]
-    /// and ≤ FTV_MAX_WORDS — derive_structure verifies the prefix invariant
-    /// before emitting.
+    /// prompt. None when the verse has no FTV. derive_structure verifies the
+    /// prefix invariant (`≤ phrase_word_counts[0]` and the FTV words match the
+    /// start of phrase 0) before emitting; the builder additionally rejects
+    /// values exceeding `FTV_MAX_WORDS`.
     #[serde(default)]
     pub ftv_word_count: Option<u16>,
     #[serde(default)]

@@ -91,9 +91,9 @@ fn build_heading_lookup(headings: &[HeadingData]) -> HashMap<(String, u16, u16),
 
 /// Build cards and seeded test states from material data.
 ///
-/// Verses are assigned `verse_id`s in `data.verses_with_text()` order starting
-/// at 0. `now_secs` is used to seed `TestState::new_unseen` for every test
-/// reachable from any emitted card.
+/// Verses are assigned `verse_id`s in `data.verses_with_content()` order
+/// starting at 0. `now_secs` is used to seed `TestState::new_unseen` for every
+/// test reachable from any emitted card.
 pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
     let heading_lookup = build_heading_lookup(&data.headings);
 

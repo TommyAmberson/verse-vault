@@ -64,8 +64,9 @@ pub struct ReviewEngine {
     pub schedule_params: ScheduleParams,
     /// Per-verse VerseAtoms. Populated at build time so `atoms_for` is O(1).
     pub verse_atoms_data: HashMap<u32, VerseAtoms>,
-    /// Per-verse rendering data — verse text, phrase strings, heading
-    /// labels — for consumers that need to display the card to a learner.
+    /// Per-verse structural render metadata — phrase word counts, annotations,
+    /// FTV word count, heading ranges, club tiers. Verse text is composed
+    /// server-side from api.bible chapter HTML at request time.
     pub verse_render_data: HashMap<u32, VerseRender>,
 }
 
