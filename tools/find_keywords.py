@@ -1,41 +1,39 @@
 #!/usr/bin/env python3
-"""Audit the deck's keyword (``<b>``) and context-key (``<b><i>``) markup.
+"""Audit the deck's keyword (``bold``) and context-key (``boldItalic``)
+annotations in ``data/corinthians.json``.
 
 Quiz federation rules (paraphrased from `qzr-sheet/docs/rules.md`):
 
-- **Keyword** (marked ``<b>``): a word that appears in exactly one verse
-  in the material. The contestant can answer with the verse on hearing
-  this word.
-- **Context key** (marked ``<b><i>``): a word that appears in multiple
-  verses whose **first and last occurrences are within 5 verses** of
-  each other (``max_index - min_index <= 5``). Since occurrences are
-  collected in verse order, the first-to-last gap bounds every other
-  pair, so this single check suffices. The contestant can locate the
-  context on hearing this word even though more than one verse
-  contains it.
+- **Keyword** (annotation kind ``bold``): a word that appears in
+  exactly one verse in the material. The contestant can answer with
+  the verse on hearing this word.
+- **Context key** (annotation kind ``boldItalic``): a word that
+  appears in multiple verses whose **first and last occurrences are
+  within 5 verses** of each other (``max_index - min_index <= 5``).
+  Since occurrences are collected in verse order, the first-to-last
+  gap bounds every other pair, so this single check suffices.
 
 Verse distance is computed sequentially within a single book. The
-material includes 1 & 2 Corinthians; cross-book occurrences are treated
-as separate contexts (a word in 1 Cor and 2 Cor can't be a context key
-no matter how close the in-chapter numbers look).
+material includes 1 & 2 Corinthians; cross-book occurrences count as
+separate contexts.
 
-Words are compared after stripping inline HTML tags, lowercasing, and
+Tokens come from the api.bible canonical text (the same source the
+runtime renderer uses). Words are compared after lowercasing and
 trimming leading/trailing non-letter characters. So ``Paul,`` and
 ``Paul.`` both normalise to ``paul``; ``God's`` keeps its interior
 apostrophe.
 
-The script emits a comparison between what the deck has marked today
-and what the rules say should be marked, flagging:
+The report compares each word's expected markup (per the rules above)
+with the markup the deck currently applies via ``annotations``:
 
-- ``over-marked``  — word is marked but doesn't satisfy the rule.
-- ``under-marked`` — word satisfies the rule but isn't marked.
-- ``wrong-kind``   — word is marked ``<b>`` but should be ``<b><i>``,
-                     or vice versa.
+- ``over-marked``  — word is marked but doesn't satisfy the rule
+- ``under-marked`` — word satisfies the rule but isn't marked
+- ``wrong-kind``   — marked as bold but should be boldItalic, or vice versa
 
 Usage:
-    python3 tools/find_keywords.py data/corinthians-parsed.json
-    python3 tools/find_keywords.py data/corinthians-parsed.json --out report.json
-    python3 tools/find_keywords.py data/corinthians-parsed.json --kind keyword
+    python3 tools/find_keywords.py
+    python3 tools/find_keywords.py --out report.json
+    python3 tools/find_keywords.py --kind keyword
 """
 
 import argparse
@@ -48,118 +46,108 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from phrase_splitter import strip_html  # noqa: E402
+from phrase_splitter.apibible import (  # noqa: E402
+    DEFAULT_DB_PATH,
+    DEFAULT_NKJV_ID,
+    extract_chapter_verses,
+    get_chapter_html,
+    open_cache,
+)
 
 CONTEXT_RADIUS = 5  # ±5 verses per the federation rules
 
-# Markup levels, in priority order — boldItalic > bold > plain.
 MARKUP_PLAIN = "plain"
 MARKUP_BOLD = "bold"
 MARKUP_BOLD_ITALIC = "boldItalic"
 
 _EDGE_PUNCT_RE = re.compile(r"^[^\w']+|[^\w']+$")
 
-# Match a single-word annotation wrapper. The deck's text cleaning
-# normalises multi-word `<b>` / `<i>` spans to per-word tags
-# (see tools/parse_anki.py), so we expect each wrapper to enclose
-# exactly one whitespace-token after stripping inner tags.
-_BOLD_ITALIC_RE = re.compile(r"<b><i>([^<]+)</i></b>", re.IGNORECASE)
-_ITALIC_BOLD_RE = re.compile(r"<i><b>([^<]+)</b></i>", re.IGNORECASE)
-_BOLD_RE = re.compile(r"<b>([^<]+)</b>", re.IGNORECASE)
-
 
 def _normalise(token: str) -> str:
     return _EDGE_PUNCT_RE.sub("", token).lower()
 
 
-def extract_word_markups(text: str) -> Dict[str, str]:
-    """Scan a verse's text for inline markup. Returns a map of
-    ``normalised_word → markup level`` (``boldItalic`` if a word is
-    wrapped both ways anywhere in the verse, else ``bold`` if any
-    occurrence is bold, else absent). Same-word occurrences within
-    the verse are collapsed so a verse-internal "love ... love" pair
-    where one is bolded is reported as bold.
-    """
-    out: Dict[str, str] = {}
-
-    def upsert(word: str, level: str) -> None:
-        n = _normalise(word)
-        if not n:
-            return
-        prev = out.get(n)
-        if (
-            prev is None
-            or (prev == MARKUP_BOLD and level == MARKUP_BOLD_ITALIC)
-        ):
-            out[n] = level
-
-    for m in _BOLD_ITALIC_RE.finditer(text):
-        upsert(m.group(1), MARKUP_BOLD_ITALIC)
-    for m in _ITALIC_BOLD_RE.finditer(text):
-        upsert(m.group(1), MARKUP_BOLD_ITALIC)
-    # Plain bold has to come after bold-italic so we don't double-count
-    # the outer ``<b>`` of a ``<b><i>``. Strip already-matched
-    # bold-italic spans from a working copy before scanning for bold.
-    stripped = _BOLD_ITALIC_RE.sub("", text)
-    stripped = _ITALIC_BOLD_RE.sub("", stripped)
-    for m in _BOLD_RE.finditer(stripped):
-        upsert(m.group(1), MARKUP_BOLD)
+def _annotation_map(verse: Dict[str, Any]) -> Dict[int, str]:
+    """``wordIndex → kind`` for the deck annotations on this verse. We
+    treat ``italic``-only as plain for this audit — quiz rules only
+    elevate ``bold`` (keyword) and ``boldItalic`` (context-key)."""
+    out: Dict[int, str] = {}
+    for a in verse.get("annotations") or []:
+        kind = a.get("kind")
+        if kind in (MARKUP_BOLD, MARKUP_BOLD_ITALIC):
+            out[a["wordIndex"]] = kind
     return out
 
 
 def build_word_index(
-    verses: List[Dict[str, Any]],
+    deck: Dict[str, Any], conn, bible_id: str
 ) -> Tuple[
     Dict[str, List[Tuple[str, int, int, str]]],
     Dict[Tuple[str, int, int], int],
 ]:
-    """Walk the material once and build:
+    """Walk the material once and collect, per normalised word:
 
-    - ``word → [(book, chapter, verse, current_markup), ...]`` — the
-      list of every verse that contains the (normalised) word, with the
-      deck's current markup for that word in that verse.
-    - ``(book, chapter, verse) → sequential_index_within_book`` — used
-      for verse-distance arithmetic.
+    - the verses it appears in, with the markup the deck applies to it
+      in that verse (collapsing same-word repeats inside the verse to a
+      single occurrence, with the strongest markup winning)
+    - a ``(book, chapter, verse) → sequential_index_within_book`` map
+      used for the verse-distance check on context keys.
     """
-    word_occurrences: Dict[str, List[Tuple[str, int, int, str]]] = defaultdict(list)
-    book_sequence: Dict[str, int] = defaultdict(int)
+    occurrences: Dict[str, List[Tuple[str, int, int, str]]] = defaultdict(list)
+    book_seq: Dict[str, int] = defaultdict(int)
     verse_index: Dict[Tuple[str, int, int], int] = {}
 
-    for v in verses:
+    chapter_cache: Dict[Tuple[str, int], Dict[int, List[str]]] = {}
+    for v in deck.get("verses", []):
+        if not v.get("phraseWordCounts"):
+            continue
         book = v["book"]
         chapter = v["chapter"]
         verse_num = v["verse"]
-        text = v.get("text", "")
-        if not text:
+        ckey = (book, chapter)
+        if ckey not in chapter_cache:
+            html = get_chapter_html(conn, book, chapter, bible_id=bible_id)
+            chapter_cache[ckey] = extract_chapter_verses(html, book, chapter)
+        tokens = chapter_cache[ckey].get(verse_num, [])
+        if not tokens:
             continue
-        verse_index[(book, chapter, verse_num)] = book_sequence[book]
-        book_sequence[book] += 1
+        verse_index[(book, chapter, verse_num)] = book_seq[book]
+        book_seq[book] += 1
 
-        markups = extract_word_markups(text)
-        seen_in_verse: Set[str] = set()
-        for token in strip_html(text).split():
+        annotations = _annotation_map(v)
+        # Collapse same-word repeats in the verse — keep the strongest
+        # markup seen across positions (boldItalic > bold > plain).
+        seen_kinds: Dict[str, str] = {}
+        for i, token in enumerate(tokens):
             n = _normalise(token)
-            if not n or n in seen_in_verse:
+            if not n:
                 continue
-            seen_in_verse.add(n)
-            level = markups.get(n, MARKUP_PLAIN)
-            word_occurrences[n].append((book, chapter, verse_num, level))
+            kind = annotations.get(i, MARKUP_PLAIN)
+            prev = seen_kinds.get(n, MARKUP_PLAIN)
+            if _markup_rank(kind) > _markup_rank(prev):
+                seen_kinds[n] = kind
+            else:
+                seen_kinds.setdefault(n, prev)
+        for n, kind in seen_kinds.items():
+            occurrences[n].append((book, chapter, verse_num, kind))
 
-    return word_occurrences, verse_index
+    return occurrences, verse_index
+
+
+def _markup_rank(m: str) -> int:
+    return {MARKUP_PLAIN: 0, MARKUP_BOLD: 1, MARKUP_BOLD_ITALIC: 2}.get(m, 0)
 
 
 def classify_word(
     occurrences: List[Tuple[str, int, int, str]],
     verse_index: Dict[Tuple[str, int, int], int],
 ) -> str:
-    """Return what the rule says this word should be marked as: ``bold``,
-    ``boldItalic``, or ``plain``.
+    """What the rule says this word should be marked as.
 
-    - 1 occurrence (in 1 verse) → keyword ``bold``.
-    - 2+ occurrences all in the same book, first-to-last gap within
-      ``CONTEXT_RADIUS`` verses (``max_index - min_index <= 5``) →
-      context key ``boldItalic``.
-    - Otherwise → ``plain`` (shouldn't be marked).
+    - 1 occurrence → ``bold`` (keyword)
+    - 2+ occurrences, same book, first-to-last gap ≤ ``CONTEXT_RADIUS``
+      → ``boldItalic`` (context key)
+    - Otherwise → ``plain``
     """
     if len(occurrences) == 1:
         return MARKUP_BOLD
@@ -174,9 +162,8 @@ def classify_word(
 
 def deck_marking_for_word(occurrences: List[Tuple[str, int, int, str]]) -> str:
     """The strongest markup level applied to this word anywhere in the
-    deck. If any occurrence is bold-italic the word is treated as marked
-    bold-italic; else bold if any is bold; else plain.
-    """
+    deck. Any occurrence marked boldItalic wins; otherwise bold if any;
+    else plain."""
     levels = {m for *_rest, m in occurrences}
     if MARKUP_BOLD_ITALIC in levels:
         return MARKUP_BOLD_ITALIC
@@ -190,12 +177,12 @@ def _ref_list(occurrences: List[Tuple[str, int, int, str]]) -> List[str]:
 
 
 def audit(
-    word_occurrences: Dict[str, List[Tuple[str, int, int, str]]],
+    occurrences: Dict[str, List[Tuple[str, int, int, str]]],
     verse_index: Dict[Tuple[str, int, int], int],
 ) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
-    for word in sorted(word_occurrences.keys()):
-        occs = word_occurrences[word]
+    for word in sorted(occurrences.keys()):
+        occs = occurrences[word]
         expected = classify_word(occs, verse_index)
         actual = deck_marking_for_word(occs)
         if expected == actual:
@@ -206,16 +193,14 @@ def audit(
             verdict = "over-marked"
         else:
             verdict = "wrong-kind"
-        rows.append(
-            {
-                "word": word,
-                "expected": expected,
-                "actual": actual,
-                "verdict": verdict,
-                "occurrence_count": len(occs),
-                "refs": _ref_list(occs),
-            }
-        )
+        rows.append({
+            "word": word,
+            "expected": expected,
+            "actual": actual,
+            "verdict": verdict,
+            "occurrence_count": len(occs),
+            "refs": _ref_list(occs),
+        })
     return rows
 
 
@@ -225,9 +210,13 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument(
-        "input",
-        help="Text-bearing chunked JSON (e.g. data/corinthians-parsed.json)",
+        "deck",
+        nargs="?",
+        default="data/corinthians.json",
+        help="Structural deck JSON (default: data/corinthians.json)",
     )
+    ap.add_argument("--db", default=DEFAULT_DB_PATH, help="Shared api.bible SQLite cache")
+    ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")
     ap.add_argument(
         "--kind",
         choices=("keyword", "context-key", "all"),
@@ -238,36 +227,31 @@ def main() -> None:
     ap.add_argument(
         "--top",
         type=int,
-        help="Print only the first N rows of each section (verdict bucket)",
+        help="Print only the first N rows of each verdict bucket",
     )
     args = ap.parse_args()
 
-    with open(args.input, encoding="utf-8") as f:
-        data = json.load(f)
-    verses = [v for v in data.get("verses", []) if v.get("text")]
+    with open(args.deck, encoding="utf-8") as f:
+        deck = json.load(f)
 
-    word_occurrences, verse_index = build_word_index(verses)
-    findings = audit(word_occurrences, verse_index)
+    conn = open_cache(args.db)
+    try:
+        occurrences, verse_index = build_word_index(deck, conn, args.bible)
+    finally:
+        conn.close()
+
+    findings = audit(occurrences, verse_index)
 
     if args.kind == "keyword":
-        findings = [
-            f
-            for f in findings
-            if f["expected"] == MARKUP_BOLD or f["actual"] == MARKUP_BOLD
-        ]
+        findings = [f for f in findings if f["expected"] == MARKUP_BOLD or f["actual"] == MARKUP_BOLD]
     elif args.kind == "context-key":
-        findings = [
-            f
-            for f in findings
-            if f["expected"] == MARKUP_BOLD_ITALIC or f["actual"] == MARKUP_BOLD_ITALIC
-        ]
+        findings = [f for f in findings if f["expected"] == MARKUP_BOLD_ITALIC or f["actual"] == MARKUP_BOLD_ITALIC]
 
-    # Group by verdict for readable output.
     buckets: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for f in findings:
         buckets[f["verdict"]].append(f)
 
-    print(f"Scanned {len(verses)} verses, {len(word_occurrences)} distinct words.")
+    print(f"Scanned {len(verse_index)} verses, {len(occurrences)} distinct words.")
     print(f"Flagged: {len(findings)}")
     for verdict in ("over-marked", "under-marked", "wrong-kind"):
         rows = buckets[verdict]
