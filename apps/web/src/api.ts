@@ -16,6 +16,16 @@ export interface CardRender {
   tier?: 'Club150' | 'Club300'
   withCitation?: boolean
   verse: VerseRender
+  /** Server-composed HTML from the api.bible cache layered with user
+   *  annotations. `null` when the cache is unavailable (e.g. BIBLE_API_KEY
+   *  unset on the server). */
+  composed: ComposedRender | null
+}
+
+export interface ComposedRender {
+  phraseHtml: string[]
+  ftvHtml: string | null
+  headings: { headingIdx: number; title: string | null }[]
 }
 
 export type CardKind =
@@ -35,10 +45,16 @@ export interface VerseRender {
   book: string
   chapter: number
   verse: number
-  text: string
-  phrases: string[]
-  ftv: string | null
-  headings: { headingIdx: number; text: string }[]
+  phraseWordCounts: number[]
+  annotations: { wordIndex: number; kind: 'bold' | 'italic' | 'boldItalic' }[]
+  ftvWordCount: number | null
+  headings: {
+    headingIdx: number
+    startChapter: number
+    startVerse: number
+    endChapter: number
+    endVerse: number
+  }[]
   clubs: ('Club150' | 'Club300')[]
 }
 
