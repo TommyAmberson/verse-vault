@@ -268,11 +268,12 @@ const composedMissing = computed(() => props.card.composed === null)
 
 /* Headline-style ref for cards where the reference is the focus
    (VerseAtVerseRef / Recitation prompts, Citation / VerseInChapter /
-   VerseInBook answers). Centered and large like the Anki deck's
-   centered 20px body — scaled up here to suit the bigger card area. */
+   VerseInBook answers). Book + chapter render in the neutral text
+   colour so the only accent in the line is the verse-number digit
+   (which picks up the verse colour via its own inline rule). */
 .ref {
   font-weight: 600;
-  color: var(--color-accent);
+  color: var(--color-text);
   font-size: 1.75rem;
   text-align: center;
   align-self: stretch;
