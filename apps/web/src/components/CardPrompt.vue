@@ -220,15 +220,28 @@ const composedMissing = computed(() => props.card.composed === null)
   align-items: flex-start;
 }
 
+/* Headline-style ref for cards where the reference is the focus
+   (VerseAtVerseRef / Recitation prompts, Citation / VerseInChapter /
+   VerseInBook answers). Centered and large like the Anki deck's
+   centered 20px body — scaled up here to suit the bigger card area. */
 .ref {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-accent);
+  font-size: 1.75rem;
+  text-align: center;
+  align-self: stretch;
+  letter-spacing: 0.01em;
 }
 
+/* Context-style ref for cards where the reference is just a label
+   alongside the verse text (PhraseFill, VerseInHeading, VerseInClub).
+   Kept compact and muted so it doesn't compete with the main prompt. */
 .ref.small {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: var(--color-muted);
   font-weight: 400;
+  text-align: center;
+  align-self: stretch;
 }
 
 /* `?` placeholder for ref parts that are the answer being tested. Slightly
@@ -236,8 +249,8 @@ const composedMissing = computed(() => props.card.composed === null)
    without being a giant chip like phrase-hidden. */
 .ref :deep(.ref-hidden) {
   background: var(--color-accent-soft);
-  border-radius: 3px;
-  padding: 0 0.25rem;
+  border-radius: 4px;
+  padding: 0 0.4rem;
   color: var(--color-muted);
   font-weight: 600;
 }
