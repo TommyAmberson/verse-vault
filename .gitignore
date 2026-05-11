@@ -130,6 +130,10 @@ dist
 .pnp.*
 /.claude/
 /target
+
+# Python bytecode caches (tools/)
+__pycache__/
+*.pyc
 # `/data/*` rather than `/data/` so individual files can be whitelisted
 # below — `/data/` would prune the directory entirely and git wouldn't
 # recurse to evaluate the negations.
