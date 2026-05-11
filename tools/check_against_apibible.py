@@ -3,9 +3,11 @@
 NKJV pulled from api.bible.
 
 Useful for catching typos or accidental edits introduced when maintaining
-the source Anki deck. The API.Bible endpoint returns plain text; this
-script strips the deck text of its <b>/<i>/<span> markup before
-comparison so the diff is over actual wording, not formatting.
+the source Anki deck. Caches api.bible's chapter HTML in the API
+server's SQLite (``packages/api/data/verse-vault.db``, tables
+``apibible_passages`` + ``apibible_sections``) so the diagnostic
+shares cache state with the live server — one fetch, one TTL, one
+schema. The diff strips HTML to plain text for comparison.
 
 API.Bible Minimum Acceptable Use (paraphrased):
   - Don't modify scripture content. Cite per the citation rules.
@@ -21,17 +23,19 @@ Usage:
         data/corinthians-parsed.json \\
         --book "1 Corinthians" --chapter 1 \\
         [--bible 63097d2a0a2f7db3-01]   # NKJV (account-specific; see DEFAULT_NKJV_ID)
-        [--cache data/apibible-cache.json]
+        [--db packages/api/data/verse-vault.db]
 
-The cache stores fetched passages keyed by (bibleId, passageId) with a
-fetched-at timestamp. Entries older than 30 days are re-fetched per the
-API terms.
+The cache tables are created on demand if the database doesn't have
+them yet, so the tool works against a fresh dev box without needing
+the API migrations to have run. Entries older than 30 days are
+re-fetched and rewritten per the API terms.
 """
 
 import argparse
 import json
 import os
 import re
+import sqlite3
 import sys
 import time
 import urllib.error
@@ -80,9 +84,11 @@ def passage_id(book: str, chapter: int) -> str:
 
 
 def fetch_passage(bible_id: str, pid: str, api_key: str) -> dict:
-    """GET a passage as plain text. Returns api.bible's data envelope."""
+    """GET a passage as HTML. Matches the server's content-type so the
+    same SQLite row works for both the live render path and this
+    diagnostic. Returns api.bible's data envelope."""
     qs = urllib.parse.urlencode({
-        "content-type": "text",
+        "content-type": "html",
         "include-notes": "false",
         "include-titles": "false",
         "include-chapter-numbers": "false",
@@ -110,55 +116,128 @@ def _get_json(url: str, api_key: str, label: str) -> dict:
         raise SystemExit(f"api.bible HTTP {e.code} for {label}: {body[:200]}")
 
 
-def load_cache(path: str | None) -> dict:
-    """Load the on-disk cache, dropping any entries that have expired.
+def open_cache_db(path: str) -> sqlite3.Connection:
+    """Open the API server's SQLite (or create a standalone one), ensuring
+    the cache tables exist, then prune any entries past the 30-day TTL.
 
-    The API terms require all cached api.bible content to be refreshed
-    every 30 days. Pruning on load makes that guarantee structural: the
-    file never holds entries past CACHE_TTL_SECS, so even if a passage
-    isn't read again it can't sit stale in storage.
+    Schema matches ``packages/api/migrations/0006_pink_daimon_hellstrom.sql``.
+    Recreating the tables with IF NOT EXISTS is harmless when the
+    migrations already ran (the server uses Drizzle which records the
+    migration as applied; that record is what we leave alone).
     """
-    if not path or not os.path.exists(path):
-        return {}
-    with open(path, "r", encoding="utf-8") as f:
-        raw = json.load(f)
-    now = int(time.time())
-    pruned = {k: v for k, v in raw.items() if now - v.get("fetched_at", 0) < CACHE_TTL_SECS}
-    dropped = len(raw) - len(pruned)
-    if dropped:
-        print(f"Pruned {dropped} cache entries older than 30 days from {path}")
-    return pruned
-
-
-def save_cache(path: str, cache: dict) -> None:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(cache, f, indent=2, ensure_ascii=False)
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS apibible_passages (
+            bible_id TEXT NOT NULL,
+            passage_id TEXT NOT NULL,
+            content_html TEXT NOT NULL,
+            fetched_at INTEGER NOT NULL,
+            PRIMARY KEY (bible_id, passage_id)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS apibible_sections (
+            bible_id TEXT NOT NULL,
+            book_code TEXT NOT NULL,
+            sections_json TEXT NOT NULL,
+            fetched_at INTEGER NOT NULL,
+            PRIMARY KEY (bible_id, book_code)
+        )
+    """)
+    cutoff = int(time.time()) - CACHE_TTL_SECS
+    p_dropped = conn.execute(
+        "DELETE FROM apibible_passages WHERE fetched_at < ?", (cutoff,)
+    ).rowcount
+    s_dropped = conn.execute(
+        "DELETE FROM apibible_sections WHERE fetched_at < ?", (cutoff,)
+    ).rowcount
+    if p_dropped or s_dropped:
+        print(
+            f"Pruned {p_dropped} passage(s) + {s_dropped} section(s) past 30-day TTL"
+        )
+    conn.commit()
+    return conn
 
 
-def get_passage(bible_id: str, pid: str, api_key: str, cache: dict) -> str:
-    """Cache-aware passage fetch. Returns the plain-text passage."""
-    key = f"{bible_id}|passage|{pid}"
-    entry = cache.get(key)
+def get_passage(bible_id: str, pid: str, api_key: str, conn: sqlite3.Connection) -> str:
+    """Cache-aware passage fetch. Reads HTML from the SQLite cache, falls
+    through to api.bible on miss/stale, writes back. Returns the raw
+    HTML — callers convert to plain text for comparison via
+    ``html_to_verse_text``."""
     now = int(time.time())
-    if entry and now - entry.get("fetched_at", 0) < CACHE_TTL_SECS:
-        return entry["content"]
+    row = conn.execute(
+        "SELECT content_html, fetched_at FROM apibible_passages "
+        "WHERE bible_id = ? AND passage_id = ?",
+        (bible_id, pid),
+    ).fetchone()
+    if row and now - row[1] < CACHE_TTL_SECS:
+        return row[0]
     data = fetch_passage(bible_id, pid, api_key)
     content = data.get("data", {}).get("content", "")
-    cache[key] = {"content": content, "fetched_at": now, "passageId": pid}
+    conn.execute(
+        "INSERT INTO apibible_passages (bible_id, passage_id, content_html, fetched_at) "
+        "VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(bible_id, passage_id) DO UPDATE SET "
+        "content_html = excluded.content_html, fetched_at = excluded.fetched_at",
+        (bible_id, pid, content, now),
+    )
+    conn.commit()
     return content
 
 
-def get_sections(bible_id: str, book_code: str, api_key: str, cache: dict) -> list[dict]:
-    """Cache-aware sections fetch."""
-    key = f"{bible_id}|sections|{book_code}"
-    entry = cache.get(key)
+def get_sections(bible_id: str, book_code: str, api_key: str, conn: sqlite3.Connection) -> list[dict]:
+    """Cache-aware sections fetch. Same read-through pattern as
+    ``get_passage`` over the ``apibible_sections`` table."""
     now = int(time.time())
-    if entry and now - entry.get("fetched_at", 0) < CACHE_TTL_SECS:
-        return entry["sections"]
+    row = conn.execute(
+        "SELECT sections_json, fetched_at FROM apibible_sections "
+        "WHERE bible_id = ? AND book_code = ?",
+        (bible_id, book_code),
+    ).fetchone()
+    if row and now - row[1] < CACHE_TTL_SECS:
+        return json.loads(row[0])
     sections = fetch_sections(bible_id, book_code, api_key)
-    cache[key] = {"sections": sections, "fetched_at": now, "bookCode": book_code}
+    conn.execute(
+        "INSERT INTO apibible_sections (bible_id, book_code, sections_json, fetched_at) "
+        "VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(bible_id, book_code) DO UPDATE SET "
+        "sections_json = excluded.sections_json, fetched_at = excluded.fetched_at",
+        (bible_id, book_code, json.dumps(sections, ensure_ascii=False), now),
+    )
+    conn.commit()
     return sections
+
+
+# Verse-number markers in api.bible's HTML. ``data-sid="1CO 1:3"`` gives
+# the verse, and the span's text node is the visible verse number.
+_VERSE_SPAN_RE = re.compile(
+    r'<span\b[^>]*\bclass="v"[^>]*>(\d+)</span>',
+    re.IGNORECASE,
+)
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def html_to_verse_text(html: str) -> str:
+    """Convert api.bible HTML to the legacy ``[1] Paul, called…  [2] To
+    the church…`` plain-text shape, so the existing
+    ``parse_verses_from_passage`` parser keeps working unchanged.
+    Strips every other tag (paragraph wrappers, NKJV typography spans
+    — small caps, translator italics, etc.) since the diff is over
+    word-level content only."""
+    # Replace verse spans with [N] markers first so the verse number
+    # survives the subsequent tag strip.
+    out = _VERSE_SPAN_RE.sub(r"[\1] ", html)
+    out = _TAG_RE.sub("", out)
+    # Decode the handful of HTML entities api.bible emits.
+    out = (
+        out.replace("&amp;", "&")
+        .replace("&nbsp;", " ")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", '"')
+    )
+    return re.sub(r"\s+", " ", out).strip()
 
 
 VERSE_ID = re.compile(r"^([A-Z0-9]+)\.(\d+)\.(\d+)$")
@@ -227,9 +306,9 @@ def main():
     ap.add_argument("--chapter", type=int, help="(verses mode only) Limit to one chapter")
     ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")
     ap.add_argument(
-        "--cache",
-        default="data/apibible-cache.json",
-        help="Cache file (refreshed every 30 days per API terms)",
+        "--db",
+        default="packages/api/data/verse-vault.db",
+        help="Shared SQLite cache (the API server's DB; tables created if missing)",
     )
     args = ap.parse_args()
 
@@ -240,14 +319,14 @@ def main():
     with open(args.input, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    cache = load_cache(args.cache)
+    conn = open_cache_db(args.db)
     try:
         if args.mode == "verses":
-            check_verses(data, args, api_key, cache)
+            check_verses(data, args, api_key, conn)
         else:
-            check_headings(data, args, api_key, cache)
+            check_headings(data, args, api_key, conn)
     finally:
-        save_cache(args.cache, cache)
+        conn.close()
 
     print(
         "\nNKJV © Thomas Nelson. Used by permission via API.Bible "
@@ -256,7 +335,7 @@ def main():
     )
 
 
-def check_verses(data: dict, args, api_key: str, cache: dict) -> None:
+def check_verses(data: dict, args, api_key: str, conn: sqlite3.Connection) -> None:
     by_chapter: dict[tuple[str, int], list[dict]] = {}
     for v in data.get("verses", []):
         if args.book and v["book"] != args.book:
@@ -275,8 +354,8 @@ def check_verses(data: dict, args, api_key: str, cache: dict) -> None:
     diffs: list[dict] = []
     for (book, chapter), verses in sorted(by_chapter.items()):
         pid = passage_id(book, chapter)
-        passage = get_passage(args.bible, pid, api_key, cache)
-        canonical = parse_verses_from_passage(passage)
+        html = get_passage(args.bible, pid, api_key, conn)
+        canonical = parse_verses_from_passage(html_to_verse_text(html))
         for v in verses:
             total += 1
             theirs = normalize_deck_text(v["text"])
@@ -302,7 +381,7 @@ def check_verses(data: dict, args, api_key: str, cache: dict) -> None:
         print()
 
 
-def check_headings(data: dict, args, api_key: str, cache: dict) -> None:
+def check_headings(data: dict, args, api_key: str, conn: sqlite3.Connection) -> None:
     deck_by_book: dict[str, list[dict]] = {}
     for h in data.get("headings", []):
         if args.book and h["book"] != args.book:
@@ -325,7 +404,7 @@ def check_headings(data: dict, args, api_key: str, cache: dict) -> None:
         if code is None:
             print(f"!! No USX code mapped for {book!r}; skipping")
             continue
-        sections = get_sections(args.bible, code, api_key, cache)
+        sections = get_sections(args.bible, code, api_key, conn)
         # Map both sides keyed by start (chapter, verse).
         canonical_by_start = {}
         for s in sections:

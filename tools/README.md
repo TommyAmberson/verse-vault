@@ -141,8 +141,9 @@ python3 tools/check_against_apibible.py data/corinthians-parsed.json \
 Subject to the
 [API.Bible Minimum Acceptable Use Agreement](https://docs.api.bible/guides/terms-of-use):
 
-* Fetched passages are cached at `data/apibible-cache.json` and re-fetched after 30 days per the
-  cache-refresh requirement.
+* Fetched passages are cached in the API server's SQLite (`packages/api/data/verse-vault.db`, table
+  `apibible_passages`) — same store the live render path uses. Entries are re-fetched after 30 days
+  per the cache-refresh requirement.
 * Output prints the required citation line.
 * The cached content is for **runtime diagnostic use only** — not for training generative AI.
 * Starter-plan callers must include a visible citation + link to https://api.bible in any UI
