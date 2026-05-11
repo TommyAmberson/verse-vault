@@ -7,9 +7,12 @@ Quiz federation rules (paraphrased from `qzr-sheet/docs/rules.md`):
   in the material. The contestant can answer with the verse on hearing
   this word.
 - **Context key** (marked ``<b><i>``): a word that appears in multiple
-  verses **all pairwise within 5 verses of each other** (max_index -
-  min_index <= 5). The contestant can locate the context on hearing
-  this word even though more than one verse contains it.
+  verses whose **first and last occurrences are within 5 verses** of
+  each other (``max_index - min_index <= 5``). Since occurrences are
+  collected in verse order, the first-to-last gap bounds every other
+  pair, so this single check suffices. The contestant can locate the
+  context on hearing this word even though more than one verse
+  contains it.
 
 Verse distance is computed sequentially within a single book. The
 material includes 1 & 2 Corinthians; cross-book occurrences are treated
@@ -153,8 +156,8 @@ def classify_word(
     ``boldItalic``, or ``plain``.
 
     - 1 occurrence (in 1 verse) → keyword ``bold``.
-    - 2+ occurrences all in the same book AND pairwise within
-      ``CONTEXT_RADIUS`` verses (max_index - min_index <= 5) →
+    - 2+ occurrences all in the same book, first-to-last gap within
+      ``CONTEXT_RADIUS`` verses (``max_index - min_index <= 5``) →
       context key ``boldItalic``.
     - Otherwise → ``plain`` (shouldn't be marked).
     """
