@@ -45,6 +45,8 @@ const refParts = computed(() => {
       return { showBook: reveal, showChapter: true, showVerse: true }
     case 'VerseInChapter':
       return { showBook: true, showChapter: reveal, showVerse: true }
+    case 'VerseAtVerseRef':
+      return { showBook: true, showChapter: true, showVerse: reveal }
     case 'Citation':
       return { showBook: reveal, showChapter: reveal, showVerse: reveal }
     default:
@@ -79,7 +81,7 @@ const promptLabel = computed(() => {
     case 'PhraseFill':
       return `Fill in phrase ${props.card.position! + 1}`
     case 'VerseAtVerseRef':
-      return 'Recite this verse'
+      return 'What verse?'
     case 'VerseInChapter':
       return 'What chapter?'
     case 'VerseInBook':
@@ -138,13 +140,13 @@ const composedMissing = computed(() => props.card.composed === null)
         </div>
       </div>
 
+      <!-- VerseAtVerseRef is the atomic "what verse?" card — verse text
+           is the prompt, verse number is the answer. Same layout
+           pattern as VerseInChapter / VerseInBook / Citation. -->
       <div v-else-if="card.kind === 'VerseAtVerseRef'" class="centered">
         <div class="ref" v-html="refHtml" />
-        <template v-if="revealed">
-          <hr class="type" />
-          <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-        </template>
-        <div v-else class="placeholder">…recite the verse…</div>
+        <hr v-if="revealed" class="type" />
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
       </div>
 
       <!-- Ref-as-answer cards: ref is always present, but the asked-about
