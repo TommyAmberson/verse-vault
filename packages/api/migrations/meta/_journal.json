@@ -57,6 +57,13 @@
       "when": 1778370800000,
       "tag": "0007_purge_pre_structural_rows",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1778457200000,
+      "tag": "0008_purge_orphan_user_materials",
+      "breakpoints": true
     }
   ]
 }
