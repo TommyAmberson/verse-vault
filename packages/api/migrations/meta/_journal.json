@@ -64,6 +64,13 @@
       "when": 1778457200000,
       "tag": "0008_purge_orphan_user_materials",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1778540000000,
+      "tag": "0009_drop_phrasefromchain",
+      "breakpoints": true
     }
   ]
 }

@@ -26,8 +26,8 @@ export class NotEnrolledError extends Error {
  * Wire shape mirrors `verse-vault-wasm` `TestStateEntry`. The `element` field
  * is the serde-tagged JSON form of `ElementId` (e.g. `{"kind":"Phrase",
  * "verse_id":0,"position":2}`); kept opaque on the API side and round-
- * tripped verbatim through the database. `test_kind` is one of the seven
- * `TestKind` variants exposed by the core (PhraseFromContext, PhraseFromChain,
+ * tripped verbatim through the database. `test_kind` is one of the six
+ * `TestKind` variants exposed by the core (PhraseFromContext,
  * VerseRefPosition, VerseChapter, VerseBook, VerseHeading, VerseClub).
  */
 export interface TestStateEntry {
