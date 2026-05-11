@@ -71,7 +71,7 @@ Returns a JSON array of `TestUpdateWire` — one entry per state transition prod
 ```json
 [
   {
-    "key": { "kind": "PhraseFromChain", "element": { "kind": "Phrase", "verse_id": 0, "position": 1 } },
+    "key": { "kind": "PhraseFromContext", "element": { "kind": "Phrase", "verse_id": 0, "position": 1 } },
     "kind": "Sub",
     "before": { "stability": 1.0, "difficulty": 5.0, "last_seen_secs": ..., "last_base_secs": ..., "last_root_secs": ... },
     "after":  { ... }
@@ -114,19 +114,22 @@ Returns the JSON the frontend needs to render a card prompt and its expected ans
     "book": "1 Corinthians",
     "chapter": 13,
     "verse": 4,
-    "text": "Love suffers long and is kind; ...",
-    "phrases": ["Love suffers long", "and is kind", "..."],
-    "ftv": "Love suffers long",
-    "headings": [{ "headingIdx": 0, "text": "..." }],
+    "phraseWordCounts": [3, 3, ...],
+    "annotations": [{ "wordIndex": 5, "kind": "bold" }],
+    "ftvWordCount": 3,
+    "headings": [{ "headingIdx": 0, "startChapter": 13, "startVerse": 1, "endChapter": 13, "endVerse": 13 }],
     "clubs": ["Club150"]
   }
 }
 ```
 
 `kind` is the card kind tagged with any kind-specific fields (`position`, `headingIdx`, `tier`,
-`withCitation`). `verse` is the verse's render payload — full text, phrase splits, the FTV prefix,
-and the headings / club tiers this verse belongs to. Throws if the card id is unknown or the verse
-has no render data.
+`withCitation`). `verse` is the verse's structural render payload — no NKJV text crosses the wire;
+the API server composes the visible HTML from this structural data plus the canonical text fetched
+from api.bible. `phraseWordCounts` gives the word count of each phrase, `annotations` carries the
+user's keyword markup as zero-based word indices, `ftvWordCount` is the prefix length, and
+`headings` / `clubs` describe membership for this verse. Throws if the card id is unknown or the
+verse has no render data.
 
 ### Exporting state for persistence
 
@@ -140,7 +143,7 @@ Returns a JSON array of `TestStateEntry` — one entry per known `(TestKind, Ele
 [
   {
     "element": { "kind": "Phrase", "verse_id": 0, "position": 1 },
-    "test_kind": "PhraseFromChain",
+    "test_kind": "PhraseFromContext",
     "stability": 12.3,
     "difficulty": 5.5,
     "last_seen_secs": 1700000000,
@@ -160,7 +163,7 @@ to resume.
 
 ```json
 {
-  "kind": "PhraseFromChain" | "PhraseFromContext" | "VerseRefPosition" | "VerseChapter"
+  "kind": "PhraseFromContext" | "VerseRefPosition" | "VerseChapter"
         | "VerseBook" | "VerseHeading" | "VerseClub",
   "element": { "kind": "<ElementKind>", ... }
 }
@@ -188,7 +191,6 @@ Returned by `get_card_render` under `card.kind`. Serialised with internal taggin
 
 ```json
 { "kind": "PhraseFill", "position": <u16> }
-{ "kind": "PhraseChain", "position": <u16> }
 { "kind": "VerseAtVerseRef" }
 { "kind": "VerseInChapter" }
 { "kind": "VerseInBook" }

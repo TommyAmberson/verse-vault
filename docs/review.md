@@ -52,19 +52,18 @@ seed value, marking it as never having been directly grilled in isolation.
 `Card::tests(&atoms)` is a pure routing function: same card + atoms always yields the same set.
 Atomic cards return a 1-element vec; composites return their contained tests:
 
-| Card kind               | Tests contained                                                                   | Atomic? |
-| ----------------------- | --------------------------------------------------------------------------------- | ------- |
-| `PhraseFill { p }`      | 1 — `PhraseFromContext` at phrase `p`                                             | yes     |
-| `PhraseChain { p }`     | 1 — `PhraseFromChain` at phrase `p`                                               | yes     |
-| `VerseAtVerseRef`       | 1 — `VerseRefPosition` binding                                                    | yes     |
-| `VerseInChapter`        | 1 — `VerseChapter` binding                                                        | yes     |
-| `VerseInBook`           | 1 — `VerseBook` binding                                                           | yes     |
-| `VerseInHeading { h }`  | 1 — `VerseHeading` binding                                                        | yes     |
-| `VerseInClub { tier }`  | 1 — `VerseClub` binding                                                           | yes     |
-| `Recitation`            | N phrases (`PhraseFromChain`) + `VerseRefPosition` + `VerseChapter` + `VerseBook` | no      |
-| `Citation`              | 3 — `VerseRefPosition`, `VerseChapter`, `VerseBook`                               | no      |
-| `Ftv { with_citation }` | phrases-after-FTV-prefix [+ citation triple]                                      | no      |
-| `Reading`               | 0 — UX-only progressive-reveal card, never persisted                              | n/a     |
+| Card kind               | Tests contained                                                                     | Atomic? |
+| ----------------------- | ----------------------------------------------------------------------------------- | ------- |
+| `PhraseFill { p }`      | 1 — `PhraseFromContext` at phrase `p`                                               | yes     |
+| `VerseAtVerseRef`       | 1 — `VerseRefPosition` binding                                                      | yes     |
+| `VerseInChapter`        | 1 — `VerseChapter` binding                                                          | yes     |
+| `VerseInBook`           | 1 — `VerseBook` binding                                                             | yes     |
+| `VerseInHeading { h }`  | 1 — `VerseHeading` binding                                                          | yes     |
+| `VerseInClub { tier }`  | 1 — `VerseClub` binding                                                             | yes     |
+| `Recitation`            | N phrases (`PhraseFromContext`) + `VerseRefPosition` + `VerseChapter` + `VerseBook` | no      |
+| `Citation`              | 3 — `VerseRefPosition`, `VerseChapter`, `VerseBook`                                 | no      |
+| `Ftv { with_citation }` | phrases-after-FTV-prefix (`PhraseFromContext`) [+ citation triple]                  | no      |
+| `Reading`               | 0 — UX-only progressive-reveal card, never persisted                                | n/a     |
 
 Recitation is the "say it all" card; it now contains everything the old `Holistic` did. There is no
 separate Holistic kind in the new model.

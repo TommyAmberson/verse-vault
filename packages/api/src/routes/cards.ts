@@ -3,15 +3,28 @@ import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
+import { ApibibleCache } from '../lib/apibible-cache.js';
 import { EngineStore, NotEnrolledError, type TestStateEntry } from '../lib/engine.js';
+import { bookCodeOf } from '../lib/book-codes.js';
+import { type ComposedRender, composeRender } from '../lib/render.js';
 import { type Grade, persistEngineState } from '../lib/review-log.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface CardsRoutesDeps {
   db: DB;
   engines: EngineStore;
+  /** api.bible cache layer. Optional in test deps that don't exercise
+   *  the GET /:cardId render endpoint; required for the live server. */
+  apibibleCache?: ApibibleCache;
+  /** Bible id to use when resolving canonical text. Defaults to NKJV
+   *  (account-specific id; see DEFAULT_NKJV_BIBLE_ID). */
+  bibleId?: string;
   now?: () => number;
 }
+
+/** NKJV id on the developer's api.bible account. Override via the
+ *  NKJV_BIBLE_ID env var or by passing `bibleId` to cardsRoutes. */
+export const DEFAULT_NKJV_BIBLE_ID = '63097d2a0a2f7db3-01';
 
 interface ReviewBody {
   materialId: string;
@@ -32,6 +45,31 @@ interface TestStateInner {
   last_seen_secs: number;
   last_base_secs: number;
   last_root_secs: number;
+}
+
+interface CardRenderWire {
+  cardId: number;
+  verseId: number;
+  kind: string;
+  position?: number;
+  headingIdx?: number;
+  withCitation?: boolean;
+  verse: {
+    book: string;
+    chapter: number;
+    verse: number;
+    phraseWordCounts: number[];
+    annotations: { wordIndex: number; kind: 'bold' | 'italic' | 'boldItalic' }[];
+    ftvWordCount: number | null;
+    headings: {
+      headingIdx: number;
+      startChapter: number;
+      startVerse: number;
+      endChapter: number;
+      endVerse: number;
+    }[];
+    clubs: ('Club150' | 'Club300')[];
+  };
 }
 
 export function cardsRoutes(deps: CardsRoutesDeps) {
@@ -67,14 +105,35 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
       if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
       throw err;
     }
-    let renderJson: string;
+    let renderWire: CardRenderWire;
     try {
-      renderJson = loaded.engine.get_card_render(cardId);
+      renderWire = JSON.parse(loaded.engine.get_card_render(cardId)) as CardRenderWire;
     } catch (err) {
       return c.json({ error: (err as Error).message }, 404);
     }
-    // Already JSON; return verbatim. Hono.json restringifies, so use text.
-    return c.body(renderJson, 200, { 'content-type': 'application/json' });
+
+    // Cache may be omitted in tests; degrade to the bare wire so the
+    // client can still render the prompt/grade UI.
+    let composed: ComposedRender | null = null;
+    if (deps.apibibleCache) {
+      const bibleId = deps.bibleId ?? DEFAULT_NKJV_BIBLE_ID;
+      try {
+        const verse = renderWire.verse;
+        const bookCode = bookCodeOf(verse.book);
+        const passageId = `${bookCode}.${verse.chapter}`;
+        const [chapterHtml, sections] = await Promise.all([
+          deps.apibibleCache.getPassageHtml(bibleId, passageId),
+          verse.headings.length > 0
+            ? deps.apibibleCache.getSections(bibleId, bookCode)
+            : Promise.resolve([]),
+        ]);
+        composed = composeRender(verse, chapterHtml, sections);
+      } catch (err) {
+        console.warn(`apibible cache failure for card ${cardId}: ${(err as Error).message}`);
+      }
+    }
+
+    return c.json({ ...renderWire, composed });
   });
 
   app.post('/review', async (c) => {
@@ -114,8 +173,6 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
         return c.json({ error: (err as Error).message }, 400);
       }
 
-      // Filter export to just the touched (test_kind, element) pairs to avoid
-      // upserting the entire test_states table per review.
       const touchedKeys = new Set(
         updates.map((u) => `${u.key.kind}|${JSON.stringify(u.key.element)}`),
       );

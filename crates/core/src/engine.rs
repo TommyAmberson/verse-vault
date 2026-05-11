@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 use crate::builder::BuildResult;
 use crate::card::{Card, VerseAtoms};
-use crate::element::ElementId;
-use crate::element::ElementMeta;
 use crate::fsrs_bridge::FsrsBridge;
 use crate::render::VerseRender;
 use crate::test_kind::TestKey;
@@ -60,15 +58,15 @@ pub struct ReviewOutcome {
 /// snapshot and replay without going through accessors.
 pub struct ReviewEngine {
     pub verse_index: VerseIndex,
-    pub element_meta: HashMap<ElementId, ElementMeta>,
     pub cards: Vec<Card>,
     pub tests: HashMap<TestKey, TestState>,
     pub fsrs: FsrsBridge,
     pub schedule_params: ScheduleParams,
     /// Per-verse VerseAtoms. Populated at build time so `atoms_for` is O(1).
     pub verse_atoms_data: HashMap<u32, VerseAtoms>,
-    /// Per-verse rendering data — verse text, phrase strings, heading
-    /// labels — for consumers that need to display the card to a learner.
+    /// Per-verse structural render metadata — phrase word counts, annotations,
+    /// FTV word count, heading ranges, club tiers. Verse text is composed
+    /// server-side from api.bible chapter HTML at request time.
     pub verse_render_data: HashMap<u32, VerseRender>,
 }
 
@@ -76,7 +74,6 @@ impl ReviewEngine {
     pub fn new(b: BuildResult, desired_retention: f32) -> Self {
         Self {
             verse_index: b.verse_index,
-            element_meta: b.element_meta,
             cards: b.cards,
             tests: b.tests,
             fsrs: FsrsBridge::new(desired_retention),
@@ -108,9 +105,9 @@ impl ReviewEngine {
 
     /// Return the `VerseAtoms` for a verse — the data needed by `Card::tests`
     /// to expand composite cards into per-test grade keys. Falls back to a
-    /// phrase-count-only reconstruction from `verse_index` if the verse isn't
-    /// in the populated data map (shouldn't happen for cards built via
-    /// `builder::build`).
+    /// reconstruction from `verse_index` (phrase count + headings + clubs;
+    /// FTV word count not recoverable) if the verse isn't in the populated
+    /// data map (shouldn't happen for cards built via `builder::build`).
     pub fn atoms_for(&self, verse_id: u32) -> VerseAtoms {
         if let Some(atoms) = self.verse_atoms_data.get(&verse_id) {
             return atoms.clone();
@@ -131,8 +128,8 @@ impl ReviewEngine {
             phrase_count: phrases.len() as u16,
             headings,
             clubs,
-            ftv: None,
-            phrase_zero_text: None,
+            ftv_word_count: None,
+            phrase_zero_word_count: 0,
         }
     }
 
@@ -223,9 +220,12 @@ mod tests {
     use crate::builder::build;
     use crate::card::CardKind;
     use crate::content::MaterialData;
+    use crate::element::ElementId;
     use crate::test_kind::TestKind;
 
     fn sample_material_one_verse() -> MaterialData {
+        // John 3:16 — 9 words split into 4 phrases of 2/2/2/3 words.
+        // FTV "For God" = 2 words = phrase 0.
         serde_json::from_str(
             r#"{
                 "year": 3,
@@ -234,9 +234,9 @@ mod tests {
                 "verses": [
                     {
                         "book": "John", "chapter": 3, "verse": 16,
-                        "text": "For God so loved the world that he gave",
-                        "phrases": ["For God", "so loved", "the world", "that he gave"],
-                        "ftv": "For God",
+                        "phraseWordCounts": [2, 2, 2, 3],
+                        "annotations": [],
+                        "ftvWordCount": 2,
                         "clubs": []
                     }
                 ],
@@ -257,11 +257,11 @@ mod tests {
         let engine = build_engine();
         assert!(!engine.cards.is_empty());
         assert!(!engine.tests.is_empty());
-        // atoms_for round-trips ftv + phrase_zero_text from build.
+        // atoms_for round-trips ftv_word_count + phrase_zero_word_count.
         let atoms = engine.atoms_for(0);
         assert_eq!(atoms.phrase_count, 4);
-        assert_eq!(atoms.ftv.as_deref(), Some("For God"));
-        assert_eq!(atoms.phrase_zero_text.as_deref(), Some("For God"));
+        assert_eq!(atoms.ftv_word_count, Some(2));
+        assert_eq!(atoms.phrase_zero_word_count, 2);
     }
 
     #[test]
@@ -347,9 +347,9 @@ mod tests {
                 "verses": [
                     {
                         "book": "John", "chapter": 3, "verse": 16,
-                        "text": "For God so loved",
-                        "phrases": ["For God", "so loved"],
-                        "ftv": "",
+                        "phraseWordCounts": [2, 2],
+                        "annotations": [],
+                        "ftvWordCount": null,
                         "clubs": []
                     }
                 ],

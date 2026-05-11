@@ -1,8 +1,15 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 /**
- * Material catalog. Today this is a static manifest with bundled JSON
- * fixtures; once the content pipeline lands, the JSON will come from the
- * pipeline's output and this file will read them off disk or a shared
- * store. Kept inline so tests don't need to wire up a data directory.
+ * Material catalog. The static manifest below is the source of truth for
+ * what the catalog endpoint returns; the actual content (`MaterialData`
+ * JSON) is the structural form — phrase word counts, user-annotation
+ * indices, FTV word count, heading verse-ranges. No NKJV verse text.
+ *
+ * The committed `data/corinthians.json` carries the real material; an
+ * inline stand-in serves test environments that haven't provisioned the
+ * data directory.
  */
 
 export interface Material {
@@ -15,8 +22,7 @@ export const MATERIALS: readonly Material[] = [
   {
     id: 'nkjv-1cor',
     title: '1 Corinthians (NKJV)',
-    description:
-      'Placeholder sample material — a single verse stand-in until the content pipeline produces a full graph.',
+    description: '1 & 2 Corinthians with phrase chunking and FTV prompts.',
   },
 ];
 
@@ -24,39 +30,60 @@ export function getMaterial(id: string): Material | undefined {
   return MATERIALS.find((m) => m.id === id);
 }
 
-/** Stand-in MaterialData for `nkjv-1cor` — one verse from John 3:16, sized
- *  to round-trip through the WASM engine in tests. Mirrors the fixture in
- *  `crates/wasm/test-smoke.js`. The content pipeline will replace this with
- *  the real Corinthians dataset when it lands. */
-const NKJV_1COR_FIXTURE = {
-  year: 3,
-  books: ['John'],
-  chapters: [{ book: 'John', number: 3, start_verse: 16, end_verse: 16 }],
-  verses: [
-    {
-      book: 'John',
-      chapter: 3,
-      verse: 16,
-      text: 'For God so loved the world that he gave',
-      phrases: ['For God', 'so loved', 'the world', 'that he gave'],
-      ftv: 'For God',
-      clubs: [],
-    },
-  ],
-  headings: [],
+/** packages/api/src/lib/materials.ts -> repo root. */
+const REPO_ROOT = resolve(import.meta.dirname, '../../../..');
+
+/** Per-material override: relative path under the repo root for the
+ *  structural MaterialData JSON. Missing on disk → inline fallback. */
+const DATA_FILES: Record<string, string> = {
+  'nkjv-1cor': 'data/corinthians.json',
 };
 
-const MATERIAL_DATA: Record<string, unknown> = {
-  'nkjv-1cor': NKJV_1COR_FIXTURE,
+/** Inline structural stand-in MaterialData per id, kept tiny so tests
+ *  don't churn the WASM engine. Mirrors `crates/wasm/test-smoke.js`. */
+const INLINE_FIXTURES: Record<string, unknown> = {
+  'nkjv-1cor': {
+    year: 3,
+    books: ['John'],
+    chapters: [{ book: 'John', number: 3, start_verse: 16, end_verse: 16 }],
+    verses: [
+      {
+        book: 'John',
+        chapter: 3,
+        verse: 16,
+        phraseWordCounts: [2, 2, 2, 3],
+        annotations: [],
+        ftvWordCount: 2,
+        clubs: [],
+      },
+    ],
+    headings: [],
+  },
 };
 
-/**
- * Bundled `MaterialData` JSON for a material id. Returns the JSON string
- * — the WASM constructor parses it server-side. Throws if the id is
- * unknown.
- */
+const cache = new Map<string, string>();
+
+/** Bundled `MaterialData` JSON for a material id. Returns the JSON string
+ *  — the WASM constructor parses it server-side. Throws if the id is
+ *  unknown. Reads from disk on first call, then caches in process. */
 export function getMaterialJson(id: string): string {
-  const data = MATERIAL_DATA[id];
-  if (data === undefined) throw new Error(`Unknown material: ${id}`);
-  return JSON.stringify(data);
+  const cached = cache.get(id);
+  if (cached !== undefined) return cached;
+
+  const rel = DATA_FILES[id];
+  if (rel !== undefined) {
+    const full = resolve(REPO_ROOT, rel);
+    if (existsSync(full)) {
+      const json = readFileSync(full, 'utf8');
+      cache.set(id, json);
+      return json;
+    }
+  }
+
+  const fallback = INLINE_FIXTURES[id];
+  if (fallback === undefined) throw new Error(`Unknown material: ${id}`);
+  // Don't cache the fallback: if a dev process started before the pipeline
+  // wrote data/corinthians.json, we want the next request to re-check disk
+  // and pick up the real file instead of being stuck on the inline stub.
+  return JSON.stringify(fallback);
 }

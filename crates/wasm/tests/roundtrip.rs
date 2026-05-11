@@ -5,6 +5,8 @@
 use verse_vault_core::card::CardKind;
 use verse_vault_wasm::{TestStateEntry, WasmEngine};
 
+// John 3:16 (partial) — 9 words split into 4 phrases of 2/2/2/3.
+// FTV "For God" = 2 words = phrase 0.
 const MATERIAL_JSON: &str = r#"{
     "year": 3,
     "books": ["John"],
@@ -12,9 +14,9 @@ const MATERIAL_JSON: &str = r#"{
     "verses": [
         {
             "book": "John", "chapter": 3, "verse": 16,
-            "text": "For God so loved the world that he gave",
-            "phrases": ["For God", "so loved", "the world", "that he gave"],
-            "ftv": "For God",
+            "phraseWordCounts": [2, 2, 2, 3],
+            "annotations": [],
+            "ftvWordCount": 2,
             "clubs": []
         }
     ],
@@ -138,7 +140,7 @@ fn next_card_returns_some_when_due() {
 }
 
 #[test]
-fn get_card_render_for_phrase_fill_includes_phrases_and_position() {
+fn get_card_render_for_phrase_fill_returns_structural_metadata() {
     let engine = WasmEngine::new(MATERIAL_JSON, "", 0.9, 0).unwrap();
     let card_id = first_card_id_where(|k| matches!(k, CardKind::PhraseFill { position: 1 }));
     let json = engine.get_card_render_for_test(card_id).unwrap();
@@ -149,22 +151,28 @@ fn get_card_render_for_phrase_fill_includes_phrases_and_position() {
     assert_eq!(v["verse"]["book"], "John");
     assert_eq!(v["verse"]["chapter"], 3);
     assert_eq!(v["verse"]["verse"], 16);
-    assert_eq!(v["verse"]["phrases"].as_array().unwrap().len(), 4);
-    assert_eq!(v["verse"]["phrases"][0], "For God");
+    assert_eq!(v["verse"]["phraseWordCounts"].as_array().unwrap().len(), 4);
+    assert_eq!(v["verse"]["phraseWordCounts"][0], 2);
+    assert_eq!(v["verse"]["ftvWordCount"], 2);
+    assert!(v["verse"]["annotations"].as_array().unwrap().is_empty());
 }
 
 #[test]
-fn get_card_render_for_recitation_has_full_verse_data() {
+fn get_card_render_for_recitation_has_structural_verse_data() {
     let engine = WasmEngine::new(MATERIAL_JSON, "", 0.9, 0).unwrap();
     let card_id = first_card_id_where(|k| matches!(k, CardKind::Recitation));
     let json = engine.get_card_render_for_test(card_id).unwrap();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     assert_eq!(v["kind"], "Recitation");
-    assert_eq!(
-        v["verse"]["text"],
-        "For God so loved the world that he gave"
+    assert!(
+        v["verse"].get("text").is_none(),
+        "verse text must not cross the wire"
     );
-    assert_eq!(v["verse"]["ftv"], "For God");
+    assert!(
+        v["verse"].get("phrases").is_none(),
+        "phrase strings must not cross the wire"
+    );
+    assert_eq!(v["verse"]["phraseWordCounts"].as_array().unwrap().len(), 4);
     assert!(v["verse"]["headings"].as_array().unwrap().is_empty());
     assert!(v["verse"]["clubs"].as_array().unwrap().is_empty());
 }

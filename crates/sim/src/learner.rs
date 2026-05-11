@@ -170,7 +170,7 @@ mod tests {
 
     fn key(verse_id: u32, position: u16) -> TestKey {
         TestKey {
-            kind: TestKind::PhraseFromChain,
+            kind: TestKind::PhraseFromContext,
             element: ElementId::Phrase { verse_id, position },
         }
     }

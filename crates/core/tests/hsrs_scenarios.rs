@@ -24,9 +24,9 @@ fn one_verse_material() -> MaterialData {
             "verses": [
                 {
                     "book": "John", "chapter": 3, "verse": 16,
-                    "text": "For God so loved the world that he gave",
-                    "phrases": ["For God", "so loved", "the world", "that he gave"],
-                    "ftv": "",
+                    "phraseWordCounts": [2, 2, 2, 3],
+                    "annotations": [],
+                    "ftvWordCount": null,
                     "clubs": []
                 }
             ],
@@ -61,16 +61,16 @@ fn recitation_lifts_phrases_and_bindings_without_advancing_last_root() {
 
     let phrase_initial = TestState::new_unseen(build_now);
 
-    // Recitation contains PhraseFromChain for every phrase.
-    let phrase_chain_0 = TestKey {
-        kind: TestKind::PhraseFromChain,
+    // Recitation contains PhraseFromContext for every phrase.
+    let phrase_0 = TestKey {
+        kind: TestKind::PhraseFromContext,
         element: ElementId::Phrase {
             verse_id: 0,
             position: 0,
         },
     };
     let phrase_state = engine
-        .test_state(phrase_chain_0)
+        .test_state(phrase_0)
         .copied()
         .expect("phrase test seeded");
     assert!(
@@ -138,15 +138,15 @@ fn recitation_does_not_saturate_bindings_to_s_max() {
         kind: TestKind::VerseChapter,
         element: ElementId::VerseChapterBinding { verse_id: 0 },
     };
-    let phrase_chain_0 = TestKey {
-        kind: TestKind::PhraseFromChain,
+    let phrase_0 = TestKey {
+        kind: TestKind::PhraseFromContext,
         element: ElementId::Phrase {
             verse_id: 0,
             position: 0,
         },
     };
     let chapter_state = engine.test_state(chapter_binding).copied().unwrap();
-    let phrase_state = engine.test_state(phrase_chain_0).copied().unwrap();
+    let phrase_state = engine.test_state(phrase_0).copied().unwrap();
 
     // 365 days is roughly the soft-clamp ceiling. Anything well above
     // that on a single Good review is the saturation bug.

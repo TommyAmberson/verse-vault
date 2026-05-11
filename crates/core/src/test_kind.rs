@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TestKind {
-    PhraseFromChain,
     PhraseFromContext,
     VerseRefPosition,
     VerseChapter,
@@ -25,7 +24,7 @@ mod tests {
     #[test]
     fn test_key_hash_eq() {
         let a = TestKey {
-            kind: TestKind::PhraseFromChain,
+            kind: TestKind::PhraseFromContext,
             element: ElementId::Phrase {
                 verse_id: 1,
                 position: 0,

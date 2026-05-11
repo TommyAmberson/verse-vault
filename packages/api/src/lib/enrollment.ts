@@ -8,6 +8,7 @@ import * as schema from '../db/schema.js';
 import { NotEnrolledError, type TestStateEntry } from './engine.js';
 import type { UserMaterial } from './keys.js';
 import { getMaterial, getMaterialJson } from './materials.js';
+import { writeTestStates } from './review-log.js';
 
 /** better-sqlite3 surfaces constraint violations on `.code`. */
 function isUserMaterialsPkViolation(err: unknown): boolean {
@@ -90,8 +91,6 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
   const snapshotId = randomUUID();
   const createdAt = now();
 
-  // Build a fresh engine to seed test_states. Free it once the export is
-  // serialised — it's recreated per request by EngineStore on first load.
   const seedEngine = new WasmEngine(materialJson, '', desiredRetention, BigInt(createdAt));
   let testStates: TestStateEntry[];
   try {
@@ -120,24 +119,7 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
           createdAt,
         })
         .run();
-
-      if (testStates.length > 0) {
-        tx.insert(schema.testStates)
-          .values(
-            testStates.map((s) => ({
-              userId,
-              materialId,
-              testKind: s.test_kind,
-              element: JSON.stringify(s.element),
-              stability: s.stability,
-              difficulty: s.difficulty,
-              lastSeenSecs: s.last_seen_secs,
-              lastBaseSecs: s.last_base_secs,
-              lastRootSecs: s.last_root_secs,
-            })),
-          )
-          .run();
-      }
+      writeTestStates(tx, userId, materialId, testStates, { onConflict: false });
     });
   } catch (err) {
     if (isUserMaterialsPkViolation(err)) throw new AlreadyEnrolledError(userId, materialId);

@@ -34,6 +34,8 @@ describe('indexes', () => {
     expect(rows.map((r) => r.name).sort()).toEqual(
       [
         'idx_account_provider',
+        'idx_apibible_passages_fetched_at',
+        'idx_apibible_sections_fetched_at',
         'idx_graph_snapshots_user_material',
         'idx_review_events_user_material_time',
         'idx_verification_identifier',
@@ -60,6 +62,18 @@ describe('indexes', () => {
   it('uses idx_verification_identifier for identifier lookups', () => {
     expect(planFor('SELECT * FROM verification WHERE identifier = ?', 'alice@example.com')).toContain(
       'idx_verification_identifier',
+    );
+  });
+
+  it('uses idx_apibible_passages_fetched_at for TTL prune', () => {
+    expect(planFor('DELETE FROM apibible_passages WHERE fetched_at < ?', 0)).toContain(
+      'idx_apibible_passages_fetched_at',
+    );
+  });
+
+  it('uses idx_apibible_sections_fetched_at for TTL prune', () => {
+    expect(planFor('DELETE FROM apibible_sections WHERE fetched_at < ?', 0)).toContain(
+      'idx_apibible_sections_fetched_at',
     );
   });
 });

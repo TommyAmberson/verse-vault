@@ -23,9 +23,6 @@ pub enum CardKind {
     PhraseFill {
         position: u16,
     },
-    PhraseChain {
-        position: u16,
-    },
     VerseAtVerseRef,
     VerseInChapter,
     VerseInBook,
@@ -75,8 +72,12 @@ pub struct VerseAtoms {
     pub phrase_count: u16,
     pub headings: Vec<u16>,
     pub clubs: Vec<ClubTier>,
-    pub ftv: Option<String>,
-    pub phrase_zero_text: Option<String>,
+    /// Word count of the FTV prompt, or None when this verse has no FTV.
+    pub ftv_word_count: Option<u16>,
+    /// Word count of phrase 0, used to detect the equals-whole-phrase case
+    /// where we'd otherwise schedule a redundant phrase-0 test (the FTV
+    /// prompt already shows phrase 0 in full).
+    pub phrase_zero_word_count: u16,
 }
 
 impl VerseAtoms {
@@ -86,13 +87,15 @@ impl VerseAtoms {
 }
 
 pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<TestKey> {
-    let start: u16 = match (&atoms.ftv, &atoms.phrase_zero_text) {
-        (Some(ftv), Some(p0)) if ftv == p0 => 1,
+    // When the FTV equals all of phrase 0, scheduling a phrase-0 test
+    // would just re-test what the FTV prompt already showed — skip it.
+    let start: u16 = match atoms.ftv_word_count {
+        Some(ftv_words) if ftv_words == atoms.phrase_zero_word_count => 1,
         _ => 0,
     };
     let mut out: Vec<TestKey> = (start..atoms.phrase_count)
         .map(|p| TestKey {
-            kind: TestKind::PhraseFromChain,
+            kind: TestKind::PhraseFromContext,
             element: ElementId::Phrase {
                 verse_id,
                 position: p,
@@ -128,10 +131,6 @@ impl Card {
                 kind: TestKind::PhraseFromContext,
                 element: ElementId::Phrase { verse_id, position },
             }],
-            CardKind::PhraseChain { position } => vec![TestKey {
-                kind: TestKind::PhraseFromChain,
-                element: ElementId::Phrase { verse_id, position },
-            }],
             CardKind::VerseAtVerseRef => vec![TestKey {
                 kind: TestKind::VerseRefPosition,
                 element: ElementId::VerseRefPosition { verse_id },
@@ -160,7 +159,7 @@ impl Card {
                     .phrase_positions()
                     .into_iter()
                     .map(|p| TestKey {
-                        kind: TestKind::PhraseFromChain,
+                        kind: TestKind::PhraseFromContext,
                         element: ElementId::Phrase {
                             verse_id,
                             position: p,
@@ -211,8 +210,8 @@ mod tests {
             phrase_count,
             headings: vec![0, 1, 2],
             clubs: vec![ClubTier::Club150, ClubTier::Club300],
-            ftv: None,
-            phrase_zero_text: None,
+            ftv_word_count: None,
+            phrase_zero_word_count: 0,
         }
     }
 
@@ -240,8 +239,8 @@ mod tests {
             phrase_count: 3,
             headings: vec![0],
             clubs: vec![ClubTier::Club150],
-            ftv: Some("For God".into()),
-            phrase_zero_text: Some("For God so loved".into()),
+            ftv_word_count: Some(2),
+            phrase_zero_word_count: 4,
         };
         assert_eq!(atoms.phrase_positions(), vec![0u16, 1, 2]);
     }
@@ -258,22 +257,6 @@ mod tests {
                 element: ElementId::Phrase {
                     verse_id: 7,
                     position: 1
-                }
-            }]
-        );
-    }
-
-    #[test]
-    fn phrase_chain_grades_one_test() {
-        let c = atomic_card(0, CardKind::PhraseChain { position: 2 }, 7);
-        let tests = c.tests(&sample_atoms(7, 4));
-        assert_eq!(
-            tests,
-            vec![TestKey {
-                kind: TestKind::PhraseFromChain,
-                element: ElementId::Phrase {
-                    verse_id: 7,
-                    position: 2
                 }
             }]
         );
@@ -342,7 +325,7 @@ mod tests {
         assert_eq!(tests.len(), 7);
         let phrase_count = tests
             .iter()
-            .filter(|t| t.kind == TestKind::PhraseFromChain)
+            .filter(|t| t.kind == TestKind::PhraseFromContext)
             .count();
         assert_eq!(phrase_count, 4);
         assert!(tests.iter().any(|t| t.kind == TestKind::VerseRefPosition));
@@ -357,8 +340,8 @@ mod tests {
             phrase_count: 4,
             headings: vec![],
             clubs: vec![],
-            ftv: Some("For God".into()),
-            phrase_zero_text: Some("For God so loved the world".into()),
+            ftv_word_count: Some(2),
+            phrase_zero_word_count: 6,
         };
         let c = atomic_card(
             0,
@@ -369,7 +352,7 @@ mod tests {
         );
         let tests = c.tests(&atoms);
         assert_eq!(tests.len(), 4);
-        assert!(tests.iter().all(|t| t.kind == TestKind::PhraseFromChain));
+        assert!(tests.iter().all(|t| t.kind == TestKind::PhraseFromContext));
     }
 
     #[test]
@@ -379,8 +362,8 @@ mod tests {
             phrase_count: 4,
             headings: vec![],
             clubs: vec![],
-            ftv: Some("For God so loved the world".into()),
-            phrase_zero_text: Some("For God so loved the world".into()),
+            ftv_word_count: Some(6),
+            phrase_zero_word_count: 6,
         };
         let c = atomic_card(
             0,
@@ -400,8 +383,8 @@ mod tests {
             phrase_count: 4,
             headings: vec![],
             clubs: vec![],
-            ftv: Some("For God".into()),
-            phrase_zero_text: Some("For God so loved the world".into()),
+            ftv_word_count: Some(2),
+            phrase_zero_word_count: 6,
         };
         let c = atomic_card(
             0,
@@ -437,7 +420,7 @@ mod tests {
         let tests = c.tests(&atoms);
         let phrase_tests: Vec<_> = tests
             .iter()
-            .filter(|t| t.kind == TestKind::PhraseFromChain)
+            .filter(|t| t.kind == TestKind::PhraseFromContext)
             .collect();
         assert_eq!(phrase_tests.len(), 4);
         assert!(

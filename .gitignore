@@ -130,7 +130,19 @@ dist
 .pnp.*
 /.claude/
 /target
-/data/
+
+# Python bytecode caches (tools/)
+__pycache__/
+*.pyc
+# `/data/*` rather than `/data/` so individual files can be whitelisted
+# below — `/data/` would prune the directory entirely and git wouldn't
+# recurse to evaluate the negations.
+/data/*
+# Whitelist the structural Corinthians fixture — it carries no NKJV verse
+# text, only phrase word counts, user annotations, and verse refs. The
+# other gitignored data/* files (Anki backups, raw NKJV text, the
+# api.bible cache) stay ignored.
+!/data/corinthians.json
 
 # wasm-pack build output
 /crates/wasm/pkg/

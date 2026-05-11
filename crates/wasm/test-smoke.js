@@ -3,6 +3,9 @@
 
 import { WasmEngine } from './pkg/verse_vault_wasm.js';
 
+// John 3:16 (partial) — 9 words split into 4 phrases of 2/2/2/3.
+// Structural shape: no NKJV verse text on the wire; api.bible composes
+// at render time from the cached chapter HTML.
 const material = {
   year: 3,
   books: ['John'],
@@ -12,9 +15,9 @@ const material = {
       book: 'John',
       chapter: 3,
       verse: 16,
-      text: 'For God so loved the world that he gave',
-      phrases: ['For God', 'so loved', 'the world', 'that he gave'],
-      ftv: 'For God',
+      phraseWordCounts: [2, 2, 2, 3],
+      annotations: [],
+      ftvWordCount: 2,
       clubs: [],
     },
   ],
@@ -44,14 +47,18 @@ while (step < 20) {
   }
 
   if (step === 0) {
-    // Spot-check the render shape for the first card we touch.
+    // Spot-check the structural render shape for the first card we touch.
     const renderJson = engine.get_card_render(cardId);
     const render = JSON.parse(renderJson);
     console.log(
-      `  render: kind=${render.kind} verse=${render.verse.book} ${render.verse.chapter}:${render.verse.verse} (${render.verse.phrases.length} phrases)`,
+      `  render: kind=${render.kind} verse=${render.verse.book} ${render.verse.chapter}:${render.verse.verse} (${render.verse.phraseWordCounts.length} phrases)`,
     );
-    if (typeof render.verse.text !== 'string' || render.verse.text.length === 0) {
-      console.error('FAIL: render.verse.text missing or empty');
+    if (render.verse.text !== undefined) {
+      console.error('FAIL: render.verse.text must not cross the wire (api.bible composes server-side)');
+      process.exit(1);
+    }
+    if (!Array.isArray(render.verse.phraseWordCounts) || render.verse.phraseWordCounts.length === 0) {
+      console.error('FAIL: render.verse.phraseWordCounts missing or empty');
       process.exit(1);
     }
   }
