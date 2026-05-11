@@ -129,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn recitation_does_not_cooldown_phrasefill_under_single_grade() {
+    fn recitation_cools_down_phrasefill_via_shared_test() {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
@@ -148,12 +148,11 @@ mod tests {
             .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
             .unwrap()
             .id;
-        // Recitation contains PhraseFromChain for every phrase plus the
-        // citation triple — but not PhraseFromContext (the cuing direction
-        // tested by PhraseFill). Cooldown is keyed off the *card's* tests'
-        // last_seen, so the PhraseFromContext test was not touched by the
-        // Recitation review and the PhraseFill card is *not* in cooldown.
-        assert!(!engine.is_in_cooldown(pf_id, now + 60));
+        // Recitation and PhraseFill now share the same PhraseFromContext
+        // test per phrase, so reviewing Recitation puts every PhraseFill on
+        // cooldown — we don't want the user drilling the same phrase twice
+        // back-to-back.
+        assert!(engine.is_in_cooldown(pf_id, now + 60));
     }
 
     #[test]

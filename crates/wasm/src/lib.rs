@@ -84,9 +84,6 @@ pub enum CardKindWire {
     PhraseFill {
         position: u16,
     },
-    PhraseChain {
-        position: u16,
-    },
     VerseAtVerseRef,
     VerseInChapter,
     VerseInBook,
@@ -110,7 +107,6 @@ impl From<CardKind> for CardKindWire {
     fn from(k: CardKind) -> Self {
         match k {
             CardKind::PhraseFill { position } => CardKindWire::PhraseFill { position },
-            CardKind::PhraseChain { position } => CardKindWire::PhraseChain { position },
             CardKind::VerseAtVerseRef => CardKindWire::VerseAtVerseRef,
             CardKind::VerseInChapter => CardKindWire::VerseInChapter,
             CardKind::VerseInBook => CardKindWire::VerseInBook,
@@ -417,7 +413,7 @@ mod tests {
                 verse_id: 7,
                 position: 2,
             },
-            test_kind: TestKind::PhraseFromChain,
+            test_kind: TestKind::PhraseFromContext,
             stability: 12.5,
             difficulty: 5.5,
             last_seen_secs: 1_700_000_000,
@@ -448,7 +444,7 @@ mod tests {
     #[test]
     fn test_update_wire_round_trips() {
         let key = TestKey {
-            kind: TestKind::PhraseFromChain,
+            kind: TestKind::PhraseFromContext,
             element: ElementId::Phrase {
                 verse_id: 1,
                 position: 0,

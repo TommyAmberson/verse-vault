@@ -138,23 +138,13 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
             *next += 1;
         };
 
-        // Atomic: PhraseFill + PhraseChain
+        // Atomic: PhraseFill (one per phrase).
         for &p in &phrases {
             push_card(
                 CardKind::PhraseFill { position: p },
                 &mut cards,
                 &mut next_card_id,
             );
-        }
-        for &p in &phrases {
-            // PhraseChain is a continuation card — only positions ≥ 1.
-            if p >= 1 {
-                push_card(
-                    CardKind::PhraseChain { position: p },
-                    &mut cards,
-                    &mut next_card_id,
-                );
-            }
         }
 
         // Atomic: per-verse bindings
@@ -363,14 +353,6 @@ mod tests {
             .count();
         assert_eq!(phrase_fill, 4);
 
-        // PhraseChain only emitted for positions ≥ 1 → 3 chain cards.
-        let phrase_chain = r
-            .cards
-            .iter()
-            .filter(|c| matches!(c.kind, CardKind::PhraseChain { .. }))
-            .count();
-        assert_eq!(phrase_chain, 3);
-
         assert!(
             r.cards
                 .iter()
@@ -573,7 +555,6 @@ mod tests {
         let r = build(&m, 0);
         let kinds: HashSet<TestKind> = r.tests.keys().map(|k| k.kind).collect();
         assert!(kinds.contains(&TestKind::PhraseFromContext));
-        assert!(kinds.contains(&TestKind::PhraseFromChain));
         assert!(kinds.contains(&TestKind::VerseRefPosition));
         assert!(kinds.contains(&TestKind::VerseChapter));
         assert!(kinds.contains(&TestKind::VerseBook));
