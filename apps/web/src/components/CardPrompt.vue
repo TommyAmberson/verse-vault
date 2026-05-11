@@ -217,7 +217,7 @@ const composedMissing = computed(() => props.card.composed === null)
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  align-items: flex-start;
+  align-items: center;
 }
 
 /* Headline-style ref for cards where the reference is the focus
@@ -258,6 +258,8 @@ const composedMissing = computed(() => props.card.composed === null)
 .verse-text {
   font-size: 1.15rem;
   line-height: 1.6;
+  text-align: center;
+  align-self: stretch;
 }
 
 .verse-text.ftv {
