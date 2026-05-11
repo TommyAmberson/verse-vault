@@ -22,9 +22,16 @@ const verseColour = computed(() => {
 /** Border colour for the flashcard box. Tracks the verse-number colour
  *  whenever the verse number is visible (which is always except on a
  *  Citation card before reveal); otherwise falls back to the neutral
- *  border tone so the hue doesn't leak the answer. */
+ *  border tone so the hue doesn't leak the answer.
+ *
+ *  We lighten the verse hue by ~18% white via color-mix so the thin
+ *  border reads at the same perceived brightness as the anti-aliased
+ *  verse-number text. Without the lift the border looks noticeably
+ *  darker on dark backgrounds even though the CSS colour matches. */
 const borderColour = computed(() =>
-  refParts.value.showVerse ? verseColour.value : 'var(--color-border)',
+  refParts.value.showVerse
+    ? `color-mix(in oklch, ${verseColour.value} 82%, white)`
+    : 'var(--color-border)',
 )
 
 /** Per-card visibility of each ref component. For "what chapter?" /
@@ -222,9 +229,13 @@ const composedMissing = computed(() => props.card.composed === null)
 
 /* Verse-coloured inner box — the flashcard frame. Sits inside the
    outer SessionView card surface, so it shares that white background
-   and only the border tints. */
+   and only the border tints. Width and weight are tuned so the line
+   reads with the same perceived saturation as the verse-number digit
+   (a 2px line at the deck's OKLCH lightness looks noticeably darker
+   than anti-aliased text on either light or dark backgrounds). */
 .card-box {
-  border: 2px solid currentColor;
+  border-width: 3px;
+  border-style: solid;
   border-radius: 8px;
   padding: 1.5rem 1.25rem;
   display: flex;
