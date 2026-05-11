@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { applyDialect, toCanadian } from './spelling.js';
 
 describe('toCanadian', () => {
-  it('rewrites common -or → -our pairs', () => {
+  it('rewrites -or → -our pairs (American → Canadian primary)', () => {
     expect(toCanadian('hard labor')).toBe('hard labour');
     expect(toCanadian('show no favor')).toBe('show no favour');
     expect(toCanadian('our Savior')).toBe('our Saviour');
@@ -21,34 +21,43 @@ describe('toCanadian', () => {
     expect(toCanadian('"labor"')).toBe('"labour"');
   });
 
-  it('handles inflected forms when explicitly mapped', () => {
+  it('handles inflected forms via per-inflection varcon entries', () => {
     expect(toCanadian('laboring all day')).toBe('labouring all day');
     expect(toCanadian('he labored')).toBe('he laboured');
     expect(toCanadian('many labors')).toBe('many labours');
   });
 
   it('leaves unmapped words alone', () => {
-    // -or words that stay -or in Canadian (agent nouns) must NOT be touched.
+    // Agent-noun -or words that stay -or in Canadian are absent from
+    // varcon's substitution set, so they must NOT be touched.
     expect(toCanadian('the emperor')).toBe('the emperor');
     expect(toCanadian('the governor')).toBe('the governor');
     expect(toCanadian('Author of life')).toBe('Author of life');
   });
 
-  it('keeps American -ize endings (this flavour of Canadian)', () => {
+  it('keeps American -ize endings — varcon has no primary Canadian for them', () => {
     expect(toCanadian('Christ did not send me to <b>baptize</b>'))
       .toBe('Christ did not send me to <b>baptize</b>');
     expect(toCanadian('realize the truth')).toBe('realize the truth');
     expect(toCanadian('recognize his voice')).toBe('recognize his voice');
   });
 
-  it('keeps American -er endings (this flavour of Canadian)', () => {
-    expect(toCanadian('the center of the city')).toBe('the center of the city');
-    expect(toCanadian('Centered on Christ')).toBe('Centered on Christ');
+  it('rewrites -er → -re per varcon (centre, theatre)', () => {
+    expect(toCanadian('the center of the city')).toBe('the centre of the city');
+    expect(toCanadian('the theater')).toBe('the theatre');
   });
 
   it('rewrites -ense → -ence', () => {
     expect(toCanadian('our defense')).toBe('our defence');
     expect(toCanadian('great offense')).toBe('great offence');
+  });
+
+  it('rewrites doubled-consonant inflections via varcon Z/B fallback', () => {
+    // VarCon entry: `A: traveled / B: travelled`. The npm package's
+    // compile script falls back C → Z → B, so Canadian inherits
+    // British's `travelled` here.
+    expect(toCanadian('they traveled')).toBe('they travelled');
+    expect(toCanadian('he labeled')).toBe('he labelled');
   });
 
   it('preserves HTML tag wrappers untouched', () => {

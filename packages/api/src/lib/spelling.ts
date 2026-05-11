@@ -32,138 +32,40 @@ export type Dialect = 'canadian' | 'american';
 
 export const DEFAULT_DIALECT: Dialect = 'canadian';
 
-/** US (NKJV canonical) → Canadian spellings. Each entry is a complete
- *  word form — inflected forms (plurals, past tense) need their own
- *  entries because the regex matches whole tokens, not stems.
+/** Substitution dict from the ``varcon`` npm package's pre-built
+ *  ``C.json`` (Canadian-primary variants of GNU Aspell's VarCon table).
+ *  Inversion is one-shot at module load: for every Canadian word ``c``,
+ *  its variant map gives the equivalent American / British / OED form,
+ *  and we record each non-Canadian variant → ``c`` so any input form
+ *  normalises to the Canadian primary.
  *
- *  Could move to ``spelling.toml`` if the dict grows past ~200 entries;
- *  for now keeping it as TS source is simpler (no parser dep, native
- *  type-checking, single-file diff). */
-const US_TO_CA: Record<string, string> = {
-  // -or → -our  (Canadian follows British here)
-  color: 'colour',
-  colors: 'colours',
-  colored: 'coloured',
-  coloring: 'colouring',
-  honor: 'honour',
-  honors: 'honours',
-  honored: 'honoured',
-  honoring: 'honouring',
-  honorable: 'honourable',
-  labor: 'labour',
-  labors: 'labours',
-  labored: 'laboured',
-  laboring: 'labouring',
-  favor: 'favour',
-  favors: 'favours',
-  favored: 'favoured',
-  favoring: 'favouring',
-  favorable: 'favourable',
-  favorite: 'favourite',
-  favorites: 'favourites',
-  neighbor: 'neighbour',
-  neighbors: 'neighbours',
-  neighboring: 'neighbouring',
-  neighborhood: 'neighbourhood',
-  savior: 'saviour',
-  saviors: 'saviours',
-  behavior: 'behaviour',
-  behaviors: 'behaviours',
-  savor: 'savour',
-  savors: 'savours',
-  savored: 'savoured',
-  savory: 'savoury',
-  vapor: 'vapour',
-  vapors: 'vapours',
-  splendor: 'splendour',
-  harbor: 'harbour',
-  harbors: 'harbours',
-  harbored: 'harboured',
-  harboring: 'harbouring',
-  vigor: 'vigour',
-  fervor: 'fervour',
-  rumor: 'rumour',
-  rumors: 'rumours',
-  endeavor: 'endeavour',
-  endeavors: 'endeavours',
-  endeavored: 'endeavoured',
-  endeavoring: 'endeavouring',
-  humor: 'humour',
-  humors: 'humours',
-  humored: 'humoured',
-  ardor: 'ardour',
-  candor: 'candour',
-  valor: 'valour',
-  demeanor: 'demeanour',
-  clamor: 'clamour',
-  clamored: 'clamoured',
-  flavor: 'flavour',
-  flavors: 'flavours',
-  flavored: 'flavoured',
-  flavoring: 'flavouring',
-  odor: 'odour',
-  odors: 'odours',
-  rigor: 'rigour',
-  rigors: 'rigours',
-  arbor: 'arbour',
+ *  varcon's compile.js falls back through ``C → Z → B`` so Canadian
+ *  inherits OED ``-ize`` endings when there's no explicit ``C`` tag.
+ *  That's why baptize / realize / recognize pass through unchanged —
+ *  the package treats them as already-Canadian, no substitution
+ *  needed.
+ *
+ *  Refresh by bumping the ``varcon`` version in ``package.json``. */
+import varconC from 'varcon/C.json' with { type: 'json' };
 
-  // -ense → -ence (Canadian uses British noun spellings)
-  defense: 'defence',
-  defenses: 'defences',
-  offense: 'offence',
-  offenses: 'offences',
-  pretense: 'pretence',
-  pretenses: 'pretences',
+interface VarconVariants {
+  A?: string;
+  B?: string;
+  Z?: string;
+}
 
-  // Doubled consonants on inflected verbs (-l → -ll before suffix)
-  traveled: 'travelled',
-  traveling: 'travelling',
-  traveler: 'traveller',
-  travelers: 'travellers',
-  counseled: 'counselled',
-  counseling: 'counselling',
-  counselor: 'counsellor',
-  counselors: 'counsellors',
-  modeled: 'modelled',
-  modeling: 'modelling',
-  labeled: 'labelled',
-  labeling: 'labelling',
-  totaled: 'totalled',
-  totaling: 'totalling',
-  canceled: 'cancelled',
-  canceling: 'cancelling',
-  fueled: 'fuelled',
-  fueling: 'fuelling',
-  channeled: 'channelled',
-  channeling: 'channelling',
-  signaled: 'signalled',
-  signaling: 'signalling',
-  quarreled: 'quarrelled',
-  quarreling: 'quarrelling',
-  marveled: 'marvelled',
-  marveling: 'marvelling',
-  marvelous: 'marvellous',
-  jeweled: 'jewelled',
-  leveled: 'levelled',
-  leveling: 'levelling',
-
-  // Other
-  gray: 'grey',
-  grays: 'greys',
-  mold: 'mould',
-  molds: 'moulds',
-  molded: 'moulded',
-  moldy: 'mouldy',
-  plow: 'plough',
-  plows: 'ploughs',
-  plowed: 'ploughed',
-
-  // Deliberately NOT included (this Canadian flavour keeps American):
-  //   baptize, realize, recognize, organize, emphasize (-ize verbs)
-  //   center, fiber, theater (-er endings — user preference)
-  //   curb, tire, aluminum (Canadian uses American here)
-  //   practice/practise, license/licence (context-dependent noun/verb)
-};
+const US_TO_CA: Record<string, string> = (() => {
+  const out: Record<string, string> = {};
+  for (const [canadian, variants] of Object.entries(varconC as Record<string, VarconVariants>)) {
+    if (canadian.includes(' ')) continue; // multi-word phrases can't word-boundary match
+    for (const variant of Object.values(variants)) {
+      if (typeof variant === 'string' && variant !== canadian && !variant.includes(' ')) {
+        out[variant] = canadian;
+      }
+    }
+  }
+  return out;
+})();
 
 const WORD_RE = /\b[A-Za-z]+\b/g;
 
