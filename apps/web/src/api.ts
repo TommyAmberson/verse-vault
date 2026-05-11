@@ -30,7 +30,6 @@ export interface ComposedRender {
 
 export type CardKind =
   | 'PhraseFill'
-  | 'PhraseChain'
   | 'VerseAtVerseRef'
   | 'VerseInChapter'
   | 'VerseInBook'

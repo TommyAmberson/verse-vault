@@ -62,8 +62,6 @@ const promptLabel = computed(() => {
   switch (props.card.kind) {
     case 'PhraseFill':
       return `Fill in phrase ${props.card.position! + 1}`
-    case 'PhraseChain':
-      return `What comes after phrase ${props.card.position}?`
     case 'VerseAtVerseRef':
       return 'Recite this verse'
     case 'VerseInChapter':
@@ -114,13 +112,6 @@ const composedMissing = computed(() => props.card.composed === null)
           <template v-for="(phrase, i) in phraseHtml" :key="i">
             <span v-if="i === card.position && !revealed" class="phrase-hidden">___</span><span v-else v-html="phrase" /><template v-if="i &lt; phraseHtml.length - 1">{{ ' ' }}</template>
           </template>
-        </div>
-      </div>
-
-      <div v-else-if="card.kind === 'PhraseChain'" class="centered">
-        <div class="ref small" v-html="refHtml" />
-        <div class="verse-text" :style="{ color: verseColour }">
-          <span v-html="phraseHtml[card.position! - 1]" />{{ ' ' }}<span v-if="revealed" class="phrase-hidden" v-html="phraseHtml[card.position!]" /><span v-else class="phrase-hidden">___</span>
         </div>
       </div>
 
@@ -211,8 +202,8 @@ const composedMissing = computed(() => props.card.composed === null)
   letter-spacing: 0.05em;
 }
 
-/* PhraseFill/PhraseChain blanks render inline within the verse-text run
-   so the surrounding phrases keep flowing naturally. */
+/* PhraseFill blanks render inline within the verse-text run so the
+   surrounding phrases keep flowing naturally. */
 .phrase-hidden {
   background: var(--color-accent-soft);
   border-radius: 4px;
