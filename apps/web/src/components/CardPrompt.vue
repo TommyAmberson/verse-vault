@@ -19,8 +19,44 @@ const verseColour = computed(() => {
   return `var(${VERSE_COLOUR_VARS[idx]})`
 })
 
-const refPrefix = computed(() => `${props.card.verse.book} ${props.card.verse.chapter}:`)
-const refVerseNum = computed(() => props.card.verse.verse)
+/** Per-card visibility of each ref component. For "what chapter?" /
+ *  "what book?" / "what verse?" / Citation, the asked-about parts stay
+ *  blanked until reveal so the prompt doesn't leak the answer. Other
+ *  kinds show the full ref. */
+const refParts = computed(() => {
+  const reveal = props.revealed
+  switch (props.card.kind) {
+    case 'VerseInBook':
+      return { showBook: reveal, showChapter: true, showVerse: true }
+    case 'VerseInChapter':
+      return { showBook: true, showChapter: reveal, showVerse: true }
+    case 'Citation':
+      return { showBook: reveal, showChapter: reveal, showVerse: reveal }
+    default:
+      return { showBook: true, showChapter: true, showVerse: true }
+  }
+})
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+/** Renders the reference with each part either revealed or shown as a
+ *  `?` placeholder. The verse number carries the verse-colour inline so
+ *  it picks up the same hue as the verse text. */
+const refHtml = computed(() => {
+  const { showBook, showChapter, showVerse } = refParts.value
+  const hidden = '<span class="ref-hidden">?</span>'
+  const book = showBook ? escapeHtml(props.card.verse.book) : hidden
+  const chap = showChapter ? String(props.card.verse.chapter) : hidden
+  const verse = showVerse
+    ? `<span style="color: ${verseColour.value}">${props.card.verse.verse}</span>`
+    : hidden
+  return `${book} ${chap}:${verse}`
+})
 
 const promptLabel = computed(() => {
   switch (props.card.kind) {
@@ -73,7 +109,7 @@ const composedMissing = computed(() => props.card.composed === null)
          output, never user input. -->
     <template v-else>
       <div v-if="card.kind === 'PhraseFill'" class="centered">
-        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div class="ref small" v-html="refHtml" />
         <div class="verse-text" :style="{ color: verseColour }">
           <template v-for="(phrase, i) in phraseHtml" :key="i">
             <span v-if="i === card.position && !revealed" class="phrase-hidden">___</span><span v-else v-html="phrase" /><template v-if="i &lt; phraseHtml.length - 1">{{ ' ' }}</template>
@@ -82,14 +118,14 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'PhraseChain'" class="centered">
-        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div class="ref small" v-html="refHtml" />
         <div class="verse-text" :style="{ color: verseColour }">
           <span v-html="phraseHtml[card.position! - 1]" />{{ ' ' }}<span v-if="revealed" class="phrase-hidden" v-html="phraseHtml[card.position!]" /><span v-else class="phrase-hidden">___</span>
         </div>
       </div>
 
       <div v-else-if="card.kind === 'VerseAtVerseRef'" class="centered">
-        <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div class="ref" v-html="refHtml" />
         <template v-if="revealed">
           <hr class="type" />
           <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
@@ -97,20 +133,18 @@ const composedMissing = computed(() => props.card.composed === null)
         <div v-else class="placeholder">…recite the verse…</div>
       </div>
 
-      <!-- Ref-as-answer cards: ref slot is empty before reveal so we don't
-           give the answer away; on reveal it appears above the verse, with
-           hr.type marking the now-above answer vs the prompt below. -->
+      <!-- Ref-as-answer cards: ref is always present, but the asked-about
+           part(s) render as `?` until reveal. The `?` placeholder is the
+           prompt itself — no separate "what chapter?" hint needed. hr
+           appears on reveal as the prompt/answer divider. -->
       <div v-else-if="card.kind === 'VerseInChapter' || card.kind === 'VerseInBook'" class="centered">
-        <template v-if="revealed">
-          <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
-          <hr class="type" />
-        </template>
+        <div class="ref" v-html="refHtml" />
+        <hr v-if="revealed" class="type" />
         <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-        <div v-if="!revealed" class="placeholder">…what {{ card.kind === 'VerseInBook' ? 'book' : 'chapter' }}?…</div>
       </div>
 
       <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
-        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div class="ref small" v-html="refHtml" />
         <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <template v-if="revealed">
           <hr class="type" />
@@ -120,7 +154,7 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'VerseInClub'" class="centered">
-        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div class="ref small" v-html="refHtml" />
         <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
         <template v-if="revealed">
           <hr class="type" />
@@ -130,7 +164,7 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'Recitation'" class="centered">
-        <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div class="ref" v-html="refHtml" />
         <template v-if="revealed">
           <hr class="type" />
           <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
@@ -139,16 +173,13 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'Citation'" class="centered">
-        <template v-if="revealed">
-          <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
-          <hr class="type" />
-        </template>
+        <div class="ref" v-html="refHtml" />
+        <hr v-if="revealed" class="type" />
         <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-        <div v-if="!revealed" class="placeholder">…what is the reference?…</div>
       </div>
 
       <div v-else-if="card.kind === 'Ftv'" class="centered">
-        <div v-if="revealed && card.withCitation" class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div v-if="revealed && card.withCitation" class="ref" v-html="refHtml" />
         <div class="verse-text ftv" :style="{ color: verseColour }" v-html="`${ftvHtml ?? ''}…`" />
         <template v-if="revealed">
           <hr class="type" />
@@ -158,7 +189,7 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'Reading'" class="centered">
-        <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <div class="ref" v-html="refHtml" />
         <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
       </div>
     </template>
@@ -207,6 +238,17 @@ const composedMissing = computed(() => props.card.composed === null)
   font-size: 0.9rem;
   color: var(--color-muted);
   font-weight: 400;
+}
+
+/* `?` placeholder for ref parts that are the answer being tested. Slightly
+   muted vs the surrounding revealed text so the question is visually clear
+   without being a giant chip like phrase-hidden. */
+.ref :deep(.ref-hidden) {
+  background: var(--color-accent-soft);
+  border-radius: 3px;
+  padding: 0 0.25rem;
+  color: var(--color-muted);
+  font-weight: 600;
 }
 
 .verse-text {
