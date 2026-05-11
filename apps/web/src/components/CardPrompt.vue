@@ -223,7 +223,7 @@ const composedMissing = computed(() => props.card.composed === null)
   color: var(--color-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  text-align: center;
+  text-align: left;
 }
 
 /* Verse-coloured flashcard box — the only bordered surface on the
