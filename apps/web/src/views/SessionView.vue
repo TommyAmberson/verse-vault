@@ -171,19 +171,24 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* Layout wrapper only — no surface or border. Meta label, the inner
-   verse-coloured flashcard box (rendered by CardPrompt), and the
-   grade buttons sit directly on the page background as siblings. */
+/* Layout wrapper only — no surface or border. Stretches to fill the
+   session column so the grade buttons can pin themselves to the
+   bottom while the meta label + flashcard box sit at the top. */
 .card {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  flex: 1;
 }
 
+/* Push the grade buttons (and the Reveal button before they appear)
+   to the bottom of the .card column. Empty space goes between the
+   flashcard box and the buttons. */
 .actions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  margin-top: auto;
 }
 
 .reveal {
