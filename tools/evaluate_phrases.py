@@ -1,18 +1,32 @@
 #!/usr/bin/env python3
-"""Audit phrase splits in the verse-vault phrases cache.
+"""Audit phrase splits in the committed structural deck file.
 
-Reports verses whose splits violate the project's memorisation-quality
-criteria — rejoin failures, missing splits, fragments out of bounds,
-imbalanced HTML markup. Pure-stdlib so it runs anywhere; the optional
-``--llm-judge`` flag adds a Claude-Haiku quality check for verses that
-pass the deterministic checks but might still feel awkward.
+Operates on ``data/corinthians.json`` (the durable source of truth for
+``phraseWordCounts`` and ``annotations``) plus the api.bible HTML
+cache (canonical NKJV tokens). Phrase text shown in the report is
+sliced from api.bible tokens by the deck's word counts — no per-verse
+text crosses through the deck anymore.
+
+Checks (deterministic, run on every verse):
+
+- ``phraseWordCounts`` sum matches the api.bible token count → drift
+  between the deck's structural metadata and the canonical text.
+- Each phrase word count is in [3, 12] with edge phrases allowed to
+  be shorter (an intro / closing stub).
+- Single-phrase verse whose token count exceeds the missing-split
+  threshold → almost certainly a split that was never applied.
+- ``ftvWordCount`` is in range when set.
+
+The optional ``--llm-judge`` flag adds a Claude-Haiku quality check
+for verses that pass the deterministic checks but might still feel
+awkward.
 
 Usage:
-    python3 tools/evaluate_phrases.py data/corinthians-phrases.json
-    python3 tools/evaluate_phrases.py data/corinthians-phrases.json --top 10
-    python3 tools/evaluate_phrases.py data/corinthians-phrases.json --refs "1 Cor 12:11,1 Cor 1:26"
-    python3 tools/evaluate_phrases.py data/corinthians-phrases.json --out report.json
-    python3 tools/evaluate_phrases.py data/corinthians-phrases.json --llm-judge
+    python3 tools/evaluate_phrases.py
+    python3 tools/evaluate_phrases.py --top 10
+    python3 tools/evaluate_phrases.py --refs "1 Cor 12:11,1 Cor 1:26"
+    python3 tools/evaluate_phrases.py --out report.json
+    python3 tools/evaluate_phrases.py --llm-judge
 """
 
 import argparse
@@ -21,18 +35,20 @@ import os
 import sys
 from typing import Any, Dict, List, Optional, Set
 
-# Allow `python3 tools/evaluate_phrases.py …` from the repo root and
-# `python3 evaluate_phrases.py …` from inside tools/.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from phrase_splitter import (  # noqa: E402
     JUDGE_PROMPT,
     SEVERITIES,
-    html_tags_balanced,
     normalize_reference,
-    rejoin_matches,
     severity_rank,
-    word_count,
+)
+from phrase_splitter.apibible import (  # noqa: E402
+    DEFAULT_DB_PATH,
+    DEFAULT_NKJV_ID,
+    extract_chapter_verses,
+    get_chapter_html,
+    open_cache,
 )
 
 WORD_MIN = 3
@@ -43,63 +59,65 @@ WORD_MAX = 12
 MISSING_SPLIT_THRESHOLD = 10
 
 
-def check_verse(ref: str, entry: Dict[str, Any]) -> List[Dict[str, str]]:
-    """Return a list of ``{severity, reason}`` for one cache entry.
-
-    All checks are pure (no I/O, no LLM). Designed to run on every entry
-    in the cache in a single sub-second pass.
-    """
+def check_verse(ref: str, verse: Dict[str, Any], tokens: List[str]) -> List[Dict[str, str]]:
+    """Return a list of ``{severity, reason, ...}`` for one structural
+    verse entry. ``tokens`` is the canonical token stream from
+    api.bible (used both to detect deck/api drift and to quote phrase
+    text in the report)."""
     issues: List[Dict[str, str]] = []
-    text = entry.get("text", "")
-    phrases = entry.get("phrases", [])
+    pwc = verse.get("phraseWordCounts") or []
 
-    if not isinstance(phrases, list) or not phrases:
-        return [{"severity": "blocker", "reason": "missing or non-list phrases"}]
+    if not isinstance(pwc, list) or not pwc:
+        issues.append({"severity": "blocker", "reason": "missing or empty phraseWordCounts"})
+        return issues
 
-    # Empty phrase entries are a blocker — they break rejoin and corrupt
-    # downstream tooling.
-    if any(not isinstance(p, str) or not p for p in phrases):
-        issues.append({"severity": "blocker", "reason": "empty or non-string phrase in list"})
-
-    if not rejoin_matches(phrases, text):
-        rejoined = " ".join(phrases)
+    pwc_sum = sum(pwc)
+    api_count = len(tokens)
+    if api_count == 0:
         issues.append({
             "severity": "blocker",
-            "reason": f"rejoin mismatch (joined {len(rejoined)} chars; original {len(text)})",
+            "reason": "no canonical tokens — verse missing from api.bible cache",
+        })
+        return issues
+
+    if pwc_sum != api_count:
+        issues.append({
+            "severity": "blocker",
+            "reason": (
+                f"phraseWordCounts sum ({pwc_sum}) differs from api.bible "
+                f"token count ({api_count}) — deck/canonical drift"
+            ),
         })
 
-    total_words = word_count(text)
-    if len(phrases) == 1 and total_words > MISSING_SPLIT_THRESHOLD:
+    if len(pwc) == 1 and api_count > MISSING_SPLIT_THRESHOLD:
         issues.append({
             "severity": "high",
-            "reason": f"single phrase for {total_words}-word verse",
+            "reason": f"single phrase for {api_count}-word verse",
         })
 
-    for i, p in enumerate(phrases):
-        if not isinstance(p, str) or not p:
-            continue
-        wc = word_count(p)
-        is_edge = i == 0 or i == len(phrases) - 1
-        if wc < WORD_MIN:
-            # Stranded short fragments mid-verse almost always read as a
-            # bad break (e.g. ``"But one"`` in 1 Cor 12:11). The same
-            # length at the verse's edge is often a deliberate intro or
-            # closing stub (``"Moreover,"``, ``"and Him crucified."``),
-            # so downgrade those rather than treat them as equivalent.
+    cursor = 0
+    for i, count in enumerate(pwc):
+        slice_text = " ".join(tokens[cursor : cursor + count])
+        cursor += count
+        is_edge = i == 0 or i == len(pwc) - 1
+        if count < WORD_MIN:
             sev = "medium" if is_edge else "high"
             issues.append({
                 "severity": sev,
-                "reason": f"phrase {i+1} has {wc} word{'s' if wc != 1 else ''}: {_clip(p)}",
+                "reason": f"phrase {i+1} has {count} word{'s' if count != 1 else ''}: {_clip(slice_text)}",
             })
-        elif wc > WORD_MAX:
+        elif count > WORD_MAX:
             issues.append({
                 "severity": "high",
-                "reason": f"phrase {i+1} has {wc} words: {_clip(p)}",
+                "reason": f"phrase {i+1} has {count} words: {_clip(slice_text)}",
             })
-        if not html_tags_balanced(p):
+
+    ftv = verse.get("ftvWordCount")
+    if ftv is not None:
+        if not isinstance(ftv, int) or ftv < 1 or ftv > api_count:
             issues.append({
-                "severity": "blocker",
-                "reason": f"phrase {i+1} has unbalanced HTML tags: {_clip(p)}",
+                "severity": "high",
+                "reason": f"ftvWordCount={ftv} out of [1, {api_count}]",
             })
 
     return issues
@@ -114,13 +132,25 @@ def _top_severity(issues: List[Dict[str, str]]) -> str:
 
 
 def evaluate(
-    cache: Dict[str, Any], ref_filter: Optional[Set[str]] = None
+    deck: Dict[str, Any],
+    conn,
+    bible_id: str,
+    ref_filter: Optional[Set[str]] = None,
 ) -> List[Dict[str, Any]]:
-    report = []
-    for ref, entry in cache.items():
+    """Walk the structural deck verse-by-verse, fetching each chapter's
+    canonical tokens once and reusing across the chapter's verses."""
+    report: List[Dict[str, Any]] = []
+    chapter_tokens: Dict[tuple, Dict[int, List[str]]] = {}
+    for v in deck.get("verses", []):
+        ref = f"{v['book']} {v['chapter']}:{v['verse']}"
         if ref_filter is not None and ref not in ref_filter:
             continue
-        issues = check_verse(ref, entry)
+        key = (v["book"], v["chapter"])
+        if key not in chapter_tokens:
+            html = get_chapter_html(conn, v["book"], v["chapter"], bible_id=bible_id)
+            chapter_tokens[key] = extract_chapter_verses(html, v["book"], v["chapter"])
+        tokens = chapter_tokens[key].get(v["verse"], [])
+        issues = check_verse(ref, v, tokens)
         if issues:
             report.append({
                 "ref": ref,
@@ -132,19 +162,19 @@ def evaluate(
 
 
 def call_judge(
-    cache: Dict[str, Any],
+    deck: Dict[str, Any],
+    conn,
+    bible_id: str,
     deterministic_flagged: Set[str],
     ref_filter: Optional[Set[str]],
     model: str,
 ) -> List[Dict[str, Any]]:
-    """Ask Claude Haiku to flag splits that look awkward despite passing
+    """Ask Claude Haiku to flag awkward splits among verses that passed
     the deterministic checks. Requires the ``anthropic`` package and
-    ``ANTHROPIC_API_KEY`` in the environment; raises a clean error
-    otherwise so the caller can tell the user what to install.
-    """
+    ``ANTHROPIC_API_KEY`` in the env."""
     try:
         from anthropic import Anthropic  # type: ignore
-    except ImportError as e:  # pragma: no cover — depends on env
+    except ImportError as e:
         raise SystemExit(
             "--llm-judge requires the 'anthropic' package. "
             "Install with: pip install anthropic"
@@ -153,19 +183,28 @@ def call_judge(
         raise SystemExit("--llm-judge requires ANTHROPIC_API_KEY in env")
 
     client = Anthropic()
-    extra = []
-    for ref, entry in cache.items():
+    extra: List[Dict[str, Any]] = []
+    chapter_tokens: Dict[tuple, Dict[int, List[str]]] = {}
+    for v in deck.get("verses", []):
+        ref = f"{v['book']} {v['chapter']}:{v['verse']}"
         if ref in deterministic_flagged:
             continue
         if ref_filter is not None and ref not in ref_filter:
             continue
-        phrases = entry.get("phrases") or []
-        text = entry.get("text", "")
-        if not phrases or len(phrases) == 1:
-            # Single-phrase verses that survived the deterministic checks
-            # are short enough that judging adds little; skip to keep
-            # cost down.
-            continue
+        pwc = v.get("phraseWordCounts") or []
+        if len(pwc) < 2:
+            continue  # single-phrase verses don't have a split to judge
+        key = (v["book"], v["chapter"])
+        if key not in chapter_tokens:
+            html = get_chapter_html(conn, v["book"], v["chapter"], bible_id=bible_id)
+            chapter_tokens[key] = extract_chapter_verses(html, v["book"], v["chapter"])
+        tokens = chapter_tokens[key].get(v["verse"], [])
+        phrases: List[str] = []
+        cursor = 0
+        for c in pwc:
+            phrases.append(" ".join(tokens[cursor : cursor + c]))
+            cursor += c
+        text = " ".join(tokens)
         phrases_block = "\n".join(f"  - {p}" for p in phrases)
         prompt = JUDGE_PROMPT.format(ref=ref, text=text, phrases_block=phrases_block)
         try:
@@ -175,7 +214,6 @@ def call_judge(
                 messages=[{"role": "user", "content": prompt}],
             )
             body = resp.content[0].text.strip()
-            # Strip code fences if the model added any.
             if body.startswith("```"):
                 body = body.split("\n", 1)[1] if "\n" in body else body
                 body = body.rsplit("```", 1)[0]
@@ -197,42 +235,45 @@ def main() -> None:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    ap.add_argument("cache", help="Phrases cache JSON (e.g. data/corinthians-phrases.json)")
+    ap.add_argument(
+        "deck",
+        nargs="?",
+        default="data/corinthians.json",
+        help="Structural deck JSON (default: data/corinthians.json)",
+    )
     ap.add_argument("--refs", help="Comma-separated refs to limit the check to")
     ap.add_argument(
         "--llm-judge",
         action="store_true",
         help="Ask Claude Haiku to audit splits that passed the deterministic checks",
     )
-    ap.add_argument(
-        "--judge-model",
-        default="claude-haiku-4-5-20251001",
-        help="Anthropic model id for the LLM judge",
-    )
+    ap.add_argument("--judge-model", default="claude-haiku-4-5-20251001")
+    ap.add_argument("--db", default=DEFAULT_DB_PATH, help="Shared api.bible SQLite cache")
+    ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")
     ap.add_argument("--out", help="Write the JSON report to this path")
     ap.add_argument("--top", type=int, help="Print only the top N worst entries")
     args = ap.parse_args()
 
-    with open(args.cache, encoding="utf-8") as f:
-        cache = json.load(f)
+    with open(args.deck, encoding="utf-8") as f:
+        deck = json.load(f)
 
     ref_filter = None
     if args.refs:
         ref_filter = {normalize_reference(r.strip()) for r in args.refs.split(",") if r.strip()}
-        missing = ref_filter - set(cache.keys())
-        if missing:
-            sys.stderr.write(
-                f"warning: {len(missing)} ref(s) not in cache: {sorted(missing)}\n"
+
+    conn = open_cache(args.db)
+    try:
+        report = evaluate(deck, conn, args.bible, ref_filter)
+        if args.llm_judge:
+            deterministic_flagged = {r["ref"] for r in report}
+            report.extend(
+                call_judge(deck, conn, args.bible, deterministic_flagged, ref_filter, args.judge_model)
             )
+            report.sort(key=lambda r: (severity_rank(r["top_severity"]), r["ref"]))
+    finally:
+        conn.close()
 
-    report = evaluate(cache, ref_filter)
-
-    if args.llm_judge:
-        deterministic_flagged = {r["ref"] for r in report}
-        report.extend(call_judge(cache, deterministic_flagged, ref_filter, args.judge_model))
-        report.sort(key=lambda r: (severity_rank(r["top_severity"]), r["ref"]))
-
-    print(f"Checked {len(cache)} entries.")
+    print(f"Checked {sum(1 for v in deck.get('verses', []) if v.get('phraseWordCounts'))} verses.")
     print(f"Flagged: {len(report)}")
     to_show = report if args.top is None else report[: args.top]
     for r in to_show:
