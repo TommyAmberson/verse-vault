@@ -8,7 +8,19 @@ const props = defineProps<{
   revealed: boolean
 }>()
 
-const ref = computed(() => `${props.card.verse.book} ${props.card.verse.chapter}:${props.card.verse.verse}`)
+/** Verse-colour palette ported from the deck's _colours.js. The CSS vars
+ *  themselves live in assets/colors.css; we pick by (verse - 1) % 10. */
+const VERSE_COLOUR_VARS = [
+  '--verse-c1', '--verse-c2', '--verse-c3', '--verse-c4', '--verse-c5',
+  '--verse-c6', '--verse-c7', '--verse-c8', '--verse-c9', '--verse-c10',
+]
+const verseColour = computed(() => {
+  const idx = (props.card.verse.verse - 1) % VERSE_COLOUR_VARS.length
+  return `var(${VERSE_COLOUR_VARS[idx]})`
+})
+
+const refPrefix = computed(() => `${props.card.verse.book} ${props.card.verse.chapter}:`)
+const refVerseNum = computed(() => props.card.verse.verse)
 
 const promptLabel = computed(() => {
   switch (props.card.kind) {
@@ -65,63 +77,84 @@ const composedMissing = computed(() => props.card.composed === null)
           <div v-if="i === card.position && !revealed" class="phrase phrase-hidden">___</div>
           <div v-else class="phrase" v-html="phrase" />
         </template>
-        <div class="ref small">{{ ref }}</div>
+        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
       </div>
 
       <div v-else-if="card.kind === 'PhraseChain'" class="phrases">
         <div class="phrase" v-html="phraseHtml[card.position! - 1]" />
         <div v-if="revealed" class="phrase phrase-hidden" v-html="phraseHtml[card.position!]" />
         <div v-else class="phrase phrase-hidden">___</div>
-        <div class="ref small">{{ ref }}</div>
+        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
       </div>
 
       <div v-else-if="card.kind === 'VerseAtVerseRef'" class="centered">
-        <div class="ref">{{ ref }}</div>
-        <div v-if="revealed" class="verse-text" v-html="verseHtml" />
+        <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="verse-text" v-html="verseHtml" />
+        </template>
         <div v-else class="placeholder">…recite the verse…</div>
       </div>
 
       <div v-else-if="card.kind === 'VerseInChapter' || card.kind === 'VerseInBook'" class="centered">
         <div class="verse-text" v-html="verseHtml" />
-        <div v-if="revealed" class="ref">{{ ref }}</div>
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        </template>
         <div v-else class="placeholder">…what {{ card.kind === 'VerseInBook' ? 'book' : 'chapter' }}?…</div>
       </div>
 
       <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
         <div class="verse-text" v-html="verseHtml" />
-        <div class="ref small">{{ ref }}</div>
-        <div v-if="revealed" class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
+        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
+        </template>
         <div v-else class="placeholder">…what heading?…</div>
       </div>
 
       <div v-else-if="card.kind === 'VerseInClub'" class="centered">
         <div class="verse-text" v-html="verseHtml" />
-        <div class="ref small">{{ ref }}</div>
-        <div v-if="revealed" class="answer">Club: {{ clubLabel }}</div>
+        <div class="ref small">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="answer">Club: {{ clubLabel }}</div>
+        </template>
         <div v-else class="placeholder">…which club?…</div>
       </div>
 
       <div v-else-if="card.kind === 'Recitation'" class="centered">
-        <div class="ref">{{ ref }}</div>
-        <div v-if="revealed" class="verse-text" v-html="verseHtml" />
+        <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="verse-text" v-html="verseHtml" />
+        </template>
         <div v-else class="placeholder">…recite the whole verse…</div>
       </div>
 
       <div v-else-if="card.kind === 'Citation'" class="centered">
         <div class="verse-text" v-html="verseHtml" />
-        <div v-if="revealed" class="ref">{{ ref }}</div>
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        </template>
         <div v-else class="placeholder">…what is the reference?…</div>
       </div>
 
       <div v-else-if="card.kind === 'Ftv'" class="centered">
         <div class="verse-text ftv" v-html="`${ftvHtml ?? ''}…`" />
-        <div v-if="revealed" class="verse-text" v-html="verseHtml" />
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="verse-text" v-html="verseHtml" />
+          <div v-if="card.withCitation" class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
+        </template>
         <div v-else class="placeholder">…continue the verse…</div>
-        <div v-if="revealed && card.withCitation" class="ref">{{ ref }}</div>
       </div>
 
       <div v-else-if="card.kind === 'Reading'" class="centered">
-        <div class="ref">{{ ref }}</div>
+        <div class="ref">{{ refPrefix }}<span :style="{ color: verseColour }">{{ refVerseNum }}</span></div>
         <div class="verse-text" v-html="verseHtml" />
       </div>
     </template>
@@ -194,11 +227,17 @@ const composedMissing = computed(() => props.card.composed === null)
    italics) and the deck's user-annotation tags (<b>/<i>). :deep()
    reaches inside since Vue's scoped CSS doesn't tag dynamically
    inserted nodes. */
+/* User keyword annotations: deck convention is bold-900 + underlined.
+   api.bible's divine-name `.bd` stays bold-only (no underline). */
 .verse-text :deep(b),
-.phrase :deep(b),
+.phrase :deep(b) {
+  font-weight: 900;
+  text-decoration: underline;
+}
+
 .verse-text :deep(.bd),
 .phrase :deep(.bd) {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .verse-text :deep(i),
@@ -231,5 +270,15 @@ code {
   padding: 0.1rem 0.3rem;
   border-radius: 3px;
   font-family: monospace;
+}
+
+/* Prompt-vs-answer divider, ported from the Anki deck's `hr.type` —
+   dotted to distinguish from any future solid-rule usage. Matches the
+   typography hint on the Anki cards. */
+hr.type {
+  width: 100%;
+  border: none;
+  border-top: 1px dotted var(--color-border);
+  margin: 0.25rem 0;
 }
 </style>

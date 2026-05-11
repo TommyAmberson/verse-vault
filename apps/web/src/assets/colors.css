@@ -19,6 +19,20 @@
   --color-success-bg: #dcfce7;
   --color-error: #b91c1c;
   --color-error-bg: #fee2e2;
+
+  /* Verse colours — ported from the Anki deck's _colours.js. Indexed by
+     (verseNumber - 1) % 10 to give every verse-within-a-chapter its own
+     hue, so "verse 5" looks the same regardless of book/chapter. */
+  --verse-c1: oklch(56% 0.21 24.87); /* red */
+  --verse-c2: oklch(75% 0.15 358.59); /* pink */
+  --verse-c3: oklch(68% 0.17 24.68); /* salmon */
+  --verse-c4: oklch(73% 0.17 55.11); /* orange */
+  --verse-c5: oklch(88% 0.18 107.15); /* yellow */
+  --verse-c6: oklch(68% 0.16 142.16); /* green */
+  --verse-c7: oklch(72% 0.12 235.93); /* light blue */
+  --verse-c8: oklch(50% 0.18 263.47); /* dark blue */
+  --verse-c9: oklch(58% 0.18 293.9); /* blue violet */
+  --verse-c10: oklch(50% 0.19 333.28); /* dark magenta */
 }
 
 *,
