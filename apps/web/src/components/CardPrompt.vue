@@ -209,13 +209,13 @@ const composedMissing = computed(() => props.card.composed === null)
   text-align: center;
 }
 
-/* The bordered surface wrapping ref + verse content. Border colour is
-   bound inline to the verse-colour so it picks up the per-verse hue. */
+/* Verse-coloured inner box — the flashcard frame. Sits inside the
+   outer SessionView card surface, so it shares that white background
+   and only the border tints. */
 .card-box {
   border: 2px solid currentColor;
-  border-radius: 10px;
-  padding: 1.75rem 1.5rem;
-  background: var(--color-bg-card);
+  border-radius: 8px;
+  padding: 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
