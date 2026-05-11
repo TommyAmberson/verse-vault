@@ -1,0 +1,11 @@
+{
+  "$schema": "Apply find → replace per (bibleId|passageId) to api.bible HTML on read. Strings are matched literally; first writer wins on overlap. Use this to paper over confirmed api.bible content errors until they're fixed upstream.",
+  "63097d2a0a2f7db3-01": {
+    "1CO.11": [
+      { "find": "Imitateme,", "replace": "Imitate me," }
+    ],
+    "1CO.15": [
+      { "find": "“ODeath,", "replace": "“O Death," }
+    ]
+  }
+}

@@ -73,6 +73,26 @@ describe('ApibibleCache passages', () => {
     expect(await b).toBe('shared');
   });
 
+  it('applies known content-error patches before returning', async () => {
+    // 1CO.15 has the confirmed "ODeath," → "O Death," patch registered
+    // in apibible-patches.json. The cache layer should rewrite it both
+    // on cache-miss fetch and on cache-hit reads.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    const raw =
+      '<p class="p"><span class="v" data-sid="1CO 15:55">55</span>“ODeath, where</p>';
+    const fetchMock = vi.fn().mockResolvedValueOnce(makeOk({ content: raw }));
+    const cache = new ApibibleCache(test.db, 'k', () => 1_000, fetchMock);
+
+    const fetched = await cache.getPassageHtml('63097d2a0a2f7db3-01', '1CO.15');
+    expect(fetched).toContain('“O Death,');
+    expect(fetched).not.toContain('“ODeath,');
+
+    const cached = await cache.getPassageHtml('63097d2a0a2f7db3-01', '1CO.15');
+    expect(cached).toContain('“O Death,');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('throws ApibibleError on non-2xx', async () => {
     const test = createTestDb();
     cleanup = test.cleanup;

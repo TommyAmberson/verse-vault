@@ -2,6 +2,32 @@ import { and, eq, lt, sql } from 'drizzle-orm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
+import patchesRaw from './apibible-patches.json' with { type: 'json' };
+
+interface Patch {
+  find: string;
+  replace: string;
+}
+
+// Drop the JSON schema banner field (key starts with `$`) so iteration
+// hits only real bibleId entries.
+const PATCHES: Record<string, Record<string, Patch[]>> = Object.fromEntries(
+  Object.entries(patchesRaw as Record<string, unknown>).filter(
+    ([k]) => !k.startsWith('$'),
+  ),
+) as Record<string, Record<string, Patch[]>>;
+
+function applyPatches(bibleId: string, passageId: string, html: string): string {
+  const byPassage = PATCHES[bibleId];
+  if (!byPassage) return html;
+  const list = byPassage[passageId];
+  if (!list || list.length === 0) return html;
+  let out = html;
+  for (const { find, replace } of list) {
+    out = out.split(find).join(replace);
+  }
+  return out;
+}
 
 /**
  * Server-side cache for api.bible content, backed by SQLite. The TOS
@@ -49,9 +75,12 @@ export class ApibibleCache {
   }
 
   /** Plain-HTML chapter content, cache-aware. `passageId` is the api.bible
-   *  shape `{USX_BOOK}.{chapter}` (e.g. `"1CO.1"`). */
+   *  shape `{USX_BOOK}.{chapter}` (e.g. `"1CO.1"`). The result is passed
+   *  through ``apibible-patches.json`` to paper over known api.bible
+   *  content errors (e.g. ``"ODeath,"`` missing space) until they're
+   *  fixed upstream. */
   async getPassageHtml(bibleId: string, passageId: string): Promise<string> {
-    return this.readThrough(
+    const html = await this.readThrough(
       this.inflightPassages,
       `${bibleId}|${passageId}`,
       () => {
@@ -69,6 +98,7 @@ export class ApibibleCache {
       },
       (now) => this.fetchAndCachePassage(bibleId, passageId, now),
     );
+    return applyPatches(bibleId, passageId, html);
   }
 
   /** Section list for a book, cache-aware. */

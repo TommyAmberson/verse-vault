@@ -30,7 +30,42 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import List, Optional
+from typing import Dict, List, Optional
+
+# Shared find→replace overrides for confirmed api.bible content errors
+# (missing word-spaces in NKJV verses like 1 Cor 15:55 / 11:1). Applied
+# on every cache read so downstream tools never see the raw defect.
+# Same file the server's ``ApibibleCache.getPassageHtml`` reads, so a
+# fix in one place propagates to both runtimes.
+_PATCHES_PATH = os.path.normpath(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "..", "packages", "api", "src", "lib", "apibible-patches.json",
+    )
+)
+
+
+def _load_patches() -> Dict[str, Dict[str, List[Dict[str, str]]]]:
+    try:
+        with open(_PATCHES_PATH, encoding="utf-8") as f:
+            raw = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    # Drop the JSON schema banner so iteration hits only bibleId entries.
+    return {k: v for k, v in raw.items() if not k.startswith("$")}
+
+
+_PATCHES = _load_patches()
+
+
+def _apply_patches(bible_id: str, passage_id: str, html: str) -> str:
+    by_passage = _PATCHES.get(bible_id, {})
+    for entry in by_passage.get(passage_id, []) or []:
+        find = entry.get("find")
+        replace = entry.get("replace", "")
+        if find:
+            html = html.replace(find, replace)
+    return html
 
 # Match the runtime cache + the API.Bible MAUA.
 CACHE_TTL_SECS = 30 * 24 * 60 * 60
@@ -134,9 +169,11 @@ def get_chapter_html(
     api_key: Optional[str] = None,
 ) -> str:
     """Return chapter HTML, reading from SQLite cache when fresh and
-    falling through to api.bible on miss/stale (writing back). Set
-    ``BIBLE_API_KEY`` in the env or pass ``api_key`` for the fallback
-    fetch — without it, a cache miss aborts."""
+    falling through to api.bible on miss/stale (writing back). Known
+    api.bible content quirks (see ``apibible-patches.json``) are
+    applied at the read boundary so downstream tools see corrected
+    text. Set ``BIBLE_API_KEY`` in the env or pass ``api_key`` for
+    the fallback fetch — without it, a cache miss aborts."""
     pid = passage_id(book, chapter)
     now = int(time.time())
     row = conn.execute(
@@ -145,7 +182,7 @@ def get_chapter_html(
         (bible_id, pid),
     ).fetchone()
     if row and now - row[1] < CACHE_TTL_SECS:
-        return row[0]
+        return _apply_patches(bible_id, pid, row[0])
 
     key = api_key or os.environ.get("BIBLE_API_KEY") or os.environ.get("API_BIBLE_KEY")
     if not key:
@@ -161,7 +198,7 @@ def get_chapter_html(
         (bible_id, pid, html, now),
     )
     conn.commit()
-    return html
+    return _apply_patches(bible_id, pid, html)
 
 
 # api.bible's verse-start marker: ``<span data-number="N" data-sid="BOOK C:V"
