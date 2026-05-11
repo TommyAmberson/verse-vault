@@ -1,30 +1,37 @@
 #!/usr/bin/env python3
-"""Re-split verses in the phrases cache.
+"""Re-split verses in the committed structural deck file.
 
-Workflow:
+Operates on ``data/corinthians.json`` (durable source for
+``phraseWordCounts``) plus the api.bible canonical-text cache for the
+verse content fed to the LLM.
 
-  1. ``print-prompt`` emits the LLM prompt for one or more verse refs.
-     Pipe the result into the LLM of your choice (or let the Claude
-     skill consume it directly).
-  2. The LLM produces a JSON array of phrases per verse.
-  3. ``apply`` reads those proposed splits from a JSON file (or stdin),
-     validates them against the deterministic checks (rejoin, word-count
-     bounds, HTML balance), and writes the survivors back into the
-     cache. Failures are reported but never silently committed.
+Two subcommands:
 
-This split keeps the CLI free of network dependencies — the LLM call is
-the skill's job — while letting the cache file remain the single source
-of truth for what counts as a "valid" split.
+  ``print-prompt`` — emit the LLM prompt for one or more verse refs
+                     (canonical text + the existing split, asking for
+                     an improved split as a JSON array of phrases).
+
+  ``apply``        — read proposed ``{ref, phrases}`` JSON, count the
+                     words per phrase, validate that the per-verse
+                     sum matches the canonical token count, then
+                     rewrite the verse's ``phraseWordCounts`` in the
+                     deck file. Annotation ``wordIndex`` values and
+                     ``ftvWordCount`` are positions in the token
+                     stream and don't shift when only the split
+                     boundaries change, so they're preserved.
+
+The split keeps the CLI free of network dependencies — the LLM call
+is the skill's job — while letting the deck file remain the single
+source of truth for what counts as a valid split.
 
 Usage:
-    python3 tools/split_phrases.py print-prompt data/corinthians-phrases.json \\
+    python3 tools/split_phrases.py print-prompt \\
         --refs "1 Cor 12:11,1 Cor 1:26"
 
-    python3 tools/split_phrases.py apply data/corinthians-phrases.json \\
-        --input /tmp/proposed.json [--dry-run]
+    python3 tools/split_phrases.py apply --input /tmp/proposed.json [--dry-run]
 
     # Pull refs from an evaluator report:
-    python3 tools/split_phrases.py print-prompt data/corinthians-phrases.json \\
+    python3 tools/split_phrases.py print-prompt \\
         --from-report /tmp/report.json --top 10
 """
 
@@ -32,24 +39,24 @@ import argparse
 import json
 import os
 import sys
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from phrase_splitter import (  # noqa: E402
-    SPLIT_PROMPT,
-    html_tags_balanced,
-    normalize_reference,
-    rejoin_matches,
-    word_count,
+from phrase_splitter import SPLIT_PROMPT, normalize_reference  # noqa: E402
+from phrase_splitter.apibible import (  # noqa: E402
+    DEFAULT_DB_PATH,
+    DEFAULT_NKJV_ID,
+    extract_chapter_verses,
+    get_chapter_html,
+    open_cache,
 )
 
-WORD_MIN_HARD = 1  # Splits with empty phrases fail; 1-word edges pass apply.
+WORD_MIN_HARD = 1
 WORD_MAX_HARD = 12
 
 
 def _collect_refs(
-    cache: Dict[str, Any],
     refs_arg: Optional[str],
     from_report: Optional[str],
     top: Optional[int],
@@ -67,90 +74,126 @@ def _collect_refs(
     raise SystemExit("must pass --refs or --from-report")
 
 
-def cmd_print_prompt(args: argparse.Namespace) -> None:
-    with open(args.cache, encoding="utf-8") as f:
-        cache = json.load(f)
-    refs = _collect_refs(cache, args.refs, args.from_report, args.top)
+def _verse_by_ref(deck: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    return {
+        f"{v['book']} {v['chapter']}:{v['verse']}": v
+        for v in deck.get("verses", [])
+    }
 
-    out = []
-    for ref in refs:
-        entry = cache.get(ref)
-        if not entry:
-            sys.stderr.write(f"warning: {ref!r} not in cache; skipping\n")
-            continue
-        out.append({"ref": ref, "prompt": SPLIT_PROMPT.format(verse_text=entry["text"])})
+
+def cmd_print_prompt(args: argparse.Namespace) -> None:
+    with open(args.deck, encoding="utf-8") as f:
+        deck = json.load(f)
+    refs = _collect_refs(args.refs, args.from_report, args.top)
+    by_ref = _verse_by_ref(deck)
+
+    conn = open_cache(args.db)
+    try:
+        prompts: List[Dict[str, Any]] = []
+        chapter_cache: Dict[tuple, Dict[int, List[str]]] = {}
+        for ref in refs:
+            verse = by_ref.get(ref)
+            if not verse:
+                sys.stderr.write(f"warning: {ref!r} not in deck; skipping\n")
+                continue
+            key = (verse["book"], verse["chapter"])
+            if key not in chapter_cache:
+                html = get_chapter_html(conn, verse["book"], verse["chapter"], bible_id=args.bible)
+                chapter_cache[key] = extract_chapter_verses(html, verse["book"], verse["chapter"])
+            tokens = chapter_cache[key].get(verse["verse"], [])
+            text = " ".join(tokens)
+            prompts.append({"ref": ref, "prompt": SPLIT_PROMPT.format(verse_text=text)})
+    finally:
+        conn.close()
 
     if args.json:
-        json.dump(out, sys.stdout, indent=2, ensure_ascii=False)
+        json.dump(prompts, sys.stdout, indent=2, ensure_ascii=False)
         sys.stdout.write("\n")
     else:
-        # Human-readable: prompts separated by a divider plus the ref label.
         divider = "\n" + "=" * 72 + "\n"
-        for item in out:
+        for item in prompts:
             sys.stdout.write(f"### {item['ref']}\n\n")
             sys.stdout.write(item["prompt"])
             sys.stdout.write(divider)
 
 
-def _validate(ref: str, text: str, phrases: List[str]) -> List[str]:
+def _word_count(s: str) -> int:
+    return len(s.split())
+
+
+def _validate(ref: str, phrases: List[str], canonical_tokens: int) -> List[str]:
     """Return a list of human-readable validation errors. Empty = OK."""
     errors: List[str] = []
     if not isinstance(phrases, list) or not phrases:
-        errors.append("phrases is empty or not a list")
-        return errors
+        return ["phrases is empty or not a list"]
     if any(not isinstance(p, str) or not p for p in phrases):
         errors.append("phrases contains an empty or non-string entry")
-    if not rejoin_matches(phrases, text):
-        errors.append(f"rejoin mismatch: got {' '.join(phrases)!r}, want {text!r}")
+    counts: List[int] = []
     for i, p in enumerate(phrases):
         if not isinstance(p, str) or not p:
+            counts.append(0)
             continue
-        wc = word_count(p)
+        wc = _word_count(p)
+        counts.append(wc)
         if wc < WORD_MIN_HARD:
-            errors.append(f"phrase {i+1} is empty after word count")
+            errors.append(f"phrase {i+1} has 0 words")
         elif wc > WORD_MAX_HARD:
             errors.append(f"phrase {i+1} has {wc} words (max {WORD_MAX_HARD})")
-        if not html_tags_balanced(p):
-            errors.append(f"phrase {i+1} has unbalanced HTML tags")
+    total = sum(counts)
+    if total != canonical_tokens:
+        errors.append(
+            f"phrase word counts sum to {total}; canonical verse has {canonical_tokens} words"
+        )
     return errors
 
 
 def cmd_apply(args: argparse.Namespace) -> None:
-    with open(args.cache, encoding="utf-8") as f:
-        cache = json.load(f)
+    with open(args.deck, encoding="utf-8") as f:
+        deck = json.load(f)
 
     if args.input == "-" or args.input is None:
         proposed = json.load(sys.stdin)
     else:
         with open(args.input, encoding="utf-8") as f:
             proposed = json.load(f)
-
     if not isinstance(proposed, list):
         raise SystemExit("input must be a JSON array of {ref, phrases} objects")
 
+    by_ref = _verse_by_ref(deck)
     applied = 0
     skipped = 0
     failures: List[Dict[str, Any]] = []
-    for item in proposed:
-        ref = normalize_reference(item["ref"])
-        phrases = item.get("phrases")
-        entry = cache.get(ref)
-        if not entry:
-            failures.append({"ref": ref, "errors": ["not in cache"]})
-            continue
-        errs = _validate(ref, entry["text"], phrases)
-        if errs:
-            failures.append({"ref": ref, "errors": errs})
-            skipped += 1
-            continue
-        if entry.get("phrases") == phrases:
-            skipped += 1
-            continue
-        entry["phrases"] = phrases
-        applied += 1
+
+    conn = open_cache(args.db)
+    try:
+        chapter_cache: Dict[tuple, Dict[int, List[str]]] = {}
+        for item in proposed:
+            ref = normalize_reference(item["ref"])
+            phrases = item.get("phrases")
+            verse = by_ref.get(ref)
+            if not verse:
+                failures.append({"ref": ref, "errors": ["not in deck"]})
+                continue
+            key = (verse["book"], verse["chapter"])
+            if key not in chapter_cache:
+                html = get_chapter_html(conn, verse["book"], verse["chapter"], bible_id=args.bible)
+                chapter_cache[key] = extract_chapter_verses(html, verse["book"], verse["chapter"])
+            tokens = chapter_cache[key].get(verse["verse"], [])
+            errs = _validate(ref, phrases, len(tokens))
+            if errs:
+                failures.append({"ref": ref, "errors": errs})
+                continue
+            new_pwc = [_word_count(p) for p in phrases]
+            if verse.get("phraseWordCounts") == new_pwc:
+                skipped += 1
+                continue
+            verse["phraseWordCounts"] = new_pwc
+            applied += 1
+    finally:
+        conn.close()
 
     print(f"Applied: {applied}")
-    print(f"Skipped (already current): {skipped - len(failures)}")
+    print(f"Skipped (already current): {skipped}")
     print(f"Failed: {len(failures)}")
     for fail in failures:
         print(f"\n  {fail['ref']}")
@@ -158,11 +201,11 @@ def cmd_apply(args: argparse.Namespace) -> None:
             print(f"    - {e}")
 
     if args.dry_run:
-        print("\n(dry-run; cache file unchanged)")
+        print("\n(dry-run; deck file unchanged)")
     elif applied:
-        with open(args.cache, "w", encoding="utf-8") as f:
-            json.dump(cache, f, indent=2, ensure_ascii=False)
-        print(f"\nUpdated {args.cache}")
+        with open(args.deck, "w", encoding="utf-8") as f:
+            json.dump(deck, f, indent=2, ensure_ascii=False)
+        print(f"\nUpdated {args.deck}")
 
     if failures and not args.allow_failures:
         sys.exit(1)
@@ -173,10 +216,13 @@ def main() -> None:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    ap.add_argument("--deck", default="data/corinthians.json", help="Structural deck JSON")
+    ap.add_argument("--db", default=DEFAULT_DB_PATH, help="Shared api.bible SQLite cache")
+    ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")
+
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     pp = sub.add_parser("print-prompt", help="Emit LLM prompts for the given refs")
-    pp.add_argument("cache", help="Phrases cache JSON")
     pp.add_argument("--refs", help="Comma-separated refs")
     pp.add_argument("--from-report", help="Read refs from an evaluator report JSON")
     pp.add_argument("--top", type=int, help="With --from-report, only the top N refs")
@@ -188,14 +234,13 @@ def main() -> None:
     pp.set_defaults(func=cmd_print_prompt)
 
     ap_apply = sub.add_parser("apply", help="Validate proposed splits and write them back")
-    ap_apply.add_argument("cache", help="Phrases cache JSON")
     ap_apply.add_argument(
         "--input",
         "-i",
         help="Path to a JSON file of {ref, phrases} objects (use '-' for stdin)",
     )
     ap_apply.add_argument(
-        "--dry-run", action="store_true", help="Validate without writing the cache"
+        "--dry-run", action="store_true", help="Validate without writing the deck"
     )
     ap_apply.add_argument(
         "--allow-failures",
