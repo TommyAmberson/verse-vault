@@ -195,6 +195,17 @@ def _strip_to_text(chunk: str) -> str:
     return _decode_entities(chunk)
 
 
+_TOKEN_SPLIT_RE = re.compile(r"[\s—]+")
+
+
+def _tokenise(text: str) -> List[str]:
+    """Whitespace-or-em-dash split. NKJV uses ``—`` between words
+    without surrounding spaces (e.g. ``body—whether``), and the
+    structural ``phraseWordCounts`` was generated treating those as
+    two tokens. Match here so audit/edit tools agree with the deck."""
+    return [t for t in _TOKEN_SPLIT_RE.split(text) if t]
+
+
 def extract_verse_tokens(html: str, book: str, chapter: int, verse: int) -> List[str]:
     """Pull the visible-token stream for a single verse out of the
     chapter HTML. Tokens are whitespace-separated after stripping all
