@@ -231,16 +231,24 @@ const composedMissing = computed(() => props.card.composed === null)
    outer SessionView card surface, so it shares that white background
    and only the border tints. Width and weight are tuned so the line
    reads with the same perceived saturation as the verse-number digit
-   (a 2px line at the deck's OKLCH lightness looks noticeably darker
+   (a thin line at the deck's OKLCH lightness looks noticeably darker
    than anti-aliased text on either light or dark backgrounds). */
 .card-box {
-  border-width: 3px;
+  border-width: 5px;
   border-style: solid;
-  border-radius: 8px;
-  padding: 1.5rem 1.25rem;
+  border-radius: 10px;
+  padding: 2rem 1.75rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .card-box {
+    border-width: 4px;
+    padding: 1.25rem 1rem;
+    border-radius: 8px;
+  }
 }
 
 /* PhraseFill blanks render inline within the verse-text run so the
