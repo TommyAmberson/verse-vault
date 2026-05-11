@@ -171,19 +171,13 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* Card container: a clearly-bordered box echoing the Anki card surface
-   (white-on-page, dotted/solid hr divider inside, centered body). The
-   border is deliberately stronger than the surrounding chrome so the
-   reading area reads as a distinct surface. */
+/* Layout-only container — the bordered surface lives inside CardPrompt
+   so the box can pick up the per-verse colour on its edge. Buttons and
+   meta label sit outside that inner box but inside this column. */
 .card {
-  background: var(--color-bg-card);
-  border: 1.5px solid var(--color-text);
-  border-radius: 10px;
-  padding: 2.5rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .actions {

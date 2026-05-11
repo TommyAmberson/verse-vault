@@ -97,15 +97,20 @@ const composedMissing = computed(() => props.card.composed === null)
   <div class="prompt">
     <div class="meta">{{ promptLabel }}</div>
 
-    <div v-if="composedMissing" class="placeholder">
-      Canonical text unavailable. Set <code>BIBLE_API_KEY</code> on the server to render NKJV verses.
-    </div>
+    <!-- The bordered content box wears the verse colour on its edge so
+         each verse has a consistent visual identity. The meta label
+         (above) and the grade buttons (rendered by the parent view)
+         stay outside this border. -->
+    <div class="card-box" :style="{ borderColor: verseColour }">
+      <div v-if="composedMissing" class="placeholder">
+        Canonical text unavailable. Set <code>BIBLE_API_KEY</code> on the server to render NKJV verses.
+      </div>
 
-    <!-- v-html renders api.bible's NKJV typography (small caps for LORD,
-         translator italics, divine-name bold) layered with the user's
-         keyword <b>/<i> annotations. Source is the server-composed
-         output, never user input. -->
-    <template v-else>
+      <!-- v-html renders api.bible's NKJV typography (small caps for LORD,
+           translator italics, divine-name bold) layered with the user's
+           keyword <b>/<i> annotations. Source is the server-composed
+           output, never user input. -->
+      <template v-else>
       <div v-if="card.kind === 'PhraseFill'" class="centered">
         <div class="ref small" v-html="refHtml" />
         <div class="verse-text" :style="{ color: verseColour }">
@@ -183,7 +188,8 @@ const composedMissing = computed(() => props.card.composed === null)
         <div class="ref" v-html="refHtml" />
         <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
       </div>
-    </template>
+      </template>
+    </div>
   </div>
 </template>
 
@@ -200,6 +206,19 @@ const composedMissing = computed(() => props.card.composed === null)
   color: var(--color-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-align: center;
+}
+
+/* The bordered surface wrapping ref + verse content. Border colour is
+   bound inline to the verse-colour so it picks up the per-verse hue. */
+.card-box {
+  border: 2px solid currentColor;
+  border-radius: 10px;
+  padding: 1.75rem 1.5rem;
+  background: var(--color-bg-card);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 /* PhraseFill blanks render inline within the verse-text run so the
