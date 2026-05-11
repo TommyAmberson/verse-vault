@@ -112,8 +112,8 @@ def derive_verse(verse: dict) -> dict:
     out["annotations"] = annotations
 
     # Sanity check: stripping all markup and rejoining tokens should
-    # reproduce the verse text. Mirrors validate_and_merge's phrase-join
-    # check — the verse is well-formed if it matches.
+    # reproduce the verse text. Same idea as the phrase-splitter's
+    # rejoin invariant — the verse is well-formed if it matches.
     rejoined = " ".join(
         strip_markup(tok) for phrase in cleaned_phrases for tok in phrase.split()
     )

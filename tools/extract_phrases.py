@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Extract a phrase-cache sidecar from a chunked verse-vault JSON.
 
-The chunking pipeline (prepare_batches → LLM agents → validate_and_merge)
-is slow and costs real money to re-run. To make `import_colpkg.py` cheap
+The chunking pipeline (`tools/split_phrases.py` driven by the LLM) is
+slow and costs real money to re-run. To make `import_colpkg.py` cheap
 when only an Anki backup changes, dump a flat phrase cache once and reuse
 it forever — verses whose text matches a cache entry skip re-chunking.
 

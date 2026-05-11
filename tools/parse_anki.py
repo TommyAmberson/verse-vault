@@ -5,7 +5,8 @@ Usage:
     python3 tools/parse_anki.py data/anki-export.txt data/corinthians-parsed.json --year 3-C
 
 The output JSON has phrases set to [whole verse] as placeholder. Use
-prepare_batches.py + LLM agents + validate_and_merge.py to chunk them.
+the phrase-splitter pipeline (`tools/evaluate_phrases.py` +
+`tools/split_phrases.py`) to chunk them.
 """
 
 import argparse
