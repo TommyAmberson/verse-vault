@@ -1,26 +1,27 @@
 #!/usr/bin/env python3
 """Find the shortest unique opening word-prefix for each verse.
 
-In Bible Quizzing, an FTV (First-Two-Verses / first-few-words) cue is the
-short opening prefix the quiz host reads aloud so the contestant can
-identify and complete the verse from memory. The cue works only when
-that opening prefix is unique across the material — otherwise multiple
-verses match and the contestant can't choose.
+In Bible Quizzing, an FTV (First-Two-Verses / first-few-words) cue is
+the short opening prefix the quiz host reads aloud so the contestant
+can identify and complete the verse from memory. The cue works only
+when that opening prefix is unique across the material — otherwise
+multiple verses match and the contestant can't choose.
 
-This script computes the shortest unique opening prefix for every verse
-in a text-bearing material JSON and reports it. Pass ``--audit`` to also
-diff against the deck's current ``ftv_word_count`` and flag verses where
-the deck is set too short (ambiguous) or longer than needed.
+This script computes the shortest unique opening prefix for every
+verse in ``data/corinthians.json`` (structural) using canonical NKJV
+tokens from the api.bible HTML cache. Pass ``--audit`` to also diff
+against the deck's current ``ftvWordCount`` and flag verses where the
+deck cue is too short (ambiguous) or longer than the minimum.
 
-Words are compared case-insensitively after stripping inline HTML tags
-and edge punctuation, so ``Paul,`` and ``Paul.`` match ``paul``. Two
-verses with identical openings produce no unique prefix; those are
-flagged with severity ``blocker`` since no FTV cue can work.
+Words are compared case-insensitively after stripping edge
+punctuation, so ``Paul,`` and ``Paul.`` match ``paul``. Two verses
+with identical openings produce no unique prefix; those are flagged
+with severity ``blocker`` since no FTV cue can work.
 
 Usage:
-    python3 tools/find_ftvs.py data/corinthians-parsed.json
-    python3 tools/find_ftvs.py data/corinthians-parsed.json --audit
-    python3 tools/find_ftvs.py data/corinthians-parsed.json --out report.json
+    python3 tools/find_ftvs.py
+    python3 tools/find_ftvs.py --audit
+    python3 tools/find_ftvs.py --out report.json
 """
 
 import argparse
@@ -32,7 +33,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from phrase_splitter import strip_html  # noqa: E402
+from phrase_splitter.apibible import (  # noqa: E402
+    DEFAULT_DB_PATH,
+    DEFAULT_NKJV_ID,
+    extract_chapter_verses,
+    get_chapter_html,
+    open_cache,
+)
 
 # Strip leading/trailing chars that aren't letters, digits, or an
 # interior apostrophe. Keeps "God's" intact; turns "Paul," into "Paul".
@@ -43,34 +50,16 @@ def _normalise(token: str) -> str:
     return _EDGE_PUNCT_RE.sub("", token).lower()
 
 
-def visible_tokens(text: str) -> List[str]:
-    """Whitespace tokens with HTML stripped but punctuation glued in."""
-    return strip_html(text).split()
-
-
-def normalised_tokens(text: str) -> List[str]:
-    """Lowercased + edge-punctuation-stripped tokens for comparison."""
-    return [_normalise(t) for t in visible_tokens(text)]
-
-
 def find_shortest_unique_prefixes(
-    verses: List[Dict[str, Any]],
+    keyed_tokens: List[Tuple[Tuple[str, int, int], List[str]]],
 ) -> Dict[Tuple[str, int, int], Optional[int]]:
     """Return ``{(book, chapter, verse): shortest_unique_prefix_len | None}``.
 
-    A verse's shortest unique prefix is the smallest ``n`` such that no
-    other verse in the material has the same first ``n`` normalised
-    tokens. ``None`` means no unique prefix exists (another verse opens
-    identically over the full normalised token stream).
-    """
-    keys = [(v["book"], v["chapter"], v["verse"]) for v in verses]
-    norms = [normalised_tokens(v.get("text", "")) for v in verses]
-
+    ``None`` means no unique prefix exists (another verse opens
+    identically over the full normalised token stream)."""
+    norms = [(key, [_normalise(t) for t in toks]) for key, toks in keyed_tokens]
     out: Dict[Tuple[str, int, int], Optional[int]] = {}
-    # For each verse, grow the prefix until no other verse's tokens
-    # start with the same sequence.
-    for i, key in enumerate(keys):
-        toks = norms[i]
+    for i, (key, toks) in enumerate(norms):
         if not toks:
             out[key] = None
             continue
@@ -78,7 +67,7 @@ def find_shortest_unique_prefixes(
         for n in range(1, len(toks) + 1):
             head = toks[:n]
             collides = False
-            for j, other in enumerate(norms):
+            for j, (_okey, other) in enumerate(norms):
                 if j == i or len(other) < n:
                     continue
                 if other[:n] == head:
@@ -97,71 +86,84 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument(
-        "input",
-        help="Text-bearing chunked JSON (e.g. data/corinthians-parsed.json)",
+        "deck",
+        nargs="?",
+        default="data/corinthians.json",
+        help="Structural deck JSON (default: data/corinthians.json)",
     )
+    ap.add_argument("--db", default=DEFAULT_DB_PATH, help="Shared api.bible SQLite cache")
+    ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")
     ap.add_argument(
         "--audit",
         action="store_true",
-        help="Diff computed unique-prefix length against deck's ftv_word_count and flag mismatches",
+        help="Diff computed unique-prefix length against deck's ftvWordCount and flag mismatches",
     )
     ap.add_argument("--out", help="Write the full report as JSON to this path")
     ap.add_argument(
         "--show-non-mismatches",
         action="store_true",
-        help="With --audit, also list verses whose ftv_word_count matches the computed minimum",
+        help="With --audit, also list verses whose ftvWordCount matches the computed minimum",
     )
     args = ap.parse_args()
 
-    with open(args.input, encoding="utf-8") as f:
-        data = json.load(f)
+    with open(args.deck, encoding="utf-8") as f:
+        deck = json.load(f)
 
-    verses = [v for v in data.get("verses", []) if v.get("text")]
-    prefixes = find_shortest_unique_prefixes(verses)
+    conn = open_cache(args.db)
+    try:
+        keyed_tokens: List[Tuple[Tuple[str, int, int], List[str]]] = []
+        chapter_cache: Dict[Tuple[str, int], Dict[int, List[str]]] = {}
+        for v in deck.get("verses", []):
+            if not v.get("phraseWordCounts"):
+                continue
+            book = v["book"]
+            chapter = v["chapter"]
+            ckey = (book, chapter)
+            if ckey not in chapter_cache:
+                html = get_chapter_html(conn, book, chapter, bible_id=args.bible)
+                chapter_cache[ckey] = extract_chapter_verses(html, book, chapter)
+            tokens = chapter_cache[ckey].get(v["verse"], [])
+            keyed_tokens.append(((book, chapter, v["verse"]), tokens))
+    finally:
+        conn.close()
+
+    prefixes = find_shortest_unique_prefixes(keyed_tokens)
+
+    # Build a quick book/chapter/verse → deck verse lookup for ftvWordCount.
+    deck_index = {(v["book"], v["chapter"], v["verse"]): v for v in deck.get("verses", [])}
 
     rows: List[Dict[str, Any]] = []
-    for v in verses:
-        key = (v["book"], v["chapter"], v["verse"])
-        ref = f"{v['book']} {v['chapter']}:{v['verse']}"
+    for (book, chapter, verse), tokens in keyed_tokens:
+        key = (book, chapter, verse)
+        ref = f"{book} {chapter}:{verse}"
         n = prefixes[key]
-        tokens = visible_tokens(v["text"])
-        deck_ftv = v.get("ftv_word_count")
-        if deck_ftv is None and v.get("ftv"):
-            # Older shapes store ftv as a string. Count its visible
-            # tokens as a fallback for the audit comparison.
-            deck_ftv = len(strip_html(v["ftv"]).split())
-        row = {
+        rows.append({
             "ref": ref,
             "shortest_unique_prefix_words": n,
             "shortest_unique_prefix_text": None if n is None else " ".join(tokens[:n]),
-            "deck_ftv_word_count": deck_ftv,
+            "deck_ftv_word_count": deck_index[key].get("ftvWordCount"),
             "verse_word_count": len(tokens),
-        }
-        rows.append(row)
+        })
 
     if args.audit:
-        mismatches = []
-        ambiguous = []
+        mismatches: List[Dict[str, Any]] = []
+        ambiguous: List[Dict[str, Any]] = []
         for r in rows:
             n = r["shortest_unique_prefix_words"]
             if n is None:
                 ambiguous.append(r)
                 continue
-            deck = r["deck_ftv_word_count"]
-            if deck is None:
+            deck_ftv = r["deck_ftv_word_count"]
+            if deck_ftv is None:
                 continue
-            if deck < n:
-                # Deck's cue is shorter than the minimum unique prefix —
-                # the cue collides with another verse and is ambiguous.
+            if deck_ftv < n:
                 r["audit"] = "too_short"
                 mismatches.append(r)
-            elif deck > n:
-                # Deck's cue is longer than needed; not wrong but wastes
-                # the contestant's working memory.
+            elif deck_ftv > n:
                 r["audit"] = "longer_than_minimum"
                 mismatches.append(r)
 
-        print(f"Checked {len(verses)} verses.")
+        print(f"Checked {len(rows)} verses.")
         print(f"No unique opening prefix: {len(ambiguous)}")
         print(f"Deck FTV cue mismatches:  {len(mismatches)}")
 
@@ -193,7 +195,6 @@ def main() -> None:
             ]
             print(f"\nMatching deck FTV (cue is minimum): {len(ok)}")
     else:
-        # Plain listing
         for r in rows[:30]:
             n = r["shortest_unique_prefix_words"]
             if n is None:
