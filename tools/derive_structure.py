@@ -20,7 +20,7 @@ Heading entries lose their `text` field — titles are resolved server-side
 against api.bible's sections endpoint.
 
 Usage:
-    python3 tools/derive_structure.py data/corinthians.json data/corinthians-structural.json
+    python3 tools/derive_structure.py data/corinthians-parsed.json data/corinthians.json
 """
 
 from __future__ import annotations
@@ -173,7 +173,7 @@ def derive_material(data: dict) -> tuple[dict, list[str]]:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("input", help="Chunked text-bearing JSON (e.g. data/corinthians.json)")
+    ap.add_argument("input", help="Chunked text-bearing JSON (e.g. data/corinthians-parsed.json)")
     ap.add_argument("output", help="Structural JSON to write")
     args = ap.parse_args()
 

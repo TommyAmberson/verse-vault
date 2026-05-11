@@ -21,7 +21,7 @@ re-chunk.
 Usage:
     python3 tools/import_colpkg.py \\
         data/collection-2026-05-08.colpkg \\
-        data/corinthians.json \\
+        data/corinthians-parsed.json \\
         --year 3-C \\
         --phrases data/corinthians-phrases.json
 """

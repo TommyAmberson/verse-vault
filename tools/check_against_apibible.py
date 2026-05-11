@@ -18,7 +18,7 @@ API.Bible Minimum Acceptable Use (paraphrased):
 Usage:
     export BIBLE_API_KEY=<your key>     # or API_BIBLE_KEY
     python3 tools/check_against_apibible.py \\
-        data/corinthians.json \\
+        data/corinthians-parsed.json \\
         --book "1 Corinthians" --chapter 1 \\
         [--bible 63097d2a0a2f7db3-01]   # NKJV (account-specific; see DEFAULT_NKJV_ID)
         [--cache data/apibible-cache.json]
@@ -216,7 +216,7 @@ def normalize_title(s: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("input", help="verse-vault chunked JSON (e.g. data/corinthians.json)")
+    ap.add_argument("input", help="Chunked text-bearing JSON (e.g. data/corinthians-parsed.json)")
     ap.add_argument(
         "--mode",
         choices=("verses", "headings"),

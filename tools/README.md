@@ -111,17 +111,19 @@ exit code is non-zero; survivors are written to the cache.
 
 ### 5. Refresh the structural deck file
 
-After the cache changes, regenerate the committed structural JSON so consumers see the new word
-counts and annotation offsets:
+After the cache changes, replay the colpkg with the updated cache to refresh the text-bearing parsed
+JSON, then strip it into the committed structural shape:
 
 ```bash
-python3 tools/extract_phrases.py data/corinthians-parsed.json data/corinthians-phrases.json
-python3 tools/derive_structure.py data/corinthians-phrases.json data/corinthians.json
+python3 tools/import_colpkg.py data/collection-*.colpkg data/corinthians-parsed.json \
+    --year 3-C --phrases data/corinthians-phrases.json
+python3 tools/derive_structure.py data/corinthians-parsed.json data/corinthians.json
 ```
 
 `derive_structure.py` strips the verse text and emits the structural shape (`phraseWordCounts`,
 `annotations`, `ftvWordCount`, heading ranges, clubs) — the only thing the server and clients
-consume at runtime.
+consume at runtime. The intermediate `corinthians-parsed.json` stays gitignored under `data/`; only
+`data/corinthians.json` is committed.
 
 ### 6. Verify against canonical NKJV (optional)
 
@@ -132,7 +134,7 @@ wording diverges:
 
 ```bash
 export API_BIBLE_KEY=<your api.bible key>
-python3 tools/check_against_apibible.py data/corinthians-phrases.json \
+python3 tools/check_against_apibible.py data/corinthians-parsed.json \
     --book "1 Corinthians" --chapter 1
 ```
 

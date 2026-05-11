@@ -7,7 +7,7 @@ when only an Anki backup changes, dump a flat phrase cache once and reuse
 it forever — verses whose text matches a cache entry skip re-chunking.
 
 Usage:
-    python3 tools/extract_phrases.py data/corinthians.json data/corinthians-phrases.json
+    python3 tools/extract_phrases.py data/corinthians-parsed.json data/corinthians-phrases.json
 
 Output shape (keyed by 'Book Chapter:Verse'; `text` is the fingerprint):
 
@@ -29,7 +29,7 @@ import parse_anki
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("input", help="Chunked verse-vault JSON (e.g. data/corinthians.json)")
+    ap.add_argument("input", help="Chunked text-bearing JSON (e.g. data/corinthians-parsed.json)")
     ap.add_argument("output", help="Phrase cache JSON to write")
     args = ap.parse_args()
 
