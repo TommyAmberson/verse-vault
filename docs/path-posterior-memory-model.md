@@ -760,7 +760,7 @@ heading, or club identity (see _Why no chapter or book identities_ above):
 
 ```
 phrases ─→ contained by Recitation alongside the citation triple
-        ─→ otherwise grade only their own Phrase test (atomic PhraseFill / PhraseChain)
+        ─→ otherwise grade only their own Phrase test (atomic PhraseFill)
 
 per-verse bindings (Verse↔Chapter, Verse↔Book, Verse↔Heading, Verse↔Club, VerseRef position):
   ─→ each has an atomic card grading it directly

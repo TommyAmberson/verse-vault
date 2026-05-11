@@ -105,9 +105,9 @@ impl ReviewEngine {
 
     /// Return the `VerseAtoms` for a verse — the data needed by `Card::tests`
     /// to expand composite cards into per-test grade keys. Falls back to a
-    /// phrase-count-only reconstruction from `verse_index` if the verse isn't
-    /// in the populated data map (shouldn't happen for cards built via
-    /// `builder::build`).
+    /// reconstruction from `verse_index` (phrase count + headings + clubs;
+    /// FTV word count not recoverable) if the verse isn't in the populated
+    /// data map (shouldn't happen for cards built via `builder::build`).
     pub fn atoms_for(&self, verse_id: u32) -> VerseAtoms {
         if let Some(atoms) = self.verse_atoms_data.get(&verse_id) {
             return atoms.clone();
