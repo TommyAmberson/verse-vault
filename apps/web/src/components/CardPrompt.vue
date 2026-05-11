@@ -19,6 +19,14 @@ const verseColour = computed(() => {
   return `var(${VERSE_COLOUR_VARS[idx]})`
 })
 
+/** Border colour for the flashcard box. Tracks the verse-number colour
+ *  whenever the verse number is visible (which is always except on a
+ *  Citation card before reveal); otherwise falls back to the neutral
+ *  border tone so the hue doesn't leak the answer. */
+const borderColour = computed(() =>
+  refParts.value.showVerse ? verseColour.value : 'var(--color-border)',
+)
+
 /** Per-card visibility of each ref component. For "what chapter?" /
  *  "what book?" / "what verse?" / Citation, the asked-about parts stay
  *  blanked until reveal so the prompt doesn't leak the answer. Other
@@ -97,11 +105,11 @@ const composedMissing = computed(() => props.card.composed === null)
   <div class="prompt">
     <div class="meta">{{ promptLabel }}</div>
 
-    <!-- The bordered content box wears the verse colour on its edge so
-         each verse has a consistent visual identity. The meta label
-         (above) and the grade buttons (rendered by the parent view)
-         stay outside this border. -->
-    <div class="card-box" :style="{ borderColor: verseColour }">
+    <!-- The bordered content box wears the verse-number colour on its
+         edge so each verse has a consistent visual identity. When the
+         verse number is hidden (Citation pre-reveal) the border falls
+         back to neutral so it doesn't leak the answer. -->
+    <div class="card-box" :style="{ borderColor: borderColour }">
       <div v-if="composedMissing" class="placeholder">
         Canonical text unavailable. Set <code>BIBLE_API_KEY</code> on the server to render NKJV verses.
       </div>
