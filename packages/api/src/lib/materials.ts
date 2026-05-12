@@ -21,14 +21,46 @@ export interface Material {
 
 export const MATERIALS: readonly Material[] = [
   {
+    id: 'nkjv-gepc',
+    title: 'Galatians–Colossians (NKJV)',
+    description: 'Year 1: Galatians, Ephesians, Philippians, Colossians.',
+  },
+  {
+    id: 'nkjv-nt-survey',
+    title: 'NT Survey (NKJV)',
+    description:
+      'Year 2: selected passages from Matthew, Acts, 1 Thessalonians, 1–2 Timothy, Titus, 1 John, Revelation.',
+  },
+  {
     id: 'nkjv-1cor',
     title: '1 Corinthians (NKJV)',
-    description: '1 & 2 Corinthians with phrase chunking and FTV prompts.',
+    description: 'Year 3: 1 & 2 Corinthians with phrase chunking and FTV prompts.',
   },
   {
     id: 'nkjv-john',
     title: 'John (NKJV)',
-    description: 'Gospel of John with phrase chunking and FTV prompts.',
+    description: 'Year 4: Gospel of John with phrase chunking and FTV prompts.',
+  },
+  {
+    id: 'nkjv-hp',
+    title: 'Hebrews & 1–2 Peter (NKJV)',
+    description: 'Year 5: Hebrews, 1 Peter, 2 Peter (currently the Club150 cut only).',
+  },
+  {
+    id: 'nkjv-ot-survey',
+    title: 'OT Survey (NKJV)',
+    description:
+      'Year 6: curated passages across Genesis through the Minor Prophets (Club150 cut only).',
+  },
+  {
+    id: 'nkjv-rj',
+    title: 'Romans & James (NKJV)',
+    description: 'Year 7: Romans and James (currently the Club150 cut only).',
+  },
+  {
+    id: 'nkjv-luke',
+    title: 'Luke (NKJV)',
+    description: 'Year 8: Gospel of Luke (chapters 4–8, 12, 20 and Luke 3:23–38 are not covered).',
   },
 ];
 
@@ -42,8 +74,14 @@ const REPO_ROOT = resolve(import.meta.dirname, '../../../..');
 /** Per-material override: relative path under the repo root for the
  *  structural MaterialData JSON. Missing on disk → inline fallback. */
 const DATA_FILES: Record<string, string> = {
+  'nkjv-gepc': 'data/1-gepc.json',
+  'nkjv-nt-survey': 'data/2-nt-survey.json',
   'nkjv-1cor': 'data/3-corinthians.json',
   'nkjv-john': 'data/4-john.json',
+  'nkjv-hp': 'data/5-hp.json',
+  'nkjv-ot-survey': 'data/6-ot-survey.json',
+  'nkjv-rj': 'data/7-rj.json',
+  'nkjv-luke': 'data/8-luke.json',
 };
 
 /** Inline structural stand-in MaterialData per id, kept tiny so tests
