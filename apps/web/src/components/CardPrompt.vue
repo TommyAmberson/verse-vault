@@ -384,35 +384,16 @@ const composedMissing = computed(() => props.card.composed === null)
   font-style: italic;
 }
 
-/* Typography rendered via v-html — both api.bible's editorial classes
-   (.sc small caps for LORD, .bd divine-name bold, .it translator
-   italics) and the deck's user-annotation tags (<b>/<i>). :deep()
-   reaches inside since Vue's scoped CSS doesn't tag dynamically
-   inserted nodes.
-
-   Deck keyword annotations: `<b>` renders bold-900 + underlined per
-   the Anki convention. api.bible's `.bd` (divine-name bold) is forced
-   back to normal weight so it doesn't compete with the user's keyword
-   bold for visual weight. */
+/* Typography rendered via v-html. :deep() reaches inside since Vue's
+   scoped CSS doesn't tag dynamically inserted nodes. The deck's
+   keyword annotations (`<b>` bold-900 + underlined, `<i>` italic via
+   the UA default) are the only emphasis carried through; api.bible's
+   `.bd` (divine-name bold) and `.it` (translator italics) inherit
+   normal styling from the parent and read as plain text. `.sc` keeps
+   small caps as canonical NKJV typography for LORD. */
 .verse-text :deep(b) {
   font-weight: 900;
   text-decoration: underline;
-}
-
-.verse-text :deep(.bd) {
-  font-weight: normal;
-}
-
-/* Deck keyword annotations rendered as <i> stay italic. api.bible's
-   .it class (translator-supplied words like "corner stone", "It is as",
-   "Him") is left in default upright — the editorial italics distract
-   from the memorisation task. */
-.verse-text :deep(i) {
-  font-style: italic;
-}
-
-.verse-text :deep(.it) {
-  font-style: normal;
 }
 
 .verse-text :deep(.sc) {
