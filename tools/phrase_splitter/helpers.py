@@ -97,13 +97,26 @@ def severity_rank(s: str) -> int:
     return SEVERITIES.index(s)
 
 
-# Edge-strip everything that isn't a letter, digit, or interior apostrophe.
-# Keeps ``God's`` intact; turns ``Paul,`` into ``Paul``. Curly U+2019 is
-# folded to straight U+0027 first so canonical NKJV's typographic
-# apostrophes compare equal to the straight ones used in back-list / Anki
-# input.
-_EDGE_PUNCT_RE = re.compile(r"^[^\w']+|[^\w']+$")
+# Trim a token to its bare lemma form. Curly U+2019 folds to straight
+# U+0027 first so the deck's typographic apostrophes compare equal to
+# Anki's straight ones. Leading non-letter/non-digit is stripped
+# unconditionally. The trailing edge is peeled iteratively to draw a
+# careful distinction between a possessive apostrophe (which we want
+# to keep — ``conscience'`` ≠ ``conscience``) and a closing quote
+# masquerading as an apostrophe (``mind,'`` should normalise to
+# ``mind``). A trailing apostrophe is kept only when it sits right
+# after a letter; otherwise it's typography and gets stripped.
+_LEADING_NONWORD_RE = re.compile(r"^[^\w]+")
 
 
 def normalise_word(token: str) -> str:
-    return _EDGE_PUNCT_RE.sub("", token.replace("’", "'")).lower()
+    s = token.replace("’", "'").replace("‘", "'").lower()
+    s = _LEADING_NONWORD_RE.sub("", s)
+    while s:
+        last = s[-1]
+        if last.isalnum():
+            break
+        if last == "'" and len(s) >= 2 and s[-2].isalpha():
+            break
+        s = s[:-1]
+    return s

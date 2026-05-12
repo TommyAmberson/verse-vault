@@ -236,16 +236,27 @@ def _decode_entities(s: str) -> str:
 
 
 def _strip_to_text(chunk: str) -> str:
-    """Drop tags but inject a space at every tag boundary. api.bible's
-    HTML routinely concatenates adjacent inline spans with no
-    whitespace between them — ``<span ...>baptized with
-    water,</span><span ...>but you shall be baptized…</span>`` —
-    so a naive tag strip glues ``water,`` and ``but`` into one
-    token. Replacing every tag with a single space prevents the
-    gluing across tag boundaries; redundant whitespace collapses
-    out at the tokenisation step. Mirrors the runtime DOM walker
-    in ``render.ts``, which gets the whitespace separation for free."""
-    chunk = _TAG_RE.sub(" ", chunk)
+    """Drop tags, injecting a space at the boundaries that separate
+    distinct content blocks but *not* at the seams that interrupt a
+    single word.
+
+    api.bible's HTML routinely concatenates adjacent inline spans
+    without whitespace, e.g. ``<span ...>water,</span><span ...>but
+    you shall…</span>`` — a naive tag strip glues those into
+    ``water,but``. Conversely it also wraps single words for typography
+    (``<span class="sc"><span class="bd">Lord</span></span>'s,``);
+    blindly inserting a space at every tag boundary would split
+    ``Lord's`` into ``Lord 's``.
+
+    Rule: insert a space at paragraph closes (always a block
+    boundary) and at any close-then-open tag adjacency
+    (``</a><b>``) — both signal "one content block ended, another
+    began". Otherwise just drop the tag and let any adjoining text
+    flow together (preserving possessives and small-caps wrapping).
+    Redundant whitespace collapses out at tokenisation."""
+    chunk = re.sub(r"</p\s*>", " ", chunk, flags=re.IGNORECASE)
+    chunk = re.sub(r"</[^>]+><[^/][^>]*>", " ", chunk)
+    chunk = _TAG_RE.sub("", chunk)
     return _decode_entities(chunk)
 
 
