@@ -450,9 +450,11 @@ code {
 
 /* Dotted hr.type — the prompt/answer divider, ported from the Anki
    deck's `hr.type`. Appears on reveal to mark "below this line is
-   the answer / the typed-in check / the supporting context". Picks up
-   the verse hue so it ties to the rest of the reveal-state chrome. */
+   the answer / the typed-in check / the supporting context". Stays
+   on the neutral border tone so it reads as a UI divider rather than
+   carrying verse-colour weight (some hues — verse 1's red, verse 5's
+   yellow — would otherwise read as alarm/warning, not "answer"). */
 .card-box :deep(hr.type) {
-  border-top: 1px dotted color-mix(in oklch, var(--active-verse-colour) 50%, var(--color-border));
+  border-top: 1px dotted var(--color-border);
 }
 </style>
