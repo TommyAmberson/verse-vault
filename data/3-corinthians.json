@@ -4968,6 +4968,10 @@
         {
           "wordIndex": 10,
           "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "boldItalic"
         }
       ],
       "ftvWordCount": 1,
@@ -5016,6 +5020,10 @@
         {
           "wordIndex": 25,
           "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "boldItalic"
         }
       ],
       "ftvWordCount": 2,
@@ -5034,6 +5042,10 @@
         4
       ],
       "annotations": [
+        {
+          "wordIndex": 26,
+          "kind": "boldItalic"
+        },
         {
           "wordIndex": 37,
           "kind": "boldItalic"

@@ -140,8 +140,33 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -153,8 +178,17 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -166,8 +200,13 @@
       "phraseWordCounts": [
         9
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -179,8 +218,17 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -192,8 +240,21 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -205,8 +266,25 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -218,8 +296,13 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -229,8 +312,13 @@
       "phraseWordCounts": [
         10
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -240,8 +328,17 @@
       "phraseWordCounts": [
         8
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -253,8 +350,21 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -266,8 +376,53 @@
       "phraseWordCounts": [
         35
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 34,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -277,8 +432,21 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -290,8 +458,25 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -303,8 +488,21 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -316,8 +514,13 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -330,7 +533,7 @@
         7
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -340,8 +543,25 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -353,8 +573,17 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -364,8 +593,17 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -377,8 +615,13 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -390,8 +633,25 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -403,8 +663,13 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -416,8 +681,25 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -429,8 +711,21 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -442,8 +737,25 @@
       "phraseWordCounts": [
         35
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -455,8 +767,29 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -468,8 +801,41 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -481,8 +847,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -494,8 +865,33 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -505,8 +901,45 @@
       "phraseWordCounts": [
         37
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 32,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 36,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -517,7 +950,7 @@
         13
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -527,8 +960,13 @@
       "phraseWordCounts": [
         31
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -540,8 +978,25 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -551,8 +1006,17 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -562,8 +1026,17 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -575,8 +1048,17 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         300
       ]
@@ -588,8 +1070,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -602,7 +1089,7 @@
         32
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -613,7 +1100,7 @@
         16
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -623,8 +1110,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -637,7 +1129,7 @@
         21
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -649,8 +1141,21 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -660,8 +1165,21 @@
       "phraseWordCounts": [
         32
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -672,7 +1190,7 @@
         13
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -685,7 +1203,7 @@
         28
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -697,8 +1215,17 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -711,7 +1238,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -721,8 +1248,17 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -732,8 +1268,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -746,7 +1287,7 @@
         26
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -759,7 +1300,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -771,8 +1312,21 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -783,7 +1337,7 @@
         16
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -795,8 +1349,17 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -809,7 +1372,7 @@
         26
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -821,8 +1384,21 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -832,8 +1408,45 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -845,8 +1458,25 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -858,8 +1488,29 @@
       "phraseWordCounts": [
         40
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 39,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -871,8 +1522,33 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -882,8 +1558,21 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -895,8 +1584,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -908,8 +1602,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -921,8 +1620,33 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -932,8 +1656,45 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -943,8 +1704,17 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -956,8 +1726,13 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -967,8 +1742,21 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -978,8 +1766,13 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -991,8 +1784,29 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -1004,8 +1818,13 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -1017,8 +1836,21 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -1028,8 +1860,17 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1041,8 +1882,17 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1054,8 +1904,25 @@
       "phraseWordCounts": [
         32
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -1067,8 +1934,17 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -1079,7 +1955,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -1091,8 +1967,21 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1104,8 +1993,25 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -1117,8 +2023,29 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -1128,8 +2055,13 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -1142,7 +2074,7 @@
         45
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -1152,8 +2084,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -1165,8 +2102,29 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -1176,8 +2134,33 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -1189,8 +2172,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -1202,8 +2190,13 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -1214,7 +2207,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1226,8 +2219,17 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -1237,8 +2239,21 @@
       "phraseWordCounts": [
         9
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -1248,8 +2263,33 @@
       "phraseWordCounts": [
         31
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -1259,8 +2299,33 @@
       "phraseWordCounts": [
         33
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -1270,8 +2335,17 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -1281,8 +2355,13 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -1292,8 +2371,33 @@
       "phraseWordCounts": [
         34
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 32,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1306,7 +2410,7 @@
         16
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1318,8 +2422,21 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -1331,8 +2448,21 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -1342,8 +2472,29 @@
       "phraseWordCounts": [
         31
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -1355,8 +2506,17 @@
       "phraseWordCounts": [
         34
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1368,8 +2528,21 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -1381,8 +2554,25 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -1394,8 +2584,17 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -1407,8 +2606,25 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -1420,8 +2636,37 @@
       "phraseWordCounts": [
         32
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 31,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -1433,8 +2678,13 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -1444,8 +2694,17 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1457,8 +2716,21 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1531,8 +2803,13 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1545,7 +2822,7 @@
         10
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -1556,7 +2833,7 @@
         27
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1568,8 +2845,13 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -1581,8 +2863,17 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -1594,8 +2885,17 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -1605,8 +2905,17 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -1618,8 +2927,17 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -1629,8 +2947,21 @@
       "phraseWordCounts": [
         38
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -1640,8 +2971,21 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1653,8 +2997,13 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -1665,7 +3014,7 @@
         32
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -1678,7 +3027,7 @@
         23
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1690,8 +3039,13 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         150
       ]
@@ -1704,7 +3058,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1716,8 +3070,33 @@
       "phraseWordCounts": [
         33
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 32,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1729,8 +3108,21 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1742,8 +3134,17 @@
       "phraseWordCounts": [
         7
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -1755,8 +3156,37 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1769,7 +3199,7 @@
         20
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1781,8 +3211,25 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1794,8 +3241,21 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         300
       ]
@@ -1807,8 +3267,33 @@
       "phraseWordCounts": [
         37
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1820,8 +3305,21 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1833,8 +3331,29 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -1844,8 +3363,33 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -1855,8 +3399,29 @@
       "phraseWordCounts": [
         5
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -1866,8 +3431,13 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -1879,8 +3449,13 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -1893,7 +3468,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -1903,8 +3478,17 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -1916,8 +3500,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -1929,8 +3518,25 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -1943,7 +3549,7 @@
         10
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -1953,8 +3559,17 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -1964,8 +3579,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -1977,8 +3597,13 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -1989,7 +3614,7 @@
         21
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2002,7 +3627,7 @@
         7
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 5,
       "clubs": [
         150
       ]
@@ -2014,8 +3639,13 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         150
       ]
@@ -2028,7 +3658,7 @@
         23
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -2041,7 +3671,7 @@
         28
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2051,8 +3681,21 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2062,8 +3705,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2076,7 +3724,7 @@
         17
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2086,8 +3734,17 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2097,8 +3754,17 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2108,8 +3774,21 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -2119,8 +3798,17 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2130,8 +3818,21 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2141,8 +3842,13 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2152,8 +3858,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2163,8 +3874,21 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2176,8 +3900,21 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2187,8 +3924,21 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2198,8 +3948,17 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -2209,8 +3968,13 @@
       "phraseWordCounts": [
         32
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -2222,8 +3986,13 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2235,8 +4004,17 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2248,8 +4026,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2259,8 +4042,17 @@
       "phraseWordCounts": [
         31
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2270,8 +4062,17 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2282,7 +4083,7 @@
         10
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2292,8 +4093,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -2303,8 +4109,21 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2314,8 +4133,17 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -2328,7 +4156,7 @@
         11
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 5,
       "clubs": [
         150
       ]
@@ -2340,8 +4168,17 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2351,8 +4188,13 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -2362,8 +4204,37 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -2373,8 +4244,17 @@
       "phraseWordCounts": [
         7
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -2384,8 +4264,17 @@
       "phraseWordCounts": [
         6
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -2395,8 +4284,13 @@
       "phraseWordCounts": [
         7
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -2407,7 +4301,7 @@
         9
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2417,8 +4311,13 @@
       "phraseWordCounts": [
         8
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -2428,8 +4327,13 @@
       "phraseWordCounts": [
         32
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2440,7 +4344,7 @@
         24
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -2452,8 +4356,13 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -2465,8 +4374,13 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -2479,7 +4393,7 @@
         12
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -2492,7 +4406,7 @@
         14
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -2504,8 +4418,21 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -2517,8 +4444,17 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2530,8 +4466,13 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2541,8 +4482,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2553,7 +4499,7 @@
         23
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2563,8 +4509,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -2575,7 +4526,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2588,7 +4539,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 6,
       "clubs": [
         300
       ]
@@ -2600,8 +4551,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -2614,7 +4570,7 @@
         17
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -2626,8 +4582,13 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": []
     },
     {
@@ -2638,7 +4599,7 @@
         21
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -2650,8 +4611,21 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -2663,8 +4637,21 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -2674,8 +4661,13 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": []
     },
     {
@@ -2685,8 +4677,13 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2697,7 +4694,7 @@
         17
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2707,8 +4704,17 @@
       "phraseWordCounts": [
         44
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -2720,8 +4726,13 @@
       "phraseWordCounts": [
         32
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2731,8 +4742,13 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -2745,7 +4761,7 @@
         21
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -2758,7 +4774,7 @@
         16
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2768,8 +4784,13 @@
       "phraseWordCounts": [
         50
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -2781,8 +4802,13 @@
       "phraseWordCounts": [
         40
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": []
     },
     {
@@ -2792,8 +4818,13 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2805,8 +4836,29 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -2816,8 +4868,17 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -2830,7 +4891,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -2843,7 +4904,7 @@
         9
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2854,7 +4915,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2865,7 +4926,7 @@
         23
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2876,7 +4937,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2887,7 +4948,7 @@
         16
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -2899,8 +4960,13 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -2910,8 +4976,13 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 8,
       "clubs": [
         300
       ]
@@ -2923,8 +4994,17 @@
       "phraseWordCounts": [
         6
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2936,8 +5016,17 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2949,8 +5038,13 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -2962,8 +5056,17 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -2976,7 +5079,7 @@
         19
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -2989,7 +5092,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -3001,8 +5104,17 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3014,8 +5126,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 8,
       "clubs": []
     },
     {
@@ -3025,8 +5142,13 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -3039,7 +5161,7 @@
         19
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3049,8 +5171,21 @@
       "phraseWordCounts": [
         33
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3060,8 +5195,13 @@
       "phraseWordCounts": [
         39
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 36,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3071,8 +5211,17 @@
       "phraseWordCounts": [
         37
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 34,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3082,8 +5231,13 @@
       "phraseWordCounts": [
         35
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3093,8 +5247,21 @@
       "phraseWordCounts": [
         33
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -3107,7 +5274,7 @@
         21
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3119,8 +5286,17 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3131,7 +5307,7 @@
         22
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3142,7 +5318,7 @@
         14
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 6,
       "clubs": [
         300
       ]
@@ -3155,7 +5331,7 @@
         14
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3167,8 +5343,17 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 6,
       "clubs": []
     },
     {
@@ -3178,8 +5363,17 @@
       "phraseWordCounts": [
         35
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3191,8 +5385,13 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         300
       ]
@@ -3204,8 +5403,13 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -3217,8 +5421,13 @@
       "phraseWordCounts": [
         10
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -3229,7 +5438,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3240,7 +5449,7 @@
         19
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3251,7 +5460,7 @@
         23
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3263,8 +5472,13 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -3277,7 +5491,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -3289,8 +5503,17 @@
       "phraseWordCounts": [
         32
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -3303,7 +5526,7 @@
         17
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3316,7 +5539,7 @@
         16
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -3329,7 +5552,7 @@
         33
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3339,8 +5562,13 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3351,7 +5579,7 @@
         12
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3361,8 +5589,33 @@
       "phraseWordCounts": [
         41
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3373,7 +5626,7 @@
         14
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3384,7 +5637,7 @@
         23
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3395,7 +5648,7 @@
         25
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3406,7 +5659,7 @@
         20
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3419,7 +5672,7 @@
         28
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 6,
       "clubs": []
     },
     {
@@ -3429,8 +5682,33 @@
       "phraseWordCounts": [
         34
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 33,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3440,8 +5718,33 @@
       "phraseWordCounts": [
         40
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 37,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3451,8 +5754,13 @@
       "phraseWordCounts": [
         38
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 20,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3462,8 +5770,13 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": []
     },
     {
@@ -3473,8 +5786,17 @@
       "phraseWordCounts": [
         36
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 32,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3487,7 +5809,7 @@
         40
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 7,
       "clubs": [
         300
       ]
@@ -3499,8 +5821,17 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -3512,8 +5843,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3524,7 +5860,7 @@
         13
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3534,8 +5870,17 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3546,7 +5891,7 @@
         13
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -3558,8 +5903,21 @@
       "phraseWordCounts": [
         37
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 35,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -3571,8 +5929,13 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 6,
       "clubs": []
     },
     {
@@ -3582,8 +5945,13 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3593,8 +5961,13 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3605,7 +5978,7 @@
         16
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3616,7 +5989,7 @@
         32
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3629,7 +6002,7 @@
         23
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3642,7 +6015,7 @@
         24
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3653,7 +6026,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3663,8 +6036,17 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3676,8 +6058,21 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3689,8 +6084,17 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -3703,7 +6107,7 @@
         28
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -3716,7 +6120,7 @@
         26
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3729,7 +6133,7 @@
         22
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3741,8 +6145,13 @@
       "phraseWordCounts": [
         38
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3754,8 +6163,13 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -3767,8 +6181,13 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -3780,8 +6199,25 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -3794,7 +6230,7 @@
         22
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3807,7 +6243,7 @@
         11
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3820,7 +6256,7 @@
         34
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3833,7 +6269,7 @@
         21
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3846,7 +6282,7 @@
         37
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3859,7 +6295,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -3870,7 +6306,7 @@
         28
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -3880,8 +6316,13 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -3893,8 +6334,13 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -3906,8 +6352,13 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -3919,8 +6370,17 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3932,8 +6392,17 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -3945,8 +6414,21 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3956,8 +6438,25 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3967,8 +6466,17 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -3978,8 +6486,21 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 6,
       "clubs": []
     },
     {
@@ -3989,8 +6510,17 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -4002,8 +6532,13 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -4013,8 +6548,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -4024,8 +6564,25 @@
       "phraseWordCounts": [
         35
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 34,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4037,8 +6594,13 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -4051,7 +6613,7 @@
         25
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4063,8 +6625,17 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -4076,8 +6647,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4088,7 +6664,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 6,
       "clubs": [
         150
       ]
@@ -4101,7 +6677,7 @@
         27
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4113,8 +6689,13 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -4124,8 +6705,21 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4137,8 +6731,33 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4150,8 +6769,13 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": []
     },
     {
@@ -4161,8 +6785,13 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4174,8 +6803,25 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -4187,8 +6833,21 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4200,8 +6859,17 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4211,8 +6879,21 @@
       "phraseWordCounts": [
         11
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -4222,8 +6903,17 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4235,8 +6925,17 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4248,8 +6947,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4259,8 +6963,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4271,7 +6980,7 @@
         20
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4282,7 +6991,7 @@
         28
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4294,8 +7003,13 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -4305,8 +7019,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -4317,7 +7036,7 @@
         32
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -4327,8 +7046,17 @@
       "phraseWordCounts": [
         11
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4338,8 +7066,17 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": []
     },
     {
@@ -4350,7 +7087,7 @@
         12
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 7,
       "clubs": []
     },
     {
@@ -4360,8 +7097,25 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -4373,8 +7127,13 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -4384,8 +7143,13 @@
       "phraseWordCounts": [
         35
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -4397,8 +7161,13 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -4410,8 +7179,17 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -4421,8 +7199,21 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4434,8 +7225,21 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4447,8 +7251,25 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4458,8 +7279,21 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -4470,7 +7304,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4480,8 +7314,13 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4493,8 +7332,17 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -4504,8 +7352,17 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -4515,8 +7372,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -4526,8 +7388,17 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4537,8 +7408,13 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 6,
       "clubs": []
     },
     {
@@ -4548,8 +7424,17 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4559,8 +7444,13 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 25,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -4572,8 +7462,17 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         150
       ]
@@ -4585,8 +7484,13 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4598,8 +7502,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4611,8 +7520,17 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4623,7 +7541,7 @@
         14
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -4635,8 +7553,13 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4646,8 +7569,17 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -4657,8 +7589,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4669,7 +7606,7 @@
         26
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": [
         300
       ]
@@ -4682,7 +7619,7 @@
         27
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4694,8 +7631,21 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4708,7 +7658,7 @@
         14
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 5,
       "clubs": []
     },
     {
@@ -4718,8 +7668,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         300
       ]
@@ -4732,7 +7687,7 @@
         12
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -4744,8 +7699,13 @@
       "phraseWordCounts": [
         34
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -4757,8 +7717,13 @@
       "phraseWordCounts": [
         33
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -4770,8 +7735,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4781,8 +7751,17 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -4794,8 +7773,21 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         300
       ]
@@ -4807,8 +7799,25 @@
       "phraseWordCounts": [
         33
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 32,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -4818,8 +7827,13 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4829,8 +7843,13 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4842,8 +7861,21 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -4855,8 +7887,13 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -4868,8 +7905,17 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -4879,8 +7925,37 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -4891,7 +7966,7 @@
         17
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -4904,7 +7979,7 @@
         34
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -4916,8 +7991,13 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4929,8 +8009,13 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -4942,8 +8027,25 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4954,7 +8056,7 @@
         17
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -4965,7 +8067,7 @@
         27
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -4977,8 +8079,13 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -4990,8 +8097,17 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5004,7 +8120,7 @@
         19
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5016,8 +8132,17 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -5029,8 +8154,13 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -5040,8 +8170,21 @@
       "phraseWordCounts": [
         36
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 31,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5053,8 +8196,21 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5064,8 +8220,13 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -5075,8 +8236,17 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -5089,7 +8259,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5099,8 +8269,17 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -5110,8 +8289,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5123,8 +8307,13 @@
       "phraseWordCounts": [
         42
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -5134,8 +8323,21 @@
       "phraseWordCounts": [
         40
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5145,8 +8347,13 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -5158,8 +8365,13 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -5172,7 +8384,7 @@
         22
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5184,8 +8396,17 @@
       "phraseWordCounts": [
         10
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -5198,7 +8419,7 @@
         16
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5211,7 +8432,7 @@
         19
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5224,7 +8445,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5234,8 +8455,29 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -5247,8 +8489,13 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5260,8 +8507,17 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -5272,7 +8528,7 @@
         18
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -5284,8 +8540,25 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -5297,8 +8570,21 @@
       "phraseWordCounts": [
         32
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -5310,8 +8596,25 @@
       "phraseWordCounts": [
         42
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 34,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 39,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -5323,8 +8626,13 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5336,8 +8644,13 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -5347,8 +8660,25 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -5358,8 +8688,17 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -5369,8 +8708,29 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5380,8 +8740,13 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -5393,8 +8758,25 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5406,8 +8788,21 @@
       "phraseWordCounts": [
         10
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5419,8 +8814,21 @@
       "phraseWordCounts": [
         10
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -5432,8 +8840,21 @@
       "phraseWordCounts": [
         10
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -5443,8 +8864,13 @@
       "phraseWordCounts": [
         10
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -5455,7 +8881,7 @@
         11
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -5465,8 +8891,13 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -5476,8 +8907,13 @@
       "phraseWordCounts": [
         17
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -5487,8 +8923,21 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -5500,8 +8949,21 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -5513,8 +8975,33 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5527,7 +9014,7 @@
         11
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -5539,8 +9026,29 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -5552,8 +9060,17 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5565,8 +9082,25 @@
       "phraseWordCounts": [
         33
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5578,8 +9112,25 @@
       "phraseWordCounts": [
         40
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 31,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 38,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -5591,8 +9142,17 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5602,8 +9162,25 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -5613,8 +9190,25 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -5624,8 +9218,17 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -5637,8 +9240,25 @@
       "phraseWordCounts": [
         48
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 35,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 40,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5650,8 +9270,17 @@
       "phraseWordCounts": [
         15
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -5663,8 +9292,21 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5676,8 +9318,25 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -5689,8 +9348,25 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5702,8 +9378,13 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -5715,8 +9396,21 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         300
       ]
@@ -5728,8 +9422,13 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5742,7 +9441,7 @@
         28
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5754,8 +9453,21 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5767,8 +9479,25 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -5780,8 +9509,17 @@
       "phraseWordCounts": [
         55
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -5794,7 +9532,7 @@
         13
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -5804,8 +9542,13 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -5817,8 +9560,13 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5828,8 +9576,17 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -5840,7 +9597,7 @@
         23
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5851,7 +9608,7 @@
         12
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -5863,8 +9620,21 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -5876,8 +9646,25 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -5887,8 +9674,17 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -5901,7 +9697,7 @@
         11
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 5,
       "clubs": []
     },
     {
@@ -5911,8 +9707,17 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -5924,8 +9729,13 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -5935,8 +9745,13 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -5949,7 +9764,7 @@
         28
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5959,8 +9774,25 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -5970,8 +9802,17 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -5982,7 +9823,7 @@
         24
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -5994,8 +9835,17 @@
       "phraseWordCounts": [
         19
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": [
         150
       ]
@@ -6007,8 +9857,13 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -6020,8 +9875,17 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -6033,8 +9897,17 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
@@ -6046,8 +9919,21 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 6,
       "clubs": [
         150
       ]
@@ -6060,7 +9946,7 @@
         19
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": [
         150
       ]
@@ -6073,7 +9959,7 @@
         15
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -6085,8 +9971,13 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6097,7 +9988,7 @@
         30
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6108,7 +9999,7 @@
         10
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6118,8 +10009,17 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6129,8 +10029,17 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6140,8 +10049,17 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 6,
       "clubs": [
         150
       ]
@@ -6153,8 +10071,13 @@
       "phraseWordCounts": [
         26
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6164,8 +10087,21 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -6177,8 +10113,17 @@
       "phraseWordCounts": [
         31
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -6191,7 +10136,7 @@
         16
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6201,8 +10146,21 @@
       "phraseWordCounts": [
         28
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6212,8 +10170,33 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6223,8 +10206,25 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         300
       ]
@@ -6236,8 +10236,13 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6248,7 +10253,7 @@
         13
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -6258,8 +10263,13 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6269,8 +10279,37 @@
       "phraseWordCounts": [
         39
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 35,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -6280,8 +10319,13 @@
       "phraseWordCounts": [
         12
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6291,8 +10335,25 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6302,8 +10363,25 @@
       "phraseWordCounts": [
         31
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -6315,8 +10393,21 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6327,7 +10418,7 @@
         23
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6337,8 +10428,17 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6348,8 +10448,13 @@
       "phraseWordCounts": [
         25
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -6359,8 +10464,13 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -6371,7 +10481,7 @@
         10
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 3,
       "clubs": []
     },
     {
@@ -6381,8 +10491,21 @@
       "phraseWordCounts": [
         16
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -6394,8 +10517,25 @@
       "phraseWordCounts": [
         39
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 32,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": []
     },
     {
@@ -6405,8 +10545,21 @@
       "phraseWordCounts": [
         10
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -6418,8 +10571,17 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -6431,8 +10593,17 @@
       "phraseWordCounts": [
         21
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6442,8 +10613,13 @@
       "phraseWordCounts": [
         7
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6453,8 +10629,25 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6464,8 +10657,13 @@
       "phraseWordCounts": [
         7
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6475,8 +10673,17 @@
       "phraseWordCounts": [
         11
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6486,8 +10693,21 @@
       "phraseWordCounts": [
         14
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6497,8 +10717,25 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6508,8 +10745,21 @@
       "phraseWordCounts": [
         20
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -6521,8 +10771,17 @@
       "phraseWordCounts": [
         11
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6532,8 +10791,29 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6543,8 +10823,25 @@
       "phraseWordCounts": [
         18
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6554,8 +10851,13 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6565,8 +10867,25 @@
       "phraseWordCounts": [
         22
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -6578,8 +10897,33 @@
       "phraseWordCounts": [
         29
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 4,
       "clubs": [
         300
       ]
@@ -6591,8 +10935,17 @@
       "phraseWordCounts": [
         30
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -6604,8 +10957,21 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -6617,8 +10983,25 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -6628,8 +11011,21 @@
       "phraseWordCounts": [
         11
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6639,8 +11035,41 @@
       "phraseWordCounts": [
         24
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
       "clubs": []
     },
     {
@@ -6651,7 +11080,7 @@
         12
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -6661,8 +11090,21 @@
       "phraseWordCounts": [
         32
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 31,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
       "clubs": [
         150
       ]
@@ -6674,8 +11116,13 @@
       "phraseWordCounts": [
         27
       ],
-      "annotations": [],
-      "ftvWordCount": 0,
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
       "clubs": [
         150
       ]
@@ -6688,7 +11135,7 @@
         11
       ],
       "annotations": [],
-      "ftvWordCount": 0,
+      "ftvWordCount": 2,
       "clubs": [
         150
       ]
