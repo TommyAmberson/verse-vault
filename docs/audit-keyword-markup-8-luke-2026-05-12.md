@@ -17,11 +17,16 @@ Categories (same as the year-3 audit doc):
 
 ## Status (2026-05-12)
 
-`tools/find_keywords.py` flagged 798 unique words against the Anki-derived annotations, expanding to
-**874** per-verse actions:
+**Verse text Type-4 errors: 0.** As of the 14:35:32 colpkg export the deck's verse text, FTV counts,
+and FTV cue content all match the printed quizbook. Four residual text discrepancies vs standard
+NKJV are Type-3 (book typography differs from biblegateway/api.bible's NKJV — see commit `0f28234`'s
+message).
 
-* under-marked: **873** — rule wants markup the deck didn't have
-* over-marked: **0** — deck has markup the rule doesn't want
+**Keyword markup remains the open question.** `tools/find_keywords.py` flagged 798 unique words
+against the Anki-derived annotations, expanding to **874** per-verse actions:
+
+* under-marked: **872** — rule wants markup the deck didn't have
+* over-marked: **1** — deck has markup the rule doesn't want
 * wrong-kind: **1** — rule and deck disagree on the kind
 
 `tools/apply_audit.py` applied all candidates the same day, bringing the deck into rule-alignment
@@ -70,6 +75,8 @@ requires of the deck.
 * 1:23 `service` — add bold (keyword)
 * 1:28 `favored` — add bold (keyword)
 * 1:32 `throne` — add bold (keyword)
+* 1:35 `overshadow` — add bold (keyword)
+* 1:35 `you` — remove bold (rule says plain)
 * 1:36 `relative` — add bold (keyword)
 * 1:39 `judah` — add bold (keyword)
 * 1:40 `greeted` — add bold (keyword)
@@ -92,7 +99,6 @@ requires of the deck.
 * 1:59 `eighth` — add bold (keyword)
 * 1:65 `discussed` — add bold (keyword)
 * 1:67 `prophesied` — add bold (keyword)
-* 1:68 `blessedis` — add bold (keyword)
 * 1:68 `redeemed` — add bold (keyword)
 * 1:69 `horn` — add bold (keyword)
 * 1:73 `oath` — add bold (keyword)
@@ -116,7 +122,6 @@ requires of the deck.
 * 2:8 `keeping` — add bold (keyword)
 * 2:9 `shone` — add bold (keyword)
 * 2:13 `host` — add bold (keyword)
-* 2:14 `gloryto` — add bold (keyword)
 * 2:21 `circumcision` — add bold (keyword)
 * 2:23 `male` — add bold (keyword)
 * 2:23 `opens` — add bold (keyword)

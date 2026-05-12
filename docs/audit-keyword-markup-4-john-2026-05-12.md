@@ -17,10 +17,15 @@ Categories (same as the year-3 audit doc):
 
 ## Status (2026-05-12)
 
-`tools/find_keywords.py` flagged 635 unique words against the Anki-derived annotations, expanding to
-**709** per-verse actions:
+**Verse text Type-4 errors: 0.** As of the 14:35:32 colpkg export the deck's verse text, FTV counts,
+and FTV cue content all match the printed quizbook. Four residual text discrepancies vs standard
+NKJV are Type-3 (book typography differs from biblegateway/api.bible's NKJV — see commit `0f28234`'s
+message).
 
-* under-marked: **709** — rule wants markup the deck didn't have
+**Keyword markup remains the open question.** `tools/find_keywords.py` flagged 634 unique words
+against the Anki-derived annotations, expanding to **708** per-verse actions:
+
+* under-marked: **708** — rule wants markup the deck didn't have
 * over-marked: **0** — deck has markup the rule doesn't want
 * wrong-kind: **0** — rule and deck disagree on the kind
 
@@ -497,7 +502,6 @@ requires of the deck.
 * 12:40 `blinded` — add bold (keyword)
 * 12:40 `hardened` — add bold (keyword)
 * 12:40 `hearts` — add bold (keyword)
-* 12:40 `hehas` — add bold (keyword)
 * 12:42 `confess` — add bold (keyword)
 * 12:43 `praise` — add bold (keyword)
 * 12:48 `rejects` — add bold (keyword)

@@ -17,10 +17,15 @@ Categories (same as the year-3 audit doc):
 
 ## Status (2026-05-12)
 
-`tools/find_keywords.py` flagged 66 unique words against the Anki-derived annotations, expanding to
-**78** per-verse actions:
+**Verse text Type-4 errors: 0.** As of the 14:35:32 colpkg export the deck's verse text, FTV counts,
+and FTV cue content all match the printed quizbook. Four residual text discrepancies vs standard
+NKJV are Type-3 (book typography differs from biblegateway/api.bible's NKJV — see commit `0f28234`'s
+message).
 
-* under-marked: **41** — rule wants markup the deck didn't have
+**Keyword markup remains the open question.** `tools/find_keywords.py` flagged 67 unique words
+against the Anki-derived annotations, expanding to **79** per-verse actions:
+
+* under-marked: **42** — rule wants markup the deck didn't have
 * over-marked: **0** — deck has markup the rule doesn't want
 * wrong-kind: **37** — rule and deck disagree on the kind
 
@@ -56,6 +61,8 @@ requires of the deck.
 
 * 2:15 `contained` — change bold-italic → bold
 * 2:15 `thus` — change bold-italic → bold
+* 2:20 `corner` — add bold (keyword)
+* 2:20 `stone` — add bold (keyword)
 
 * 4:8 `ascended` — add bold-italic (context-key)
 * 4:8 `captive` — add bold (keyword)
@@ -68,7 +75,6 @@ requires of the deck.
 * 4:28 `steal` — add bold (keyword)
 * 4:31 `clamor` — add bold (keyword)
 
-* 5:1 `thereforebe` — add bold (keyword)
 * 5:5 `idolater` — add bold (keyword)
 * 5:28 `loves` — change bold-italic → bold
 * 5:31 `leave` — change bold-italic → bold
@@ -111,6 +117,7 @@ requires of the deck.
 * 4:30 `cast` — change bold-italic → bold
 
 * 5:4 `attempt` — change bold-italic → bold
+* 5:10 `judgment` — add bold (keyword)
 * 5:13 `use` — change bold-italic → bold
 
 * 6:7 `reap` — add bold-italic (context-key)
@@ -122,7 +129,6 @@ requires of the deck.
 ### Philippians
 
 * 1:3 `thank` — add bold (keyword)
-* 1:12 `furtherance` — add bold (keyword)
 * 1:12 `happened` — change bold-italic → bold
 * 1:23 `between` — add bold (keyword)
 

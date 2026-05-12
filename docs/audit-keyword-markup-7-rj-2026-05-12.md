@@ -17,10 +17,15 @@ Categories (same as the year-3 audit doc):
 
 ## Status (2026-05-12)
 
-`tools/find_keywords.py` flagged 925 unique words against the Anki-derived annotations, expanding to
-**967** per-verse actions:
+**Verse text Type-4 errors: 0.** As of the 14:35:32 colpkg export the deck's verse text, FTV counts,
+and FTV cue content all match the printed quizbook. Four residual text discrepancies vs standard
+NKJV are Type-3 (book typography differs from biblegateway/api.bible's NKJV — see commit `0f28234`'s
+message).
 
-* under-marked: **967** — rule wants markup the deck didn't have
+**Keyword markup remains the open question.** `tools/find_keywords.py` flagged 920 unique words
+against the Anki-derived annotations, expanding to **962** per-verse actions:
+
+* under-marked: **962** — rule wants markup the deck didn't have
 * over-marked: **0** — deck has markup the rule doesn't want
 * wrong-kind: **0** — rule and deck disagree on the kind
 
@@ -469,13 +474,11 @@ requires of the deck.
 * 3:13 `lips` — add bold (keyword)
 * 3:13 `open` — add bold (keyword)
 * 3:13 `practiced` — add bold (keyword)
-* 3:13 `theirthroat` — add bold (keyword)
+* 3:13 `throat` — add bold (keyword)
 * 3:13 `tomb` — add bold (keyword)
 * 3:13 `tongues` — add bold (keyword)
 * 3:14 `bitterness` — add bold (keyword)
-* 3:14 `whosemouth` — add bold (keyword)
 * 3:15 `shed` — add bold (keyword)
-* 3:15 `theirfeet` — add bold (keyword)
 * 3:16 `misery` — add bold (keyword)
 * 3:18 `thereis` — add bold (keyword)
 * 3:19 `stopped` — add bold (keyword)
@@ -495,7 +498,6 @@ requires of the deck.
 * 4:6 `blessedness` — add bold-italic (context-key)
 * 4:6 `describes` — add bold (keyword)
 * 4:6 `imputes` — add bold (keyword)
-* 4:7 `blessedare` — add bold (keyword)
 * 4:7 `covered` — add bold (keyword)
 * 4:7 `lawless` — add bold (keyword)
 * 4:8 `impute` — add bold (keyword)
@@ -673,7 +675,6 @@ requires of the deck.
 * 9:23 `prepared` — add bold-italic (context-key)
 * 9:23 `vessels` — add bold-italic (context-key)
 * 9:25 `hosea` — add bold (keyword)
-* 9:26 `andit` — add bold (keyword)
 * 9:27 `number` — add bold (keyword)
 * 9:27 `sand` — add bold (keyword)
 * 9:28 `finish` — add bold (keyword)
@@ -759,7 +760,6 @@ requires of the deck.
 * 11:33 `past` — add bold (keyword)
 * 11:33 `unsearchable` — add bold (keyword)
 * 11:34 `counselor` — add bold (keyword)
-* 11:35 `orwho` — add bold (keyword)
 * 11:35 `repaid` — add bold (keyword)
 
 * 12:1 `beseech` — add bold (keyword)

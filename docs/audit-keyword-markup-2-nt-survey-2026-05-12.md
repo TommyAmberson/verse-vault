@@ -17,10 +17,15 @@ Categories (same as the year-3 audit doc):
 
 ## Status (2026-05-12)
 
-`tools/find_keywords.py` flagged 65 unique words against the Anki-derived annotations, expanding to
-**91** per-verse actions:
+**Verse text Type-4 errors: 0.** As of the 14:35:32 colpkg export the deck's verse text, FTV counts,
+and FTV cue content all match the printed quizbook. Four residual text discrepancies vs standard
+NKJV are Type-3 (book typography differs from biblegateway/api.bible's NKJV — see commit `0f28234`'s
+message).
 
-* under-marked: **67** — rule wants markup the deck didn't have
+**Keyword markup remains the open question.** `tools/find_keywords.py` flagged 52 unique words
+against the Anki-derived annotations, expanding to **78** per-verse actions:
+
+* under-marked: **54** — rule wants markup the deck didn't have
 * over-marked: **0** — deck has markup the rule doesn't want
 * wrong-kind: **24** — rule and deck disagree on the kind
 
@@ -53,7 +58,6 @@ requires of the deck.
 
 * 3:2 `lovers` — add bold-italic (context-key)
 * 3:4 `lovers` — add bold-italic (context-key)
-* 3:8 `jannes` — add bold (keyword)
 * 3:11 `persecutions` — change bold-italic → bold
 * 3:14 `learned` — change bold-italic → bold
 
@@ -62,28 +66,18 @@ requires of the deck.
 * 1:12 `journey` — add bold (keyword)
 * 1:20 `it'` — add bold (keyword)
 
-* 2:1 `pentecost` — add bold (keyword)
-* 2:17 `andit` — add bold (keyword)
 * 2:19 `vapor` — add bold (keyword)
 * 2:47 `favor` — add bold (keyword)
 
-* 9:7 `speechless` — add bold (keyword)
-
 * 12:20 `king's` — change bold-italic → bold
 
-* 15:16 `afterthis` — add bold (keyword)
 * 15:16 `rebuild` — change bold-italic → bold
 
 ### Matthew
 
-* 2:6 `butyou` — add bold (keyword)
-* 2:18 `refusing` — add bold (keyword)
 * 2:18 `weeping` — change bold-italic → bold
 
-* 4:13 `capernaum` — add bold (keyword)
 * 4:21 `zebedee` — change bold-italic → bold
-* 4:24 `demon-possessed` — add bold (keyword)
-* 4:24 `torments` — add bold (keyword)
 
 * 5:13 `flavor` — add bold (keyword)
 * 5:13 `salt` — change bold-italic → bold
@@ -133,16 +127,14 @@ requires of the deck.
 ### Revelation
 
 * 4:3 `appearance` — change bold-italic → bold
-* 4:11 `youare` — add bold (keyword)
 
 * 5:11 `ten` — change bold-italic → bold
 * 5:11 `thousands` — change bold-italic → bold
 
 * 6:6 `denarius` — change bold-italic → bold
-* 6:12 `sackcloth` — add bold (keyword)
-* 6:15 `commanders` — add bold (keyword)
 
 * 19:1 `alleluia` — add bold-italic (context-key)
+* 19:2 `judgments` — add bold (keyword)
 * 19:3 `alleluia` — add bold-italic (context-key)
 * 19:4 `alleluia` — add bold-italic (context-key)
 * 19:6 `alleluia` — add bold-italic (context-key)
@@ -155,7 +147,6 @@ requires of the deck.
 
 * 21:16 `length` — change bold-italic → bold
 * 21:17 `cubits` — add bold (keyword)
-* 21:20 `topaz` — add bold (keyword)
 
 * 22:11 `filthy` — change bold-italic → bold
 

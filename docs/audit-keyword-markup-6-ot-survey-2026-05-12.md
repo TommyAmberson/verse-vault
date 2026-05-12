@@ -17,10 +17,15 @@ Categories (same as the year-3 audit doc):
 
 ## Status (2026-05-12)
 
-`tools/find_keywords.py` flagged 999 unique words against the Anki-derived annotations, expanding to
-**1089** per-verse actions:
+**Verse text Type-4 errors: 0.** As of the 14:35:32 colpkg export the deck's verse text, FTV counts,
+and FTV cue content all match the printed quizbook. Four residual text discrepancies vs standard
+NKJV are Type-3 (book typography differs from biblegateway/api.bible's NKJV — see commit `0f28234`'s
+message).
 
-* under-marked: **1089** — rule wants markup the deck didn't have
+**Keyword markup remains the open question.** `tools/find_keywords.py` flagged 995 unique words
+against the Anki-derived annotations, expanding to **1084** per-verse actions:
+
+* under-marked: **1084** — rule wants markup the deck didn't have
 * over-marked: **0** — deck has markup the rule doesn't want
 * wrong-kind: **0** — rule and deck disagree on the kind
 
@@ -659,7 +664,6 @@ requires of the deck.
 
 ### Isaiah
 
-* 1:16 `washyourselves` — add bold (keyword)
 * 1:17 `defend` — add bold (keyword)
 * 1:17 `fatherless` — add bold (keyword)
 * 1:17 `learn` — add bold (keyword)
@@ -735,7 +739,6 @@ requires of the deck.
 * 55:7 `abundantly` — add bold (keyword)
 * 55:7 `pardon` — add bold (keyword)
 * 55:7 `unrighteous` — add bold (keyword)
-* 55:9 `foras` — add bold (keyword)
 * 55:9 `higher` — add bold (keyword)
 * 55:10 `bud` — add bold (keyword)
 * 55:10 `eater` — add bold (keyword)
@@ -799,7 +802,6 @@ requires of the deck.
 * 2:13 `kindness` — add bold (keyword)
 * 2:13 `relents` — add bold (keyword)
 * 2:13 `rend` — add bold (keyword)
-* 2:28 `andit` — add bold (keyword)
 * 2:28 `dream` — add bold (keyword)
 * 2:28 `pour` — add bold-italic (context-key)
 * 2:28 `prophesy` — add bold (keyword)
@@ -1093,11 +1095,9 @@ requires of the deck.
 * 46:9 `cuts` — add bold (keyword)
 * 46:9 `wars` — add bold (keyword)
 
-* 51:2 `wash` — add bold-italic (context-key)
 * 51:5 `conceived` — add bold (keyword)
 * 51:6 `part` — add bold (keyword)
 * 51:7 `purge` — add bold (keyword)
-* 51:7 `wash` — add bold-italic (context-key)
 * 51:7 `whiter` — add bold (keyword)
 * 51:10 `create` — add bold (keyword)
 * 51:10 `steadfast` — add bold (keyword)
