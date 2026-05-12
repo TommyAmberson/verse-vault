@@ -194,7 +194,7 @@ onMounted(async () => {
 .reveal {
   padding: 0.75rem 1.5rem;
   background: var(--color-accent);
-  color: white;
+  color: var(--color-on-accent);
   border: none;
   border-radius: 6px;
   font-weight: 500;

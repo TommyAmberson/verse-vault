@@ -215,7 +215,7 @@ form {
   background: var(--color-accent);
   border: none;
   border-radius: 6px;
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: 0.9rem;
   font-family: inherit;
   cursor: pointer;

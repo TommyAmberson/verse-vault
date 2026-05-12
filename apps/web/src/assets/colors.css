@@ -7,6 +7,7 @@
   --color-accent: #2563eb;
   --color-accent-hover: #1d4ed8;
   --color-accent-soft: #dbeafe;
+  --color-on-accent: #ffffff;
   --color-grade-again: #b91c1c;
   --color-grade-again-bg: #fee2e2;
   --color-grade-hard: #c2410c;
@@ -22,7 +23,9 @@
 
   /* Verse colours — ported from the Anki deck's _colours.js. Indexed by
      (verseNumber - 1) % 10 to give every verse-within-a-chapter its own
-     hue, so "verse 5" looks the same regardless of book/chapter. */
+     hue, so "verse 5" looks the same regardless of book/chapter. Same
+     values in light and dark since oklch keeps perceived lightness
+     consistent across surfaces. */
   --verse-c1: oklch(56% 0.21 24.87); /* red */
   --verse-c2: oklch(75% 0.15 358.59); /* pink */
   --verse-c3: oklch(68% 0.17 24.68); /* salmon */
@@ -33,6 +36,37 @@
   --verse-c8: oklch(50% 0.18 263.47); /* dark blue */
   --verse-c9: oklch(58% 0.18 293.9); /* blue violet */
   --verse-c10: oklch(50% 0.19 333.28); /* dark magenta */
+}
+
+/* Dark theme picks up automatically on OS preference. Background is a
+   warm charcoal rather than pitch black so the cream-paper card sits
+   against something that still feels lit (Anki's night mode does the
+   same). Grade tint backgrounds stay deeply desaturated; their text
+   stays bright. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #14110f;
+    --color-bg-card: #1f1c19;
+    --color-text: #f1ede5;
+    --color-muted: #9a938a;
+    --color-border: #332e2a;
+    --color-accent: #93c5fd;
+    --color-accent-hover: #bfdbfe;
+    --color-accent-soft: #1e293b;
+    --color-on-accent: #0a1322;
+    --color-grade-again: #fca5a5;
+    --color-grade-again-bg: #3f1d1d;
+    --color-grade-hard: #fdba74;
+    --color-grade-hard-bg: #3d2516;
+    --color-grade-good: #86efac;
+    --color-grade-good-bg: #14361f;
+    --color-grade-easy: #93c5fd;
+    --color-grade-easy-bg: #172244;
+    --color-success: #86efac;
+    --color-success-bg: #14361f;
+    --color-error: #fca5a5;
+    --color-error-bg: #3f1d1d;
+  }
 }
 
 *,
