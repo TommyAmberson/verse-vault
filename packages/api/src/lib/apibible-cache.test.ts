@@ -73,6 +73,47 @@ describe('ApibibleCache passages', () => {
     expect(await b).toBe('shared');
   });
 
+  it('applies known content-error patches before returning', async () => {
+    // 1CO.15 has the confirmed "ODeath," → "O Death," patch registered
+    // in apibible-patches.json. The cache layer should rewrite it both
+    // on cache-miss fetch and on cache-hit reads.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    const raw =
+      '<p class="p"><span class="v" data-sid="1CO 15:55">55</span>“ODeath, where</p>';
+    const fetchMock = vi.fn().mockResolvedValueOnce(makeOk({ content: raw }));
+    const cache = new ApibibleCache(test.db, 'k', () => 1_000, fetchMock);
+
+    const fetched = await cache.getPassageHtml('63097d2a0a2f7db3-01', '1CO.15');
+    expect(fetched).toContain('“O Death,');
+    expect(fetched).not.toContain('“ODeath,');
+
+    const cached = await cache.getPassageHtml('63097d2a0a2f7db3-01', '1CO.15');
+    expect(cached).toContain('“O Death,');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('tightens curly-quote+italic spaces before returning', async () => {
+    // api.bible serves a literal space between an opening curly quote
+    // and an adjacent italic span (`" <span class="it">It</span>`).
+    // The cache layer should strip it so the runtime tokeniser counts
+    // tokens the same way as the Python-side strip the deck's
+    // phraseWordCounts was generated against.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    const raw =
+      '<p class="p"><span class="v" data-sid="MAT 27:11">11</span>' +
+      'Jesus said to him, <span class="wj">“ <span class="it">It is as</span>' +
+      ' you say.”</span></p>';
+    const fetchMock = vi.fn().mockResolvedValueOnce(makeOk({ content: raw }));
+    const cache = new ApibibleCache(test.db, 'k', () => 1_000, fetchMock);
+
+    const fetched = await cache.getPassageHtml('63097d2a0a2f7db3-01', 'MAT.27');
+    // Opening curly + space + tag → tight.
+    expect(fetched).toContain('“<span class="it">It is as</span>');
+    expect(fetched).not.toContain('“ <span class="it">');
+  });
+
   it('throws ApibibleError on non-2xx', async () => {
     const test = createTestDb();
     cleanup = test.cleanup;

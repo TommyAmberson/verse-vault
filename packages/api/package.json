@@ -21,6 +21,7 @@
     "drizzle-orm": "^0.44.0",
     "hono": "^4.7.0",
     "node-html-parser": "^7.1.0",
+    "varcon": "^1.0.1",
     "verse-vault-wasm": "workspace:*"
   },
   "devDependencies": {

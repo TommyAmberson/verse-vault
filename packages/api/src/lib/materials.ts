@@ -7,9 +7,10 @@ import { resolve } from 'node:path';
  * JSON) is the structural form — phrase word counts, user-annotation
  * indices, FTV word count, heading verse-ranges. No NKJV verse text.
  *
- * The committed `data/corinthians.json` carries the real material; an
- * inline stand-in serves test environments that haven't provisioned the
- * data directory.
+ * Structural deck files live in `/data/<year>-<book>.json` — one per
+ * year of the 8-year quizzing cycle (`3-corinthians.json`,
+ * `4-john.json`, …). An inline stand-in serves test environments that
+ * haven't provisioned the data directory.
  */
 
 export interface Material {
@@ -20,9 +21,46 @@ export interface Material {
 
 export const MATERIALS: readonly Material[] = [
   {
+    id: 'nkjv-gepc',
+    title: 'Galatians–Colossians (NKJV)',
+    description: 'Year 1: Galatians, Ephesians, Philippians, Colossians.',
+  },
+  {
+    id: 'nkjv-nt-survey',
+    title: 'NT Survey (NKJV)',
+    description:
+      'Year 2: selected passages from Matthew, Acts, 1 Thessalonians, 1–2 Timothy, Titus, 1 John, Revelation.',
+  },
+  {
     id: 'nkjv-1cor',
     title: '1 Corinthians (NKJV)',
-    description: '1 & 2 Corinthians with phrase chunking and FTV prompts.',
+    description: 'Year 3: 1 & 2 Corinthians with phrase chunking and FTV prompts.',
+  },
+  {
+    id: 'nkjv-john',
+    title: 'John (NKJV)',
+    description: 'Year 4: Gospel of John with phrase chunking and FTV prompts.',
+  },
+  {
+    id: 'nkjv-hp',
+    title: 'Hebrews & 1–2 Peter (NKJV)',
+    description: 'Year 5: Hebrews, 1 Peter, 2 Peter — full chapters (469 verses).',
+  },
+  {
+    id: 'nkjv-ot-survey',
+    title: 'OT Survey (NKJV)',
+    description:
+      'Year 6: curated passages across Genesis through the Minor Prophets (780 verses).',
+  },
+  {
+    id: 'nkjv-rj',
+    title: 'Romans & James (NKJV)',
+    description: 'Year 7: Romans and James — full chapters (541 verses).',
+  },
+  {
+    id: 'nkjv-luke',
+    title: 'Luke (NKJV)',
+    description: 'Year 8: Gospel of Luke (chapters 4–8, 12, 20 and Luke 3:23–38 are not covered).',
   },
 ];
 
@@ -36,7 +74,14 @@ const REPO_ROOT = resolve(import.meta.dirname, '../../../..');
 /** Per-material override: relative path under the repo root for the
  *  structural MaterialData JSON. Missing on disk → inline fallback. */
 const DATA_FILES: Record<string, string> = {
-  'nkjv-1cor': 'data/corinthians.json',
+  'nkjv-gepc': 'data/1-gepc.json',
+  'nkjv-nt-survey': 'data/2-nt-survey.json',
+  'nkjv-1cor': 'data/3-corinthians.json',
+  'nkjv-john': 'data/4-john.json',
+  'nkjv-hp': 'data/5-hp.json',
+  'nkjv-ot-survey': 'data/6-ot-survey.json',
+  'nkjv-rj': 'data/7-rj.json',
+  'nkjv-luke': 'data/8-luke.json',
 };
 
 /** Inline structural stand-in MaterialData per id, kept tiny so tests
@@ -83,7 +128,7 @@ export function getMaterialJson(id: string): string {
   const fallback = INLINE_FIXTURES[id];
   if (fallback === undefined) throw new Error(`Unknown material: ${id}`);
   // Don't cache the fallback: if a dev process started before the pipeline
-  // wrote data/corinthians.json, we want the next request to re-check disk
+  // wrote data/3-corinthians.json, we want the next request to re-check disk
   // and pick up the real file instead of being stuck on the inline stub.
   return JSON.stringify(fallback);
 }

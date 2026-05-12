@@ -1,0 +1,71 @@
+{
+  "$schema": "Apply find → replace per (bibleId|passageId) to api.bible HTML on read. Strings are matched literally; first writer wins on overlap. Use this to paper over confirmed api.bible content errors until they're fixed upstream.",
+  "63097d2a0a2f7db3-01": {
+    "1CO.11": [
+      { "find": "Imitateme,", "replace": "Imitate me," }
+    ],
+    "1CO.15": [
+      { "find": "“ODeath,", "replace": "“O Death," }
+    ],
+    "2CO.7": [
+      { "find": "Therefore,having", "replace": "Therefore, having" }
+    ],
+    "MAT.4": [
+      { "find": "“Theland", "replace": "“The land" }
+    ],
+    "MAT.2": [
+      { "find": "‘Butyou,", "replace": "‘But you," }
+    ],
+    "MAT.16": [
+      { "find": "<span class=\"wj\">“Assuredly, I say to you,</span> <span class=\"wj\">there are some", "replace": "<span class=\"wj\">Assuredly, I say to you,</span> <span class=\"wj\">there are some" }
+    ],
+    "COL.4": [
+      { "find": ">Masters,give", "replace": ">Masters, give" }
+    ],
+    "ISA.55": [
+      { "find": "“ForMy", "replace": "“For My" },
+      { "find": "“Foryou", "replace": "“For you" }
+    ],
+    "ISA.40": [
+      { "find": "“Towhom", "replace": "“To whom" }
+    ],
+    "ISA.1": [
+      { "find": "“Washyourselves,", "replace": "“Wash yourselves," }
+    ],
+    "LUK.2": [
+      { "find": "“Gloryto", "replace": "“Glory to" }
+    ],
+    "ROM.3": [
+      { "find": "“Theirthroat", "replace": "“Their throat" },
+      { "find": "“Theirfeet", "replace": "“Their feet" },
+      { "find": "“Whosemouth", "replace": "“Whose mouth" }
+    ],
+    "ROM.9": [
+      { "find": "“Andit", "replace": "“And it" }
+    ],
+    "ROM.11": [
+      { "find": "“Orwho", "replace": "“Or who" }
+    ],
+    "ACT.2": [
+      { "find": "‘Andit", "replace": "‘And it" }
+    ],
+    "ACT.15": [
+      { "find": "‘Afterthis", "replace": "‘After this" }
+    ],
+    "JOL.2": [
+      { "find": "“Andit", "replace": "“And it" }
+    ],
+    "JHN.12": [
+      { "find": "“Hehas", "replace": "“He has" }
+    ],
+    "MIC.7": [
+      { "find": "“Asin", "replace": "“As in" }
+    ],
+    "REV.4": [
+      { "find": "“Youare", "replace": "“You are" }
+    ],
+    "EPH.5": [
+      { "find": ">Thereforebe", "replace": ">Therefore be" }
+    ]
+  }
+}

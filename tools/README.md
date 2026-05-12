@@ -1,213 +1,168 @@
 # Content Pipeline
 
-Scripts for converting Bible content into verse-vault's intermediate JSON format.
+Scripts for maintaining the verse-vault deck data.
 
-## Pipeline overview
+## Architecture
 
-The fast path imports an Anki `.colpkg` backup directly and reuses already-chunked phrases from a
-sidecar cache, so the LLM step only runs for verses whose text actually changed:
+Three sources, one runtime payload:
 
 ```
-Anki .colpkg backup
-    │
-    ▼
-import_colpkg.py + phrases cache ──→ JSON
-    │
-    ▼
-(if any verses lacked a cached split)
-prepare_batches.py / LLM agents / validate_and_merge.py
-    │
-    ▼
-extract_phrases.py ──→ updated phrases cache (commit)
+api.bible      → canonical NKJV text         (cached in apibible_passages)
+3-corinthians.json → phraseWordCounts,         (committed structural file —
+                   annotations,                source of truth for project
+                   ftvWordCount,               metadata)
+                   headings, clubs
+Anki .colpkg   → clubs only                  (just for refreshing the tier
+                                              membership field; rest of
+                                              the deck stays in git)
 ```
 
-The legacy path (text export → parse_anki.py) still works and is documented at the bottom.
+Runtime (`packages/api/src/lib/render.ts`) reads `3-corinthians.json` for the structure, fetches
+canonical chapter HTML from the api.bible cache, and composes per-verse HTML by slicing api.bible
+tokens with the deck's word counts and annotation indices.
 
-## Fast path: re-importing from a colpkg
+The audit/editing tools below operate on the same two stores.
 
-### 1. Drop the .colpkg in `data/`
+## Tools
 
-Anki desktop: `File → Export → Anki Collection Package → with scheduling/media as you like`.
+### `evaluate_phrases.py`
 
-### 2. Run the importer with the cached phrases
+Audit `phraseWordCounts` in the structural deck against api.bible's canonical token counts. Flags
+deck/canonical drift, fragments below the 3-word minimum mid-verse, runs over 12 words, and missing
+splits on long single-phrase verses.
 
 ```bash
-python3 tools/import_colpkg.py \
-    data/collection-2026-05-08.colpkg \
-    data/corinthians.json \
-    --year 3-C \
-    --phrases data/corinthians-phrases.json
+python3 tools/evaluate_phrases.py --top 20
+python3 tools/evaluate_phrases.py --refs "1 Cor 12:11,1 Cor 1:26"
+python3 tools/evaluate_phrases.py --llm-judge   # ANTHROPIC_API_KEY needed
+python3 tools/evaluate_phrases.py --out /tmp/report.json
 ```
 
-The script extracts the SQLite (handles zstd-compressed `collection.anki21b`), reads the `Verse` and
-`Heading` notetypes, and merges in cached splits from the phrases sidecar. Verses whose text matches
-the cache reuse the cached phrases; mismatches fall back to `[whole verse]` and are listed at exit.
+### `split_phrases.py`
 
-### 3. Re-chunk only the verses that changed
-
-If `import_colpkg.py` reported any verses needing re-chunking, run the LLM pipeline (steps in
-"Legacy path" below) on a subset, then merge. Or — if the changes look like incidental noise (typos,
-quote stripping) — fix them in Anki and re-export.
-
-### 4. Refresh the phrases cache
-
-After validate_and_merge produces a fresh `corinthians.json`, dump the cache so future `.colpkg`
-imports stay cheap:
+Re-split verses by feeding canonical text + the existing split to an LLM and applying the proposed
+phrase boundaries back to `phraseWordCounts`.
 
 ```bash
-python3 tools/extract_phrases.py data/corinthians.json data/corinthians-phrases.json
+# emit the prompt(s) for one or more verses
+python3 tools/split_phrases.py print-prompt --refs "1 Cor 12:11"
+
+# pull refs straight out of the evaluator's worst-first report
+python3 tools/split_phrases.py print-prompt --from-report /tmp/report.json --top 10 --json
+
+# apply proposed [{ref, phrases}] back to 3-corinthians.json
+python3 tools/split_phrases.py apply --input /tmp/proposed.json --dry-run
+python3 tools/split_phrases.py apply --input /tmp/proposed.json
 ```
 
-### 5. Verify against canonical NKJV (optional)
+Annotation `wordIndex` values and `ftvWordCount` are positions in the canonical token stream and
+don't shift when only the split boundaries change, so they're preserved.
 
-The Anki deck is the source of truth in this pipeline, but it can drift from the canonical NKJV text
-— typos slipping in during edits, etc. `check_against_apibible.py` fetches the chapter via api.bible
-(NKJV by default), strips the deck's `<b>`/`<i>`/`<span>` markup, and reports any verses whose
-wording diverges:
+### `find_ftvs.py`
+
+Compute the shortest unique opening word-prefix per verse (across all verses in the material) and
+optionally diff against the deck's current `ftvWordCount`.
 
 ```bash
-export API_BIBLE_KEY=<your api.bible key>
-python3 tools/check_against_apibible.py data/corinthians.json \
-    --book "1 Corinthians" --chapter 1
+python3 tools/find_ftvs.py
+python3 tools/find_ftvs.py --audit          # flags too-short or longer-than-needed
+python3 tools/find_ftvs.py --out /tmp/ftv.json
 ```
+
+### `find_keywords.py`
+
+Audit `annotations` (`bold` = keyword, `boldItalic` = context-key) against the canonical-text
+occurrences. Surfaces over-marked, under-marked, and wrong-kind cases.
+
+```bash
+python3 tools/find_keywords.py
+python3 tools/find_keywords.py --kind context-key
+python3 tools/find_keywords.py --out /tmp/keywords.json
+```
+
+Rules:
+
+* Keyword (`bold`): word appears in exactly one verse in the material.
+* Context key (`boldItalic`): word appears in multiple verses whose first-to-last verse-index gap is
+  ≤ 5 within a single book.
+
+### `audit_colpkg.py`
+
+Read-only diff of an Anki `.colpkg` against the structural deck + canonical NKJV. Flags drift across
+four kinds:
+
+* `text` — Anki verse text vs api.bible canonical (typos, edits)
+* `ftv` — Anki FTV-field word count vs deck `ftvWordCount`
+* `keys` — Anki `<b>` / `<b><i>` positions vs deck `annotations`
+* `clubs` — Anki club field vs deck `clubs`
+
+```bash
+python3 tools/audit_colpkg.py data/collection-*.colpkg --year 3-C
+python3 tools/audit_colpkg.py data/collection-*.colpkg --year 3-C --checks text,ftv
+python3 tools/audit_colpkg.py data/collection-*.colpkg --year 3-C --out /tmp/audit.json
+```
+
+### `import_colpkg.py`
+
+Refresh only the `clubs` field on each verse in `3-corinthians.json` from an Anki `.colpkg` backup.
+Everything else (phrase splits, annotations, FTV) stays as authored in the structural file.
+
+```bash
+python3 tools/import_colpkg.py data/collection-*.colpkg --year 3-C
+python3 tools/import_colpkg.py data/collection-*.colpkg --year 3-C --dry-run
+```
+
+### `init_deck.py`
+
+One-shot bootstrap for a new year's structural deck file. Combines the Anki `.colpkg` (annotations,
+FTV, clubs) with the api.bible canonical text (phrase word counts, chapter ranges) and section list
+(headings) to produce a complete `data/<year>-<book>.json`. Refuses to overwrite an existing file
+without `--force`.
+
+```bash
+python3 tools/init_deck.py data/collection-*.colpkg \
+  --year 4-J --year-num 4 --books John \
+  --out data/4-john.json
+
+# Multi-book year (e.g. Hebrews + 1+2 Peter):
+python3 tools/init_deck.py data/collection-*.colpkg \
+  --year 5-HP --year-num 5 --books "Hebrews,1 Peter,2 Peter" \
+  --out data/5-hp.json
+```
+
+## api.bible cache
+
+The api.bible HTML cache lives in `packages/api/data/verse-vault.db` (table `apibible_passages`).
+Both the live server (`render.ts`'s `ApibibleCache`) and the tools above share that store — one
+fetch, one 30-day TTL, one MAUA-compliant surface.
+
+Tools auto-create the table on first run if the API migrations haven't been applied yet, and they
+fall through to a fresh fetch when an entry is missing or past the 30-day TTL. Set `BIBLE_API_KEY`
+(or `API_BIBLE_KEY`) in the environment for the fallback fetch to succeed.
 
 Subject to the
 [API.Bible Minimum Acceptable Use Agreement](https://docs.api.bible/guides/terms-of-use):
 
-* Fetched passages are cached at `data/apibible-cache.json` and re-fetched after 30 days per the
-  cache-refresh requirement.
-* Output prints the required citation line.
-* The cached content is for **runtime diagnostic use only** — not for training generative AI.
+* Cached scripture is re-fetched within 30 days of capture.
+* Cached content is for runtime + diagnostic use only — never for training generative AI.
 * Starter-plan callers must include a visible citation + link to https://api.bible in any UI
   surfacing the content.
 
-## Legacy path: text export
+## File map
 
-```
-Anki export (.txt)
-    │
-    ▼
-parse_anki.py ──→ parsed JSON (phrases = [whole verse])
-    │
-    ▼
-prepare_batches.py ──→ batch-N-input.txt files + agent prompt template
-    │
-    ▼
-LLM agents (Claude Code subagents) ──→ chunks-N.json files
-    │
-    ▼
-validate_and_merge.py ──→ final JSON (phrases = [chunked phrases])
-```
+| File                               | Tracked?   | Role                                                   |
+| ---------------------------------- | ---------- | ------------------------------------------------------ |
+| `data/3-corinthians.json`          | committed  | structural deck (source of truth for project metadata) |
+| `packages/api/data/verse-vault.db` | gitignored | API SQLite incl. `apibible_passages` cache             |
+| `data/collection-*.colpkg`         | gitignored | Anki backups (clubs source + audit input)              |
 
-### 1. Parse the Anki export
+## Phrase-splitter helper package
 
-```bash
-python3 tools/parse_anki.py data/anki-export.txt data/corinthians-parsed.json --year 3-C
-```
+`tools/phrase_splitter/` carries shared helpers + prompts:
 
-This parses the tab-separated Anki export, cleans HTML formatting, and produces the intermediate
-JSON. Phrases are initially set to `[whole verse]` as placeholder.
-
-**Text cleaning:**
-
-* Anki CSV quote escaping removed (`""` → `"`, outer wrapping quotes stripped)
-* `&nbsp;` → space, `<br>` → removed
-* HTML entities unescaped
-* `<b>`, `<i>`, `<span style="font-variant: small-caps;">` tags PRESERVED
-* Multi-word `<b>`/`<i>` spans normalized to per-word tags
-* Spaces moved outside tags
-
-### 2. Prepare batch files for LLM chunking
-
-```bash
-python3 tools/prepare_batches.py data/corinthians-parsed.json --batch-size 50
-```
-
-Splits verses into `data/batch-N-input.txt` files (50 verses each, one per line) and prints the
-agent prompt template.
-
-### 3. Dispatch LLM agents
-
-Use Claude Code to dispatch background Haiku agents. Each agent reads one batch file, splits verses
-into phrases, and writes a `data/chunks-N.json` file.
-
-**Agent prompt** (from prepare_batches.py output):
-
-```
-Read /path/to/data/batch-N-input.txt using the Read tool.
-There are M lines, each a Bible verse that may contain HTML tags (<b>, <i>, <span>).
-
-Split each line into memorization phrases (4-12 words). Rules:
-- Break AFTER commas, semicolons, colons
-- Break BEFORE conjunctions: and, but, for, that, who, which, or
-- Short verses (< 8 words) stay as one phrase
-- CRITICAL: Preserve ALL text exactly, including HTML tags. Do NOT modify
-  any text, fix typos, or change quotes. Phrases joined with " " MUST
-  exactly equal the original line.
-
-Write ONLY valid JSON to /path/to/data/chunks-N.json — an array of M arrays of strings.
-IMPORTANT: Some verses contain literal " (double quote) characters. In JSON
-strings these MUST be escaped as \". For example: "He said: \"Come here.\""
-Do NOT use Bash or Python. Use only Read and Write tools.
-```
-
-**Known issue:** LLM agents sometimes fail to escape `"` in JSON strings, producing invalid JSON.
-The `validate_and_merge.py` script attempts to fix this automatically. If a batch still has invalid
-JSON after the fix attempt, manually fix the `chunks-N.json` file or re-dispatch that batch.
-
-**Key settings for dispatch:**
-
-* Model: `haiku` (cheaper, sufficient for this task)
-* Run in background: `true`
-* Some agents may fail due to permissions or content filtering — retry failed batches
-
-### 4. Validate and merge
-
-```bash
-python3 tools/validate_and_merge.py data/corinthians-parsed.json data/corinthians.json
-```
-
-Validates that each verse's phrases rejoin to the original text exactly. Reports:
-
-* **Clean**: phrases match original ✓
-* **Typo flagged**: LLM changed text slightly (likely corrected a typo in source)
-* **Fallback**: too many changes, uses whole verse as single phrase
-
-Typo-flagged verses show the original and suggested text so you can decide which is correct.
-
-## File format
-
-The intermediate JSON (`corinthians.json`):
-
-```json
-{
-  "year": 3,
-  "books": ["1 Corinthians", "2 Corinthians"],
-  "chapters": [{"book": "1 Corinthians", "number": 1, "start_verse": 1, "end_verse": 31}],
-  "verses": [
-    {
-      "book": "1 Corinthians",
-      "chapter": 1,
-      "verse": 1,
-      "text": "Paul, called to be an apostle of Jesus Christ through the will of God, and <b>Sosthenes</b> our brother,",
-      "ftv": "Paul, called",
-      "clubs": [300],
-      "phrases": ["Paul, called to be an apostle of Jesus Christ", "through the will of God,", "and <b>Sosthenes</b> our brother,"]
-    }
-  ],
-  "headings": [
-    {
-      "text": "Greeting",
-      "book": "1 Corinthians",
-      "start_chapter": 1, "start_verse": 1,
-      "end_chapter": 1, "end_verse": 4
-    }
-  ]
-}
-```
-
-The `text` field contains clean text with preserved HTML formatting:
-
-* `<b>word</b>` — bold keyword
-* `<i><b>word</b></i>` — bold italic keyword
-* `L<span style="font-variant: small-caps;">ord</span>` — LORD small caps
+* `apibible.py` — open the cache, fetch chapter HTML, extract per-verse tokens. Used by every
+  audit/editing tool.
+* `prompts.py` — `SPLIT_PROMPT` (the LLM prompt for re-splitting) and `JUDGE_PROMPT` (the optional
+  quality auditor).
+* `helpers.py` — shared text utilities (severity ranks, reference parsing/normalisation, HTML strip,
+  word-level normalisation for audits) used across the phrase-splitter and audit tools.

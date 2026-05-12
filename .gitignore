@@ -122,6 +122,10 @@ dist
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # yarn v2
 .yarn/cache
 .yarn/unplugged
@@ -138,11 +142,12 @@ __pycache__/
 # below — `/data/` would prune the directory entirely and git wouldn't
 # recurse to evaluate the negations.
 /data/*
-# Whitelist the structural Corinthians fixture — it carries no NKJV verse
-# text, only phrase word counts, user annotations, and verse refs. The
-# other gitignored data/* files (Anki backups, raw NKJV text, the
-# api.bible cache) stay ignored.
-!/data/corinthians.json
+# Whitelist structural deck files (named ``<year>-<book>.json`` for each
+# year of the 8-year quizzing cycle, e.g. ``3-corinthians.json``,
+# ``4-john.json``). They carry no NKJV verse text — only phrase word
+# counts, user annotations, and verse refs. The other gitignored data/*
+# files (Anki backups, raw NKJV text, the api.bible cache) stay ignored.
+!/data/[0-9]-*.json
 
 # wasm-pack build output
 /crates/wasm/pkg/
