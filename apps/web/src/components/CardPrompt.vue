@@ -317,10 +317,15 @@ const composedMissing = computed(() => props.card.composed === null)
    soft radius, and `box-decoration-break: clone` so a multi-line
    revealed phrase gets a fully-rounded chip on every line. The 0.1em
    vertical padding stays inside `.verse-text`'s 1.6 line-height so
-   it doesn't push lines apart. */
+   it doesn't push lines apart.
+
+   Chip background derives from `--color-text` rather than a fixed
+   accent token so its contrast stays the same in light and dark mode
+   (the accent-soft palette flips to near-bg-card values in dark, which
+   made the chip nearly invisible). */
 .phrase-hidden,
 .phrase-revealed {
-  background: var(--color-accent-soft);
+  background: color-mix(in oklch, var(--color-text) 16%, transparent);
   border-radius: 0.25em;
   padding: 0.1em 0.3em;
   -webkit-box-decoration-break: clone;
@@ -368,10 +373,11 @@ const composedMissing = computed(() => props.card.composed === null)
 /* `?` placeholder for ref parts that are the answer being tested, and
    its reveal-side counterpart on the same ref. Em-scaled padding keeps
    the chip proportional whether the ref is the big headline (1.75rem)
-   or the small label (0.95rem). */
+   or the small label (0.95rem). Same foreground-mix background as the
+   phrase chip so all four chip variants read identically. */
 .ref :deep(.ref-hidden),
 .ref :deep(.ref-revealed) {
-  background: var(--color-accent-soft);
+  background: color-mix(in oklch, var(--color-text) 16%, transparent);
   border-radius: 0.25em;
   padding: 0.1em 0.3em;
   -webkit-box-decoration-break: clone;
