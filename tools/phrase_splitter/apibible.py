@@ -236,13 +236,16 @@ def _decode_entities(s: str) -> str:
 
 
 def _strip_to_text(chunk: str) -> str:
-    """Drop tags but inject a space at paragraph boundaries — api.bible's
-    poetry verses (e.g. 1 Cor 2:9) split lines into separate ``<p>``
-    elements with no whitespace between them, so a naive tag strip
-    glues ``man`` and ``The`` into ``manThe``. Same fix
-    ``render.ts``'s DOM walker gets for free."""
-    chunk = re.sub(r"</p\s*>", " ", chunk, flags=re.IGNORECASE)
-    chunk = _TAG_RE.sub("", chunk)
+    """Drop tags but inject a space at every tag boundary. api.bible's
+    HTML routinely concatenates adjacent inline spans with no
+    whitespace between them — ``<span ...>baptized with
+    water,</span><span ...>but you shall be baptized…</span>`` —
+    so a naive tag strip glues ``water,`` and ``but`` into one
+    token. Replacing every tag with a single space prevents the
+    gluing across tag boundaries; redundant whitespace collapses
+    out at the tokenisation step. Mirrors the runtime DOM walker
+    in ``render.ts``, which gets the whitespace separation for free."""
+    chunk = _TAG_RE.sub(" ", chunk)
     return _decode_entities(chunk)
 
 

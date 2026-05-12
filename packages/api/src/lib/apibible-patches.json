@@ -9,6 +9,15 @@
     ],
     "2CO.7": [
       { "find": "Therefore,having", "replace": "Therefore, having" }
+    ],
+    "MAT.4": [
+      { "find": "“Theland", "replace": "“The land" }
+    ],
+    "COL.4": [
+      { "find": ">Masters,give", "replace": ">Masters, give" }
+    ],
+    "ISA.55": [
+      { "find": "“ForMy", "replace": "“For My" }
     ]
   }
 }
