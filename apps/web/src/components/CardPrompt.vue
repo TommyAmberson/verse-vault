@@ -400,9 +400,16 @@ const composedMissing = computed(() => props.card.composed === null)
   font-weight: 700;
 }
 
-.verse-text :deep(i),
-.verse-text :deep(.it) {
+/* Deck keyword annotations rendered as <i> stay italic. api.bible's
+   .it class (translator-supplied words like "corner stone", "It is as",
+   "Him") is left in default upright — the editorial italics distract
+   from the memorisation task. */
+.verse-text :deep(i) {
   font-style: italic;
+}
+
+.verse-text :deep(.it) {
+  font-style: normal;
 }
 
 .verse-text :deep(.sc) {
