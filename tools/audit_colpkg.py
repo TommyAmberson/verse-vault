@@ -66,6 +66,10 @@ _NBSP_RE = re.compile(r"&nbsp;")
 # Curly quotes the deck sometimes uses but api.bible's plain text
 # returns straight; normalise both sides before comparing.
 _QUOTE_PAIRS = {"“": '"', "”": '"', "‘": "'", "’": "'"}
+# Deck spells em-dash as ``--`` with surrounding spaces; canonical uses
+# the actual em-dash without spaces. Fold both forms to one space so
+# diff comparisons don't trip on typography.
+_DASH_RE = re.compile(r"\s*(?:—|--)\s*")
 
 
 # --- colpkg extraction --------------------------------------------------------
@@ -172,9 +176,6 @@ def _clean_for_tokenisation(html_text: str) -> str:
     s = _NBSP_RE.sub(" ", s)
     s = re.sub(r"<br\s*/?>", " ", s, flags=re.IGNORECASE)
     return s
-
-
-_DASH_RE = re.compile(r"\s*(?:—|--)\s*")
 
 
 def _normalise_for_diff(text: str) -> str:
