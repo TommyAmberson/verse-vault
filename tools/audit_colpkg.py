@@ -49,17 +49,25 @@ from phrase_splitter.apibible import (  # noqa: E402
     get_chapter_html,
     open_cache,
 )
+from phrase_splitter.helpers import normalise_word, parse_reference  # noqa: E402
 
 ANKI_FIELD_SEP = "\x1f"
 COLLECTION_CANDIDATES = ("collection.anki21b", "collection.anki21", "collection.anki2")
 
-# Match the structural file's reference convention.
-_REF_RE = re.compile(r"^([0-9]?\s*[A-Za-z]+)\s+(\d+):(\d+)$")
+# The two keyword-class kinds the audit tracks. Any other `kind` (italic
+# alone, small-caps, …) is treated as plain.
+KEYWORD_KINDS: Tuple[str, ...] = ("bold", "boldItalic")
 
-# Anki markup we care about for keyword auditing.
+# Anki markup patterns, listed most-specific-first so a `<b><i>X</i></b>`
+# resolves as bold-italic rather than picking up the inner bold too.
 _BOLD_ITALIC_RE = re.compile(r"<b><i>([^<]+)</i></b>", re.IGNORECASE)
 _ITALIC_BOLD_RE = re.compile(r"<i><b>([^<]+)</b></i>", re.IGNORECASE)
 _BOLD_RE = re.compile(r"<b>([^<]+)</b>", re.IGNORECASE)
+_MARK_PATTERNS: Tuple[Tuple[re.Pattern[str], str], ...] = (
+    (_BOLD_ITALIC_RE, "boldItalic"),
+    (_ITALIC_BOLD_RE, "boldItalic"),
+    (_BOLD_RE, "bold"),
+)
 # Any tag at all (for plain-text extraction after marker substitution).
 _ANY_TAG_RE = re.compile(r"<[^>]+>")
 _NBSP_RE = re.compile(r"&nbsp;")
@@ -96,13 +104,6 @@ def extract_collection(colpkg_path: str, dest_dir: str) -> str:
         return out
     chosen = "collection.anki21" if "collection.anki21" in present else "collection.anki2"
     return os.path.join(dest_dir, chosen)
-
-
-def parse_reference(ref_str: str) -> Tuple[str, int, int]:
-    m = _REF_RE.match(ref_str.strip())
-    if not m:
-        raise ValueError(f"invalid reference: {ref_str!r}")
-    return m.group(1).strip(), int(m.group(2)), int(m.group(3))
 
 
 def parse_clubs(club_str: str) -> List[int]:
@@ -211,37 +212,27 @@ def extract_keyword_words(html_text: str) -> List[Tuple[str, str]]:
     tokenisation drift between Anki and api.bible — see
     ``align_marks_to_canonical`` for how the content is mapped back to
     canonical wordIndex values."""
-    from phrase_splitter.helpers import normalise_word
-
     s = _clean_for_tokenisation(html_text)
 
-    # Collect matches from all three span patterns, then deduplicate:
-    # ``<i><b>X</b></i>`` matches both the italic-bold and the bold
-    # patterns. Keep the most-specific (longest) match by walking the
-    # patterns in specificity order and skipping matches contained in
-    # an already-claimed span.
-    raw: List[Tuple[int, int, str, str]] = []  # (start, end, kind, word)
-    for pattern, kind in (
-        (_BOLD_ITALIC_RE, "boldItalic"),
-        (_ITALIC_BOLD_RE, "boldItalic"),
-        (_BOLD_RE, "bold"),
-    ):
+    # Collect every span match across all three patterns. A nested
+    # `<b><i>X</i></b>` matches both bold-italic and bold; walk the
+    # patterns in specificity order and skip any match whose start
+    # falls inside an already-claimed span so the inner bold gets
+    # dropped in favour of the outer bold-italic.
+    claimed: List[Tuple[int, int]] = []
+    out: List[Tuple[int, str, str]] = []
+    for pattern, kind in _MARK_PATTERNS:
         for m in pattern.finditer(s):
+            start = m.start()
+            if any(cs <= start < ce for cs, ce in claimed):
+                continue
             content = _ANY_TAG_RE.sub("", m.group(1)).strip()
             first = content.split()[0] if content else ""
             n = normalise_word(first)
-            if n:
-                raw.append((m.start(), m.end(), kind, n))
-
-    claimed: List[Tuple[int, int]] = []
-    out: List[Tuple[int, str, str]] = []
-    # Specificity-first: bold-italic patterns first (already by iteration
-    # order above), then bold. Within each, walk left-to-right.
-    for start, end, kind, word in raw:
-        if any(cs <= start < ce for cs, ce in claimed):
-            continue
-        claimed.append((start, end))
-        out.append((start, kind, word))
+            if not n:
+                continue
+            claimed.append((start, m.end()))
+            out.append((start, kind, n))
     out.sort(key=lambda x: x[0])
     return [(kind, word) for _start, kind, word in out]
 
@@ -258,9 +249,6 @@ def align_marks_to_canonical(
     Returns ``(annotations, warnings)`` where each annotation is
     ``{"wordIndex": int, "kind": str}``. Words in ``marks`` that can't
     be located in canonical produce a warning and no annotation."""
-    from phrase_splitter.helpers import normalise_word
-
-    # Precompute canonical positions per normalised word.
     positions_by_word: Dict[str, List[int]] = {}
     for i, tok in enumerate(canonical_tokens):
         n = normalise_word(tok)
@@ -285,41 +273,6 @@ def align_marks_to_canonical(
     return annotations, warnings
 
 
-def extract_keyword_positions(html_text: str) -> Dict[int, str]:
-    """Backward-compatible Anki-position extraction. Prefer
-    ``extract_keyword_words`` + ``align_marks_to_canonical`` for
-    callers that have canonical tokens — the position stream
-    here disagrees with canonical when api.bible glues words across
-    tag boundaries (e.g. Matt 4:15 served as ``"Theland``)."""
-    s = _clean_for_tokenisation(html_text)
-
-    annotations: Dict[str, str] = {}
-    counter = [0]
-
-    def stamp(kind: str):
-        def repl(m: re.Match[str]) -> str:
-            counter[0] += 1
-            marker = f"\x00{counter[0]}\x00"
-            annotations[marker] = kind
-            return marker + m.group(1)
-
-        return repl
-
-    s = _BOLD_ITALIC_RE.sub(stamp("boldItalic"), s)
-    s = _ITALIC_BOLD_RE.sub(stamp("boldItalic"), s)
-    s = _BOLD_RE.sub(stamp("bold"), s)
-    s = _ANY_TAG_RE.sub("", s)
-    tokens = s.split()
-    out: Dict[int, str] = {}
-    for i, tok in enumerate(tokens):
-        for marker, kind in list(annotations.items()):
-            if tok.startswith(marker):
-                out[i] = kind
-                annotations.pop(marker, None)
-                break
-    return out
-
-
 def ftv_word_count(ftv_html: str) -> int:
     """How many visible tokens the deck's FTV field carries."""
     return len(_normalise_for_diff(ftv_html).split())
@@ -339,8 +292,6 @@ def compare_verse(
     canonical_tokens: List[str],
     checks: set[str],
 ) -> List[Dict[str, Any]]:
-    from phrase_splitter.helpers import normalise_word
-
     diffs: List[Dict[str, Any]] = []
     ref = f"{book} {chapter}:{verse}"
 
@@ -382,7 +333,7 @@ def compare_verse(
         deck_marks_raw: List[Tuple[str, str]] = []
         for a in deck_verse.get("annotations") or []:
             kind = a.get("kind")
-            if kind not in ("bold", "boldItalic"):
+            if kind not in KEYWORD_KINDS:
                 continue
             idx = int(a["wordIndex"])
             if 0 <= idx < len(canonical_tokens):
@@ -487,6 +438,9 @@ def main() -> None:
     for d in diffs:
         by_kind.setdefault(d["kind"], []).append(d)
 
+    def fmt_keys(items: List[Tuple[str, str]]) -> str:
+        return ", ".join(f"{w}/{k}" for k, w in items)
+
     print(f"Audited {len(deck_by_ref)} deck verses; {len(diffs)} diffs across {len(by_kind)} kinds.")
     for kind in ("missing-in-deck", "text", "ftv", "keys", "clubs"):
         rows = by_kind.get(kind, [])
@@ -502,11 +456,8 @@ def main() -> None:
             elif kind == "ftv":
                 print(f"    anki word count: {d['anki_word_count']}; deck: {d['deck_word_count']}")
             elif kind == "keys":
-                # Render each side as a compact list of `word/kind` pairs.
-                def _fmt(items: List[Tuple[str, str]]) -> str:
-                    return ", ".join(f"{w}/{k}" for k, w in items)
-                print(f"    anki: {_fmt(d['anki'])}")
-                print(f"    deck: {_fmt(d['deck'])}")
+                print(f"    anki: {fmt_keys(d['anki'])}")
+                print(f"    deck: {fmt_keys(d['deck'])}")
             elif kind == "clubs":
                 print(f"    anki: {d['anki']}; deck: {d['deck']}")
         if args.top is not None and len(rows) > args.top:

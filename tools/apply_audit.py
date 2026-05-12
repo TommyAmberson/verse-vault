@@ -44,33 +44,18 @@ import os
 import shutil
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from audit_colpkg import KEYWORD_KINDS  # noqa: E402
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
     DEFAULT_NKJV_ID,
-    extract_chapter_verses,
-    get_chapter_html,
+    load_canonical_for_deck,
     open_cache,
 )
-from phrase_splitter.helpers import normalise_word  # noqa: E402
-
-
-REF_PARTS_BY_REF: Dict[str, Tuple[str, int, int]] = {}
-
-
-def parse_ref(ref: str) -> Tuple[str, int, int]:
-    """``"1 Corinthians 10:25"`` → ``("1 Corinthians", 10, 25)``."""
-    if ref in REF_PARTS_BY_REF:
-        return REF_PARTS_BY_REF[ref]
-    # Split on the last space (book may contain spaces, e.g. "1 John").
-    book_part, cv = ref.rsplit(" ", 1)
-    ch_s, v_s = cv.split(":", 1)
-    parsed = (book_part.strip(), int(ch_s), int(v_s))
-    REF_PARTS_BY_REF[ref] = parsed
-    return parsed
+from phrase_splitter.helpers import normalise_word, parse_reference  # noqa: E402
 
 
 def find_token_indices(tokens: List[str], target_norm: str) -> List[int]:
@@ -97,7 +82,7 @@ def apply_keyword_findings(
         verdict = f["verdict"]
         for ref in f["refs"]:
             try:
-                key = parse_ref(ref)
+                key = parse_reference(ref)
             except ValueError:
                 warnings.append(f"bad ref: {ref!r}")
                 continue
@@ -109,35 +94,35 @@ def apply_keyword_findings(
             if not tokens:
                 warnings.append(f"no canonical tokens for {ref}")
                 continue
-            positions = find_token_indices(tokens, word)
+            positions = set(find_token_indices(tokens, word))
             if not positions:
                 warnings.append(f"token {word!r} not found in {ref}")
                 continue
 
             anno_list = list(verse.get("annotations") or [])
-            anno_by_index = {a["wordIndex"]: a for a in anno_list}
 
             if verdict == "under-marked":
-                for idx in positions:
+                anno_by_index = {a["wordIndex"]: a for a in anno_list}
+                for idx in sorted(positions):
                     a = anno_by_index.get(idx)
                     if a is None:
                         anno_list.append({"wordIndex": idx, "kind": expected})
                         added += 1
                     elif a["kind"] != expected:
-                        # Pre-existing weaker annotation at this slot — upgrade.
+                        # Pre-existing weaker annotation at the same slot — upgrade.
                         a["kind"] = expected
                         changed += 1
             elif verdict == "over-marked":
                 kept: List[Dict[str, Any]] = []
                 for a in anno_list:
-                    if a["wordIndex"] in positions and a.get("kind") in ("bold", "boldItalic"):
+                    if a["wordIndex"] in positions and a.get("kind") in KEYWORD_KINDS:
                         removed += 1
                         continue
                     kept.append(a)
                 anno_list = kept
             elif verdict == "wrong-kind":
                 for a in anno_list:
-                    if a["wordIndex"] in positions and a.get("kind") in ("bold", "boldItalic"):
+                    if a["wordIndex"] in positions and a.get("kind") in KEYWORD_KINDS:
                         if a["kind"] != expected:
                             a["kind"] = expected
                             changed += 1
@@ -171,7 +156,7 @@ def apply_ftv_findings(
             continue
         ref = r.get("ref")
         try:
-            key = parse_ref(ref)
+            key = parse_reference(ref)
         except (ValueError, TypeError):
             warnings.append(f"bad ref: {ref!r}")
             continue
@@ -194,23 +179,6 @@ def make_backup(deck_path: str) -> str:
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     out = os.path.join(backup_dir, f"{stem}-{stamp}{ext}")
     shutil.copy2(deck_path, out)
-    return out
-
-
-def load_canonical(
-    deck: Dict[str, Any], conn, bible_id: str
-) -> Dict[Tuple[str, int, int], List[str]]:
-    cache: Dict[Tuple[str, int], Dict[int, List[str]]] = {}
-    out: Dict[Tuple[str, int, int], List[str]] = {}
-    for v in deck.get("verses", []):
-        book, ch, verse = v["book"], v["chapter"], v["verse"]
-        ckey = (book, ch)
-        if ckey not in cache:
-            html = get_chapter_html(conn, book, ch, bible_id=bible_id)
-            cache[ckey] = extract_chapter_verses(html, book, ch)
-        tokens = cache[ckey].get(verse, [])
-        if tokens:
-            out[(book, ch, verse)] = tokens
     return out
 
 
@@ -246,7 +214,11 @@ def main() -> None:
 
     conn = open_cache(args.db)
     try:
-        canonical = load_canonical(deck, conn, args.bible) if keyword_findings else {}
+        if keyword_findings:
+            verse_keys = [(v["book"], v["chapter"], v["verse"]) for v in deck.get("verses", [])]
+            canonical = load_canonical_for_deck(conn, verse_keys, bible_id=args.bible)
+        else:
+            canonical = {}
     finally:
         conn.close()
 

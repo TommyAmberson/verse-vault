@@ -60,7 +60,6 @@ from audit_colpkg import (  # noqa: E402
     extract_keyword_words,
     ftv_word_count,
     parse_clubs,
-    parse_reference,
     query_verse_notes,
 )
 from phrase_splitter.apibible import (  # noqa: E402

@@ -291,6 +291,28 @@ def extract_verse_tokens(html: str, book: str, chapter: int, verse: int) -> List
     return []
 
 
+def load_canonical_for_deck(
+    conn: sqlite3.Connection,
+    verse_keys: List[tuple],
+    bible_id: str = DEFAULT_NKJV_ID,
+) -> Dict[tuple, List[str]]:
+    """Fetch canonical tokens for every ``(book, chapter, verse)`` in
+    ``verse_keys``, caching chapter HTML across verses of the same
+    chapter. Returns ``{(book, chapter, verse): [tokens]}`` — verses
+    with no canonical text are simply absent from the result."""
+    chapter_cache: Dict[tuple, Dict[int, List[str]]] = {}
+    out: Dict[tuple, List[str]] = {}
+    for book, ch, verse in verse_keys:
+        ckey = (book, ch)
+        if ckey not in chapter_cache:
+            html = get_chapter_html(conn, book, ch, bible_id=bible_id)
+            chapter_cache[ckey] = extract_chapter_verses(html, book, ch)
+        tokens = chapter_cache[ckey].get(verse, [])
+        if tokens:
+            out[(book, ch, verse)] = tokens
+    return out
+
+
 def _fetch_sections(bible_id: str, book: str, api_key: str) -> List[Dict[str, str]]:
     code = book_code(book)
     url = f"{API_BASE}/bibles/{bible_id}/books/{urllib.parse.quote(code)}/sections"
