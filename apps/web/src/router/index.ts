@@ -28,15 +28,16 @@ const router = createRouter({
 // Better Auth's `useSession()` issues an async fetch; on the very first
 // navigation (e.g. after a hard refresh) the reactive session is still
 // `{ data: null, isPending: true }`, so a guard that reads `data.user`
-// synchronously would bounce a signed-in user to /signin. Cache the
-// initial `getSession()` promise and await it once before the guard
-// makes a decision — subsequent navigations resolve instantly off the
-// already-populated reactive session.
-let initialSession: Promise<unknown> | null = null
+// synchronously would bounce a signed-in user to /signin. Resolve the
+// initial `getSession()` once and gate on the flag — subsequent
+// navigations skip the microtask hop entirely.
+let initialSessionResolved = false
 
 router.beforeEach(async (to) => {
-  initialSession ??= authClient.getSession()
-  await initialSession
+  if (!initialSessionResolved) {
+    await authClient.getSession()
+    initialSessionResolved = true
+  }
   const { session } = useAuth()
   const signedIn = !!session.value?.data?.user
   if (to.meta.public) {
