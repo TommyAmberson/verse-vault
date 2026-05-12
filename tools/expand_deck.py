@@ -4,15 +4,9 @@
 A year's deck file as produced by ``init_deck.py`` only carries the
 verses that exist as ``Verse`` notes in the Anki ``.colpkg`` — for
 years 5/6/7 today that's just the Club 150 cut. The full quizzing
-material is broader: every chapter that contains at least one
-Club 150 or Club 300 verse, taken in its entirety.
-
-This tool layers the printed back-list's Club 300 list onto an
-existing deck, then fills in the remaining verses of every touched
-chapter (the "full" tier — ``clubs: []``). Existing verses keep
-their annotations / FTV / phrase splits; new verses are seeded
-with one whole-verse phrase and empty annotations, matching
-``init_deck.py``.
+material is broader: Club 300 (a second 150-verse set printed in
+the QuizMeet booklet) layered on top, plus any "full-tier" verses
+that aren't in either club.
 
 Tier-definition input (``--tiers``) JSON shape:
 
@@ -20,19 +14,36 @@ Tier-definition input (``--tiers``) JSON shape:
       "year": 5,
       "books": ["Hebrews", "1 Peter", "2 Peter"],
       "club_300": {
-        "Hebrews": {"1": [5, 6, ...], "2": [...], ...},
-        "1 Peter": {...},
-        "2 Peter": {...}
+        "Hebrews": {"1": [5, 6, ...], ...},
+        ...
+      },
+
+      // Choose ONE of the following to declare the full tier:
+      //   (a) every chapter touched by 150∪300, in entirety:
+      "expand_to_full_chapters": true,
+
+      //   (b) explicit per-chapter range list (list of inclusive
+      //       [start, end] pairs; supports gaps via multiple pairs):
+      "full": {
+        "Genesis": {
+          "1":  [[1, 31]],
+          "11": [[1, 9]],
+          "50": [[15, 26]]
+        },
+        "Joel": {
+          "2": [[12, 13], [28, 32]]
+        }
       }
     }
 
 The Club 150 set is read straight off the deck (verses already
-flagged ``clubs: [150]``); we don't duplicate it in the tiers file
-because the colpkg is its source of truth.
+flagged ``clubs: [150]``); the tiers file shouldn't duplicate it
+— the colpkg is its source of truth.
 
-The "full" chapter set is derived: every chapter that contains at
-least one Club 150 or Club 300 verse. Every verse 1..N of those
-chapters that isn't already in 150 or 300 gets ``clubs: []``.
+Verses already in Club 150 or 300 retain that tier when they fall
+inside the full set — the full tier is additive, never demoting.
+A Club 150/300 verse that falls *outside* the declared full set is
+flagged with a warning (likely a transcription error).
 
 Usage:
     python3 tools/expand_deck.py \\
@@ -72,12 +83,21 @@ def parse_verse_id(verse_id: str) -> Tuple[str, int, int]:
     return parts[0], int(parts[1]), int(parts[2])
 
 
-def derive_full_chapters(verse_keys: Set[VerseKey]) -> Dict[str, Set[int]]:
-    """For each book, which chapter numbers contain at least one
-    Club 150 or 300 verse — those are the chapters to fully expand."""
-    out: Dict[str, Set[int]] = defaultdict(set)
-    for book, ch, _v in verse_keys:
-        out[book].add(ch)
+def expand_full_ranges(
+    full_decl: Dict[str, Dict[str, List[List[int]]]],
+) -> Set[VerseKey]:
+    """Flatten the ``full`` declaration's [start, end] pairs into a
+    concrete verse set."""
+    out: Set[VerseKey] = set()
+    for book, chapters in full_decl.items():
+        for ch_str, ranges in chapters.items():
+            ch = int(ch_str)
+            for pair in ranges:
+                if len(pair) != 2:
+                    raise ValueError(f"bad range for {book} {ch}: {pair!r}")
+                start, end = int(pair[0]), int(pair[1])
+                for v in range(start, end + 1):
+                    out.add((book, ch, v))
     return out
 
 
@@ -187,15 +207,25 @@ def main() -> None:
         for (b, c, v) in overlaps[:10]:
             print(f"  {b} {c}:{v}")
 
-    # Full-chapter set: every chapter touched by any club-tagged verse.
+    # Compute the full-tier verse set from the tier file.
+    raw_full = tiers.get("full")
+    expand_chapters = bool(tiers.get("expand_to_full_chapters"))
+    if raw_full and expand_chapters:
+        sys.exit("tier file declares both `full` and `expand_to_full_chapters`; pick one")
+
+    # Touched-chapter set: union of (existing 150) + Club 300 + full-tier sources.
     touched_chapters: Dict[str, Set[int]] = defaultdict(set)
     for key in existing:
         touched_chapters[key[0]].add(key[1])
     for (b, ch, _v) in club_300:
         touched_chapters[b].add(ch)
+    if raw_full:
+        for book, chapters in raw_full.items():
+            for ch_str in chapters:
+                touched_chapters[book].add(int(ch_str))
 
     # Fetch canonical tokens for every touched (book, chapter) so we
-    # know the chapter length and can seed phraseWordCounts.
+    # know chapter lengths and can seed phraseWordCounts.
     conn = open_cache(args.db)
     canonical: Dict[Tuple[str, int], Dict[int, List[str]]] = {}
     sections_by_book: Dict[str, List[Dict[str, str]]] = {}
@@ -209,44 +239,61 @@ def main() -> None:
     finally:
         conn.close()
 
-    # Build the expanded verse set.
+    # Build the full-tier verse set (verses to be seeded with clubs=[]).
+    if raw_full:
+        full_tier: Set[VerseKey] = expand_full_ranges(raw_full)
+    elif expand_chapters:
+        full_tier = set()
+        for book in books:
+            for ch in sorted(touched_chapters.get(book, set())):
+                chapter_len = max(canonical.get((book, ch), {}).keys(), default=0)
+                for v in range(1, chapter_len + 1):
+                    full_tier.add((book, ch, v))
+    else:
+        full_tier = set()
+
+    # Cross-check: any 150/300 verse outside the declared full set?
+    declared = full_tier | set(existing.keys()) | club_300
+    outside_150 = sorted(k for k in existing if 150 in (existing[k].get("clubs") or [])
+                         and k not in full_tier and full_tier)
+    outside_300 = sorted(k for k in club_300 if k not in full_tier and full_tier)
+    for label, keys in (("Club 150", outside_150), ("Club 300", outside_300)):
+        if not keys:
+            continue
+        print(f"WARNING: {len(keys)} {label} verse(s) outside the declared full set:")
+        for (b, c, v) in keys[:10]:
+            print(f"  {b} {c}:{v}")
+
+    # Compose the expanded verse map: existing 150 verses (preserved),
+    # plus 300 and full-tier verses with seeded scaffolding.
     expanded: Dict[VerseKey, Dict[str, Any]] = {}
     added_300 = 0
     added_full = 0
-    for book in books:
-        for ch in sorted(touched_chapters.get(book, set())):
-            chapter_tokens = canonical.get((book, ch), {})
-            chapter_len = max(chapter_tokens.keys(), default=0)
-            for v in range(1, chapter_len + 1):
-                key = (book, ch, v)
-                if key in existing:
-                    expanded[key] = existing[key]
-                    continue
-                tokens = chapter_tokens.get(v, [])
-                if not tokens:
-                    # Canonical text missing for this verse — skip
-                    # rather than fabricate. The init_deck warning
-                    # message covers the diagnostic.
-                    continue
-                clubs = [300] if key in club_300 else []
-                expanded[key] = {
-                    "book": book,
-                    "chapter": ch,
-                    "verse": v,
-                    "phraseWordCounts": [len(tokens)],
-                    "annotations": [],
-                    "ftvWordCount": 0,
-                    "clubs": clubs,
-                }
-                if clubs:
-                    added_300 += 1
-                else:
-                    added_full += 1
 
-    # Preserve any existing verses outside the touched chapters
-    # (defensive — shouldn't happen for a well-formed deck).
-    for key, v in existing.items():
-        expanded.setdefault(key, v)
+    target_keys: Set[VerseKey] = set(existing.keys()) | club_300 | full_tier
+    for key in sorted(target_keys):
+        book, ch, v = key
+        if key in existing:
+            expanded[key] = existing[key]
+            continue
+        tokens = canonical.get((book, ch), {}).get(v, [])
+        if not tokens:
+            # No canonical text — skip rather than fabricate.
+            continue
+        clubs = [300] if key in club_300 else []
+        expanded[key] = {
+            "book": book,
+            "chapter": ch,
+            "verse": v,
+            "phraseWordCounts": [len(tokens)],
+            "annotations": [],
+            "ftvWordCount": 0,
+            "clubs": clubs,
+        }
+        if clubs:
+            added_300 += 1
+        else:
+            added_full += 1
 
     new_verse_list = [expanded[k] for k in sorted(expanded)]
     verse_keys = set(expanded.keys())

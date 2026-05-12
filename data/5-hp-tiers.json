@@ -2,6 +2,7 @@
   "$comment": "Year 5 (Hebrews + 1+2 Peter) printed back-list tier definitions. Transcribed from the QuizMeet booklet on 2026-05-11. Club 150 is the basic 150-verse cut and lives in the deck file already (sourced from the Anki .colpkg). Club 300 is the additional 150-verse cut not yet authored in Anki — captured here so tools/expand_deck.py can seed the deck file before the next colpkg refresh. The full year-5 material is every verse of every chapter that contains at least one Club 150 or 300 verse; for Hebrews and 1+2 Peter that's every chapter of every book (469 verses total).",
   "year": 5,
   "books": ["Hebrews", "1 Peter", "2 Peter"],
+  "expand_to_full_chapters": true,
   "club_300": {
     "Hebrews": {
       "1":  [5, 6, 7, 10, 11, 12],
