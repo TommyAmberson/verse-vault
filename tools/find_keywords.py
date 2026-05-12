@@ -102,9 +102,11 @@ def build_word_index(
     verse_index: Dict[Tuple[str, int, int], int] = {}
 
     chapter_cache: Dict[Tuple[str, int], Dict[int, List[str]]] = {}
+    # Walk every verse the deck knows about. Phrase splits aren't
+    # required for this audit — annotations index into the canonical
+    # token stream, and uniqueness analysis needs every verse's tokens
+    # to be correct even when some verses are still unsplit.
     for v in deck.get("verses", []):
-        if not v.get("phraseWordCounts"):
-            continue
         book = v["book"]
         chapter = v["chapter"]
         verse_num = v["verse"]
