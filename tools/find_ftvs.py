@@ -43,11 +43,13 @@ from phrase_splitter.apibible import (  # noqa: E402
 
 # Strip leading/trailing chars that aren't letters, digits, or an
 # interior apostrophe. Keeps "God's" intact; turns "Paul," into "Paul".
+# Curly U+2019 is folded to straight U+0027 first so canonical NKJV's
+# typographic apostrophes compare equal to straight ones.
 _EDGE_PUNCT_RE = re.compile(r"^[^\w']+|[^\w']+$")
 
 
 def _normalise(token: str) -> str:
-    return _EDGE_PUNCT_RE.sub("", token).lower()
+    return _EDGE_PUNCT_RE.sub("", token.replace("’", "'")).lower()
 
 
 def find_shortest_unique_prefixes(

@@ -60,11 +60,15 @@ MARKUP_PLAIN = "plain"
 MARKUP_BOLD = "bold"
 MARKUP_BOLD_ITALIC = "boldItalic"
 
+# Match either apostrophe form (straight U+0027, curly U+2019) as an
+# interior word char. Curly is folded to straight before edge-stripping
+# so the canonical NKJV's typographic apostrophes compare equal to the
+# straight apostrophes in user-supplied data (e.g. the quizbook back-list).
 _EDGE_PUNCT_RE = re.compile(r"^[^\w']+|[^\w']+$")
 
 
 def _normalise(token: str) -> str:
-    return _EDGE_PUNCT_RE.sub("", token).lower()
+    return _EDGE_PUNCT_RE.sub("", token.replace("’", "'")).lower()
 
 
 def _annotation_map(verse: Dict[str, Any]) -> Dict[int, str]:
