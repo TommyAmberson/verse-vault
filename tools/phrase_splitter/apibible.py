@@ -259,7 +259,7 @@ def extract_verse_tokens(html: str, book: str, chapter: int, verse: int) -> List
             continue
         start = m.end()
         end = markers[i + 1].start() if i + 1 < len(markers) else len(html)
-        return _strip_to_text(html[start:end]).split()
+        return _tokenise(_strip_to_text(html[start:end]))
     return []
 
 
@@ -283,5 +283,5 @@ def extract_chapter_verses(
             continue
         start = m.end()
         end = markers[i + 1].start() if i + 1 < len(markers) else len(html)
-        out[v] = _strip_to_text(html[start:end]).split()
+        out[v] = _tokenise(_strip_to_text(html[start:end]))
     return out
