@@ -21,60 +21,60 @@
       "book": "James",
       "number": 3,
       "start_verse": 1,
-      "end_verse": 17
+      "end_verse": 18
     },
     {
       "book": "James",
       "number": 4,
-      "start_verse": 6,
+      "start_verse": 1,
       "end_verse": 17
     },
     {
       "book": "James",
       "number": 5,
-      "start_verse": 7,
+      "start_verse": 1,
       "end_verse": 20
     },
     {
       "book": "Romans",
       "number": 1,
       "start_verse": 1,
-      "end_verse": 28
+      "end_verse": 32
     },
     {
       "book": "Romans",
       "number": 2,
       "start_verse": 1,
-      "end_verse": 13
+      "end_verse": 29
     },
     {
       "book": "Romans",
       "number": 3,
-      "start_verse": 10,
-      "end_verse": 24
+      "start_verse": 1,
+      "end_verse": 31
     },
     {
       "book": "Romans",
       "number": 4,
-      "start_verse": 3,
-      "end_verse": 21
+      "start_verse": 1,
+      "end_verse": 25
     },
     {
       "book": "Romans",
       "number": 5,
       "start_verse": 1,
-      "end_verse": 19
+      "end_verse": 21
     },
     {
       "book": "Romans",
       "number": 6,
-      "start_verse": 4,
+      "start_verse": 1,
       "end_verse": 23
     },
     {
       "book": "Romans",
       "number": 7,
-      "start_verse": 18,
+      "start_verse": 1,
       "end_verse": 25
     },
     {
@@ -86,14 +86,14 @@
     {
       "book": "Romans",
       "number": 9,
-      "start_verse": 15,
+      "start_verse": 1,
       "end_verse": 33
     },
     {
       "book": "Romans",
       "number": 10,
       "start_verse": 1,
-      "end_verse": 17
+      "end_verse": 21
     },
     {
       "book": "Romans",
@@ -116,19 +116,19 @@
     {
       "book": "Romans",
       "number": 14,
-      "start_verse": 5,
+      "start_verse": 1,
       "end_verse": 23
     },
     {
       "book": "Romans",
       "number": 15,
       "start_verse": 1,
-      "end_verse": 13
+      "end_verse": 33
     },
     {
       "book": "Romans",
       "number": 16,
-      "start_verse": 17,
+      "start_verse": 1,
       "end_verse": 27
     }
   ],
@@ -214,6 +214,128 @@
     {
       "book": "James",
       "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 1,
       "verse": 17,
       "phraseWordCounts": [
         28
@@ -227,6 +349,17 @@
     {
       "book": "James",
       "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 1,
       "verse": 19,
       "phraseWordCounts": [
         18
@@ -235,6 +368,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 20,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -261,6 +407,32 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 23,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 1,
+      "verse": 24,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -318,6 +490,39 @@
     {
       "book": "James",
       "chapter": 2,
+      "verse": 2,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
       "verse": 5,
       "phraseWordCounts": [
         31
@@ -331,6 +536,28 @@
     {
       "book": "James",
       "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
       "verse": 8,
       "phraseWordCounts": [
         21
@@ -339,6 +566,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -357,6 +597,28 @@
     {
       "book": "James",
       "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
       "verse": 13,
       "phraseWordCounts": [
         17
@@ -370,6 +632,41 @@
     {
       "book": "James",
       "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
       "verse": 17,
       "phraseWordCounts": [
         13
@@ -379,6 +676,104 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 18,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 22,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 23,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 24,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 2,
+      "verse": 25,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "James",
@@ -422,6 +817,30 @@
     {
       "book": "James",
       "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 3,
       "verse": 5,
       "phraseWordCounts": [
         21
@@ -448,6 +867,43 @@
     {
       "book": "James",
       "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 3,
       "verse": 10,
       "phraseWordCounts": [
         18
@@ -456,6 +912,76 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -470,6 +996,80 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "James",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 3,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 5,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "James",
@@ -513,6 +1113,17 @@
     {
       "book": "James",
       "chapter": 4,
+      "verse": 9,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 4,
       "verse": 10,
       "phraseWordCounts": [
         14
@@ -522,6 +1133,78 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 11,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 12,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 13,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 14,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 15,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 4,
+      "verse": 16,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "James",
@@ -539,6 +1222,72 @@
     {
       "book": "James",
       "chapter": 5,
+      "verse": 1,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 2,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 3,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 4,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 5,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 6,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "James",
+      "chapter": 5,
       "verse": 7,
       "phraseWordCounts": [
         34
@@ -548,6 +1297,43 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 8,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 9,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 10,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "James",
@@ -578,6 +1364,45 @@
     {
       "book": "James",
       "chapter": 5,
+      "verse": 13,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 14,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 15,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 5,
       "verse": 16,
       "phraseWordCounts": [
         26
@@ -587,6 +1412,30 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 17,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "James",
+      "chapter": 5,
+      "verse": 18,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "James",
@@ -678,6 +1527,139 @@
     {
       "book": "Romans",
       "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
       "verse": 16,
       "phraseWordCounts": [
         32
@@ -717,6 +1699,19 @@
     {
       "book": "Romans",
       "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
       "verse": 20,
       "phraseWordCounts": [
         33
@@ -738,6 +1733,32 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 22,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 23,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -769,6 +1790,32 @@
     {
       "book": "Romans",
       "chapter": 1,
+      "verse": 26,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 27,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
       "verse": 28,
       "phraseWordCounts": [
         29
@@ -777,6 +1824,52 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 29,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 30,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 31,
+      "phraseWordCounts": [
+        5
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 1,
+      "verse": 32,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -790,6 +1883,30 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 2,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -816,6 +1933,65 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -859,6 +2035,293 @@
     },
     {
       "book": "Romans",
+      "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 18,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 22,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 23,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 24,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 25,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 26,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 27,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 28,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 2,
+      "verse": 29,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
       "chapter": 3,
       "verse": 10,
       "phraseWordCounts": [
@@ -869,6 +2332,105 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        6
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -937,6 +2499,115 @@
     },
     {
       "book": "Romans",
+      "chapter": 3,
+      "verse": 25,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 26,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 27,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 28,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 29,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 30,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 3,
+      "verse": 31,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
       "chapter": 4,
       "verse": 3,
       "phraseWordCounts": [
@@ -947,6 +2618,17 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -964,6 +2646,87 @@
     {
       "book": "Romans",
       "chapter": 4,
+      "verse": 6,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 7,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 8,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 9,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 10,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 11,
+      "phraseWordCounts": [
+        44
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 12,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
       "verse": 13,
       "phraseWordCounts": [
         29
@@ -977,6 +2740,30 @@
     {
       "book": "Romans",
       "chapter": 4,
+      "verse": 14,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 15,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
       "verse": 16,
       "phraseWordCounts": [
         50
@@ -986,6 +2773,41 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 17,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 18,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 19,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1015,6 +2837,50 @@
     },
     {
       "book": "Romans",
+      "chapter": 4,
+      "verse": 22,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 23,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 24,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 4,
+      "verse": 25,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
       "chapter": 5,
       "verse": 1,
       "phraseWordCounts": [
@@ -1024,6 +2890,82 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 2,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 3,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 4,
+      "phraseWordCounts": [
+        6
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 5,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 6,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 7,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1042,6 +2984,19 @@
     {
       "book": "Romans",
       "chapter": 5,
+      "verse": 9,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
       "verse": 10,
       "phraseWordCounts": [
         29
@@ -1055,6 +3010,17 @@
     {
       "book": "Romans",
       "chapter": 5,
+      "verse": 11,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
       "verse": 12,
       "phraseWordCounts": [
         24
@@ -1064,6 +3030,61 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 13,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 14,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 15,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 16,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 17,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1093,6 +3114,65 @@
     },
     {
       "book": "Romans",
+      "chapter": 5,
+      "verse": 20,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 5,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 1,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 2,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 3,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
       "chapter": 6,
       "verse": 4,
       "phraseWordCounts": [
@@ -1107,6 +3187,19 @@
     {
       "book": "Romans",
       "chapter": 6,
+      "verse": 5,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
       "verse": 6,
       "phraseWordCounts": [
         29
@@ -1116,6 +3209,39 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 7,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 8,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 9,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1146,6 +3272,19 @@
     {
       "book": "Romans",
       "chapter": 6,
+      "verse": 12,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
       "verse": 13,
       "phraseWordCounts": [
         32
@@ -1155,6 +3294,109 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 14,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 15,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 16,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 17,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 18,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 19,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 20,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 21,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 6,
+      "verse": 22,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1172,6 +3414,203 @@
     {
       "book": "Romans",
       "chapter": 7,
+      "verse": 1,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 2,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 3,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 4,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 5,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 6,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 7,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 8,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 9,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 10,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 11,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 12,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 13,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 14,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 15,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 16,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 17,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
       "verse": 18,
       "phraseWordCounts": [
         32
@@ -1181,6 +3620,41 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 19,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 20,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 7,
+      "verse": 21,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1315,6 +3789,106 @@
     {
       "book": "Romans",
       "chapter": 8,
+      "verse": 7,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 8,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 9,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 10,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 11,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 12,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 13,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 14,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
       "verse": 15,
       "phraseWordCounts": [
         26
@@ -1341,6 +3915,111 @@
     {
       "book": "Romans",
       "chapter": 8,
+      "verse": 17,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 18,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 19,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 20,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 22,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 23,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 24,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 25,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
       "verse": 26,
       "phraseWordCounts": [
         35
@@ -1349,6 +4028,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 27,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1367,6 +4059,30 @@
     {
       "book": "Romans",
       "chapter": 8,
+      "verse": 29,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 30,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
       "verse": 31,
       "phraseWordCounts": [
         18
@@ -1376,6 +4092,67 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 32,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 33,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 34,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 35,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 36,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1419,6 +4196,166 @@
     {
       "book": "Romans",
       "chapter": 9,
+      "verse": 1,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 2,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 3,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 4,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 5,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 6,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 7,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 8,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 9,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 10,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 11,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 12,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 13,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 14,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
       "verse": 15,
       "phraseWordCounts": [
         26
@@ -1428,6 +4365,54 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 16,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 17,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 18,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 19,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1458,6 +4443,39 @@
     {
       "book": "Romans",
       "chapter": 9,
+      "verse": 22,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 23,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 24,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
       "verse": 25,
       "phraseWordCounts": [
         24
@@ -1466,6 +4484,85 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 26,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 27,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 28,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 29,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 30,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 31,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 9,
+      "verse": 32,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1497,6 +4594,89 @@
     {
       "book": "Romans",
       "chapter": 10,
+      "verse": 2,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 3,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 4,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 5,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 6,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 7,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 8,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
       "verse": 9,
       "phraseWordCounts": [
         27
@@ -1518,6 +4698,30 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 11,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 12,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1562,6 +4766,17 @@
     {
       "book": "Romans",
       "chapter": 10,
+      "verse": 16,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
       "verse": 17,
       "phraseWordCounts": [
         13
@@ -1570,6 +4785,54 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 18,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 19,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 20,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 10,
+      "verse": 21,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1584,6 +4847,41 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 2,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 3,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 4,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1614,6 +4912,54 @@
     {
       "book": "Romans",
       "chapter": 11,
+      "verse": 7,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 8,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 9,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 10,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
       "verse": 11,
       "phraseWordCounts": [
         27
@@ -1640,6 +4986,32 @@
     {
       "book": "Romans",
       "chapter": 11,
+      "verse": 13,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 14,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
       "verse": 15,
       "phraseWordCounts": [
         22
@@ -1649,6 +5021,122 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 16,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 17,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 18,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 19,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 20,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 21,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 22,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 23,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 24,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 25,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1679,6 +5167,19 @@
     {
       "book": "Romans",
       "chapter": 11,
+      "verse": 28,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
       "verse": 29,
       "phraseWordCounts": [
         10
@@ -1692,6 +5193,43 @@
     {
       "book": "Romans",
       "chapter": 11,
+      "verse": 30,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 31,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 32,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
       "verse": 33,
       "phraseWordCounts": [
         25
@@ -1701,6 +5239,30 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 34,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 11,
+      "verse": 35,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1757,6 +5319,63 @@
     {
       "book": "Romans",
       "chapter": 12,
+      "verse": 4,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 5,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 6,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 7,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 8,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
       "verse": 9,
       "phraseWordCounts": [
         14
@@ -1770,6 +5389,100 @@
     {
       "book": "Romans",
       "chapter": 12,
+      "verse": 10,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 11,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 12,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 13,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 14,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 15,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 16,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 17,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
       "verse": 18,
       "phraseWordCounts": [
         15
@@ -1778,6 +5491,32 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 19,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 12,
+      "verse": 20,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1809,6 +5548,32 @@
     {
       "book": "Romans",
       "chapter": 13,
+      "verse": 2,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 13,
+      "verse": 3,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 13,
       "verse": 4,
       "phraseWordCounts": [
         40
@@ -1817,6 +5582,65 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 13,
+      "verse": 5,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 13,
+      "verse": 6,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 13,
+      "verse": 7,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 13,
+      "verse": 8,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 13,
+      "verse": 9,
+      "phraseWordCounts": [
+        48
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1835,6 +5659,19 @@
     {
       "book": "Romans",
       "chapter": 13,
+      "verse": 11,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 13,
       "verse": 12,
       "phraseWordCounts": [
         28
@@ -1843,6 +5680,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 13,
+      "verse": 13,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1861,6 +5711,58 @@
     {
       "book": "Romans",
       "chapter": 14,
+      "verse": 1,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 2,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 3,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 4,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
       "verse": 5,
       "phraseWordCounts": [
         21
@@ -1874,6 +5776,30 @@
     {
       "book": "Romans",
       "chapter": 14,
+      "verse": 6,
+      "phraseWordCounts": [
+        55
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 7,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
       "verse": 8,
       "phraseWordCounts": [
         28
@@ -1883,6 +5809,39 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 9,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 10,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 11,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1913,6 +5872,41 @@
     {
       "book": "Romans",
       "chapter": 14,
+      "verse": 14,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 15,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 16,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
       "verse": 17,
       "phraseWordCounts": [
         20
@@ -1926,6 +5920,17 @@
     {
       "book": "Romans",
       "chapter": 14,
+      "verse": 18,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
       "verse": 19,
       "phraseWordCounts": [
         19
@@ -1935,6 +5940,39 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 20,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 21,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 14,
+      "verse": 22,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -1973,6 +6011,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 3,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -2017,6 +6068,74 @@
     {
       "book": "Romans",
       "chapter": 15,
+      "verse": 7,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 8,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 9,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 10,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 11,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 12,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
       "verse": 13,
       "phraseWordCounts": [
         28
@@ -2026,6 +6145,418 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 14,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 15,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 16,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 17,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 18,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 19,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 20,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 22,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 23,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 24,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 25,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 26,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 27,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 28,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 29,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 30,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 31,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 32,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 15,
+      "verse": 33,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 1,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 2,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 3,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 4,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 5,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 6,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 7,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 8,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 9,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 10,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 11,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 12,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 13,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 14,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 15,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 16,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -2043,6 +6574,32 @@
     {
       "book": "Romans",
       "chapter": 16,
+      "verse": 18,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 19,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
       "verse": 20,
       "phraseWordCounts": [
         23
@@ -2052,6 +6609,50 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 21,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 22,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 23,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Romans",
+      "chapter": 16,
+      "verse": 24,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Romans",
@@ -2107,6 +6708,13 @@
       "startVerse": 2,
       "endChapter": 1,
       "endVerse": 8
+    },
+    {
+      "book": "James",
+      "startChapter": 1,
+      "startVerse": 9,
+      "endChapter": 1,
+      "endVerse": 11
     },
     {
       "book": "James",
@@ -2174,9 +6782,23 @@
     {
       "book": "James",
       "startChapter": 4,
+      "startVerse": 11,
+      "endChapter": 4,
+      "endVerse": 12
+    },
+    {
+      "book": "James",
+      "startChapter": 4,
       "startVerse": 13,
       "endChapter": 4,
       "endVerse": 17
+    },
+    {
+      "book": "James",
+      "startChapter": 5,
+      "startVerse": 1,
+      "endChapter": 5,
+      "endVerse": 6
     },
     {
       "book": "James",
@@ -2209,6 +6831,13 @@
     {
       "book": "Romans",
       "startChapter": 1,
+      "startVerse": 8,
+      "endChapter": 1,
+      "endVerse": 15
+    },
+    {
+      "book": "Romans",
+      "startChapter": 1,
       "startVerse": 16,
       "endChapter": 1,
       "endVerse": 17
@@ -2229,6 +6858,27 @@
     },
     {
       "book": "Romans",
+      "startChapter": 2,
+      "startVerse": 17,
+      "endChapter": 2,
+      "endVerse": 24
+    },
+    {
+      "book": "Romans",
+      "startChapter": 2,
+      "startVerse": 25,
+      "endChapter": 2,
+      "endVerse": 29
+    },
+    {
+      "book": "Romans",
+      "startChapter": 3,
+      "startVerse": 1,
+      "endChapter": 3,
+      "endVerse": 8
+    },
+    {
+      "book": "Romans",
       "startChapter": 3,
       "startVerse": 9,
       "endChapter": 3,
@@ -2243,6 +6893,13 @@
     },
     {
       "book": "Romans",
+      "startChapter": 3,
+      "startVerse": 27,
+      "endChapter": 3,
+      "endVerse": 31
+    },
+    {
+      "book": "Romans",
       "startChapter": 4,
       "startVerse": 1,
       "endChapter": 4,
@@ -2254,6 +6911,13 @@
       "startVerse": 5,
       "endChapter": 4,
       "endVerse": 8
+    },
+    {
+      "book": "Romans",
+      "startChapter": 4,
+      "startVerse": 9,
+      "endChapter": 4,
+      "endVerse": 12
     },
     {
       "book": "Romans",
@@ -2300,6 +6964,20 @@
     {
       "book": "Romans",
       "startChapter": 7,
+      "startVerse": 1,
+      "endChapter": 7,
+      "endVerse": 6
+    },
+    {
+      "book": "Romans",
+      "startChapter": 7,
+      "startVerse": 7,
+      "endChapter": 7,
+      "endVerse": 12
+    },
+    {
+      "book": "Romans",
+      "startChapter": 7,
       "startVerse": 13,
       "endChapter": 7,
       "endVerse": 25
@@ -2331,6 +7009,20 @@
       "startVerse": 31,
       "endChapter": 8,
       "endVerse": 39
+    },
+    {
+      "book": "Romans",
+      "startChapter": 9,
+      "startVerse": 1,
+      "endChapter": 9,
+      "endVerse": 5
+    },
+    {
+      "book": "Romans",
+      "startChapter": 9,
+      "startVerse": 6,
+      "endChapter": 9,
+      "endVerse": 13
     },
     {
       "book": "Romans",
@@ -2446,10 +7138,45 @@
     },
     {
       "book": "Romans",
+      "startChapter": 15,
+      "startVerse": 14,
+      "endChapter": 15,
+      "endVerse": 21
+    },
+    {
+      "book": "Romans",
+      "startChapter": 15,
+      "startVerse": 22,
+      "endChapter": 15,
+      "endVerse": 33
+    },
+    {
+      "book": "Romans",
+      "startChapter": 16,
+      "startVerse": 1,
+      "endChapter": 16,
+      "endVerse": 2
+    },
+    {
+      "book": "Romans",
+      "startChapter": 16,
+      "startVerse": 3,
+      "endChapter": 16,
+      "endVerse": 16
+    },
+    {
+      "book": "Romans",
       "startChapter": 16,
       "startVerse": 17,
       "endChapter": 16,
       "endVerse": 20
+    },
+    {
+      "book": "Romans",
+      "startChapter": 16,
+      "startVerse": 21,
+      "endChapter": 16,
+      "endVerse": 24
     },
     {
       "book": "Romans",

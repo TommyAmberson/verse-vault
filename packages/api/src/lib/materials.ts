@@ -55,7 +55,7 @@ export const MATERIALS: readonly Material[] = [
   {
     id: 'nkjv-rj',
     title: 'Romans & James (NKJV)',
-    description: 'Year 7: Romans and James (currently the Club150 cut only).',
+    description: 'Year 7: Romans and James — full chapters (541 verses).',
   },
   {
     id: 'nkjv-luke',
