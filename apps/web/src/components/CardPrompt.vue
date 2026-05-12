@@ -130,7 +130,7 @@ const composedMissing = computed(() => props.card.composed === null)
        `--active-verse-colour` from this scope, so they always agree. -->
   <div
     class="card-box"
-    :class="{ 'no-verse-accent': !refParts.showVerse, revealed }"
+    :class="{ 'no-verse-accent': !refParts.showVerse }"
     :style="{ '--active-verse-colour': verseColour }"
   >
     <div class="deck">{{ promptLabel }}</div>
@@ -254,22 +254,14 @@ const composedMissing = computed(() => props.card.composed === null)
   line-height: 1.6;
   text-align: center;
   color: var(--color-text);
-  transition: background-color 0.18s ease, border-color 0.18s ease;
-}
-
-/* Reveal state: the card surface picks up a soft verse-coloured wash
-   and the border deepens toward the verse hue, so the Q→A transition
-   is obvious at a glance. Pre-reveal stays on the plain card surface
-   so it reads as "still thinking". */
-.card-box.revealed {
-  background: color-mix(in oklch, var(--active-verse-colour) 8%, var(--color-bg-card));
-  border-color: color-mix(in oklch, var(--active-verse-colour) 40%, var(--color-border));
 }
 
 /* Verse-coloured top stripe — sits inside the rounded corners via the
    same radius on its own top edge. Hidden on cards where revealing the
-   verse colour would leak the answer (Citation pre-reveal, etc.).
-   Thickens slightly on reveal alongside the surface wash. */
+   verse colour would leak the answer (Citation pre-reveal, etc.). The
+   card surface itself stays the same front/back so the reveal doesn't
+   flicker; the answer state shows through the chips and the dotted
+   `hr.type` divider tinting picked up below. */
 .card-box::before {
   content: '';
   position: absolute;
@@ -277,11 +269,6 @@ const composedMissing = computed(() => props.card.composed === null)
   height: 3px;
   background: var(--active-verse-colour);
   border-radius: 6px 6px 0 0;
-  transition: height 0.18s ease;
-}
-
-.card-box.revealed::before {
-  height: 5px;
 }
 
 .card-box.no-verse-accent::before {
