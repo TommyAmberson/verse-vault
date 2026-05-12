@@ -8948,31 +8948,27 @@
       "chapter": 12,
       "verse": 40,
       "phraseWordCounts": [
-        30
+        31
       ],
       "annotations": [
         {
-          "wordIndex": 0,
+          "wordIndex": 2,
           "kind": "bold"
         },
         {
-          "wordIndex": 1,
+          "wordIndex": 6,
           "kind": "bold"
         },
         {
-          "wordIndex": 5,
+          "wordIndex": 8,
           "kind": "bold"
         },
         {
-          "wordIndex": 7,
-          "kind": "bold"
-        },
-        {
-          "wordIndex": 21,
+          "wordIndex": 22,
           "kind": "bold"
         }
       ],
-      "ftvWordCount": 1,
+      "ftvWordCount": 2,
       "clubs": []
     },
     {
@@ -9506,7 +9502,7 @@
           "kind": "bold"
         },
         {
-          "wordIndex": 22,
+          "wordIndex": 21,
           "kind": "bold"
         }
       ],
@@ -11465,7 +11461,7 @@
       ],
       "annotations": [
         {
-          "wordIndex": 17,
+          "wordIndex": 16,
           "kind": "boldItalic"
         }
       ],
@@ -11481,7 +11477,7 @@
       ],
       "annotations": [
         {
-          "wordIndex": 11,
+          "wordIndex": 10,
           "kind": "boldItalic"
         }
       ],

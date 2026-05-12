@@ -1990,7 +1990,7 @@
         14
       ],
       "annotations": [],
-      "ftvWordCount": 15,
+      "ftvWordCount": 0,
       "clubs": []
     },
     {
@@ -2728,7 +2728,7 @@
       "chapter": 2,
       "verse": 20,
       "phraseWordCounts": [
-        18
+        19
       ],
       "annotations": [
         {
@@ -2737,6 +2737,10 @@
         },
         {
           "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
           "kind": "bold"
         }
       ],
@@ -3602,7 +3606,7 @@
       "chapter": 4,
       "verse": 25,
       "phraseWordCounts": [
-        21
+        22
       ],
       "annotations": [
         {
@@ -3767,19 +3771,15 @@
       "chapter": 5,
       "verse": 1,
       "phraseWordCounts": [
-        7
+        8
       ],
       "annotations": [
         {
-          "wordIndex": 0,
-          "kind": "bold"
-        },
-        {
-          "wordIndex": 1,
+          "wordIndex": 2,
           "kind": "bold"
         }
       ],
-      "ftvWordCount": 1,
+      "ftvWordCount": 2,
       "clubs": [
         300
       ]
@@ -7831,7 +7831,7 @@
         14
       ],
       "annotations": [],
-      "ftvWordCount": 15,
+      "ftvWordCount": 0,
       "clubs": []
     },
     {
