@@ -145,7 +145,7 @@ const composedMissing = computed(() => props.card.composed === null)
          output, never user input. -->
     <template v-else>
     <div v-if="card.kind === 'PhraseFill'" class="centered">
-      <div class="ref small" v-html="refHtml" />
+      <div class="ref" v-html="refHtml" />
       <hr />
       <div class="verse-text" :style="{ color: verseTextColour }">
         <template v-for="(phrase, i) in phraseHtml" :key="i">
@@ -177,7 +177,7 @@ const composedMissing = computed(() => props.card.composed === null)
     </div>
 
     <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
-      <div class="ref small" v-html="refHtml" />
+      <div class="ref" v-html="refHtml" />
       <hr />
       <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
       <template v-if="revealed">
@@ -188,7 +188,7 @@ const composedMissing = computed(() => props.card.composed === null)
     </div>
 
     <div v-else-if="card.kind === 'VerseInClub'" class="centered">
-      <div class="ref small" v-html="refHtml" />
+      <div class="ref" v-html="refHtml" />
       <hr />
       <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
       <template v-if="revealed">
@@ -332,29 +332,20 @@ const composedMissing = computed(() => props.card.composed === null)
   align-items: center;
 }
 
-/* Headline-style ref for cards where the reference is the focus
-   (VerseAtVerseRef / Recitation prompts, Citation / VerseInChapter /
-   VerseInBook answers). Book + chapter render in the neutral text
-   colour so the only accent in the line is the verse-number digit
-   (which picks up the verse colour via its own inline rule). */
+/* Single ref style across all card kinds. A moderate headline — bigger
+   than body so it reads as the title of the card, smaller than a
+   dominant header so it doesn't overpower the verse text on cards
+   where the verse is the real focus (PhraseFill / VerseInHeading).
+   Book + chapter render in the neutral text colour so the only accent
+   in the line is the verse-number digit (which picks up the verse
+   colour via its own inline rule). */
 .ref {
   font-weight: 600;
   color: var(--color-text);
-  font-size: 1.75rem;
+  font-size: 1.4rem;
   text-align: center;
   align-self: stretch;
   letter-spacing: 0.01em;
-}
-
-/* Context-style ref for cards where the reference is just a label
-   alongside the verse text (PhraseFill, VerseInHeading, VerseInClub).
-   Kept compact and muted so it doesn't compete with the main prompt. */
-.ref.small {
-  font-size: 0.95rem;
-  color: var(--color-muted);
-  font-weight: 400;
-  text-align: center;
-  align-self: stretch;
 }
 
 /* `?` placeholder for ref parts that are the answer being tested, and
