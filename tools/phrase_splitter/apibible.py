@@ -228,6 +228,24 @@ _ENTITIES = {
     "&#39;": "'", "&apos;": "'",
 }
 
+# `</p>` is a block boundary — insert a space even when followed by
+# raw text rather than another tag.
+_PARAGRAPH_CLOSE_RE = re.compile(r"</p\s*>", re.IGNORECASE)
+
+# Open-tag preceded by a word character or another tag's `>` signals
+# a real content-block transition (``For<span class="it">as</span>``
+# or ``</span><span>``) and needs a separating space. Opening tags
+# preceded by punctuation stay tight (``"<span class="it">Let</span>``
+# is meant as ``"Let``, not ``" Let``).
+_OPEN_TAG_NEEDS_SPACE_RE = re.compile(r"(?<=[A-Za-z0-9>])<(?!/)")
+
+# api.bible occasionally inserts a literal space between a curly
+# quote and the italicised supplied word it hugs (``" <i>It</i>``
+# and ``<i>Him.</i> "``). Standard NKJV typography is tight. Lookbehind
+# on the closing fold preserves nested-speech seams ``…inner.' "``.
+_CURLY_OPEN_BEFORE_WS_RE = re.compile(r"([“‘])\s+(?![“‘])")
+_WS_BEFORE_CURLY_CLOSE_RE = re.compile(r"(?<![“‘”’\"'])\s+([”’])")
+
 
 def _decode_entities(s: str) -> str:
     for k, v in _ENTITIES.items():
@@ -236,45 +254,25 @@ def _decode_entities(s: str) -> str:
 
 
 def _strip_to_text(chunk: str) -> str:
-    """Drop tags, injecting a space at the boundaries that separate
-    distinct content blocks but *not* at the seams that interrupt a
-    single word.
+    """Strip api.bible's HTML to plain text the rest of the pipeline
+    can tokenise. Five passes:
 
-    api.bible's HTML has three relevant patterns:
+    1. ``</p>`` → space (block boundary).
+    2. Insert a separator before an opening tag when preceded by
+       word/``>`` (real content transition; everywhere else the tag
+       merely wraps the next character).
+    3. Drop the remaining tags.
+    4-5. Fold api.bible's stray spaces between curly quotes and the
+       italicised supplied words they hug.
 
-    * ``Foo<span>bar</span>`` — text → opening tag. ``foo`` and the
-      span content are separate words and need a space between them
-      (e.g. ``“For<span class="it">as</span>`` in Isa 55:9 becomes
-      ``“Foras`` with a naive strip).
-    * ``<span>foo</span><span>bar</span>`` — close → open. Two
-      separate content blocks; need a space between them (Acts 9:4
-      serves ``</span><span>`` between ``Saul,`` and ``why``).
-    * ``<span>Lord</span>'s`` — close → text. The closing tag merely
-      ends a typography wrapper around a single word; ``'s`` is the
-      possessive that follows the same word. No space wanted.
-
-    The rule that fits all three: insert a space before an opening
-    tag only when it's preceded by a word character (text ending mid-
-    flow) or a closing tag's ``>`` (block-to-block transition). Don't
-    insert when preceded by punctuation — opening quotes etc. are
-    meant to sit tight against the following word
-    (``"<span class="it">Let</span>`` → ``"Let``, not ``" Let``).
-    Closing tags drop without a leading space (preserves
-    ``<span>Lord</span>'s``). ``</p>`` always inserts a space
-    (block boundary even when followed by raw text)."""
-    chunk = re.sub(r"</p\s*>", " ", chunk, flags=re.IGNORECASE)
-    chunk = re.sub(r"(?<=[A-Za-z0-9>])<(?!/)", " <", chunk)
+    The matching runtime fold lives in
+    ``packages/api/src/lib/apibible-cache.ts``; the two have to agree
+    or the deck's phraseWordCounts will misalign."""
+    chunk = _PARAGRAPH_CLOSE_RE.sub(" ", chunk)
+    chunk = _OPEN_TAG_NEEDS_SPACE_RE.sub(" <", chunk)
     chunk = _TAG_RE.sub("", chunk)
-    # api.bible occasionally inserts a literal space between curly
-    # quotation marks and the italicised supplied word they hug:
-    # ``“ <i>It</i>`` and ``<i>Him.</i> ”``. Standard NKJV typography
-    # has no such space (``"It`` / ``Him."``). Strip them here so
-    # downstream tokenisers see the canonical tight form.
-    # Preserve the legitimate space between adjacent closing quotes
-    # at the end of nested speech (``...inner.' "``): the lookbehind
-    # skips stripping when the preceding character is itself a quote.
-    chunk = re.sub(r"([“‘])\s+(?![“‘])", r"\1", chunk)
-    chunk = re.sub(r"(?<![“‘”’\"'])\s+([”’])", r"\1", chunk)
+    chunk = _CURLY_OPEN_BEFORE_WS_RE.sub(r"\1", chunk)
+    chunk = _WS_BEFORE_CURLY_CLOSE_RE.sub(r"\1", chunk)
     return _decode_entities(chunk)
 
 

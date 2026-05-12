@@ -29,6 +29,24 @@ function applyPatches(bibleId: string, passageId: string, html: string): string 
   return out;
 }
 
+// api.bible occasionally inserts a literal space between curly quote
+// marks and the italicised supplied word they hug:
+//   " <span class="it">It</span>"   and   <span class="it">Him.</span> "
+// Standard NKJV typography is tight (`"It` / `Him."`). Strip the
+// space here so the runtime tokeniser produces the same token count
+// the deck's `phraseWordCounts` was generated against — see the
+// matching folds in tools/phrase_splitter/apibible.py `_strip_to_text`.
+// Leaving them in would misalign phrase boundaries on every verse
+// where api.bible wraps a supplied word in italics adjacent to a quote.
+const _CURLY_OPEN_BEFORE_TAG = /([“‘])\s+(?=<)/g;
+const _CURLY_CLOSE_AFTER_TAG = />\s+([”’])/g;
+
+function tightenCurlyQuotes(html: string): string {
+  return html
+    .replace(_CURLY_OPEN_BEFORE_TAG, '$1')
+    .replace(_CURLY_CLOSE_AFTER_TAG, '>$1');
+}
+
 /**
  * Server-side cache for api.bible content, backed by SQLite. The TOS
  * (API.Bible Minimum Acceptable Use Agreement) requires that cached
@@ -98,7 +116,7 @@ export class ApibibleCache {
       },
       (now) => this.fetchAndCachePassage(bibleId, passageId, now),
     );
-    return applyPatches(bibleId, passageId, html);
+    return tightenCurlyQuotes(applyPatches(bibleId, passageId, html));
   }
 
   /** Section list for a book, cache-aware. */
