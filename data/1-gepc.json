@@ -1582,15 +1582,11 @@
       "chapter": 4,
       "verse": 1,
       "phraseWordCounts": [
-        17
+        18
       ],
       "annotations": [
         {
-          "wordIndex": 0,
-          "kind": "bold"
-        },
-        {
-          "wordIndex": 7,
+          "wordIndex": 8,
           "kind": "bold"
         }
       ],
@@ -3272,6 +3268,10 @@
       "annotations": [
         {
           "wordIndex": 3,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 13,
           "kind": "boldItalic"
         },
         {

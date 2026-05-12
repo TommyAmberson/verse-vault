@@ -4774,12 +4774,7 @@
       "phraseWordCounts": [
         23
       ],
-      "annotations": [
-        {
-          "wordIndex": 22,
-          "kind": "bold"
-        }
-      ],
+      "annotations": [],
       "ftvWordCount": 2,
       "clubs": []
     },
@@ -4790,12 +4785,7 @@
       "phraseWordCounts": [
         13
       ],
-      "annotations": [
-        {
-          "wordIndex": 11,
-          "kind": "bold"
-        }
-      ],
+      "annotations": [],
       "ftvWordCount": 2,
       "clubs": []
     },
@@ -4967,10 +4957,6 @@
       "annotations": [
         {
           "wordIndex": 4,
-          "kind": "bold"
-        },
-        {
-          "wordIndex": 24,
           "kind": "bold"
         },
         {
@@ -6690,10 +6676,6 @@
           "kind": "bold"
         },
         {
-          "wordIndex": 14,
-          "kind": "bold"
-        },
-        {
           "wordIndex": 22,
           "kind": "bold"
         },
@@ -7442,10 +7424,6 @@
       "annotations": [
         {
           "wordIndex": 9,
-          "kind": "bold"
-        },
-        {
-          "wordIndex": 23,
           "kind": "bold"
         }
       ],

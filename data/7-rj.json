@@ -7336,10 +7336,6 @@
         {
           "wordIndex": 0,
           "kind": "bold"
-        },
-        {
-          "wordIndex": 18,
-          "kind": "bold"
         }
       ],
       "ftvWordCount": 1,
@@ -7572,10 +7568,6 @@
       "annotations": [
         {
           "wordIndex": 17,
-          "kind": "bold"
-        },
-        {
-          "wordIndex": 19,
           "kind": "bold"
         }
       ],
