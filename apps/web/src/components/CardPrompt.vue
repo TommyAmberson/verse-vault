@@ -19,14 +19,6 @@ const verseColour = computed(() => {
   return `var(${VERSE_COLOUR_VARS[idx]})`
 })
 
-/** Verse text colour. Suppressed (falls back to neutral text) on cards
- *  whose answer is the verse number itself — VerseAtVerseRef and
- *  Citation pre-reveal — so the verse-colour palette doesn't leak which
- *  verse this is. Same gate used by the top-stripe accent. */
-const verseTextColour = computed(() =>
-  refParts.value.showVerse ? verseColour.value : undefined,
-)
-
 /** Per-card visibility of each ref component. For "what chapter?" /
  *  "what book?" / "what verse?" / Citation, the asked-about parts stay
  *  blanked until reveal so the prompt doesn't leak the answer. Other
@@ -144,91 +136,91 @@ const composedMissing = computed(() => props.card.composed === null)
          keyword <b>/<i> annotations. Source is the server-composed
          output, never user input. -->
     <template v-else>
-    <div v-if="card.kind === 'PhraseFill'" class="centered">
-      <div class="ref" v-html="refHtml" />
-      <hr />
-      <div class="verse-text" :style="{ color: verseTextColour }">
-        <template v-for="(phrase, i) in phraseHtml" :key="i">
-          <span v-if="i === card.position && !revealed" class="phrase-hidden">___</span><span v-else-if="i === card.position" class="phrase-revealed" v-html="phrase" /><span v-else v-html="phrase" /><template v-if="i &lt; phraseHtml.length - 1">{{ ' ' }}</template>
-        </template>
+      <div v-if="card.kind === 'PhraseFill'" class="centered">
+        <div class="ref" v-html="refHtml" />
+        <hr />
+        <div class="verse-text">
+          <template v-for="(phrase, i) in phraseHtml" :key="i">
+            <span v-if="i === card.position && !revealed" class="phrase-hidden">___</span><span v-else-if="i === card.position" class="phrase-revealed" v-html="phrase" /><span v-else v-html="phrase" /><template v-if="i &lt; phraseHtml.length - 1">{{ ' ' }}</template>
+          </template>
+        </div>
       </div>
-    </div>
 
-    <!-- VerseAtVerseRef is the atomic "what verse?" card — verse text
-         is the prompt, verse number is the answer. Same layout
-         pattern as VerseInChapter / VerseInBook / Citation. -->
-    <div v-else-if="card.kind === 'VerseAtVerseRef'" class="centered">
-      <div class="ref" v-html="refHtml" />
-      <hr v-if="revealed" class="type" />
-      <hr v-else />
-      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
-    </div>
+      <!-- VerseAtVerseRef is the atomic "what verse?" card — verse text
+           is the prompt, verse number is the answer. Same layout
+           pattern as VerseInChapter / VerseInBook / Citation. -->
+      <div v-else-if="card.kind === 'VerseAtVerseRef'" class="centered">
+        <div class="ref" v-html="refHtml" />
+        <hr v-if="revealed" class="type" />
+        <hr v-else />
+        <div class="verse-text" v-html="verseHtml" />
+      </div>
 
-    <!-- Ref-as-answer cards: ref is always present, but the asked-about
-         part(s) render as `?` until reveal. The `?` placeholder is the
-         prompt itself — no separate "what chapter?" hint needed. The
-         dotted hr appears on reveal as the prompt/answer divider; a
-         solid hr stands in pre-reveal to anchor ref above text. -->
-    <div v-else-if="card.kind === 'VerseInChapter' || card.kind === 'VerseInBook'" class="centered">
-      <div class="ref" v-html="refHtml" />
-      <hr v-if="revealed" class="type" />
-      <hr v-else />
-      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
-    </div>
+      <!-- Ref-as-answer cards: ref is always present, but the asked-about
+           part(s) render as `?` until reveal. The `?` placeholder is the
+           prompt itself — no separate "what chapter?" hint needed. The
+           dotted hr appears on reveal as the prompt/answer divider; a
+           solid hr stands in pre-reveal to anchor ref above text. -->
+      <div v-else-if="card.kind === 'VerseInChapter' || card.kind === 'VerseInBook'" class="centered">
+        <div class="ref" v-html="refHtml" />
+        <hr v-if="revealed" class="type" />
+        <hr v-else />
+        <div class="verse-text" v-html="verseHtml" />
+      </div>
 
-    <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
-      <div class="ref" v-html="refHtml" />
-      <hr />
-      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
-      <template v-if="revealed">
-        <hr class="type" />
-        <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
-      </template>
-      <div v-else class="placeholder">…what heading?…</div>
-    </div>
+      <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
+        <div class="ref" v-html="refHtml" />
+        <hr />
+        <div class="verse-text" v-html="verseHtml" />
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
+        </template>
+        <div v-else class="placeholder">…what heading?…</div>
+      </div>
 
-    <div v-else-if="card.kind === 'VerseInClub'" class="centered">
-      <div class="ref" v-html="refHtml" />
-      <hr />
-      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
-      <template v-if="revealed">
-        <hr class="type" />
-        <div class="answer">Club: {{ clubLabel }}</div>
-      </template>
-      <div v-else class="placeholder">…which club?…</div>
-    </div>
+      <div v-else-if="card.kind === 'VerseInClub'" class="centered">
+        <div class="ref" v-html="refHtml" />
+        <hr />
+        <div class="verse-text" v-html="verseHtml" />
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="answer">Club: {{ clubLabel }}</div>
+        </template>
+        <div v-else class="placeholder">…which club?…</div>
+      </div>
 
-    <div v-else-if="card.kind === 'Recitation'" class="centered">
-      <div class="ref" v-html="refHtml" />
-      <template v-if="revealed">
-        <hr class="type" />
-        <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
-      </template>
-      <div v-else class="placeholder">…recite the whole verse…</div>
-    </div>
+      <div v-else-if="card.kind === 'Recitation'" class="centered">
+        <div class="ref" v-html="refHtml" />
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="verse-text" v-html="verseHtml" />
+        </template>
+        <div v-else class="placeholder">…recite the whole verse…</div>
+      </div>
 
-    <div v-else-if="card.kind === 'Citation'" class="centered">
-      <div class="ref" v-html="refHtml" />
-      <hr v-if="revealed" class="type" />
-      <hr v-else />
-      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
-    </div>
+      <div v-else-if="card.kind === 'Citation'" class="centered">
+        <div class="ref" v-html="refHtml" />
+        <hr v-if="revealed" class="type" />
+        <hr v-else />
+        <div class="verse-text" v-html="verseHtml" />
+      </div>
 
-    <div v-else-if="card.kind === 'Ftv'" class="centered">
-      <div v-if="revealed && card.withCitation" class="ref" v-html="refHtml" />
-      <div class="verse-text ftv" :style="{ color: verseTextColour }" v-html="`${ftvHtml ?? ''}…`" />
-      <template v-if="revealed">
-        <hr class="type" />
-        <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
-      </template>
-      <div v-else class="placeholder">…continue the verse…</div>
-    </div>
+      <div v-else-if="card.kind === 'Ftv'" class="centered">
+        <div v-if="revealed && card.withCitation" class="ref" v-html="refHtml" />
+        <div class="verse-text ftv" v-html="`${ftvHtml ?? ''}…`" />
+        <template v-if="revealed">
+          <hr class="type" />
+          <div class="verse-text" v-html="verseHtml" />
+        </template>
+        <div v-else class="placeholder">…continue the verse…</div>
+      </div>
 
-    <div v-else-if="card.kind === 'Reading'" class="centered">
-      <div class="ref" v-html="refHtml" />
-      <hr />
-      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
-    </div>
+      <div v-else-if="card.kind === 'Reading'" class="centered">
+        <div class="ref" v-html="refHtml" />
+        <hr />
+        <div class="verse-text" v-html="verseHtml" />
+      </div>
     </template>
   </div>
 </template>
@@ -241,6 +233,12 @@ const composedMissing = computed(() => props.card.composed === null)
    hr.type) layered onto our themed colour tokens so it adapts to
    light/dark via the same vars. */
 .card-box {
+  /* Verse text inherits `--active-verse-colour`; `no-verse-accent` flips
+     it back to neutral pre-reveal on the cards whose answer is the
+     verse number (VerseAtVerseRef, Citation). Child elements with their
+     own `color` (the ref, the .deck label, .answer, etc.) override. */
+  --chip-bg: color-mix(in oklch, var(--color-text) 16%, transparent);
+
   position: relative;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
@@ -253,6 +251,10 @@ const composedMissing = computed(() => props.card.composed === null)
   font-size: 1.25rem;
   line-height: 1.6;
   text-align: center;
+  color: var(--active-verse-colour);
+}
+
+.card-box.no-verse-accent {
   color: var(--color-text);
 }
 
@@ -312,7 +314,7 @@ const composedMissing = computed(() => props.card.composed === null)
    made the chip nearly invisible). */
 .phrase-hidden,
 .phrase-revealed {
-  background: color-mix(in oklch, var(--color-text) 16%, transparent);
+  background: var(--chip-bg);
   border-radius: 0.25em;
   padding: 0.1em 0.3em;
   -webkit-box-decoration-break: clone;
@@ -355,7 +357,7 @@ const composedMissing = computed(() => props.card.composed === null)
    phrase chip so all four chip variants read identically. */
 .ref :deep(.ref-hidden),
 .ref :deep(.ref-revealed) {
-  background: color-mix(in oklch, var(--color-text) 16%, transparent);
+  background: var(--chip-bg);
   border-radius: 0.25em;
   padding: 0.1em 0.3em;
   -webkit-box-decoration-break: clone;
