@@ -50,7 +50,7 @@ export const MATERIALS: readonly Material[] = [
     id: 'nkjv-ot-survey',
     title: 'OT Survey (NKJV)',
     description:
-      'Year 6: curated passages across Genesis through the Minor Prophets (779 verses).',
+      'Year 6: curated passages across Genesis through the Minor Prophets (780 verses).',
   },
   {
     id: 'nkjv-rj',

@@ -265,7 +265,7 @@
       "book": "Micah",
       "number": 7,
       "start_verse": 18,
-      "end_verse": 18
+      "end_verse": 19
     },
     {
       "book": "Proverbs",
@@ -7300,6 +7300,17 @@
       "verse": 18,
       "phraseWordCounts": [
         31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Micah",
+      "chapter": 7,
+      "verse": 19,
+      "phraseWordCounts": [
+        24
       ],
       "annotations": [],
       "ftvWordCount": 0,
