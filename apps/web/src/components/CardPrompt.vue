@@ -108,7 +108,7 @@ const phraseHtml = computed(() => props.card.composed?.phraseHtml ?? [])
 const verseHtml = computed(() => phraseHtml.value.join(' '))
 const ftvHtml = computed(() => props.card.composed?.ftvHtml ?? null)
 const headingTitle = computed(() => props.card.composed?.headings[0]?.title ?? null)
-const clubLabel = computed(() => props.card.verse.clubs[0] ?? '')
+const clubLabel = computed(() => props.card.tier ?? props.card.verse.clubs[0] ?? '')
 const composedMissing = computed(() => props.card.composed === null)
 </script>
 
