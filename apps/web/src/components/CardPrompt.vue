@@ -19,21 +19,6 @@ const verseColour = computed(() => {
   return `var(${VERSE_COLOUR_VARS[idx]})`
 })
 
-/** Border colour for the flashcard box. Tracks the verse-number colour
- *  whenever the verse number is visible (which is always except on a
- *  Citation card before reveal); otherwise falls back to the neutral
- *  border tone so the hue doesn't leak the answer.
- *
- *  We lighten the verse hue by ~18% white via color-mix so the thin
- *  border reads at the same perceived brightness as the anti-aliased
- *  verse-number text. Without the lift the border looks noticeably
- *  darker on dark backgrounds even though the CSS colour matches. */
-const borderColour = computed(() =>
-  refParts.value.showVerse
-    ? `color-mix(in oklch, ${verseColour.value} 82%, white)`
-    : 'var(--color-border)',
-)
-
 /** Per-card visibility of each ref component. For "what chapter?" /
  *  "what book?" / "what verse?" / Citation, the asked-about parts stay
  *  blanked until reveal so the prompt doesn't leak the answer. Other
@@ -64,15 +49,31 @@ function escapeHtml(s: string): string {
 /** Renders the reference with each part either revealed or shown as a
  *  `?` placeholder. The verse number references the same `--active-
  *  verse-colour` custom property as the card-box border, so the two
- *  are guaranteed to render with the identical CSS value. */
+ *  are guaranteed to render with the identical CSS value.
+ *
+ *  When a ref part is the asked-about answer (was a `?` on the prompt
+ *  side), the revealed value is wrapped in `.ref-revealed` so it carries
+ *  the same soft-accent chip the `?` placeholder did — the eye lands on
+ *  the part that just filled in. */
 const refHtml = computed(() => {
   const { showBook, showChapter, showVerse } = refParts.value
+  const kind = props.card.kind
   const hidden = '<span class="ref-hidden">?</span>'
-  const book = showBook ? escapeHtml(props.card.verse.book) : hidden
-  const chap = showChapter ? String(props.card.verse.chapter) : hidden
-  const verse = showVerse
-    ? `<span class="verse-number">${props.card.verse.verse}</span>`
-    : hidden
+  const wrap = (inner: string) => `<span class="ref-revealed">${inner}</span>`
+  const isAnswer = (part: 'book' | 'chap' | 'verse') => {
+    if (!props.revealed) return false
+    if (kind === 'Citation') return true
+    if (kind === 'VerseInBook') return part === 'book'
+    if (kind === 'VerseInChapter') return part === 'chap'
+    if (kind === 'VerseAtVerseRef') return part === 'verse'
+    return false
+  }
+  const bookText = escapeHtml(props.card.verse.book)
+  const chapText = String(props.card.verse.chapter)
+  const verseText = `<span class="verse-number">${props.card.verse.verse}</span>`
+  const book = !showBook ? hidden : (isAnswer('book') ? wrap(bookText) : bookText)
+  const chap = !showChapter ? hidden : (isAnswer('chap') ? wrap(chapText) : chapText)
+  const verse = !showVerse ? hidden : (isAnswer('verse') ? wrap(verseText) : verseText)
   return `${book} ${chap}:${verse}`
 })
 
@@ -112,150 +113,197 @@ const composedMissing = computed(() => props.card.composed === null)
 </script>
 
 <template>
-  <div class="prompt">
-    <div class="meta">{{ promptLabel }}</div>
+  <!-- The bordered content box carries a thin verse-coloured top stripe
+       so each verse has a consistent visual identity, sitting on a
+       plain card surface — same shape Anki's Verse note type renders
+       with (centred Arial, .deck label top-right, solid <hr> between
+       ref and text, dotted <hr class="type"> as the prompt/answer
+       divider). The verse-number span and the top stripe both pull
+       `--active-verse-colour` from this scope, so they always agree. -->
+  <div
+    class="card-box"
+    :class="{ 'no-verse-accent': !refParts.showVerse }"
+    :style="{ '--active-verse-colour': verseColour }"
+  >
+    <div class="deck">{{ promptLabel }}</div>
 
-    <!-- The bordered content box wears the verse-number colour on its
-         edge so each verse has a consistent visual identity. When the
-         verse number is hidden (Citation pre-reveal) the border falls
-         back to neutral so it doesn't leak the answer. Both the border
-         and the verse-number span resolve `--active-verse-colour` from
-         this scope, guaranteeing they render the same hue. -->
-    <div class="card-box" :style="{ '--active-verse-colour': verseColour, borderColor: borderColour }">
-      <div v-if="composedMissing" class="placeholder">
-        Canonical text unavailable. Set <code>BIBLE_API_KEY</code> on the server to render NKJV verses.
-      </div>
-
-      <!-- v-html renders api.bible's NKJV typography (small caps for LORD,
-           translator italics, divine-name bold) layered with the user's
-           keyword <b>/<i> annotations. Source is the server-composed
-           output, never user input. -->
-      <template v-else>
-      <div v-if="card.kind === 'PhraseFill'" class="centered">
-        <div class="ref small" v-html="refHtml" />
-        <div class="verse-text" :style="{ color: verseColour }">
-          <template v-for="(phrase, i) in phraseHtml" :key="i">
-            <span v-if="i === card.position && !revealed" class="phrase-hidden">___</span><span v-else v-html="phrase" /><template v-if="i &lt; phraseHtml.length - 1">{{ ' ' }}</template>
-          </template>
-        </div>
-      </div>
-
-      <!-- VerseAtVerseRef is the atomic "what verse?" card — verse text
-           is the prompt, verse number is the answer. Same layout
-           pattern as VerseInChapter / VerseInBook / Citation. -->
-      <div v-else-if="card.kind === 'VerseAtVerseRef'" class="centered">
-        <div class="ref" v-html="refHtml" />
-        <hr v-if="revealed" class="type" />
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-      </div>
-
-      <!-- Ref-as-answer cards: ref is always present, but the asked-about
-           part(s) render as `?` until reveal. The `?` placeholder is the
-           prompt itself — no separate "what chapter?" hint needed. hr
-           appears on reveal as the prompt/answer divider. -->
-      <div v-else-if="card.kind === 'VerseInChapter' || card.kind === 'VerseInBook'" class="centered">
-        <div class="ref" v-html="refHtml" />
-        <hr v-if="revealed" class="type" />
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-      </div>
-
-      <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
-        <div class="ref small" v-html="refHtml" />
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-        <template v-if="revealed">
-          <hr class="type" />
-          <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
-        </template>
-        <div v-else class="placeholder">…what heading?…</div>
-      </div>
-
-      <div v-else-if="card.kind === 'VerseInClub'" class="centered">
-        <div class="ref small" v-html="refHtml" />
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-        <template v-if="revealed">
-          <hr class="type" />
-          <div class="answer">Club: {{ clubLabel }}</div>
-        </template>
-        <div v-else class="placeholder">…which club?…</div>
-      </div>
-
-      <div v-else-if="card.kind === 'Recitation'" class="centered">
-        <div class="ref" v-html="refHtml" />
-        <template v-if="revealed">
-          <hr class="type" />
-          <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-        </template>
-        <div v-else class="placeholder">…recite the whole verse…</div>
-      </div>
-
-      <div v-else-if="card.kind === 'Citation'" class="centered">
-        <div class="ref" v-html="refHtml" />
-        <hr v-if="revealed" class="type" />
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-      </div>
-
-      <div v-else-if="card.kind === 'Ftv'" class="centered">
-        <div v-if="revealed && card.withCitation" class="ref" v-html="refHtml" />
-        <div class="verse-text ftv" :style="{ color: verseColour }" v-html="`${ftvHtml ?? ''}…`" />
-        <template v-if="revealed">
-          <hr class="type" />
-          <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-        </template>
-        <div v-else class="placeholder">…continue the verse…</div>
-      </div>
-
-      <div v-else-if="card.kind === 'Reading'" class="centered">
-        <div class="ref" v-html="refHtml" />
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
-      </div>
-      </template>
+    <div v-if="composedMissing" class="placeholder">
+      Canonical text unavailable. Set <code>BIBLE_API_KEY</code> on the server to render NKJV verses.
     </div>
+
+    <!-- v-html renders api.bible's NKJV typography (small caps for LORD,
+         translator italics, divine-name bold) layered with the user's
+         keyword <b>/<i> annotations. Source is the server-composed
+         output, never user input. -->
+    <template v-else>
+    <div v-if="card.kind === 'PhraseFill'" class="centered">
+      <div class="ref small" v-html="refHtml" />
+      <hr />
+      <div class="verse-text" :style="{ color: verseColour }">
+        <template v-for="(phrase, i) in phraseHtml" :key="i">
+          <span v-if="i === card.position && !revealed" class="phrase-hidden">___</span><span v-else-if="i === card.position" class="phrase-revealed" v-html="phrase" /><span v-else v-html="phrase" /><template v-if="i &lt; phraseHtml.length - 1">{{ ' ' }}</template>
+        </template>
+      </div>
+    </div>
+
+    <!-- VerseAtVerseRef is the atomic "what verse?" card — verse text
+         is the prompt, verse number is the answer. Same layout
+         pattern as VerseInChapter / VerseInBook / Citation. -->
+    <div v-else-if="card.kind === 'VerseAtVerseRef'" class="centered">
+      <div class="ref" v-html="refHtml" />
+      <hr v-if="revealed" class="type" />
+      <hr v-else />
+      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+    </div>
+
+    <!-- Ref-as-answer cards: ref is always present, but the asked-about
+         part(s) render as `?` until reveal. The `?` placeholder is the
+         prompt itself — no separate "what chapter?" hint needed. The
+         dotted hr appears on reveal as the prompt/answer divider; a
+         solid hr stands in pre-reveal to anchor ref above text. -->
+    <div v-else-if="card.kind === 'VerseInChapter' || card.kind === 'VerseInBook'" class="centered">
+      <div class="ref" v-html="refHtml" />
+      <hr v-if="revealed" class="type" />
+      <hr v-else />
+      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+    </div>
+
+    <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
+      <div class="ref small" v-html="refHtml" />
+      <hr />
+      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      <template v-if="revealed">
+        <hr class="type" />
+        <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
+      </template>
+      <div v-else class="placeholder">…what heading?…</div>
+    </div>
+
+    <div v-else-if="card.kind === 'VerseInClub'" class="centered">
+      <div class="ref small" v-html="refHtml" />
+      <hr />
+      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      <template v-if="revealed">
+        <hr class="type" />
+        <div class="answer">Club: {{ clubLabel }}</div>
+      </template>
+      <div v-else class="placeholder">…which club?…</div>
+    </div>
+
+    <div v-else-if="card.kind === 'Recitation'" class="centered">
+      <div class="ref" v-html="refHtml" />
+      <template v-if="revealed">
+        <hr class="type" />
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      </template>
+      <div v-else class="placeholder">…recite the whole verse…</div>
+    </div>
+
+    <div v-else-if="card.kind === 'Citation'" class="centered">
+      <div class="ref" v-html="refHtml" />
+      <hr v-if="revealed" class="type" />
+      <hr v-else />
+      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+    </div>
+
+    <div v-else-if="card.kind === 'Ftv'" class="centered">
+      <div v-if="revealed && card.withCitation" class="ref" v-html="refHtml" />
+      <div class="verse-text ftv" :style="{ color: verseColour }" v-html="`${ftvHtml ?? ''}…`" />
+      <template v-if="revealed">
+        <hr class="type" />
+        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      </template>
+      <div v-else class="placeholder">…continue the verse…</div>
+    </div>
+
+    <div v-else-if="card.kind === 'Reading'" class="centered">
+      <div class="ref" v-html="refHtml" />
+      <hr />
+      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+    </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.prompt {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.meta {
-  font-size: 0.85rem;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  text-align: left;
-}
-
-/* Verse-coloured flashcard box — the only bordered surface on the
-   page. Hugs its content; empty space below before reveal lives
-   outside this box, on the page. */
+/* Anki-faithful card surface: Arial body, plain bg-card surface, a
+   single 1px neutral border, a thin verse-coloured stripe along the
+   top edge for identity, and centred content. Mirrors the Verse note
+   type's baseline CSS (Arial 20px, black-on-white, centred, dotted
+   hr.type) layered onto our themed colour tokens so it adapts to
+   light/dark via the same vars. */
 .card-box {
-  border-width: 5px;
-  border-style: solid;
-  border-radius: 10px;
-  padding: 2rem 1.75rem;
+  position: relative;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 2.5rem 2rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  background: var(--color-bg-card);
+  font-family: Arial, Helvetica, system-ui, sans-serif;
+  font-size: 1.25rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--color-text);
+}
+
+/* Verse-coloured top stripe — sits inside the rounded corners via the
+   same radius on its own top edge. Hidden on cards where revealing the
+   verse colour would leak the answer (Citation pre-reveal, etc.). */
+.card-box::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--active-verse-colour);
+  border-radius: 6px 6px 0 0;
+}
+
+.card-box.no-verse-accent::before {
+  display: none;
 }
 
 @media (max-width: 600px) {
   .card-box {
-    border-width: 4px;
-    padding: 1.25rem 1rem;
-    border-radius: 8px;
+    padding: 2rem 1.25rem 1.5rem;
+    font-size: 1.1rem;
   }
 }
 
-/* PhraseFill blanks render inline within the verse-text run so the
-   surrounding phrases keep flowing naturally. */
-.phrase-hidden {
+/* Anki's `.deck { float: right; font-size: 10px; }`, restated with
+   absolute positioning so it sits in the top-right corner of the card
+   surface without disrupting the centred content flow. Uppercased +
+   tracked so it reads as a label, not a sentence. */
+.deck {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.85rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-family: Arial, Helvetica, system-ui, sans-serif;
+}
+
+/* PhraseFill blanks (and their reveal-side counterpart) render inline
+   within the verse-text run so the surrounding phrases keep flowing
+   naturally. The chip reads as a marker highlight rather than a UI
+   tag: em-scaled padding so it tracks the surrounding text size, a
+   soft radius, and `box-decoration-break: clone` so a multi-line
+   revealed phrase gets a fully-rounded chip on every line. The 0.1em
+   vertical padding stays inside `.verse-text`'s 1.6 line-height so
+   it doesn't push lines apart. */
+.phrase-hidden,
+.phrase-revealed {
   background: var(--color-accent-soft);
-  border-radius: 4px;
-  padding: 0 0.4rem;
+  border-radius: 0.25em;
+  padding: 0.1em 0.3em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.phrase-hidden {
   /* Cancel the verse colour cascade on the placeholder text only — the
      chrome stays visible regardless of the verse hue. */
   color: var(--color-text);
@@ -293,13 +341,20 @@ const composedMissing = computed(() => props.card.composed === null)
   align-self: stretch;
 }
 
-/* `?` placeholder for ref parts that are the answer being tested. Slightly
-   muted vs the surrounding revealed text so the question is visually clear
-   without being a giant chip like phrase-hidden. */
-.ref :deep(.ref-hidden) {
+/* `?` placeholder for ref parts that are the answer being tested, and
+   its reveal-side counterpart on the same ref. Em-scaled padding keeps
+   the chip proportional whether the ref is the big headline (1.75rem)
+   or the small label (0.95rem). */
+.ref :deep(.ref-hidden),
+.ref :deep(.ref-revealed) {
   background: var(--color-accent-soft);
-  border-radius: 4px;
-  padding: 0 0.4rem;
+  border-radius: 0.25em;
+  padding: 0.1em 0.3em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.ref :deep(.ref-hidden) {
   color: var(--color-muted);
   font-weight: 600;
 }
@@ -366,13 +421,20 @@ code {
   font-family: monospace;
 }
 
-/* Prompt-vs-answer divider, ported from the Anki deck's `hr.type` —
-   dotted to distinguish from any future solid-rule usage. Matches the
-   typography hint on the Anki cards. */
-hr.type {
+/* Solid hr — within-card section divider (ref above, verse text below).
+   Anki templates use a bare `<hr>` for this; we keep the same
+   semantics so the layout reads identically to a printed Anki card. */
+.card-box :deep(hr) {
   width: 100%;
   border: none;
-  border-top: 1px dotted var(--color-border);
+  border-top: 1px solid var(--color-border);
   margin: 0.25rem 0;
+}
+
+/* Dotted hr.type — the prompt/answer divider, ported from the Anki
+   deck's `hr.type`. Appears on reveal to mark "below this line is
+   the answer / the typed-in check / the supporting context". */
+.card-box :deep(hr.type) {
+  border-top: 1px dotted var(--color-border);
 }
 </style>
