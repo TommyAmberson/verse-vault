@@ -19,6 +19,14 @@ const verseColour = computed(() => {
   return `var(${VERSE_COLOUR_VARS[idx]})`
 })
 
+/** Verse text colour. Suppressed (falls back to neutral text) on cards
+ *  whose answer is the verse number itself — VerseAtVerseRef and
+ *  Citation pre-reveal — so the verse-colour palette doesn't leak which
+ *  verse this is. Same gate used by the top-stripe accent. */
+const verseTextColour = computed(() =>
+  refParts.value.showVerse ? verseColour.value : undefined,
+)
+
 /** Per-card visibility of each ref component. For "what chapter?" /
  *  "what book?" / "what verse?" / Citation, the asked-about parts stay
  *  blanked until reveal so the prompt doesn't leak the answer. Other
@@ -139,7 +147,7 @@ const composedMissing = computed(() => props.card.composed === null)
     <div v-if="card.kind === 'PhraseFill'" class="centered">
       <div class="ref small" v-html="refHtml" />
       <hr />
-      <div class="verse-text" :style="{ color: verseColour }">
+      <div class="verse-text" :style="{ color: verseTextColour }">
         <template v-for="(phrase, i) in phraseHtml" :key="i">
           <span v-if="i === card.position && !revealed" class="phrase-hidden">___</span><span v-else-if="i === card.position" class="phrase-revealed" v-html="phrase" /><span v-else v-html="phrase" /><template v-if="i &lt; phraseHtml.length - 1">{{ ' ' }}</template>
         </template>
@@ -153,7 +161,7 @@ const composedMissing = computed(() => props.card.composed === null)
       <div class="ref" v-html="refHtml" />
       <hr v-if="revealed" class="type" />
       <hr v-else />
-      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
     </div>
 
     <!-- Ref-as-answer cards: ref is always present, but the asked-about
@@ -165,13 +173,13 @@ const composedMissing = computed(() => props.card.composed === null)
       <div class="ref" v-html="refHtml" />
       <hr v-if="revealed" class="type" />
       <hr v-else />
-      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
     </div>
 
     <div v-else-if="card.kind === 'VerseInHeading'" class="centered">
       <div class="ref small" v-html="refHtml" />
       <hr />
-      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
       <template v-if="revealed">
         <hr class="type" />
         <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
@@ -182,7 +190,7 @@ const composedMissing = computed(() => props.card.composed === null)
     <div v-else-if="card.kind === 'VerseInClub'" class="centered">
       <div class="ref small" v-html="refHtml" />
       <hr />
-      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
       <template v-if="revealed">
         <hr class="type" />
         <div class="answer">Club: {{ clubLabel }}</div>
@@ -194,7 +202,7 @@ const composedMissing = computed(() => props.card.composed === null)
       <div class="ref" v-html="refHtml" />
       <template v-if="revealed">
         <hr class="type" />
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+        <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
       </template>
       <div v-else class="placeholder">…recite the whole verse…</div>
     </div>
@@ -203,15 +211,15 @@ const composedMissing = computed(() => props.card.composed === null)
       <div class="ref" v-html="refHtml" />
       <hr v-if="revealed" class="type" />
       <hr v-else />
-      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
     </div>
 
     <div v-else-if="card.kind === 'Ftv'" class="centered">
       <div v-if="revealed && card.withCitation" class="ref" v-html="refHtml" />
-      <div class="verse-text ftv" :style="{ color: verseColour }" v-html="`${ftvHtml ?? ''}…`" />
+      <div class="verse-text ftv" :style="{ color: verseTextColour }" v-html="`${ftvHtml ?? ''}…`" />
       <template v-if="revealed">
         <hr class="type" />
-        <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+        <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
       </template>
       <div v-else class="placeholder">…continue the verse…</div>
     </div>
@@ -219,7 +227,7 @@ const composedMissing = computed(() => props.card.composed === null)
     <div v-else-if="card.kind === 'Reading'" class="centered">
       <div class="ref" v-html="refHtml" />
       <hr />
-      <div class="verse-text" :style="{ color: verseColour }" v-html="verseHtml" />
+      <div class="verse-text" :style="{ color: verseTextColour }" v-html="verseHtml" />
     </div>
     </template>
   </div>
