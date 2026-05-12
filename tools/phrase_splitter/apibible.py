@@ -240,23 +240,41 @@ def _strip_to_text(chunk: str) -> str:
     distinct content blocks but *not* at the seams that interrupt a
     single word.
 
-    api.bible's HTML routinely concatenates adjacent inline spans
-    without whitespace, e.g. ``<span ...>water,</span><span ...>but
-    you shall…</span>`` — a naive tag strip glues those into
-    ``water,but``. Conversely it also wraps single words for typography
-    (``<span class="sc"><span class="bd">Lord</span></span>'s,``);
-    blindly inserting a space at every tag boundary would split
-    ``Lord's`` into ``Lord 's``.
+    api.bible's HTML has three relevant patterns:
 
-    Rule: insert a space at paragraph closes (always a block
-    boundary) and at any close-then-open tag adjacency
-    (``</a><b>``) — both signal "one content block ended, another
-    began". Otherwise just drop the tag and let any adjoining text
-    flow together (preserving possessives and small-caps wrapping).
-    Redundant whitespace collapses out at tokenisation."""
+    * ``Foo<span>bar</span>`` — text → opening tag. ``foo`` and the
+      span content are separate words and need a space between them
+      (e.g. ``“For<span class="it">as</span>`` in Isa 55:9 becomes
+      ``“Foras`` with a naive strip).
+    * ``<span>foo</span><span>bar</span>`` — close → open. Two
+      separate content blocks; need a space between them (Acts 9:4
+      serves ``</span><span>`` between ``Saul,`` and ``why``).
+    * ``<span>Lord</span>'s`` — close → text. The closing tag merely
+      ends a typography wrapper around a single word; ``'s`` is the
+      possessive that follows the same word. No space wanted.
+
+    The rule that fits all three: insert a space before an opening
+    tag only when it's preceded by a word character (text ending mid-
+    flow) or a closing tag's ``>`` (block-to-block transition). Don't
+    insert when preceded by punctuation — opening quotes etc. are
+    meant to sit tight against the following word
+    (``"<span class="it">Let</span>`` → ``"Let``, not ``" Let``).
+    Closing tags drop without a leading space (preserves
+    ``<span>Lord</span>'s``). ``</p>`` always inserts a space
+    (block boundary even when followed by raw text)."""
     chunk = re.sub(r"</p\s*>", " ", chunk, flags=re.IGNORECASE)
-    chunk = re.sub(r"</[^>]+><[^/][^>]*>", " ", chunk)
+    chunk = re.sub(r"(?<=[A-Za-z0-9>])<(?!/)", " <", chunk)
     chunk = _TAG_RE.sub("", chunk)
+    # api.bible occasionally inserts a literal space between curly
+    # quotation marks and the italicised supplied word they hug:
+    # ``“ <i>It</i>`` and ``<i>Him.</i> ”``. Standard NKJV typography
+    # has no such space (``"It`` / ``Him."``). Strip them here so
+    # downstream tokenisers see the canonical tight form.
+    # Preserve the legitimate space between adjacent closing quotes
+    # at the end of nested speech (``...inner.' "``): the lookbehind
+    # skips stripping when the preceding character is itself a quote.
+    chunk = re.sub(r"([“‘])\s+(?![“‘])", r"\1", chunk)
+    chunk = re.sub(r"(?<![“‘”’\"'])\s+([”’])", r"\1", chunk)
     return _decode_entities(chunk)
 
 
