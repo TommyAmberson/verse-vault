@@ -130,7 +130,7 @@ const composedMissing = computed(() => props.card.composed === null)
        `--active-verse-colour` from this scope, so they always agree. -->
   <div
     class="card-box"
-    :class="{ 'no-verse-accent': !refParts.showVerse }"
+    :class="{ 'no-verse-accent': !refParts.showVerse, revealed }"
     :style="{ '--active-verse-colour': verseColour }"
   >
     <div class="deck">{{ promptLabel }}</div>
@@ -254,11 +254,22 @@ const composedMissing = computed(() => props.card.composed === null)
   line-height: 1.6;
   text-align: center;
   color: var(--color-text);
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+/* Reveal state: the card surface picks up a soft verse-coloured wash
+   and the border deepens toward the verse hue, so the Q→A transition
+   is obvious at a glance. Pre-reveal stays on the plain card surface
+   so it reads as "still thinking". */
+.card-box.revealed {
+  background: color-mix(in oklch, var(--active-verse-colour) 8%, var(--color-bg-card));
+  border-color: color-mix(in oklch, var(--active-verse-colour) 40%, var(--color-border));
 }
 
 /* Verse-coloured top stripe — sits inside the rounded corners via the
    same radius on its own top edge. Hidden on cards where revealing the
-   verse colour would leak the answer (Citation pre-reveal, etc.). */
+   verse colour would leak the answer (Citation pre-reveal, etc.).
+   Thickens slightly on reveal alongside the surface wash. */
 .card-box::before {
   content: '';
   position: absolute;
@@ -266,6 +277,11 @@ const composedMissing = computed(() => props.card.composed === null)
   height: 3px;
   background: var(--active-verse-colour);
   border-radius: 6px 6px 0 0;
+  transition: height 0.18s ease;
+}
+
+.card-box.revealed::before {
+  height: 5px;
 }
 
 .card-box.no-verse-accent::before {
@@ -441,8 +457,9 @@ code {
 
 /* Dotted hr.type — the prompt/answer divider, ported from the Anki
    deck's `hr.type`. Appears on reveal to mark "below this line is
-   the answer / the typed-in check / the supporting context". */
+   the answer / the typed-in check / the supporting context". Picks up
+   the verse hue so it ties to the rest of the reveal-state chrome. */
 .card-box :deep(hr.type) {
-  border-top: 1px dotted var(--color-border);
+  border-top: 1px dotted color-mix(in oklch, var(--active-verse-colour) 50%, var(--color-border));
 }
 </style>
