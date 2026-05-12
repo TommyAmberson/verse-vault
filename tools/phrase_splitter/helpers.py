@@ -95,3 +95,15 @@ SEVERITIES = ("blocker", "high", "medium", "low")
 def severity_rank(s: str) -> int:
     """Lower is worse. Use as a sort key."""
     return SEVERITIES.index(s)
+
+
+# Edge-strip everything that isn't a letter, digit, or interior apostrophe.
+# Keeps ``God's`` intact; turns ``Paul,`` into ``Paul``. Curly U+2019 is
+# folded to straight U+0027 first so canonical NKJV's typographic
+# apostrophes compare equal to the straight ones used in back-list / Anki
+# input.
+_EDGE_PUNCT_RE = re.compile(r"^[^\w']+|[^\w']+$")
+
+
+def normalise_word(token: str) -> str:
+    return _EDGE_PUNCT_RE.sub("", token.replace("’", "'")).lower()

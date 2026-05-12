@@ -39,7 +39,6 @@ Usage:
 import argparse
 import json
 import os
-import re
 import sys
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -53,22 +52,13 @@ from phrase_splitter.apibible import (  # noqa: E402
     get_chapter_html,
     open_cache,
 )
+from phrase_splitter.helpers import normalise_word as _normalise  # noqa: E402
 
 CONTEXT_RADIUS = 5  # ±5 verses per the federation rules
 
 MARKUP_PLAIN = "plain"
 MARKUP_BOLD = "bold"
 MARKUP_BOLD_ITALIC = "boldItalic"
-
-# Match either apostrophe form (straight U+0027, curly U+2019) as an
-# interior word char. Curly is folded to straight before edge-stripping
-# so the canonical NKJV's typographic apostrophes compare equal to the
-# straight apostrophes in user-supplied data (e.g. the quizbook back-list).
-_EDGE_PUNCT_RE = re.compile(r"^[^\w']+|[^\w']+$")
-
-
-def _normalise(token: str) -> str:
-    return _EDGE_PUNCT_RE.sub("", token.replace("’", "'")).lower()
 
 
 def _annotation_map(verse: Dict[str, Any]) -> Dict[int, str]:
@@ -102,10 +92,9 @@ def build_word_index(
     verse_index: Dict[Tuple[str, int, int], int] = {}
 
     chapter_cache: Dict[Tuple[str, int], Dict[int, List[str]]] = {}
-    # Walk every verse the deck knows about. Phrase splits aren't
-    # required for this audit — annotations index into the canonical
-    # token stream, and uniqueness analysis needs every verse's tokens
-    # to be correct even when some verses are still unsplit.
+    # Walk every verse regardless of phrase-split state: keyword
+    # uniqueness and context-key proximity both depend on counting
+    # every verse's canonical tokens.
     for v in deck.get("verses", []):
         book = v["book"]
         chapter = v["chapter"]
