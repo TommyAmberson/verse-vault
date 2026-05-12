@@ -73,6 +73,17 @@ from phrase_splitter.apibible import (  # noqa: E402
 )
 
 
+# The OT Survey deck (year 6-OT) has two book names typo'd in the
+# Anki source. Normalise on the way out so the deck file carries
+# canonical names — fixing the colpkg itself would be the user's job,
+# but downstream tools (book_code lookup, render-time fetches) need
+# correct names today.
+_BOOK_NAME_FIXUPS = {
+    "Dueteronomy": "Deuteronomy",
+    "Zephanaih": "Zephaniah",
+}
+
+
 def extract_collection(colpkg_path: str, dest_dir: str) -> str:
     """Mirror of audit_colpkg.extract_collection — kept local so the
     init tool depends on a stable sub-import surface."""
@@ -225,10 +236,12 @@ def main() -> None:
     try:
         with tempfile.TemporaryDirectory(prefix="vv-init-deck-") as tmp:
             db_path = extract_collection(args.colpkg, tmp)
-            notes = [
-                row for row in query_verse_notes(db_path, args.year)
-                if row[0] in book_set
-            ]
+            raw_notes = list(query_verse_notes(db_path, args.year))
+            notes = []
+            for book, ch, v, text_html, ftv_html, clubs in raw_notes:
+                canon_book = _BOOK_NAME_FIXUPS.get(book, book)
+                if canon_book in book_set:
+                    notes.append((canon_book, ch, v, text_html, ftv_html, clubs))
         if not notes:
             sys.exit(f"no Verse notes for year={args.year} books={books}")
 
