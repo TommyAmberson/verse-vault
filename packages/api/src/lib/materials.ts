@@ -25,6 +25,11 @@ export const MATERIALS: readonly Material[] = [
     title: '1 Corinthians (NKJV)',
     description: '1 & 2 Corinthians with phrase chunking and FTV prompts.',
   },
+  {
+    id: 'nkjv-john',
+    title: 'John (NKJV)',
+    description: 'Gospel of John with phrase chunking and FTV prompts.',
+  },
 ];
 
 export function getMaterial(id: string): Material | undefined {
@@ -38,6 +43,7 @@ const REPO_ROOT = resolve(import.meta.dirname, '../../../..');
  *  structural MaterialData JSON. Missing on disk → inline fallback. */
 const DATA_FILES: Record<string, string> = {
   'nkjv-1cor': 'data/3-corinthians.json',
+  'nkjv-john': 'data/4-john.json',
 };
 
 /** Inline structural stand-in MaterialData per id, kept tiny so tests

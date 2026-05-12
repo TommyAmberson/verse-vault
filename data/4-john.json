@@ -1,0 +1,11116 @@
+{
+  "year": 4,
+  "books": [
+    "John"
+  ],
+  "chapters": [
+    {
+      "book": "John",
+      "number": 1,
+      "start_verse": 1,
+      "end_verse": 51
+    },
+    {
+      "book": "John",
+      "number": 2,
+      "start_verse": 1,
+      "end_verse": 25
+    },
+    {
+      "book": "John",
+      "number": 3,
+      "start_verse": 1,
+      "end_verse": 36
+    },
+    {
+      "book": "John",
+      "number": 4,
+      "start_verse": 1,
+      "end_verse": 54
+    },
+    {
+      "book": "John",
+      "number": 5,
+      "start_verse": 1,
+      "end_verse": 47
+    },
+    {
+      "book": "John",
+      "number": 6,
+      "start_verse": 1,
+      "end_verse": 71
+    },
+    {
+      "book": "John",
+      "number": 7,
+      "start_verse": 1,
+      "end_verse": 53
+    },
+    {
+      "book": "John",
+      "number": 8,
+      "start_verse": 1,
+      "end_verse": 59
+    },
+    {
+      "book": "John",
+      "number": 9,
+      "start_verse": 1,
+      "end_verse": 41
+    },
+    {
+      "book": "John",
+      "number": 10,
+      "start_verse": 1,
+      "end_verse": 42
+    },
+    {
+      "book": "John",
+      "number": 11,
+      "start_verse": 1,
+      "end_verse": 57
+    },
+    {
+      "book": "John",
+      "number": 12,
+      "start_verse": 1,
+      "end_verse": 50
+    },
+    {
+      "book": "John",
+      "number": 13,
+      "start_verse": 1,
+      "end_verse": 38
+    },
+    {
+      "book": "John",
+      "number": 14,
+      "start_verse": 1,
+      "end_verse": 31
+    },
+    {
+      "book": "John",
+      "number": 15,
+      "start_verse": 1,
+      "end_verse": 27
+    },
+    {
+      "book": "John",
+      "number": 16,
+      "start_verse": 1,
+      "end_verse": 33
+    },
+    {
+      "book": "John",
+      "number": 17,
+      "start_verse": 1,
+      "end_verse": 26
+    },
+    {
+      "book": "John",
+      "number": 18,
+      "start_verse": 1,
+      "end_verse": 40
+    },
+    {
+      "book": "John",
+      "number": 19,
+      "start_verse": 1,
+      "end_verse": 42
+    },
+    {
+      "book": "John",
+      "number": 20,
+      "start_verse": 1,
+      "end_verse": 31
+    },
+    {
+      "book": "John",
+      "number": 21,
+      "start_verse": 1,
+      "end_verse": 25
+    }
+  ],
+  "verses": [
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 2,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 3,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 20,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 22,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 23,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 24,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 25,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 26,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 27,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 28,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 29,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 30,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 31,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 32,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 33,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 34,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 35,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 36,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 37,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 38,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 39,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 40,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 41,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 42,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 43,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 44,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 45,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 46,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 47,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 48,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 49,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 50,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 1,
+      "verse": 51,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 1,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 2,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 18,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 22,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 23,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 24,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 2,
+      "verse": 25,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 20,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 21,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 22,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 23,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 24,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 25,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 26,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 27,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 28,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 29,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 30,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 31,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 32,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 33,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 34,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 35,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 3,
+      "verse": 36,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 3,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 5,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 6,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 7,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 8,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 9,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 10,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 11,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 12,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 13,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 14,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 15,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 16,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 17,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 18,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 19,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 20,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 21,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 22,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 23,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 24,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 25,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 26,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 27,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 28,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 29,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 30,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 31,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 32,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 33,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 34,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 35,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 36,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 37,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 38,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 39,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 40,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 41,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 42,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 43,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 44,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 45,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 46,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 47,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 48,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 49,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 50,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 51,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 52,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 53,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 4,
+      "verse": 54,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 1,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 2,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 3,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 4,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 5,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 6,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 7,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 8,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 9,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 10,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 11,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 12,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 13,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 14,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 15,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 16,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 17,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 18,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 19,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 20,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 22,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 23,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 24,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 25,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 26,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 27,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 28,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 29,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 30,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 31,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 32,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 33,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 34,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 35,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 36,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 37,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 38,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 39,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 40,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 41,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 42,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 43,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 44,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 45,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 46,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 5,
+      "verse": 47,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 1,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 2,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 3,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 4,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 5,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 6,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 7,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 8,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 9,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 10,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 11,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 12,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 13,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 14,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 15,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 16,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 17,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 18,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 19,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 20,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 21,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 22,
+      "phraseWordCounts": [
+        51
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 23,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 24,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 25,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 26,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 27,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 28,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 29,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 30,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 31,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 32,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 33,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 34,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 35,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 36,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 37,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 38,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 39,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 40,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 41,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 42,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 43,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 44,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 45,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 46,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 47,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 48,
+      "phraseWordCounts": [
+        6
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 49,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 50,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 51,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 52,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 53,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 54,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 55,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 56,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 57,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 58,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 59,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 60,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 61,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 62,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 63,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 64,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 65,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 66,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 67,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 68,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 69,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 70,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 6,
+      "verse": 71,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 1,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 2,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 3,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 4,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 5,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 6,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 7,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 8,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 9,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 10,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 11,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 12,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 13,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 14,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 15,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 16,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 17,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 18,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 19,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 20,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 21,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 22,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 23,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 24,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 25,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 26,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 27,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 28,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 29,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 30,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 31,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 32,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 33,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 34,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 35,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 36,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 37,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 38,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 39,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 40,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 41,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 42,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 43,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 44,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 45,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 46,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 47,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 48,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 49,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 50,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 51,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 52,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 7,
+      "verse": 53,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 1,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 2,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 3,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 4,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 5,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 6,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 7,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 8,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 9,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 10,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 11,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 12,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 13,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 14,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 15,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 16,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 17,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 18,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 19,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 20,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 21,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 22,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 23,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 24,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 25,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 26,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 27,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 28,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 29,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 30,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 31,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 32,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 33,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 34,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 35,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 36,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 37,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 38,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 39,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 40,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 41,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 42,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 43,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 44,
+      "phraseWordCounts": [
+        59
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 45,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 46,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 47,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 48,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 49,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 50,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 51,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 52,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 53,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 54,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 55,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 56,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 57,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 58,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 8,
+      "verse": 59,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 1,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 2,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 3,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 4,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 5,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 6,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 7,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 8,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 9,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 10,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 11,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 12,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 13,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 14,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 15,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 16,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 17,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 18,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 19,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 20,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 21,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 22,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 23,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 24,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 25,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 26,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 27,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 28,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 29,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 30,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 31,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 32,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 33,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 34,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 35,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 36,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 37,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 38,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 39,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 40,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 9,
+      "verse": 41,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 1,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 2,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 3,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 4,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 5,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 6,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 7,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 8,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 9,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 10,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 11,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 12,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 13,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 14,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 15,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 16,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 17,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 18,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 19,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 20,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 22,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 23,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 24,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 25,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 26,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 27,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 28,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 29,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 30,
+      "phraseWordCounts": [
+        6
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 31,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 32,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 33,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 34,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 35,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 36,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 37,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 38,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 39,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 40,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 41,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 10,
+      "verse": 42,
+      "phraseWordCounts": [
+        6
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 1,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 2,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 3,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 4,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 5,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 6,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 7,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 8,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 9,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 10,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 11,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 12,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 13,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 14,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 15,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 16,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 17,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 18,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 19,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 20,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 21,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 22,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 23,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 24,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 25,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 26,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 27,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 28,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 29,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 30,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 31,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 32,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 33,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 34,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 35,
+      "phraseWordCounts": [
+        2
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 36,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 37,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 38,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 39,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 40,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 41,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 42,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 43,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 44,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 45,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 46,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 47,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 48,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 49,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 50,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 51,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 52,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 53,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 54,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 55,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 56,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "verse": 57,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 1,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 2,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 3,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 4,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 5,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 6,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 7,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 8,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 9,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 10,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 11,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 12,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 13,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 14,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 15,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 16,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 17,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 18,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 19,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 20,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 21,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 22,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 23,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 24,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 25,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 26,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 27,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 28,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 29,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 30,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 31,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 32,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 33,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 34,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 35,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 36,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 37,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 38,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 39,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 40,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 41,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 42,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 43,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 44,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 45,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 46,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 47,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 48,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 49,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 12,
+      "verse": 50,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 1,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 2,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 3,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 4,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 5,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 6,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 7,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 8,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 9,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 11,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 12,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 13,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 14,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 15,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 16,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 17,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 18,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 19,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 20,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 21,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 22,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 23,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 24,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 25,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 26,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 27,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 28,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 29,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 30,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 31,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 32,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 33,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 34,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 35,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 36,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 37,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 13,
+      "verse": 38,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 1,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 2,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 3,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 4,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 5,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 6,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 7,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 8,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 9,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 10,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 11,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 12,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 13,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 14,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 15,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 16,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 17,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 18,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 19,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 20,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 21,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 22,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 23,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 24,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 25,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 26,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 27,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 28,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 29,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 30,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 14,
+      "verse": 31,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 1,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 2,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 3,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 4,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 5,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 6,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 7,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 8,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 9,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 10,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 11,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 12,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 13,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 14,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 15,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 16,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 17,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 18,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 19,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 20,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 22,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 23,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 24,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 25,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 26,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 15,
+      "verse": 27,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 1,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 2,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 3,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 4,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 5,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 6,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 7,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 8,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 9,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 10,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 11,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 12,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 13,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 14,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 15,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 16,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 17,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 18,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 19,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 20,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 21,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 22,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 23,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 24,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 25,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 26,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 27,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 28,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 29,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 30,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 31,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 32,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 16,
+      "verse": 33,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 1,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 2,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 3,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 4,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 5,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 6,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 7,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 8,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 9,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 10,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 11,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 12,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 13,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 14,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 15,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 16,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 17,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 18,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 19,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 20,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 21,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 22,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 23,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 24,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 25,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 17,
+      "verse": 26,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 1,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 2,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 3,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 4,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 5,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 6,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 7,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 8,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 9,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 10,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 11,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 12,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 13,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 14,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 15,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 16,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 17,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 18,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 19,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 20,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 22,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 23,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 24,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 25,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 26,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 27,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 28,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 29,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 30,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 31,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 32,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 33,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 34,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 35,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 36,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 37,
+      "phraseWordCounts": [
+        53
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 38,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 39,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 18,
+      "verse": 40,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 1,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 2,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 3,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 4,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 5,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 6,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 7,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 8,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 9,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 10,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 11,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 12,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 13,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 14,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 15,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 16,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 17,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 18,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 19,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 20,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 21,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 22,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 23,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 24,
+      "phraseWordCounts": [
+        46
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 25,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 26,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 27,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 28,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 29,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 30,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 31,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 32,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 33,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 34,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 35,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 36,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 37,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 38,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 39,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 40,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 41,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 19,
+      "verse": 42,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 1,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 2,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 3,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 4,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 5,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 6,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 7,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 8,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 9,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 10,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 11,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 12,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 13,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 14,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 15,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 16,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 17,
+      "phraseWordCounts": [
+        44
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 18,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 19,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 20,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 21,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 22,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 23,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 24,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 25,
+      "phraseWordCounts": [
+        49
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 26,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 27,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 28,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 29,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 30,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 20,
+      "verse": 31,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 1,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 2,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 3,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 4,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 5,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 6,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 7,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 8,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 9,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 10,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 11,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 12,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 13,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 14,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 15,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 16,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 17,
+      "phraseWordCounts": [
+        53
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 18,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 19,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 20,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 21,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 22,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 23,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 24,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "John",
+      "chapter": 21,
+      "verse": 25,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        150
+      ]
+    }
+  ],
+  "headings": [
+    {
+      "book": "John",
+      "startChapter": 1,
+      "startVerse": 1,
+      "endChapter": 1,
+      "endVerse": 5
+    },
+    {
+      "book": "John",
+      "startChapter": 1,
+      "startVerse": 6,
+      "endChapter": 1,
+      "endVerse": 13
+    },
+    {
+      "book": "John",
+      "startChapter": 1,
+      "startVerse": 14,
+      "endChapter": 1,
+      "endVerse": 18
+    },
+    {
+      "book": "John",
+      "startChapter": 1,
+      "startVerse": 19,
+      "endChapter": 1,
+      "endVerse": 28
+    },
+    {
+      "book": "John",
+      "startChapter": 1,
+      "startVerse": 29,
+      "endChapter": 1,
+      "endVerse": 34
+    },
+    {
+      "book": "John",
+      "startChapter": 1,
+      "startVerse": 35,
+      "endChapter": 1,
+      "endVerse": 42
+    },
+    {
+      "book": "John",
+      "startChapter": 1,
+      "startVerse": 43,
+      "endChapter": 1,
+      "endVerse": 51
+    },
+    {
+      "book": "John",
+      "startChapter": 2,
+      "startVerse": 1,
+      "endChapter": 2,
+      "endVerse": 12
+    },
+    {
+      "book": "John",
+      "startChapter": 2,
+      "startVerse": 13,
+      "endChapter": 2,
+      "endVerse": 22
+    },
+    {
+      "book": "John",
+      "startChapter": 2,
+      "startVerse": 23,
+      "endChapter": 2,
+      "endVerse": 25
+    },
+    {
+      "book": "John",
+      "startChapter": 3,
+      "startVerse": 1,
+      "endChapter": 3,
+      "endVerse": 21
+    },
+    {
+      "book": "John",
+      "startChapter": 3,
+      "startVerse": 22,
+      "endChapter": 3,
+      "endVerse": 36
+    },
+    {
+      "book": "John",
+      "startChapter": 4,
+      "startVerse": 1,
+      "endChapter": 4,
+      "endVerse": 26
+    },
+    {
+      "book": "John",
+      "startChapter": 4,
+      "startVerse": 27,
+      "endChapter": 4,
+      "endVerse": 38
+    },
+    {
+      "book": "John",
+      "startChapter": 4,
+      "startVerse": 39,
+      "endChapter": 4,
+      "endVerse": 42
+    },
+    {
+      "book": "John",
+      "startChapter": 4,
+      "startVerse": 43,
+      "endChapter": 4,
+      "endVerse": 45
+    },
+    {
+      "book": "John",
+      "startChapter": 4,
+      "startVerse": 46,
+      "endChapter": 4,
+      "endVerse": 54
+    },
+    {
+      "book": "John",
+      "startChapter": 5,
+      "startVerse": 1,
+      "endChapter": 5,
+      "endVerse": 15
+    },
+    {
+      "book": "John",
+      "startChapter": 5,
+      "startVerse": 16,
+      "endChapter": 5,
+      "endVerse": 23
+    },
+    {
+      "book": "John",
+      "startChapter": 5,
+      "startVerse": 24,
+      "endChapter": 5,
+      "endVerse": 30
+    },
+    {
+      "book": "John",
+      "startChapter": 5,
+      "startVerse": 31,
+      "endChapter": 5,
+      "endVerse": 47
+    },
+    {
+      "book": "John",
+      "startChapter": 6,
+      "startVerse": 1,
+      "endChapter": 6,
+      "endVerse": 14
+    },
+    {
+      "book": "John",
+      "startChapter": 6,
+      "startVerse": 15,
+      "endChapter": 6,
+      "endVerse": 21
+    },
+    {
+      "book": "John",
+      "startChapter": 6,
+      "startVerse": 22,
+      "endChapter": 6,
+      "endVerse": 40
+    },
+    {
+      "book": "John",
+      "startChapter": 6,
+      "startVerse": 41,
+      "endChapter": 6,
+      "endVerse": 59
+    },
+    {
+      "book": "John",
+      "startChapter": 6,
+      "startVerse": 60,
+      "endChapter": 6,
+      "endVerse": 71
+    },
+    {
+      "book": "John",
+      "startChapter": 7,
+      "startVerse": 1,
+      "endChapter": 7,
+      "endVerse": 9
+    },
+    {
+      "book": "John",
+      "startChapter": 7,
+      "startVerse": 10,
+      "endChapter": 7,
+      "endVerse": 24
+    },
+    {
+      "book": "John",
+      "startChapter": 7,
+      "startVerse": 25,
+      "endChapter": 7,
+      "endVerse": 31
+    },
+    {
+      "book": "John",
+      "startChapter": 7,
+      "startVerse": 32,
+      "endChapter": 7,
+      "endVerse": 36
+    },
+    {
+      "book": "John",
+      "startChapter": 7,
+      "startVerse": 37,
+      "endChapter": 7,
+      "endVerse": 39
+    },
+    {
+      "book": "John",
+      "startChapter": 7,
+      "startVerse": 40,
+      "endChapter": 7,
+      "endVerse": 44
+    },
+    {
+      "book": "John",
+      "startChapter": 7,
+      "startVerse": 45,
+      "endChapter": 7,
+      "endVerse": 52
+    },
+    {
+      "book": "John",
+      "startChapter": 7,
+      "startVerse": 53,
+      "endChapter": 8,
+      "endVerse": 12
+    },
+    {
+      "book": "John",
+      "startChapter": 8,
+      "startVerse": 13,
+      "endChapter": 8,
+      "endVerse": 20
+    },
+    {
+      "book": "John",
+      "startChapter": 8,
+      "startVerse": 21,
+      "endChapter": 8,
+      "endVerse": 30
+    },
+    {
+      "book": "John",
+      "startChapter": 8,
+      "startVerse": 31,
+      "endChapter": 8,
+      "endVerse": 36
+    },
+    {
+      "book": "John",
+      "startChapter": 8,
+      "startVerse": 37,
+      "endChapter": 8,
+      "endVerse": 47
+    },
+    {
+      "book": "John",
+      "startChapter": 8,
+      "startVerse": 48,
+      "endChapter": 8,
+      "endVerse": 59
+    },
+    {
+      "book": "John",
+      "startChapter": 9,
+      "startVerse": 1,
+      "endChapter": 9,
+      "endVerse": 12
+    },
+    {
+      "book": "John",
+      "startChapter": 9,
+      "startVerse": 13,
+      "endChapter": 9,
+      "endVerse": 34
+    },
+    {
+      "book": "John",
+      "startChapter": 9,
+      "startVerse": 35,
+      "endChapter": 9,
+      "endVerse": 41
+    },
+    {
+      "book": "John",
+      "startChapter": 10,
+      "startVerse": 1,
+      "endChapter": 10,
+      "endVerse": 6
+    },
+    {
+      "book": "John",
+      "startChapter": 10,
+      "startVerse": 7,
+      "endChapter": 10,
+      "endVerse": 21
+    },
+    {
+      "book": "John",
+      "startChapter": 10,
+      "startVerse": 22,
+      "endChapter": 10,
+      "endVerse": 30
+    },
+    {
+      "book": "John",
+      "startChapter": 10,
+      "startVerse": 31,
+      "endChapter": 10,
+      "endVerse": 39
+    },
+    {
+      "book": "John",
+      "startChapter": 10,
+      "startVerse": 40,
+      "endChapter": 10,
+      "endVerse": 42
+    },
+    {
+      "book": "John",
+      "startChapter": 11,
+      "startVerse": 1,
+      "endChapter": 11,
+      "endVerse": 16
+    },
+    {
+      "book": "John",
+      "startChapter": 11,
+      "startVerse": 17,
+      "endChapter": 11,
+      "endVerse": 27
+    },
+    {
+      "book": "John",
+      "startChapter": 11,
+      "startVerse": 28,
+      "endChapter": 11,
+      "endVerse": 37
+    },
+    {
+      "book": "John",
+      "startChapter": 11,
+      "startVerse": 38,
+      "endChapter": 11,
+      "endVerse": 44
+    },
+    {
+      "book": "John",
+      "startChapter": 11,
+      "startVerse": 45,
+      "endChapter": 11,
+      "endVerse": 57
+    },
+    {
+      "book": "John",
+      "startChapter": 12,
+      "startVerse": 1,
+      "endChapter": 12,
+      "endVerse": 8
+    },
+    {
+      "book": "John",
+      "startChapter": 12,
+      "startVerse": 9,
+      "endChapter": 12,
+      "endVerse": 11
+    },
+    {
+      "book": "John",
+      "startChapter": 12,
+      "startVerse": 12,
+      "endChapter": 12,
+      "endVerse": 19
+    },
+    {
+      "book": "John",
+      "startChapter": 12,
+      "startVerse": 20,
+      "endChapter": 12,
+      "endVerse": 26
+    },
+    {
+      "book": "John",
+      "startChapter": 12,
+      "startVerse": 27,
+      "endChapter": 12,
+      "endVerse": 36
+    },
+    {
+      "book": "John",
+      "startChapter": 12,
+      "startVerse": 37,
+      "endChapter": 12,
+      "endVerse": 41
+    },
+    {
+      "book": "John",
+      "startChapter": 12,
+      "startVerse": 42,
+      "endChapter": 12,
+      "endVerse": 50
+    },
+    {
+      "book": "John",
+      "startChapter": 13,
+      "startVerse": 1,
+      "endChapter": 13,
+      "endVerse": 17
+    },
+    {
+      "book": "John",
+      "startChapter": 13,
+      "startVerse": 18,
+      "endChapter": 13,
+      "endVerse": 30
+    },
+    {
+      "book": "John",
+      "startChapter": 13,
+      "startVerse": 31,
+      "endChapter": 13,
+      "endVerse": 35
+    },
+    {
+      "book": "John",
+      "startChapter": 13,
+      "startVerse": 36,
+      "endChapter": 13,
+      "endVerse": 38
+    },
+    {
+      "book": "John",
+      "startChapter": 14,
+      "startVerse": 1,
+      "endChapter": 14,
+      "endVerse": 6
+    },
+    {
+      "book": "John",
+      "startChapter": 14,
+      "startVerse": 7,
+      "endChapter": 14,
+      "endVerse": 11
+    },
+    {
+      "book": "John",
+      "startChapter": 14,
+      "startVerse": 12,
+      "endChapter": 14,
+      "endVerse": 14
+    },
+    {
+      "book": "John",
+      "startChapter": 14,
+      "startVerse": 15,
+      "endChapter": 14,
+      "endVerse": 18
+    },
+    {
+      "book": "John",
+      "startChapter": 14,
+      "startVerse": 19,
+      "endChapter": 14,
+      "endVerse": 24
+    },
+    {
+      "book": "John",
+      "startChapter": 14,
+      "startVerse": 25,
+      "endChapter": 14,
+      "endVerse": 31
+    },
+    {
+      "book": "John",
+      "startChapter": 15,
+      "startVerse": 1,
+      "endChapter": 15,
+      "endVerse": 8
+    },
+    {
+      "book": "John",
+      "startChapter": 15,
+      "startVerse": 9,
+      "endChapter": 15,
+      "endVerse": 17
+    },
+    {
+      "book": "John",
+      "startChapter": 15,
+      "startVerse": 18,
+      "endChapter": 15,
+      "endVerse": 25
+    },
+    {
+      "book": "John",
+      "startChapter": 15,
+      "startVerse": 26,
+      "endChapter": 16,
+      "endVerse": 4
+    },
+    {
+      "book": "John",
+      "startChapter": 16,
+      "startVerse": 5,
+      "endChapter": 16,
+      "endVerse": 15
+    },
+    {
+      "book": "John",
+      "startChapter": 16,
+      "startVerse": 16,
+      "endChapter": 16,
+      "endVerse": 24
+    },
+    {
+      "book": "John",
+      "startChapter": 16,
+      "startVerse": 25,
+      "endChapter": 16,
+      "endVerse": 33
+    },
+    {
+      "book": "John",
+      "startChapter": 17,
+      "startVerse": 1,
+      "endChapter": 17,
+      "endVerse": 5
+    },
+    {
+      "book": "John",
+      "startChapter": 17,
+      "startVerse": 6,
+      "endChapter": 17,
+      "endVerse": 19
+    },
+    {
+      "book": "John",
+      "startChapter": 17,
+      "startVerse": 20,
+      "endChapter": 17,
+      "endVerse": 26
+    },
+    {
+      "book": "John",
+      "startChapter": 18,
+      "startVerse": 1,
+      "endChapter": 18,
+      "endVerse": 11
+    },
+    {
+      "book": "John",
+      "startChapter": 18,
+      "startVerse": 12,
+      "endChapter": 18,
+      "endVerse": 14
+    },
+    {
+      "book": "John",
+      "startChapter": 18,
+      "startVerse": 15,
+      "endChapter": 18,
+      "endVerse": 18
+    },
+    {
+      "book": "John",
+      "startChapter": 18,
+      "startVerse": 19,
+      "endChapter": 18,
+      "endVerse": 24
+    },
+    {
+      "book": "John",
+      "startChapter": 18,
+      "startVerse": 25,
+      "endChapter": 18,
+      "endVerse": 27
+    },
+    {
+      "book": "John",
+      "startChapter": 18,
+      "startVerse": 28,
+      "endChapter": 18,
+      "endVerse": 38
+    },
+    {
+      "book": "John",
+      "startChapter": 18,
+      "startVerse": 39,
+      "endChapter": 18,
+      "endVerse": 40
+    },
+    {
+      "book": "John",
+      "startChapter": 19,
+      "startVerse": 1,
+      "endChapter": 19,
+      "endVerse": 4
+    },
+    {
+      "book": "John",
+      "startChapter": 19,
+      "startVerse": 5,
+      "endChapter": 19,
+      "endVerse": 16
+    },
+    {
+      "book": "John",
+      "startChapter": 19,
+      "startVerse": 17,
+      "endChapter": 19,
+      "endVerse": 24
+    },
+    {
+      "book": "John",
+      "startChapter": 19,
+      "startVerse": 25,
+      "endChapter": 19,
+      "endVerse": 27
+    },
+    {
+      "book": "John",
+      "startChapter": 19,
+      "startVerse": 28,
+      "endChapter": 19,
+      "endVerse": 30
+    },
+    {
+      "book": "John",
+      "startChapter": 19,
+      "startVerse": 31,
+      "endChapter": 19,
+      "endVerse": 37
+    },
+    {
+      "book": "John",
+      "startChapter": 19,
+      "startVerse": 38,
+      "endChapter": 19,
+      "endVerse": 42
+    },
+    {
+      "book": "John",
+      "startChapter": 20,
+      "startVerse": 1,
+      "endChapter": 20,
+      "endVerse": 10
+    },
+    {
+      "book": "John",
+      "startChapter": 20,
+      "startVerse": 11,
+      "endChapter": 20,
+      "endVerse": 18
+    },
+    {
+      "book": "John",
+      "startChapter": 20,
+      "startVerse": 19,
+      "endChapter": 20,
+      "endVerse": 23
+    },
+    {
+      "book": "John",
+      "startChapter": 20,
+      "startVerse": 24,
+      "endChapter": 20,
+      "endVerse": 29
+    },
+    {
+      "book": "John",
+      "startChapter": 20,
+      "startVerse": 30,
+      "endChapter": 20,
+      "endVerse": 31
+    },
+    {
+      "book": "John",
+      "startChapter": 21,
+      "startVerse": 1,
+      "endChapter": 21,
+      "endVerse": 14
+    },
+    {
+      "book": "John",
+      "startChapter": 21,
+      "startVerse": 15,
+      "endChapter": 21,
+      "endVerse": 19
+    },
+    {
+      "book": "John",
+      "startChapter": 21,
+      "startVerse": 20,
+      "endChapter": 21,
+      "endVerse": 25
+    }
+  ]
+}
