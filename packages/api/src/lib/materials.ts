@@ -44,7 +44,7 @@ export const MATERIALS: readonly Material[] = [
   {
     id: 'nkjv-hp',
     title: 'Hebrews & 1–2 Peter (NKJV)',
-    description: 'Year 5: Hebrews, 1 Peter, 2 Peter (currently the Club150 cut only).',
+    description: 'Year 5: Hebrews, 1 Peter, 2 Peter — full chapters (469 verses).',
   },
   {
     id: 'nkjv-ot-survey',

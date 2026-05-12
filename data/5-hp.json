@@ -9,7 +9,7 @@
     {
       "book": "1 Peter",
       "number": 1,
-      "start_verse": 3,
+      "start_verse": 1,
       "end_verse": 25
     },
     {
@@ -21,37 +21,37 @@
     {
       "book": "1 Peter",
       "number": 3,
-      "start_verse": 8,
-      "end_verse": 15
+      "start_verse": 1,
+      "end_verse": 22
     },
     {
       "book": "1 Peter",
       "number": 4,
-      "start_verse": 7,
-      "end_verse": 11
+      "start_verse": 1,
+      "end_verse": 19
     },
     {
       "book": "1 Peter",
       "number": 5,
-      "start_verse": 5,
-      "end_verse": 10
+      "start_verse": 1,
+      "end_verse": 14
     },
     {
       "book": "2 Peter",
       "number": 1,
-      "start_verse": 2,
+      "start_verse": 1,
       "end_verse": 21
     },
     {
       "book": "2 Peter",
       "number": 2,
       "start_verse": 1,
-      "end_verse": 20
+      "end_verse": 22
     },
     {
       "book": "2 Peter",
       "number": 3,
-      "start_verse": 3,
+      "start_verse": 1,
       "end_verse": 18
     },
     {
@@ -70,30 +70,30 @@
       "book": "Hebrews",
       "number": 3,
       "start_verse": 1,
-      "end_verse": 13
+      "end_verse": 19
     },
     {
       "book": "Hebrews",
       "number": 4,
-      "start_verse": 12,
+      "start_verse": 1,
       "end_verse": 16
     },
     {
       "book": "Hebrews",
       "number": 5,
-      "start_verse": 8,
+      "start_verse": 1,
       "end_verse": 14
     },
     {
       "book": "Hebrews",
       "number": 6,
-      "start_verse": 10,
+      "start_verse": 1,
       "end_verse": 20
     },
     {
       "book": "Hebrews",
       "number": 7,
-      "start_verse": 19,
+      "start_verse": 1,
       "end_verse": 28
     },
     {
@@ -105,14 +105,14 @@
     {
       "book": "Hebrews",
       "number": 9,
-      "start_verse": 22,
+      "start_verse": 1,
       "end_verse": 28
     },
     {
       "book": "Hebrews",
       "number": 10,
       "start_verse": 1,
-      "end_verse": 25
+      "end_verse": 39
     },
     {
       "book": "Hebrews",
@@ -129,11 +129,37 @@
     {
       "book": "Hebrews",
       "number": 13,
-      "start_verse": 2,
-      "end_verse": 21
+      "start_verse": 1,
+      "end_verse": 25
     }
   ],
   "verses": [
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 2,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
     {
       "book": "1 Peter",
       "chapter": 1,
@@ -202,6 +228,91 @@
     {
       "book": "1 Peter",
       "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        47
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
       "verse": 15,
       "phraseWordCounts": [
         16
@@ -228,6 +339,19 @@
     {
       "book": "1 Peter",
       "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
       "verse": 18,
       "phraseWordCounts": [
         23
@@ -249,6 +373,32 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 20,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 1,
+      "verse": 21,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -332,6 +482,39 @@
     {
       "book": "1 Peter",
       "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
       "verse": 6,
       "phraseWordCounts": [
         32
@@ -345,6 +528,28 @@
     {
       "book": "1 Peter",
       "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
       "verse": 9,
       "phraseWordCounts": [
         34
@@ -353,6 +558,176 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 18,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 22,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 2,
+      "verse": 23,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -379,6 +754,93 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -449,6 +911,28 @@
     {
       "book": "1 Peter",
       "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
       "verse": 15,
       "phraseWordCounts": [
         34
@@ -458,6 +942,161 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 20,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 21,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 3,
+      "verse": 22,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 3,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 5,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 6,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "1 Peter",
@@ -522,6 +1161,148 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 12,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 13,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 14,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 15,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 16,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 17,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 18,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 4,
+      "verse": 19,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 5,
+      "verse": 1,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 5,
+      "verse": 2,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 5,
+      "verse": 3,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 5,
+      "verse": 4,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -603,6 +1384,63 @@
       ]
     },
     {
+      "book": "1 Peter",
+      "chapter": 5,
+      "verse": 11,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 5,
+      "verse": 12,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 5,
+      "verse": 13,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Peter",
+      "chapter": 5,
+      "verse": 14,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
       "book": "2 Peter",
       "chapter": 1,
       "verse": 2,
@@ -640,6 +1478,183 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "2 Peter",
@@ -696,6 +1711,82 @@
     {
       "book": "2 Peter",
       "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
       "verse": 9,
       "phraseWordCounts": [
         24
@@ -705,6 +1796,105 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 18,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "2 Peter",
@@ -734,6 +1924,50 @@
     },
     {
       "book": "2 Peter",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 2,
+      "verse": 22,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
       "chapter": 3,
       "verse": 3,
       "phraseWordCounts": [
@@ -757,6 +1991,39 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "2 Peter",
@@ -795,6 +2062,93 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Peter",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -882,6 +2236,45 @@
     {
       "book": "Hebrews",
       "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 1,
       "verse": 8,
       "phraseWordCounts": [
         24
@@ -938,6 +2331,56 @@
     {
       "book": "Hebrews",
       "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 1,
       "verse": 14,
       "phraseWordCounts": [
         16
@@ -973,6 +2416,83 @@
     {
       "book": "Hebrews",
       "chapter": 2,
+      "verse": 2,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
       "verse": 9,
       "phraseWordCounts": [
         35
@@ -994,6 +2514,58 @@
       "ftvWordCount": 3,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1038,6 +2610,19 @@
       "ftvWordCount": 2,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1126,6 +2711,93 @@
     {
       "book": "Hebrews",
       "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
       "verse": 12,
       "phraseWordCounts": [
         20
@@ -1161,6 +2833,207 @@
       "ftvWordCount": 2,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 3,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 5,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 6,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 7,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 8,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 9,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 10,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 4,
+      "verse": 11,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1303,6 +3176,97 @@
     {
       "book": "Hebrews",
       "chapter": 5,
+      "verse": 1,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 5,
+      "verse": 2,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 5,
+      "verse": 3,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 5,
+      "verse": 4,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 5,
+      "verse": 5,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 5,
+      "verse": 6,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 5,
+      "verse": 7,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 5,
       "verse": 8,
       "phraseWordCounts": [
         15
@@ -1325,6 +3289,28 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 5,
+      "verse": 10,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 5,
+      "verse": 11,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Hebrews",
@@ -1398,6 +3384,109 @@
     {
       "book": "Hebrews",
       "chapter": 6,
+      "verse": 1,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 2,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 3,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 4,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 5,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 6,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 7,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 8,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 9,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
       "verse": 10,
       "phraseWordCounts": [
         31
@@ -1416,6 +3505,76 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 11,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 12,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 13,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 14,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 15,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 6,
+      "verse": 16,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Hebrews",
@@ -1516,6 +3675,212 @@
     {
       "book": "Hebrews",
       "chapter": 7,
+      "verse": 1,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 2,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 3,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 4,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 5,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 6,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 7,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 8,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 9,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 10,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 11,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 12,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 13,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 14,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 15,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 16,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 17,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 18,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
       "verse": 19,
       "phraseWordCounts": [
         26
@@ -1524,6 +3889,54 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 20,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 21,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 22,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 7,
+      "verse": 23,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1678,6 +4091,41 @@
     {
       "book": "Hebrews",
       "chapter": 8,
+      "verse": 3,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 8,
+      "verse": 4,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 8,
+      "verse": 5,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 8,
       "verse": 6,
       "phraseWordCounts": [
         25
@@ -1691,6 +4139,45 @@
     {
       "book": "Hebrews",
       "chapter": 8,
+      "verse": 7,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 8,
+      "verse": 8,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 8,
+      "verse": 9,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 8,
       "verse": 10,
       "phraseWordCounts": [
         46
@@ -1699,6 +4186,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 8,
+      "verse": 11,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1743,6 +4243,249 @@
     {
       "book": "Hebrews",
       "chapter": 9,
+      "verse": 1,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 2,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 3,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 4,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 5,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 6,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 7,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 8,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 9,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 10,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 11,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 12,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 13,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 14,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 15,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 16,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 17,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 18,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 19,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 20,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 21,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
       "verse": 22,
       "phraseWordCounts": [
         21
@@ -1760,6 +4503,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 9,
+      "verse": 23,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1880,6 +4636,32 @@
     {
       "book": "Hebrews",
       "chapter": 10,
+      "verse": 2,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 3,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
       "verse": 4,
       "phraseWordCounts": [
         16
@@ -1893,6 +4675,80 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 5,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 6,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 7,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 8,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 9,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 10,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1960,6 +4816,50 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 15,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 16,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 17,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 18,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Hebrews",
@@ -2086,6 +4986,174 @@
     },
     {
       "book": "Hebrews",
+      "chapter": 10,
+      "verse": 26,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 27,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 28,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 29,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 30,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 31,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 32,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 33,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 34,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 35,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 36,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 37,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 38,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 10,
+      "verse": 39,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
       "chapter": 11,
       "verse": 1,
       "phraseWordCounts": [
@@ -2108,6 +5176,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 2,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -2219,6 +5300,58 @@
     {
       "book": "Hebrews",
       "chapter": 11,
+      "verse": 9,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 10,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 11,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 12,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
       "verse": 13,
       "phraseWordCounts": [
         33
@@ -2227,6 +5360,32 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 14,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 15,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -2245,6 +5404,71 @@
     {
       "book": "Hebrews",
       "chapter": 11,
+      "verse": 17,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 18,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 19,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 20,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 21,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
       "verse": 22,
       "phraseWordCounts": [
         23
@@ -2253,6 +5477,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 23,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -2297,6 +5534,45 @@
     {
       "book": "Hebrews",
       "chapter": 11,
+      "verse": 27,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 28,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 29,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
       "verse": 30,
       "phraseWordCounts": [
         15
@@ -2318,6 +5594,71 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 32,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 33,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 34,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 35,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 11,
+      "verse": 36,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -2414,6 +5755,30 @@
     {
       "book": "Hebrews",
       "chapter": 12,
+      "verse": 4,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 5,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
       "verse": 6,
       "phraseWordCounts": [
         14
@@ -2422,6 +5787,54 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 7,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 8,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 9,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 10,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -2436,6 +5849,190 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 12,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 13,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 14,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 15,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 16,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 17,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 18,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 19,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 20,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 21,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 22,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 23,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 24,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 25,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 26,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 12,
+      "verse": 27,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Hebrews",
@@ -2466,6 +6063,19 @@
     {
       "book": "Hebrews",
       "chapter": 13,
+      "verse": 1,
+      "phraseWordCounts": [
+        4
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
       "verse": 2,
       "phraseWordCounts": [
         15
@@ -2474,6 +6084,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 3,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -2518,6 +6141,19 @@
     {
       "book": "Hebrews",
       "chapter": 13,
+      "verse": 7,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
       "verse": 8,
       "phraseWordCounts": [
         9
@@ -2527,6 +6163,135 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 9,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 10,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 11,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 12,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 13,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 14,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 15,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 16,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 17,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 18,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 19,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Hebrews",
@@ -2553,9 +6318,60 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 22,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 23,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 24,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Hebrews",
+      "chapter": 13,
+      "verse": 25,
+      "phraseWordCounts": [
+        6
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     }
   ],
   "headings": [
+    {
+      "book": "1 Peter",
+      "startChapter": 1,
+      "startVerse": 1,
+      "endChapter": 1,
+      "endVerse": 2
+    },
     {
       "book": "1 Peter",
       "startChapter": 1,
@@ -2587,9 +6403,37 @@
     {
       "book": "1 Peter",
       "startChapter": 2,
+      "startVerse": 11,
+      "endChapter": 2,
+      "endVerse": 12
+    },
+    {
+      "book": "1 Peter",
+      "startChapter": 2,
+      "startVerse": 13,
+      "endChapter": 2,
+      "endVerse": 17
+    },
+    {
+      "book": "1 Peter",
+      "startChapter": 2,
       "startVerse": 18,
       "endChapter": 2,
       "endVerse": 25
+    },
+    {
+      "book": "1 Peter",
+      "startChapter": 3,
+      "startVerse": 1,
+      "endChapter": 3,
+      "endVerse": 6
+    },
+    {
+      "book": "1 Peter",
+      "startChapter": 3,
+      "startVerse": 7,
+      "endChapter": 3,
+      "endVerse": 7
     },
     {
       "book": "1 Peter",
@@ -2607,10 +6451,31 @@
     },
     {
       "book": "1 Peter",
+      "startChapter": 3,
+      "startVerse": 18,
+      "endChapter": 4,
+      "endVerse": 6
+    },
+    {
+      "book": "1 Peter",
       "startChapter": 4,
       "startVerse": 7,
       "endChapter": 4,
       "endVerse": 11
+    },
+    {
+      "book": "1 Peter",
+      "startChapter": 4,
+      "startVerse": 12,
+      "endChapter": 4,
+      "endVerse": 19
+    },
+    {
+      "book": "1 Peter",
+      "startChapter": 5,
+      "startVerse": 1,
+      "endChapter": 5,
+      "endVerse": 4
     },
     {
       "book": "1 Peter",
@@ -2620,11 +6485,32 @@
       "endVerse": 11
     },
     {
+      "book": "1 Peter",
+      "startChapter": 5,
+      "startVerse": 12,
+      "endChapter": 5,
+      "endVerse": 14
+    },
+    {
       "book": "2 Peter",
       "startChapter": 1,
       "startVerse": 1,
       "endChapter": 1,
       "endVerse": 4
+    },
+    {
+      "book": "2 Peter",
+      "startChapter": 1,
+      "startVerse": 5,
+      "endChapter": 1,
+      "endVerse": 11
+    },
+    {
+      "book": "2 Peter",
+      "startChapter": 1,
+      "startVerse": 12,
+      "endChapter": 1,
+      "endVerse": 15
     },
     {
       "book": "2 Peter",
@@ -2646,6 +6532,13 @@
       "startVerse": 4,
       "endChapter": 2,
       "endVerse": 11
+    },
+    {
+      "book": "2 Peter",
+      "startChapter": 2,
+      "startVerse": 12,
+      "endChapter": 2,
+      "endVerse": 17
     },
     {
       "book": "2 Peter",
@@ -2726,6 +6619,20 @@
     },
     {
       "book": "Hebrews",
+      "startChapter": 3,
+      "startVerse": 16,
+      "endChapter": 3,
+      "endVerse": 19
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 4,
+      "startVerse": 1,
+      "endChapter": 4,
+      "endVerse": 10
+    },
+    {
+      "book": "Hebrews",
       "startChapter": 4,
       "startVerse": 11,
       "endChapter": 4,
@@ -2737,6 +6644,13 @@
       "startVerse": 14,
       "endChapter": 4,
       "endVerse": 16
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 5,
+      "startVerse": 1,
+      "endChapter": 5,
+      "endVerse": 4
     },
     {
       "book": "Hebrews",
@@ -2755,6 +6669,13 @@
     {
       "book": "Hebrews",
       "startChapter": 6,
+      "startVerse": 1,
+      "endChapter": 6,
+      "endVerse": 8
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 6,
       "startVerse": 9,
       "endChapter": 6,
       "endVerse": 12
@@ -2765,6 +6686,13 @@
       "startVerse": 13,
       "endChapter": 6,
       "endVerse": 20
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 7,
+      "startVerse": 1,
+      "endChapter": 7,
+      "endVerse": 10
     },
     {
       "book": "Hebrews",
@@ -2797,6 +6725,27 @@
     {
       "book": "Hebrews",
       "startChapter": 9,
+      "startVerse": 1,
+      "endChapter": 9,
+      "endVerse": 5
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 9,
+      "startVerse": 6,
+      "endChapter": 9,
+      "endVerse": 10
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 9,
+      "startVerse": 11,
+      "endChapter": 9,
+      "endVerse": 15
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 9,
       "startVerse": 16,
       "endChapter": 9,
       "endVerse": 22
@@ -2818,6 +6767,13 @@
     {
       "book": "Hebrews",
       "startChapter": 10,
+      "startVerse": 5,
+      "endChapter": 10,
+      "endVerse": 10
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 10,
       "startVerse": 11,
       "endChapter": 10,
       "endVerse": 18
@@ -2828,6 +6784,13 @@
       "startVerse": 19,
       "endChapter": 10,
       "endVerse": 25
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 10,
+      "startVerse": 26,
+      "endChapter": 10,
+      "endVerse": 39
     },
     {
       "book": "Hebrews",
@@ -2895,6 +6858,20 @@
     {
       "book": "Hebrews",
       "startChapter": 12,
+      "startVerse": 12,
+      "endChapter": 12,
+      "endVerse": 17
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 12,
+      "startVerse": 18,
+      "endChapter": 12,
+      "endVerse": 24
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 12,
       "startVerse": 25,
       "endChapter": 12,
       "endVerse": 29
@@ -2912,6 +6889,13 @@
       "startVerse": 7,
       "endChapter": 13,
       "endVerse": 17
+    },
+    {
+      "book": "Hebrews",
+      "startChapter": 13,
+      "startVerse": 18,
+      "endChapter": 13,
+      "endVerse": 19
     },
     {
       "book": "Hebrews",
