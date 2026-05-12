@@ -110,8 +110,8 @@ def passage_id(book: str, chapter: int) -> str:
 
 
 def open_cache(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
-    """Open the shared api.bible SQLite cache. Creates the table if it
-    doesn't exist yet (so tools work on fresh dev boxes that haven't
+    """Open the shared api.bible SQLite cache. Creates the tables if
+    they don't exist yet (so tools work on fresh dev boxes that haven't
     run the API migrations), then prunes any entries past the 30-day
     TTL so a single load never serves stale content."""
     os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
@@ -127,12 +127,26 @@ def open_cache(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS apibible_sections (
+            bible_id TEXT NOT NULL,
+            book_code TEXT NOT NULL,
+            sections_json TEXT NOT NULL,
+            fetched_at INTEGER NOT NULL,
+            PRIMARY KEY (bible_id, book_code)
+        )
+        """
+    )
     cutoff = int(time.time()) - CACHE_TTL_SECS
     dropped = conn.execute(
         "DELETE FROM apibible_passages WHERE fetched_at < ?", (cutoff,)
     ).rowcount
+    dropped += conn.execute(
+        "DELETE FROM apibible_sections WHERE fetched_at < ?", (cutoff,)
+    ).rowcount
     if dropped:
-        print(f"Pruned {dropped} api.bible passage(s) past the 30-day TTL")
+        print(f"Pruned {dropped} api.bible row(s) past the 30-day TTL")
     conn.commit()
     return conn
 
@@ -261,6 +275,70 @@ def extract_verse_tokens(html: str, book: str, chapter: int, verse: int) -> List
         end = markers[i + 1].start() if i + 1 < len(markers) else len(html)
         return _tokenise(_strip_to_text(html[start:end]))
     return []
+
+
+def _fetch_sections(bible_id: str, book: str, api_key: str) -> List[Dict[str, str]]:
+    code = book_code(book)
+    url = f"{API_BASE}/bibles/{bible_id}/books/{urllib.parse.quote(code)}/sections"
+    req = urllib.request.Request(
+        url, headers={"api-key": api_key, "accept": "application/json"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        msg = e.read().decode("utf-8", "replace")
+        raise SystemExit(f"api.bible HTTP {e.code} for {code} sections: {msg[:200]}") from e
+    out: List[Dict[str, str]] = []
+    for s in (body.get("data", []) or []):
+        out.append({
+            "id": s.get("id", ""),
+            "title": s.get("title", "") or "",
+            "firstVerseId": s.get("firstVerseId", ""),
+            "lastVerseId": s.get("lastVerseId", ""),
+        })
+    return out
+
+
+def get_book_sections(
+    conn: sqlite3.Connection,
+    book: str,
+    bible_id: str = DEFAULT_NKJV_ID,
+    api_key: Optional[str] = None,
+) -> List[Dict[str, str]]:
+    """Return api.bible's section list for a book, cache-aware.
+
+    Sections are the editorial passage headings ("Greeting", "Spiritual
+    Gifts at Corinth", …). Each entry is ``{id, title, firstVerseId,
+    lastVerseId}`` where the verse IDs are USX form (``JHN.1.1``).
+    Mirrors ``packages/api/src/lib/apibible-cache.ts``'s ``getSections``
+    so deck-building Python tools and the runtime server share the
+    same on-disk cache."""
+    code = book_code(book)
+    now = int(time.time())
+    row = conn.execute(
+        "SELECT sections_json, fetched_at FROM apibible_sections "
+        "WHERE bible_id = ? AND book_code = ?",
+        (bible_id, code),
+    ).fetchone()
+    if row and now - row[1] < CACHE_TTL_SECS:
+        return json.loads(row[0])
+
+    key = api_key or os.environ.get("BIBLE_API_KEY") or os.environ.get("API_BIBLE_KEY")
+    if not key:
+        raise SystemExit(
+            f"{code} sections not in cache and BIBLE_API_KEY not set — can't fetch"
+        )
+    sections = _fetch_sections(bible_id, book, key)
+    conn.execute(
+        "INSERT INTO apibible_sections (bible_id, book_code, sections_json, fetched_at) "
+        "VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(bible_id, book_code) DO UPDATE SET "
+        "sections_json = excluded.sections_json, fetched_at = excluded.fetched_at",
+        (bible_id, code, json.dumps(sections, ensure_ascii=False), now),
+    )
+    conn.commit()
+    return sections
 
 
 def extract_chapter_verses(

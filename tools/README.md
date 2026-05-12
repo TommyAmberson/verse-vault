@@ -112,6 +112,24 @@ python3 tools/import_colpkg.py data/collection-*.colpkg --year 3-C
 python3 tools/import_colpkg.py data/collection-*.colpkg --year 3-C --dry-run
 ```
 
+### `init_deck.py`
+
+One-shot bootstrap for a new year's structural deck file. Combines the Anki `.colpkg` (annotations,
+FTV, clubs) with the api.bible canonical text (phrase word counts, chapter ranges) and section list
+(headings) to produce a complete `data/<year>-<book>.json`. Refuses to overwrite an existing file
+without `--force`.
+
+```bash
+python3 tools/init_deck.py data/collection-*.colpkg \
+  --year 4-J --year-num 4 --books John \
+  --out data/4-john.json
+
+# Multi-book year (e.g. Hebrews + 1+2 Peter):
+python3 tools/init_deck.py data/collection-*.colpkg \
+  --year 5-HP --year-num 5 --books "Hebrews,1 Peter,2 Peter" \
+  --out data/5-hp.json
+```
+
 ## api.bible cache
 
 The api.bible HTML cache lives in `packages/api/data/verse-vault.db` (table `apibible_passages`).
