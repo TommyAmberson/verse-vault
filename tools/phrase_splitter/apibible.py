@@ -249,7 +249,7 @@ def extract_verse_tokens(html: str, book: str, chapter: int, verse: int) -> List
     inline tags (verse markers, typography spans, paragraph wrappers).
     Punctuation glues to the adjacent token, matching the project's
     locked tokenisation rule (see ``packages/api/src/lib/render.ts``
-    and ``tools/derive_structure.py``)."""
+    on the runtime side)."""
     target_sid = f"{book_code(book)} {chapter}:{verse}"
     markers = list(_VERSE_MARKER_RE.finditer(html))
     if not markers:

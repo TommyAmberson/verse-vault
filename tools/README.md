@@ -112,13 +112,6 @@ python3 tools/import_colpkg.py data/collection-*.colpkg --year 3-C
 python3 tools/import_colpkg.py data/collection-*.colpkg --year 3-C --dry-run
 ```
 
-### `build_spelling_dict.py`
-
-_(Optional)_ Build a US → Canadian substitution dict from a local copy of `varcon.txt`. Not normally
-needed — `packages/api/src/lib/ spelling.ts` imports `varcon/C.json` from the `varcon` npm package.
-Run this only if you want to regenerate the dict from a newer varcon release than the npm package
-ships.
-
 ## api.bible cache
 
 The api.bible HTML cache lives in `packages/api/data/verse-vault.db` (table `apibible_passages`).
@@ -153,5 +146,5 @@ Subject to the
   audit/editing tool.
 * `prompts.py` — `SPLIT_PROMPT` (the LLM prompt for re-splitting) and `JUDGE_PROMPT` (the optional
   quality auditor).
-* `helpers.py` — small text utilities (severity ranks, reference normalisation, HTML strip —
-  leftover from the parsed.json era; still used in places).
+* `helpers.py` — shared text utilities (severity ranks, reference parsing/normalisation, HTML strip,
+  word-level normalisation for audits) used across the phrase-splitter and audit tools.

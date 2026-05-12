@@ -1,10 +1,10 @@
-"""Deterministic helpers used by both the evaluator and the re-splitter.
+"""Deterministic helpers used across the phrase-split and audit tools.
 
 Word counting strips the inline HTML markup the deck preserves
 (``<b>``/``<i>``/``<span>``) so a tagged token like ``<b>Sosthenes</b>``
 counts as one word. Whitespace is the tokeniser — punctuation glues to
-adjacent tokens, matching the structural-data convention used elsewhere
-in the pipeline (see ``tools/derive_structure.py``).
+adjacent tokens, matching the convention in
+``tools/phrase_splitter/apibible.py``.
 """
 
 import re
