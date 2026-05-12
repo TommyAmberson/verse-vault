@@ -6,6 +6,9 @@
     ],
     "1CO.15": [
       { "find": "“ODeath,", "replace": "“O Death," }
+    ],
+    "2CO.7": [
+      { "find": "Therefore,having", "replace": "Therefore, having" }
     ]
   }
 }
