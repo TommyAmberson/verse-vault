@@ -76,4 +76,35 @@ describe('applyDialect', () => {
   it('rewrites for canadian', () => {
     expect(applyDialect('hard labor', 'canadian')).toBe('hard labour');
   });
+
+  it('rewrites for british', () => {
+    expect(applyDialect('hard labor', 'british')).toBe('hard labour');
+    expect(applyDialect('the center', 'british')).toBe('the centre');
+    expect(applyDialect('great defense', 'british')).toBe('great defence');
+  });
+
+  it('british diverges from canadian on -ize verbs', () => {
+    // baptize/realize/recognize stay -ize in Canadian but flip to -ise in British.
+    expect(applyDialect('to baptize', 'canadian')).toBe('to baptize');
+    expect(applyDialect('to baptize', 'british')).toBe('to baptise');
+    expect(applyDialect('I realize', 'canadian')).toBe('I realize');
+    expect(applyDialect('I realize', 'british')).toBe('I realise');
+    expect(applyDialect('we recognize', 'british')).toBe('we recognise');
+  });
+
+  it('british diverges from canadian on -ization nouns', () => {
+    expect(applyDialect('the organization', 'canadian')).toBe('the organization');
+    expect(applyDialect('the organization', 'british')).toBe('the organisation');
+  });
+
+  it('shared canadian/british substitutions land the same in both', () => {
+    // ``-our``, ``-re``, ``-ence`` and doubled-consonant inflections are
+    // shared territory.
+    for (const dialect of ['british', 'canadian'] as const) {
+      expect(applyDialect('Savior', dialect)).toBe('Saviour');
+      expect(applyDialect('the theater', dialect)).toBe('the theatre');
+      expect(applyDialect('they traveled', dialect)).toBe('they travelled');
+      expect(applyDialect('our defense', dialect)).toBe('our defence');
+    }
+  });
 });

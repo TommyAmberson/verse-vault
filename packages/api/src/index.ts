@@ -38,10 +38,12 @@ const app = createApp({
   // null); the frontend can still render the prompt/grade UI.
   bibleApiKey: process.env.BIBLE_API_KEY ?? process.env.API_BIBLE_KEY,
   bibleId: process.env.NKJV_BIBLE_ID,
-  // RENDER_DIALECT picks the spelling on rendered verse HTML. Defaults
-  // to ``canadian`` if unset; ``american`` keeps api.bible's NKJV
-  // spelling untouched. Any other value falls back to the default.
-  dialect: process.env.RENDER_DIALECT === 'american' ? 'american' : 'canadian',
+  // RENDER_DIALECT picks the spelling on rendered verse HTML. Accepts
+  // ``american`` | ``british`` | ``canadian``; defaults to ``canadian``.
+  // Any unrecognised value falls back to the default.
+  dialect: ['american', 'british', 'canadian'].includes(process.env.RENDER_DIALECT ?? '')
+    ? (process.env.RENDER_DIALECT as 'american' | 'british' | 'canadian')
+    : 'canadian',
 });
 
 const port = Number(process.env.PORT ?? 3000);

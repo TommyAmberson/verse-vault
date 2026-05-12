@@ -43,9 +43,9 @@ export interface ComposedRender {
 }
 
 /** Compose HTML for one verse from cached chapter HTML + structural data.
- *  The `dialect` knob runs the final HTML strings through a US → UK
- *  substitution when `'british'` (default). api.bible always ships
- *  American spelling, so `'american'` is a no-op. */
+ *  The `dialect` knob runs the final HTML strings through ``applyDialect``
+ *  (``'british'`` / ``'canadian'`` substitute via varcon; ``'american'``
+ *  is a no-op since api.bible NKJV already ships American). */
 export function composeRender(
   input: VerseRenderInput,
   chapterHtml: string,
@@ -137,8 +137,8 @@ function isVerseMarker(node: Node): boolean {
 }
 
 /** Tokenize a sequence of DOM nodes into whitespace-separated word tokens
- *  (matching tools/derive_structure.py's locked rule), preserving inline
- *  span wrappers around each token. */
+ *  (matching the Python-side tokeniser in tools/phrase_splitter/apibible.py),
+ *  preserving inline span wrappers around each token. */
 export function tokenize(nodes: Node[]): string[] {
   const out: string[] = [];
   let current = '';

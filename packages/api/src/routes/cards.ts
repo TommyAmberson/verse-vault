@@ -20,7 +20,8 @@ export interface CardsRoutesDeps {
   /** Bible id to use when resolving canonical text. Defaults to NKJV
    *  (account-specific id; see DEFAULT_NKJV_BIBLE_ID). */
   bibleId?: string;
-  /** Spelling dialect for the rendered verse HTML. Defaults to ``british``.
+  /** Spelling dialect for the rendered verse HTML. Defaults to
+   *  ``DEFAULT_DIALECT`` from ``../lib/spelling.ts`` (currently ``canadian``).
    *  Server-wide for now; per-user override comes later via a setting. */
   dialect?: Dialect;
   now?: () => number;
