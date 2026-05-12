@@ -174,10 +174,15 @@ def _clean_for_tokenisation(html_text: str) -> str:
     return s
 
 
+_DASH_RE = re.compile(r"\s*(?:—|--)\s*")
+
+
 def _normalise_for_diff(text: str) -> str:
     """Apples-to-apples form for comparing deck text against api.bible:
     strip every tag, decode entities, fold curly quotes to straight,
-    squash whitespace."""
+    fold em-dash / ASCII ``--`` into a single space (the deck spells the
+    dash as ``--`` with surrounding spaces, the canonical uses em-dash
+    without spaces — same punctuation, different glyphs), squash whitespace."""
     text = _ANY_TAG_RE.sub("", text)
     for k, v in _QUOTE_PAIRS.items():
         text = text.replace(k, v)
@@ -190,6 +195,7 @@ def _normalise_for_diff(text: str) -> str:
         .replace("&#39;", "'")
         .replace("&apos;", "'")
     )
+    text = _DASH_RE.sub(" ", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
