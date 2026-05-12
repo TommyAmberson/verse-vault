@@ -30,92 +30,92 @@
     {
       "book": "1 Samuel",
       "number": 17,
-      "start_verse": 4,
-      "end_verse": 50
+      "start_verse": 1,
+      "end_verse": 58
     },
     {
       "book": "1 Samuel",
       "number": 18,
-      "start_verse": 3,
+      "start_verse": 1,
       "end_verse": 4
     },
     {
       "book": "2 Samuel",
       "number": 7,
-      "start_verse": 8,
-      "end_verse": 16
+      "start_verse": 1,
+      "end_verse": 17
     },
     {
       "book": "Daniel",
       "number": 1,
-      "start_verse": 8,
-      "end_verse": 20
+      "start_verse": 1,
+      "end_verse": 21
     },
     {
       "book": "Daniel",
       "number": 3,
-      "start_verse": 16,
-      "end_verse": 25
+      "start_verse": 1,
+      "end_verse": 30
     },
     {
       "book": "Deuteronomy",
       "number": 1,
-      "start_verse": 21,
-      "end_verse": 36
+      "start_verse": 19,
+      "end_verse": 40
     },
     {
       "book": "Deuteronomy",
       "number": 6,
       "start_verse": 1,
-      "end_verse": 7
+      "end_verse": 9
     },
     {
       "book": "Exodus",
       "number": 3,
-      "start_verse": 7,
-      "end_verse": 20
+      "start_verse": 1,
+      "end_verse": 22
     },
     {
       "book": "Exodus",
       "number": 12,
       "start_verse": 21,
-      "end_verse": 41
+      "end_verse": 42
     },
     {
       "book": "Exodus",
       "number": 13,
       "start_verse": 17,
-      "end_verse": 21
+      "end_verse": 22
     },
     {
       "book": "Exodus",
       "number": 14,
-      "start_verse": 10,
-      "end_verse": 27
+      "start_verse": 1,
+      "end_verse": 31
     },
     {
       "book": "Exodus",
       "number": 17,
-      "start_verse": 9,
-      "end_verse": 15
+      "start_verse": 1,
+      "end_verse": 16
     },
     {
       "book": "Exodus",
       "number": 20,
-      "start_verse": 3,
-      "end_verse": 12
+      "start_verse": 1,
+      "end_verse": 17
     },
     {
       "book": "Genesis",
       "number": 1,
       "start_verse": 1,
-      "end_verse": 28
+      "end_verse": 31
     },
     {
       "book": "Genesis",
       "number": 2,
-      "start_verse": 3,
-      "end_verse": 24
+      "start_verse": 1,
+      "end_verse": 25
     },
     {
       "book": "Genesis",
@@ -126,86 +126,86 @@
     {
       "book": "Genesis",
       "number": 6,
-      "start_verse": 9,
-      "end_verse": 18
+      "start_verse": 1,
+      "end_verse": 22
     },
     {
       "book": "Genesis",
       "number": 11,
-      "start_verse": 4,
+      "start_verse": 1,
       "end_verse": 9
     },
     {
       "book": "Genesis",
       "number": 12,
       "start_verse": 1,
-      "end_verse": 3
+      "end_verse": 8
     },
     {
       "book": "Genesis",
       "number": 22,
-      "start_verse": 2,
-      "end_verse": 14
+      "start_verse": 1,
+      "end_verse": 19
     },
     {
       "book": "Genesis",
       "number": 50,
-      "start_verse": 20,
-      "end_verse": 24
+      "start_verse": 15,
+      "end_verse": 26
     },
     {
       "book": "Habakkuk",
       "number": 3,
-      "start_verse": 19,
+      "start_verse": 17,
       "end_verse": 19
     },
     {
       "book": "Isaiah",
       "number": 1,
-      "start_verse": 18,
+      "start_verse": 16,
       "end_verse": 18
     },
     {
       "book": "Isaiah",
       "number": 6,
-      "start_verse": 8,
+      "start_verse": 1,
       "end_verse": 8
     },
     {
       "book": "Isaiah",
       "number": 40,
-      "start_verse": 28,
+      "start_verse": 27,
       "end_verse": 31
     },
     {
       "book": "Isaiah",
       "number": 53,
-      "start_verse": 5,
-      "end_verse": 6
+      "start_verse": 1,
+      "end_verse": 12
     },
     {
       "book": "Isaiah",
       "number": 55,
-      "start_verse": 8,
-      "end_verse": 9
+      "start_verse": 6,
+      "end_verse": 11
     },
     {
       "book": "Jeremiah",
       "number": 31,
-      "start_verse": 33,
-      "end_verse": 34
+      "start_verse": 31,
+      "end_verse": 37
     },
     {
       "book": "Job",
       "number": 1,
-      "start_verse": 6,
+      "start_verse": 1,
       "end_verse": 22
     },
     {
       "book": "Joel",
       "number": 2,
-      "start_verse": 13,
-      "end_verse": 13
+      "start_verse": 12,
+      "end_verse": 32
     },
     {
       "book": "Jonah",
@@ -216,32 +216,44 @@
     {
       "book": "Jonah",
       "number": 2,
-      "start_verse": 2,
-      "end_verse": 2
+      "start_verse": 1,
+      "end_verse": 10
     },
     {
       "book": "Joshua",
       "number": 1,
-      "start_verse": 8,
+      "start_verse": 1,
       "end_verse": 9
     },
     {
       "book": "Joshua",
       "number": 4,
-      "start_verse": 5,
+      "start_verse": 1,
       "end_verse": 24
     },
     {
       "book": "Joshua",
       "number": 23,
-      "start_verse": 8,
-      "end_verse": 14
+      "start_verse": 1,
+      "end_verse": 16
     },
     {
       "book": "Judges",
       "number": 2,
-      "start_verse": 10,
-      "end_verse": 18
+      "start_verse": 7,
+      "end_verse": 23
+    },
+    {
+      "book": "Micah",
+      "number": 4,
+      "start_verse": 5,
+      "end_verse": 5
+    },
+    {
+      "book": "Micah",
+      "number": 5,
+      "start_verse": 2,
+      "end_verse": 2
     },
     {
       "book": "Micah",
@@ -250,16 +262,22 @@
       "end_verse": 8
     },
     {
+      "book": "Micah",
+      "number": 7,
+      "start_verse": 18,
+      "end_verse": 18
+    },
+    {
       "book": "Proverbs",
       "number": 3,
-      "start_verse": 5,
-      "end_verse": 15
+      "start_verse": 1,
+      "end_verse": 35
     },
     {
       "book": "Psalms",
       "number": 1,
       "start_verse": 1,
-      "end_verse": 3
+      "end_verse": 6
     },
     {
       "book": "Psalms",
@@ -271,43 +289,43 @@
       "book": "Psalms",
       "number": 23,
       "start_verse": 1,
-      "end_verse": 4
+      "end_verse": 6
     },
     {
       "book": "Psalms",
       "number": 32,
       "start_verse": 1,
-      "end_verse": 5
+      "end_verse": 11
     },
     {
       "book": "Psalms",
       "number": 46,
       "start_verse": 1,
-      "end_verse": 10
+      "end_verse": 11
     },
     {
       "book": "Psalms",
       "number": 51,
-      "start_verse": 4,
-      "end_verse": 17
+      "start_verse": 1,
+      "end_verse": 19
     },
     {
       "book": "Psalms",
       "number": 91,
       "start_verse": 1,
-      "end_verse": 4
+      "end_verse": 16
     },
     {
       "book": "Psalms",
       "number": 103,
       "start_verse": 1,
-      "end_verse": 12
+      "end_verse": 22
     },
     {
       "book": "Psalms",
       "number": 139,
       "start_verse": 1,
-      "end_verse": 18
+      "end_verse": 24
     },
     {
       "book": "Psalms",
@@ -318,7 +336,7 @@
     {
       "book": "Zephaniah",
       "number": 3,
-      "start_verse": 17,
+      "start_verse": 16,
       "end_verse": 17
     }
   ],
@@ -339,6 +357,63 @@
     {
       "book": "1 Samuel",
       "chapter": 16,
+      "verse": 2,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
+      "verse": 3,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
+      "verse": 4,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
+      "verse": 5,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
+      "verse": 6,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
       "verse": 7,
       "phraseWordCounts": [
         45
@@ -347,6 +422,65 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
+      "verse": 8,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
+      "verse": 9,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
+      "verse": 10,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
+      "verse": 11,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 16,
+      "verse": 12,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -365,6 +499,41 @@
     {
       "book": "1 Samuel",
       "chapter": 17,
+      "verse": 1,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 2,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 3,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
       "verse": 4,
       "phraseWordCounts": [
         23
@@ -374,6 +543,63 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 5,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 6,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 7,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 8,
+      "phraseWordCounts": [
+        48
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 9,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "1 Samuel",
@@ -391,6 +617,171 @@
     {
       "book": "1 Samuel",
       "chapter": 17,
+      "verse": 11,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 12,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 13,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 14,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 15,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 16,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 17,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 18,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 19,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 20,
+      "phraseWordCounts": [
+        44
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 21,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 22,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 23,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 24,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 25,
+      "phraseWordCounts": [
+        55
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
       "verse": 26,
       "phraseWordCounts": [
         45
@@ -404,6 +795,61 @@
     {
       "book": "1 Samuel",
       "chapter": 17,
+      "verse": 27,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 28,
+      "phraseWordCounts": [
+        59
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 29,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 30,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 31,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
       "verse": 32,
       "phraseWordCounts": [
         22
@@ -412,6 +858,52 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 33,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 34,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 35,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 36,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -430,6 +922,89 @@
     {
       "book": "1 Samuel",
       "chapter": 17,
+      "verse": 38,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 39,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 40,
+      "phraseWordCounts": [
+        46
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 41,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 42,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 43,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 44,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
       "verse": 45,
       "phraseWordCounts": [
         44
@@ -438,6 +1013,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 46,
+      "phraseWordCounts": [
+        61
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -452,6 +1040,17 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 48,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "1 Samuel",
@@ -478,6 +1077,122 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 51,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 52,
+      "phraseWordCounts": [
+        47
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 53,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 54,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 55,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 56,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 57,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 17,
+      "verse": 58,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 18,
+      "verse": 1,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "1 Samuel",
+      "chapter": 18,
+      "verse": 2,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "1 Samuel",
@@ -508,6 +1223,85 @@
     {
       "book": "2 Samuel",
       "chapter": 7,
+      "verse": 1,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 2,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 3,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 4,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 5,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 6,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 7,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
       "verse": 8,
       "phraseWordCounts": [
         34
@@ -521,6 +1315,85 @@
     {
       "book": "2 Samuel",
       "chapter": 7,
+      "verse": 9,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 10,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 11,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 12,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 13,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 14,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 15,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
       "verse": 16,
       "phraseWordCounts": [
         20
@@ -530,6 +1403,102 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 7,
+      "verse": 17,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 2,
+      "phraseWordCounts": [
+        47
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 3,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Daniel",
@@ -547,6 +1516,94 @@
     {
       "book": "Daniel",
       "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        48
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
       "verse": 17,
       "phraseWordCounts": [
         26
@@ -560,6 +1617,28 @@
     {
       "book": "Daniel",
       "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
       "verse": 20,
       "phraseWordCounts": [
         32
@@ -569,6 +1648,186 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 1,
+      "verse": 21,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        47
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        44
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        47
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        71
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Daniel",
@@ -612,6 +1871,28 @@
     {
       "book": "Daniel",
       "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 20,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
       "verse": 21,
       "phraseWordCounts": [
         27
@@ -620,6 +1901,41 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 22,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 23,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 24,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -634,6 +1950,87 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 26,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 27,
+      "phraseWordCounts": [
+        46
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 28,
+      "phraseWordCounts": [
+        48
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 29,
+      "phraseWordCounts": [
+        48
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Daniel",
+      "chapter": 3,
+      "verse": 30,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 20,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Deuteronomy",
@@ -651,6 +2048,50 @@
     {
       "book": "Deuteronomy",
       "chapter": 1,
+      "verse": 22,
+      "phraseWordCounts": [
+        50
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 23,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 24,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 25,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
       "verse": 26,
       "phraseWordCounts": [
         16
@@ -660,6 +2101,102 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 27,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 28,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 29,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 30,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 31,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 32,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 33,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 34,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Deuteronomy",
@@ -689,6 +2226,52 @@
     },
     {
       "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 37,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 38,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 39,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 1,
+      "verse": 40,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
       "chapter": 6,
       "verse": 1,
       "phraseWordCounts": [
@@ -698,6 +2281,41 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 6,
+      "verse": 2,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 6,
+      "verse": 3,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 6,
+      "verse": 4,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -716,6 +2334,17 @@
     {
       "book": "Deuteronomy",
       "chapter": 6,
+      "verse": 6,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 6,
       "verse": 7,
       "phraseWordCounts": [
         34
@@ -724,6 +2353,102 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 6,
+      "verse": 8,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Deuteronomy",
+      "chapter": 6,
+      "verse": 9,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -742,6 +2467,74 @@
     {
       "book": "Exodus",
       "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        58
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
       "verse": 14,
       "phraseWordCounts": [
         30
@@ -751,6 +2544,61 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        51
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        58
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Exodus",
@@ -767,6 +2615,28 @@
     },
     {
       "book": "Exodus",
+      "chapter": 3,
+      "verse": 21,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 3,
+      "verse": 22,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
       "chapter": 12,
       "verse": 21,
       "phraseWordCounts": [
@@ -776,6 +2646,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 22,
+      "phraseWordCounts": [
+        49
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -794,6 +2677,197 @@
     {
       "book": "Exodus",
       "chapter": 12,
+      "verse": 24,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 25,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 26,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 27,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 28,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 29,
+      "phraseWordCounts": [
+        46
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 30,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 31,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 32,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 33,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 34,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 35,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 36,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 37,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 38,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 39,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 40,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
       "verse": 41,
       "phraseWordCounts": [
         38
@@ -802,6 +2876,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 12,
+      "verse": 42,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -820,6 +2907,41 @@
     {
       "book": "Exodus",
       "chapter": 13,
+      "verse": 18,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 13,
+      "verse": 19,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 13,
+      "verse": 20,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 13,
       "verse": 21,
       "phraseWordCounts": [
         37
@@ -829,6 +2951,118 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 13,
+      "verse": 22,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 1,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 2,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 3,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 4,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 5,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 6,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 7,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 8,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 9,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Exodus",
@@ -846,6 +3080,28 @@
     {
       "book": "Exodus",
       "chapter": 14,
+      "verse": 11,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 12,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
       "verse": 13,
       "phraseWordCounts": [
         40
@@ -855,6 +3111,83 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 14,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 15,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 16,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 17,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 18,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 19,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 20,
+      "phraseWordCounts": [
+        46
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Exodus",
@@ -885,6 +3218,54 @@
     {
       "book": "Exodus",
       "chapter": 14,
+      "verse": 23,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 24,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 25,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 26,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
       "verse": 27,
       "phraseWordCounts": [
         40
@@ -894,6 +3275,148 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 28,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 29,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 30,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 14,
+      "verse": 31,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 1,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 2,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 3,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 4,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 5,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 6,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 7,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 8,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Exodus",
@@ -907,6 +3430,17 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 10,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Exodus",
@@ -937,6 +3471,28 @@
     {
       "book": "Exodus",
       "chapter": 17,
+      "verse": 13,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 14,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
       "verse": 15,
       "phraseWordCounts": [
         10
@@ -946,6 +3502,39 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 17,
+      "verse": 16,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 1,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 2,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Exodus",
@@ -963,6 +3552,41 @@
     {
       "book": "Exodus",
       "chapter": 20,
+      "verse": 4,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 5,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 6,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
       "verse": 7,
       "phraseWordCounts": [
         27
@@ -976,6 +3600,52 @@
     {
       "book": "Exodus",
       "chapter": 20,
+      "verse": 8,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 9,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 10,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 11,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
       "verse": 12,
       "phraseWordCounts": [
         23
@@ -984,6 +3654,63 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 13,
+      "phraseWordCounts": [
+        4
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 14,
+      "phraseWordCounts": [
+        5
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 15,
+      "phraseWordCounts": [
+        4
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 16,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Exodus",
+      "chapter": 20,
+      "verse": 17,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1025,6 +3752,265 @@
     {
       "book": "Genesis",
       "chapter": 1,
+      "verse": 3,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 20,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 21,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 22,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 23,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 24,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 25,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
       "verse": 26,
       "phraseWordCounts": [
         48
@@ -1063,6 +4049,63 @@
     },
     {
       "book": "Genesis",
+      "chapter": 1,
+      "verse": 29,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 30,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "verse": 31,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 1,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 2,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
       "chapter": 2,
       "verse": 3,
       "phraseWordCounts": [
@@ -1077,6 +4120,39 @@
     {
       "book": "Genesis",
       "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
       "verse": 7,
       "phraseWordCounts": [
         27
@@ -1085,6 +4161,122 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        44
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1103,6 +4295,43 @@
     {
       "book": "Genesis",
       "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
       "verse": 22,
       "phraseWordCounts": [
         23
@@ -1112,6 +4341,17 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 2,
+      "verse": 23,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Genesis",
@@ -1128,6 +4368,17 @@
     },
     {
       "book": "Genesis",
+      "chapter": 2,
+      "verse": 25,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
       "chapter": 3,
       "verse": 1,
       "phraseWordCounts": [
@@ -1138,6 +4389,50 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Genesis",
@@ -1168,6 +4463,85 @@
     {
       "book": "Genesis",
       "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
       "verse": 15,
       "phraseWordCounts": [
         28
@@ -1176,6 +4550,67 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        52
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 20,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1194,6 +4629,30 @@
     {
       "book": "Genesis",
       "chapter": 3,
+      "verse": 22,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
+      "verse": 23,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 3,
       "verse": 24,
       "phraseWordCounts": [
         35
@@ -1202,6 +4661,102 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 1,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 2,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 3,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 4,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 5,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 6,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 7,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 8,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1216,6 +4771,39 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 10,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 11,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 12,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Genesis",
@@ -1246,6 +4834,39 @@
     {
       "book": "Genesis",
       "chapter": 6,
+      "verse": 15,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 16,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 17,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
       "verse": 18,
       "phraseWordCounts": [
         26
@@ -1255,6 +4876,83 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 19,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 20,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 21,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 6,
+      "verse": 22,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 11,
+      "verse": 1,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 11,
+      "verse": 2,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 11,
+      "verse": 3,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Genesis",
@@ -1268,6 +4966,54 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 11,
+      "verse": 5,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 11,
+      "verse": 6,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 11,
+      "verse": 7,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 11,
+      "verse": 8,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Genesis",
@@ -1298,6 +5044,19 @@
     {
       "book": "Genesis",
       "chapter": 12,
+      "verse": 2,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 12,
       "verse": 3,
       "phraseWordCounts": [
         27
@@ -1306,6 +5065,76 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 12,
+      "verse": 4,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 12,
+      "verse": 5,
+      "phraseWordCounts": [
+        46
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 12,
+      "verse": 6,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 12,
+      "verse": 7,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 12,
+      "verse": 8,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 1,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1324,6 +5153,63 @@
     {
       "book": "Genesis",
       "chapter": 22,
+      "verse": 3,
+      "phraseWordCounts": [
+        46
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 4,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 5,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 6,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 7,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
       "verse": 8,
       "phraseWordCounts": [
         23
@@ -1333,6 +5219,39 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 9,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 10,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 11,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Genesis",
@@ -1350,6 +5269,19 @@
     {
       "book": "Genesis",
       "chapter": 22,
+      "verse": 13,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
       "verse": 14,
       "phraseWordCounts": [
         26
@@ -1359,6 +5291,116 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 15,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 16,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 17,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 18,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 22,
+      "verse": 19,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
+      "verse": 15,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
+      "verse": 16,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
+      "verse": 17,
+      "phraseWordCounts": [
+        48
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
+      "verse": 18,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
+      "verse": 19,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Genesis",
@@ -1376,6 +5418,39 @@
     {
       "book": "Genesis",
       "chapter": 50,
+      "verse": 21,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
+      "verse": 22,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
+      "verse": 23,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
       "verse": 24,
       "phraseWordCounts": [
         36
@@ -1384,6 +5459,56 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
+      "verse": 25,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Genesis",
+      "chapter": 50,
+      "verse": 26,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Habakkuk",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Habakkuk",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1402,6 +5527,30 @@
     {
       "book": "Isaiah",
       "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 1,
       "verse": 18,
       "phraseWordCounts": [
         34
@@ -1411,6 +5560,87 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 6,
+      "verse": 1,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 6,
+      "verse": 2,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 6,
+      "verse": 3,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 6,
+      "verse": 4,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 6,
+      "verse": 5,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 6,
+      "verse": 6,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 6,
+      "verse": 7,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Isaiah",
@@ -1428,6 +5658,17 @@
     {
       "book": "Isaiah",
       "chapter": 40,
+      "verse": 27,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 40,
       "verse": 28,
       "phraseWordCounts": [
         30
@@ -1441,6 +5682,30 @@
     {
       "book": "Isaiah",
       "chapter": 40,
+      "verse": 29,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 40,
+      "verse": 30,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 40,
       "verse": 31,
       "phraseWordCounts": [
         32
@@ -1449,6 +5714,54 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "verse": 1,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "verse": 2,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "verse": 3,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "verse": 4,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1479,6 +5792,94 @@
     },
     {
       "book": "Isaiah",
+      "chapter": 53,
+      "verse": 7,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "verse": 8,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "verse": 9,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "verse": 10,
+      "phraseWordCounts": [
+        44
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "verse": 11,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "verse": 12,
+      "phraseWordCounts": [
+        47
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 55,
+      "verse": 6,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 55,
+      "verse": 7,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
       "chapter": 55,
       "verse": 8,
       "phraseWordCounts": [
@@ -1502,6 +5903,52 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 55,
+      "verse": 10,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 55,
+      "verse": 11,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Jeremiah",
+      "chapter": 31,
+      "verse": 31,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Jeremiah",
+      "chapter": 31,
+      "verse": 32,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Jeremiah",
@@ -1530,6 +5977,100 @@
       ]
     },
     {
+      "book": "Jeremiah",
+      "chapter": 31,
+      "verse": 35,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Jeremiah",
+      "chapter": 31,
+      "verse": 36,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Jeremiah",
+      "chapter": 31,
+      "verse": 37,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 2,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 3,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        59
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
       "book": "Job",
       "chapter": 1,
       "verse": 6,
@@ -1541,6 +6082,17 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Job",
@@ -1558,6 +6110,45 @@
     {
       "book": "Job",
       "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
       "verse": 12,
       "phraseWordCounts": [
         34
@@ -1567,6 +6158,83 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Job",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Job",
@@ -1610,6 +6278,17 @@
     {
       "book": "Joel",
       "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joel",
+      "chapter": 2,
       "verse": 13,
       "phraseWordCounts": [
         33
@@ -1619,6 +6298,65 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Joel",
+      "chapter": 2,
+      "verse": 28,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Joel",
+      "chapter": 2,
+      "verse": 29,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Joel",
+      "chapter": 2,
+      "verse": 30,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joel",
+      "chapter": 2,
+      "verse": 31,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joel",
+      "chapter": 2,
+      "verse": 32,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Jonah",
@@ -1636,6 +6374,17 @@
     {
       "book": "Jonah",
       "chapter": 2,
+      "verse": 1,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Jonah",
+      "chapter": 2,
       "verse": 2,
       "phraseWordCounts": [
         30
@@ -1644,6 +6393,177 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Jonah",
+      "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Jonah",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Jonah",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Jonah",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Jonah",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Jonah",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Jonah",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Jonah",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 1,
+      "verse": 2,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 1,
+      "verse": 3,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1675,6 +6595,50 @@
     {
       "book": "Joshua",
       "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 3,
+      "phraseWordCounts": [
+        46
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
       "verse": 5,
       "phraseWordCounts": [
         45
@@ -1683,6 +6647,19 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 6,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1701,6 +6678,188 @@
     {
       "book": "Joshua",
       "chapter": 4,
+      "verse": 8,
+      "phraseWordCounts": [
+        58
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 9,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 10,
+      "phraseWordCounts": [
+        44
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 11,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 12,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 13,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 14,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 15,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 16,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 17,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 18,
+      "phraseWordCounts": [
+        54
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 19,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 20,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 21,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 22,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
+      "verse": 23,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 4,
       "verse": 24,
       "phraseWordCounts": [
         27
@@ -1714,6 +6873,85 @@
     {
       "book": "Joshua",
       "chapter": 23,
+      "verse": 1,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 2,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 3,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 4,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 5,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 6,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 7,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
       "verse": 8,
       "phraseWordCounts": [
         17
@@ -1722,6 +6960,30 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 9,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 10,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1740,6 +7002,28 @@
     {
       "book": "Joshua",
       "chapter": 23,
+      "verse": 12,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 13,
+      "phraseWordCounts": [
+        52
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
       "verse": 14,
       "phraseWordCounts": [
         57
@@ -1749,6 +7033,63 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 15,
+      "phraseWordCounts": [
+        50
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Joshua",
+      "chapter": 23,
+      "verse": 16,
+      "phraseWordCounts": [
+        51
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Judges",
@@ -1766,6 +7107,41 @@
     {
       "book": "Judges",
       "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        49
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
       "verse": 14,
       "phraseWordCounts": [
         44
@@ -1774,6 +7150,41 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        44
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1790,6 +7201,87 @@
       ]
     },
     {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 22,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Judges",
+      "chapter": 2,
+      "verse": 23,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Micah",
+      "chapter": 4,
+      "verse": 5,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Micah",
+      "chapter": 5,
+      "verse": 2,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
       "book": "Micah",
       "chapter": 6,
       "verse": 8,
@@ -1801,6 +7293,63 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Micah",
+      "chapter": 7,
+      "verse": 18,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Proverbs",
@@ -1844,6 +7393,63 @@
     {
       "book": "Proverbs",
       "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
       "verse": 13,
       "phraseWordCounts": [
         13
@@ -1857,6 +7463,17 @@
     {
       "book": "Proverbs",
       "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
       "verse": 15,
       "phraseWordCounts": [
         17
@@ -1866,6 +7483,234 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 20,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 21,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 22,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 23,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 24,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 25,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 26,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 27,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 28,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 29,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 30,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 31,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 32,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 33,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 34,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 3,
+      "verse": 35,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Psalms",
@@ -1908,6 +7753,41 @@
     },
     {
       "book": "Psalms",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
       "chapter": 19,
       "verse": 1,
       "phraseWordCounts": [
@@ -1922,6 +7802,61 @@
     {
       "book": "Psalms",
       "chapter": 19,
+      "verse": 2,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 3,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 4,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 5,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 6,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
       "verse": 7,
       "phraseWordCounts": [
         21
@@ -1930,6 +7865,84 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 8,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 9,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 10,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 11,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 12,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 19,
+      "verse": 13,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -1961,6 +7974,32 @@
     {
       "book": "Psalms",
       "chapter": 23,
+      "verse": 2,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 23,
+      "verse": 3,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 23,
       "verse": 4,
       "phraseWordCounts": [
         30
@@ -1970,6 +8009,28 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 23,
+      "verse": 5,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 23,
+      "verse": 6,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Psalms",
@@ -1987,6 +8048,41 @@
     {
       "book": "Psalms",
       "chapter": 32,
+      "verse": 2,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 32,
+      "verse": 3,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 32,
+      "verse": 4,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 32,
       "verse": 5,
       "phraseWordCounts": [
         32
@@ -1996,6 +8092,74 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 32,
+      "verse": 6,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 32,
+      "verse": 7,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 32,
+      "verse": 8,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 32,
+      "verse": 9,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 32,
+      "verse": 10,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 32,
+      "verse": 11,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Psalms",
@@ -2013,6 +8177,100 @@
     {
       "book": "Psalms",
       "chapter": 46,
+      "verse": 2,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 46,
+      "verse": 3,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 46,
+      "verse": 4,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 46,
+      "verse": 5,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 46,
+      "verse": 6,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 46,
+      "verse": 7,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 46,
+      "verse": 8,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 46,
+      "verse": 9,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 46,
       "verse": 10,
       "phraseWordCounts": [
         22
@@ -2022,6 +8280,54 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 46,
+      "verse": 11,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 1,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 2,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 3,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Psalms",
@@ -2052,6 +8358,19 @@
     {
       "book": "Psalms",
       "chapter": 51,
+      "verse": 6,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
       "verse": 7,
       "phraseWordCounts": [
         18
@@ -2061,6 +8380,28 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 8,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 9,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Psalms",
@@ -2078,6 +8419,76 @@
     {
       "book": "Psalms",
       "chapter": 51,
+      "verse": 11,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 12,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 13,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 14,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 15,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 16,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
       "verse": 17,
       "phraseWordCounts": [
         21
@@ -2087,6 +8498,28 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 18,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 51,
+      "verse": 19,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Psalms",
@@ -2104,6 +8537,30 @@
     {
       "book": "Psalms",
       "chapter": 91,
+      "verse": 2,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 3,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
       "verse": 4,
       "phraseWordCounts": [
         23
@@ -2116,6 +8573,138 @@
     },
     {
       "book": "Psalms",
+      "chapter": 91,
+      "verse": 5,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 6,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 7,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 8,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 9,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 10,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 11,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 12,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 13,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 14,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 15,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 91,
+      "verse": 16,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
       "chapter": 103,
       "verse": 1,
       "phraseWordCounts": [
@@ -2125,6 +8714,115 @@
       "ftvWordCount": 0,
       "clubs": [
         150
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 2,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 3,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 4,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 5,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 6,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 7,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 8,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 9,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 10,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
       ]
     },
     {
@@ -2155,6 +8853,116 @@
     },
     {
       "book": "Psalms",
+      "chapter": 103,
+      "verse": 13,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 14,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 15,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 16,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 17,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 18,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 19,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 20,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 21,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 103,
+      "verse": 22,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
       "chapter": 139,
       "verse": 1,
       "phraseWordCounts": [
@@ -2169,6 +8977,65 @@
     {
       "book": "Psalms",
       "chapter": 139,
+      "verse": 2,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 3,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 4,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 5,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 6,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
       "verse": 7,
       "phraseWordCounts": [
         15
@@ -2178,6 +9045,61 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 8,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 9,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 10,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 11,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 12,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Psalms",
@@ -2208,6 +9130,32 @@
     {
       "book": "Psalms",
       "chapter": 139,
+      "verse": 15,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 16,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
       "verse": 17,
       "phraseWordCounts": [
         17
@@ -2233,6 +9181,76 @@
     },
     {
       "book": "Psalms",
+      "chapter": 139,
+      "verse": 19,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 20,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 21,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 22,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 23,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 139,
+      "verse": 24,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
       "chapter": 145,
       "verse": 1,
       "phraseWordCounts": [
@@ -2243,6 +9261,78 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 2,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 3,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 4,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 5,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 6,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 7,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Psalms",
@@ -2260,6 +9350,142 @@
     {
       "book": "Psalms",
       "chapter": 145,
+      "verse": 9,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 10,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 11,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 12,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 13,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 14,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 15,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 16,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 17,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 18,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 19,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
+      "verse": 20,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "Psalms",
+      "chapter": 145,
       "verse": 21,
       "phraseWordCounts": [
         20
@@ -2269,6 +9495,17 @@
       "clubs": [
         150
       ]
+    },
+    {
+      "book": "Zephaniah",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
     },
     {
       "book": "Zephaniah",
@@ -2323,6 +9560,13 @@
     {
       "book": "Daniel",
       "startChapter": 3,
+      "startVerse": 1,
+      "endChapter": 3,
+      "endVerse": 7
+    },
+    {
+      "book": "Daniel",
+      "startChapter": 3,
       "startVerse": 8,
       "endChapter": 3,
       "endVerse": 18
@@ -2333,6 +9577,13 @@
       "startVerse": 19,
       "endChapter": 3,
       "endVerse": 25
+    },
+    {
+      "book": "Daniel",
+      "startChapter": 3,
+      "startVerse": 26,
+      "endChapter": 3,
+      "endVerse": 30
     },
     {
       "book": "Deuteronomy",
@@ -2372,6 +9623,13 @@
     {
       "book": "Exodus",
       "startChapter": 12,
+      "startVerse": 29,
+      "endChapter": 12,
+      "endVerse": 30
+    },
+    {
+      "book": "Exodus",
+      "startChapter": 12,
       "startVerse": 31,
       "endChapter": 12,
       "endVerse": 42
@@ -2389,6 +9647,13 @@
       "startVerse": 1,
       "endChapter": 14,
       "endVerse": 31
+    },
+    {
+      "book": "Exodus",
+      "startChapter": 17,
+      "startVerse": 1,
+      "endChapter": 17,
+      "endVerse": 7
     },
     {
       "book": "Exodus",
@@ -2424,6 +9689,13 @@
       "startVerse": 1,
       "endChapter": 3,
       "endVerse": 24
+    },
+    {
+      "book": "Genesis",
+      "startChapter": 6,
+      "startVerse": 1,
+      "endChapter": 6,
+      "endVerse": 8
     },
     {
       "book": "Genesis",
@@ -2526,6 +9798,13 @@
     {
       "book": "Job",
       "startChapter": 1,
+      "startVerse": 1,
+      "endChapter": 1,
+      "endVerse": 5
+    },
+    {
+      "book": "Job",
+      "startChapter": 1,
       "startVerse": 6,
       "endChapter": 1,
       "endVerse": 12
@@ -2543,6 +9822,13 @@
       "startVerse": 12,
       "endChapter": 2,
       "endVerse": 17
+    },
+    {
+      "book": "Joel",
+      "startChapter": 2,
+      "startVerse": 28,
+      "endChapter": 2,
+      "endVerse": 32
     },
     {
       "book": "Jonah",
@@ -2588,10 +9874,31 @@
     },
     {
       "book": "Micah",
+      "startChapter": 4,
+      "startVerse": 1,
+      "endChapter": 4,
+      "endVerse": 5
+    },
+    {
+      "book": "Micah",
+      "startChapter": 5,
+      "startVerse": 2,
+      "endChapter": 5,
+      "endVerse": 4
+    },
+    {
+      "book": "Micah",
       "startChapter": 6,
       "startVerse": 1,
       "endChapter": 6,
       "endVerse": 8
+    },
+    {
+      "book": "Micah",
+      "startChapter": 7,
+      "startVerse": 14,
+      "endChapter": 7,
+      "endVerse": 20
     },
     {
       "book": "Proverbs",
