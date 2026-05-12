@@ -7093,6 +7093,17 @@
     {
       "book": "John",
       "chapter": 13,
+      "verse": 10,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 0,
+      "clubs": []
+    },
+    {
+      "book": "John",
+      "chapter": 13,
       "verse": 11,
       "phraseWordCounts": [
         15
