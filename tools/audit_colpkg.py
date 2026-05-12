@@ -200,15 +200,99 @@ def _normalise_for_diff(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def extract_keyword_positions(html_text: str) -> Dict[int, str]:
-    """Walk the Anki verse text and return ``{wordIndex: kind}`` for
-    each token wrapped in ``<b>`` or ``<b><i>`` (and the alternate
-    ``<i><b>`` ordering). Word indices are positions in the
-    markup-stripped, whitespace-tokenised stream."""
+def extract_keyword_words(html_text: str) -> List[Tuple[str, str]]:
+    """Walk the Anki verse text and return ``[(kind, normalised_word), …]``
+    in document order, one entry per ``<b>`` / ``<b><i>`` / ``<i><b>``
+    span. Each entry records the *first* normalised token inside the
+    span (the project's annotation convention marks the first word of
+    each markup span).
+
+    Returning words rather than positions keeps callers stable across
+    tokenisation drift between Anki and api.bible — see
+    ``align_marks_to_canonical`` for how the content is mapped back to
+    canonical wordIndex values."""
+    from phrase_splitter.helpers import normalise_word
+
     s = _clean_for_tokenisation(html_text)
 
-    # Stamp each markup span with a placeholder marker so we can
-    # identify which post-tokenise word it produced.
+    # Collect matches from all three span patterns, then deduplicate:
+    # ``<i><b>X</b></i>`` matches both the italic-bold and the bold
+    # patterns. Keep the most-specific (longest) match by walking the
+    # patterns in specificity order and skipping matches contained in
+    # an already-claimed span.
+    raw: List[Tuple[int, int, str, str]] = []  # (start, end, kind, word)
+    for pattern, kind in (
+        (_BOLD_ITALIC_RE, "boldItalic"),
+        (_ITALIC_BOLD_RE, "boldItalic"),
+        (_BOLD_RE, "bold"),
+    ):
+        for m in pattern.finditer(s):
+            content = _ANY_TAG_RE.sub("", m.group(1)).strip()
+            first = content.split()[0] if content else ""
+            n = normalise_word(first)
+            if n:
+                raw.append((m.start(), m.end(), kind, n))
+
+    claimed: List[Tuple[int, int]] = []
+    out: List[Tuple[int, str, str]] = []
+    # Specificity-first: bold-italic patterns first (already by iteration
+    # order above), then bold. Within each, walk left-to-right.
+    for start, end, kind, word in raw:
+        if any(cs <= start < ce for cs, ce in claimed):
+            continue
+        claimed.append((start, end))
+        out.append((start, kind, word))
+    out.sort(key=lambda x: x[0])
+    return [(kind, word) for _start, kind, word in out]
+
+
+def align_marks_to_canonical(
+    marks: List[Tuple[str, str]],
+    canonical_tokens: List[str],
+) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """Map each ``(kind, word)`` mark to a canonical wordIndex. When a
+    marked word appears multiple times in Anki and in canonical, the
+    Nth Anki occurrence aligns to the Nth canonical occurrence (left
+    to right).
+
+    Returns ``(annotations, warnings)`` where each annotation is
+    ``{"wordIndex": int, "kind": str}``. Words in ``marks`` that can't
+    be located in canonical produce a warning and no annotation."""
+    from phrase_splitter.helpers import normalise_word
+
+    # Precompute canonical positions per normalised word.
+    positions_by_word: Dict[str, List[int]] = {}
+    for i, tok in enumerate(canonical_tokens):
+        n = normalise_word(tok)
+        if not n:
+            continue
+        positions_by_word.setdefault(n, []).append(i)
+
+    cursor_by_word: Dict[str, int] = {}
+    annotations: List[Dict[str, Any]] = []
+    warnings: List[str] = []
+    for kind, word in marks:
+        positions = positions_by_word.get(word, [])
+        cursor = cursor_by_word.get(word, 0)
+        if cursor >= len(positions):
+            warnings.append(
+                f"marked word {word!r} ({kind}) not found in canonical tokens"
+            )
+            continue
+        annotations.append({"wordIndex": positions[cursor], "kind": kind})
+        cursor_by_word[word] = cursor + 1
+    annotations.sort(key=lambda a: a["wordIndex"])
+    return annotations, warnings
+
+
+def extract_keyword_positions(html_text: str) -> Dict[int, str]:
+    """Backward-compatible Anki-position extraction. Prefer
+    ``extract_keyword_words`` + ``align_marks_to_canonical`` for
+    callers that have canonical tokens — the position stream
+    here disagrees with canonical when api.bible glues words across
+    tag boundaries (e.g. Matt 4:15 served as ``"Theland``)."""
+    s = _clean_for_tokenisation(html_text)
+
     annotations: Dict[str, str] = {}
     counter = [0]
 
@@ -224,8 +308,6 @@ def extract_keyword_positions(html_text: str) -> Dict[int, str]:
     s = _BOLD_ITALIC_RE.sub(stamp("boldItalic"), s)
     s = _ITALIC_BOLD_RE.sub(stamp("boldItalic"), s)
     s = _BOLD_RE.sub(stamp("bold"), s)
-    # Strip any remaining tags (small-caps span etc.) — we only care
-    # about word positions; markup outside b/i isn't a keyword class.
     s = _ANY_TAG_RE.sub("", s)
     tokens = s.split()
     out: Dict[int, str] = {}
@@ -257,6 +339,8 @@ def compare_verse(
     canonical_tokens: List[str],
     checks: set[str],
 ) -> List[Dict[str, Any]]:
+    from phrase_splitter.helpers import normalise_word
+
     diffs: List[Dict[str, Any]] = []
     ref = f"{book} {chapter}:{verse}"
 
@@ -289,18 +373,29 @@ def compare_verse(
             })
 
     if "keys" in checks:
-        anki_keys = extract_keyword_positions(anki_text)
-        deck_keys = {
-            int(a["wordIndex"]): a["kind"]
-            for a in (deck_verse.get("annotations") or [])
-            if a.get("kind") in ("bold", "boldItalic")
-        }
-        if anki_keys != deck_keys:
+        # Compare by content (kind, normalised-word) instead of by
+        # wordIndex. Anki's whitespace-split positions disagree with
+        # the canonical token stream whenever api.bible glues words
+        # across tag boundaries — comparing indices flags those drifts
+        # as keyword diffs even though the underlying authoring agrees.
+        anki_marks = sorted(extract_keyword_words(anki_text))
+        deck_marks_raw: List[Tuple[str, str]] = []
+        for a in deck_verse.get("annotations") or []:
+            kind = a.get("kind")
+            if kind not in ("bold", "boldItalic"):
+                continue
+            idx = int(a["wordIndex"])
+            if 0 <= idx < len(canonical_tokens):
+                word = normalise_word(canonical_tokens[idx])
+                if word:
+                    deck_marks_raw.append((kind, word))
+        deck_marks = sorted(deck_marks_raw)
+        if anki_marks != deck_marks:
             diffs.append({
                 "ref": ref,
                 "kind": "keys",
-                "anki": dict(sorted(anki_keys.items())),
-                "deck": dict(sorted(deck_keys.items())),
+                "anki": anki_marks,
+                "deck": deck_marks,
             })
 
     if "clubs" in checks:
@@ -407,8 +502,11 @@ def main() -> None:
             elif kind == "ftv":
                 print(f"    anki word count: {d['anki_word_count']}; deck: {d['deck_word_count']}")
             elif kind == "keys":
-                print(f"    anki: {d['anki']}")
-                print(f"    deck: {d['deck']}")
+                # Render each side as a compact list of `word/kind` pairs.
+                def _fmt(items: List[Tuple[str, str]]) -> str:
+                    return ", ".join(f"{w}/{k}" for k, w in items)
+                print(f"    anki: {_fmt(d['anki'])}")
+                print(f"    deck: {_fmt(d['deck'])}")
             elif kind == "clubs":
                 print(f"    anki: {d['anki']}; deck: {d['deck']}")
         if args.top is not None and len(rows) > args.top:

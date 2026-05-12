@@ -56,7 +56,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from audit_colpkg import (  # noqa: E402
     COLLECTION_CANDIDATES,
-    extract_keyword_positions,
+    align_marks_to_canonical,
+    extract_keyword_words,
     ftv_word_count,
     parse_clubs,
     parse_reference,
@@ -178,22 +179,26 @@ def build_headings(
 def build_verses(
     notes: List[Tuple[str, int, int, str, str, List[int]]],
     canonical: Dict[Tuple[str, int], Dict[int, List[str]]],
-) -> List[Dict[str, Any]]:
+) -> Tuple[List[Dict[str, Any]], List[str]]:
     """One entry per colpkg Verse note. Annotations come from the Anki
-    markup; phrase splits start as a single whole-verse phrase (the
+    markup, mapped back onto canonical token positions by content
+    match — Anki's whitespace-split positions disagree with the
+    api.bible token stream when api.bible glues words across tag
+    boundaries, so trusting Anki positions directly produces silent
+    drift. Phrase splits start as a single whole-verse phrase (the
     splitter pipeline refines later)."""
     seen: Dict[Tuple[str, int, int], Dict[str, Any]] = {}
+    warnings: List[str] = []
     for book, ch, v, text_html, ftv_html, clubs in notes:
         key = (book, ch, v)
         if key in seen:
             continue
         tokens = canonical.get((book, ch), {}).get(v, [])
         word_count = len(tokens)
-        positions = extract_keyword_positions(text_html)
-        annotations = [
-            {"wordIndex": idx, "kind": kind}
-            for idx, kind in sorted(positions.items())
-        ]
+        marks = extract_keyword_words(text_html)
+        annotations, warns = align_marks_to_canonical(marks, tokens)
+        for w in warns:
+            warnings.append(f"{book} {ch}:{v}: {w}")
         seen[key] = {
             "book": book,
             "chapter": ch,
@@ -203,7 +208,7 @@ def build_verses(
             "ftvWordCount": ftv_word_count(ftv_html) if ftv_html else 0,
             "clubs": clubs,
         }
-    return [seen[k] for k in sorted(seen)]
+    return [seen[k] for k in sorted(seen)], warnings
 
 
 def main() -> None:
@@ -261,7 +266,7 @@ def main() -> None:
 
     chapters = build_chapters(verse_keys)
     headings = build_headings(sections_by_book, set(verse_keys))
-    verses = build_verses(notes, canonical)
+    verses, mark_warnings = build_verses(notes, canonical)
 
     deck = {
         "year": args.year_num,
@@ -290,6 +295,12 @@ def main() -> None:
         print(f"  WARNING: {len(no_canon)} verse(s) had no canonical text:")
         for v in no_canon[:10]:
             print(f"    {v['book']} {v['chapter']}:{v['verse']}")
+    if mark_warnings:
+        print(f"  WARNING: {len(mark_warnings)} annotation alignment issue(s):")
+        for w in mark_warnings[:10]:
+            print(f"    {w}")
+        if len(mark_warnings) > 10:
+            print(f"    …and {len(mark_warnings) - 10} more")
 
 
 if __name__ == "__main__":
