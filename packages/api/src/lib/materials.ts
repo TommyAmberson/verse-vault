@@ -7,9 +7,10 @@ import { resolve } from 'node:path';
  * JSON) is the structural form — phrase word counts, user-annotation
  * indices, FTV word count, heading verse-ranges. No NKJV verse text.
  *
- * The committed `data/corinthians.json` carries the real material; an
- * inline stand-in serves test environments that haven't provisioned the
- * data directory.
+ * Structural deck files live in `/data/<year>-<book>.json` — one per
+ * year of the 8-year quizzing cycle (`3-corinthians.json`,
+ * `4-john.json`, …). An inline stand-in serves test environments that
+ * haven't provisioned the data directory.
  */
 
 export interface Material {
@@ -36,7 +37,7 @@ const REPO_ROOT = resolve(import.meta.dirname, '../../../..');
 /** Per-material override: relative path under the repo root for the
  *  structural MaterialData JSON. Missing on disk → inline fallback. */
 const DATA_FILES: Record<string, string> = {
-  'nkjv-1cor': 'data/corinthians.json',
+  'nkjv-1cor': 'data/3-corinthians.json',
 };
 
 /** Inline structural stand-in MaterialData per id, kept tiny so tests
@@ -83,7 +84,7 @@ export function getMaterialJson(id: string): string {
   const fallback = INLINE_FIXTURES[id];
   if (fallback === undefined) throw new Error(`Unknown material: ${id}`);
   // Don't cache the fallback: if a dev process started before the pipeline
-  // wrote data/corinthians.json, we want the next request to re-check disk
+  // wrote data/3-corinthians.json, we want the next request to re-check disk
   // and pick up the real file instead of being stuck on the inline stub.
   return JSON.stringify(fallback);
 }

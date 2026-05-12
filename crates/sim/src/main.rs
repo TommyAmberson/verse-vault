@@ -1,6 +1,6 @@
 //! HSRS-engine simulation with a probabilistic learner.
 //!
-//! Loads `data/corinthians.json`, builds a `ReviewEngine`, and steps a
+//! Loads `data/3-corinthians.json`, builds a `ReviewEngine`, and steps a
 //! per-day review loop. A `ProbLearner` maintains parallel ground-truth
 //! per-test FSRS state; on each review it samples pass/fail per contained
 //! test from its true retrievability, derives a card-level grade, feeds the
@@ -92,7 +92,7 @@ fn parse_args() -> SimArgs {
 
 fn fixture_path() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    p.push("../../data/corinthians.json");
+    p.push("../../data/3-corinthians.json");
     p
 }
 

@@ -2,7 +2,7 @@
 """Audit an Anki ``.colpkg`` backup against the structural deck file
 and the canonical NKJV from api.bible.
 
-The structural deck (``data/corinthians.json``) is the runtime source
+The structural deck (``data/3-corinthians.json``) is the runtime source
 of truth for ``phraseWordCounts``, ``annotations``, ``ftvWordCount``,
 and ``clubs``. The colpkg is where the user authors content. This
 script surfaces drift between the two — and against canonical NKJV —
@@ -24,7 +24,7 @@ Usage:
     python3 tools/audit_colpkg.py \\
         data/collection-2026-05-08.colpkg \\
         --year 3-C \\
-        [--deck data/corinthians.json]
+        [--deck data/3-corinthians.json]
         [--checks text,ftv,keys,clubs]
 """
 
@@ -327,8 +327,8 @@ def main() -> None:
     ap.add_argument("colpkg", help="Anki .colpkg backup file")
     ap.add_argument(
         "--deck",
-        default="data/corinthians.json",
-        help="Structural deck JSON (default: data/corinthians.json)",
+        default="data/3-corinthians.json",
+        help="Structural deck JSON (default: data/3-corinthians.json)",
     )
     ap.add_argument(
         "--year",

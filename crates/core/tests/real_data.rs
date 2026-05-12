@@ -1,4 +1,4 @@
-//! Integration test against the bundled `data/corinthians.json` fixture.
+//! Integration test against the bundled `data/3-corinthians.json` fixture.
 //! Exercises the full builder → engine → scheduler → review pipeline.
 //!
 //! `data/` is gitignored — CI environments and fresh clones don't have the
@@ -13,7 +13,7 @@ use verse_vault_core::engine::ReviewEngine;
 use verse_vault_core::schedule::next_card;
 use verse_vault_core::types::Grade;
 
-const FIXTURE_PATH: &str = "../../data/corinthians.json";
+const FIXTURE_PATH: &str = "../../data/3-corinthians.json";
 
 fn try_load_material() -> Option<MaterialData> {
     let json = std::fs::read_to_string(FIXTURE_PATH).ok()?;

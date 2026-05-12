@@ -2,9 +2,10 @@
 """Refresh the ``clubs`` field on each verse in the structural deck file
 from an Anki ``.colpkg`` backup.
 
-Now that canonical verse text and structure both live in ``data/
-corinthians.json`` (and the api.bible cache for the text itself), the
-only thing we still need from Anki is each verse's club membership
+Now that canonical verse text and structure both live in
+``data/3-corinthians.json`` (and the api.bible cache for the text
+itself), the only thing we still need from Anki is each verse's club
+membership
 (Club150 / Club300 — the tiered memorisation challenge buckets the
 deck tracks). Everything else stays untouched.
 
@@ -20,7 +21,7 @@ shells out to ``/usr/bin/zstd`` to keep this dependency-free.
 Usage:
     python3 tools/import_colpkg.py \\
         data/collection-2026-05-08.colpkg \\
-        data/corinthians.json \\
+        data/3-corinthians.json \\
         --year 3-C
 """
 
@@ -135,8 +136,8 @@ def main() -> None:
     ap.add_argument(
         "deck",
         nargs="?",
-        default="data/corinthians.json",
-        help="Structural deck JSON to update in place (default: data/corinthians.json)",
+        default="data/3-corinthians.json",
+        help="Structural deck JSON to update in place (default: data/3-corinthians.json)",
     )
     ap.add_argument(
         "--year",

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Audit the deck's keyword (``bold``) and context-key (``boldItalic``)
-annotations in ``data/corinthians.json``.
+annotations in ``data/3-corinthians.json``.
 
 Quiz federation rules (paraphrased from `qzr-sheet/docs/rules.md`):
 
@@ -207,8 +207,8 @@ def main() -> None:
     ap.add_argument(
         "deck",
         nargs="?",
-        default="data/corinthians.json",
-        help="Structural deck JSON (default: data/corinthians.json)",
+        default="data/3-corinthians.json",
+        help="Structural deck JSON (default: data/3-corinthians.json)",
     )
     ap.add_argument("--db", default=DEFAULT_DB_PATH, help="Shared api.bible SQLite cache")
     ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")

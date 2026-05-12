@@ -2,7 +2,7 @@
 audit tools.
 
 These tools operate on:
-  - ``data/corinthians.json``    — the committed structural deck file
+  - ``data/3-corinthians.json``    — the committed structural deck file
                                    (phraseWordCounts, annotations,
                                    ftvWordCount, headings, clubs)
   - the api.bible HTML cache     — the API server's SQLite at

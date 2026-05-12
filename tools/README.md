@@ -8,7 +8,7 @@ Three sources, one runtime payload:
 
 ```
 api.bible      → canonical NKJV text         (cached in apibible_passages)
-corinthians.json → phraseWordCounts,         (committed structural file —
+3-corinthians.json → phraseWordCounts,         (committed structural file —
                    annotations,                source of truth for project
                    ftvWordCount,               metadata)
                    headings, clubs
@@ -17,7 +17,7 @@ Anki .colpkg   → clubs only                  (just for refreshing the tier
                                               the deck stays in git)
 ```
 
-Runtime (`packages/api/src/lib/render.ts`) reads `corinthians.json` for the structure, fetches
+Runtime (`packages/api/src/lib/render.ts`) reads `3-corinthians.json` for the structure, fetches
 canonical chapter HTML from the api.bible cache, and composes per-verse HTML by slicing api.bible
 tokens with the deck's word counts and annotation indices.
 
@@ -50,7 +50,7 @@ python3 tools/split_phrases.py print-prompt --refs "1 Cor 12:11"
 # pull refs straight out of the evaluator's worst-first report
 python3 tools/split_phrases.py print-prompt --from-report /tmp/report.json --top 10 --json
 
-# apply proposed [{ref, phrases}] back to corinthians.json
+# apply proposed [{ref, phrases}] back to 3-corinthians.json
 python3 tools/split_phrases.py apply --input /tmp/proposed.json --dry-run
 python3 tools/split_phrases.py apply --input /tmp/proposed.json
 ```
@@ -104,7 +104,7 @@ python3 tools/audit_colpkg.py data/collection-*.colpkg --year 3-C --out /tmp/aud
 
 ### `import_colpkg.py`
 
-Refresh only the `clubs` field on each verse in `corinthians.json` from an Anki `.colpkg` backup.
+Refresh only the `clubs` field on each verse in `3-corinthians.json` from an Anki `.colpkg` backup.
 Everything else (phrase splits, annotations, FTV) stays as authored in the structural file.
 
 ```bash
@@ -134,7 +134,7 @@ Subject to the
 
 | File                               | Tracked?   | Role                                                   |
 | ---------------------------------- | ---------- | ------------------------------------------------------ |
-| `data/corinthians.json`            | committed  | structural deck (source of truth for project metadata) |
+| `data/3-corinthians.json`          | committed  | structural deck (source of truth for project metadata) |
 | `packages/api/data/verse-vault.db` | gitignored | API SQLite incl. `apibible_passages` cache             |
 | `data/collection-*.colpkg`         | gitignored | Anki backups (clubs source + audit input)              |
 

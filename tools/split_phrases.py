@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Re-split verses in the committed structural deck file.
 
-Operates on ``data/corinthians.json`` (durable source for
+Operates on ``data/3-corinthians.json`` (durable source for
 ``phraseWordCounts``) plus the api.bible canonical-text cache for the
 verse content fed to the LLM.
 
@@ -216,7 +216,7 @@ def main() -> None:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    ap.add_argument("--deck", default="data/corinthians.json", help="Structural deck JSON")
+    ap.add_argument("--deck", default="data/3-corinthians.json", help="Structural deck JSON")
     ap.add_argument("--db", default=DEFAULT_DB_PATH, help="Shared api.bible SQLite cache")
     ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")
 

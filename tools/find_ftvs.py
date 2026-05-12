@@ -8,7 +8,7 @@ when that opening prefix is unique across the material — otherwise
 multiple verses match and the contestant can't choose.
 
 This script computes the shortest unique opening prefix for every
-verse in ``data/corinthians.json`` (structural) using canonical NKJV
+verse in ``data/3-corinthians.json`` (structural) using canonical NKJV
 tokens from the api.bible HTML cache. Pass ``--audit`` to also diff
 against the deck's current ``ftvWordCount`` and flag verses where the
 deck cue is too short (ambiguous) or longer than the minimum.
@@ -80,8 +80,8 @@ def main() -> None:
     ap.add_argument(
         "deck",
         nargs="?",
-        default="data/corinthians.json",
-        help="Structural deck JSON (default: data/corinthians.json)",
+        default="data/3-corinthians.json",
+        help="Structural deck JSON (default: data/3-corinthians.json)",
     )
     ap.add_argument("--db", default=DEFAULT_DB_PATH, help="Shared api.bible SQLite cache")
     ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")

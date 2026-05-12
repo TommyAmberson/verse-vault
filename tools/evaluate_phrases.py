@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Audit phrase splits in the committed structural deck file.
 
-Operates on ``data/corinthians.json`` (the durable source of truth for
+Operates on ``data/3-corinthians.json`` (the durable source of truth for
 ``phraseWordCounts`` and ``annotations``) plus the api.bible HTML
 cache (canonical NKJV tokens). Phrase text shown in the report is
 sliced from api.bible tokens by the deck's word counts — no per-verse
@@ -238,8 +238,8 @@ def main() -> None:
     ap.add_argument(
         "deck",
         nargs="?",
-        default="data/corinthians.json",
-        help="Structural deck JSON (default: data/corinthians.json)",
+        default="data/3-corinthians.json",
+        help="Structural deck JSON (default: data/3-corinthians.json)",
     )
     ap.add_argument("--refs", help="Comma-separated refs to limit the check to")
     ap.add_argument(
