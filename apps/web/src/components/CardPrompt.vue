@@ -388,16 +388,19 @@ const composedMissing = computed(() => props.card.composed === null)
    (.sc small caps for LORD, .bd divine-name bold, .it translator
    italics) and the deck's user-annotation tags (<b>/<i>). :deep()
    reaches inside since Vue's scoped CSS doesn't tag dynamically
-   inserted nodes. */
-/* User keyword annotations: deck convention is bold-900 + underlined.
-   api.bible's divine-name `.bd` stays bold-only (no underline). */
+   inserted nodes.
+
+   Deck keyword annotations: `<b>` renders bold-900 + underlined per
+   the Anki convention. api.bible's `.bd` (divine-name bold) is forced
+   back to normal weight so it doesn't compete with the user's keyword
+   bold for visual weight. */
 .verse-text :deep(b) {
   font-weight: 900;
   text-decoration: underline;
 }
 
 .verse-text :deep(.bd) {
-  font-weight: 700;
+  font-weight: normal;
 }
 
 /* Deck keyword annotations rendered as <i> stay italic. api.bible's
