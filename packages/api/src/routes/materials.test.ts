@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { userMaterials } from '../db/schema.js';
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
 
-const MATERIAL_ID = 'nkjv-1cor';
+const MATERIAL_ID = 'nkjv-cor';
 
 interface ListResponse {
   materials: Array<{ id: string; title: string; description: string }>;

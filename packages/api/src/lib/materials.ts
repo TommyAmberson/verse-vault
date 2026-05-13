@@ -26,13 +26,13 @@ export const MATERIALS: readonly Material[] = [
     description: 'Year 1: Galatians, Ephesians, Philippians, Colossians.',
   },
   {
-    id: 'nkjv-nt-survey',
+    id: 'nkjv-nt',
     title: 'NT Survey (NKJV)',
     description:
       'Year 2: selected passages from Matthew, Acts, 1 Thessalonians, 1–2 Timothy, Titus, 1 John, Revelation.',
   },
   {
-    id: 'nkjv-1cor',
+    id: 'nkjv-cor',
     title: '1–2 Corinthians (NKJV)',
     description: 'Year 3: 1–2 Corinthians with phrase chunking and FTV prompts.',
   },
@@ -47,7 +47,7 @@ export const MATERIALS: readonly Material[] = [
     description: 'Year 5: Hebrews, 1 Peter, 2 Peter — full chapters (469 verses).',
   },
   {
-    id: 'nkjv-ot-survey',
+    id: 'nkjv-ot',
     title: 'OT Survey (NKJV)',
     description:
       'Year 6: curated passages across Genesis through the Minor Prophets (780 verses).',
@@ -75,11 +75,11 @@ const REPO_ROOT = resolve(import.meta.dirname, '../../../..');
  *  structural MaterialData JSON. Missing on disk → inline fallback. */
 const DATA_FILES: Record<string, string> = {
   'nkjv-gepc': 'data/1-gepc.json',
-  'nkjv-nt-survey': 'data/2-nt-survey.json',
-  'nkjv-1cor': 'data/3-corinthians.json',
+  'nkjv-nt': 'data/2-nt-survey.json',
+  'nkjv-cor': 'data/3-corinthians.json',
   'nkjv-john': 'data/4-john.json',
   'nkjv-hp': 'data/5-hp.json',
-  'nkjv-ot-survey': 'data/6-ot-survey.json',
+  'nkjv-ot': 'data/6-ot-survey.json',
   'nkjv-rj': 'data/7-rj.json',
   'nkjv-luke': 'data/8-luke.json',
 };
@@ -87,7 +87,7 @@ const DATA_FILES: Record<string, string> = {
 /** Inline structural stand-in MaterialData per id, kept tiny so tests
  *  don't churn the WASM engine. Mirrors `crates/wasm/test-smoke.js`. */
 const INLINE_FIXTURES: Record<string, unknown> = {
-  'nkjv-1cor': {
+  'nkjv-cor': {
     year: 3,
     books: ['John'],
     chapters: [{ book: 'John', number: 3, start_verse: 16, end_verse: 16 }],

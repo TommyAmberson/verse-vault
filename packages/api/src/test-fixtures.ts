@@ -11,7 +11,7 @@ export interface SeedOptions {
 }
 
 /**
- * Test helper: enrolls a user in the placeholder `nkjv-1cor` material,
+ * Test helper: enrolls a user in the placeholder `nkjv-cor` material,
  * optionally creating the user row first (for tests that don't sign up
  * via Better Auth).
  */

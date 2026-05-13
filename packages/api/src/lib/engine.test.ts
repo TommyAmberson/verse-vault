@@ -14,10 +14,10 @@ describe('EngineStore', () => {
   it('loads an engine from a seeded snapshot', async () => {
     const test = createTestDb();
     cleanup = test.cleanup;
-    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-1cor' });
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-cor' });
 
     const store = new EngineStore(test.db);
-    const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-1cor' });
+    const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
 
     expect(loaded.snapshotVersion).toBe(1);
     const states = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
@@ -38,11 +38,11 @@ describe('EngineStore', () => {
   it('caches engines across calls', async () => {
     const test = createTestDb();
     cleanup = test.cleanup;
-    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-1cor' });
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-cor' });
 
     const store = new EngineStore(test.db);
-    const a = await store.load({ userId: 'u1', materialId: 'nkjv-1cor' });
-    const b = await store.load({ userId: 'u1', materialId: 'nkjv-1cor' });
+    const a = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    const b = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
     expect(a.engine).toBe(b.engine);
     store.clear();
   });
@@ -50,10 +50,10 @@ describe('EngineStore', () => {
   it('serialises concurrent withLock callers', async () => {
     const test = createTestDb();
     cleanup = test.cleanup;
-    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-1cor' });
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-cor' });
 
     const store = new EngineStore(test.db);
-    const key = { userId: 'u1', materialId: 'nkjv-1cor' };
+    const key = { userId: 'u1', materialId: 'nkjv-cor' };
 
     const order: number[] = [];
     let resolveFirst: () => void = () => {};

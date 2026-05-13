@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { userYearSettings } from '../db/schema.js';
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
 
-const MATERIAL_ID = 'nkjv-1cor';
+const MATERIAL_ID = 'nkjv-cor';
 
 type TierScope = 'off' | 'up150' | 'up300' | 'all';
 type ChapterListScope = 'off' | 'up150' | 'up300';

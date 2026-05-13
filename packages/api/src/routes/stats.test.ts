@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
 
-const MATERIAL_ID = 'nkjv-1cor';
+const MATERIAL_ID = 'nkjv-cor';
 
 interface StatsResponse {
   materialId: string;

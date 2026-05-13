@@ -85,6 +85,13 @@
       "when": 1778703391363,
       "tag": "0011_wakeful_punisher",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1778710000000,
+      "tag": "0012_rename_material_ids",
+      "breakpoints": true
     }
   ]
 }

@@ -188,4 +188,4 @@ export class ApiError extends Error {
 export const api = createApiClient(import.meta.env.VITE_API_URL ?? 'http://localhost:3000')
 
 /** Material id rendered in the thin client. Override with VITE_MATERIAL_ID. */
-export const MATERIAL_ID = import.meta.env.VITE_MATERIAL_ID ?? 'nkjv-1cor'
+export const MATERIAL_ID = import.meta.env.VITE_MATERIAL_ID ?? 'nkjv-cor'

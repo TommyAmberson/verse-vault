@@ -48,7 +48,7 @@ describe('indexes', () => {
       planFor(
         'SELECT * FROM review_events WHERE user_id = ? AND material_id = ? ORDER BY timestamp_secs',
         'u1',
-        'nkjv-1cor',
+        'nkjv-cor',
       ),
     ).toContain('idx_review_events_user_material_time');
   });
