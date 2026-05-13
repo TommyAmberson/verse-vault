@@ -88,17 +88,19 @@ export interface StatsResponse {
 
 export type ClubStatus = 'active' | 'maintenance' | 'paused'
 export type ClubTier = '150' | '300' | 'full'
+export type ClubCardScope = 'off' | 'up150' | 'up300' | 'all'
+export type ChapterListScope = 'off' | 'up150' | 'up300'
 
 export interface YearSettings {
   headings: boolean
   ftv: boolean
+  clubCardScope: ClubCardScope
+  chapterListScope: ChapterListScope
   lessonBatchSize: number
 }
 
 export interface ClubView {
   status: ClubStatus
-  clubCards: boolean
-  chapterLists: boolean
   cardCount: number
 }
 
@@ -106,12 +108,6 @@ export interface YearView {
   materialId: string
   settings: YearSettings
   clubs: Record<ClubTier, ClubView>
-}
-
-export interface ClubPatch {
-  status?: ClubStatus
-  clubCards?: boolean
-  chapterLists?: boolean
 }
 
 export interface YearsResponse {
@@ -126,16 +122,11 @@ export interface ApiClient {
   getStats(materialId: string): Promise<StatsResponse>
   getYears(): Promise<YearsResponse>
   updateYearSettings(materialId: string, settings: Partial<YearSettings>): Promise<{ settings: YearSettings }>
-  updateClub(
+  updateClubStatus(
     materialId: string,
     tier: ClubTier,
-    patch: ClubPatch,
-  ): Promise<{
-    tier: ClubTier
-    status: ClubStatus
-    clubCards: boolean
-    chapterLists: boolean
-  }>
+    status: ClubStatus,
+  ): Promise<{ tier: ClubTier; status: ClubStatus }>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
@@ -175,8 +166,12 @@ export function createApiClient(apiUrl: string): ApiClient {
     getYears: () => request('GET', '/api/years'),
     updateYearSettings: (materialId, settings) =>
       request('POST', `/api/years/${encodeURIComponent(materialId)}/settings`, settings),
-    updateClub: (materialId, tier, patch) =>
-      request('POST', `/api/years/${encodeURIComponent(materialId)}/clubs/${tier}`, patch),
+    updateClubStatus: (materialId, tier, status) =>
+      request(
+        'POST',
+        `/api/years/${encodeURIComponent(materialId)}/clubs/${tier}`,
+        { status },
+      ),
   }
 }
 

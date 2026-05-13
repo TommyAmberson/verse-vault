@@ -2,7 +2,8 @@
 import { onMounted, ref } from 'vue'
 
 import {
-  type ClubPatch,
+  type ChapterListScope,
+  type ClubCardScope,
   type ClubStatus,
   type ClubTier,
   type YearSettings,
@@ -24,6 +25,22 @@ const TIER_LABELS: Record<ClubTier, string> = {
   '300': 'Club 300',
   full: 'Full',
 }
+
+const CLUB_CARD_SCOPE_OPTIONS: { value: ClubCardScope; label: string }[] = [
+  { value: 'all', label: 'All verses' },
+  { value: 'up300', label: 'Club 150 + Club 300 verses' },
+  { value: 'up150', label: 'Club 150 verses only' },
+  { value: 'off', label: 'None' },
+]
+
+const CHAPTER_LIST_SCOPE_OPTIONS: { value: ChapterListScope; label: string }[] = [
+  {
+    value: 'up300',
+    label: 'Club 150 + Club 300 lists per chapter',
+  },
+  { value: 'up150', label: 'Club 150 list per chapter' },
+  { value: 'off', label: 'None' },
+]
 
 interface YearCard {
   view: YearView
@@ -65,10 +82,10 @@ async function onSaveSettings(card: YearCard) {
   }
 }
 
-async function patchClub(card: YearCard, tier: ClubTier, patch: ClubPatch) {
+async function onChangeStatus(card: YearCard, tier: ClubTier, status: ClubStatus) {
   card.savingClub[tier] = true
   try {
-    await api.updateClub(card.view.materialId, tier, patch)
+    await api.updateClubStatus(card.view.materialId, tier, status)
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -81,6 +98,8 @@ function settingsAreDirty(card: YearCard): boolean {
   return (
     draft.headings !== view.settings.headings ||
     draft.ftv !== view.settings.ftv ||
+    draft.clubCardScope !== view.settings.clubCardScope ||
+    draft.chapterListScope !== view.settings.chapterListScope ||
     draft.lessonBatchSize !== view.settings.lessonBatchSize
   )
 }
@@ -125,6 +144,36 @@ onMounted(refresh)
               />
               <span>FTV (finish-the-verse) prompts</span>
             </label>
+            <label class="select-row">
+              <span>"Which club is this verse in?" prompts</span>
+              <select
+                v-model="card.draft.clubCardScope"
+                :disabled="card.savingSettings"
+              >
+                <option
+                  v-for="opt in CLUB_CARD_SCOPE_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </label>
+            <label class="select-row">
+              <span>Chapter-list prompts</span>
+              <select
+                v-model="card.draft.chapterListScope"
+                :disabled="card.savingSettings"
+              >
+                <option
+                  v-for="opt in CHAPTER_LIST_SCOPE_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </label>
             <label class="number-row">
               <span>Verses per memorize session</span>
               <input
@@ -148,61 +197,27 @@ onMounted(refresh)
 
         <section class="clubs">
           <div class="section-title">Clubs</div>
-          <div v-for="tier in CLUB_TIERS" :key="tier" class="club-block">
-            <div class="club-row">
-              <div class="club-info">
-                <div class="club-name">{{ tierLabel(tier) }}</div>
-                <div class="club-count">{{ card.view.clubs[tier].cardCount }} cards</div>
-              </div>
-              <div
-                class="club-control"
-                :class="{ disabled: card.view.clubs[tier].cardCount === 0 }"
-              >
-                <button
-                  v-for="opt in STATUSES"
-                  :key="opt"
-                  type="button"
-                  :class="['pill', `pill-${opt}`, { active: card.view.clubs[tier].status === opt }]"
-                  :disabled="card.view.clubs[tier].cardCount === 0 || card.savingClub[tier]"
-                  :title="STATUS_DESCRIPTIONS[opt]"
-                  @click="patchClub(card, tier, { status: opt })"
-                >
-                  {{ opt }}
-                </button>
-              </div>
+          <div v-for="tier in CLUB_TIERS" :key="tier" class="club-row">
+            <div class="club-info">
+              <div class="club-name">{{ tierLabel(tier) }}</div>
+              <div class="club-count">{{ card.view.clubs[tier].cardCount }} cards</div>
             </div>
-            <label
-              v-if="card.view.clubs[tier].cardCount > 0"
-              class="club-toggle"
+            <div
+              class="club-control"
+              :class="{ disabled: card.view.clubs[tier].cardCount === 0 }"
             >
-              <input
-                type="checkbox"
-                :checked="card.view.clubs[tier].clubCards"
-                :disabled="card.savingClub[tier]"
-                @change="
-                  patchClub(card, tier, {
-                    clubCards: ($event.target as HTMLInputElement).checked,
-                  })
-                "
-              />
-              <span>"Which club?" cards (per verse)</span>
-            </label>
-            <label
-              v-if="card.view.clubs[tier].cardCount > 0"
-              class="club-toggle"
-            >
-              <input
-                type="checkbox"
-                :checked="card.view.clubs[tier].chapterLists"
-                :disabled="card.savingClub[tier]"
-                @change="
-                  patchClub(card, tier, {
-                    chapterLists: ($event.target as HTMLInputElement).checked,
-                  })
-                "
-              />
-              <span>Chapter-list cards</span>
-            </label>
+              <button
+                v-for="opt in STATUSES"
+                :key="opt"
+                type="button"
+                :class="['pill', `pill-${opt}`, { active: card.view.clubs[tier].status === opt }]"
+                :disabled="card.view.clubs[tier].cardCount === 0 || card.savingClub[tier]"
+                :title="STATUS_DESCRIPTIONS[opt]"
+                @click="onChangeStatus(card, tier, opt)"
+              >
+                {{ opt }}
+              </button>
+            </div>
           </div>
         </section>
       </article>
@@ -278,7 +293,7 @@ h2 {
 .toggles {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 
 .toggle {
@@ -292,6 +307,7 @@ h2 {
   accent-color: var(--color-accent);
 }
 
+.select-row,
 .number-row {
   display: flex;
   align-items: center;
@@ -299,13 +315,19 @@ h2 {
   gap: 1rem;
 }
 
+.select-row select,
 .number-row input {
-  width: 4rem;
   padding: 0.25rem 0.5rem;
   background: var(--color-bg);
   color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.number-row input {
+  width: 4rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -331,37 +353,11 @@ h2 {
   gap: 0.75rem;
 }
 
-.club-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.club-block:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
 .club-row {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 1rem;
-}
-
-.club-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  color: var(--color-muted);
-  padding-left: 0.25rem;
-}
-
-.club-toggle input[type='checkbox'] {
-  accent-color: var(--color-accent);
 }
 
 .club-info {
@@ -408,5 +404,4 @@ h2 {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
 }
-
 </style>

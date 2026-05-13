@@ -15,9 +15,13 @@ export interface YearsRoutesDeps {
 }
 
 export type ClubStatus = 'active' | 'maintenance' | 'paused';
+export type ClubCardScope = 'off' | 'up150' | 'up300' | 'all';
+export type ChapterListScope = 'off' | 'up150' | 'up300';
 type ClubTier = '150' | '300' | 'full';
 
 const CLUB_STATUSES: readonly ClubStatus[] = ['active', 'maintenance', 'paused'];
+const CLUB_CARD_SCOPES: readonly ClubCardScope[] = ['off', 'up150', 'up300', 'all'];
+const CHAPTER_LIST_SCOPES: readonly ChapterListScope[] = ['off', 'up150', 'up300'];
 const CLUB_TIERS: readonly ClubTier[] = ['150', '300', 'full'];
 
 const DEFAULT_LESSON_BATCH_SIZE = 3;
@@ -27,13 +31,13 @@ const MAX_LESSON_BATCH_SIZE = 10;
 interface YearSettings {
   headings: boolean;
   ftv: boolean;
+  clubCardScope: ClubCardScope;
+  chapterListScope: ChapterListScope;
   lessonBatchSize: number;
 }
 
 interface ClubView {
   status: ClubStatus;
-  clubCards: boolean;
-  chapterLists: boolean;
   cardCount: number;
 }
 
@@ -46,13 +50,13 @@ interface YearView {
 interface SettingsBody {
   headings?: boolean;
   ftv?: boolean;
+  clubCardScope?: string;
+  chapterListScope?: string;
   lessonBatchSize?: number;
 }
 
 interface ClubBody {
   status?: string;
-  clubCards?: boolean;
-  chapterLists?: boolean;
 }
 
 interface ClubCounts {
@@ -80,6 +84,25 @@ function ensureBatchSize(value: unknown): number {
   return value;
 }
 
+function ensureClubCardScope(value: unknown): ClubCardScope {
+  if (typeof value !== 'string' || !CLUB_CARD_SCOPES.includes(value as ClubCardScope)) {
+    throw new ValidationError(`clubCardScope must be one of: ${CLUB_CARD_SCOPES.join(', ')}`);
+  }
+  return value as ClubCardScope;
+}
+
+function ensureChapterListScope(value: unknown): ChapterListScope {
+  if (
+    typeof value !== 'string' ||
+    !CHAPTER_LIST_SCOPES.includes(value as ChapterListScope)
+  ) {
+    throw new ValidationError(
+      `chapterListScope must be one of: ${CHAPTER_LIST_SCOPES.join(', ')}`,
+    );
+  }
+  return value as ChapterListScope;
+}
+
 class ValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -102,46 +125,40 @@ function readYearSettings(db: DB, userId: string, materialId: string): YearSetti
     return {
       headings: true,
       ftv: true,
+      clubCardScope: 'all',
+      chapterListScope: 'up300',
       lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
     };
   }
   return {
     headings: row.headings,
     ftv: row.ftv,
+    clubCardScope: row.clubCardScope as ClubCardScope,
+    chapterListScope: row.chapterListScope as ChapterListScope,
     lessonBatchSize: row.lessonBatchSize,
   };
 }
 
-interface ClubRow {
-  status: ClubStatus;
-  clubCards: boolean;
-  chapterLists: boolean;
-}
-
-function readClubSettings(
+function readClubStatuses(
   db: DB,
   userId: string,
   materialId: string,
-): Map<ClubTier, ClubRow> {
+): Map<ClubTier, ClubStatus> {
   const rows = db
     .select()
-    .from(schema.userClubSettings)
+    .from(schema.userClubStatus)
     .where(
       and(
-        eq(schema.userClubSettings.userId, userId),
-        eq(schema.userClubSettings.materialId, materialId),
+        eq(schema.userClubStatus.userId, userId),
+        eq(schema.userClubStatus.materialId, materialId),
       ),
     )
     .all();
-  const out = new Map<ClubTier, ClubRow>();
+  const out = new Map<ClubTier, ClubStatus>();
   for (const r of rows) {
     if (!CLUB_TIERS.includes(r.clubTier as ClubTier)) continue;
     if (!CLUB_STATUSES.includes(r.status as ClubStatus)) continue;
-    out.set(r.clubTier as ClubTier, {
-      status: r.status as ClubStatus,
-      clubCards: r.clubCards,
-      chapterLists: r.chapterLists,
-    });
+    out.set(r.clubTier as ClubTier, r.status as ClubStatus);
   }
   return out;
 }
@@ -164,10 +181,8 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     for (const enrollment of enrolled) {
       const { materialId } = enrollment;
       const settings = readYearSettings(deps.db, user.id, materialId);
-      const stored = readClubSettings(deps.db, user.id, materialId);
+      const stored = readClubStatuses(deps.db, user.id, materialId);
 
-      // Engine load gives us per-club card totals. A failure here surfaces
-      // as a 500 — every enrolled row should have a graph_snapshot.
       const loaded = await deps.engines.load({ userId: user.id, materialId });
       let counts: ClubCounts = {};
       try {
@@ -176,59 +191,29 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         counts = {};
       }
 
-      // First visit: auto-create an `active` row with cards-on for each
-      // tier that has cards. Existing users keep reviewing without an
-      // explicit opt-in. Tiers with no cards stay paused and we don't
-      // persist a row for them.
-      // Per-club card count is the verses-in-this-tier count from
-      // card_count_by_club, BUT we also have the chapter-list pseudo cards
-      // which aren't tier-tagged through the same path — they don't
-      // contribute to the user-visible "cards in this club" number, so
-      // we leave the card_count_by_club bucket as the cardCount.
       const clubs: YearView['clubs'] = {
-        '150': {
-          status: 'paused',
-          clubCards: false,
-          chapterLists: false,
-          cardCount: counts.Club150 ?? 0,
-        },
-        '300': {
-          status: 'paused',
-          clubCards: false,
-          chapterLists: false,
-          cardCount: counts.Club300 ?? 0,
-        },
-        full: {
-          status: 'paused',
-          clubCards: false,
-          chapterLists: false,
-          cardCount: counts.Full ?? 0,
-        },
+        '150': { status: 'paused', cardCount: counts.Club150 ?? 0 },
+        '300': { status: 'paused', cardCount: counts.Club300 ?? 0 },
+        full: { status: 'paused', cardCount: counts.Full ?? 0 },
       };
       for (const tier of CLUB_TIERS) {
         const view = clubs[tier];
         if (view.cardCount === 0) continue;
         const existing = stored.get(tier);
         if (existing) {
-          view.status = existing.status;
-          view.clubCards = existing.clubCards;
-          view.chapterLists = existing.chapterLists;
+          view.status = existing;
         } else {
           deps.db
-            .insert(schema.userClubSettings)
+            .insert(schema.userClubStatus)
             .values({
               userId: user.id,
               materialId,
               clubTier: tier,
               status: 'active',
-              clubCards: true,
-              chapterLists: true,
               updatedAt: now(),
             })
             .run();
           view.status = 'active';
-          view.clubCards = true;
-          view.chapterLists = true;
         }
       }
 
@@ -262,6 +247,14 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         headings:
           body.headings === undefined ? existing.headings : ensureBoolean(body.headings, 'headings'),
         ftv: body.ftv === undefined ? existing.ftv : ensureBoolean(body.ftv, 'ftv'),
+        clubCardScope:
+          body.clubCardScope === undefined
+            ? existing.clubCardScope
+            : ensureClubCardScope(body.clubCardScope),
+        chapterListScope:
+          body.chapterListScope === undefined
+            ? existing.chapterListScope
+            : ensureChapterListScope(body.chapterListScope),
         lessonBatchSize:
           body.lessonBatchSize === undefined
             ? existing.lessonBatchSize
@@ -280,6 +273,8 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         materialId,
         headings: next.headings,
         ftv: next.ftv,
+        clubCardScope: next.clubCardScope,
+        chapterListScope: next.chapterListScope,
         lessonBatchSize: next.lessonBatchSize,
         updatedAt: ts,
       })
@@ -288,6 +283,8 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         set: {
           headings: next.headings,
           ftv: next.ftv,
+          clubCardScope: next.clubCardScope,
+          chapterListScope: next.chapterListScope,
           lessonBatchSize: next.lessonBatchSize,
           updatedAt: ts,
         },
@@ -299,7 +296,6 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     return c.json({ settings: next });
   });
 
-  // PATCH-style: update one or more of (status, clubCards) for a (year, club).
   app.post('/:materialId/clubs/:tier', async (c) => {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
@@ -320,56 +316,33 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     } catch {
       return c.json({ error: 'invalid JSON body' }, 400);
     }
-    if (body.status !== undefined && !CLUB_STATUSES.includes(body.status as ClubStatus)) {
+    if (typeof body.status !== 'string' || !CLUB_STATUSES.includes(body.status as ClubStatus)) {
       return c.json({ error: `status must be one of: ${CLUB_STATUSES.join(', ')}` }, 400);
     }
-    if (body.clubCards !== undefined && typeof body.clubCards !== 'boolean') {
-      return c.json({ error: 'clubCards must be a boolean' }, 400);
-    }
-    if (body.chapterLists !== undefined && typeof body.chapterLists !== 'boolean') {
-      return c.json({ error: 'chapterLists must be a boolean' }, 400);
-    }
-
-    const existing = readClubSettings(deps.db, user.id, materialId).get(tier as ClubTier);
-    const nextStatus = (body.status as ClubStatus | undefined) ?? existing?.status ?? 'paused';
-    const nextClubCards = body.clubCards ?? existing?.clubCards ?? true;
-    const nextChapterLists = body.chapterLists ?? existing?.chapterLists ?? true;
 
     const ts = now();
     deps.db
-      .insert(schema.userClubSettings)
+      .insert(schema.userClubStatus)
       .values({
         userId: user.id,
         materialId,
         clubTier: tier,
-        status: nextStatus,
-        clubCards: nextClubCards,
-        chapterLists: nextChapterLists,
+        status: body.status,
         updatedAt: ts,
       })
       .onConflictDoUpdate({
         target: [
-          schema.userClubSettings.userId,
-          schema.userClubSettings.materialId,
-          schema.userClubSettings.clubTier,
+          schema.userClubStatus.userId,
+          schema.userClubStatus.materialId,
+          schema.userClubStatus.clubTier,
         ],
-        set: {
-          status: nextStatus,
-          clubCards: nextClubCards,
-          chapterLists: nextChapterLists,
-          updatedAt: ts,
-        },
+        set: { status: body.status, updatedAt: ts },
       })
       .run();
 
     deps.engines.invalidate({ userId: user.id, materialId });
 
-    return c.json({
-      tier,
-      status: nextStatus,
-      clubCards: nextClubCards,
-      chapterLists: nextChapterLists,
-    });
+    return c.json({ tier, status: body.status });
   });
 
   return app;

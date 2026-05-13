@@ -5,86 +5,100 @@ use serde::{Deserialize, Serialize};
 use crate::club_status::ClubStatus;
 use crate::element::ClubTier;
 
+/// Which tiers get per-verse `VerseInClub` "which club is this verse in?"
+/// cards. Higher variants include all lower variants.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ClubCardScope {
+    Off,
+    /// Only verses tagged `Club150` get the card.
+    Up150,
+    /// Verses tagged `Club150` or `Club300` get the card.
+    Up300,
+    /// Every verse gets the card, including `Full` (no narrower tag).
+    #[default]
+    All,
+}
+
+impl ClubCardScope {
+    pub fn includes(&self, tier: ClubTier) -> bool {
+        match self {
+            ClubCardScope::Off => false,
+            ClubCardScope::Up150 => tier == ClubTier::Club150,
+            ClubCardScope::Up300 => matches!(tier, ClubTier::Club150 | ClubTier::Club300),
+            ClubCardScope::All => true,
+        }
+    }
+}
+
+/// Which tiers get the per-chapter "list the tier-T verses in this
+/// chapter" card. `Full` is intentionally absent — listing every verse
+/// in a chapter isn't a meaningful quizzing test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ChapterListScope {
+    Off,
+    /// One card per chapter listing its `Club150` verses.
+    Up150,
+    /// Two cards per chapter: one for `Club150` verses, one for
+    /// `Club300`-tagged-only verses. The 300 card never strengthens
+    /// the 150 binding because its members are *exactly* 300-tagged.
+    #[default]
+    Up300,
+}
+
+impl ChapterListScope {
+    pub fn includes(&self, tier: ClubTier) -> bool {
+        match self {
+            ChapterListScope::Off => false,
+            ChapterListScope::Up150 => tier == ClubTier::Club150,
+            ChapterListScope::Up300 => matches!(tier, ClubTier::Club150 | ClubTier::Club300),
+        }
+    }
+}
+
 /// Per-user, per-year material configuration consumed by the builder.
 ///
-/// Year-wide toggles (`headings`, `ftv`) gate card kinds that aren't
-/// intrinsically club-scoped. Anything that is — the standalone
-/// `VerseInClub` card and the chapter-list card — lives per-tier in
-/// `clubs`.
+/// Year-wide toggles (`headings`, `ftv`) and year-wide scopes
+/// (`club_card_scope`, `chapter_list_scope`) gate which card kinds are
+/// emitted across the whole year. Per-club state — currently just
+/// `ClubStatus` — lives in `clubs`.
 ///
-/// `Default` activates every tier (`Club150` / `Club300` / `Full`) with
-/// the club-card toggle on. Callers that don't care about per-user
-/// filtering (the simulation, regression tests) can pass
+/// `Default` activates every tier with both card scopes at their fullest
+/// (chapter lists up to 300, per-verse club cards for every tier).
+/// Callers that don't care about per-user filtering can pass
 /// `&MaterialConfig::default()`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MaterialConfig {
     pub headings: bool,
     pub ftv: bool,
     #[serde(default)]
-    pub clubs: HashMap<ClubTier, ClubConfig>,
-}
-
-/// Per-(year, club) configuration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ClubConfig {
-    pub status: ClubStatus,
-    /// Emit the per-verse `VerseInClub` "which club is this verse in?"
-    /// card for verses in this tier.
-    pub club_cards: bool,
-    /// Emit per-chapter `ChapterClubList` cards: prompt is the chapter,
-    /// answer is the list of verses in that chapter belonging to this
-    /// tier. Only meaningful for tiers where the list is non-trivial;
-    /// for `Full` it can be turned off.
-    #[serde(default = "default_true")]
-    pub chapter_lists: bool,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-impl ClubConfig {
-    /// Convenience: active tier with the club card on.
-    pub fn active() -> Self {
-        Self {
-            status: ClubStatus::Active,
-            club_cards: true,
-            chapter_lists: true,
-        }
-    }
-
-    /// Convenience: paused tier (status alone gates everything else).
-    pub fn paused() -> Self {
-        Self {
-            status: ClubStatus::Paused,
-            club_cards: false,
-            chapter_lists: false,
-        }
-    }
+    pub club_card_scope: ClubCardScope,
+    #[serde(default)]
+    pub chapter_list_scope: ChapterListScope,
+    #[serde(default)]
+    pub clubs: HashMap<ClubTier, ClubStatus>,
 }
 
 impl Default for MaterialConfig {
     fn default() -> Self {
         let mut clubs = HashMap::new();
-        clubs.insert(ClubTier::Club150, ClubConfig::active());
-        clubs.insert(ClubTier::Club300, ClubConfig::active());
-        clubs.insert(ClubTier::Full, ClubConfig::active());
+        clubs.insert(ClubTier::Club150, ClubStatus::Active);
+        clubs.insert(ClubTier::Club300, ClubStatus::Active);
+        clubs.insert(ClubTier::Full, ClubStatus::Active);
         Self {
             headings: true,
             ftv: true,
+            club_card_scope: ClubCardScope::All,
+            chapter_list_scope: ChapterListScope::Up300,
             clubs,
         }
     }
 }
 
 impl MaterialConfig {
-    /// Lookup for a tier, falling back to `Paused`-with-no-cards when the
-    /// tier isn't in the map. Used by the builder's per-verse filter.
-    pub fn for_tier(&self, tier: ClubTier) -> ClubConfig {
-        self.clubs
-            .get(&tier)
-            .copied()
-            .unwrap_or_else(ClubConfig::paused)
+    /// Effective status for a tier — `Paused` for tiers the user hasn't
+    /// opted into. Used by the builder's per-verse filter.
+    pub fn status_for(&self, tier: ClubTier) -> ClubStatus {
+        self.clubs.get(&tier).copied().unwrap_or(ClubStatus::Paused)
     }
 
     /// True iff this verse's most-specific tier is paused.
@@ -92,7 +106,7 @@ impl MaterialConfig {
     /// when no narrower tag), so the empty branch is defensive only.
     pub fn verse_is_paused(&self, verse_clubs: &[ClubTier]) -> bool {
         match verse_clubs.first() {
-            Some(t) => self.for_tier(*t).status == ClubStatus::Paused,
+            Some(t) => self.status_for(*t) == ClubStatus::Paused,
             None => false,
         }
     }
@@ -107,11 +121,44 @@ mod tests {
         let c = MaterialConfig::default();
         assert!(c.headings);
         assert!(c.ftv);
+        assert_eq!(c.club_card_scope, ClubCardScope::All);
+        assert_eq!(c.chapter_list_scope, ChapterListScope::Up300);
         for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
-            let cc = c.for_tier(tier);
-            assert_eq!(cc.status, ClubStatus::Active);
-            assert!(cc.club_cards);
+            assert_eq!(c.status_for(tier), ClubStatus::Active);
         }
+    }
+
+    #[test]
+    fn club_card_scope_inclusion() {
+        for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
+            assert!(!ClubCardScope::Off.includes(tier));
+        }
+        assert!(ClubCardScope::Up150.includes(ClubTier::Club150));
+        assert!(!ClubCardScope::Up150.includes(ClubTier::Club300));
+        assert!(!ClubCardScope::Up150.includes(ClubTier::Full));
+
+        assert!(ClubCardScope::Up300.includes(ClubTier::Club150));
+        assert!(ClubCardScope::Up300.includes(ClubTier::Club300));
+        assert!(!ClubCardScope::Up300.includes(ClubTier::Full));
+
+        for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
+            assert!(ClubCardScope::All.includes(tier));
+        }
+    }
+
+    #[test]
+    fn chapter_list_scope_never_includes_full() {
+        for scope in [
+            ChapterListScope::Off,
+            ChapterListScope::Up150,
+            ChapterListScope::Up300,
+        ] {
+            assert!(!scope.includes(ClubTier::Full));
+        }
+        assert!(ChapterListScope::Up150.includes(ClubTier::Club150));
+        assert!(!ChapterListScope::Up150.includes(ClubTier::Club300));
+        assert!(ChapterListScope::Up300.includes(ClubTier::Club150));
+        assert!(ChapterListScope::Up300.includes(ClubTier::Club300));
     }
 
     #[test]
@@ -123,19 +170,19 @@ mod tests {
     }
 
     #[test]
-    fn missing_clubs_field_defaults_to_empty_map() {
-        // Older JSON may omit `clubs`. Each tier then falls back to
-        // ClubConfig::paused() via for_tier(), which is the safe default.
+    fn missing_scopes_default_to_widest() {
+        // Older JSON may omit scopes. Default to All / Up300 so partial
+        // JSON gives the most-on behaviour and the user opts down.
         let c: MaterialConfig = serde_json::from_str(r#"{"headings":true,"ftv":true}"#).unwrap();
-        assert!(c.clubs.is_empty());
-        assert_eq!(c.for_tier(ClubTier::Club150).status, ClubStatus::Paused);
+        assert_eq!(c.club_card_scope, ClubCardScope::All);
+        assert_eq!(c.chapter_list_scope, ChapterListScope::Up300);
     }
 
     #[test]
     fn verse_is_paused_checks_most_specific_tier() {
         let mut clubs = HashMap::new();
-        clubs.insert(ClubTier::Club150, ClubConfig::active());
-        clubs.insert(ClubTier::Club300, ClubConfig::paused());
+        clubs.insert(ClubTier::Club150, ClubStatus::Active);
+        clubs.insert(ClubTier::Club300, ClubStatus::Paused);
         let c = MaterialConfig {
             clubs,
             ..MaterialConfig::default()

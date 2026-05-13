@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "9e47eb4d-6c7c-43f3-b349-49598d2e08e7",
+  "id": "845077fb-854d-4307-87c9-bb10f4b73e3d",
   "prevId": "511a286a-8fce-4f90-a112-627b45092f07",
   "tables": {
     "account": {
@@ -670,8 +670,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "user_club_settings": {
-      "name": "user_club_settings",
+    "user_club_status": {
+      "name": "user_club_status",
       "columns": {
         "user_id": {
           "name": "user_id",
@@ -701,20 +701,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "club_cards": {
-          "name": "club_cards",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "chapter_lists": {
-          "name": "chapter_lists",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "integer",
@@ -725,9 +711,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "user_club_settings_user_id_user_id_fk": {
-          "name": "user_club_settings_user_id_user_id_fk",
-          "tableFrom": "user_club_settings",
+        "user_club_status_user_id_user_id_fk": {
+          "name": "user_club_status_user_id_user_id_fk",
+          "tableFrom": "user_club_status",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
@@ -740,13 +726,13 @@
         }
       },
       "compositePrimaryKeys": {
-        "user_club_settings_user_id_material_id_club_tier_pk": {
+        "user_club_status_user_id_material_id_club_tier_pk": {
           "columns": [
             "user_id",
             "material_id",
             "club_tier"
           ],
-          "name": "user_club_settings_user_id_material_id_club_tier_pk"
+          "name": "user_club_status_user_id_material_id_club_tier_pk"
         }
       },
       "uniqueConstraints": {},
@@ -839,6 +825,20 @@
         "ftv": {
           "name": "ftv",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "club_card_scope": {
+          "name": "club_card_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chapter_list_scope": {
+          "name": "chapter_list_scope",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false

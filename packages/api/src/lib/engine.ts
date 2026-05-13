@@ -59,21 +59,20 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
     .get();
   const clubRows = db
     .select()
-    .from(schema.userClubSettings)
+    .from(schema.userClubStatus)
     .where(
       and(
-        eq(schema.userClubSettings.userId, key.userId),
-        eq(schema.userClubSettings.materialId, key.materialId),
+        eq(schema.userClubStatus.userId, key.userId),
+        eq(schema.userClubStatus.materialId, key.materialId),
       ),
     )
     .all();
 
   if (!settings && clubRows.length === 0) return '';
 
-  // Build the per-tier map MaterialConfig.clubs expects. Tiers missing
-  // from the DB rows fall back to paused-with-cards-off via the core's
-  // for_tier default, so we only emit entries for tiers the user has
-  // touched. Status values are PascalCase to match the Rust enum.
+  // Build the per-tier status map MaterialConfig.clubs expects. Tiers
+  // missing from the DB rows fall back to Paused via Rust's
+  // status_for() default. PascalCase to match the Rust enum.
   type RustStatus = 'Active' | 'Maintenance' | 'Paused';
   const TIER_KEY: Record<string, 'Club150' | 'Club300' | 'Full' | null> = {
     '150': 'Club150',
@@ -85,24 +84,25 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
     maintenance: 'Maintenance',
     paused: 'Paused',
   };
-  const clubs: Record<
-    string,
-    { status: RustStatus; club_cards: boolean; chapter_lists: boolean }
-  > = {};
+  const SCOPE_KEY: Record<string, string> = {
+    off: 'Off',
+    up150: 'Up150',
+    up300: 'Up300',
+    all: 'All',
+  };
+  const clubs: Record<string, RustStatus> = {};
   for (const r of clubRows) {
     const tierKey = TIER_KEY[r.clubTier];
     const statusKey = STATUS_KEY[r.status];
     if (!tierKey || !statusKey) continue;
-    clubs[tierKey] = {
-      status: statusKey,
-      club_cards: r.clubCards,
-      chapter_lists: r.chapterLists,
-    };
+    clubs[tierKey] = statusKey;
   }
 
   return JSON.stringify({
     headings: settings?.headings ?? true,
     ftv: settings?.ftv ?? true,
+    club_card_scope: SCOPE_KEY[settings?.clubCardScope ?? 'all'] ?? 'All',
+    chapter_list_scope: SCOPE_KEY[settings?.chapterListScope ?? 'up300'] ?? 'Up300',
     clubs,
   });
 }

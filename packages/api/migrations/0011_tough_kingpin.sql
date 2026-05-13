@@ -1,10 +1,8 @@
-CREATE TABLE `user_club_settings` (
+CREATE TABLE `user_club_status` (
 	`user_id` text NOT NULL,
 	`material_id` text NOT NULL,
 	`club_tier` text NOT NULL,
 	`status` text NOT NULL,
-	`club_cards` integer NOT NULL,
-	`chapter_lists` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	PRIMARY KEY(`user_id`, `material_id`, `club_tier`),
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
@@ -15,6 +13,8 @@ CREATE TABLE `user_year_settings` (
 	`material_id` text NOT NULL,
 	`headings` integer NOT NULL,
 	`ftv` integer NOT NULL,
+	`club_card_scope` text NOT NULL,
+	`chapter_list_scope` text NOT NULL,
 	`lesson_batch_size` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	PRIMARY KEY(`user_id`, `material_id`),

@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { userClubSettings, userYearSettings } from '../db/schema.js';
+import { userClubStatus, userYearSettings } from '../db/schema.js';
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-1cor';
@@ -12,13 +12,14 @@ interface YearsResponse {
     settings: {
       headings: boolean;
       ftv: boolean;
+      clubCardScope: 'off' | 'up150' | 'up300' | 'all';
+      chapterListScope: 'off' | 'up150' | 'up300';
       lessonBatchSize: number;
     };
     clubs: Record<
       '150' | '300' | 'full',
       {
         status: 'active' | 'maintenance' | 'paused';
-        clubCards: boolean;
         cardCount: number;
       }
     >;
@@ -72,18 +73,18 @@ describe('years routes', () => {
     expect(year.settings).toEqual({
       headings: true,
       ftv: true,
+      clubCardScope: 'all',
+      chapterListScope: 'up300',
       lessonBatchSize: 3,
     });
-    // First visit auto-creates an active row with cards-on for any tier
-    // that has cards in the material. Empty tiers stay paused.
+    // First visit auto-creates an active row for any tier that has
+    // cards in the material. Empty tiers stay paused.
     for (const tier of ['150', '300', 'full'] as const) {
       const club = year.clubs[tier];
       if (club.cardCount > 0) {
         expect(club.status).toBe('active');
-        expect(club.clubCards).toBe(true);
       } else {
         expect(club.status).toBe('paused');
-        expect(club.clubCards).toBe(false);
       }
     }
     // Sanity check: at least one tier has cards in the shipped material.
@@ -101,12 +102,12 @@ describe('years routes', () => {
     await test.app.request('/api/years', { headers: { cookie } });
     const row = test.db
       .select()
-      .from(userClubSettings)
+      .from(userClubStatus)
       .where(
         and(
-          eq(userClubSettings.userId, userId),
-          eq(userClubSettings.materialId, MATERIAL_ID),
-          eq(userClubSettings.clubTier, '150'),
+          eq(userClubStatus.userId, userId),
+          eq(userClubStatus.materialId, MATERIAL_ID),
+          eq(userClubStatus.clubTier, '150'),
         ),
       )
       .get();
@@ -176,12 +177,12 @@ describe('years routes', () => {
     expect(ok.status).toBe(200);
     const row = test.db
       .select()
-      .from(userClubSettings)
+      .from(userClubStatus)
       .where(
         and(
-          eq(userClubSettings.userId, userId),
-          eq(userClubSettings.materialId, MATERIAL_ID),
-          eq(userClubSettings.clubTier, '150'),
+          eq(userClubStatus.userId, userId),
+          eq(userClubStatus.materialId, MATERIAL_ID),
+          eq(userClubStatus.clubTier, '150'),
         ),
       )
       .get();
