@@ -95,6 +95,42 @@ export const userMaterials = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
 );
 
+// Per-year material picker toggles. One row per (user, material). Drives
+// `MaterialConfig` at engine-construction time. `lesson_batch_size` is the
+// number of verses surfaced in a single memorize session (slice 2).
+export const userYearSettings = sqliteTable(
+  'user_year_settings',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    headings: integer('headings', { mode: 'boolean' }).notNull(),
+    ftv: integer('ftv', { mode: 'boolean' }).notNull(),
+    citation: integer('citation', { mode: 'boolean' }).notNull(),
+    lessonBatchSize: integer('lesson_batch_size').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
+);
+
+// Per-(year, club) lifecycle status. Absent row = `paused` (hidden in both
+// /memorize and /review). The user opts in to clubs explicitly via the
+// material picker.
+export const userClubStatus = sqliteTable(
+  'user_club_status',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    clubTier: text('club_tier').notNull(), // "150" | "300"
+    status: text('status').notNull(), // "active" | "maintenance" | "paused"
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId, t.clubTier] }) }),
+);
+
 // The bundled MaterialData blob the engine builds from. Rebuilt when content
 // changes; versioned so existing events can be replayed against a known
 // snapshot.
