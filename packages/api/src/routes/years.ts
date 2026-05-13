@@ -277,30 +277,22 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     );
     let next: YearSettings;
     try {
+      const pick = <K extends keyof YearSettings>(
+        field: K,
+        validate: (v: unknown) => YearSettings[K],
+      ): YearSettings[K] =>
+        body[field] === undefined ? existing[field] : validate(body[field]);
+
       next = {
-        headings:
-          body.headings === undefined ? existing.headings : ensureBoolean(body.headings, 'headings'),
-        ftv: body.ftv === undefined ? existing.ftv : ensureBoolean(body.ftv, 'ftv'),
-        newScope:
-          body.newScope === undefined
-            ? existing.newScope
-            : ensureTierScope(body.newScope, 'newScope'),
-        reviewScope:
-          body.reviewScope === undefined
-            ? existing.reviewScope
-            : ensureTierScope(body.reviewScope, 'reviewScope'),
-        clubCardScope:
-          body.clubCardScope === undefined
-            ? existing.clubCardScope
-            : ensureTierScope(body.clubCardScope, 'clubCardScope'),
-        chapterListScope:
-          body.chapterListScope === undefined
-            ? existing.chapterListScope
-            : ensureChapterListScope(body.chapterListScope, 'chapterListScope'),
-        lessonBatchSize:
-          body.lessonBatchSize === undefined
-            ? existing.lessonBatchSize
-            : ensureBatchSize(body.lessonBatchSize),
+        headings: pick('headings', (v) => ensureBoolean(v, 'headings')),
+        ftv: pick('ftv', (v) => ensureBoolean(v, 'ftv')),
+        newScope: pick('newScope', (v) => ensureTierScope(v, 'newScope')),
+        reviewScope: pick('reviewScope', (v) => ensureTierScope(v, 'reviewScope')),
+        clubCardScope: pick('clubCardScope', (v) => ensureTierScope(v, 'clubCardScope')),
+        chapterListScope: pick('chapterListScope', (v) =>
+          ensureChapterListScope(v, 'chapterListScope'),
+        ),
+        lessonBatchSize: pick('lessonBatchSize', ensureBatchSize),
       };
     } catch (err) {
       if (err instanceof ValidationError) return c.json({ error: err.message }, 400);
@@ -320,32 +312,13 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     }
 
     const ts = now();
+    const row = { ...next, updatedAt: ts };
     deps.db
       .insert(schema.userYearSettings)
-      .values({
-        userId: user.id,
-        materialId,
-        headings: next.headings,
-        ftv: next.ftv,
-        newScope: next.newScope,
-        reviewScope: next.reviewScope,
-        clubCardScope: next.clubCardScope,
-        chapterListScope: next.chapterListScope,
-        lessonBatchSize: next.lessonBatchSize,
-        updatedAt: ts,
-      })
+      .values({ userId: user.id, materialId, ...row })
       .onConflictDoUpdate({
         target: [schema.userYearSettings.userId, schema.userYearSettings.materialId],
-        set: {
-          headings: next.headings,
-          ftv: next.ftv,
-          newScope: next.newScope,
-          reviewScope: next.reviewScope,
-          clubCardScope: next.clubCardScope,
-          chapterListScope: next.chapterListScope,
-          lessonBatchSize: next.lessonBatchSize,
-          updatedAt: ts,
-        },
+        set: row,
       })
       .run();
 
