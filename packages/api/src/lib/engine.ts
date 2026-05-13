@@ -40,6 +40,51 @@ export interface TestStateEntry {
   last_root_secs: number;
 }
 
+/**
+ * Build a JSON-encoded `MaterialConfig` for this user × material from the
+ * picker tables. Absent rows imply defaults (everything-on, no paused
+ * clubs). Returns the empty string when both tables are absent so the
+ * WASM constructor uses `MaterialConfig::default()` directly.
+ */
+function readMaterialConfigJson(db: DB, key: EngineKey): string {
+  const settings = db
+    .select()
+    .from(schema.userYearSettings)
+    .where(
+      and(
+        eq(schema.userYearSettings.userId, key.userId),
+        eq(schema.userYearSettings.materialId, key.materialId),
+      ),
+    )
+    .get();
+  const clubRows = db
+    .select()
+    .from(schema.userClubStatus)
+    .where(
+      and(
+        eq(schema.userClubStatus.userId, key.userId),
+        eq(schema.userClubStatus.materialId, key.materialId),
+      ),
+    )
+    .all();
+
+  if (!settings && clubRows.length === 0) return '';
+
+  const pausedClubs: ('Club150' | 'Club300')[] = [];
+  for (const r of clubRows) {
+    if (r.status !== 'paused') continue;
+    if (r.clubTier === '150') pausedClubs.push('Club150');
+    else if (r.clubTier === '300') pausedClubs.push('Club300');
+  }
+
+  return JSON.stringify({
+    headings: settings?.headings ?? true,
+    ftv: settings?.ftv ?? true,
+    citation: settings?.citation ?? true,
+    paused_clubs: pausedClubs,
+  });
+}
+
 export function readTestStateEntries(db: DB, key: EngineKey): TestStateEntry[] {
   return db
     .select()
@@ -106,13 +151,10 @@ export class EngineStore {
 
     const testStates = readTestStateEntries(this.db, key);
     const materialJson = snapshot.materialData.toString('utf8');
+    const configJson = readMaterialConfigJson(this.db, key);
     const engine = new WasmEngine(
       materialJson,
-      // Empty config = MaterialConfig::default() (headings + ftv + citation
-      // all on). Slice 1's material picker persists per-user config but
-      // doesn't yet thread it through engine construction — that lands when
-      // /memorize and the per-club filter wire up in slice 2.
-      '',
+      configJson,
       JSON.stringify(testStates),
       this.desiredRetention,
       BigInt(this.now()),
@@ -121,6 +163,20 @@ export class EngineStore {
     const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
     this.cache.set(userMaterialKey(key), loaded);
     return loaded;
+  }
+
+  /**
+   * Drop the cached engine for this key. The next `load` rebuilds from
+   * fresh DB state — used after material-picker writes change either the
+   * per-year toggles or the per-club paused set.
+   */
+  invalidate(key: EngineKey): void {
+    const k = userMaterialKey(key);
+    const cached = this.cache.get(k);
+    if (cached) {
+      cached.engine.free();
+      this.cache.delete(k);
+    }
   }
 
   /**

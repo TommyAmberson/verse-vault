@@ -12,6 +12,7 @@ import { cardsRoutes } from './routes/cards.js';
 import { materialsRoutes } from './routes/materials.js';
 import { statsRoutes } from './routes/stats.js';
 import { syncRoutes } from './routes/sync.js';
+import { yearsRoutes } from './routes/years.js';
 
 export interface AppDeps {
   db: DB;
@@ -90,6 +91,7 @@ export function createApp(deps: AppDeps) {
   );
   app.route('/api/sync', syncRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/materials', materialsRoutes({ db: deps.db, now: deps.now }));
+  app.route('/api/years', yearsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/stats', statsRoutes({ db: deps.db }));
 
   return app;
