@@ -101,21 +101,15 @@ function ensureBatchSize(value: unknown): number {
   return value;
 }
 
-function ensureTierScope(value: unknown, field: string): TierScope {
-  if (typeof value !== 'string' || !TIER_SCOPES.includes(value as TierScope)) {
-    throw new ValidationError(`${field} must be one of: ${TIER_SCOPES.join(', ')}`);
+function ensureEnum<T extends string>(
+  value: unknown,
+  field: string,
+  allowed: readonly T[],
+): T {
+  if (typeof value !== 'string' || !allowed.includes(value as T)) {
+    throw new ValidationError(`${field} must be one of: ${allowed.join(', ')}`);
   }
-  return value as TierScope;
-}
-
-function ensureChapterListScope(value: unknown, field: string): ChapterListScope {
-  if (
-    typeof value !== 'string' ||
-    !CHAPTER_LIST_SCOPES.includes(value as ChapterListScope)
-  ) {
-    throw new ValidationError(`${field} must be one of: ${CHAPTER_LIST_SCOPES.join(', ')}`);
-  }
-  return value as ChapterListScope;
+  return value as T;
 }
 
 function tierScopeIncludes(scope: TierScope, tier: ClubTier): boolean {
@@ -286,11 +280,13 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
       next = {
         headings: pick('headings', (v) => ensureBoolean(v, 'headings')),
         ftv: pick('ftv', (v) => ensureBoolean(v, 'ftv')),
-        newScope: pick('newScope', (v) => ensureTierScope(v, 'newScope')),
-        reviewScope: pick('reviewScope', (v) => ensureTierScope(v, 'reviewScope')),
-        clubCardScope: pick('clubCardScope', (v) => ensureTierScope(v, 'clubCardScope')),
+        newScope: pick('newScope', (v) => ensureEnum(v, 'newScope', TIER_SCOPES)),
+        reviewScope: pick('reviewScope', (v) => ensureEnum(v, 'reviewScope', TIER_SCOPES)),
+        clubCardScope: pick('clubCardScope', (v) =>
+          ensureEnum(v, 'clubCardScope', TIER_SCOPES),
+        ),
         chapterListScope: pick('chapterListScope', (v) =>
-          ensureChapterListScope(v, 'chapterListScope'),
+          ensureEnum(v, 'chapterListScope', CHAPTER_LIST_SCOPES),
         ),
         lessonBatchSize: pick('lessonBatchSize', ensureBatchSize),
       };
