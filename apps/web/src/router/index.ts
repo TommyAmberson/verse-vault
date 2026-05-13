@@ -22,6 +22,11 @@ const router = createRouter({
       name: 'stats',
       component: () => import('@/views/StatsView.vue'),
     },
+    {
+      path: '/material',
+      name: 'material',
+      component: () => import('@/views/MaterialView.vue'),
+    },
   ],
 })
 

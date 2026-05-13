@@ -85,12 +85,40 @@ export interface StatsResponse {
   testDistribution: Record<'weak' | 'learning' | 'familiar' | 'strong' | 'mastered', number>
 }
 
+export type ClubStatus = 'active' | 'maintenance' | 'paused'
+export type ClubTier = '150' | '300'
+
+export interface YearSettings {
+  headings: boolean
+  ftv: boolean
+  citation: boolean
+  lessonBatchSize: number
+}
+
+export interface YearView {
+  materialId: string
+  settings: YearSettings
+  clubs: Record<ClubTier, { status: ClubStatus; cardCount: number }>
+  untaggedCardCount: number
+}
+
+export interface YearsResponse {
+  years: YearView[]
+}
+
 export interface ApiClient {
   enroll(materialId: string): Promise<{ snapshotId: string; version: number }>
   getNextCard(materialId: string): Promise<{ cardId: number | null }>
   getCardRender(materialId: string, cardId: number): Promise<CardRender>
   submitReview(materialId: string, cardId: number, grade: Grade): Promise<ReviewResponse>
   getStats(materialId: string): Promise<StatsResponse>
+  getYears(): Promise<YearsResponse>
+  updateYearSettings(materialId: string, settings: Partial<YearSettings>): Promise<{ settings: YearSettings }>
+  updateClubStatus(
+    materialId: string,
+    tier: ClubTier,
+    status: ClubStatus,
+  ): Promise<{ tier: ClubTier; status: ClubStatus }>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
@@ -127,6 +155,15 @@ export function createApiClient(apiUrl: string): ApiClient {
       request('POST', '/api/cards/review', { materialId, cardId, grade }),
     getStats: (materialId) =>
       request('GET', `/api/stats/${encodeURIComponent(materialId)}`),
+    getYears: () => request('GET', '/api/years'),
+    updateYearSettings: (materialId, settings) =>
+      request('POST', `/api/years/${encodeURIComponent(materialId)}/settings`, settings),
+    updateClubStatus: (materialId, tier, status) =>
+      request(
+        'POST',
+        `/api/years/${encodeURIComponent(materialId)}/clubs/${tier}/status`,
+        { status },
+      ),
   }
 }
 
