@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::card::{Card, CardKind, CardState, VerseAtoms};
 use crate::content::{HeadingData, MaterialData};
 use crate::element::ClubTier;
+use crate::material_config::MaterialConfig;
 use crate::render::{HeadingRender, VerseRender};
 use crate::test_kind::TestKey;
 use crate::test_state::TestState;
@@ -87,12 +88,27 @@ fn build_heading_lookup(headings: &[HeadingData]) -> HashMap<(String, u16, u16),
     lookup
 }
 
+/// Build cards and seeded test states from material data, with the default
+/// (everything-on) `MaterialConfig`. Convenience wrapper around
+/// [`build_with_config`] for callers (sim, tests) that don't filter.
+pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
+    build_with_config(data, &MaterialConfig::default(), now_secs)
+}
+
 /// Build cards and seeded test states from material data.
 ///
 /// Verses are assigned `verse_id`s in `data.verses_with_content()` order
 /// starting at 0. `now_secs` is used to seed `TestState::new_unseen` for every
 /// test reachable from any emitted card.
-pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
+///
+/// `config` controls which card kinds the builder emits. See
+/// [`MaterialConfig`] for the toggles and the always-on cards that ignore
+/// it.
+pub fn build_with_config(
+    data: &MaterialData,
+    config: &MaterialConfig,
+    now_secs: i64,
+) -> BuildResult {
     let heading_lookup = build_heading_lookup(&data.headings);
 
     let mut verse_index = VerseIndex::new();
@@ -149,12 +165,14 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
         push_card(CardKind::VerseAtVerseRef, &mut cards, &mut next_card_id);
         push_card(CardKind::VerseInChapter, &mut cards, &mut next_card_id);
         push_card(CardKind::VerseInBook, &mut cards, &mut next_card_id);
-        for &h_idx in &headings {
-            push_card(
-                CardKind::VerseInHeading { heading_idx: h_idx },
-                &mut cards,
-                &mut next_card_id,
-            );
+        if config.headings {
+            for &h_idx in &headings {
+                push_card(
+                    CardKind::VerseInHeading { heading_idx: h_idx },
+                    &mut cards,
+                    &mut next_card_id,
+                );
+            }
         }
         for &tier in &clubs {
             push_card(
@@ -164,15 +182,18 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
             );
         }
 
-        // Composite: Recitation (phrases + citation triple) and Citation.
+        // Composite: Recitation (always — core mechanic).
         push_card(CardKind::Recitation, &mut cards, &mut next_card_id);
-        push_card(CardKind::Citation, &mut cards, &mut next_card_id);
+        if config.citation {
+            push_card(CardKind::Citation, &mut cards, &mut next_card_id);
+        }
 
         // Composite: Ftv (with and without citation). Eligibility:
         // verse has phrases, FTV is short enough, FTV doesn't exceed
         // phrase 0 length. derive_structure verified the prefix invariant
         // when emitting ftv_word_count, so we trust it here.
-        if let Some(ftv_words) = verse.ftv_word_count
+        if config.ftv
+            && let Some(ftv_words) = verse.ftv_word_count
             && phrase_count > 0
             && (ftv_words as usize) <= FTV_MAX_WORDS
             && ftv_words <= phrase_zero_word_count
@@ -553,6 +574,106 @@ mod tests {
         // Only the second verse counts. It gets verse_id 0 (skipping the empty).
         assert!(r.cards.iter().all(|c| c.verse_id == 0));
         assert_eq!(r.verse_render_data.get(&0).map(|v| v.verse), Some(2),);
+    }
+
+    #[test]
+    fn builder_default_config_matches_legacy_build() {
+        // build_with_config(default) and the legacy build() must be
+        // identical card sets — the wrapper is the only difference.
+        let m = material_one_verse_with_heading_and_club();
+        let a = build(&m, 0);
+        let b = build_with_config(&m, &MaterialConfig::default(), 0);
+        assert_eq!(a.cards.len(), b.cards.len());
+        assert_eq!(a.tests.len(), b.tests.len());
+    }
+
+    #[test]
+    fn builder_headings_off_emits_no_heading_cards() {
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            headings: false,
+            ftv: true,
+            citation: true,
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInHeading { .. }))
+        );
+    }
+
+    #[test]
+    fn builder_ftv_off_emits_no_ftv_cards() {
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            headings: true,
+            ftv: false,
+            citation: true,
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::Ftv { .. }))
+        );
+    }
+
+    #[test]
+    fn builder_citation_off_emits_no_citation_cards() {
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            headings: true,
+            ftv: true,
+            citation: false,
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(!r.cards.iter().any(|c| matches!(c.kind, CardKind::Citation)));
+    }
+
+    #[test]
+    fn builder_always_on_cards_present_with_everything_off() {
+        // Even with every toggle off, the core mechanic cards still emit:
+        // PhraseFill, VerseAtVerseRef, VerseInChapter, VerseInBook,
+        // VerseInClub, Recitation. (VerseInClub is filtered downstream by
+        // per-club status, not at build time.)
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            headings: false,
+            ftv: false,
+            citation: false,
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+        );
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseAtVerseRef))
+        );
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInChapter))
+        );
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInBook))
+        );
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInClub { .. }))
+        );
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::Recitation))
+        );
     }
 
     #[test]
