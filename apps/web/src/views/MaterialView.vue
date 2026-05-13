@@ -13,7 +13,15 @@ import {
 } from '@/api'
 
 const CLUB_TIERS: ClubTier[] = ['150', '300', 'full']
-const STATUSES: ClubStatus[] = ['active', 'maintenance', 'paused']
+
+// Status as a level track too: Paused → Maintenance → Active is a
+// natural engagement ladder (each step adds capability — Maintenance
+// reviews existing cards, Active also introduces new ones via /memorize).
+const STATUS_LEVELS: { value: ClubStatus; label: string }[] = [
+  { value: 'paused', label: 'Paused' },
+  { value: 'maintenance', label: 'Maintenance' },
+  { value: 'active', label: 'Active' },
+]
 
 const STATUS_DESCRIPTIONS: Record<ClubStatus, string> = {
   active: 'Memorize new + review existing.',
@@ -206,22 +214,16 @@ onMounted(refresh)
               <div class="club-name">{{ tierLabel(tier) }}</div>
               <div class="club-count">{{ card.view.clubs[tier].cardCount }} cards</div>
             </div>
-            <div
-              class="club-control"
-              :class="{ disabled: card.view.clubs[tier].cardCount === 0 }"
-            >
-              <button
-                v-for="opt in STATUSES"
-                :key="opt"
-                type="button"
-                :class="['pill', `pill-${opt}`, { active: card.view.clubs[tier].status === opt }]"
-                :disabled="card.view.clubs[tier].cardCount === 0 || card.savingClub[tier]"
-                :title="STATUS_DESCRIPTIONS[opt]"
-                @click="onChangeStatus(card, tier, opt)"
-              >
-                {{ opt }}
-              </button>
-            </div>
+            <ScopeLevelSelector
+              :model-value="card.view.clubs[tier].status"
+              :levels="STATUS_LEVELS"
+              :description="STATUS_DESCRIPTIONS[card.view.clubs[tier].status]"
+              :disabled="
+                card.view.clubs[tier].cardCount === 0 || card.savingClub[tier]
+              "
+              :aria-label="`${tierLabel(tier)} status`"
+              @update:model-value="(s: ClubStatus) => onChangeStatus(card, tier, s)"
+            />
           </div>
         </section>
       </article>
@@ -360,20 +362,20 @@ h2 {
 .clubs {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .club-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .club-info {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .club-name {
@@ -383,35 +385,6 @@ h2 {
 .club-count {
   font-size: 0.85rem;
   color: var(--color-muted);
-}
-
-.club-control {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.club-control.disabled {
-  opacity: 0.5;
-}
-
-.pill {
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-muted);
-  padding: 0.2rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  text-transform: capitalize;
-  cursor: pointer;
-}
-
-.pill:disabled {
-  cursor: not-allowed;
-}
-
-.pill.active {
-  color: var(--color-text);
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
+  font-variant-numeric: tabular-nums;
 }
 </style>
