@@ -91,7 +91,10 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
   const snapshotId = randomUUID();
   const createdAt = now();
 
-  const seedEngine = new WasmEngine(materialJson, '', desiredRetention, BigInt(createdAt));
+  // Empty config = MaterialConfig::default() — enrollment seeds the same
+  // card set regardless of per-user picker choices; those are applied at
+  // query time (slice 1) and at /memorize introduction (slice 2).
+  const seedEngine = new WasmEngine(materialJson, '', '', desiredRetention, BigInt(createdAt));
   let testStates: TestStateEntry[];
   try {
     testStates = JSON.parse(seedEngine.export_test_states()) as TestStateEntry[];

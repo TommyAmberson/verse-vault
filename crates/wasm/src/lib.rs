@@ -6,11 +6,12 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use verse_vault_core::builder::build;
+use verse_vault_core::builder::build_with_config;
 use verse_vault_core::card::CardKind;
 use verse_vault_core::content::{Annotation, AnnotationKind, MaterialData};
 use verse_vault_core::element::{ClubTier, ElementId};
 use verse_vault_core::engine::{ReviewEngine, TestUpdate, UpdateKind};
+use verse_vault_core::material_config::MaterialConfig;
 use verse_vault_core::render::{HeadingRender, VerseRender};
 use verse_vault_core::schedule::next_card;
 use verse_vault_core::test_kind::{TestKey, TestKind};
@@ -254,16 +255,22 @@ impl WasmEngine {
     /// same Unix-seconds value the rest of the system uses (browser callers
     /// can do `BigInt(Math.floor(Date.now() / 1000))`).
     /// `persisted_states_json` may be `""` or `"[]"` to start fresh.
+    /// `material_config_json` may be `""` to use `MaterialConfig::default()`
+    /// (everything-on); otherwise it's a JSON `MaterialConfig` carrying the
+    /// per-year toggles (headings / ftv / citation).
     #[wasm_bindgen(constructor)]
     pub fn new(
         material_json: &str,
+        material_config_json: &str,
         persisted_states_json: &str,
         desired_retention: f32,
         now_secs: i64,
     ) -> Result<WasmEngine, JsError> {
         let material: MaterialData = serde_json::from_str(material_json)
             .map_err(|e| JsError::new(&format!("material_json parse error: {e}")))?;
-        let build_result = build(&material, now_secs);
+        let config = parse_material_config(material_config_json)
+            .map_err(|e| JsError::new(&format!("material_config_json parse error: {e}")))?;
+        let build_result = build_with_config(&material, &config, now_secs);
         let mut engine = ReviewEngine::new(build_result, desired_retention);
 
         let trimmed = persisted_states_json.trim();
@@ -336,9 +343,51 @@ impl WasmEngine {
         serde_json::to_string(&wire)
             .map_err(|e| JsError::new(&format!("render serialise error: {e}")))
     }
+
+    /// Aggregate card counts by the verse's most-specific club tier. JSON
+    /// shape: `{ "Club150": 42, "Club300": 8, "Untagged": 0 }`. Used by the
+    /// material picker to render per-club totals next to each row.
+    pub fn card_count_by_club(&self) -> Result<String, JsError> {
+        serde_json::to_string(&self.club_counts())
+            .map_err(|e| JsError::new(&format!("serialise error: {e}")))
+    }
+}
+
+fn parse_material_config(json: &str) -> Result<MaterialConfig, serde_json::Error> {
+    let trimmed = json.trim();
+    if trimmed.is_empty() {
+        Ok(MaterialConfig::default())
+    } else {
+        serde_json::from_str(trimmed)
+    }
 }
 
 impl WasmEngine {
+    /// Tier-bucketed counts shared by the bindgen entry point and native
+    /// tests. Verses with no tier land in `Untagged` so the API sees the
+    /// total card count regardless of opt-in tiers.
+    fn club_counts(&self) -> std::collections::HashMap<String, u32> {
+        let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+        for card in &self.engine.cards {
+            let atoms = self.engine.atoms_for(card.verse_id);
+            let label = match atoms.clubs.first() {
+                Some(ClubTier::Club150) => "Club150",
+                Some(ClubTier::Club300) => "Club300",
+                None => "Untagged",
+            };
+            *counts.entry(label.to_string()).or_insert(0) += 1;
+        }
+        counts
+    }
+}
+
+impl WasmEngine {
+    /// Native test shim for `card_count_by_club` (mirrors the bindgen
+    /// surface). Returns the same JSON the JS side would receive.
+    pub fn card_count_by_club_for_test(&self) -> String {
+        serde_json::to_string(&self.club_counts()).unwrap()
+    }
+
     /// Native-Rust shim for `replay_event` so integration tests can drive
     /// the validation paths without triggering a `JsError` (which calls a
     /// wasm-bindgen import that panics on non-wasm targets).

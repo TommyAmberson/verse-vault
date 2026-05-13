@@ -108,6 +108,11 @@ export class EngineStore {
     const materialJson = snapshot.materialData.toString('utf8');
     const engine = new WasmEngine(
       materialJson,
+      // Empty config = MaterialConfig::default() (headings + ftv + citation
+      // all on). Slice 1's material picker persists per-user config but
+      // doesn't yet thread it through engine construction — that lands when
+      // /memorize and the per-club filter wire up in slice 2.
+      '',
       JSON.stringify(testStates),
       this.desiredRetention,
       BigInt(this.now()),
