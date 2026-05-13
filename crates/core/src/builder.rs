@@ -40,6 +40,9 @@ pub struct BuildResult {
 /// Club 300) is *not* expanded here: each verse is associated with one
 /// most-specific tier, since the broader membership is trivially known
 /// and the user shouldn't be asked the same "what club?" twice per verse.
+///
+/// Verses with no club tag are `Full`-tier — the catch-all for content
+/// that's only quizzed at the full-curriculum level.
 fn parse_tiers(raw: &[u16]) -> Vec<ClubTier> {
     let mut tiers: Vec<ClubTier> = Vec::new();
     for &n in raw {
@@ -51,6 +54,9 @@ fn parse_tiers(raw: &[u16]) -> Vec<ClubTier> {
         if !tiers.contains(&t) {
             tiers.push(t);
         }
+    }
+    if tiers.is_empty() {
+        tiers.push(ClubTier::Full);
     }
     tiers
 }
@@ -186,19 +192,19 @@ pub fn build_with_config(
                 );
             }
         }
-        for &tier in &clubs {
-            push_card(
-                CardKind::VerseInClub { tier },
-                &mut cards,
-                &mut next_card_id,
-            );
+        if config.club_cards {
+            for &tier in &clubs {
+                push_card(
+                    CardKind::VerseInClub { tier },
+                    &mut cards,
+                    &mut next_card_id,
+                );
+            }
         }
 
-        // Composite: Recitation (always — core mechanic).
+        // Composite: Recitation + Citation are core mechanic (always on).
         push_card(CardKind::Recitation, &mut cards, &mut next_card_id);
-        if config.citation {
-            push_card(CardKind::Citation, &mut cards, &mut next_card_id);
-        }
+        push_card(CardKind::Citation, &mut cards, &mut next_card_id);
 
         // Composite: Ftv (with and without citation). Eligibility:
         // verse has phrases, FTV is short enough, FTV doesn't exceed
@@ -630,27 +636,30 @@ mod tests {
     }
 
     #[test]
-    fn builder_citation_off_emits_no_citation_cards() {
+    fn builder_club_cards_off_emits_no_verse_in_club_cards() {
         let m = material_one_verse_with_heading_and_club();
         let config = MaterialConfig {
-            citation: false,
+            club_cards: false,
             ..MaterialConfig::default()
         };
         let r = build_with_config(&m, &config, 0);
-        assert!(!r.cards.iter().any(|c| matches!(c.kind, CardKind::Citation)));
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInClub { .. }))
+        );
     }
 
     #[test]
     fn builder_always_on_cards_present_with_everything_off() {
-        // Even with every toggle off, the core mechanic cards still emit:
-        // PhraseFill, VerseAtVerseRef, VerseInChapter, VerseInBook,
-        // VerseInClub, Recitation. (VerseInClub is filtered downstream by
-        // per-club status, not at build time.)
+        // Even with every toggleable knob off, the core mechanic cards
+        // still emit: PhraseFill, VerseAtVerseRef, VerseInChapter,
+        // VerseInBook, Recitation, Citation.
         let m = material_one_verse_with_heading_and_club();
         let config = MaterialConfig {
             headings: false,
             ftv: false,
-            citation: false,
+            club_cards: false,
             ..MaterialConfig::default()
         };
         let r = build_with_config(&m, &config, 0);
@@ -677,12 +686,16 @@ mod tests {
         assert!(
             r.cards
                 .iter()
-                .any(|c| matches!(c.kind, CardKind::VerseInClub { .. }))
-        );
-        assert!(
-            r.cards
-                .iter()
                 .any(|c| matches!(c.kind, CardKind::Recitation))
+        );
+        assert!(r.cards.iter().any(|c| matches!(c.kind, CardKind::Citation)));
+        // With club_cards=false the standalone VerseInClub card is gone,
+        // but the citation triple inside Recitation still grades the club
+        // binding through the composite path.
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInClub { .. }))
         );
     }
 

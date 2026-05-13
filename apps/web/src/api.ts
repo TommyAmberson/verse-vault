@@ -86,12 +86,12 @@ export interface StatsResponse {
 }
 
 export type ClubStatus = 'active' | 'maintenance' | 'paused'
-export type ClubTier = '150' | '300'
+export type ClubTier = '150' | '300' | 'full'
 
 export interface YearSettings {
   headings: boolean
   ftv: boolean
-  citation: boolean
+  clubCards: boolean
   lessonBatchSize: number
 }
 
@@ -99,7 +99,6 @@ export interface YearView {
   materialId: string
   settings: YearSettings
   clubs: Record<ClubTier, { status: ClubStatus; cardCount: number }>
-  untaggedCardCount: number
 }
 
 export interface YearsResponse {

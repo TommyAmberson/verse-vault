@@ -9,13 +9,19 @@ import {
   api,
 } from '@/api'
 
-const CLUB_TIERS: ClubTier[] = ['150', '300']
+const CLUB_TIERS: ClubTier[] = ['150', '300', 'full']
 const STATUSES: ClubStatus[] = ['active', 'maintenance', 'paused']
 
 const STATUS_DESCRIPTIONS: Record<ClubStatus, string> = {
   active: 'Memorize new + review existing.',
   maintenance: 'Review only — no new verses introduced.',
   paused: 'Hidden from both queues; progress preserved.',
+}
+
+const TIER_LABELS: Record<ClubTier, string> = {
+  '150': 'Club 150',
+  '300': 'Club 300',
+  full: 'Full',
 }
 
 interface YearCard {
@@ -38,7 +44,7 @@ async function refresh() {
       view,
       draft: { ...view.settings },
       savingSettings: false,
-      savingClub: { '150': false, '300': false },
+      savingClub: { '150': false, '300': false, full: false },
     }))
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -74,13 +80,13 @@ function settingsAreDirty(card: YearCard): boolean {
   return (
     draft.headings !== view.settings.headings ||
     draft.ftv !== view.settings.ftv ||
-    draft.citation !== view.settings.citation ||
+    draft.clubCards !== view.settings.clubCards ||
     draft.lessonBatchSize !== view.settings.lessonBatchSize
   )
 }
 
 function tierLabel(tier: ClubTier): string {
-  return `Club ${tier}`
+  return TIER_LABELS[tier]
 }
 
 onMounted(refresh)
@@ -121,11 +127,11 @@ onMounted(refresh)
             </label>
             <label class="toggle">
               <input
-                v-model="card.draft.citation"
+                v-model="card.draft.clubCards"
                 type="checkbox"
                 :disabled="card.savingSettings"
               />
-              <span>Citation prompts (verse text → state the reference)</span>
+              <span>"Which club is this verse in?" prompts</span>
             </label>
             <label class="number-row">
               <span>Verses per memorize session</span>
@@ -169,10 +175,6 @@ onMounted(refresh)
               </button>
             </div>
           </div>
-          <p v-if="card.view.untaggedCardCount > 0" class="untagged-note">
-            {{ card.view.untaggedCardCount }} additional cards aren't tagged to any
-            club — they always surface regardless of these settings.
-          </p>
         </section>
       </article>
     </div>
@@ -352,9 +354,4 @@ h2 {
   background: var(--color-accent-soft);
 }
 
-.untagged-note {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--color-muted);
-}
 </style>

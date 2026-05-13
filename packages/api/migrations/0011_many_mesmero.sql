@@ -13,7 +13,7 @@ CREATE TABLE `user_year_settings` (
 	`material_id` text NOT NULL,
 	`headings` integer NOT NULL,
 	`ftv` integer NOT NULL,
-	`citation` integer NOT NULL,
+	`club_cards` integer NOT NULL,
 	`lesson_batch_size` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	PRIMARY KEY(`user_id`, `material_id`),

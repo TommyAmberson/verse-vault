@@ -70,17 +70,18 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
 
   if (!settings && clubRows.length === 0) return '';
 
-  const pausedClubs: ('Club150' | 'Club300')[] = [];
+  const pausedClubs: ('Club150' | 'Club300' | 'Full')[] = [];
   for (const r of clubRows) {
     if (r.status !== 'paused') continue;
     if (r.clubTier === '150') pausedClubs.push('Club150');
     else if (r.clubTier === '300') pausedClubs.push('Club300');
+    else if (r.clubTier === 'full') pausedClubs.push('Full');
   }
 
   return JSON.stringify({
     headings: settings?.headings ?? true,
     ftv: settings?.ftv ?? true,
-    citation: settings?.citation ?? true,
+    club_cards: settings?.clubCards ?? true,
     paused_clubs: pausedClubs,
   });
 }

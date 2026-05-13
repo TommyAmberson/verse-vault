@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "350383ac-a1fe-453b-93f3-636e670e82ee",
+  "id": "c96db603-777e-4efe-bc44-69575688564f",
   "prevId": "511a286a-8fce-4f90-a112-627b45092f07",
   "tables": {
     "account": {
@@ -829,8 +829,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "citation": {
-          "name": "citation",
+        "club_cards": {
+          "name": "club_cards",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

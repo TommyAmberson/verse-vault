@@ -370,10 +370,13 @@ impl WasmEngine {
         let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
         for card in &self.engine.cards {
             let atoms = self.engine.atoms_for(card.verse_id);
+            // parse_tiers in the builder guarantees every verse has at
+            // least one tier (Full when no narrower tag), so the None
+            // branch shouldn't fire — count it under Full defensively.
             let label = match atoms.clubs.first() {
                 Some(ClubTier::Club150) => "Club150",
                 Some(ClubTier::Club300) => "Club300",
-                None => "Untagged",
+                Some(ClubTier::Full) | None => "Full",
             };
             *counts.entry(label.to_string()).or_insert(0) += 1;
         }

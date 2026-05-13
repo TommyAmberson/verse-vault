@@ -12,14 +12,13 @@ interface YearsResponse {
     settings: {
       headings: boolean;
       ftv: boolean;
-      citation: boolean;
+      clubCards: boolean;
       lessonBatchSize: number;
     };
     clubs: Record<
-      '150' | '300',
+      '150' | '300' | 'full',
       { status: 'active' | 'maintenance' | 'paused'; cardCount: number }
     >;
-    untaggedCardCount: number;
   }>;
 }
 
@@ -70,12 +69,12 @@ describe('years routes', () => {
     expect(year.settings).toEqual({
       headings: true,
       ftv: true,
-      citation: true,
+      clubCards: true,
       lessonBatchSize: 3,
     });
     // First visit auto-creates an active row for any tier that has
     // cards in the material. Empty tiers stay paused.
-    for (const tier of ['150', '300'] as const) {
+    for (const tier of ['150', '300', 'full'] as const) {
       const club = year.clubs[tier];
       if (club.cardCount > 0) {
         expect(club.status).toBe('active');
@@ -84,7 +83,9 @@ describe('years routes', () => {
       }
     }
     // Sanity check: at least one tier has cards in the shipped material.
-    expect(year.clubs['150'].cardCount + year.clubs['300'].cardCount).toBeGreaterThan(0);
+    const total =
+      year.clubs['150'].cardCount + year.clubs['300'].cardCount + year.clubs.full.cardCount;
+    expect(total).toBeGreaterThan(0);
   });
 
   it('persists the auto-active club row on first GET', async () => {
@@ -133,7 +134,7 @@ describe('years routes', () => {
       .get();
     expect(row?.headings).toBe(false);
     expect(row?.ftv).toBe(true);
-    expect(row?.citation).toBe(true);
+    expect(row?.clubCards).toBe(true);
     expect(row?.lessonBatchSize).toBe(5);
   });
 

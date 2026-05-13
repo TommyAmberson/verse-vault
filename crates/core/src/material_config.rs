@@ -4,15 +4,13 @@ use crate::element::ClubTier;
 
 /// Per-user, per-year material configuration consumed by the builder.
 ///
-/// Five card kinds are always emitted regardless of config — `PhraseFill`,
-/// `Recitation`, `VerseAtVerseRef`, `VerseInChapter`, `VerseInBook`. They
-/// are the core memorisation mechanic and have no meaningful "off" state.
+/// Six card kinds are always emitted regardless of config — `PhraseFill`,
+/// `Recitation`, `VerseAtVerseRef`, `VerseInChapter`, `VerseInBook`, and
+/// `Citation`. They are the core memorisation mechanic and have no
+/// meaningful "off" state.
 ///
-/// `VerseInClub` is emitted iff the verse's most-specific tier isn't in
-/// `paused_clubs`. Together with the verse-level filter that `paused_clubs`
-/// drives, this means a `Paused` club contributes zero cards to the
-/// engine — its TestStates may live in the DB (preserved for resumption)
-/// but never surface.
+/// `VerseInClub` is emitted iff `club_cards` is on *and* the verse's
+/// most-specific tier isn't in `paused_clubs`.
 ///
 /// `Default` is everything-on with no paused clubs. Callers that don't
 /// care about per-user filtering (the simulation, regression tests) can
@@ -21,7 +19,11 @@ use crate::element::ClubTier;
 pub struct MaterialConfig {
     pub headings: bool,
     pub ftv: bool,
-    pub citation: bool,
+    /// Emit the standalone `VerseInClub` card (asks "which club is this
+    /// verse in?"). The club binding is still graded inside Recitation
+    /// regardless of this toggle.
+    #[serde(default = "default_true")]
+    pub club_cards: bool,
     /// Tiers whose verses are excluded from the build. Verses whose
     /// most-specific tier is in this set produce no cards. The picker
     /// drives this from per-(year, club) status: `Paused` → included
@@ -30,12 +32,16 @@ pub struct MaterialConfig {
     pub paused_clubs: Vec<ClubTier>,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 impl Default for MaterialConfig {
     fn default() -> Self {
         Self {
             headings: true,
             ftv: true,
-            citation: true,
+            club_cards: true,
             paused_clubs: Vec::new(),
         }
     }
@@ -64,7 +70,7 @@ mod tests {
         let c = MaterialConfig::default();
         assert!(c.headings);
         assert!(c.ftv);
-        assert!(c.citation);
+        assert!(c.club_cards);
         assert!(c.paused_clubs.is_empty());
     }
 
@@ -73,7 +79,7 @@ mod tests {
         let c = MaterialConfig {
             headings: false,
             ftv: true,
-            citation: false,
+            club_cards: false,
             paused_clubs: vec![ClubTier::Club300],
         };
         let j = serde_json::to_string(&c).unwrap();
@@ -82,25 +88,26 @@ mod tests {
     }
 
     #[test]
-    fn paused_clubs_defaults_when_absent_in_json() {
-        // Older clients / DB rows may omit paused_clubs. Default to empty
-        // (no clubs paused) so partial JSON deserialises cleanly.
-        let c: MaterialConfig =
-            serde_json::from_str(r#"{"headings":true,"ftv":true,"citation":true}"#).unwrap();
+    fn optional_fields_default_when_absent_in_json() {
+        // Older clients / DB rows may omit paused_clubs or club_cards.
+        // Default to everything-on and no paused clubs so partial JSON
+        // deserialises cleanly.
+        let c: MaterialConfig = serde_json::from_str(r#"{"headings":true,"ftv":true}"#).unwrap();
+        assert!(c.club_cards);
         assert!(c.paused_clubs.is_empty());
     }
 
     #[test]
     fn verse_is_paused_checks_most_specific_tier() {
         let c = MaterialConfig {
-            headings: true,
-            ftv: true,
-            citation: true,
             paused_clubs: vec![ClubTier::Club300],
+            ..MaterialConfig::default()
         };
         assert!(c.verse_is_paused(&[ClubTier::Club300]));
         assert!(!c.verse_is_paused(&[ClubTier::Club150]));
-        // Untagged verses always pass through — they aren't club-routable.
+        // Defensive: parse_tiers shouldn't hand us an empty list, but a
+        // call site that does pass empty tiers (e.g. partially-built
+        // test atoms) won't be filtered out.
         assert!(!c.verse_is_paused(&[]));
     }
 }

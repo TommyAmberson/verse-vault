@@ -98,6 +98,9 @@ export const userMaterials = sqliteTable(
 // Per-year material picker toggles. One row per (user, material). Drives
 // `MaterialConfig` at engine-construction time. `lesson_batch_size` is the
 // number of verses surfaced in a single memorize session (slice 2).
+//
+// `club_cards` gates the standalone VerseInClub "what club is this verse
+// in?" card; the citation triple inside Recitation always runs regardless.
 export const userYearSettings = sqliteTable(
   'user_year_settings',
   {
@@ -107,7 +110,7 @@ export const userYearSettings = sqliteTable(
     materialId: text('material_id').notNull(),
     headings: integer('headings', { mode: 'boolean' }).notNull(),
     ftv: integer('ftv', { mode: 'boolean' }).notNull(),
-    citation: integer('citation', { mode: 'boolean' }).notNull(),
+    clubCards: integer('club_cards', { mode: 'boolean' }).notNull(),
     lessonBatchSize: integer('lesson_batch_size').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },

@@ -174,7 +174,8 @@ fn get_card_render_for_recitation_has_structural_verse_data() {
     );
     assert_eq!(v["verse"]["phraseWordCounts"].as_array().unwrap().len(), 4);
     assert!(v["verse"]["headings"].as_array().unwrap().is_empty());
-    assert!(v["verse"]["clubs"].as_array().unwrap().is_empty());
+    // MATERIAL_JSON has no club tag, so the verse lands in the Full tier.
+    assert_eq!(v["verse"]["clubs"], serde_json::json!(["Full"]));
 }
 
 #[test]
@@ -204,8 +205,8 @@ fn material_config_json_parses_and_filters_emission() {
         serde_json::from_str(&default_engine.card_count_by_club_for_test()).unwrap();
     let off_counts: serde_json::Value =
         serde_json::from_str(&off_engine.card_count_by_club_for_test()).unwrap();
-    let default_total = default_counts["Untagged"].as_u64().unwrap();
-    let off_total = off_counts["Untagged"].as_u64().unwrap();
+    let default_total = default_counts["Full"].as_u64().unwrap();
+    let off_total = off_counts["Full"].as_u64().unwrap();
     assert!(
         off_total < default_total,
         "everything-off should produce fewer cards: default={default_total}, off={off_total}"
@@ -213,14 +214,15 @@ fn material_config_json_parses_and_filters_emission() {
 }
 
 #[test]
-fn card_count_by_club_returns_buckets_for_untagged_material() {
+fn card_count_by_club_returns_buckets_for_full_tier_material() {
     let engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
     let json = engine.card_count_by_club_for_test();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-    // MATERIAL_JSON has empty clubs on its single verse, so every card
-    // lands in `Untagged`. The other tier keys are absent (not 0).
-    let untagged = v["Untagged"].as_u64().expect("Untagged bucket missing");
-    assert!(untagged > 0, "expected some Untagged cards");
+    // MATERIAL_JSON has empty clubs on its single verse, so parse_tiers
+    // routes everything into the Full tier. The narrower tier keys
+    // don't appear at all (not 0).
+    let full = v["Full"].as_u64().expect("Full bucket missing");
+    assert!(full > 0, "expected some Full-tier cards");
     assert!(v.get("Club150").is_none());
     assert!(v.get("Club300").is_none());
 }

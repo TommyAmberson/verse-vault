@@ -15,10 +15,10 @@ export interface YearsRoutesDeps {
 }
 
 export type ClubStatus = 'active' | 'maintenance' | 'paused';
-type ClubTier = '150' | '300';
+type ClubTier = '150' | '300' | 'full';
 
 const CLUB_STATUSES: readonly ClubStatus[] = ['active', 'maintenance', 'paused'];
-const CLUB_TIERS: readonly ClubTier[] = ['150', '300'];
+const CLUB_TIERS: readonly ClubTier[] = ['150', '300', 'full'];
 
 const DEFAULT_LESSON_BATCH_SIZE = 3;
 const MIN_LESSON_BATCH_SIZE = 1;
@@ -27,7 +27,7 @@ const MAX_LESSON_BATCH_SIZE = 10;
 interface YearSettings {
   headings: boolean;
   ftv: boolean;
-  citation: boolean;
+  clubCards: boolean;
   lessonBatchSize: number;
 }
 
@@ -35,13 +35,12 @@ interface YearView {
   materialId: string;
   settings: YearSettings;
   clubs: Record<ClubTier, { status: ClubStatus; cardCount: number }>;
-  untaggedCardCount: number;
 }
 
 interface SettingsBody {
   headings?: boolean;
   ftv?: boolean;
-  citation?: boolean;
+  clubCards?: boolean;
   lessonBatchSize?: number;
 }
 
@@ -52,7 +51,7 @@ interface StatusBody {
 interface ClubCounts {
   Club150?: number;
   Club300?: number;
-  Untagged?: number;
+  Full?: number;
 }
 
 function ensureBoolean(value: unknown, field: string): boolean {
@@ -96,14 +95,14 @@ function readYearSettings(db: DB, userId: string, materialId: string): YearSetti
     return {
       headings: true,
       ftv: true,
-      citation: true,
+      clubCards: true,
       lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
     };
   }
   return {
     headings: row.headings,
     ftv: row.ftv,
-    citation: row.citation,
+    clubCards: row.clubCards,
     lessonBatchSize: row.lessonBatchSize,
   };
 }
@@ -169,6 +168,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
       const clubs: YearView['clubs'] = {
         '150': { status: 'paused', cardCount: counts.Club150 ?? 0 },
         '300': { status: 'paused', cardCount: counts.Club300 ?? 0 },
+        full: { status: 'paused', cardCount: counts.Full ?? 0 },
       };
       for (const tier of CLUB_TIERS) {
         const card_count = clubs[tier].cardCount;
@@ -200,7 +200,6 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         materialId,
         settings,
         clubs,
-        untaggedCardCount: counts.Untagged ?? 0,
       });
     }
 
@@ -228,10 +227,13 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     let next: YearSettings;
     try {
       next = {
-        headings: body.headings === undefined ? existing.headings : ensureBoolean(body.headings, 'headings'),
+        headings:
+          body.headings === undefined ? existing.headings : ensureBoolean(body.headings, 'headings'),
         ftv: body.ftv === undefined ? existing.ftv : ensureBoolean(body.ftv, 'ftv'),
-        citation:
-          body.citation === undefined ? existing.citation : ensureBoolean(body.citation, 'citation'),
+        clubCards:
+          body.clubCards === undefined
+            ? existing.clubCards
+            : ensureBoolean(body.clubCards, 'clubCards'),
         lessonBatchSize:
           body.lessonBatchSize === undefined
             ? existing.lessonBatchSize
@@ -250,7 +252,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         materialId,
         headings: next.headings,
         ftv: next.ftv,
-        citation: next.citation,
+        clubCards: next.clubCards,
         lessonBatchSize: next.lessonBatchSize,
         updatedAt: ts,
       })
@@ -259,7 +261,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         set: {
           headings: next.headings,
           ftv: next.ftv,
-          citation: next.citation,
+          clubCards: next.clubCards,
           lessonBatchSize: next.lessonBatchSize,
           updatedAt: ts,
         },
