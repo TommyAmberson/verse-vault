@@ -210,8 +210,14 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         try {
           const loaded = await deps.engines.load({ userId: user.id, materialId: material.id });
           counts = JSON.parse(loaded.engine.card_count_by_club()) as ClubCounts;
-        } catch {
-          counts = {};
+        } catch (err) {
+          // Don't fail the whole picker render if one year's engine can't
+          // build — degrade that row to zero counts and log so it's
+          // discoverable rather than silent.
+          console.error(
+            `years: failed to load engine for material=${material.id}:`,
+            err,
+          );
         }
       }
 
