@@ -59,30 +59,44 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
     .get();
   const clubRows = db
     .select()
-    .from(schema.userClubStatus)
+    .from(schema.userClubSettings)
     .where(
       and(
-        eq(schema.userClubStatus.userId, key.userId),
-        eq(schema.userClubStatus.materialId, key.materialId),
+        eq(schema.userClubSettings.userId, key.userId),
+        eq(schema.userClubSettings.materialId, key.materialId),
       ),
     )
     .all();
 
   if (!settings && clubRows.length === 0) return '';
 
-  const pausedClubs: ('Club150' | 'Club300' | 'Full')[] = [];
+  // Build the per-tier map MaterialConfig.clubs expects. Tiers missing
+  // from the DB rows fall back to paused-with-cards-off via the core's
+  // for_tier default, so we only emit entries for tiers the user has
+  // touched. Status values are PascalCase to match the Rust enum.
+  type RustStatus = 'Active' | 'Maintenance' | 'Paused';
+  const TIER_KEY: Record<string, 'Club150' | 'Club300' | 'Full' | null> = {
+    '150': 'Club150',
+    '300': 'Club300',
+    full: 'Full',
+  };
+  const STATUS_KEY: Record<string, RustStatus | null> = {
+    active: 'Active',
+    maintenance: 'Maintenance',
+    paused: 'Paused',
+  };
+  const clubs: Record<string, { status: RustStatus; club_cards: boolean }> = {};
   for (const r of clubRows) {
-    if (r.status !== 'paused') continue;
-    if (r.clubTier === '150') pausedClubs.push('Club150');
-    else if (r.clubTier === '300') pausedClubs.push('Club300');
-    else if (r.clubTier === 'full') pausedClubs.push('Full');
+    const tierKey = TIER_KEY[r.clubTier];
+    const statusKey = STATUS_KEY[r.status];
+    if (!tierKey || !statusKey) continue;
+    clubs[tierKey] = { status: statusKey, club_cards: r.clubCards };
   }
 
   return JSON.stringify({
     headings: settings?.headings ?? true,
     ftv: settings?.ftv ?? true,
-    club_cards: settings?.clubCards ?? true,
-    paused_clubs: pausedClubs,
+    clubs,
   });
 }
 

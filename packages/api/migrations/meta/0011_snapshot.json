@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c96db603-777e-4efe-bc44-69575688564f",
+  "id": "daad142f-6780-4146-94b1-d88e0784700b",
   "prevId": "511a286a-8fce-4f90-a112-627b45092f07",
   "tables": {
     "account": {
@@ -670,8 +670,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "user_club_status": {
-      "name": "user_club_status",
+    "user_club_settings": {
+      "name": "user_club_settings",
       "columns": {
         "user_id": {
           "name": "user_id",
@@ -701,6 +701,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "club_cards": {
+          "name": "club_cards",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "integer",
@@ -711,9 +718,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "user_club_status_user_id_user_id_fk": {
-          "name": "user_club_status_user_id_user_id_fk",
-          "tableFrom": "user_club_status",
+        "user_club_settings_user_id_user_id_fk": {
+          "name": "user_club_settings_user_id_user_id_fk",
+          "tableFrom": "user_club_settings",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
@@ -726,13 +733,13 @@
         }
       },
       "compositePrimaryKeys": {
-        "user_club_status_user_id_material_id_club_tier_pk": {
+        "user_club_settings_user_id_material_id_club_tier_pk": {
           "columns": [
             "user_id",
             "material_id",
             "club_tier"
           ],
-          "name": "user_club_status_user_id_material_id_club_tier_pk"
+          "name": "user_club_settings_user_id_material_id_club_tier_pk"
         }
       },
       "uniqueConstraints": {},
@@ -824,13 +831,6 @@
         },
         "ftv": {
           "name": "ftv",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "club_cards": {
-          "name": "club_cards",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

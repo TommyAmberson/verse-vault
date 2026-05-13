@@ -1,63 +1,86 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
+use crate::club_status::ClubStatus;
 use crate::element::ClubTier;
 
 /// Per-user, per-year material configuration consumed by the builder.
 ///
-/// Six card kinds are always emitted regardless of config — `PhraseFill`,
-/// `Recitation`, `VerseAtVerseRef`, `VerseInChapter`, `VerseInBook`, and
-/// `Citation`. They are the core memorisation mechanic and have no
-/// meaningful "off" state.
+/// Year-wide toggles (`headings`, `ftv`) gate card kinds that aren't
+/// intrinsically club-scoped. Anything that is — the standalone
+/// `VerseInClub` card and the chapter-list card — lives per-tier in
+/// `clubs`.
 ///
-/// `VerseInClub` is emitted iff `club_cards` is on *and* the verse's
-/// most-specific tier isn't in `paused_clubs`.
-///
-/// `Default` is everything-on with no paused clubs. Callers that don't
-/// care about per-user filtering (the simulation, regression tests) can
-/// pass `&MaterialConfig::default()`.
+/// `Default` activates every tier (`Club150` / `Club300` / `Full`) with
+/// the club-card toggle on. Callers that don't care about per-user
+/// filtering (the simulation, regression tests) can pass
+/// `&MaterialConfig::default()`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MaterialConfig {
     pub headings: bool,
     pub ftv: bool,
-    /// Emit `VerseInClub` cards (asks "which club is this verse in?").
-    /// This is the *only* card kind that grades the `VerseClubBinding`
-    /// test — turning the toggle off drops the test from the engine
-    /// entirely. Recitation and Citation grade the verseref / chapter /
-    /// book bindings only.
-    #[serde(default = "default_true")]
-    pub club_cards: bool,
-    /// Tiers whose verses are excluded from the build. Verses whose
-    /// most-specific tier is in this set produce no cards. The picker
-    /// drives this from per-(year, club) status: `Paused` → included
-    /// here, `Active` and `Maintenance` → excluded.
     #[serde(default)]
-    pub paused_clubs: Vec<ClubTier>,
+    pub clubs: HashMap<ClubTier, ClubConfig>,
 }
 
-fn default_true() -> bool {
-    true
+/// Per-(year, club) configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClubConfig {
+    pub status: ClubStatus,
+    /// Emit the per-verse `VerseInClub` "which club is this verse in?"
+    /// card for verses in this tier.
+    pub club_cards: bool,
+}
+
+impl ClubConfig {
+    /// Convenience: active tier with the club card on.
+    pub fn active() -> Self {
+        Self {
+            status: ClubStatus::Active,
+            club_cards: true,
+        }
+    }
+
+    /// Convenience: paused tier (status alone gates everything else).
+    pub fn paused() -> Self {
+        Self {
+            status: ClubStatus::Paused,
+            club_cards: false,
+        }
+    }
 }
 
 impl Default for MaterialConfig {
     fn default() -> Self {
+        let mut clubs = HashMap::new();
+        clubs.insert(ClubTier::Club150, ClubConfig::active());
+        clubs.insert(ClubTier::Club300, ClubConfig::active());
+        clubs.insert(ClubTier::Full, ClubConfig::active());
         Self {
             headings: true,
             ftv: true,
-            club_cards: true,
-            paused_clubs: Vec::new(),
+            clubs,
         }
     }
 }
 
 impl MaterialConfig {
-    /// True iff this verse's most-specific tier is in `paused_clubs`.
-    /// Untagged verses (no club at all) are never filtered out — they
-    /// represent canonical-but-untiered content like a future "common"
-    /// bucket. The picker can't reach them through the per-club status UI
-    /// anyway.
+    /// Lookup for a tier, falling back to `Paused`-with-no-cards when the
+    /// tier isn't in the map. Used by the builder's per-verse filter.
+    pub fn for_tier(&self, tier: ClubTier) -> ClubConfig {
+        self.clubs
+            .get(&tier)
+            .copied()
+            .unwrap_or_else(ClubConfig::paused)
+    }
+
+    /// True iff this verse's most-specific tier is paused.
+    /// `parse_tiers` guarantees every verse has at least one tier (Full
+    /// when no narrower tag), so the empty branch is defensive only.
     pub fn verse_is_paused(&self, verse_clubs: &[ClubTier]) -> bool {
         match verse_clubs.first() {
-            Some(t) => self.paused_clubs.contains(t),
+            Some(t) => self.for_tier(*t).status == ClubStatus::Paused,
             None => false,
         }
     }
@@ -72,44 +95,52 @@ mod tests {
         let c = MaterialConfig::default();
         assert!(c.headings);
         assert!(c.ftv);
-        assert!(c.club_cards);
-        assert!(c.paused_clubs.is_empty());
+        for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
+            let cc = c.for_tier(tier);
+            assert_eq!(cc.status, ClubStatus::Active);
+            assert!(cc.club_cards);
+        }
     }
 
     #[test]
     fn round_trips_through_json() {
-        let c = MaterialConfig {
-            headings: false,
-            ftv: true,
-            club_cards: false,
-            paused_clubs: vec![ClubTier::Club300],
-        };
+        let c = MaterialConfig::default();
         let j = serde_json::to_string(&c).unwrap();
         let back: MaterialConfig = serde_json::from_str(&j).unwrap();
         assert_eq!(c, back);
     }
 
     #[test]
-    fn optional_fields_default_when_absent_in_json() {
-        // Older clients / DB rows may omit paused_clubs or club_cards.
-        // Default to everything-on and no paused clubs so partial JSON
-        // deserialises cleanly.
+    fn missing_clubs_field_defaults_to_empty_map() {
+        // Older JSON may omit `clubs`. Each tier then falls back to
+        // ClubConfig::paused() via for_tier(), which is the safe default.
         let c: MaterialConfig = serde_json::from_str(r#"{"headings":true,"ftv":true}"#).unwrap();
-        assert!(c.club_cards);
-        assert!(c.paused_clubs.is_empty());
+        assert!(c.clubs.is_empty());
+        assert_eq!(c.for_tier(ClubTier::Club150).status, ClubStatus::Paused);
     }
 
     #[test]
     fn verse_is_paused_checks_most_specific_tier() {
+        let mut clubs = HashMap::new();
+        clubs.insert(
+            ClubTier::Club150,
+            ClubConfig {
+                status: ClubStatus::Active,
+                club_cards: true,
+            },
+        );
+        clubs.insert(
+            ClubTier::Club300,
+            ClubConfig {
+                status: ClubStatus::Paused,
+                club_cards: false,
+            },
+        );
         let c = MaterialConfig {
-            paused_clubs: vec![ClubTier::Club300],
+            clubs,
             ..MaterialConfig::default()
         };
         assert!(c.verse_is_paused(&[ClubTier::Club300]));
         assert!(!c.verse_is_paused(&[ClubTier::Club150]));
-        // Defensive: parse_tiers shouldn't hand us an empty list, but a
-        // call site that does pass empty tiers (e.g. partially-built
-        // test atoms) won't be filtered out.
-        assert!(!c.verse_is_paused(&[]));
     }
 }

@@ -192,8 +192,8 @@ pub fn build_with_config(
                 );
             }
         }
-        if config.club_cards {
-            for &tier in &clubs {
+        for &tier in &clubs {
+            if config.for_tier(tier).club_cards {
                 push_card(
                     CardKind::VerseInClub { tier },
                     &mut cards,
@@ -635,14 +635,41 @@ mod tests {
         );
     }
 
+    fn config_with_club_cards_off() -> MaterialConfig {
+        use crate::material_config::ClubConfig;
+        let mut clubs = std::collections::HashMap::new();
+        for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
+            clubs.insert(
+                tier,
+                ClubConfig {
+                    status: crate::club_status::ClubStatus::Active,
+                    club_cards: false,
+                },
+            );
+        }
+        MaterialConfig {
+            clubs,
+            ..MaterialConfig::default()
+        }
+    }
+
+    fn config_with_paused(tier: ClubTier) -> MaterialConfig {
+        use crate::material_config::ClubConfig;
+        let mut config = MaterialConfig::default();
+        config.clubs.insert(
+            tier,
+            ClubConfig {
+                status: crate::club_status::ClubStatus::Paused,
+                club_cards: false,
+            },
+        );
+        config
+    }
+
     #[test]
     fn builder_club_cards_off_emits_no_verse_in_club_cards() {
         let m = material_one_verse_with_heading_and_club();
-        let config = MaterialConfig {
-            club_cards: false,
-            ..MaterialConfig::default()
-        };
-        let r = build_with_config(&m, &config, 0);
+        let r = build_with_config(&m, &config_with_club_cards_off(), 0);
         assert!(
             !r.cards
                 .iter()
@@ -659,8 +686,7 @@ mod tests {
         let config = MaterialConfig {
             headings: false,
             ftv: false,
-            club_cards: false,
-            ..MaterialConfig::default()
+            ..config_with_club_cards_off()
         };
         let r = build_with_config(&m, &config, 0);
         assert!(
@@ -704,11 +730,7 @@ mod tests {
         // Verse is in Club 150; pausing Club 150 must drop *all* of its
         // cards, not just VerseInClub.
         let m = material_one_verse_with_heading_and_club();
-        let config = MaterialConfig {
-            paused_clubs: vec![ClubTier::Club150],
-            ..MaterialConfig::default()
-        };
-        let r = build_with_config(&m, &config, 0);
+        let r = build_with_config(&m, &config_with_paused(ClubTier::Club150), 0);
         assert!(r.cards.is_empty(), "paused-club verse should emit nothing");
     }
 
@@ -716,11 +738,7 @@ mod tests {
     fn builder_paused_other_club_leaves_verse_alone() {
         // Verse is in Club 150; pausing Club 300 must not affect it.
         let m = material_one_verse_with_heading_and_club();
-        let config = MaterialConfig {
-            paused_clubs: vec![ClubTier::Club300],
-            ..MaterialConfig::default()
-        };
-        let r = build_with_config(&m, &config, 0);
+        let r = build_with_config(&m, &config_with_paused(ClubTier::Club300), 0);
         assert!(
             !r.cards.is_empty(),
             "non-matching pause should preserve cards"

@@ -193,9 +193,13 @@ fn material_config_json_parses_and_filters_emission() {
     // verify the specific kinds dropped; this test just confirms the
     // config JSON crosses the wasm boundary and reaches `build_with_config`.
     let default_engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
+    // Turn off the year-wide toggles. Club configs stay at their map
+    // entries from build_with_config; we only need `headings` and `ftv`
+    // off to demonstrate that config JSON crosses the wasm boundary.
     let off_engine = WasmEngine::new(
         MATERIAL_JSON,
-        r#"{"headings":false,"ftv":false,"citation":false}"#,
+        r#"{"headings":false,"ftv":false,
+            "clubs":{"Full":{"status":"Active","club_cards":true}}}"#,
         "",
         0.9,
         0,

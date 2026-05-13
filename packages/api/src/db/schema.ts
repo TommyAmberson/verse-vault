@@ -96,11 +96,8 @@ export const userMaterials = sqliteTable(
 );
 
 // Per-year material picker toggles. One row per (user, material). Drives
-// `MaterialConfig` at engine-construction time. `lesson_batch_size` is the
-// number of verses surfaced in a single memorize session (slice 2).
-//
-// `club_cards` gates the standalone VerseInClub "what club is this verse
-// in?" card; the citation triple inside Recitation always runs regardless.
+// the year-wide knobs in `MaterialConfig` at engine-construction time.
+// Per-club toggles live in `userClubSettings`.
 export const userYearSettings = sqliteTable(
   'user_year_settings',
   {
@@ -110,25 +107,26 @@ export const userYearSettings = sqliteTable(
     materialId: text('material_id').notNull(),
     headings: integer('headings', { mode: 'boolean' }).notNull(),
     ftv: integer('ftv', { mode: 'boolean' }).notNull(),
-    clubCards: integer('club_cards', { mode: 'boolean' }).notNull(),
     lessonBatchSize: integer('lesson_batch_size').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
 );
 
-// Per-(year, club) lifecycle status. Absent row = `paused` (hidden in both
-// /memorize and /review). The user opts in to clubs explicitly via the
+// Per-(year, club) configuration: lifecycle status plus the club-specific
+// card-kind toggles. Absent row = `paused` with all club-specific cards
+// off (hidden in both /memorize and /review). The user opts in via the
 // material picker.
-export const userClubStatus = sqliteTable(
-  'user_club_status',
+export const userClubSettings = sqliteTable(
+  'user_club_settings',
   {
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     materialId: text('material_id').notNull(),
-    clubTier: text('club_tier').notNull(), // "150" | "300"
+    clubTier: text('club_tier').notNull(), // "150" | "300" | "full"
     status: text('status').notNull(), // "active" | "maintenance" | "paused"
+    clubCards: integer('club_cards', { mode: 'boolean' }).notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId, t.clubTier] }) }),

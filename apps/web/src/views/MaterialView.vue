@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 
 import {
+  type ClubPatch,
   type ClubStatus,
   type ClubTier,
   type YearSettings,
@@ -64,10 +65,10 @@ async function onSaveSettings(card: YearCard) {
   }
 }
 
-async function onChangeStatus(card: YearCard, tier: ClubTier, status: ClubStatus) {
+async function patchClub(card: YearCard, tier: ClubTier, patch: ClubPatch) {
   card.savingClub[tier] = true
   try {
-    await api.updateClubStatus(card.view.materialId, tier, status)
+    await api.updateClub(card.view.materialId, tier, patch)
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -80,7 +81,6 @@ function settingsAreDirty(card: YearCard): boolean {
   return (
     draft.headings !== view.settings.headings ||
     draft.ftv !== view.settings.ftv ||
-    draft.clubCards !== view.settings.clubCards ||
     draft.lessonBatchSize !== view.settings.lessonBatchSize
   )
 }
@@ -125,14 +125,6 @@ onMounted(refresh)
               />
               <span>FTV (finish-the-verse) prompts</span>
             </label>
-            <label class="toggle">
-              <input
-                v-model="card.draft.clubCards"
-                type="checkbox"
-                :disabled="card.savingSettings"
-              />
-              <span>"Which club is this verse in?" prompts</span>
-            </label>
             <label class="number-row">
               <span>Verses per memorize session</span>
               <input
@@ -156,24 +148,45 @@ onMounted(refresh)
 
         <section class="clubs">
           <div class="section-title">Clubs</div>
-          <div v-for="tier in CLUB_TIERS" :key="tier" class="club-row">
-            <div class="club-info">
-              <div class="club-name">{{ tierLabel(tier) }}</div>
-              <div class="club-count">{{ card.view.clubs[tier].cardCount }} cards</div>
-            </div>
-            <div class="club-control" :class="{ disabled: card.view.clubs[tier].cardCount === 0 }">
-              <button
-                v-for="opt in STATUSES"
-                :key="opt"
-                type="button"
-                :class="['pill', `pill-${opt}`, { active: card.view.clubs[tier].status === opt }]"
-                :disabled="card.view.clubs[tier].cardCount === 0 || card.savingClub[tier]"
-                :title="STATUS_DESCRIPTIONS[opt]"
-                @click="onChangeStatus(card, tier, opt)"
+          <div v-for="tier in CLUB_TIERS" :key="tier" class="club-block">
+            <div class="club-row">
+              <div class="club-info">
+                <div class="club-name">{{ tierLabel(tier) }}</div>
+                <div class="club-count">{{ card.view.clubs[tier].cardCount }} cards</div>
+              </div>
+              <div
+                class="club-control"
+                :class="{ disabled: card.view.clubs[tier].cardCount === 0 }"
               >
-                {{ opt }}
-              </button>
+                <button
+                  v-for="opt in STATUSES"
+                  :key="opt"
+                  type="button"
+                  :class="['pill', `pill-${opt}`, { active: card.view.clubs[tier].status === opt }]"
+                  :disabled="card.view.clubs[tier].cardCount === 0 || card.savingClub[tier]"
+                  :title="STATUS_DESCRIPTIONS[opt]"
+                  @click="patchClub(card, tier, { status: opt })"
+                >
+                  {{ opt }}
+                </button>
+              </div>
             </div>
+            <label
+              v-if="card.view.clubs[tier].cardCount > 0"
+              class="club-toggle"
+            >
+              <input
+                type="checkbox"
+                :checked="card.view.clubs[tier].clubCards"
+                :disabled="card.savingClub[tier]"
+                @change="
+                  patchClub(card, tier, {
+                    clubCards: ($event.target as HTMLInputElement).checked,
+                  })
+                "
+              />
+              <span>"Which club?" cards (per verse)</span>
+            </label>
           </div>
         </section>
       </article>
@@ -302,11 +315,37 @@ h2 {
   gap: 0.75rem;
 }
 
+.club-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.club-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .club-row {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 1rem;
+}
+
+.club-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  padding-left: 0.25rem;
+}
+
+.club-toggle input[type='checkbox'] {
+  accent-color: var(--color-accent);
 }
 
 .club-info {

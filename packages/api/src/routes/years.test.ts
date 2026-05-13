@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { userClubStatus, userYearSettings } from '../db/schema.js';
+import { userClubSettings, userYearSettings } from '../db/schema.js';
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-1cor';
@@ -12,12 +12,15 @@ interface YearsResponse {
     settings: {
       headings: boolean;
       ftv: boolean;
-      clubCards: boolean;
       lessonBatchSize: number;
     };
     clubs: Record<
       '150' | '300' | 'full',
-      { status: 'active' | 'maintenance' | 'paused'; cardCount: number }
+      {
+        status: 'active' | 'maintenance' | 'paused';
+        clubCards: boolean;
+        cardCount: number;
+      }
     >;
   }>;
 }
@@ -45,7 +48,7 @@ describe('years routes', () => {
     ).toBe(401);
     expect(
       (
-        await test.app.request(`/api/years/${MATERIAL_ID}/clubs/150/status`, {
+        await test.app.request(`/api/years/${MATERIAL_ID}/clubs/150`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'active' }),
@@ -69,17 +72,18 @@ describe('years routes', () => {
     expect(year.settings).toEqual({
       headings: true,
       ftv: true,
-      clubCards: true,
       lessonBatchSize: 3,
     });
-    // First visit auto-creates an active row for any tier that has
-    // cards in the material. Empty tiers stay paused.
+    // First visit auto-creates an active row with cards-on for any tier
+    // that has cards in the material. Empty tiers stay paused.
     for (const tier of ['150', '300', 'full'] as const) {
       const club = year.clubs[tier];
       if (club.cardCount > 0) {
         expect(club.status).toBe('active');
+        expect(club.clubCards).toBe(true);
       } else {
         expect(club.status).toBe('paused');
+        expect(club.clubCards).toBe(false);
       }
     }
     // Sanity check: at least one tier has cards in the shipped material.
@@ -97,12 +101,12 @@ describe('years routes', () => {
     await test.app.request('/api/years', { headers: { cookie } });
     const row = test.db
       .select()
-      .from(userClubStatus)
+      .from(userClubSettings)
       .where(
         and(
-          eq(userClubStatus.userId, userId),
-          eq(userClubStatus.materialId, MATERIAL_ID),
-          eq(userClubStatus.clubTier, '150'),
+          eq(userClubSettings.userId, userId),
+          eq(userClubSettings.materialId, MATERIAL_ID),
+          eq(userClubSettings.clubTier, '150'),
         ),
       )
       .get();
@@ -134,7 +138,6 @@ describe('years routes', () => {
       .get();
     expect(row?.headings).toBe(false);
     expect(row?.ftv).toBe(true);
-    expect(row?.clubCards).toBe(true);
     expect(row?.lessonBatchSize).toBe(5);
   });
 
@@ -165,7 +168,7 @@ describe('years routes', () => {
     const { cookie, userId } = await signUpTestUser(test, 'alice@example.com');
     await enrollViaApi(test, cookie, MATERIAL_ID, 150);
 
-    const ok = await test.app.request(`/api/years/${MATERIAL_ID}/clubs/150/status`, {
+    const ok = await test.app.request(`/api/years/${MATERIAL_ID}/clubs/150`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
       body: JSON.stringify({ status: 'maintenance' }),
@@ -173,19 +176,19 @@ describe('years routes', () => {
     expect(ok.status).toBe(200);
     const row = test.db
       .select()
-      .from(userClubStatus)
+      .from(userClubSettings)
       .where(
         and(
-          eq(userClubStatus.userId, userId),
-          eq(userClubStatus.materialId, MATERIAL_ID),
-          eq(userClubStatus.clubTier, '150'),
+          eq(userClubSettings.userId, userId),
+          eq(userClubSettings.materialId, MATERIAL_ID),
+          eq(userClubSettings.clubTier, '150'),
         ),
       )
       .get();
     expect(row?.status).toBe('maintenance');
 
     const badStatus = await test.app.request(
-      `/api/years/${MATERIAL_ID}/clubs/150/status`,
+      `/api/years/${MATERIAL_ID}/clubs/150`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', cookie },
@@ -195,7 +198,7 @@ describe('years routes', () => {
     expect(badStatus.status).toBe(400);
 
     const badTier = await test.app.request(
-      `/api/years/${MATERIAL_ID}/clubs/999/status`,
+      `/api/years/${MATERIAL_ID}/clubs/999`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', cookie },
@@ -218,7 +221,7 @@ describe('years routes', () => {
     expect(settings.status).toBe(404);
 
     const status = await test.app.request(
-      `/api/years/${MATERIAL_ID}/clubs/150/status`,
+      `/api/years/${MATERIAL_ID}/clubs/150`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', cookie },

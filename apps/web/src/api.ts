@@ -91,14 +91,24 @@ export type ClubTier = '150' | '300' | 'full'
 export interface YearSettings {
   headings: boolean
   ftv: boolean
-  clubCards: boolean
   lessonBatchSize: number
+}
+
+export interface ClubView {
+  status: ClubStatus
+  clubCards: boolean
+  cardCount: number
 }
 
 export interface YearView {
   materialId: string
   settings: YearSettings
-  clubs: Record<ClubTier, { status: ClubStatus; cardCount: number }>
+  clubs: Record<ClubTier, ClubView>
+}
+
+export interface ClubPatch {
+  status?: ClubStatus
+  clubCards?: boolean
 }
 
 export interface YearsResponse {
@@ -113,11 +123,11 @@ export interface ApiClient {
   getStats(materialId: string): Promise<StatsResponse>
   getYears(): Promise<YearsResponse>
   updateYearSettings(materialId: string, settings: Partial<YearSettings>): Promise<{ settings: YearSettings }>
-  updateClubStatus(
+  updateClub(
     materialId: string,
     tier: ClubTier,
-    status: ClubStatus,
-  ): Promise<{ tier: ClubTier; status: ClubStatus }>
+    patch: ClubPatch,
+  ): Promise<{ tier: ClubTier; status: ClubStatus; clubCards: boolean }>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
@@ -157,12 +167,8 @@ export function createApiClient(apiUrl: string): ApiClient {
     getYears: () => request('GET', '/api/years'),
     updateYearSettings: (materialId, settings) =>
       request('POST', `/api/years/${encodeURIComponent(materialId)}/settings`, settings),
-    updateClubStatus: (materialId, tier, status) =>
-      request(
-        'POST',
-        `/api/years/${encodeURIComponent(materialId)}/clubs/${tier}/status`,
-        { status },
-      ),
+    updateClub: (materialId, tier, patch) =>
+      request('POST', `/api/years/${encodeURIComponent(materialId)}/clubs/${tier}`, patch),
   }
 }
 
