@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watchEffect } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import ScopeLevelSelector from '@/components/ScopeLevelSelector.vue'
 import {
@@ -85,22 +85,6 @@ const selected = computed<YearCard | null>(() => {
   return cards.value.find((c) => c.view.materialId === id) ?? null
 })
 
-watchEffect(() => {
-  // Auto-select a tab on first load (or after refresh when the
-  // previously-selected material disappears). Prefer the user's first
-  // enrolled year so the picker opens on a populated panel rather than
-  // a "Not enrolled" empty state.
-  if (cards.value.length === 0) {
-    selectedMaterialId.value = null
-    return
-  }
-  const stillThere = cards.value.some((c) => c.view.materialId === selectedMaterialId.value)
-  if (stillThere) return
-  const firstEnrolled = cards.value.find((c) => c.view.enrolled)
-  const next = firstEnrolled ?? cards.value[0]
-  if (next) selectedMaterialId.value = next.view.materialId
-})
-
 async function refresh() {
   loading.value = true
   error.value = null
@@ -111,6 +95,15 @@ async function refresh() {
       draft: { ...view.settings },
       saving: false,
     }))
+    // Re-resolve the active tab after the list changes: prefer the user's
+    // first enrolled year so the picker opens on a populated panel rather
+    // than a "Not enrolled" empty state.
+    if (cards.value.length === 0) {
+      selectedMaterialId.value = null
+    } else if (!cards.value.some((c) => c.view.materialId === selectedMaterialId.value)) {
+      const next = cards.value.find((c) => c.view.enrolled) ?? cards.value[0]
+      selectedMaterialId.value = next?.view.materialId ?? null
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -151,24 +144,9 @@ async function onSave(card: YearCard) {
 }
 
 function settingsAreDirty(card: YearCard): boolean {
-  const { draft, view } = card
-  return (
-    draft.headings !== view.settings.headings ||
-    draft.ftv !== view.settings.ftv ||
-    draft.newScope !== view.settings.newScope ||
-    draft.reviewScope !== view.settings.reviewScope ||
-    draft.clubCardScope !== view.settings.clubCardScope ||
-    draft.chapterListScope !== view.settings.chapterListScope ||
-    draft.lessonBatchSize !== view.settings.lessonBatchSize
+  return (Object.keys(card.draft) as Array<keyof YearSettings>).some(
+    (k) => card.draft[k] !== card.view.settings[k],
   )
-}
-
-function tierLabel(tier: ClubTier): string {
-  return TIER_LABELS[tier]
-}
-
-function statusClass(status: ClubStatus): string {
-  return `status-chip status-${status}`
 }
 
 onMounted(refresh)
@@ -227,11 +205,11 @@ onMounted(refresh)
               class="tier-pill"
               :class="`tier-status-${selected.view.clubs[tier].status}`"
             >
-              <span class="tier-pill-name">{{ tierLabel(tier) }}</span>
+              <span class="tier-pill-name">{{ TIER_LABELS[tier] }}</span>
               <span v-if="selected.view.enrolled" class="tier-pill-count">
                 {{ selected.view.clubs[tier].cardCount }}
               </span>
-              <span :class="statusClass(selected.view.clubs[tier].status)">
+              <span :class="`status-chip status-${selected.view.clubs[tier].status}`">
                 {{ STATUS_LABELS[selected.view.clubs[tier].status] }}
               </span>
             </span>
