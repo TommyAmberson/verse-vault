@@ -13,6 +13,9 @@ type ClubStatus = 'active' | 'maintenance' | 'paused';
 interface YearsResponse {
   years: Array<{
     materialId: string;
+    title: string;
+    description: string;
+    enrolled: boolean;
     settings: {
       headings: boolean;
       ftv: boolean;
@@ -49,7 +52,7 @@ describe('years routes', () => {
     ).toBe(401);
   });
 
-  it('lists enrolled years with default scopes that derive Active per tier', async () => {
+  it('lists every catalog year with the enrolled one marked', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
@@ -58,8 +61,27 @@ describe('years routes', () => {
     const res = await test.app.request('/api/years', { headers: { cookie } });
     expect(res.status).toBe(200);
     const body = (await res.json()) as YearsResponse;
-    expect(body.years).toHaveLength(1);
-    const year = body.years[0];
+    // Every catalog material is listed.
+    expect(body.years.length).toBeGreaterThanOrEqual(8);
+    const enrolledYear = body.years.find((y) => y.materialId === MATERIAL_ID);
+    expect(enrolledYear).toBeDefined();
+    expect(enrolledYear!.enrolled).toBe(true);
+    // The other listings show enrolled=false with zero-count chips.
+    const unenrolled = body.years.find((y) => y.materialId !== MATERIAL_ID);
+    expect(unenrolled).toBeDefined();
+    expect(unenrolled!.enrolled).toBe(false);
+    expect(unenrolled!.clubs['150'].cardCount).toBe(0);
+  });
+
+  it('returns default scopes that derive Active per tier when enrolled', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID, 150);
+
+    const res = await test.app.request('/api/years', { headers: { cookie } });
+    const body = (await res.json()) as YearsResponse;
+    const year = body.years.find((y) => y.materialId === MATERIAL_ID)!;
     expect(year.settings).toEqual({
       headings: true,
       ftv: true,
@@ -69,10 +91,8 @@ describe('years routes', () => {
       chapterListScope: 'up300',
       lessonBatchSize: 3,
     });
-    // active_scope=all means every tier with cards is Active.
     for (const tier of ['150', '300', 'full'] as const) {
-      const club = year.clubs[tier];
-      expect(club.status).toBe('active');
+      expect(year.clubs[tier].status).toBe('active');
     }
   });
 
@@ -82,7 +102,6 @@ describe('years routes', () => {
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
     await enrollViaApi(test, cookie, MATERIAL_ID, 150);
 
-    // Active up to 150, Maintenance up to 300.
     const res = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
@@ -92,10 +111,31 @@ describe('years routes', () => {
 
     const get = await test.app.request('/api/years', { headers: { cookie } });
     const body = (await get.json()) as YearsResponse;
-    const clubs = body.years[0].clubs;
+    const clubs = body.years.find((y) => y.materialId === MATERIAL_ID)!.clubs;
     expect(clubs['150'].status).toBe('active');
     expect(clubs['300'].status).toBe('maintenance');
     expect(clubs.full.status).toBe('paused');
+  });
+
+  it('auto-enrolls when a scope bumps above Off', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+
+    // No enrollment yet — POST a scope change directly.
+    const res = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ newScope: 'up150', reviewScope: 'all' }),
+    });
+    expect(res.status).toBe(200);
+
+    const get = await test.app.request('/api/years', { headers: { cookie } });
+    const body = (await get.json()) as YearsResponse;
+    const year = body.years.find((y) => y.materialId === MATERIAL_ID)!;
+    expect(year.enrolled).toBe(true);
+    // Card counts are non-zero now that the engine could build.
+    expect(year.clubs['150'].cardCount + year.clubs['300'].cardCount).toBeGreaterThan(0);
   });
 
   it('persists settings and accepts partial bodies', async () => {
@@ -151,16 +191,16 @@ describe('years routes', () => {
     expect(badChapter.status).toBe(400);
   });
 
-  it('returns 404 when the user is not enrolled', async () => {
+  it('returns 404 when the material is not in the catalog', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
 
-    const settings = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
+    const res = await test.app.request(`/api/years/not-a-material/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
       body: JSON.stringify({ headings: false }),
     });
-    expect(settings.status).toBe(404);
+    expect(res.status).toBe(404);
   });
 });

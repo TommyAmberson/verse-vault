@@ -139,9 +139,18 @@ onMounted(refresh)
       You're not enrolled in any year yet.
     </div>
     <div v-else class="years">
-      <article v-for="card in cards" :key="card.view.materialId" class="year-card">
+      <article
+        v-for="card in cards"
+        :key="card.view.materialId"
+        class="year-card"
+        :class="{ 'year-card-unenrolled': !card.view.enrolled }"
+      >
         <header class="year-header">
-          <h3>{{ card.view.materialId }}</h3>
+          <div class="year-title-row">
+            <h3>{{ card.view.title }}</h3>
+            <span v-if="!card.view.enrolled" class="enrollment-badge">Not enrolled</span>
+          </div>
+          <p class="year-description">{{ card.view.description }}</p>
           <div class="tier-summary">
             <span
               v-for="tier in CLUB_TIERS"
@@ -150,7 +159,9 @@ onMounted(refresh)
               :class="`tier-status-${card.view.clubs[tier].status}`"
             >
               <span class="tier-pill-name">{{ tierLabel(tier) }}</span>
-              <span class="tier-pill-count">{{ card.view.clubs[tier].cardCount }}</span>
+              <span v-if="card.view.enrolled" class="tier-pill-count">
+                {{ card.view.clubs[tier].cardCount }}
+              </span>
               <span :class="statusClass(card.view.clubs[tier].status)">
                 {{ STATUS_LABELS[card.view.clubs[tier].status] }}
               </span>
@@ -298,16 +309,47 @@ h2 {
   gap: 1.25rem;
 }
 
+.year-card-unenrolled {
+  /* Subtle dimming so unenrolled years read as "available, not yet
+     activated" without disappearing into the background. */
+  border-style: dashed;
+}
+
 .year-header {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
+.year-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .year-header h3 {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 600;
+}
+
+.year-description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
+.enrollment-badge {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
 }
 
 .tier-summary {

@@ -110,6 +110,11 @@ export interface ClubView {
 
 export interface YearView {
   materialId: string
+  title: string
+  description: string
+  /** True when the user has a graph_snapshot + user_materials row for
+   *  this year. Bumping any scope above Off and saving will auto-enroll. */
+  enrolled: boolean
   settings: YearSettings
   clubs: Record<ClubTier, ClubView>
 }

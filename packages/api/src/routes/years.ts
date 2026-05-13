@@ -4,8 +4,8 @@ import { Hono } from 'hono';
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import type { EngineStore } from '../lib/engine.js';
-import { NotEnrolledError } from '../lib/engine.js';
-import { requireEnrollment } from '../lib/enrollment.js';
+import { AlreadyEnrolledError, enrollUser } from '../lib/enrollment.js';
+import { MATERIALS } from '../lib/materials.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface YearsRoutesDeps {
@@ -47,6 +47,14 @@ interface ClubView {
 
 interface YearView {
   materialId: string;
+  title: string;
+  description: string;
+  /** True when the user has at least the graph_snapshot + user_materials
+   *  row provisioned (i.e. has previously bumped a scope above Off, or
+   *  enrolled via the legacy /api/materials/enroll path). The picker
+   *  can show un-provisioned years too — bumping a scope above Off
+   *  auto-provisions on save. */
+  enrolled: boolean;
   settings: YearSettings;
   clubs: Record<ClubTier, ClubView>;
 }
@@ -123,7 +131,34 @@ function effectiveStatus(settings: YearSettings, tier: ClubTier): ClubStatus {
   return 'paused';
 }
 
-function readYearSettings(db: DB, userId: string, materialId: string): YearSettings {
+// Two fallbacks when the user has no user_year_settings row. Enrolled
+// users default to "study everything" (mirrors the engine's
+// MaterialConfig::default); unenrolled users default to paused so the
+// per-tier chip doesn't lie ("Active" on a year the user hasn't
+// touched would be misleading). Either way, the user can opt in or
+// out from the picker.
+const ENROLLED_DEFAULTS: YearSettings = {
+  headings: true,
+  ftv: true,
+  newScope: 'all',
+  reviewScope: 'all',
+  clubCardScope: 'all',
+  chapterListScope: 'up300',
+  lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
+};
+
+const UNENROLLED_DEFAULTS: YearSettings = {
+  ...ENROLLED_DEFAULTS,
+  newScope: 'off',
+  reviewScope: 'off',
+};
+
+function readYearSettings(
+  db: DB,
+  userId: string,
+  materialId: string,
+  fallback: YearSettings,
+): YearSettings {
   const row = db
     .select()
     .from(schema.userYearSettings)
@@ -134,17 +169,7 @@ function readYearSettings(db: DB, userId: string, materialId: string): YearSetti
       ),
     )
     .get();
-  if (!row) {
-    return {
-      headings: true,
-      ftv: true,
-      newScope: 'all',
-      reviewScope: 'all',
-      clubCardScope: 'all',
-      chapterListScope: 'up300',
-      lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
-    };
-  }
+  if (!row) return fallback;
   return {
     headings: row.headings,
     ftv: row.ftv,
@@ -164,23 +189,36 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
 
   app.get('/', async (c) => {
     const user = getUser(c);
-    const enrolled = deps.db
-      .select()
-      .from(schema.userMaterials)
-      .where(eq(schema.userMaterials.userId, user.id))
-      .all();
+    const enrolledIds = new Set(
+      deps.db
+        .select()
+        .from(schema.userMaterials)
+        .where(eq(schema.userMaterials.userId, user.id))
+        .all()
+        .map((r) => r.materialId),
+    );
 
     const out: YearView[] = [];
-    for (const enrollment of enrolled) {
-      const { materialId } = enrollment;
-      const settings = readYearSettings(deps.db, user.id, materialId);
+    for (const material of MATERIALS) {
+      const enrolled = enrolledIds.has(material.id);
+      const settings = readYearSettings(
+        deps.db,
+        user.id,
+        material.id,
+        enrolled ? ENROLLED_DEFAULTS : UNENROLLED_DEFAULTS,
+      );
 
-      const loaded = await deps.engines.load({ userId: user.id, materialId });
+      // Only load the engine for enrolled years — unenrolled ones have
+      // no graph_snapshot yet. Card counts stay at zero until the user
+      // enables a scope (which auto-enrolls on save).
       let counts: ClubCounts = {};
-      try {
-        counts = JSON.parse(loaded.engine.card_count_by_club()) as ClubCounts;
-      } catch {
-        counts = {};
+      if (enrolled) {
+        try {
+          const loaded = await deps.engines.load({ userId: user.id, materialId: material.id });
+          counts = JSON.parse(loaded.engine.card_count_by_club()) as ClubCounts;
+        } catch {
+          counts = {};
+        }
       }
 
       const clubs: YearView['clubs'] = {
@@ -198,7 +236,14 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         },
       };
 
-      out.push({ materialId, settings, clubs });
+      out.push({
+        materialId: material.id,
+        title: material.title,
+        description: material.description,
+        enrolled,
+        settings,
+        clubs,
+      });
     }
 
     return c.json({ years: out });
@@ -207,11 +252,8 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
   app.post('/:materialId/settings', async (c) => {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
-    try {
-      requireEnrollment(deps.db, { userId: user.id, materialId });
-    } catch (err) {
-      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
-      throw err;
+    if (!MATERIALS.some((m) => m.id === materialId)) {
+      return c.json({ error: `Unknown material: ${materialId}` }, 404);
     }
 
     let body: SettingsBody;
@@ -221,7 +263,27 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
       return c.json({ error: 'invalid JSON body' }, 400);
     }
 
-    const existing = readYearSettings(deps.db, user.id, materialId);
+    // For partial-body merging, pick defaults based on whether the
+    // user is already enrolled. Enrolled-without-row falls back to
+    // "study everything" (matching the engine's default behaviour);
+    // unenrolled-without-row falls back to off/off so a partial save
+    // doesn't accidentally activate scopes the user didn't touch.
+    const alreadyEnrolledForDefaults = !!deps.db
+      .select()
+      .from(schema.userMaterials)
+      .where(
+        and(
+          eq(schema.userMaterials.userId, user.id),
+          eq(schema.userMaterials.materialId, materialId),
+        ),
+      )
+      .get();
+    const existing = readYearSettings(
+      deps.db,
+      user.id,
+      materialId,
+      alreadyEnrolledForDefaults ? ENROLLED_DEFAULTS : UNENROLLED_DEFAULTS,
+    );
     let next: YearSettings;
     try {
       next = {
@@ -252,6 +314,18 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     } catch (err) {
       if (err instanceof ValidationError) return c.json({ error: err.message }, 400);
       throw err;
+    }
+
+    // Auto-enroll: the moment a user bumps a scope above Off they're
+    // committing to study this year. enrollUser is idempotent against
+    // a concurrent double-call via AlreadyEnrolledError.
+    const wantsActivity = next.newScope !== 'off' || next.reviewScope !== 'off';
+    if (wantsActivity && !alreadyEnrolledForDefaults) {
+      try {
+        enrollUser({ db: deps.db, userId: user.id, materialId, now: deps.now });
+      } catch (err) {
+        if (!(err instanceof AlreadyEnrolledError)) throw err;
+      }
     }
 
     const ts = now();
