@@ -33,8 +33,8 @@ export const MATERIALS: readonly Material[] = [
   },
   {
     id: 'nkjv-1cor',
-    title: '1 & 2 Corinthians (NKJV)',
-    description: 'Year 3: 1 & 2 Corinthians with phrase chunking and FTV prompts.',
+    title: '1–2 Corinthians (NKJV)',
+    description: 'Year 3: 1–2 Corinthians with phrase chunking and FTV prompts.',
   },
   {
     id: 'nkjv-john',
