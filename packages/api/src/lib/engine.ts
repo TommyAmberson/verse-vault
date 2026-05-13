@@ -65,14 +65,19 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
     up300: 'Up300',
     all: 'All',
   };
+  const toRustScope = (field: string, value: string): string => {
+    const out = SCOPE_KEY[value];
+    if (!out) throw new Error(`unknown ${field} value: ${value}`);
+    return out;
+  };
 
   return JSON.stringify({
     headings: settings.headings,
     ftv: settings.ftv,
-    new_scope: SCOPE_KEY[settings.newScope] ?? 'All',
-    review_scope: SCOPE_KEY[settings.reviewScope] ?? 'All',
-    club_card_scope: SCOPE_KEY[settings.clubCardScope] ?? 'All',
-    chapter_list_scope: SCOPE_KEY[settings.chapterListScope] ?? 'Up300',
+    new_scope: toRustScope('newScope', settings.newScope),
+    review_scope: toRustScope('reviewScope', settings.reviewScope),
+    club_card_scope: toRustScope('clubCardScope', settings.clubCardScope),
+    chapter_list_scope: toRustScope('chapterListScope', settings.chapterListScope),
   });
 }
 
