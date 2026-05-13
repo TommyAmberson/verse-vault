@@ -4,12 +4,20 @@ use crate::element::{ClubTier, ElementId};
 use crate::test_kind::{TestKey, TestKind};
 use crate::types::CardId;
 
+/// Per-user lifecycle state of a card.
+///
+/// `New` means the card exists in the user's deck but has not been
+/// introduced yet via the memorize session — `/review` should skip it.
+/// `Active` means it has been introduced and FSRS scheduling governs when
+/// it surfaces.
+///
+/// The relearning of failed reviews is handled by a session-level priority
+/// lane (slice 2), not by a discrete `Relearning` state — FSRS already
+/// produces the short post-lapse intervals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CardState {
     New,
-    Learning,
-    Review,
-    Relearning,
+    Active,
 }
 
 /// What this card asks the learner. Atomic kinds contain exactly one test;
@@ -220,7 +228,7 @@ mod tests {
             id: CardId(id),
             kind,
             verse_id,
-            state: CardState::Review,
+            state: CardState::Active,
         }
     }
 

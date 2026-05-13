@@ -142,12 +142,16 @@ pub fn build_with_config(
         );
 
         // ---- Emit cards ----
+        // Cards start as `Active` so they're immediately schedulable. The
+        // memorize-session flow (slice 2) will introduce verses with
+        // `CardState::New` instead, gating the transition to `Active`
+        // through an explicit user "got it" confirmation.
         let push_card = |kind: CardKind, cards: &mut Vec<Card>, next: &mut u32| {
             cards.push(Card {
                 id: CardId(*next),
                 kind,
                 verse_id,
-                state: CardState::New,
+                state: CardState::Active,
             });
             *next += 1;
         };
