@@ -69,6 +69,21 @@ export function requireEnrollment(
   return row;
 }
 
+/** Boolean form of `requireEnrollment` — for callers that need to branch
+ *  on enrollment without throwing. */
+export function isEnrolled(db: DB, key: UserMaterial): boolean {
+  return !!db
+    .select({ userId: schema.userMaterials.userId })
+    .from(schema.userMaterials)
+    .where(
+      and(
+        eq(schema.userMaterials.userId, key.userId),
+        eq(schema.userMaterials.materialId, key.materialId),
+      ),
+    )
+    .get();
+}
+
 /**
  * Enrolls a user in a material. Inserts the `user_materials` row, the initial
  * `graph_snapshots` row from the material JSON, and seeds `test_states` from

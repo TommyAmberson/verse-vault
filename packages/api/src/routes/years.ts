@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import type { EngineStore } from '../lib/engine.js';
-import { AlreadyEnrolledError, enrollUser } from '../lib/enrollment.js';
+import { AlreadyEnrolledError, enrollUser, isEnrolled } from '../lib/enrollment.js';
 import { MATERIALS } from '../lib/materials.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
@@ -268,21 +268,12 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     // "study everything" (matching the engine's default behaviour);
     // unenrolled-without-row falls back to off/off so a partial save
     // doesn't accidentally activate scopes the user didn't touch.
-    const alreadyEnrolledForDefaults = !!deps.db
-      .select()
-      .from(schema.userMaterials)
-      .where(
-        and(
-          eq(schema.userMaterials.userId, user.id),
-          eq(schema.userMaterials.materialId, materialId),
-        ),
-      )
-      .get();
+    const alreadyEnrolled = isEnrolled(deps.db, { userId: user.id, materialId });
     const existing = readYearSettings(
       deps.db,
       user.id,
       materialId,
-      alreadyEnrolledForDefaults ? ENROLLED_DEFAULTS : UNENROLLED_DEFAULTS,
+      alreadyEnrolled ? ENROLLED_DEFAULTS : UNENROLLED_DEFAULTS,
     );
     let next: YearSettings;
     try {
@@ -320,7 +311,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     // committing to study this year. enrollUser is idempotent against
     // a concurrent double-call via AlreadyEnrolledError.
     const wantsActivity = next.newScope !== 'off' || next.reviewScope !== 'off';
-    if (wantsActivity && !alreadyEnrolledForDefaults) {
+    if (wantsActivity && !alreadyEnrolled) {
       try {
         enrollUser({ db: deps.db, userId: user.id, materialId, now: deps.now });
       } catch (err) {
