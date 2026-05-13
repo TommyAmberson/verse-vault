@@ -15,6 +15,10 @@ Checks (deterministic, run on every verse):
   be shorter (an intro / closing stub).
 - Single-phrase verse whose token count exceeds the missing-split
   threshold → almost certainly a split that was never applied.
+- No phrase ends in a perception/speech verb (``know``, ``see``,
+  ``tell``, …) immediately followed by a phrase starting with
+  ``that`` / ``what`` / ``how`` / ``whether`` / ``if`` — that splits
+  a verb from its content clause, which is one rhetorical unit.
 - ``ftvWordCount`` is in range when set.
 
 The optional ``--llm-judge`` flag adds a Claude-Haiku quality check
@@ -61,6 +65,50 @@ WORD_MAX = 12
 # from a break.
 MISSING_SPLIT_THRESHOLD = 10
 
+# Verbs of perception / speech that commonly take a ``that``-clause
+# (or ``what`` / ``how`` / ``whether`` / ``if``) as their direct
+# object. Splitting between such a verb and its content clause breaks
+# a single rhetorical/cognitive unit and should be flagged. The
+# heuristic is intentionally narrow — it only matches when the
+# *last word of one phrase* is one of these verbs and the *first word*
+# of the next phrase is one of the listed complementisers. See
+# ``references/quality-criteria.md`` for the rationale.
+CONTENT_CLAUSE_VERBS = frozenset({
+    "know", "knew", "known", "knows",
+    "see", "saw", "seen", "sees",
+    "hear", "heard", "hears",
+    "tell", "told", "tells",
+    "say", "said", "says",
+    "believe", "believed", "believes",
+    "think", "thought", "thinks",
+    "understand", "understood", "understands",
+    "remember", "remembered", "remembers",
+    "perceive", "perceived", "perceives",
+    "consider", "considered", "considers",
+    "declare", "declared", "declares",
+    "suppose", "supposed", "supposes",
+    "recognize", "recognized", "recognizes",
+    "realize", "realized", "realizes",
+    "learn", "learned", "learns",
+})
+# ``if`` is excluded — it's almost always a conditional in scripture
+# rather than the rare ``know if`` complementiser, and including it
+# produced more false positives than true positives in practice.
+CONTENT_CLAUSE_COMPLEMENTISERS = frozenset({
+    "that", "what", "how", "whether",
+})
+
+# When the boundary itself carries a stronger break signal — a colon
+# (introducing direct/reported speech, e.g. ``say: If any brother…``)
+# or an open quote (direct speech, e.g. ``say, "How…"``) — the
+# heuristic backs off, because the verb is being read with its
+# *quoted* object rather than a content clause.
+_QUOTE_OPENERS = ("\"", "“", "‘", "'")
+
+
+def _strip_punct(word: str) -> str:
+    return word.strip(",.?!;:\"'“”‘’()[]")
+
 
 def check_verse(ref: str, verse: Dict[str, Any], tokens: List[str]) -> List[Dict[str, str]]:
     """Return a list of ``{severity, reason, ...}`` for one structural
@@ -99,8 +147,10 @@ def check_verse(ref: str, verse: Dict[str, Any], tokens: List[str]) -> List[Dict
         })
 
     cursor = 0
+    phrase_slices: List[str] = []
     for i, count in enumerate(pwc):
         slice_text = " ".join(tokens[cursor : cursor + count])
+        phrase_slices.append(slice_text)
         cursor += count
         is_edge = i == 0 or i == len(pwc) - 1
         if count < WORD_MIN:
@@ -114,6 +164,33 @@ def check_verse(ref: str, verse: Dict[str, Any], tokens: List[str]) -> List[Dict
                 "severity": "high",
                 "reason": f"phrase {i+1} has {count} words: {_clip(slice_text)}",
             })
+
+    # Verb-clause split: phrase ends in a perception/speech verb and
+    # the next phrase starts with that/what/how/whether. Skip the
+    # colon and open-quote cases where the boundary is itself a
+    # stronger reported-speech break.
+    for i in range(len(phrase_slices) - 1):
+        words = phrase_slices[i].split()
+        next_phrase = phrase_slices[i + 1]
+        next_words = next_phrase.split()
+        if not words or not next_words:
+            continue
+        last_raw = words[-1]
+        last = _strip_punct(last_raw).lower()
+        nxt = _strip_punct(next_words[0]).lower()
+        if last not in CONTENT_CLAUSE_VERBS or nxt not in CONTENT_CLAUSE_COMPLEMENTISERS:
+            continue
+        if last_raw.endswith(":"):
+            continue  # ``say: If any brother…`` — colon breaks first
+        if next_phrase.lstrip().startswith(_QUOTE_OPENERS):
+            continue  # ``say, "How…`` — direct-speech quotation
+        issues.append({
+            "severity": "high",
+            "reason": (
+                f"verb-clause split between phrase {i+1} (…{last!r}) and "
+                f"phrase {i+2} ({nxt!r}…) — keep verb with its content clause"
+            ),
+        })
 
     ftv = verse.get("ftvWordCount")
     if ftv is not None:

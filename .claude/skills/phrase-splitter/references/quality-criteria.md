@@ -3,6 +3,13 @@
 A phrase is a unit a reciter holds in working memory while saying the verse from memory. The split
 should feel like natural pauses — where a careful reader would breathe.
 
+## Guiding principle
+
+**Keep splits small, but completeness of thought matters more than size.** Every phrase should be a
+self-contained unit of meaning. A 9-word phrase that finishes a thought is better than 4 + 5 that
+severs it. When in doubt between a shorter awkward split and a longer natural one, choose the
+natural one. All the rules below are in service of this principle, not above it.
+
 ## Hard rules (deterministic checks enforce these)
 
 * **Rejoin invariant.** `" ".join(phrases) == text` — exact match including HTML tags, punctuation,
@@ -27,6 +34,16 @@ should feel like natural pauses — where a careful reader would breathe.
   * after a comma, semicolon, or colon
   * before a connector that starts a new thought: `and`, `but`, `for`, `that`, `who`, `which`, `or`
     — only when it really begins a new clause, not when it just glues list items
+* **Never split a verb from its content clause.** `that` (and `what`, `how`, `whether`, `if`) after
+  a verb of perception or speech — `know`, `see`, `tell`, `say`, `believe`, `think`, `hear`,
+  `understand`, `remember`, `perceive` — is introducing the _object_ of the verb, not a new clause
+  for recitation. `"Do you not know"` / `"that we shall judge angels?"` is a bad break; the
+  rhetorical question is one unit. Same for `"I declare to you"` /
+  `"that flesh and blood cannot inherit..."`. The auditor flags this pattern automatically
+  (`verb-clause-split`).
+* **Keep rhetorical questions whole.** A question stem (`"Do you not know that..."`,
+  `"Are you not aware that..."`) belongs with its content. Split _after_ the question mark, not
+  inside it.
 * **Don't lop-side.** A verse split into one 15-word phrase and one 3-word phrase is worse than two
   9-word phrases. Aim for relatively even chunks while still respecting clause boundaries.
 * **Single-phrase verses.** Anything over ~10 words should split somewhere. Anything under ~8 can
