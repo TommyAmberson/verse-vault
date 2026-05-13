@@ -33,24 +33,22 @@ pub struct BuildResult {
     pub verse_render_data: HashMap<u32, VerseRender>,
 }
 
-/// Tier-subset rule: in the Anki export a verse tagged "150" is implicitly a
-/// member of both club 150 and club 300. Expand a raw tier list (as written
-/// in `VerseData.clubs`) to the full set of tiers.
-fn expand_tiers(raw: &[u16]) -> Vec<ClubTier> {
+/// Parse a raw tier list (as written in `VerseData.clubs`) into the
+/// concrete `ClubTier` carried by VerseInClub / VerseClubBinding. The
+/// quizzer's tier-subset rule (a Club-150 verse is implicitly also in
+/// Club 300) is *not* expanded here: each verse is associated with one
+/// most-specific tier, since the broader membership is trivially known
+/// and the user shouldn't be asked the same "what club?" twice per verse.
+fn parse_tiers(raw: &[u16]) -> Vec<ClubTier> {
     let mut tiers: Vec<ClubTier> = Vec::new();
-    let mut push = |t: ClubTier| {
+    for &n in raw {
+        let t = match n {
+            150 => ClubTier::Club150,
+            300 => ClubTier::Club300,
+            _ => continue,
+        };
         if !tiers.contains(&t) {
             tiers.push(t);
-        }
-    };
-    for &n in raw {
-        match n {
-            150 => {
-                push(ClubTier::Club150);
-                push(ClubTier::Club300);
-            }
-            300 => push(ClubTier::Club300),
-            _ => {}
         }
     }
     tiers
@@ -116,7 +114,7 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
             .copied();
         let headings: Vec<u16> = heading_idx.into_iter().collect();
 
-        let clubs = expand_tiers(&verse.clubs);
+        let clubs = parse_tiers(&verse.clubs);
 
         verse_index.add_verse(
             verse_id,
@@ -378,13 +376,21 @@ mod tests {
                 .iter()
                 .any(|c| matches!(c.kind, CardKind::VerseInClub { .. }))
         );
-        // Tier-subset rule expands [150] to both Club150 and Club300.
-        let club_cards = r
+        // One VerseInClub card per verse, carrying the most-specific tier.
+        // The Club-150-implies-Club-300 subset rule is intentionally not
+        // expanded — the broader membership is trivially known.
+        let club_cards: Vec<&Card> = r
             .cards
             .iter()
             .filter(|c| matches!(c.kind, CardKind::VerseInClub { .. }))
-            .count();
-        assert_eq!(club_cards, 2);
+            .collect();
+        assert_eq!(club_cards.len(), 1);
+        assert!(matches!(
+            club_cards[0].kind,
+            CardKind::VerseInClub {
+                tier: ClubTier::Club150
+            }
+        ));
     }
 
     #[test]

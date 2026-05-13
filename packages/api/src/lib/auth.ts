@@ -12,11 +12,19 @@ export interface AuthEnv {
 }
 
 export function createAuth(db: DB, env: AuthEnv) {
+  const isProd = process.env.NODE_ENV === 'production';
+  // In dev, trust any localhost port the thin client might land on (Vite
+  // falls back through 5180/5181/… when ports collide). Production sticks
+  // to the single configured origin.
+  const trustedOrigins = isProd
+    ? [env.webOrigin]
+    : [env.webOrigin, 'http://localhost:5173', 'http://localhost:5180'];
+
   return betterAuth({
     baseURL: env.baseUrl,
     secret: env.secret,
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
-    trustedOrigins: [env.webOrigin],
+    trustedOrigins,
     emailAndPassword: { enabled: true },
     socialProviders: env.googleOAuth ? { google: env.googleOAuth } : {},
     account: {
