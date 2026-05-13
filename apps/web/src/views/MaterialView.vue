@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watchEffect } from 'vue'
 
 import ScopeLevelSelector from '@/components/ScopeLevelSelector.vue'
 import {
@@ -77,6 +77,29 @@ interface YearCard {
 const cards = ref<YearCard[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const selectedMaterialId = ref<string | null>(null)
+
+const selected = computed<YearCard | null>(() => {
+  const id = selectedMaterialId.value
+  if (!id) return null
+  return cards.value.find((c) => c.view.materialId === id) ?? null
+})
+
+watchEffect(() => {
+  // Auto-select a tab on first load (or after refresh when the
+  // previously-selected material disappears). Prefer the user's first
+  // enrolled year so the picker opens on a populated panel rather than
+  // a "Not enrolled" empty state.
+  if (cards.value.length === 0) {
+    selectedMaterialId.value = null
+    return
+  }
+  const stillThere = cards.value.some((c) => c.view.materialId === selectedMaterialId.value)
+  if (stillThere) return
+  const firstEnrolled = cards.value.find((c) => c.view.enrolled)
+  const next = firstEnrolled ?? cards.value[0]
+  if (next) selectedMaterialId.value = next.view.materialId
+})
 
 async function refresh() {
   loading.value = true
@@ -93,6 +116,12 @@ async function refresh() {
   } finally {
     loading.value = false
   }
+}
+
+/** Strip the "(NKJV)" suffix some titles carry — saves horizontal space
+ *  in the tab strip without losing meaning. */
+function tabTitle(full: string): string {
+  return full.replace(/\s*\(NKJV\)\s*$/, '')
 }
 
 async function onSave(card: YearCard) {
@@ -136,34 +165,59 @@ onMounted(refresh)
     <div v-if="error" class="banner banner-error">{{ error }}</div>
     <div v-if="loading" class="status">Loading…</div>
     <div v-else-if="cards.length === 0" class="status">
-      You're not enrolled in any year yet.
+      No materials in the catalog.
     </div>
-    <div v-else class="years">
+    <template v-else>
+      <nav class="year-tabs" role="tablist" aria-label="Year">
+        <button
+          v-for="c in cards"
+          :key="c.view.materialId"
+          type="button"
+          role="tab"
+          :class="[
+            'year-tab',
+            {
+              'tab-active': c.view.materialId === selectedMaterialId,
+              'tab-unenrolled': !c.view.enrolled,
+            },
+          ]"
+          :aria-selected="c.view.materialId === selectedMaterialId"
+          :tabindex="c.view.materialId === selectedMaterialId ? 0 : -1"
+          @click="selectedMaterialId = c.view.materialId"
+        >
+          <span class="tab-title">{{ tabTitle(c.view.title) }}</span>
+          <span
+            v-if="c.view.enrolled"
+            class="tab-marker tab-marker-enrolled"
+            aria-hidden="true"
+          />
+        </button>
+      </nav>
       <article
-        v-for="card in cards"
-        :key="card.view.materialId"
+        v-if="selected"
+        :key="selected.view.materialId"
         class="year-card"
-        :class="{ 'year-card-unenrolled': !card.view.enrolled }"
+        :class="{ 'year-card-unenrolled': !selected.view.enrolled }"
       >
         <header class="year-header">
           <div class="year-title-row">
-            <h3>{{ card.view.title }}</h3>
-            <span v-if="!card.view.enrolled" class="enrollment-badge">Not enrolled</span>
+            <h3>{{ selected.view.title }}</h3>
+            <span v-if="!selected.view.enrolled" class="enrollment-badge">Not enrolled</span>
           </div>
-          <p class="year-description">{{ card.view.description }}</p>
+          <p class="year-description">{{ selected.view.description }}</p>
           <div class="tier-summary">
             <span
               v-for="tier in CLUB_TIERS"
               :key="tier"
               class="tier-pill"
-              :class="`tier-status-${card.view.clubs[tier].status}`"
+              :class="`tier-status-${selected.view.clubs[tier].status}`"
             >
               <span class="tier-pill-name">{{ tierLabel(tier) }}</span>
-              <span v-if="card.view.enrolled" class="tier-pill-count">
-                {{ card.view.clubs[tier].cardCount }}
+              <span v-if="selected.view.enrolled" class="tier-pill-count">
+                {{ selected.view.clubs[tier].cardCount }}
               </span>
-              <span :class="statusClass(card.view.clubs[tier].status)">
-                {{ STATUS_LABELS[card.view.clubs[tier].status] }}
+              <span :class="statusClass(selected.view.clubs[tier].status)">
+                {{ STATUS_LABELS[selected.view.clubs[tier].status] }}
               </span>
             </span>
           </div>
@@ -175,20 +229,20 @@ onMounted(refresh)
             <div class="scope-row">
               <span class="scope-row-label">Memorize new verses</span>
               <ScopeLevelSelector
-                v-model="card.draft.newScope"
+                v-model="selected.draft.newScope"
                 :levels="TIER_SCOPE_LEVELS"
-                :description="NEW_DESCRIPTIONS[card.draft.newScope]"
-                :disabled="card.saving"
+                :description="NEW_DESCRIPTIONS[selected.draft.newScope]"
+                :disabled="selected.saving"
                 aria-label="New verses scope"
               />
             </div>
             <div class="scope-row">
               <span class="scope-row-label">Review existing verses</span>
               <ScopeLevelSelector
-                v-model="card.draft.reviewScope"
+                v-model="selected.draft.reviewScope"
                 :levels="TIER_SCOPE_LEVELS"
-                :description="REVIEW_DESCRIPTIONS[card.draft.reviewScope]"
-                :disabled="card.saving"
+                :description="REVIEW_DESCRIPTIONS[selected.draft.reviewScope]"
+                :disabled="selected.saving"
                 aria-label="Review scope"
               />
               <p class="scope-fineprint">
@@ -202,37 +256,37 @@ onMounted(refresh)
           <div class="scope-stack">
             <label class="toggle">
               <input
-                v-model="card.draft.headings"
+                v-model="selected.draft.headings"
                 type="checkbox"
-                :disabled="card.saving"
+                :disabled="selected.saving"
               />
               <span>Headings</span>
             </label>
             <label class="toggle">
               <input
-                v-model="card.draft.ftv"
+                v-model="selected.draft.ftv"
                 type="checkbox"
-                :disabled="card.saving"
+                :disabled="selected.saving"
               />
               <span>FTV (finish-the-verse) prompts</span>
             </label>
             <div class="scope-row">
               <span class="scope-row-label">"Which club is this verse in?" prompts</span>
               <ScopeLevelSelector
-                v-model="card.draft.clubCardScope"
+                v-model="selected.draft.clubCardScope"
                 :levels="TIER_SCOPE_LEVELS"
-                :description="CLUB_CARD_DESCRIPTIONS[card.draft.clubCardScope]"
-                :disabled="card.saving"
+                :description="CLUB_CARD_DESCRIPTIONS[selected.draft.clubCardScope]"
+                :disabled="selected.saving"
                 aria-label="Per-verse club-card scope"
               />
             </div>
             <div class="scope-row">
               <span class="scope-row-label">Chapter-list prompts</span>
               <ScopeLevelSelector
-                v-model="card.draft.chapterListScope"
+                v-model="selected.draft.chapterListScope"
                 :levels="CHAPTER_LIST_LEVELS"
-                :description="CHAPTER_LIST_DESCRIPTIONS[card.draft.chapterListScope]"
-                :disabled="card.saving"
+                :description="CHAPTER_LIST_DESCRIPTIONS[selected.draft.chapterListScope]"
+                :disabled="selected.saving"
                 aria-label="Chapter-list scope"
               />
             </div>
@@ -242,25 +296,25 @@ onMounted(refresh)
           <label class="number-row">
             <span>Verses per memorize session</span>
             <input
-              v-model.number="card.draft.lessonBatchSize"
+              v-model.number="selected.draft.lessonBatchSize"
               type="number"
               min="1"
               max="10"
-              :disabled="card.saving"
+              :disabled="selected.saving"
             />
           </label>
 
           <button
             type="button"
             class="save-button"
-            :disabled="!settingsAreDirty(card) || card.saving"
-            @click="onSave(card)"
+            :disabled="!settingsAreDirty(selected) || selected.saving"
+            @click="onSave(selected)"
           >
-            {{ card.saving ? 'Saving…' : 'Save settings' }}
+            {{ selected.saving ? 'Saving…' : 'Save settings' }}
           </button>
         </section>
       </article>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -293,10 +347,57 @@ h2 {
   color: var(--color-muted);
 }
 
-.years {
+.year-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.year-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px 6px 0 0;
+  padding: 0.4rem 0.85rem;
+  margin-bottom: -1px; /* lap the bottom border for the "tab joins panel" look */
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.year-tab:hover {
+  color: var(--color-text);
+}
+
+.year-tab.tab-active {
+  color: var(--color-text);
+  background: var(--color-bg-card);
+  border-color: var(--color-border);
+  border-bottom-color: var(--color-bg-card);
+  font-weight: 500;
+}
+
+.year-tab.tab-unenrolled .tab-title {
+  font-style: italic;
+}
+
+.tab-marker {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+}
+
+.tab-marker-enrolled {
+  background: var(--color-accent);
 }
 
 .year-card {
