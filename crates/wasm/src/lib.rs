@@ -349,7 +349,7 @@ impl WasmEngine {
     }
 
     /// Aggregate card counts by the verse's most-specific club tier. JSON
-    /// shape: `{ "Club150": 42, "Club300": 8, "Untagged": 0 }`. Used by the
+    /// shape: `{ "Club150": 42, "Club300": 8, "Full": 0 }`. Used by the
     /// material picker to render per-club totals next to each row.
     pub fn card_count_by_club(&self) -> Result<String, JsError> {
         serde_json::to_string(&self.club_counts())
@@ -368,15 +368,13 @@ fn parse_material_config(json: &str) -> Result<MaterialConfig, serde_json::Error
 
 impl WasmEngine {
     /// Tier-bucketed counts shared by the bindgen entry point and native
-    /// tests. Verses with no tier land in `Untagged` so the API sees the
-    /// total card count regardless of opt-in tiers.
+    /// tests. parse_tiers in the builder guarantees every verse has at
+    /// least one tier (Full when no narrower tag), so the None match arm
+    /// is defensive.
     fn club_counts(&self) -> std::collections::HashMap<String, u32> {
         let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
         for card in &self.engine.cards {
             let atoms = self.engine.atoms_for(card.verse_id);
-            // parse_tiers in the builder guarantees every verse has at
-            // least one tier (Full when no narrower tag), so the None
-            // branch shouldn't fire — count it under Full defensively.
             let label = match atoms.clubs.first() {
                 Some(ClubTier::Club150) => "Club150",
                 Some(ClubTier::Club300) => "Club300",
@@ -386,9 +384,7 @@ impl WasmEngine {
         }
         counts
     }
-}
 
-impl WasmEngine {
     /// Native test shim for `card_count_by_club` (mirrors the bindgen
     /// surface). Returns the same JSON the JS side would receive.
     pub fn card_count_by_club_for_test(&self) -> String {
