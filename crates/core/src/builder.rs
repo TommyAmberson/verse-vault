@@ -132,6 +132,14 @@ pub fn build_with_config(
 
         let clubs = parse_tiers(&verse.clubs);
 
+        // Per-user club statuses: verses in a `Paused` club are excluded
+        // entirely from the build. TestStates persisted from prior sessions
+        // still live in the DB and are restored verbatim when the club
+        // becomes Active/Maintenance again.
+        if config.verse_is_paused(&clubs) {
+            continue;
+        }
+
         verse_index.add_verse(
             verse_id,
             VerseElements {
@@ -596,8 +604,7 @@ mod tests {
         let m = material_one_verse_with_heading_and_club();
         let config = MaterialConfig {
             headings: false,
-            ftv: true,
-            citation: true,
+            ..MaterialConfig::default()
         };
         let r = build_with_config(&m, &config, 0);
         assert!(
@@ -611,9 +618,8 @@ mod tests {
     fn builder_ftv_off_emits_no_ftv_cards() {
         let m = material_one_verse_with_heading_and_club();
         let config = MaterialConfig {
-            headings: true,
             ftv: false,
-            citation: true,
+            ..MaterialConfig::default()
         };
         let r = build_with_config(&m, &config, 0);
         assert!(
@@ -627,9 +633,8 @@ mod tests {
     fn builder_citation_off_emits_no_citation_cards() {
         let m = material_one_verse_with_heading_and_club();
         let config = MaterialConfig {
-            headings: true,
-            ftv: true,
             citation: false,
+            ..MaterialConfig::default()
         };
         let r = build_with_config(&m, &config, 0);
         assert!(!r.cards.iter().any(|c| matches!(c.kind, CardKind::Citation)));
@@ -646,6 +651,7 @@ mod tests {
             headings: false,
             ftv: false,
             citation: false,
+            ..MaterialConfig::default()
         };
         let r = build_with_config(&m, &config, 0);
         assert!(
@@ -677,6 +683,34 @@ mod tests {
             r.cards
                 .iter()
                 .any(|c| matches!(c.kind, CardKind::Recitation))
+        );
+    }
+
+    #[test]
+    fn builder_paused_club_drops_the_verse_entirely() {
+        // Verse is in Club 150; pausing Club 150 must drop *all* of its
+        // cards, not just VerseInClub.
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            paused_clubs: vec![ClubTier::Club150],
+            ..MaterialConfig::default()
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(r.cards.is_empty(), "paused-club verse should emit nothing");
+    }
+
+    #[test]
+    fn builder_paused_other_club_leaves_verse_alone() {
+        // Verse is in Club 150; pausing Club 300 must not affect it.
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            paused_clubs: vec![ClubTier::Club300],
+            ..MaterialConfig::default()
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(
+            !r.cards.is_empty(),
+            "non-matching pause should preserve cards"
         );
     }
 
