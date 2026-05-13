@@ -52,6 +52,9 @@ from phrase_splitter.apibible import (  # noqa: E402
 )
 
 WORD_MIN = 3
+# Soft ceiling above which the auditor flags a phrase as too long. There is
+# no validator cap in split_phrases.py — long phrases are a quality flag for
+# human review, not a hard error.
 WORD_MAX = 12
 # A single-phrase verse longer than this is almost certainly a missed
 # split. Tunable; 10 words is roughly the point where reciters benefit

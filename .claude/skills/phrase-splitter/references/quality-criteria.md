@@ -7,9 +7,12 @@ should feel like natural pauses — where a careful reader would breathe.
 
 * **Rejoin invariant.** `" ".join(phrases) == text` — exact match including HTML tags, punctuation,
   and quotation marks. If a split doesn't round-trip, it's wrong.
-* **Phrase length 1–12 words.** 12 words is the soft ceiling — past that the phrase is too long to
-  chunk. The validator allows 1+ to admit short trailing closures like `"and Him crucified."`, but
-  the **target** is 3–10.
+* **Phrase length: target 3–10 words.** 12 is the soft warning ceiling that the auditor surfaces for
+  review. There is no validator cap: a phrase can exceed 12 when a clause is genuinely continuous
+  and has no natural internal breakpoint (e.g.
+  `"that his spirit may be saved in the day of the Lord Jesus."`). The lower bound allows 1+ to
+  admit short trailing closures like `"and Him crucified."`. Prefer naturalness over hitting the
+  target.
 * **HTML tag balance.** Every `<b>`, `<i>`, `<span ...>` open must close inside the same phrase.
   Never split inside a tag.
 

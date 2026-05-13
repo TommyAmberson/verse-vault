@@ -17,9 +17,12 @@ that ushers in a new thought.
 
 Rules:
 
-- 3 to 12 words per phrase. A short final phrase (1-2 words) is fine
-  when it carries trailing punctuation like ``...and Him crucified.``;
-  short fragments in the middle of a verse are not.
+- Target 3 to 10 words per phrase; up to ~12 is fine. A short final
+  phrase (1-2 words) is fine when it carries trailing punctuation like
+  ``...and Him crucified.``; short fragments in the middle of a verse
+  are not. A phrase may run longer than 12 when the clause is genuinely
+  continuous and has no natural break — prefer the natural unit over
+  forcing an awkward split.
 - Break at clause and phrase boundaries. Strong cues:
   - after a comma, semicolon, or colon
   - before a connector that starts a new clause: ``and``, ``but``,
@@ -31,9 +34,10 @@ Rules:
 - Never strand a 1-2 word fragment in the middle of the verse (e.g.
   ``"But one"`` followed by the rest of the sentence). Keep small
   introductory phrases with the clause they introduce.
-- Never exceed about 12 words in a single phrase. When a clause is
-  long, look for an internal comma, a relative pronoun (``who``,
-  ``which``, ``that``), or a connective and break there.
+- When a clause is long (over ~12 words), look for an internal comma,
+  a relative pronoun (``who``, ``which``, ``that``), or a connective
+  and break there. If no such break exists, the long phrase is
+  acceptable — naturalness over arbitrary cutoffs.
 - Preserve every character exactly, including HTML tags such as
   ``<b>...</b>``, ``<i>...</i>``, ``<b><i>...</i></b>``, and ``<span
   ...>...</span>``. Treat a tagged span as one indivisible unit —

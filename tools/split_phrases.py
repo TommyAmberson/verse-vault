@@ -53,7 +53,12 @@ from phrase_splitter.apibible import (  # noqa: E402
 )
 
 WORD_MIN_HARD = 1
-WORD_MAX_HARD = 12
+# No upper word-count cap in the validator: the soft target ceiling lives in
+# quality-criteria.md (≈10, audit warning at >12), but recitation phrases for
+# continuous clauses without a natural internal break can legitimately exceed
+# that. ``apply`` enforces only structural invariants (sum matches canonical
+# tokens, phrases non-empty); phrase length is a quality judgement the LLM
+# split / human reviewer makes, not a hard-coded cutoff.
 
 
 def _collect_refs(
@@ -137,8 +142,6 @@ def _validate(ref: str, phrases: List[str], canonical_tokens: int) -> List[str]:
         counts.append(wc)
         if wc < WORD_MIN_HARD:
             errors.append(f"phrase {i+1} has 0 words")
-        elif wc > WORD_MAX_HARD:
-            errors.append(f"phrase {i+1} has {wc} words (max {WORD_MAX_HARD})")
     total = sum(counts)
     if total != canonical_tokens:
         errors.append(
