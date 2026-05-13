@@ -1,5 +1,6 @@
 pub mod builder;
 pub mod card;
+pub mod club_status;
 pub mod content;
 pub mod element;
 pub mod engine;
