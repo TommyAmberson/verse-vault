@@ -124,6 +124,21 @@ function tabTitle(full: string): string {
   return full.replace(/\s*\(NKJV\)\s*$/, '')
 }
 
+const TIER_SCOPE_RANK: Record<TierScope, number> = {
+  off: 0,
+  up150: 1,
+  up300: 2,
+  all: 3,
+}
+
+/** True when Review's reach is narrower than New's — i.e. the user is
+ *  memorising verses at a tier they don't review, so freshly-introduced
+ *  verses won't re-surface. Worth surfacing because it's almost always
+ *  an oversight rather than an intentional config. */
+function reviewBehindNew(s: YearSettings): boolean {
+  return TIER_SCOPE_RANK[s.reviewScope] < TIER_SCOPE_RANK[s.newScope]
+}
+
 async function onSave(card: YearCard) {
   card.saving = true
   try {
@@ -245,6 +260,10 @@ onMounted(refresh)
                 :disabled="selected.saving"
                 aria-label="Review scope"
               />
+              <p v-if="reviewBehindNew(selected.draft)" class="scope-warning" role="alert">
+                Review is narrower than New — verses you introduce above this level
+                won't re-surface in /review.
+              </p>
               <p class="scope-fineprint">
                 A tier in both becomes Active; review-only becomes Maintenance; neither is
                 Paused.
@@ -554,6 +573,16 @@ h2 {
   font-size: 0.78rem;
   color: var(--color-muted);
   font-style: italic;
+}
+
+.scope-warning {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-grade-hard);
+  background: var(--color-grade-hard-bg);
+  border-left: 3px solid var(--color-grade-hard);
+  border-radius: 3px;
+  padding: 0.35rem 0.6rem;
 }
 
 .number-row {
