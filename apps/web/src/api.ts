@@ -94,8 +94,8 @@ export type ChapterListScope = 'off' | 'up150' | 'up300'
 export interface YearSettings {
   headings: boolean
   ftv: boolean
-  activeScope: TierScope
-  maintenanceScope: TierScope
+  newScope: TierScope
+  reviewScope: TierScope
   clubCardScope: TierScope
   chapterListScope: ChapterListScope
   lessonBatchSize: number

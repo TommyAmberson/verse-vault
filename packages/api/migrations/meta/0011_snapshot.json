@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4b2e4efc-f89c-43e2-b411-28fef14d3da5",
+  "id": "08427fc9-2b6c-4108-b7a5-4954aaa40256",
   "prevId": "511a286a-8fce-4f90-a112-627b45092f07",
   "tables": {
     "account": {
@@ -761,15 +761,15 @@
           "notNull": true,
           "autoincrement": false
         },
-        "active_scope": {
-          "name": "active_scope",
+        "new_scope": {
+          "name": "new_scope",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "maintenance_scope": {
-          "name": "maintenance_scope",
+        "review_scope": {
+          "name": "review_scope",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

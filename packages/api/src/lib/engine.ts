@@ -69,8 +69,8 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
   return JSON.stringify({
     headings: settings.headings,
     ftv: settings.ftv,
-    active_scope: SCOPE_KEY[settings.activeScope] ?? 'All',
-    maintenance_scope: SCOPE_KEY[settings.maintenanceScope] ?? 'Off',
+    new_scope: SCOPE_KEY[settings.newScope] ?? 'All',
+    review_scope: SCOPE_KEY[settings.reviewScope] ?? 'All',
     club_card_scope: SCOPE_KEY[settings.clubCardScope] ?? 'All',
     chapter_list_scope: SCOPE_KEY[settings.chapterListScope] ?? 'Up300',
   });

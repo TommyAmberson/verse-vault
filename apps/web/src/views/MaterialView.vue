@@ -41,18 +41,18 @@ const CHAPTER_LIST_LEVELS: { value: ChapterListScope; label: string }[] = [
   { value: 'up300', label: '300' },
 ]
 
-const ACTIVE_DESCRIPTIONS: Record<TierScope, string> = {
+const NEW_DESCRIPTIONS: Record<TierScope, string> = {
   off: 'No tier is introducing new verses.',
   up150: 'Memorizing Club 150 verses.',
   up300: 'Memorizing Club 150 and Club 300 verses.',
   all: 'Memorizing every tier, including Full.',
 }
 
-const MAINTENANCE_DESCRIPTIONS: Record<TierScope, string> = {
-  off: 'No tier is in review-only mode.',
-  up150: 'Reviewing Club 150 verses (no new intros).',
-  up300: 'Reviewing Club 150 + Club 300 (no new intros).',
-  all: 'Reviewing every tier (no new intros).',
+const REVIEW_DESCRIPTIONS: Record<TierScope, string> = {
+  off: 'No reviews surfaced.',
+  up150: 'Reviewing Club 150 verses.',
+  up300: 'Reviewing Club 150 and Club 300 verses.',
+  all: 'Reviewing every tier, including Full.',
 }
 
 const CLUB_CARD_DESCRIPTIONS: Record<TierScope, string> = {
@@ -111,8 +111,8 @@ function settingsAreDirty(card: YearCard): boolean {
   return (
     draft.headings !== view.settings.headings ||
     draft.ftv !== view.settings.ftv ||
-    draft.activeScope !== view.settings.activeScope ||
-    draft.maintenanceScope !== view.settings.maintenanceScope ||
+    draft.newScope !== view.settings.newScope ||
+    draft.reviewScope !== view.settings.reviewScope ||
     draft.clubCardScope !== view.settings.clubCardScope ||
     draft.chapterListScope !== view.settings.chapterListScope ||
     draft.lessonBatchSize !== view.settings.lessonBatchSize
@@ -162,29 +162,27 @@ onMounted(refresh)
           <div class="section-title">Study scopes</div>
           <div class="scope-stack">
             <div class="scope-row">
-              <span class="scope-row-label">
-                Memorizing new (Active)
-              </span>
+              <span class="scope-row-label">Memorize new verses</span>
               <ScopeLevelSelector
-                v-model="card.draft.activeScope"
+                v-model="card.draft.newScope"
                 :levels="TIER_SCOPE_LEVELS"
-                :description="ACTIVE_DESCRIPTIONS[card.draft.activeScope]"
+                :description="NEW_DESCRIPTIONS[card.draft.newScope]"
                 :disabled="card.saving"
-                aria-label="Active scope"
+                aria-label="New verses scope"
               />
             </div>
             <div class="scope-row">
-              <span class="scope-row-label">Reviewing only (Maintenance)</span>
+              <span class="scope-row-label">Review existing verses</span>
               <ScopeLevelSelector
-                v-model="card.draft.maintenanceScope"
+                v-model="card.draft.reviewScope"
                 :levels="TIER_SCOPE_LEVELS"
-                :description="MAINTENANCE_DESCRIPTIONS[card.draft.maintenanceScope]"
+                :description="REVIEW_DESCRIPTIONS[card.draft.reviewScope]"
                 :disabled="card.saving"
-                aria-label="Maintenance scope"
+                aria-label="Review scope"
               />
               <p class="scope-fineprint">
-                Active wins where both reach: a tier covered by Active is Active even if
-                Maintenance also reaches it.
+                A tier in both becomes Active; review-only becomes Maintenance; neither is
+                Paused.
               </p>
             </div>
           </div>

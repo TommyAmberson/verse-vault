@@ -49,16 +49,18 @@ impl ChapterListScope {
 
 /// Per-user, per-year material configuration consumed by the builder.
 ///
-/// All four scopes share the same "up to which tier" mental model:
+/// The four scopes are independent levers on the "up to which tier" axis:
 ///
-/// - `active_scope`: tiers where the user is currently memorizing new
-///   verses (and reviewing existing ones).
-/// - `maintenance_scope`: tiers the user is reviewing but not introducing
-///   new verses for. `Active` wins where both reach — i.e. the effective
-///   status for a tier is `Active` if `active_scope` covers it, else
-///   `Maintenance` if `maintenance_scope` does, else `Paused`.
+/// - `new_scope`: tiers that introduce new verses via /memorize.
+/// - `review_scope`: tiers whose verses surface in /review.
 /// - `club_card_scope`: which tiers get the per-verse "which club?" card.
 /// - `chapter_list_scope`: which tiers get the chapter-list card.
+///
+/// `new` and `review` are orthogonal — a tier covered by both is the
+/// usual "Active" state; review-only is "Maintenance"; covered by
+/// neither is "Paused". (New-only is the rare edge case where the user
+/// is introducing verses without re-surfacing them; still valid, just
+/// unusual.)
 ///
 /// `headings` and `ftv` are independent bool toggles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,20 +68,13 @@ pub struct MaterialConfig {
     pub headings: bool,
     pub ftv: bool,
     #[serde(default)]
-    pub active_scope: TierScope,
-    /// Defaults to `Off` when absent — most users won't have a separate
-    /// review-only tier set, so the natural "missing field" semantics
-    /// are "nothing in maintenance".
-    #[serde(default = "tier_scope_off")]
-    pub maintenance_scope: TierScope,
+    pub new_scope: TierScope,
+    #[serde(default)]
+    pub review_scope: TierScope,
     #[serde(default)]
     pub club_card_scope: TierScope,
     #[serde(default)]
     pub chapter_list_scope: ChapterListScope,
-}
-
-fn tier_scope_off() -> TierScope {
-    TierScope::Off
 }
 
 impl Default for MaterialConfig {
@@ -87,8 +82,8 @@ impl Default for MaterialConfig {
         Self {
             headings: true,
             ftv: true,
-            active_scope: TierScope::All,
-            maintenance_scope: TierScope::Off,
+            new_scope: TierScope::All,
+            review_scope: TierScope::All,
             club_card_scope: TierScope::All,
             chapter_list_scope: ChapterListScope::Up300,
         }
@@ -96,16 +91,25 @@ impl Default for MaterialConfig {
 }
 
 impl MaterialConfig {
-    /// Effective per-tier status, derived from the two scopes. Active
-    /// dominates Maintenance where they overlap; tiers neither scope
-    /// includes are `Paused`.
+    /// Effective per-tier status, derived from the two scopes.
+    ///
+    /// | new | review | status        |
+    /// |-----|--------|---------------|
+    /// |  ✓  |   ✓    | `Active`      |
+    /// |  ✗  |   ✓    | `Maintenance` |
+    /// |  ✓  |   ✗    | `Active`*     |
+    /// |  ✗  |   ✗    | `Paused`      |
+    ///
+    /// *new-only is mapped to `Active` since it's most-similar to the
+    /// "user is actively studying this tier" intent, even though they've
+    /// switched off review for it.
     pub fn effective_status(&self, tier: ClubTier) -> ClubStatus {
-        if self.active_scope.includes(tier) {
-            ClubStatus::Active
-        } else if self.maintenance_scope.includes(tier) {
-            ClubStatus::Maintenance
-        } else {
-            ClubStatus::Paused
+        let n = self.new_scope.includes(tier);
+        let r = self.review_scope.includes(tier);
+        match (n, r) {
+            (false, false) => ClubStatus::Paused,
+            (false, true) => ClubStatus::Maintenance,
+            (true, _) => ClubStatus::Active,
         }
     }
 
@@ -130,8 +134,8 @@ mod tests {
         let c = MaterialConfig::default();
         assert!(c.headings);
         assert!(c.ftv);
-        assert_eq!(c.active_scope, TierScope::All);
-        assert_eq!(c.maintenance_scope, TierScope::Off);
+        assert_eq!(c.new_scope, TierScope::All);
+        assert_eq!(c.review_scope, TierScope::All);
         for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
             assert_eq!(c.effective_status(tier), ClubStatus::Active);
         }
@@ -171,14 +175,14 @@ mod tests {
     }
 
     #[test]
-    fn effective_status_active_dominates_maintenance() {
-        // Active up to 150, Maintenance up to 300:
-        //   Club 150 → Active (both cover it, Active wins)
-        //   Club 300 → Maintenance (only Maint covers)
-        //   Full     → Paused (neither covers)
+    fn effective_status_combines_two_scopes() {
+        // new=Up150, review=Up300:
+        //   Club 150 → Active   (both cover it)
+        //   Club 300 → Maintenance (only review covers)
+        //   Full     → Paused   (neither covers)
         let c = MaterialConfig {
-            active_scope: TierScope::Up150,
-            maintenance_scope: TierScope::Up300,
+            new_scope: TierScope::Up150,
+            review_scope: TierScope::Up300,
             ..MaterialConfig::default()
         };
         assert_eq!(c.effective_status(ClubTier::Club150), ClubStatus::Active);
@@ -190,11 +194,10 @@ mod tests {
     }
 
     #[test]
-    fn effective_status_maintenance_alone() {
-        // Active off, Maintenance up to Full → everything in Maintenance.
+    fn effective_status_review_only() {
         let c = MaterialConfig {
-            active_scope: TierScope::Off,
-            maintenance_scope: TierScope::All,
+            new_scope: TierScope::Off,
+            review_scope: TierScope::All,
             ..MaterialConfig::default()
         };
         for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
@@ -205,8 +208,8 @@ mod tests {
     #[test]
     fn effective_status_all_paused_when_both_scopes_off() {
         let c = MaterialConfig {
-            active_scope: TierScope::Off,
-            maintenance_scope: TierScope::Off,
+            new_scope: TierScope::Off,
+            review_scope: TierScope::Off,
             ..MaterialConfig::default()
         };
         for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
@@ -224,12 +227,10 @@ mod tests {
 
     #[test]
     fn missing_scopes_default_to_widest() {
-        // Older JSON may omit scopes. Default to All / Off / All / Up300
-        // — Active covers everything, Maintenance is off (nothing in
-        // review-only state by default).
+        // Older JSON may omit scopes. Default everything to All / Up300.
         let c: MaterialConfig = serde_json::from_str(r#"{"headings":true,"ftv":true}"#).unwrap();
-        assert_eq!(c.active_scope, TierScope::All);
-        assert_eq!(c.maintenance_scope, TierScope::Off);
+        assert_eq!(c.new_scope, TierScope::All);
+        assert_eq!(c.review_scope, TierScope::All);
         assert_eq!(c.club_card_scope, TierScope::All);
         assert_eq!(c.chapter_list_scope, ChapterListScope::Up300);
     }

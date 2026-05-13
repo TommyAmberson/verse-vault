@@ -30,8 +30,8 @@ const MAX_LESSON_BATCH_SIZE = 10;
 interface YearSettings {
   headings: boolean;
   ftv: boolean;
-  activeScope: TierScope;
-  maintenanceScope: TierScope;
+  newScope: TierScope;
+  reviewScope: TierScope;
   clubCardScope: TierScope;
   chapterListScope: ChapterListScope;
   lessonBatchSize: number;
@@ -54,8 +54,8 @@ interface YearView {
 interface SettingsBody {
   headings?: boolean;
   ftv?: boolean;
-  activeScope?: string;
-  maintenanceScope?: string;
+  newScope?: string;
+  reviewScope?: string;
   clubCardScope?: string;
   chapterListScope?: string;
   lessonBatchSize?: number;
@@ -118,8 +118,8 @@ function tierScopeIncludes(scope: TierScope, tier: ClubTier): boolean {
 }
 
 function effectiveStatus(settings: YearSettings, tier: ClubTier): ClubStatus {
-  if (tierScopeIncludes(settings.activeScope, tier)) return 'active';
-  if (tierScopeIncludes(settings.maintenanceScope, tier)) return 'maintenance';
+  if (tierScopeIncludes(settings.newScope, tier)) return 'active';
+  if (tierScopeIncludes(settings.reviewScope, tier)) return 'maintenance';
   return 'paused';
 }
 
@@ -138,8 +138,8 @@ function readYearSettings(db: DB, userId: string, materialId: string): YearSetti
     return {
       headings: true,
       ftv: true,
-      activeScope: 'all',
-      maintenanceScope: 'off',
+      newScope: 'all',
+      reviewScope: 'all',
       clubCardScope: 'all',
       chapterListScope: 'up300',
       lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
@@ -148,8 +148,8 @@ function readYearSettings(db: DB, userId: string, materialId: string): YearSetti
   return {
     headings: row.headings,
     ftv: row.ftv,
-    activeScope: row.activeScope as TierScope,
-    maintenanceScope: row.maintenanceScope as TierScope,
+    newScope: row.newScope as TierScope,
+    reviewScope: row.reviewScope as TierScope,
     clubCardScope: row.clubCardScope as TierScope,
     chapterListScope: row.chapterListScope as ChapterListScope,
     lessonBatchSize: row.lessonBatchSize,
@@ -228,14 +228,14 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         headings:
           body.headings === undefined ? existing.headings : ensureBoolean(body.headings, 'headings'),
         ftv: body.ftv === undefined ? existing.ftv : ensureBoolean(body.ftv, 'ftv'),
-        activeScope:
-          body.activeScope === undefined
-            ? existing.activeScope
-            : ensureTierScope(body.activeScope, 'activeScope'),
-        maintenanceScope:
-          body.maintenanceScope === undefined
-            ? existing.maintenanceScope
-            : ensureTierScope(body.maintenanceScope, 'maintenanceScope'),
+        newScope:
+          body.newScope === undefined
+            ? existing.newScope
+            : ensureTierScope(body.newScope, 'newScope'),
+        reviewScope:
+          body.reviewScope === undefined
+            ? existing.reviewScope
+            : ensureTierScope(body.reviewScope, 'reviewScope'),
         clubCardScope:
           body.clubCardScope === undefined
             ? existing.clubCardScope
@@ -262,8 +262,8 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         materialId,
         headings: next.headings,
         ftv: next.ftv,
-        activeScope: next.activeScope,
-        maintenanceScope: next.maintenanceScope,
+        newScope: next.newScope,
+        reviewScope: next.reviewScope,
         clubCardScope: next.clubCardScope,
         chapterListScope: next.chapterListScope,
         lessonBatchSize: next.lessonBatchSize,
@@ -274,8 +274,8 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         set: {
           headings: next.headings,
           ftv: next.ftv,
-          activeScope: next.activeScope,
-          maintenanceScope: next.maintenanceScope,
+          newScope: next.newScope,
+          reviewScope: next.reviewScope,
           clubCardScope: next.clubCardScope,
           chapterListScope: next.chapterListScope,
           lessonBatchSize: next.lessonBatchSize,

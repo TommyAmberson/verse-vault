@@ -764,19 +764,19 @@ mod tests {
     }
 
     fn config_with_paused(tier: ClubTier) -> MaterialConfig {
-        // Carve a hole in active_scope so this single tier ends up paused
-        // while the others stay Active. We test "Club300 paused, Club150
-        // active" by setting active_scope=Up150 (Club150 only; Club300
-        // and Full both lose Active coverage). Maintenance stays Off so
-        // Club300 / Full land in Paused.
-        let active_scope = match tier {
+        // Carve a hole in both scopes so this single tier ends up paused
+        // while the others stay Active. For Club300, pick scopes that
+        // include Club150 only; for Club150, both scopes Off (everything
+        // paused — fine for that test). Bumps both scopes in lockstep
+        // since pause requires neither covering the tier.
+        let scope = match tier {
             ClubTier::Club150 => crate::material_config::TierScope::Off,
             ClubTier::Club300 => crate::material_config::TierScope::Up150,
             ClubTier::Full => crate::material_config::TierScope::Up300,
         };
         MaterialConfig {
-            active_scope,
-            maintenance_scope: crate::material_config::TierScope::Off,
+            new_scope: scope,
+            review_scope: scope,
             ..MaterialConfig::default()
         }
     }

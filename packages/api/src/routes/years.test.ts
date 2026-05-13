@@ -16,8 +16,8 @@ interface YearsResponse {
     settings: {
       headings: boolean;
       ftv: boolean;
-      activeScope: TierScope;
-      maintenanceScope: TierScope;
+      newScope: TierScope;
+      reviewScope: TierScope;
       clubCardScope: TierScope;
       chapterListScope: ChapterListScope;
       lessonBatchSize: number;
@@ -63,8 +63,8 @@ describe('years routes', () => {
     expect(year.settings).toEqual({
       headings: true,
       ftv: true,
-      activeScope: 'all',
-      maintenanceScope: 'off',
+      newScope: 'all',
+      reviewScope: 'all',
       clubCardScope: 'all',
       chapterListScope: 'up300',
       lessonBatchSize: 3,
@@ -86,7 +86,7 @@ describe('years routes', () => {
     const res = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ activeScope: 'up150', maintenanceScope: 'up300' }),
+      body: JSON.stringify({ newScope: 'up150', reviewScope: 'up300' }),
     });
     expect(res.status).toBe(200);
 
@@ -124,8 +124,8 @@ describe('years routes', () => {
     expect(row?.headings).toBe(false);
     expect(row?.lessonBatchSize).toBe(5);
     // Other scopes preserved at their defaults.
-    expect(row?.activeScope).toBe('all');
-    expect(row?.maintenanceScope).toBe('off');
+    expect(row?.newScope).toBe('all');
+    expect(row?.reviewScope).toBe('all');
   });
 
   it('rejects invalid scope values', async () => {
@@ -137,7 +137,7 @@ describe('years routes', () => {
     const bad = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ activeScope: 'on-fire' }),
+      body: JSON.stringify({ newScope: 'on-fire' }),
     });
     expect(bad.status).toBe(400);
 
