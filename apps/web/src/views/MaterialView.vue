@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import ScopeLevelSelector from '@/components/ScopeLevelSelector.vue'
 import {
   type ChapterListScope,
   type ClubCardScope,
@@ -26,21 +27,34 @@ const TIER_LABELS: Record<ClubTier, string> = {
   full: 'Full',
 }
 
-const CLUB_CARD_SCOPE_OPTIONS: { value: ClubCardScope; label: string }[] = [
-  { value: 'all', label: 'All verses' },
-  { value: 'up300', label: 'Club 150 + Club 300 verses' },
-  { value: 'up150', label: 'Club 150 verses only' },
-  { value: 'off', label: 'None' },
+// Track stops are ordered narrowest-on-the-right (Off ─ 150 ─ 300 ─ Full).
+// Selecting a stop sets the scope to "everything up to here": clicking
+// "300" includes Club 150 + Club 300 verses; clicking "Off" clears.
+const CLUB_CARD_LEVELS: { value: ClubCardScope; label: string }[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'up150', label: '150' },
+  { value: 'up300', label: '300' },
+  { value: 'all', label: 'Full' },
 ]
 
-const CHAPTER_LIST_SCOPE_OPTIONS: { value: ChapterListScope; label: string }[] = [
-  {
-    value: 'up300',
-    label: 'Club 150 + Club 300 lists per chapter',
-  },
-  { value: 'up150', label: 'Club 150 list per chapter' },
-  { value: 'off', label: 'None' },
+const CHAPTER_LIST_LEVELS: { value: ChapterListScope; label: string }[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'up150', label: '150' },
+  { value: 'up300', label: '300' },
 ]
+
+const CLUB_CARD_DESCRIPTIONS: Record<ClubCardScope, string> = {
+  off: 'No "which club?" prompts.',
+  up150: 'Asks for Club 150 verses only.',
+  up300: 'Asks for Club 150 and Club 300 verses (not Full).',
+  all: 'Asks for every verse, including Full-tier.',
+}
+
+const CHAPTER_LIST_DESCRIPTIONS: Record<ChapterListScope, string> = {
+  off: 'No chapter-list prompts.',
+  up150: 'One card per chapter listing its Club 150 verses.',
+  up300: 'Two cards per chapter: Club 150 list and Club 300 list.',
+}
 
 interface YearCard {
   view: YearView
@@ -144,36 +158,26 @@ onMounted(refresh)
               />
               <span>FTV (finish-the-verse) prompts</span>
             </label>
-            <label class="select-row">
-              <span>"Which club is this verse in?" prompts</span>
-              <select
+            <div class="scope-row">
+              <span class="scope-row-label">"Which club is this verse in?" prompts</span>
+              <ScopeLevelSelector
                 v-model="card.draft.clubCardScope"
+                :levels="CLUB_CARD_LEVELS"
+                :description="CLUB_CARD_DESCRIPTIONS[card.draft.clubCardScope]"
                 :disabled="card.savingSettings"
-              >
-                <option
-                  v-for="opt in CLUB_CARD_SCOPE_OPTIONS"
-                  :key="opt.value"
-                  :value="opt.value"
-                >
-                  {{ opt.label }}
-                </option>
-              </select>
-            </label>
-            <label class="select-row">
-              <span>Chapter-list prompts</span>
-              <select
+                aria-label="Per-verse club-card scope"
+              />
+            </div>
+            <div class="scope-row">
+              <span class="scope-row-label">Chapter-list prompts</span>
+              <ScopeLevelSelector
                 v-model="card.draft.chapterListScope"
+                :levels="CHAPTER_LIST_LEVELS"
+                :description="CHAPTER_LIST_DESCRIPTIONS[card.draft.chapterListScope]"
                 :disabled="card.savingSettings"
-              >
-                <option
-                  v-for="opt in CHAPTER_LIST_SCOPE_OPTIONS"
-                  :key="opt.value"
-                  :value="opt.value"
-                >
-                  {{ opt.label }}
-                </option>
-              </select>
-            </label>
+                aria-label="Chapter-list scope"
+              />
+            </div>
             <label class="number-row">
               <span>Verses per memorize session</span>
               <input
@@ -307,7 +311,6 @@ h2 {
   accent-color: var(--color-accent);
 }
 
-.select-row,
 .number-row {
   display: flex;
   align-items: center;
@@ -315,7 +318,6 @@ h2 {
   gap: 1rem;
 }
 
-.select-row select,
 .number-row input {
   padding: 0.25rem 0.5rem;
   background: var(--color-bg);
@@ -324,11 +326,19 @@ h2 {
   border-radius: 4px;
   font-family: inherit;
   font-size: 0.9rem;
-}
-
-.number-row input {
   width: 4rem;
   font-variant-numeric: tabular-nums;
+}
+
+.scope-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.scope-row-label {
+  font-size: 0.95rem;
+  color: var(--color-text);
 }
 
 .save-button {
