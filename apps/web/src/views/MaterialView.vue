@@ -117,7 +117,7 @@ onMounted(refresh)
                 type="checkbox"
                 :disabled="card.savingSettings"
               />
-              <span>FTV (first-three-verse) prompts</span>
+              <span>FTV (finish-the-verse) prompts</span>
             </label>
             <label class="toggle">
               <input
@@ -125,7 +125,7 @@ onMounted(refresh)
                 type="checkbox"
                 :disabled="card.savingSettings"
               />
-              <span>Citation prompts</span>
+              <span>Citation prompts (verse text → state the reference)</span>
             </label>
             <label class="number-row">
               <span>Verses per memorize session</span>
