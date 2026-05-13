@@ -47,16 +47,16 @@ need to read `prompts.py` separately. If anything in the embedded prompt conflic
 
 Every input ref must appear in the output. No commentary in the file — just the JSON array.
 
-## Common pitfalls
+## Subagent-specific pitfalls
 
-* **Don't paraphrase.** Use the exact tokens from the embedded prompt (canonical api.bible NKJV).
-* **Don't drop punctuation or smart quotes.** Curly `“ ” ‘ ’` and straight quotes are distinct
-  bytes; copy them verbatim.
-* **Don't split inside HTML tags.** `<b>asking</b>` is one indivisible unit.
-* **Don't sever a verb from its content clause.** `"Do you not know"` /
-  `"that we shall judge angels?"` is a _bad_ break — keep the rhetorical question whole.
-* **Don't worry about a hard word-count cap.** Target 3–10 per phrase but the validator has no upper
-  cap; a 14- or 18-word continuous clause is fine when there's no natural internal break.
+The splitting rules live in the embedded `SPLIT_PROMPT` and
+[`quality-criteria.md`](./quality-criteria.md). The points below are the operational gotchas that
+trip up a subagent reading a JSON batch:
+
+* **Don't paraphrase.** Use the exact tokens from the embedded prompt — they are canonical api.bible
+  NKJV.
+* **Smart quotes are distinct bytes.** Curly `“ ” ‘ ’` and straight quotes don't compare equal; copy
+  them verbatim or the rejoin invariant fails.
 
 ## Scope
 

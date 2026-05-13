@@ -24,17 +24,9 @@ Be **conservative** — only flag `needs_resplit` when there's a clear quality i
 Borderline cases default to `ok`. Memorisation aids carry stylistic variation; you're flagging real
 awkwardness, not personal preference.
 
-Common real issues:
-
-* **Awkward breakpoints** — a tight idiom or prepositional phrase severed.
-* **Missed parallel structure** — parallel items lumped instead of becoming siblings.
-* **Lopsided distribution** — one phrase carrying most of the verse while others are stubs.
-* **Verb separated from its content clause** — `that`/`how`/`whether` after `know`, `say`,
-  `believe`, etc. severed from the verb. `"Do you not know"` / `"that we shall judge angels?"` is
-  the canonical bad break — the rhetorical question is one unit.
-* **Mid-question breaks** — a rhetorical question stem split from its content; split _after_ the
-  question mark.
-* **Anything jarring when reciting the verse aloud.**
+The full set of soft rules (parallel structure, content clauses, lop-side, rhetorical question
+integrity, etc.) lives in [`quality-criteria.md`](./quality-criteria.md) — read it before judging.
+Anything jarring when reciting aloud is a candidate.
 
 ## Workflow
 
