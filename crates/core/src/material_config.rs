@@ -19,9 +19,11 @@ use crate::element::ClubTier;
 pub struct MaterialConfig {
     pub headings: bool,
     pub ftv: bool,
-    /// Emit the standalone `VerseInClub` card (asks "which club is this
-    /// verse in?"). The club binding is still graded inside Recitation
-    /// regardless of this toggle.
+    /// Emit `VerseInClub` cards (asks "which club is this verse in?").
+    /// This is the *only* card kind that grades the `VerseClubBinding`
+    /// test — turning the toggle off drops the test from the engine
+    /// entirely. Recitation and Citation grade the verseref / chapter /
+    /// book bindings only.
     #[serde(default = "default_true")]
     pub club_cards: bool,
     /// Tiers whose verses are excluded from the build. Verses whose

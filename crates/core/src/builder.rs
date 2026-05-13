@@ -689,9 +689,9 @@ mod tests {
                 .any(|c| matches!(c.kind, CardKind::Recitation))
         );
         assert!(r.cards.iter().any(|c| matches!(c.kind, CardKind::Citation)));
-        // With club_cards=false the standalone VerseInClub card is gone,
-        // but the citation triple inside Recitation still grades the club
-        // binding through the composite path.
+        // With club_cards=false the standalone VerseInClub card is gone.
+        // VerseInClub is the only card kind that grades VerseClubBinding,
+        // so the binding test disappears with it — by design.
         assert!(
             !r.cards
                 .iter()
