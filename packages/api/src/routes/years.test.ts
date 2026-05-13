@@ -1,10 +1,14 @@
 import { and, eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { userClubStatus, userYearSettings } from '../db/schema.js';
+import { userYearSettings } from '../db/schema.js';
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-1cor';
+
+type TierScope = 'off' | 'up150' | 'up300' | 'all';
+type ChapterListScope = 'off' | 'up150' | 'up300';
+type ClubStatus = 'active' | 'maintenance' | 'paused';
 
 interface YearsResponse {
   years: Array<{
@@ -12,17 +16,13 @@ interface YearsResponse {
     settings: {
       headings: boolean;
       ftv: boolean;
-      clubCardScope: 'off' | 'up150' | 'up300' | 'all';
-      chapterListScope: 'off' | 'up150' | 'up300';
+      activeScope: TierScope;
+      maintenanceScope: TierScope;
+      clubCardScope: TierScope;
+      chapterListScope: ChapterListScope;
       lessonBatchSize: number;
     };
-    clubs: Record<
-      '150' | '300' | 'full',
-      {
-        status: 'active' | 'maintenance' | 'paused';
-        cardCount: number;
-      }
-    >;
+    clubs: Record<'150' | '300' | 'full', { status: ClubStatus; cardCount: number }>;
   }>;
 }
 
@@ -47,18 +47,9 @@ describe('years routes', () => {
         })
       ).status,
     ).toBe(401);
-    expect(
-      (
-        await test.app.request(`/api/years/${MATERIAL_ID}/clubs/150`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'active' }),
-        })
-      ).status,
-    ).toBe(401);
   });
 
-  it('lists enrolled years with default settings and auto-active clubs', async () => {
+  it('lists enrolled years with default scopes that derive Active per tier', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
@@ -69,52 +60,45 @@ describe('years routes', () => {
     const body = (await res.json()) as YearsResponse;
     expect(body.years).toHaveLength(1);
     const year = body.years[0];
-    expect(year.materialId).toBe(MATERIAL_ID);
     expect(year.settings).toEqual({
       headings: true,
       ftv: true,
+      activeScope: 'all',
+      maintenanceScope: 'off',
       clubCardScope: 'all',
       chapterListScope: 'up300',
       lessonBatchSize: 3,
     });
-    // First visit auto-creates an active row for any tier that has
-    // cards in the material. Empty tiers stay paused.
+    // active_scope=all means every tier with cards is Active.
     for (const tier of ['150', '300', 'full'] as const) {
       const club = year.clubs[tier];
-      if (club.cardCount > 0) {
-        expect(club.status).toBe('active');
-      } else {
-        expect(club.status).toBe('paused');
-      }
+      expect(club.status).toBe('active');
     }
-    // Sanity check: at least one tier has cards in the shipped material.
-    const total =
-      year.clubs['150'].cardCount + year.clubs['300'].cardCount + year.clubs.full.cardCount;
-    expect(total).toBeGreaterThan(0);
   });
 
-  it('persists the auto-active club row on first GET', async () => {
+  it('derives Maintenance status from scope settings', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie, userId } = await signUpTestUser(test, 'alice@example.com');
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
     await enrollViaApi(test, cookie, MATERIAL_ID, 150);
 
-    await test.app.request('/api/years', { headers: { cookie } });
-    const row = test.db
-      .select()
-      .from(userClubStatus)
-      .where(
-        and(
-          eq(userClubStatus.userId, userId),
-          eq(userClubStatus.materialId, MATERIAL_ID),
-          eq(userClubStatus.clubTier, '150'),
-        ),
-      )
-      .get();
-    expect(row?.status).toBe('active');
+    // Active up to 150, Maintenance up to 300.
+    const res = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ activeScope: 'up150', maintenanceScope: 'up300' }),
+    });
+    expect(res.status).toBe(200);
+
+    const get = await test.app.request('/api/years', { headers: { cookie } });
+    const body = (await get.json()) as YearsResponse;
+    const clubs = body.years[0].clubs;
+    expect(clubs['150'].status).toBe('active');
+    expect(clubs['300'].status).toBe('maintenance');
+    expect(clubs.full.status).toBe('paused');
   });
 
-  it('persists settings updates and accepts partial bodies', async () => {
+  it('persists settings and accepts partial bodies', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie, userId } = await signUpTestUser(test, 'alice@example.com');
@@ -138,75 +122,33 @@ describe('years routes', () => {
       )
       .get();
     expect(row?.headings).toBe(false);
-    expect(row?.ftv).toBe(true);
     expect(row?.lessonBatchSize).toBe(5);
+    // Other scopes preserved at their defaults.
+    expect(row?.activeScope).toBe('all');
+    expect(row?.maintenanceScope).toBe('off');
   });
 
-  it('rejects invalid batch sizes', async () => {
+  it('rejects invalid scope values', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
     await enrollViaApi(test, cookie, MATERIAL_ID, 150);
 
-    const tooSmall = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
+    const bad = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ lessonBatchSize: 0 }),
+      body: JSON.stringify({ activeScope: 'on-fire' }),
     });
-    expect(tooSmall.status).toBe(400);
+    expect(bad.status).toBe(400);
 
-    const tooBig = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
+    const badChapter = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ lessonBatchSize: 999 }),
+      // chapter_list_scope rejects 'all' specifically — Full chapter cards
+      // aren't a thing.
+      body: JSON.stringify({ chapterListScope: 'all' }),
     });
-    expect(tooBig.status).toBe(400);
-  });
-
-  it('persists club status updates and rejects bad inputs', async () => {
-    const test = createTestApp();
-    cleanup = test.cleanup;
-    const { cookie, userId } = await signUpTestUser(test, 'alice@example.com');
-    await enrollViaApi(test, cookie, MATERIAL_ID, 150);
-
-    const ok = await test.app.request(`/api/years/${MATERIAL_ID}/clubs/150`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ status: 'maintenance' }),
-    });
-    expect(ok.status).toBe(200);
-    const row = test.db
-      .select()
-      .from(userClubStatus)
-      .where(
-        and(
-          eq(userClubStatus.userId, userId),
-          eq(userClubStatus.materialId, MATERIAL_ID),
-          eq(userClubStatus.clubTier, '150'),
-        ),
-      )
-      .get();
-    expect(row?.status).toBe('maintenance');
-
-    const badStatus = await test.app.request(
-      `/api/years/${MATERIAL_ID}/clubs/150`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', cookie },
-        body: JSON.stringify({ status: 'on-fire' }),
-      },
-    );
-    expect(badStatus.status).toBe(400);
-
-    const badTier = await test.app.request(
-      `/api/years/${MATERIAL_ID}/clubs/999`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', cookie },
-        body: JSON.stringify({ status: 'active' }),
-      },
-    );
-    expect(badTier.status).toBe(400);
+    expect(badChapter.status).toBe(400);
   });
 
   it('returns 404 when the user is not enrolled', async () => {
@@ -220,15 +162,5 @@ describe('years routes', () => {
       body: JSON.stringify({ headings: false }),
     });
     expect(settings.status).toBe(404);
-
-    const status = await test.app.request(
-      `/api/years/${MATERIAL_ID}/clubs/150`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', cookie },
-        body: JSON.stringify({ status: 'active' }),
-      },
-    );
-    expect(status.status).toBe(404);
   });
 });

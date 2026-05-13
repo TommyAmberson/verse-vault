@@ -88,18 +88,22 @@ export interface StatsResponse {
 
 export type ClubStatus = 'active' | 'maintenance' | 'paused'
 export type ClubTier = '150' | '300' | 'full'
-export type ClubCardScope = 'off' | 'up150' | 'up300' | 'all'
+export type TierScope = 'off' | 'up150' | 'up300' | 'all'
 export type ChapterListScope = 'off' | 'up150' | 'up300'
 
 export interface YearSettings {
   headings: boolean
   ftv: boolean
-  clubCardScope: ClubCardScope
+  activeScope: TierScope
+  maintenanceScope: TierScope
+  clubCardScope: TierScope
   chapterListScope: ChapterListScope
   lessonBatchSize: number
 }
 
 export interface ClubView {
+  /** Derived from `activeScope` + `maintenanceScope`. The API returns
+   *  it for display; the client doesn't write to it directly. */
   status: ClubStatus
   cardCount: number
 }
@@ -122,11 +126,6 @@ export interface ApiClient {
   getStats(materialId: string): Promise<StatsResponse>
   getYears(): Promise<YearsResponse>
   updateYearSettings(materialId: string, settings: Partial<YearSettings>): Promise<{ settings: YearSettings }>
-  updateClubStatus(
-    materialId: string,
-    tier: ClubTier,
-    status: ClubStatus,
-  ): Promise<{ tier: ClubTier; status: ClubStatus }>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
@@ -166,12 +165,6 @@ export function createApiClient(apiUrl: string): ApiClient {
     getYears: () => request('GET', '/api/years'),
     updateYearSettings: (materialId, settings) =>
       request('POST', `/api/years/${encodeURIComponent(materialId)}/settings`, settings),
-    updateClubStatus: (materialId, tier, status) =>
-      request(
-        'POST',
-        `/api/years/${encodeURIComponent(materialId)}/clubs/${tier}`,
-        { status },
-      ),
   }
 }
 

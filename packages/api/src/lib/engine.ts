@@ -41,10 +41,9 @@ export interface TestStateEntry {
 }
 
 /**
- * Build a JSON-encoded `MaterialConfig` for this user × material from the
- * picker tables. Absent rows imply defaults (everything-on, no paused
- * clubs). Returns the empty string when both tables are absent so the
- * WASM constructor uses `MaterialConfig::default()` directly.
+ * Build a JSON-encoded `MaterialConfig` for this user × material from
+ * the picker table. No row means defaults (the WASM constructor uses
+ * `MaterialConfig::default()` directly when we return the empty string).
  */
 function readMaterialConfigJson(db: DB, key: EngineKey): string {
   const settings = db
@@ -57,53 +56,23 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
       ),
     )
     .get();
-  const clubRows = db
-    .select()
-    .from(schema.userClubStatus)
-    .where(
-      and(
-        eq(schema.userClubStatus.userId, key.userId),
-        eq(schema.userClubStatus.materialId, key.materialId),
-      ),
-    )
-    .all();
 
-  if (!settings && clubRows.length === 0) return '';
+  if (!settings) return '';
 
-  // Build the per-tier status map MaterialConfig.clubs expects. Tiers
-  // missing from the DB rows fall back to Paused via Rust's
-  // status_for() default. PascalCase to match the Rust enum.
-  type RustStatus = 'Active' | 'Maintenance' | 'Paused';
-  const TIER_KEY: Record<string, 'Club150' | 'Club300' | 'Full' | null> = {
-    '150': 'Club150',
-    '300': 'Club300',
-    full: 'Full',
-  };
-  const STATUS_KEY: Record<string, RustStatus | null> = {
-    active: 'Active',
-    maintenance: 'Maintenance',
-    paused: 'Paused',
-  };
   const SCOPE_KEY: Record<string, string> = {
     off: 'Off',
     up150: 'Up150',
     up300: 'Up300',
     all: 'All',
   };
-  const clubs: Record<string, RustStatus> = {};
-  for (const r of clubRows) {
-    const tierKey = TIER_KEY[r.clubTier];
-    const statusKey = STATUS_KEY[r.status];
-    if (!tierKey || !statusKey) continue;
-    clubs[tierKey] = statusKey;
-  }
 
   return JSON.stringify({
-    headings: settings?.headings ?? true,
-    ftv: settings?.ftv ?? true,
-    club_card_scope: SCOPE_KEY[settings?.clubCardScope ?? 'all'] ?? 'All',
-    chapter_list_scope: SCOPE_KEY[settings?.chapterListScope ?? 'up300'] ?? 'Up300',
-    clubs,
+    headings: settings.headings,
+    ftv: settings.ftv,
+    active_scope: SCOPE_KEY[settings.activeScope] ?? 'All',
+    maintenance_scope: SCOPE_KEY[settings.maintenanceScope] ?? 'Off',
+    club_card_scope: SCOPE_KEY[settings.clubCardScope] ?? 'All',
+    chapter_list_scope: SCOPE_KEY[settings.chapterListScope] ?? 'Up300',
   });
 }
 

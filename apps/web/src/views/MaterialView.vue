@@ -4,9 +4,9 @@ import { onMounted, ref } from 'vue'
 import ScopeLevelSelector from '@/components/ScopeLevelSelector.vue'
 import {
   type ChapterListScope,
-  type ClubCardScope,
   type ClubStatus,
   type ClubTier,
+  type TierScope,
   type YearSettings,
   type YearView,
   api,
@@ -14,31 +14,21 @@ import {
 
 const CLUB_TIERS: ClubTier[] = ['150', '300', 'full']
 
-// Status as a level track too: Paused → Maintenance → Active is a
-// natural engagement ladder (each step adds capability — Maintenance
-// reviews existing cards, Active also introduces new ones via /memorize).
-const STATUS_LEVELS: { value: ClubStatus; label: string }[] = [
-  { value: 'paused', label: 'Paused' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'active', label: 'Active' },
-]
-
-const STATUS_DESCRIPTIONS: Record<ClubStatus, string> = {
-  active: 'Memorize new + review existing.',
-  maintenance: 'Review only — no new verses introduced.',
-  paused: 'Hidden from both queues; progress preserved.',
-}
-
 const TIER_LABELS: Record<ClubTier, string> = {
   '150': 'Club 150',
   '300': 'Club 300',
   full: 'Full',
 }
 
-// Track stops are ordered narrowest-on-the-right (Off ─ 150 ─ 300 ─ Full).
-// Selecting a stop sets the scope to "everything up to here": clicking
-// "300" includes Club 150 + Club 300 verses; clicking "Off" clears.
-const CLUB_CARD_LEVELS: { value: ClubCardScope; label: string }[] = [
+const STATUS_LABELS: Record<ClubStatus, string> = {
+  active: 'Active',
+  maintenance: 'Maintenance',
+  paused: 'Paused',
+}
+
+// All four scope tracks share the same 4-stop shape (chapter-list is
+// missing the Full stop). Stops are ordered: Off ── 150 ── 300 ── Full.
+const TIER_SCOPE_LEVELS: { value: TierScope; label: string }[] = [
   { value: 'off', label: 'Off' },
   { value: 'up150', label: '150' },
   { value: 'up300', label: '300' },
@@ -51,7 +41,21 @@ const CHAPTER_LIST_LEVELS: { value: ChapterListScope; label: string }[] = [
   { value: 'up300', label: '300' },
 ]
 
-const CLUB_CARD_DESCRIPTIONS: Record<ClubCardScope, string> = {
+const ACTIVE_DESCRIPTIONS: Record<TierScope, string> = {
+  off: 'No tier is introducing new verses.',
+  up150: 'Memorizing Club 150 verses.',
+  up300: 'Memorizing Club 150 and Club 300 verses.',
+  all: 'Memorizing every tier, including Full.',
+}
+
+const MAINTENANCE_DESCRIPTIONS: Record<TierScope, string> = {
+  off: 'No tier is in review-only mode.',
+  up150: 'Reviewing Club 150 verses (no new intros).',
+  up300: 'Reviewing Club 150 + Club 300 (no new intros).',
+  all: 'Reviewing every tier (no new intros).',
+}
+
+const CLUB_CARD_DESCRIPTIONS: Record<TierScope, string> = {
   off: 'No "which club?" prompts.',
   up150: 'Asks for Club 150 verses only.',
   up300: 'Asks for Club 150 and Club 300 verses (not Full).',
@@ -67,8 +71,7 @@ const CHAPTER_LIST_DESCRIPTIONS: Record<ChapterListScope, string> = {
 interface YearCard {
   view: YearView
   draft: YearSettings
-  savingSettings: boolean
-  savingClub: Record<ClubTier, boolean>
+  saving: boolean
 }
 
 const cards = ref<YearCard[]>([])
@@ -83,8 +86,7 @@ async function refresh() {
     cards.value = res.years.map((view) => ({
       view,
       draft: { ...view.settings },
-      savingSettings: false,
-      savingClub: { '150': false, '300': false, full: false },
+      saving: false,
     }))
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -93,25 +95,14 @@ async function refresh() {
   }
 }
 
-async function onSaveSettings(card: YearCard) {
-  card.savingSettings = true
+async function onSave(card: YearCard) {
+  card.saving = true
   try {
     await api.updateYearSettings(card.view.materialId, card.draft)
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
-    card.savingSettings = false
-  }
-}
-
-async function onChangeStatus(card: YearCard, tier: ClubTier, status: ClubStatus) {
-  card.savingClub[tier] = true
-  try {
-    await api.updateClubStatus(card.view.materialId, tier, status)
-    await refresh()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
-    card.savingClub[tier] = false
+    card.saving = false
   }
 }
 
@@ -120,6 +111,8 @@ function settingsAreDirty(card: YearCard): boolean {
   return (
     draft.headings !== view.settings.headings ||
     draft.ftv !== view.settings.ftv ||
+    draft.activeScope !== view.settings.activeScope ||
+    draft.maintenanceScope !== view.settings.maintenanceScope ||
     draft.clubCardScope !== view.settings.clubCardScope ||
     draft.chapterListScope !== view.settings.chapterListScope ||
     draft.lessonBatchSize !== view.settings.lessonBatchSize
@@ -128,6 +121,10 @@ function settingsAreDirty(card: YearCard): boolean {
 
 function tierLabel(tier: ClubTier): string {
   return TIER_LABELS[tier]
+}
+
+function statusClass(status: ClubStatus): string {
+  return `status-chip status-${status}`
 }
 
 onMounted(refresh)
@@ -145,16 +142,60 @@ onMounted(refresh)
       <article v-for="card in cards" :key="card.view.materialId" class="year-card">
         <header class="year-header">
           <h3>{{ card.view.materialId }}</h3>
+          <div class="tier-summary">
+            <span
+              v-for="tier in CLUB_TIERS"
+              :key="tier"
+              class="tier-pill"
+              :class="`tier-status-${card.view.clubs[tier].status}`"
+            >
+              <span class="tier-pill-name">{{ tierLabel(tier) }}</span>
+              <span class="tier-pill-count">{{ card.view.clubs[tier].cardCount }}</span>
+              <span :class="statusClass(card.view.clubs[tier].status)">
+                {{ STATUS_LABELS[card.view.clubs[tier].status] }}
+              </span>
+            </span>
+          </div>
         </header>
 
         <section class="settings">
-          <div class="section-title">Year settings</div>
-          <div class="toggles">
+          <div class="section-title">Study scopes</div>
+          <div class="scope-stack">
+            <div class="scope-row">
+              <span class="scope-row-label">
+                Memorizing new (Active)
+              </span>
+              <ScopeLevelSelector
+                v-model="card.draft.activeScope"
+                :levels="TIER_SCOPE_LEVELS"
+                :description="ACTIVE_DESCRIPTIONS[card.draft.activeScope]"
+                :disabled="card.saving"
+                aria-label="Active scope"
+              />
+            </div>
+            <div class="scope-row">
+              <span class="scope-row-label">Reviewing only (Maintenance)</span>
+              <ScopeLevelSelector
+                v-model="card.draft.maintenanceScope"
+                :levels="TIER_SCOPE_LEVELS"
+                :description="MAINTENANCE_DESCRIPTIONS[card.draft.maintenanceScope]"
+                :disabled="card.saving"
+                aria-label="Maintenance scope"
+              />
+              <p class="scope-fineprint">
+                Active wins where both reach: a tier covered by Active is Active even if
+                Maintenance also reaches it.
+              </p>
+            </div>
+          </div>
+
+          <div class="section-title section-title-spaced">Card kinds</div>
+          <div class="scope-stack">
             <label class="toggle">
               <input
                 v-model="card.draft.headings"
                 type="checkbox"
-                :disabled="card.savingSettings"
+                :disabled="card.saving"
               />
               <span>Headings</span>
             </label>
@@ -162,7 +203,7 @@ onMounted(refresh)
               <input
                 v-model="card.draft.ftv"
                 type="checkbox"
-                :disabled="card.savingSettings"
+                :disabled="card.saving"
               />
               <span>FTV (finish-the-verse) prompts</span>
             </label>
@@ -170,9 +211,9 @@ onMounted(refresh)
               <span class="scope-row-label">"Which club is this verse in?" prompts</span>
               <ScopeLevelSelector
                 v-model="card.draft.clubCardScope"
-                :levels="CLUB_CARD_LEVELS"
+                :levels="TIER_SCOPE_LEVELS"
                 :description="CLUB_CARD_DESCRIPTIONS[card.draft.clubCardScope]"
-                :disabled="card.savingSettings"
+                :disabled="card.saving"
                 aria-label="Per-verse club-card scope"
               />
             </div>
@@ -182,49 +223,32 @@ onMounted(refresh)
                 v-model="card.draft.chapterListScope"
                 :levels="CHAPTER_LIST_LEVELS"
                 :description="CHAPTER_LIST_DESCRIPTIONS[card.draft.chapterListScope]"
-                :disabled="card.savingSettings"
+                :disabled="card.saving"
                 aria-label="Chapter-list scope"
               />
             </div>
-            <label class="number-row">
-              <span>Verses per memorize session</span>
-              <input
-                v-model.number="card.draft.lessonBatchSize"
-                type="number"
-                min="1"
-                max="10"
-                :disabled="card.savingSettings"
-              />
-            </label>
           </div>
+
+          <div class="section-title section-title-spaced">Session</div>
+          <label class="number-row">
+            <span>Verses per memorize session</span>
+            <input
+              v-model.number="card.draft.lessonBatchSize"
+              type="number"
+              min="1"
+              max="10"
+              :disabled="card.saving"
+            />
+          </label>
+
           <button
             type="button"
             class="save-button"
-            :disabled="!settingsAreDirty(card) || card.savingSettings"
-            @click="onSaveSettings(card)"
+            :disabled="!settingsAreDirty(card) || card.saving"
+            @click="onSave(card)"
           >
-            {{ card.savingSettings ? 'Saving…' : 'Save settings' }}
+            {{ card.saving ? 'Saving…' : 'Save settings' }}
           </button>
-        </section>
-
-        <section class="clubs">
-          <div class="section-title">Clubs</div>
-          <div v-for="tier in CLUB_TIERS" :key="tier" class="club-row">
-            <div class="club-info">
-              <div class="club-name">{{ tierLabel(tier) }}</div>
-              <div class="club-count">{{ card.view.clubs[tier].cardCount }} cards</div>
-            </div>
-            <ScopeLevelSelector
-              :model-value="card.view.clubs[tier].status"
-              :levels="STATUS_LEVELS"
-              :description="STATUS_DESCRIPTIONS[card.view.clubs[tier].status]"
-              :disabled="
-                card.view.clubs[tier].cardCount === 0 || card.savingClub[tier]
-              "
-              :aria-label="`${tierLabel(tier)} status`"
-              @update:model-value="(s: ClubStatus) => onChangeStatus(card, tier, s)"
-            />
-          </div>
         </section>
       </article>
     </div>
@@ -276,30 +300,90 @@ h2 {
   gap: 1.25rem;
 }
 
+.year-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
 .year-header h3 {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 600;
 }
 
+.tier-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tier-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  font-size: 0.82rem;
+}
+
+.tier-pill-name {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.tier-pill-count {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.status-chip {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+}
+
+.status-active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.status-maintenance {
+  background: var(--color-grade-hard-bg);
+  color: var(--color-grade-hard);
+}
+
+.status-paused {
+  background: var(--color-bg-card);
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+}
+
 .section-title {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--color-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.section-title-spaced {
+  margin-top: 0.75rem;
 }
 
 .settings {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.toggles {
+.scope-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.9rem;
 }
 
 .toggle {
@@ -311,6 +395,24 @@ h2 {
 
 .toggle input[type='checkbox'] {
   accent-color: var(--color-accent);
+}
+
+.scope-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.scope-row-label {
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.scope-fineprint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  font-style: italic;
 }
 
 .number-row {
@@ -332,17 +434,6 @@ h2 {
   font-variant-numeric: tabular-nums;
 }
 
-.scope-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.scope-row-label {
-  font-size: 0.95rem;
-  color: var(--color-text);
-}
-
 .save-button {
   align-self: flex-start;
   background: var(--color-accent);
@@ -357,34 +448,5 @@ h2 {
   background: var(--color-border);
   color: var(--color-muted);
   cursor: not-allowed;
-}
-
-.clubs {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.club-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.club-info {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.club-name {
-  font-weight: 500;
-}
-
-.club-count {
-  font-size: 0.85rem;
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
 }
 </style>

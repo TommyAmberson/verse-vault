@@ -95,12 +95,21 @@ export const userMaterials = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
 );
 
-// Per-year material picker toggles. One row per (user, material). Drives
-// the year-wide knobs in `MaterialConfig` at engine-construction time.
-// `club_card_scope` controls how far down the per-verse VerseInClub
-// cards go: "off" | "up150" | "up300" | "all". `chapter_list_scope`
-// controls the chapter-list cards: "off" | "up150" | "up300" (Full
-// never emits a chapter-list card).
+// Per-year material picker toggles. One row per (user, material). Four
+// "tier scope" columns plus two booleans plus the lesson batch size
+// drive the engine's `MaterialConfig` at construction time:
+//
+// - active_scope: which tiers introduce new verses (and review them).
+// - maintenance_scope: which tiers (additionally) review only.
+// - club_card_scope: which tiers get the per-verse "Which club?" card.
+// - chapter_list_scope: which tiers get the chapter-list card.
+//
+// Each scope is one of "off" | "up150" | "up300" | "all"
+// (chapter_list_scope omits "all" — Full never emits a chapter-list).
+//
+// Per-tier effective status is derived: a tier covered by active_scope
+// is Active; covered only by maintenance_scope is Maintenance; covered
+// by neither is Paused.
 export const userYearSettings = sqliteTable(
   'user_year_settings',
   {
@@ -110,29 +119,14 @@ export const userYearSettings = sqliteTable(
     materialId: text('material_id').notNull(),
     headings: integer('headings', { mode: 'boolean' }).notNull(),
     ftv: integer('ftv', { mode: 'boolean' }).notNull(),
+    activeScope: text('active_scope').notNull(),
+    maintenanceScope: text('maintenance_scope').notNull(),
     clubCardScope: text('club_card_scope').notNull(),
     chapterListScope: text('chapter_list_scope').notNull(),
     lessonBatchSize: integer('lesson_batch_size').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
-);
-
-// Per-(year, club) lifecycle status. Absent row = `paused`. Card-kind
-// scoping is year-wide (see `userYearSettings`); per-club state is
-// just whether this user is currently studying that tier at all.
-export const userClubStatus = sqliteTable(
-  'user_club_status',
-  {
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    materialId: text('material_id').notNull(),
-    clubTier: text('club_tier').notNull(), // "150" | "300" | "full"
-    status: text('status').notNull(), // "active" | "maintenance" | "paused"
-    updatedAt: integer('updated_at').notNull(),
-  },
-  (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId, t.clubTier] }) }),
 );
 
 // The bundled MaterialData blob the engine builds from. Rebuilt when content
