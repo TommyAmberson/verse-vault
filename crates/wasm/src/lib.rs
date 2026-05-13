@@ -101,6 +101,9 @@ pub enum CardKindWire {
         #[serde(rename = "withCitation")]
         with_citation: bool,
     },
+    ChapterClubList {
+        tier: ClubTier,
+    },
     Reading,
 }
 
@@ -118,6 +121,7 @@ impl From<CardKind> for CardKindWire {
             CardKind::Recitation => CardKindWire::Recitation,
             CardKind::Citation => CardKindWire::Citation,
             CardKind::Ftv { with_citation } => CardKindWire::Ftv { with_citation },
+            CardKind::ChapterClubList { tier } => CardKindWire::ChapterClubList { tier },
             CardKind::Reading => CardKindWire::Reading,
         }
     }

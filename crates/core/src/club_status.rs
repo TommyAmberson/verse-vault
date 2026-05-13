@@ -73,6 +73,7 @@ mod tests {
             clubs: vec![tier],
             ftv_word_count: None,
             phrase_zero_word_count: 0,
+            chapter_members: Vec::new(),
         }
     }
 
@@ -84,6 +85,7 @@ mod tests {
             clubs: vec![],
             ftv_word_count: None,
             phrase_zero_word_count: 0,
+            chapter_members: Vec::new(),
         }
     }
 

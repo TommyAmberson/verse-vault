@@ -85,12 +85,19 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
     maintenance: 'Maintenance',
     paused: 'Paused',
   };
-  const clubs: Record<string, { status: RustStatus; club_cards: boolean }> = {};
+  const clubs: Record<
+    string,
+    { status: RustStatus; club_cards: boolean; chapter_lists: boolean }
+  > = {};
   for (const r of clubRows) {
     const tierKey = TIER_KEY[r.clubTier];
     const statusKey = STATUS_KEY[r.status];
     if (!tierKey || !statusKey) continue;
-    clubs[tierKey] = { status: statusKey, club_cards: r.clubCards };
+    clubs[tierKey] = {
+      status: statusKey,
+      club_cards: r.clubCards,
+      chapter_lists: r.chapterLists,
+    };
   }
 
   return JSON.stringify({

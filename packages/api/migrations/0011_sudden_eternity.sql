@@ -4,6 +4,7 @@ CREATE TABLE `user_club_settings` (
 	`club_tier` text NOT NULL,
 	`status` text NOT NULL,
 	`club_cards` integer NOT NULL,
+	`chapter_lists` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	PRIMARY KEY(`user_id`, `material_id`, `club_tier`),
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade

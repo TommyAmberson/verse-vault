@@ -187,6 +187,22 @@ onMounted(refresh)
               />
               <span>"Which club?" cards (per verse)</span>
             </label>
+            <label
+              v-if="card.view.clubs[tier].cardCount > 0"
+              class="club-toggle"
+            >
+              <input
+                type="checkbox"
+                :checked="card.view.clubs[tier].chapterLists"
+                :disabled="card.savingClub[tier]"
+                @change="
+                  patchClub(card, tier, {
+                    chapterLists: ($event.target as HTMLInputElement).checked,
+                  })
+                "
+              />
+              <span>Chapter-list cards</span>
+            </label>
           </div>
         </section>
       </article>

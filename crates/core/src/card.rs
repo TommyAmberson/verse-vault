@@ -49,6 +49,14 @@ pub enum CardKind {
     Ftv {
         with_citation: bool,
     },
+    /// "List the tier-T verses in this chapter." Composite card that
+    /// grades the per-verse `VerseClubBinding` for every real verse in
+    /// the chapter tagged with `tier`. The card itself is anchored to a
+    /// pseudo verse_id (allocated by the builder after the real verses)
+    /// whose `VerseAtoms` carries the member verse_ids.
+    ChapterClubList {
+        tier: ClubTier,
+    },
     /// UX-only: progressive-reveal entry that shows the verse text to the
     /// learner. Carries no FSRS state and is never emitted by `builder::build`;
     /// it only appears in `Session::new_verse_progression`.
@@ -74,7 +82,7 @@ pub struct CardSchedule {
     pub priority: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct VerseAtoms {
     pub verse_id: u32,
     pub phrase_count: u16,
@@ -86,6 +94,15 @@ pub struct VerseAtoms {
     /// where we'd otherwise schedule a redundant phrase-0 test (the FTV
     /// prompt already shows phrase 0 in full).
     pub phrase_zero_word_count: u16,
+    /// For pseudo verses anchoring `ChapterClubList` cards: the
+    /// (verse_id, most-specific tier) of every real verse in the same
+    /// chapter that the card's tier "includes" (e.g. a Club300 chapter
+    /// card includes both Club150 and Club300 verses). Tests for the
+    /// card grade each member's own-tier `VerseClubBinding`, so the
+    /// chapter card shares state with the per-verse `VerseInClub`
+    /// cards rather than spawning parallel bindings. Empty for real
+    /// verses.
+    pub chapter_members: Vec<(u32, ClubTier)>,
 }
 
 impl VerseAtoms {
@@ -203,6 +220,17 @@ impl Card {
                 },
             ],
             CardKind::Ftv { with_citation } => ftv_tests(verse_id, atoms, with_citation),
+            CardKind::ChapterClubList { tier: _ } => atoms
+                .chapter_members
+                .iter()
+                .map(|&(v, member_tier)| TestKey {
+                    kind: TestKind::VerseClub,
+                    element: ElementId::VerseClubBinding {
+                        verse_id: v,
+                        tier: member_tier,
+                    },
+                })
+                .collect(),
             CardKind::Reading => Vec::new(),
         }
     }
@@ -220,6 +248,7 @@ mod tests {
             clubs: vec![ClubTier::Club150, ClubTier::Club300],
             ftv_word_count: None,
             phrase_zero_word_count: 0,
+            chapter_members: Vec::new(),
         }
     }
 
@@ -249,6 +278,7 @@ mod tests {
             clubs: vec![ClubTier::Club150],
             ftv_word_count: Some(2),
             phrase_zero_word_count: 4,
+            chapter_members: Vec::new(),
         };
         assert_eq!(atoms.phrase_positions(), vec![0u16, 1, 2]);
     }
@@ -350,6 +380,7 @@ mod tests {
             clubs: vec![],
             ftv_word_count: Some(2),
             phrase_zero_word_count: 6,
+            chapter_members: Vec::new(),
         };
         let c = atomic_card(
             0,
@@ -372,6 +403,7 @@ mod tests {
             clubs: vec![],
             ftv_word_count: Some(6),
             phrase_zero_word_count: 6,
+            chapter_members: Vec::new(),
         };
         let c = atomic_card(
             0,
@@ -393,6 +425,7 @@ mod tests {
             clubs: vec![],
             ftv_word_count: Some(2),
             phrase_zero_word_count: 6,
+            chapter_members: Vec::new(),
         };
         let c = atomic_card(
             0,

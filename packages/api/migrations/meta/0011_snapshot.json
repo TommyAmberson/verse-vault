@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "daad142f-6780-4146-94b1-d88e0784700b",
+  "id": "9e47eb4d-6c7c-43f3-b349-49598d2e08e7",
   "prevId": "511a286a-8fce-4f90-a112-627b45092f07",
   "tables": {
     "account": {
@@ -703,6 +703,13 @@
         },
         "club_cards": {
           "name": "club_cards",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chapter_lists": {
+          "name": "chapter_lists",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

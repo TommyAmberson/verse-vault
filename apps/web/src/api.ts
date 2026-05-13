@@ -38,6 +38,7 @@ export type CardKind =
   | 'Recitation'
   | 'Citation'
   | 'Ftv'
+  | 'ChapterClubList'
   | 'Reading'
 
 export interface VerseRender {
@@ -97,6 +98,7 @@ export interface YearSettings {
 export interface ClubView {
   status: ClubStatus
   clubCards: boolean
+  chapterLists: boolean
   cardCount: number
 }
 
@@ -109,6 +111,7 @@ export interface YearView {
 export interface ClubPatch {
   status?: ClubStatus
   clubCards?: boolean
+  chapterLists?: boolean
 }
 
 export interface YearsResponse {
@@ -127,7 +130,12 @@ export interface ApiClient {
     materialId: string,
     tier: ClubTier,
     patch: ClubPatch,
-  ): Promise<{ tier: ClubTier; status: ClubStatus; clubCards: boolean }>
+  ): Promise<{
+    tier: ClubTier
+    status: ClubStatus
+    clubCards: boolean
+    chapterLists: boolean
+  }>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`

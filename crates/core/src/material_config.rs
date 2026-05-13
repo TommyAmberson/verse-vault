@@ -31,6 +31,16 @@ pub struct ClubConfig {
     /// Emit the per-verse `VerseInClub` "which club is this verse in?"
     /// card for verses in this tier.
     pub club_cards: bool,
+    /// Emit per-chapter `ChapterClubList` cards: prompt is the chapter,
+    /// answer is the list of verses in that chapter belonging to this
+    /// tier. Only meaningful for tiers where the list is non-trivial;
+    /// for `Full` it can be turned off.
+    #[serde(default = "default_true")]
+    pub chapter_lists: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl ClubConfig {
@@ -39,6 +49,7 @@ impl ClubConfig {
         Self {
             status: ClubStatus::Active,
             club_cards: true,
+            chapter_lists: true,
         }
     }
 
@@ -47,6 +58,7 @@ impl ClubConfig {
         Self {
             status: ClubStatus::Paused,
             club_cards: false,
+            chapter_lists: false,
         }
     }
 }
@@ -122,20 +134,8 @@ mod tests {
     #[test]
     fn verse_is_paused_checks_most_specific_tier() {
         let mut clubs = HashMap::new();
-        clubs.insert(
-            ClubTier::Club150,
-            ClubConfig {
-                status: ClubStatus::Active,
-                club_cards: true,
-            },
-        );
-        clubs.insert(
-            ClubTier::Club300,
-            ClubConfig {
-                status: ClubStatus::Paused,
-                club_cards: false,
-            },
-        );
+        clubs.insert(ClubTier::Club150, ClubConfig::active());
+        clubs.insert(ClubTier::Club300, ClubConfig::paused());
         let c = MaterialConfig {
             clubs,
             ..MaterialConfig::default()

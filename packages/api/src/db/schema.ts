@@ -127,6 +127,7 @@ export const userClubSettings = sqliteTable(
     clubTier: text('club_tier').notNull(), // "150" | "300" | "full"
     status: text('status').notNull(), // "active" | "maintenance" | "paused"
     clubCards: integer('club_cards', { mode: 'boolean' }).notNull(),
+    chapterLists: integer('chapter_lists', { mode: 'boolean' }).notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId, t.clubTier] }) }),
