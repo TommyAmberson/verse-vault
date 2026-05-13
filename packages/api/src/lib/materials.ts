@@ -22,7 +22,7 @@ export interface Material {
 export const MATERIALS: readonly Material[] = [
   {
     id: 'nkjv-gepc',
-    title: 'Galatians–Colossians (NKJV)',
+    title: 'Gal, Eph, Phil & Col (NKJV)',
     description: 'Year 1: Galatians, Ephesians, Philippians, Colossians.',
   },
   {
@@ -33,7 +33,7 @@ export const MATERIALS: readonly Material[] = [
   },
   {
     id: 'nkjv-1cor',
-    title: '1 Corinthians (NKJV)',
+    title: '1 & 2 Corinthians (NKJV)',
     description: 'Year 3: 1 & 2 Corinthians with phrase chunking and FTV prompts.',
   },
   {
