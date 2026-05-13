@@ -15,11 +15,20 @@ the verse aloud — break where a careful reader would breathe, at the
 start of a new clause, between parallel items, or after a connective
 that ushers in a new thought.
 
+**Guiding principle:** keep splits small, but completeness of thought
+matters more than size. Every phrase should be a self-contained
+unit of meaning. A 9-word phrase that finishes a thought is better
+than 4 + 5 that severs it. When in doubt between a shorter awkward
+split and a longer natural one, choose the natural one.
+
 Rules:
 
-- 3 to 12 words per phrase. A short final phrase (1-2 words) is fine
-  when it carries trailing punctuation like ``...and Him crucified.``;
-  short fragments in the middle of a verse are not.
+- Target 3 to 10 words per phrase; up to ~12 is fine. A short final
+  phrase (1-2 words) is fine when it carries trailing punctuation like
+  ``...and Him crucified.``; short fragments in the middle of a verse
+  are not. A phrase may run longer than 12 when the clause is genuinely
+  continuous and has no natural break — prefer the natural unit over
+  forcing an awkward split.
 - Break at clause and phrase boundaries. Strong cues:
   - after a comma, semicolon, or colon
   - before a connector that starts a new clause: ``and``, ``but``,
@@ -28,12 +37,24 @@ Rules:
     list to the preceding phrase
   - between parallel items: ``not many wise / not many mighty / not
     many noble`` should be three sibling phrases
+- **Never split a verb from its content clause.** ``that`` (and
+  ``what``, ``how``, ``whether``, ``if``) after a verb of perception
+  or speech — ``know``, ``see``, ``tell``, ``say``, ``believe``,
+  ``think``, ``hear``, ``understand``, ``remember``, ``perceive`` — is
+  introducing the object of that verb, not a new clause for
+  recitation. ``"Do you not know"`` / ``"that we shall judge angels?"``
+  is a bad break; the rhetorical question is one unit. Same for
+  ``"I declare to you"`` / ``"that flesh and blood cannot inherit..."``.
+- **Keep rhetorical questions whole.** A question stem (``"Do you not
+  know that..."``, ``"Are you not aware that..."``) belongs with its
+  content. Split *after* the question mark, not inside it.
 - Never strand a 1-2 word fragment in the middle of the verse (e.g.
   ``"But one"`` followed by the rest of the sentence). Keep small
   introductory phrases with the clause they introduce.
-- Never exceed about 12 words in a single phrase. When a clause is
-  long, look for an internal comma, a relative pronoun (``who``,
-  ``which``, ``that``), or a connective and break there.
+- When a clause is long (over ~12 words), look for an internal comma,
+  a relative pronoun (``who``, ``which``, ``that``), or a connective
+  and break there. If no such break exists, the long phrase is
+  acceptable — naturalness over arbitrary cutoffs.
 - Preserve every character exactly, including HTML tags such as
   ``<b>...</b>``, ``<i>...</i>``, ``<b><i>...</i></b>``, and ``<span
   ...>...</span>``. Treat a tagged span as one indivisible unit —
@@ -76,6 +97,12 @@ Output:
     ["deliver such a one to Satan for the destruction of the flesh,",
      "that his spirit may be saved in the day of the Lord Jesus."]
 
+Input:
+    Do you not know that we shall judge angels? How much more, things that pertain to this life?
+Output:
+    ["Do you not know that we shall judge angels?",
+     "How much more, things that pertain to this life?"]
+
 Now split this verse. Reply with a single JSON array of strings on one
 line, nothing else.
 
@@ -90,6 +117,11 @@ split has already passed deterministic checks (it rejoins to the original
 text and every phrase is within the word-count bounds). Your job is to
 catch lingering quality issues that need a human eye.
 
+**Guiding principle:** small phrases are good, but completeness of
+thought matters more than size. Every phrase should be a self-contained
+unit of meaning. A short split that severs a single thought across two
+phrases is worse than a longer split that keeps it whole.
+
 Look for:
 
 - Awkward breakpoints — a split that interrupts a tight idiom or a
@@ -99,6 +131,14 @@ Look for:
   mighty / not many noble`` should be three phrases)
 - Lopsided distribution — one phrase carrying most of the verse while
   the rest are stubs
+- **Verb separated from its content clause** — ``that`` / ``what`` /
+  ``how`` / ``whether`` / ``if`` after ``know``, ``see``, ``tell``,
+  ``say``, ``believe``, ``think``, ``hear``, ``understand``,
+  ``remember``, ``perceive`` introduces the *object* of the verb, not
+  a new clause. ``"Do you not know"`` / ``"that we shall judge
+  angels?"`` is a bad break — the rhetorical question is one unit.
+- Mid-question breaks — a rhetorical question stem split from its
+  content. Keep the question whole; split *after* the question mark.
 - Anything that would feel jarring when reciting the verse aloud
 
 Verse: {ref}

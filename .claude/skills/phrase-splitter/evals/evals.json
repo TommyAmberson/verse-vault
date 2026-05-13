@@ -1,0 +1,26 @@
+{
+  "skill_name": "phrase-splitter",
+  "evals": [
+    {
+      "id": 1,
+      "name": "evaluate-cache",
+      "prompt": "Audit data/corinthians-phrases.json with the phrase-splitter tools and show me the 10 worst splits. For each, name the verse and explain what's wrong in a sentence.",
+      "expected_output": "A ranked list of ~10 verses including 1 Corinthians 12:11 (stranded 'But one' fragment), 1 Corinthians 1:26 (14-word first phrase), and 1 Corinthians 11:14 (~15-word first phrase). Each entry has a severity and a human-readable reason. The skill ran tools/evaluate_phrases.py rather than eyeballing the cache.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "resplit-known-bad",
+      "prompt": "The split for 1 Corinthians 12:11 in data/corinthians-phrases.json starts with 'But one' as its own phrase, which reads as a stranded fragment. Re-split that verse and write the fix back to the cache.",
+      "expected_output": "A re-split where no phrase is shorter than 3 words mid-verse, all phrases rejoin to the original text (including <b>distributing</b> markup), and split_phrases.py apply succeeds (not just print-prompt). The cache file is updated. Ideally: ['But one and the same Spirit works all these things,', '<b>distributing</b> to each one individually as He wills.'].",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "split-from-scratch",
+      "prompt": "Split this verse into memorisation phrases (3-12 words each, breaks on natural pauses): 'For God so loved the world that He gave His only begotten Son, that whoever believes in Him should not perish but have everlasting life.'",
+      "expected_output": "A JSON array of phrases where joining with spaces equals the input verbatim, every phrase has 3-12 words, breaks fall at clause boundaries (likely after 'world,' 'Son,' and around 'should not perish but have everlasting life.'). The skill consulted quality-criteria before answering — no need to invoke CLI tools for this single-verse case.",
+      "files": []
+    }
+  ]
+}
