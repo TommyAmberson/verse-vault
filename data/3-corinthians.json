@@ -186,7 +186,8 @@
       "chapter": 1,
       "verse": 1,
       "phraseWordCounts": [
-        14,
+        9,
+        5,
         4
       ],
       "annotations": [
@@ -206,8 +207,10 @@
       "verse": 2,
       "phraseWordCounts": [
         9,
-        12,
-        15,
+        8,
+        4,
+        6,
+        9,
         4
       ],
       "annotations": [
@@ -252,8 +255,8 @@
       "chapter": 1,
       "verse": 5,
       "phraseWordCounts": [
-        11,
-        3
+        8,
+        6
       ],
       "annotations": [
         {
@@ -287,7 +290,9 @@
       "chapter": 1,
       "verse": 7,
       "phraseWordCounts": [
-        18
+        8,
+        5,
+        5
       ],
       "annotations": [
         {
@@ -304,7 +309,8 @@
       "verse": 8,
       "phraseWordCounts": [
         8,
-        13
+        5,
+        8
       ],
       "annotations": [
         {
@@ -326,7 +332,9 @@
       "chapter": 1,
       "verse": 9,
       "phraseWordCounts": [
-        18
+        3,
+        11,
+        4
       ],
       "annotations": [],
       "ftvWordCount": 1,
@@ -337,11 +345,12 @@
       "chapter": 1,
       "verse": 10,
       "phraseWordCounts": [
-        14,
+        6,
+        8,
         7,
         8,
-        11,
-        5
+        7,
+        9
       ],
       "annotations": [
         {
@@ -382,7 +391,10 @@
       "verse": 12,
       "phraseWordCounts": [
         9,
-        19
+        4,
+        5,
+        5,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -411,8 +423,9 @@
       "chapter": 1,
       "verse": 14,
       "phraseWordCounts": [
-        11,
-        2
+        3,
+        6,
+        4
       ],
       "annotations": [
         {
@@ -432,7 +445,8 @@
       "chapter": 1,
       "verse": 15,
       "phraseWordCounts": [
-        12
+        4,
+        8
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -484,9 +498,10 @@
       "chapter": 1,
       "verse": 18,
       "phraseWordCounts": [
-        10,
-        3,
-        13
+        8,
+        5,
+        7,
+        6
       ],
       "annotations": [
         {
@@ -551,7 +566,8 @@
       "chapter": 1,
       "verse": 21,
       "phraseWordCounts": [
-        15,
+        7,
+        8,
         10,
         5
       ],
@@ -588,7 +604,8 @@
       "chapter": 1,
       "verse": 23,
       "phraseWordCounts": [
-        11,
+        5,
+        6,
         5
       ],
       "annotations": [],
@@ -602,7 +619,9 @@
       "chapter": 1,
       "verse": 24,
       "phraseWordCounts": [
-        16,
+        6,
+        4,
+        5,
         5
       ],
       "annotations": [],
@@ -633,8 +652,10 @@
       "chapter": 1,
       "verse": 26,
       "phraseWordCounts": [
-        14,
         6,
+        8,
+        3,
+        3,
         2
       ],
       "annotations": [
@@ -651,9 +672,10 @@
       "chapter": 1,
       "verse": 27,
       "phraseWordCounts": [
-        16,
-        16,
-        3
+        10,
+        6,
+        10,
+        9
       ],
       "annotations": [],
       "ftvWordCount": 4,
@@ -701,9 +723,8 @@
       "verse": 30,
       "phraseWordCounts": [
         8,
-        8,
-        4,
-        3
+        7,
+        6
       ],
       "annotations": [
         {
@@ -735,8 +756,9 @@
       "chapter": 2,
       "verse": 1,
       "phraseWordCounts": [
-        15,
-        10
+        8,
+        10,
+        7
       ],
       "annotations": [
         {
@@ -776,9 +798,9 @@
       "chapter": 2,
       "verse": 4,
       "phraseWordCounts": [
-        14,
         6,
-        3
+        8,
+        9
       ],
       "annotations": [
         {
@@ -800,7 +822,7 @@
       "chapter": 2,
       "verse": 5,
       "phraseWordCounts": [
-        10,
+        11,
         6
       ],
       "annotations": [],
@@ -834,7 +856,8 @@
       "verse": 7,
       "phraseWordCounts": [
         10,
-        11
+        6,
+        6
       ],
       "annotations": [
         {
@@ -853,7 +876,8 @@
       "verse": 8,
       "phraseWordCounts": [
         9,
-        13
+        4,
+        9
       ],
       "annotations": [
         {
@@ -871,8 +895,9 @@
       "phraseWordCounts": [
         5,
         7,
-        16,
-        3
+        8,
+        6,
+        5
       ],
       "annotations": [
         {
@@ -909,9 +934,10 @@
       "chapter": 2,
       "verse": 11,
       "phraseWordCounts": [
-        15,
-        4,
-        14
+        9,
+        10,
+        9,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -924,9 +950,11 @@
       "chapter": 2,
       "verse": 12,
       "phraseWordCounts": [
-        10,
+        4,
+        6,
         7,
-        15
+        6,
+        9
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -964,9 +992,11 @@
       "chapter": 2,
       "verse": 14,
       "phraseWordCounts": [
-        14,
+        7,
+        7,
         6,
-        10
+        5,
+        5
       ],
       "annotations": [
         {
@@ -1470,7 +1500,7 @@
       "phraseWordCounts": [
         6,
         7,
-        8,
+        7,
         3
       ],
       "annotations": [],
@@ -1601,10 +1631,13 @@
       "chapter": 4,
       "verse": 6,
       "phraseWordCounts": [
-        12,
+        4,
+        8,
         3,
-        13,
-        15
+        6,
+        7,
+        8,
+        7
       ],
       "annotations": [
         {
@@ -1645,7 +1678,7 @@
       "phraseWordCounts": [
         4,
         4,
-        8,
+        7,
         8,
         7
       ],
@@ -1719,8 +1752,10 @@
       "chapter": 4,
       "verse": 11,
       "phraseWordCounts": [
-        9,
-        7,
+        4,
+        5,
+        5,
+        2,
         2
       ],
       "annotations": [
@@ -1884,7 +1919,8 @@
       "phraseWordCounts": [
         7,
         4,
-        13,
+        4,
+        9,
         3
       ],
       "annotations": [
@@ -1933,7 +1969,7 @@
       "verse": 1,
       "phraseWordCounts": [
         11,
-        13,
+        12,
         7
       ],
       "annotations": [
@@ -1960,7 +1996,8 @@
       "phraseWordCounts": [
         5,
         5,
-        14
+        7,
+        7
       ],
       "annotations": [
         {
@@ -1976,8 +2013,10 @@
       "chapter": 5,
       "verse": 3,
       "phraseWordCounts": [
-        11,
-        15
+        3,
+        8,
+        8,
+        7
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -2121,7 +2160,8 @@
       "chapter": 5,
       "verse": 9,
       "phraseWordCounts": [
-        15
+        7,
+        8
       ],
       "annotations": [
         {
@@ -2143,10 +2183,9 @@
       "chapter": 5,
       "verse": 10,
       "phraseWordCounts": [
-        14,
-        4,
-        2,
-        2,
+        6,
+        8,
+        8,
         11
       ],
       "annotations": [
@@ -2169,13 +2208,12 @@
       "chapter": 5,
       "verse": 11,
       "phraseWordCounts": [
-        16,
-        4,
-        2,
-        3,
-        3,
-        3,
-        12
+        7,
+        9,
+        6,
+        6,
+        6,
+        8
       ],
       "annotations": [
         {
@@ -2213,7 +2251,8 @@
       "chapter": 5,
       "verse": 12,
       "phraseWordCounts": [
-        13,
+        8,
+        5,
         8
       ],
       "annotations": [
@@ -2278,9 +2317,9 @@
       "chapter": 6,
       "verse": 3,
       "phraseWordCounts": [
-        9,
-        3,
-        6
+        4,
+        5,
+        9
       ],
       "annotations": [
         {
@@ -2296,8 +2335,10 @@
       "chapter": 6,
       "verse": 4,
       "phraseWordCounts": [
-        11,
-        13
+        5,
+        6,
+        8,
+        5
       ],
       "annotations": [
         {
@@ -2352,8 +2393,8 @@
       "chapter": 6,
       "verse": 7,
       "phraseWordCounts": [
-        2,
-        16,
+        10,
+        8,
         7,
         9
       ],
@@ -2377,9 +2418,7 @@
       "chapter": 6,
       "verse": 8,
       "phraseWordCounts": [
-        1,
-        4,
-        2,
+        7,
         8
       ],
       "annotations": [
@@ -2398,7 +2437,8 @@
       "chapter": 6,
       "verse": 9,
       "phraseWordCounts": [
-        14,
+        7,
+        7,
         4,
         2,
         2,
@@ -2538,7 +2578,7 @@
       "verse": 14,
       "phraseWordCounts": [
         7,
-        8
+        9
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -2549,7 +2589,8 @@
       "chapter": 6,
       "verse": 15,
       "phraseWordCounts": [
-        11,
+        4,
+        7,
         8,
         7,
         2
@@ -2568,7 +2609,8 @@
       "chapter": 6,
       "verse": 16,
       "phraseWordCounts": [
-        18,
+        5,
+        13,
         5,
         4
       ],
@@ -2586,7 +2628,8 @@
       "chapter": 6,
       "verse": 17,
       "phraseWordCounts": [
-        13
+        8,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -2617,7 +2660,9 @@
       "chapter": 6,
       "verse": 19,
       "phraseWordCounts": [
-        19,
+        5,
+        10,
+        4,
         5,
         6
       ],
@@ -2660,8 +2705,7 @@
       "chapter": 7,
       "verse": 2,
       "phraseWordCounts": [
-        1,
-        4,
+        5,
         7,
         8
       ],
@@ -2709,10 +2753,12 @@
       "chapter": 7,
       "verse": 5,
       "phraseWordCounts": [
-        11,
+        5,
+        6,
+        9,
+        4,
         7,
-        2,
-        17
+        6
       ],
       "annotations": [
         {
@@ -2773,9 +2819,9 @@
       "chapter": 7,
       "verse": 8,
       "phraseWordCounts": [
-        6,
-        4,
-        12
+        10,
+        5,
+        7
       ],
       "annotations": [
         {
@@ -2822,8 +2868,7 @@
       "verse": 10,
       "phraseWordCounts": [
         6,
-        3,
-        3,
+        6,
         9
       ],
       "annotations": [
@@ -2859,9 +2904,7 @@
       "chapter": 7,
       "verse": 12,
       "phraseWordCounts": [
-        5,
-        3,
-        1,
+        9,
         10,
         8,
         5
@@ -2927,8 +2970,7 @@
       "phraseWordCounts": [
         5,
         3,
-        2,
-        10,
+        12,
         7
       ],
       "annotations": [
@@ -2953,11 +2995,10 @@
       "chapter": 7,
       "verse": 16,
       "phraseWordCounts": [
-        5,
-        2,
+        7,
         6,
-        5,
-        8
+        7,
+        6
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -3050,7 +3091,8 @@
       "chapter": 7,
       "verse": 20,
       "phraseWordCounts": [
-        13
+        8,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -3080,8 +3122,10 @@
       "chapter": 7,
       "verse": 22,
       "phraseWordCounts": [
-        15,
-        10
+        11,
+        4,
+        7,
+        3
       ],
       "annotations": [
         {
@@ -3121,8 +3165,8 @@
       "chapter": 7,
       "verse": 24,
       "phraseWordCounts": [
-        1,
-        14
+        7,
+        8
       ],
       "annotations": [
         {
@@ -3142,7 +3186,8 @@
       "phraseWordCounts": [
         3,
         7,
-        15
+        6,
+        9
       ],
       "annotations": [
         {
@@ -3162,7 +3207,9 @@
       "chapter": 7,
       "verse": 26,
       "phraseWordCounts": [
-        25
+        7,
+        5,
+        12
       ],
       "annotations": [
         {
@@ -3228,7 +3275,8 @@
       "phraseWordCounts": [
         5,
         4,
-        17
+        10,
+        7
       ],
       "annotations": [
         {
@@ -3297,7 +3345,6 @@
       "phraseWordCounts": [
         8,
         11,
-        1,
         6
       ],
       "annotations": [
@@ -3315,7 +3362,6 @@
       "verse": 33,
       "phraseWordCounts": [
         12,
-        1,
         6
       ],
       "annotations": [
@@ -3336,7 +3382,6 @@
         10,
         11,
         12,
-        1,
         6
       ],
       "annotations": [
@@ -3424,7 +3469,8 @@
         8,
         3,
         7,
-        13,
+        7,
+        6,
         2
       ],
       "annotations": [],
@@ -3459,7 +3505,9 @@
       "phraseWordCounts": [
         12,
         5,
-        15
+        7,
+        4,
+        4
       ],
       "annotations": [
         {
@@ -3479,7 +3527,6 @@
       "phraseWordCounts": [
         10,
         4,
-        1,
         10
       ],
       "annotations": [
@@ -3561,7 +3608,8 @@
       "verse": 5,
       "phraseWordCounts": [
         7,
-        15
+        6,
+        8
       ],
       "annotations": [
         {
@@ -3591,8 +3639,7 @@
       "chapter": 8,
       "verse": 6,
       "phraseWordCounts": [
-        7,
-        2,
+        9,
         5,
         4,
         5,
@@ -3610,14 +3657,10 @@
       "chapter": 8,
       "verse": 7,
       "phraseWordCounts": [
-        1,
+        8,
         7,
-        2,
-        5,
         11,
-        3,
-        2,
-        2
+        7
       ],
       "annotations": [
         {
@@ -3650,7 +3693,8 @@
       "chapter": 8,
       "verse": 9,
       "phraseWordCounts": [
-        17
+        8,
+        9
       ],
       "annotations": [
         {
@@ -3668,8 +3712,10 @@
       "chapter": 8,
       "verse": 10,
       "phraseWordCounts": [
-        13,
-        18
+        8,
+        5,
+        9,
+        9
       ],
       "annotations": [
         {
@@ -3726,8 +3772,7 @@
       "chapter": 8,
       "verse": 13,
       "phraseWordCounts": [
-        1,
-        6,
+        7,
         6,
         6
       ],
@@ -3832,7 +3877,8 @@
       "chapter": 9,
       "verse": 6,
       "phraseWordCounts": [
-        15
+        7,
+        8
       ],
       "annotations": [
         {
@@ -3850,7 +3896,8 @@
       "phraseWordCounts": [
         9,
         11,
-        15
+        5,
+        10
       ],
       "annotations": [
         {
@@ -3933,9 +3980,8 @@
       "verse": 10,
       "phraseWordCounts": [
         9,
-        3,
-        2,
-        11,
+        8,
+        8,
         12
       ],
       "annotations": [
@@ -4008,8 +4054,10 @@
       "chapter": 9,
       "verse": 13,
       "phraseWordCounts": [
-        18,
-        14
+        11,
+        7,
+        7,
+        7
       ],
       "annotations": [
         {
@@ -4025,7 +4073,9 @@
       "chapter": 9,
       "verse": 14,
       "phraseWordCounts": [
-        17
+        6,
+        6,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -4039,8 +4089,10 @@
       "verse": 15,
       "phraseWordCounts": [
         8,
-        14,
-        17
+        6,
+        8,
+        9,
+        8
       ],
       "annotations": [
         {
@@ -4063,8 +4115,7 @@
         6,
         6,
         6,
-        1,
-        10
+        11
       ],
       "annotations": [
         {
@@ -4152,7 +4203,7 @@
       "chapter": 9,
       "verse": 20,
       "phraseWordCounts": [
-        8,
+        9,
         5,
         7,
         4,
@@ -4182,8 +4233,9 @@
       "chapter": 9,
       "verse": 21,
       "phraseWordCounts": [
+        9,
         6,
-        14,
+        5,
         9
       ],
       "annotations": [
@@ -4244,8 +4296,8 @@
       "chapter": 9,
       "verse": 24,
       "phraseWordCounts": [
-        13,
-        5,
+        11,
+        7,
         10
       ],
       "annotations": [
@@ -4370,8 +4422,7 @@
       "verse": 27,
       "phraseWordCounts": [
         10,
-        1,
-        6,
+        7,
         5
       ],
       "annotations": [
@@ -4394,9 +4445,8 @@
       "chapter": 10,
       "verse": 1,
       "phraseWordCounts": [
-        1,
-        1,
-        16,
+        10,
+        8,
         5
       ],
       "annotations": [
@@ -4502,7 +4552,8 @@
       "verse": 6,
       "phraseWordCounts": [
         6,
-        15
+        11,
+        4
       ],
       "annotations": [
         {
@@ -4605,8 +4656,7 @@
       "chapter": 10,
       "verse": 10,
       "phraseWordCounts": [
-        2,
-        6,
+        8,
         6
       ],
       "annotations": [
@@ -4681,9 +4731,11 @@
       "chapter": 10,
       "verse": 13,
       "phraseWordCounts": [
-        12,
+        5,
+        7,
         4,
-        13,
+        8,
+        5,
         11,
         8
       ],
@@ -4727,9 +4779,7 @@
       "chapter": 10,
       "verse": 14,
       "phraseWordCounts": [
-        1,
-        2,
-        3
+        6
       ],
       "annotations": [
         {
@@ -4782,9 +4832,7 @@
       "chapter": 10,
       "verse": 17,
       "phraseWordCounts": [
-        2,
-        2,
-        6,
+        10,
         8
       ],
       "annotations": [],
@@ -4826,9 +4874,8 @@
       "chapter": 10,
       "verse": 20,
       "phraseWordCounts": [
-        1,
-        11,
-        4,
+        8,
+        8,
         11
       ],
       "annotations": [
@@ -5036,7 +5083,8 @@
       "phraseWordCounts": [
         6,
         5,
-        13,
+        4,
+        9,
         4,
         6,
         4
@@ -5059,10 +5107,8 @@
       "chapter": 10,
       "verse": 29,
       "phraseWordCounts": [
-        1,
-        2,
         3,
-        5,
+        8,
         10
       ],
       "annotations": [],
@@ -5075,7 +5121,8 @@
       "verse": 30,
       "phraseWordCounts": [
         6,
-        14
+        9,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -5086,8 +5133,7 @@
       "chapter": 10,
       "verse": 31,
       "phraseWordCounts": [
-        1,
-        5,
+        6,
         4,
         7
       ],
@@ -5103,7 +5149,9 @@
       "verse": 32,
       "phraseWordCounts": [
         3,
-        14
+        4,
+        4,
+        6
       ],
       "annotations": [],
       "ftvWordCount": 1,
@@ -5135,8 +5183,7 @@
       "chapter": 11,
       "verse": 1,
       "phraseWordCounts": [
-        2,
-        6
+        8
       ],
       "annotations": [],
       "ftvWordCount": 1,
@@ -5149,10 +5196,10 @@
       "chapter": 11,
       "verse": 2,
       "phraseWordCounts": [
-        4,
-        1,
+        5,
         7,
-        11
+        4,
+        7
       ],
       "annotations": [
         {
@@ -5172,7 +5219,8 @@
       "chapter": 11,
       "verse": 3,
       "phraseWordCounts": [
-        14,
+        6,
+        8,
         6,
         7
       ],
@@ -5215,8 +5263,10 @@
       "chapter": 11,
       "verse": 5,
       "phraseWordCounts": [
-        14,
-        13
+        11,
+        3,
+        7,
+        6
       ],
       "annotations": [
         {
@@ -5240,7 +5290,8 @@
       "phraseWordCounts": [
         7,
         5,
-        13,
+        8,
+        5,
         4
       ],
       "annotations": [
@@ -5341,8 +5392,7 @@
       "chapter": 11,
       "verse": 11,
       "phraseWordCounts": [
-        1,
-        6,
+        7,
         5,
         3
       ],
@@ -5378,7 +5428,8 @@
       "verse": 13,
       "phraseWordCounts": [
         3,
-        14
+        10,
+        4
       ],
       "annotations": [],
       "ftvWordCount": 1,
@@ -5389,7 +5440,8 @@
       "chapter": 11,
       "verse": 14,
       "phraseWordCounts": [
-        14,
+        7,
+        7,
         6
       ],
       "annotations": [
@@ -5553,8 +5605,7 @@
       "chapter": 11,
       "verse": 22,
       "phraseWordCounts": [
-        1,
-        10,
+        11,
         8,
         6,
         6,
@@ -5575,8 +5626,10 @@
       "chapter": 11,
       "verse": 23,
       "phraseWordCounts": [
+        6,
+        7,
         13,
-        15
+        2
       ],
       "annotations": [
         {
@@ -5598,12 +5651,8 @@
       "chapter": 11,
       "verse": 24,
       "phraseWordCounts": [
-        6,
-        3,
-        2,
-        1,
-        1,
-        9,
+        11,
+        11,
         6
       ],
       "annotations": [
@@ -5631,10 +5680,8 @@
       "verse": 25,
       "phraseWordCounts": [
         11,
-        1,
-        9,
-        2,
-        6,
+        10,
+        8,
         4
       ],
       "annotations": [
@@ -5682,8 +5729,8 @@
       "verse": 27,
       "phraseWordCounts": [
         5,
-        17,
-        5
+        11,
+        11
       ],
       "annotations": [
         {
@@ -5728,9 +5775,8 @@
       "chapter": 11,
       "verse": 29,
       "phraseWordCounts": [
-        4,
-        7,
-        5,
+        10,
+        6,
         5
       ],
       "annotations": [
@@ -5761,8 +5807,7 @@
       "chapter": 11,
       "verse": 30,
       "phraseWordCounts": [
-        6,
-        4,
+        10,
         3
       ],
       "annotations": [
@@ -5806,8 +5851,7 @@
       "chapter": 11,
       "verse": 33,
       "phraseWordCounts": [
-        1,
-        2,
+        3,
         6,
         4
       ],
@@ -5839,8 +5883,7 @@
       "chapter": 12,
       "verse": 1,
       "phraseWordCounts": [
-        4,
-        1,
+        5,
         8
       ],
       "annotations": [],
@@ -5874,8 +5917,11 @@
       "chapter": 12,
       "verse": 3,
       "phraseWordCounts": [
-        18,
-        14
+        6,
+        9,
+        3,
+        9,
+        5
       ],
       "annotations": [
         {
@@ -5954,7 +6000,8 @@
       "chapter": 12,
       "verse": 7,
       "phraseWordCounts": [
-        16
+        6,
+        10
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -6006,8 +6053,7 @@
       "chapter": 12,
       "verse": 11,
       "phraseWordCounts": [
-        2,
-        8,
+        10,
         8
       ],
       "annotations": [
@@ -6026,11 +6072,9 @@
       "chapter": 12,
       "verse": 12,
       "phraseWordCounts": [
-        6,
-        4,
+        10,
         8,
-        2,
-        3,
+        5,
         4
       ],
       "annotations": [],
@@ -6044,10 +6088,10 @@
       "chapter": 12,
       "verse": 13,
       "phraseWordCounts": [
-        14,
-        2,
-        2,
-        13
+        11,
+        4,
+        4,
+        10
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -6060,8 +6104,7 @@
       "chapter": 12,
       "verse": 14,
       "phraseWordCounts": [
-        9,
-        2
+        11
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -6187,9 +6230,8 @@
       "chapter": 12,
       "verse": 22,
       "phraseWordCounts": [
-        1,
-        2,
-        12
+        8,
+        7
       ],
       "annotations": [
         {
@@ -6205,7 +6247,8 @@
       "chapter": 12,
       "verse": 23,
       "phraseWordCounts": [
-        13,
+        6,
+        7,
         6,
         7
       ],
@@ -6318,13 +6361,9 @@
       "verse": 28,
       "phraseWordCounts": [
         8,
-        2,
-        2,
-        2,
+        6,
         3,
-        4,
-        1,
-        1,
+        6,
         3
       ],
       "annotations": [
@@ -6409,7 +6448,8 @@
       "verse": 1,
       "phraseWordCounts": [
         11,
-        13
+        4,
+        9
       ],
       "annotations": [
         {
@@ -6513,7 +6553,8 @@
       "verse": 5,
       "phraseWordCounts": [
         4,
-        8,
+        5,
+        3,
         3
       ],
       "annotations": [
@@ -6736,7 +6777,8 @@
       "verse": 1,
       "phraseWordCounts": [
         2,
-        10
+        4,
+        6
       ],
       "annotations": [
         {
@@ -6754,7 +6796,8 @@
       "chapter": 14,
       "verse": 2,
       "phraseWordCounts": [
-        15,
+        7,
+        8,
         5,
         7
       ],
@@ -6799,7 +6842,10 @@
       "phraseWordCounts": [
         7,
         6,
-        22
+        6,
+        6,
+        4,
+        6
       ],
       "annotations": [
         {
@@ -6820,7 +6866,9 @@
       "verse": 6,
       "phraseWordCounts": [
         11,
-        20
+        10,
+        5,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -6833,8 +6881,10 @@
       "chapter": 14,
       "verse": 7,
       "phraseWordCounts": [
+        4,
+        4,
+        5,
         8,
-        13,
         10
       ],
       "annotations": [
@@ -6892,7 +6942,8 @@
       "chapter": 14,
       "verse": 9,
       "phraseWordCounts": [
-        13,
+        3,
+        10,
         8,
         8
       ],
@@ -6910,7 +6961,8 @@
       "chapter": 14,
       "verse": 10,
       "phraseWordCounts": [
-        13,
+        5,
+        8,
         7
       ],
       "annotations": [
@@ -6964,7 +7016,8 @@
       "verse": 12,
       "phraseWordCounts": [
         10,
-        14
+        9,
+        5
       ],
       "annotations": [
         {
@@ -6986,7 +7039,8 @@
       "chapter": 14,
       "verse": 13,
       "phraseWordCounts": [
-        13
+        8,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -7043,7 +7097,9 @@
       "verse": 16,
       "phraseWordCounts": [
         7,
-        25
+        10,
+        7,
+        8
       ],
       "annotations": [
         {
@@ -7087,7 +7143,9 @@
       "chapter": 14,
       "verse": 19,
       "phraseWordCounts": [
-        26
+        13,
+        6,
+        7
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -7114,8 +7172,10 @@
       "verse": 21,
       "phraseWordCounts": [
         6,
-        14,
-        13
+        8,
+        6,
+        10,
+        3
       ],
       "annotations": [
         {
@@ -7131,8 +7191,10 @@
       "chapter": 14,
       "verse": 22,
       "phraseWordCounts": [
-        14,
-        11
+        6,
+        8,
+        6,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -7247,7 +7309,7 @@
       "verse": 28,
       "phraseWordCounts": [
         6,
-        7,
+        6,
         9
       ],
       "annotations": [
@@ -7373,7 +7435,7 @@
       "verse": 35,
       "phraseWordCounts": [
         7,
-        7,
+        8,
         10
       ],
       "annotations": [
@@ -7420,7 +7482,8 @@
       "verse": 37,
       "phraseWordCounts": [
         10,
-        17
+        11,
+        6
       ],
       "annotations": [
         {
@@ -7448,9 +7511,7 @@
       "chapter": 14,
       "verse": 39,
       "phraseWordCounts": [
-        1,
-        1,
-        4,
+        6,
         8
       ],
       "annotations": [
@@ -7467,8 +7528,7 @@
       "chapter": 14,
       "verse": 40,
       "phraseWordCounts": [
-        6,
-        3
+        9
       ],
       "annotations": [
         {
@@ -7484,11 +7544,9 @@
       "chapter": 15,
       "verse": 1,
       "phraseWordCounts": [
-        1,
-        1,
+        2,
         11,
-        4,
-        5
+        9
       ],
       "annotations": [],
       "ftvWordCount": 4,
@@ -7500,7 +7558,7 @@
       "verse": 2,
       "phraseWordCounts": [
         6,
-        12,
+        11,
         5
       ],
       "annotations": [
@@ -7517,8 +7575,10 @@
       "chapter": 15,
       "verse": 3,
       "phraseWordCounts": [
-        13,
-        10
+        8,
+        5,
+        6,
+        4
       ],
       "annotations": [
         {
@@ -7659,8 +7719,7 @@
         11,
         9,
         8,
-        3,
-        9
+        12
       ],
       "annotations": [
         {
@@ -7678,10 +7737,8 @@
       "chapter": 15,
       "verse": 11,
       "phraseWordCounts": [
-        1,
-        6,
-        3,
-        4
+        7,
+        7
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -7692,8 +7749,10 @@
       "chapter": 15,
       "verse": 12,
       "phraseWordCounts": [
-        13,
-        14
+        5,
+        8,
+        6,
+        8
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -7742,10 +7801,10 @@
       "chapter": 15,
       "verse": 15,
       "phraseWordCounts": [
-        1,
-        8,
-        11,
-        7,
+        9,
+        6,
+        5,
+        6,
         8
       ],
       "annotations": [
@@ -7789,7 +7848,8 @@
       "chapter": 15,
       "verse": 18,
       "phraseWordCounts": [
-        11
+        9,
+        2
       ],
       "annotations": [
         {
@@ -7878,8 +7938,7 @@
         4,
         9,
         8,
-        3,
-        2
+        5
       ],
       "annotations": [
         {
@@ -7899,7 +7958,8 @@
       "chapter": 15,
       "verse": 25,
       "phraseWordCounts": [
-        13
+        4,
+        9
       ],
       "annotations": [
         {
@@ -7933,7 +7993,8 @@
       "phraseWordCounts": [
         9,
         10,
-        13
+        11,
+        2
       ],
       "annotations": [
         {
@@ -7954,7 +8015,8 @@
       "verse": 28,
       "phraseWordCounts": [
         9,
-        16,
+        8,
+        8,
         7
       ],
       "annotations": [],
@@ -7968,8 +8030,8 @@
       "chapter": 15,
       "verse": 29,
       "phraseWordCounts": [
-        1,
-        10,
+        5,
+        6,
         8,
         8
       ],
@@ -7998,8 +8060,8 @@
       "chapter": 15,
       "verse": 31,
       "phraseWordCounts": [
-        2,
-        13,
+        7,
+        8,
         3
       ],
       "annotations": [
@@ -8016,13 +8078,11 @@
       "chapter": 15,
       "verse": 32,
       "phraseWordCounts": [
-        1,
-        5,
+        6,
         7,
         6,
         6,
-        3,
-        2,
+        5,
         4
       ],
       "annotations": [
@@ -8108,7 +8168,8 @@
       "verse": 36,
       "phraseWordCounts": [
         2,
-        10
+        7,
+        3
       ],
       "annotations": [
         {
@@ -8126,8 +8187,7 @@
       "phraseWordCounts": [
         4,
         9,
-        4,
-        6
+        9
       ],
       "annotations": [
         {
@@ -8196,8 +8256,7 @@
       "chapter": 15,
       "verse": 40,
       "phraseWordCounts": [
-        5,
-        3,
+        8,
         8,
         8
       ],
@@ -8361,8 +8420,10 @@
       "chapter": 15,
       "verse": 48,
       "phraseWordCounts": [
-        15,
-        13
+        6,
+        9,
+        6,
+        7
       ],
       "annotations": [
         {
@@ -8434,7 +8495,7 @@
       "phraseWordCounts": [
         6,
         5,
-        7
+        6
       ],
       "annotations": [
         {
@@ -8456,7 +8517,8 @@
       "chapter": 15,
       "verse": 52,
       "phraseWordCounts": [
-        13,
+        9,
+        4,
         5,
         7,
         5
@@ -8581,7 +8643,9 @@
       "chapter": 15,
       "verse": 57,
       "phraseWordCounts": [
-        15
+        5,
+        5,
+        5
       ],
       "annotations": [
         {
@@ -8599,7 +8663,9 @@
       "chapter": 15,
       "verse": 58,
       "phraseWordCounts": [
-        15,
+        4,
+        3,
+        8,
         11
       ],
       "annotations": [
@@ -8646,7 +8712,8 @@
       "chapter": 16,
       "verse": 2,
       "phraseWordCounts": [
-        15,
+        7,
+        8,
         6,
         8
       ],
@@ -8682,7 +8749,9 @@
       "chapter": 16,
       "verse": 3,
       "phraseWordCounts": [
-        19
+        4,
+        6,
+        9
       ],
       "annotations": [
         {
@@ -8706,7 +8775,8 @@
       "chapter": 16,
       "verse": 4,
       "phraseWordCounts": [
-        14
+        9,
+        5
       ],
       "annotations": [
         {
@@ -8819,7 +8889,8 @@
       "chapter": 16,
       "verse": 10,
       "phraseWordCounts": [
-        13,
+        4,
+        9,
         8,
         4
       ],
@@ -8851,7 +8922,8 @@
       "chapter": 16,
       "verse": 12,
       "phraseWordCounts": [
-        16,
+        5,
+        11,
         10,
         10
       ],
@@ -8882,8 +8954,7 @@
       "verse": 13,
       "phraseWordCounts": [
         6,
-        2,
-        2
+        4
       ],
       "annotations": [
         {
@@ -8918,9 +8989,10 @@
       "chapter": 16,
       "verse": 15,
       "phraseWordCounts": [
-        11,
+        4,
+        6,
         7,
-        13
+        12
       ],
       "annotations": [
         {
@@ -8957,8 +9029,8 @@
       "chapter": 16,
       "verse": 17,
       "phraseWordCounts": [
-        9,
-        2,
+        8,
+        3,
         9
       ],
       "annotations": [
@@ -9033,7 +9105,7 @@
       "chapter": 16,
       "verse": 21,
       "phraseWordCounts": [
-        8
+        7
       ],
       "annotations": [
         {
@@ -9053,7 +9125,8 @@
       "chapter": 16,
       "verse": 22,
       "phraseWordCounts": [
-        13,
+        9,
+        4,
         3
       ],
       "annotations": [],
@@ -9080,8 +9153,7 @@
       "chapter": 16,
       "verse": 24,
       "phraseWordCounts": [
-        9,
-        1
+        10
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -9106,7 +9178,9 @@
       "chapter": 1,
       "verse": 2,
       "phraseWordCounts": [
-        14
+        5,
+        4,
+        5
       ],
       "annotations": [],
       "ftvWordCount": null,
@@ -9138,7 +9212,8 @@
       "verse": 4,
       "phraseWordCounts": [
         7,
-        13,
+        8,
+        5,
         11
       ],
       "annotations": [],
@@ -9283,7 +9358,8 @@
       "verse": 11,
       "phraseWordCounts": [
         8,
-        19
+        11,
+        8
       ],
       "annotations": [
         {
@@ -9309,9 +9385,11 @@
       "chapter": 1,
       "verse": 12,
       "phraseWordCounts": [
-        22,
-        4,
-        6,
+        5,
+        5,
+        7,
+        5,
+        10,
         5
       ],
       "annotations": [
@@ -9334,8 +9412,10 @@
       "chapter": 1,
       "verse": 13,
       "phraseWordCounts": [
-        16,
-        10
+        10,
+        6,
+        6,
+        4
       ],
       "annotations": [
         {
@@ -9366,7 +9446,7 @@
       "verse": 15,
       "phraseWordCounts": [
         11,
-        8
+        7
       ],
       "annotations": [
         {
@@ -9404,12 +9484,12 @@
       "chapter": 1,
       "verse": 17,
       "phraseWordCounts": [
-        1,
-        5,
+        6,
         5,
         5,
         7,
-        11
+        8,
+        3
       ],
       "annotations": [
         {
@@ -9450,8 +9530,8 @@
       "verse": 19,
       "phraseWordCounts": [
         7,
-        8,
-        6,
+        7,
+        5,
         5,
         5
       ],
@@ -9527,8 +9607,7 @@
       "chapter": 1,
       "verse": 23,
       "phraseWordCounts": [
-        4,
-        5,
+        9,
         10
       ],
       "annotations": [
@@ -9576,10 +9655,8 @@
       "verse": 2,
       "phraseWordCounts": [
         6,
-        4,
-        4,
-        3,
-        6
+        8,
+        9
       ],
       "annotations": [],
       "ftvWordCount": 4,
@@ -9591,8 +9668,7 @@
       "verse": 3,
       "phraseWordCounts": [
         8,
-        1,
-        3,
+        4,
         6,
         7,
         5,
@@ -9607,8 +9683,8 @@
       "chapter": 2,
       "verse": 4,
       "phraseWordCounts": [
-        13,
-        3,
+        9,
+        7,
         6,
         7,
         7
@@ -9639,7 +9715,7 @@
       "phraseWordCounts": [
         6,
         5,
-        8,
+        7,
         5
       ],
       "annotations": [
@@ -9672,7 +9748,8 @@
       "chapter": 2,
       "verse": 6,
       "phraseWordCounts": [
-        14
+        8,
+        6
       ],
       "annotations": [
         {
@@ -9692,8 +9769,7 @@
       "chapter": 2,
       "verse": 7,
       "phraseWordCounts": [
-        2,
-        3,
+        5,
         8,
         12
       ],
@@ -9745,9 +9821,11 @@
       "chapter": 2,
       "verse": 10,
       "phraseWordCounts": [
-        8,
+        5,
+        3,
         7,
-        13
+        8,
+        5
       ],
       "annotations": [
         {
@@ -9784,8 +9862,8 @@
       "chapter": 2,
       "verse": 12,
       "phraseWordCounts": [
-        1,
-        9,
+        6,
+        4,
         10
       ],
       "annotations": [
@@ -9862,10 +9940,8 @@
       "verse": 15,
       "phraseWordCounts": [
         9,
-        2,
-        4,
-        3,
-        3
+        6,
+        6
       ],
       "annotations": [
         {
@@ -10065,7 +10141,8 @@
         6,
         5,
         2,
-        15,
+        10,
+        5,
         7,
         5
       ],
@@ -10176,9 +10253,8 @@
       "chapter": 3,
       "verse": 12,
       "phraseWordCounts": [
-        1,
-        5,
-        7
+        6,
+        6
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -10189,9 +10265,10 @@
       "chapter": 3,
       "verse": 13,
       "phraseWordCounts": [
-        2,
+        9,
+        6,
         7,
-        18
+        5
       ],
       "annotations": [
         {
@@ -10212,7 +10289,8 @@
       "verse": 14,
       "phraseWordCounts": [
         5,
-        16,
+        9,
+        7,
         8
       ],
       "annotations": [
@@ -10338,8 +10416,7 @@
       "chapter": 4,
       "verse": 1,
       "phraseWordCounts": [
-        1,
-        5,
+        6,
         5,
         5
       ],
@@ -10357,7 +10434,9 @@
         9,
         4,
         7,
-        17
+        6,
+        6,
+        5
       ],
       "annotations": [
         {
@@ -10511,9 +10590,8 @@
       "chapter": 4,
       "verse": 8,
       "phraseWordCounts": [
-        6,
-        6,
-        4
+        9,
+        7
       ],
       "annotations": [
         {
@@ -10542,7 +10620,7 @@
       "verse": 9,
       "phraseWordCounts": [
         4,
-        6
+        5
       ],
       "annotations": [
         {
@@ -10708,8 +10786,7 @@
       "chapter": 4,
       "verse": 18,
       "phraseWordCounts": [
-        8,
-        3,
+        11,
         8,
         8,
         9
@@ -10734,8 +10811,8 @@
       "chapter": 5,
       "verse": 1,
       "phraseWordCounts": [
-        8,
-        10,
+        12,
+        6,
         6,
         4
       ],
@@ -10804,10 +10881,10 @@
       "chapter": 5,
       "verse": 4,
       "phraseWordCounts": [
-        8,
-        9,
-        5,
-        6
+        10,
+        7,
+        3,
+        8
       ],
       "annotations": [
         {
@@ -11176,7 +11253,8 @@
       "chapter": 5,
       "verse": 21,
       "phraseWordCounts": [
-        13,
+        8,
+        5,
         10
       ],
       "annotations": [],
@@ -11585,7 +11663,12 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 1,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        7,
+        5,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -11613,7 +11696,12 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 2,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        5,
+        5,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -11627,7 +11715,11 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 3,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        11,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -11641,7 +11733,12 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 4,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        7,
+        5,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 17,
@@ -11659,7 +11756,12 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 5,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        5,
+        7,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 15,
@@ -11681,7 +11783,10 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 6,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 5,
@@ -11695,7 +11800,13 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 7,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        12,
+        8,
+        6,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 27,
@@ -11709,7 +11820,13 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 8,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        5,
+        5,
+        10,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -11739,7 +11856,12 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 9,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        9,
+        7,
+        9,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 8,
@@ -11763,7 +11885,11 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 10,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        4,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 3,
@@ -11791,7 +11917,16 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 11,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        7,
+        6,
+        6,
+        5,
+        4,
+        6,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -11823,7 +11958,14 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 12,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        10,
+        5,
+        9,
+        6,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 1,
@@ -11841,7 +11983,11 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 13,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        10,
+        9
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -11850,7 +11996,12 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 14,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        11,
+        4,
+        10,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -11864,7 +12015,11 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 15,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        8,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 9,
@@ -11878,7 +12033,9 @@
       "book": "2 Corinthians",
       "chapter": 7,
       "verse": 16,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        11
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -11887,7 +12044,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 1,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        2,
+        9,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 11,
@@ -11903,7 +12064,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 2,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        9,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -11927,7 +12092,12 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 3,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        5,
+        5,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 8,
@@ -11947,7 +12117,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 4,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        6,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 0,
@@ -11965,7 +12139,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 5,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        8,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -11979,7 +12157,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 6,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        5,
+        11
+      ],
       "annotations": [
         {
           "wordIndex": 8,
@@ -11993,7 +12175,13 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 7,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        6,
+        3,
+        6,
+        8
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": [
@@ -12004,7 +12192,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 8,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        9,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 8,
@@ -12018,7 +12210,12 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 9,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        5,
+        7,
+        8
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": [
@@ -12029,7 +12226,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 10,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        13,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 5,
@@ -12053,7 +12254,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 11,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        9,
+        12
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -12077,7 +12282,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 12,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        8,
+        9
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -12086,7 +12295,10 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 13,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        3
+      ],
       "annotations": [
         {
           "wordIndex": 9,
@@ -12100,7 +12312,12 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 14,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        11,
+        8,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 3,
@@ -12118,7 +12335,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 15,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        8,
+        8
+      ],
       "annotations": [],
       "ftvWordCount": 6,
       "clubs": []
@@ -12127,7 +12348,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 16,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        8,
+        5
+      ],
       "annotations": [],
       "ftvWordCount": 7,
       "clubs": []
@@ -12136,7 +12361,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 17,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        4,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 10,
@@ -12154,7 +12383,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 18,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        6,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 14,
@@ -12168,7 +12401,12 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 19,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        15,
+        12,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 13,
@@ -12186,7 +12424,10 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 20,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 0,
@@ -12212,7 +12453,11 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 21,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        3,
+        8,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 0,
@@ -12226,7 +12471,12 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 22,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        9,
+        5,
+        10
+      ],
       "annotations": [
         {
           "wordIndex": 13,
@@ -12244,7 +12494,13 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 23,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        9,
+        7,
+        6,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 2,
@@ -12274,7 +12530,12 @@
       "book": "2 Corinthians",
       "chapter": 8,
       "verse": 24,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        4,
+        5,
+        7
+      ],
       "annotations": [],
       "ftvWordCount": 2,
       "clubs": [
@@ -12285,7 +12546,10 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 1,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 9,
@@ -12299,7 +12563,12 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 2,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        9,
+        7,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -12321,7 +12590,11 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 3,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        12,
+        8
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -12330,7 +12603,12 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 4,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        4,
+        5,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 3,
@@ -12352,7 +12630,14 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 5,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        11,
+        6,
+        5,
+        10,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -12394,7 +12679,11 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 6,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        8,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -12430,7 +12719,11 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 7,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        11,
+        5,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -12458,7 +12751,11 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 8,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        11,
+        9,
+        8
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": [
@@ -12469,7 +12766,12 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 9,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        4,
+        6,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -12489,7 +12791,12 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 10,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        9,
+        4,
+        8,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -12517,7 +12824,10 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 11,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        9,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 10,
@@ -12533,7 +12843,11 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 12,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        8,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 2,
@@ -12561,7 +12875,12 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 13,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        9,
+        5,
+        10
+      ],
       "annotations": [
         {
           "wordIndex": 15,
@@ -12585,7 +12904,11 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 14,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        4,
+        9
+      ],
       "annotations": [],
       "ftvWordCount": 2,
       "clubs": [
@@ -12596,7 +12919,9 @@
       "book": "2 Corinthians",
       "chapter": 9,
       "verse": 15,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -12612,7 +12937,12 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 1,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        7,
+        7,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 10,
@@ -12632,7 +12962,13 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 2,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        10,
+        12,
+        4,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 2,
@@ -12656,7 +12992,10 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 3,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        8
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": [
@@ -12667,7 +13006,10 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 4,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        9,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 2,
@@ -12695,7 +13037,12 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 5,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        8,
+        5,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 0,
@@ -12727,7 +13074,10 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 6,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -12749,7 +13099,14 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 7,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        6,
+        4,
+        7,
+        6,
+        5
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -12758,7 +13115,12 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 8,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        11,
+        7,
+        5,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -12772,7 +13134,9 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 9,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -12786,7 +13150,12 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 10,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        4,
+        6,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -12812,7 +13181,13 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 11,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        8,
+        4,
+        7,
+        4
+      ],
       "annotations": [],
       "ftvWordCount": 2,
       "clubs": []
@@ -12821,7 +13196,13 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 12,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        8,
+        6,
+        5,
+        3
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -12843,7 +13224,12 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 13,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        7,
+        4,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 10,
@@ -12869,7 +13255,12 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 14,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        9,
+        8,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -12887,7 +13278,13 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 15,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        6,
+        3,
+        6,
+        10
+      ],
       "annotations": [
         {
           "wordIndex": 10,
@@ -12917,7 +13314,10 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 16,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        9,
+        10
+      ],
       "annotations": [
         {
           "wordIndex": 16,
@@ -12935,7 +13335,9 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 17,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10
+      ],
       "annotations": [],
       "ftvWordCount": 4,
       "clubs": [
@@ -12946,7 +13348,10 @@
       "book": "2 Corinthians",
       "chapter": 10,
       "verse": 18,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -12966,7 +13371,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 1,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        11,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 0,
@@ -12984,7 +13392,11 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 2,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        9,
+        8,
+        11
+      ],
       "annotations": [
         {
           "wordIndex": 3,
@@ -13008,7 +13420,12 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 3,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        8,
+        6,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -13028,7 +13445,14 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 4,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        5,
+        7,
+        5,
+        9,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 5,
@@ -13044,7 +13468,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 5,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        5
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -13053,7 +13480,12 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 6,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        6,
+        8,
+        3
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -13073,7 +13505,12 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 7,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        5,
+        9,
+        3
+      ],
       "annotations": [
         {
           "wordIndex": 5,
@@ -13089,7 +13526,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 8,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 1,
@@ -13109,7 +13549,13 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 9,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        10,
+        11,
+        11,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 20,
@@ -13129,7 +13575,11 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 10,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        8,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 11,
@@ -13143,7 +13593,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 11,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        2
+      ],
       "annotations": [],
       "ftvWordCount": 1,
       "clubs": []
@@ -13152,7 +13605,13 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 12,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        7,
+        6,
+        7,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -13178,7 +13637,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 13,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 5,
@@ -13198,7 +13660,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 14,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        3,
+        10
+      ],
       "annotations": [
         {
           "wordIndex": 2,
@@ -13222,7 +13687,11 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 15,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        10,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 10,
@@ -13238,7 +13707,12 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 16,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        3,
+        7,
+        9,
+        7
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -13247,7 +13721,12 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 17,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        3,
+        7,
+        5,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 14,
@@ -13261,7 +13740,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 18,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 0,
@@ -13275,7 +13757,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 19,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        5
+      ],
       "annotations": [],
       "ftvWordCount": 6,
       "clubs": []
@@ -13284,7 +13769,14 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 20,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        6,
+        4,
+        5,
+        4,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 8,
@@ -13306,7 +13798,13 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 21,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        7,
+        6,
+        3,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 20,
@@ -13320,7 +13818,11 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 22,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        6,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 2,
@@ -13342,7 +13844,14 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 23,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        8,
+        4,
+        4,
+        4,
+        3
+      ],
       "annotations": [
         {
           "wordIndex": 16,
@@ -13368,7 +13877,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 24,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -13386,7 +13898,12 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 25,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        4,
+        5,
+        11
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -13408,7 +13925,17 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 26,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        3,
+        4,
+        4,
+        6,
+        5,
+        5,
+        5,
+        5,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 1,
@@ -13462,7 +13989,13 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 27,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        3,
+        4,
+        3,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 1,
@@ -13488,7 +14021,11 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 28,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        5,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 11,
@@ -13502,7 +14039,11 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 29,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        5,
+        7
+      ],
       "annotations": [],
       "ftvWordCount": 2,
       "clubs": []
@@ -13511,7 +14052,10 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 30,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        4,
+        10
+      ],
       "annotations": [
         {
           "wordIndex": 11,
@@ -13529,7 +14073,11 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 31,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        9,
+        4,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 18,
@@ -13543,7 +14091,11 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 32,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        10,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 1,
@@ -13585,7 +14137,11 @@
       "book": "2 Corinthians",
       "chapter": 11,
       "verse": 33,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        6,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -13611,7 +14167,10 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 1,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        9,
+        10
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -13629,7 +14188,12 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 2,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        8,
+        10,
+        12
+      ],
       "annotations": [
         {
           "wordIndex": 7,
@@ -13647,7 +14211,10 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 3,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        15
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -13656,7 +14223,11 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 4,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        4,
+        10
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -13674,7 +14245,11 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 5,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        7,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 17,
@@ -13688,7 +14263,12 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 6,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        13,
+        6,
+        9,
+        11
+      ],
       "annotations": [
         {
           "wordIndex": 36,
@@ -13702,7 +14282,13 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 7,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        6,
+        9,
+        7,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 15,
@@ -13726,7 +14312,10 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 8,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 4,
@@ -13742,7 +14331,13 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 9,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        6,
+        8,
+        10,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 28,
@@ -13758,7 +14353,14 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 10,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        4,
+        4,
+        3,
+        5,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 3,
@@ -13786,7 +14388,13 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 11,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        4,
+        9,
+        10,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 9,
@@ -13808,7 +14416,11 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 12,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        7,
+        7
+      ],
       "annotations": [
         {
           "wordIndex": 2,
@@ -13842,7 +14454,11 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 13,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        12,
+        9,
+        4
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -13851,7 +14467,13 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 14,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        12,
+        8,
+        8,
+        11,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 38,
@@ -13869,7 +14491,11 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 15,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        12,
+        7,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 8,
@@ -13891,7 +14517,12 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 16,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        5,
+        3,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 13,
@@ -13909,7 +14540,10 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 17,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        6,
+        9
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -13918,7 +14552,12 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 18,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        9,
+        6,
+        8,
+        8
+      ],
       "annotations": [
         {
           "wordIndex": 30,
@@ -13932,7 +14571,12 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 19,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        6,
+        6,
+        3
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -13948,7 +14592,14 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 20,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        9,
+        14,
+        5,
+        5,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 34,
@@ -13992,7 +14643,13 @@
       "book": "2 Corinthians",
       "chapter": 12,
       "verse": 21,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        7,
+        10,
+        10,
+        4
+      ],
       "annotations": [
         {
           "wordIndex": 8,
@@ -14032,7 +14689,11 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 1,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        11,
+        8,
+        5
+      ],
       "annotations": [
         {
           "wordIndex": 13,
@@ -14050,7 +14711,13 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 2,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        10,
+        12,
+        5,
+        9
+      ],
       "annotations": [
         {
           "wordIndex": 6,
@@ -14064,7 +14731,11 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 3,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        6,
+        4
+      ],
       "annotations": [],
       "ftvWordCount": 1,
       "clubs": []
@@ -14073,7 +14744,13 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 4,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        8,
+        7,
+        6,
+        7
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": [
@@ -14084,7 +14761,13 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 5,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        10,
+        2,
+        5,
+        6,
+        5
+      ],
       "annotations": [],
       "ftvWordCount": 1,
       "clubs": [
@@ -14095,7 +14778,10 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 6,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        5
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -14104,7 +14790,13 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 7,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5,
+        5,
+        6,
+        8,
+        5
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": [
@@ -14115,7 +14807,10 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 8,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        4
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": [
@@ -14126,7 +14821,12 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 9,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        8,
+        4,
+        5,
+        6
+      ],
       "annotations": [],
       "ftvWordCount": 4,
       "clubs": [
@@ -14137,7 +14837,12 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 10,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        7,
+        10,
+        6
+      ],
       "annotations": [
         {
           "wordIndex": 13,
@@ -14153,7 +14858,13 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 11,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        3,
+        2,
+        8,
+        3,
+        11
+      ],
       "annotations": [
         {
           "wordIndex": 0,
@@ -14173,7 +14884,9 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 12,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7
+      ],
       "annotations": [],
       "ftvWordCount": 1,
       "clubs": []
@@ -14182,7 +14895,9 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 13,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        5
+      ],
       "annotations": [],
       "ftvWordCount": 3,
       "clubs": []
@@ -14191,7 +14906,12 @@
       "book": "2 Corinthians",
       "chapter": 13,
       "verse": 14,
-      "phraseWordCounts": [],
+      "phraseWordCounts": [
+        7,
+        5,
+        7,
+        5
+      ],
       "annotations": [],
       "ftvWordCount": 4,
       "clubs": [
