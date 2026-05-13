@@ -108,16 +108,20 @@ Claude Code.
 
 When running this skill inside Claude Code, dispatch parallel `Agent` calls to judge instead of (or
 in addition to) `--llm-judge`. Use `superpowers:dispatching-parallel-agents` to manage the fan-out.
-Each subagent gets:
 
-* The contents of `references/quality-criteria.md`
-* The body of `JUDGE_PROMPT` from `tools/phrase_splitter/prompts.py`
-* A batch of verses (ref + canonical text + current phrase slices)
+Each subagent's prompt should point at
+[`references/judge-agent-instructions.md`](references/judge-agent-instructions.md), which is the
+canonical entry-point doc for judging subagents. The instructions tell the subagent to read
+`quality-criteria.md`, lay out the workflow, and specify the output shape. The dispatch prompt just
+needs to:
 
-…and returns a JSON array of `{"ref": …, "verdict": "ok" | "needs_resplit", "reasons": [...]}`.
-Batch ~10–20 verses per agent. Merge the verdicts with the deterministic flags to build the resplit
-worklist. This path is preferred when the skill is being driven interactively, because it keeps the
-judging in the same evaluation loop as everything else.
+1. Point at the instructions doc.
+2. Give the batch file path (JSON array of `{ref, text, phrases}`).
+3. Give the output file path.
+
+Build batches of ~15–20 verses each. Merge the verdicts with the deterministic flags to build the
+resplit worklist. This path is preferred when the skill is being driven interactively, because it
+keeps the judging in the same evaluation loop as everything else.
 
 ### 3. Re-split
 
@@ -136,8 +140,12 @@ land in one place). Refresh the criteria from `references/quality-criteria.md` b
 verse where the judgement call isn't obvious.
 
 For a small worklist (≤ 10 verses), the main agent answers each prompt directly. For a large
-worklist, dispatch parallel subagents (one verse per agent, or small batches) using
-`superpowers:dispatching-parallel-agents`.
+worklist, dispatch parallel subagents (small batches per agent, typically 12–15 verses) using
+`superpowers:dispatching-parallel-agents`. The subagent's prompt should point at
+[`references/splitter-agent-instructions.md`](references/splitter-agent-instructions.md), the
+canonical entry-point doc — and give it the batch file path + output file path. The instructions
+handle the rest (read criteria, follow the embedded `SPLIT_PROMPT` in each batch entry, verify
+rejoin, write proposals).
 
 Each LLM reply is a single JSON array of phrase strings. Collect proposals into a JSON file shaped
 as:
