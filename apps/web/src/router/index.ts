@@ -5,7 +5,8 @@ import { authClient } from '@/composables/useAuth'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/session' },
+    { path: '/', redirect: '/review' },
+    { path: '/session', redirect: '/review' },
     {
       path: '/signin',
       name: 'signin',
@@ -13,9 +14,14 @@ const router = createRouter({
       meta: { public: true },
     },
     {
-      path: '/session',
-      name: 'session',
-      component: () => import('@/views/SessionView.vue'),
+      path: '/review',
+      name: 'review',
+      component: () => import('@/views/ReviewView.vue'),
+    },
+    {
+      path: '/memorize',
+      name: 'memorize',
+      component: () => import('@/views/MemorizeView.vue'),
     },
     {
       path: '/stats',
@@ -43,7 +49,7 @@ router.beforeEach(async (to) => {
   const signedIn = !!result?.data?.user
   if (to.meta.public) {
     if (signedIn && to.name === 'signin') {
-      const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/session'
+      const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/review'
       return redirect
     }
     return true

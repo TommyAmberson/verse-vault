@@ -1,13 +1,31 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
+import { api } from '@/api'
 import { useAuth } from '@/composables/useAuth'
 
 const { session, signOut } = useAuth()
 const router = useRouter()
+const route = useRoute()
 
 const user = computed(() => session.value?.data?.user ?? null)
+const newToMemorize = ref<number>(0)
+
+async function refreshMemorizeCount() {
+  if (!user.value) return
+  try {
+    const res = await api.getYears()
+    newToMemorize.value = res.years.reduce((sum, y) => sum + y.newCardCount, 0)
+  } catch {
+    // Don't fail nav rendering on a count fetch error; leave at 0.
+  }
+}
+
+// Refresh on auth change and after every navigation — graduations and
+// material-picker writes both move this number.
+watch(user, refreshMemorizeCount, { immediate: true })
+watch(() => route.fullPath, refreshMemorizeCount)
 
 async function onSignOut() {
   signOut()
@@ -20,7 +38,11 @@ async function onSignOut() {
     <header class="site-header">
       <RouterLink to="/" class="brand">verse-vault</RouterLink>
       <nav v-if="user" class="nav">
-        <RouterLink to="/session">Session</RouterLink>
+        <RouterLink to="/review">Review</RouterLink>
+        <RouterLink to="/memorize" class="memorize-link">
+          Memorize
+          <span v-if="newToMemorize > 0" class="pill">{{ newToMemorize }}</span>
+        </RouterLink>
         <RouterLink to="/material">Material</RouterLink>
         <RouterLink to="/stats">Stats</RouterLink>
         <span class="who">{{ user.email }}</span>
@@ -72,6 +94,22 @@ async function onSignOut() {
 .nav :deep(a.router-link-active) {
   color: var(--color-accent);
   background: var(--color-accent-soft);
+}
+
+.memorize-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pill {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  line-height: 1.4;
 }
 
 .who {

@@ -4,15 +4,19 @@ import { onMounted, ref } from 'vue'
 import {
   ApiError,
   type CardRender,
-  type Grade,
   MATERIAL_ID,
   api,
 } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 
+// TODO: pull from year settings; hardcoded to the default lesson batch
+// size while the picker plumbing isn't wired into this view yet.
+const BATCH_SIZE = 3
+
 const card = ref<CardRender | null>(null)
-const revealed = ref(false)
+const graduatedCount = ref(0)
 const done = ref(false)
+const empty = ref(false)
 const error = ref<string | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
@@ -21,14 +25,12 @@ async function loadNext() {
   loading.value = true
   error.value = null
   try {
-    const { cardId } = await api.getNextCard(MATERIAL_ID)
+    const { cardId } = await api.getNextMemorizeCard(MATERIAL_ID)
     if (cardId === null) {
       card.value = null
-      done.value = true
+      empty.value = true
     } else {
       card.value = await api.getCardRender(MATERIAL_ID, cardId)
-      revealed.value = false
-      done.value = false
     }
   } catch (err) {
     error.value = formatError(err)
@@ -37,19 +39,19 @@ async function loadNext() {
   }
 }
 
-async function submit(grade: Grade) {
+async function graduate() {
   if (!card.value || submitting.value) return
   submitting.value = true
   error.value = null
   try {
-    const res = await api.submitReview(MATERIAL_ID, card.value.cardId, grade)
-    if (res.nextCardId === null) {
+    await api.graduateVerse(MATERIAL_ID, card.value.verseId)
+    graduatedCount.value += 1
+    if (graduatedCount.value >= BATCH_SIZE) {
       card.value = null
       done.value = true
-    } else {
-      card.value = await api.getCardRender(MATERIAL_ID, res.nextCardId)
-      revealed.value = false
+      return
     }
+    await loadNext()
   } catch (err) {
     error.value = formatError(err)
   } finally {
@@ -61,7 +63,6 @@ async function ensureEnrolled() {
   try {
     await api.enroll(MATERIAL_ID)
   } catch (err) {
-    // 409 = already enrolled, expected on subsequent loads.
     if (err instanceof ApiError && err.status === 409) return
     throw err
   }
@@ -84,50 +85,38 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="session">
+  <div class="memorize">
     <div v-if="error" class="banner banner-error">{{ error }}</div>
 
     <div v-if="loading && !card" class="status">Loading…</div>
 
     <div v-else-if="done" class="done">
-      <h2>Session complete</h2>
-      <p>Nothing else is due right now.</p>
-      <RouterLink to="/stats" class="link-button">View stats →</RouterLink>
+      <h2>Memorized {{ graduatedCount }} verse{{ graduatedCount === 1 ? '' : 's' }}</h2>
+      <p>Start another batch when you're ready, or move on to review.</p>
+      <RouterLink to="/review" class="link-button">Review now →</RouterLink>
+    </div>
+
+    <div v-else-if="empty" class="done">
+      <h2>Nothing to memorize</h2>
+      <p>Activate a club in <RouterLink to="/material">/material</RouterLink> to introduce new verses.</p>
     </div>
 
     <div v-else-if="card" class="card">
-      <CardPrompt :card="card" :revealed="revealed" />
-
+      <CardPrompt :card="card" :revealed="true" />
+      <div class="meta">
+        Verse {{ graduatedCount + 1 }} of {{ BATCH_SIZE }} this session
+      </div>
       <div class="actions">
-        <button
-          v-if="!revealed"
-          class="reveal"
-          :disabled="submitting"
-          @click="revealed = true"
-        >
-          Reveal answer
+        <button class="graduate" :disabled="submitting" @click="graduate">
+          Got it — next verse
         </button>
-        <div v-else class="grades">
-          <button class="grade grade-again" :disabled="submitting" @click="submit(1)">
-            Again
-          </button>
-          <button class="grade grade-hard" :disabled="submitting" @click="submit(2)">
-            Hard
-          </button>
-          <button class="grade grade-good" :disabled="submitting" @click="submit(3)">
-            Good
-          </button>
-          <button class="grade grade-easy" :disabled="submitting" @click="submit(4)">
-            Easy
-          </button>
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.session {
+.memorize {
   width: 100%;
   max-width: 720px;
   display: flex;
@@ -171,9 +160,6 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* Layout wrapper only — no surface or border. Stretches to fill the
-   session column so the grade buttons can pin themselves to the
-   bottom while the meta label + flashcard box sit at the top. */
 .card {
   display: flex;
   flex-direction: column;
@@ -181,9 +167,12 @@ onMounted(async () => {
   flex: 1;
 }
 
-/* Push the grade buttons (and the Reveal button before they appear)
-   to the bottom of the .card column. Empty space goes between the
-   flashcard box and the buttons. */
+.meta {
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
 .actions {
   display: flex;
   flex-direction: column;
@@ -191,7 +180,7 @@ onMounted(async () => {
   margin-top: auto;
 }
 
-.reveal {
+.graduate {
   padding: 0.75rem 1.5rem;
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -201,45 +190,7 @@ onMounted(async () => {
   font-size: 1rem;
 }
 
-.reveal:hover:not(:disabled) {
+.graduate:hover:not(:disabled) {
   background: var(--color-accent-hover);
-}
-
-.grades {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-}
-
-.grade {
-  padding: 0.75rem 0.5rem;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.grade-again {
-  background: var(--color-grade-again-bg);
-  color: var(--color-grade-again);
-}
-
-.grade-hard {
-  background: var(--color-grade-hard-bg);
-  color: var(--color-grade-hard);
-}
-
-.grade-good {
-  background: var(--color-grade-good-bg);
-  color: var(--color-grade-good);
-}
-
-.grade-easy {
-  background: var(--color-grade-easy-bg);
-  color: var(--color-grade-easy);
-}
-
-.grade:hover:not(:disabled) {
-  border-color: currentColor;
 }
 </style>
