@@ -27,7 +27,8 @@ mod tests {
             kind: TestKind::PhraseFromContext,
             element: ElementId::Phrase {
                 verse_id: 1,
-                position: 0,
+                start_word: 0,
+                end_word: 2,
             },
         };
         let b = a;

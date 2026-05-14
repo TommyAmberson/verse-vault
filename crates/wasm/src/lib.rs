@@ -599,7 +599,8 @@ mod tests {
         let entry = TestStateEntry {
             element: ElementId::Phrase {
                 verse_id: 7,
-                position: 2,
+                start_word: 4,
+                end_word: 6,
             },
             test_kind: TestKind::PhraseFromContext,
             stability: 12.5,
@@ -657,7 +658,8 @@ mod tests {
             kind: TestKind::PhraseFromContext,
             element: ElementId::Phrase {
                 verse_id: 1,
-                position: 0,
+                start_word: 0,
+                end_word: 2,
             },
         };
         let before = TestState::new_unseen(0);

@@ -86,6 +86,12 @@ pub struct CardSchedule {
 pub struct VerseAtoms {
     pub verse_id: u32,
     pub phrase_count: u16,
+    /// Cumulative-sum half-open word ranges `[start, end)` per phrase
+    /// position. Drives the content-stable `ElementId::Phrase` keys:
+    /// when splits change, phrases that survive carry FSRS state via
+    /// matching ranges; phrases whose boundaries shift get fresh
+    /// state. Length always matches `phrase_count`.
+    pub phrase_ranges: Vec<(u16, u16)>,
     pub headings: Vec<u16>,
     pub clubs: Vec<ClubTier>,
     /// Word count of the FTV prompt, or None when this verse has no FTV.
@@ -111,6 +117,26 @@ impl VerseAtoms {
     pub fn phrase_positions(&self) -> Vec<u16> {
         (0..self.phrase_count).collect()
     }
+
+    /// Half-open word range `[start, end)` for the given phrase position,
+    /// or `None` if the position is past `phrase_count`. The result is
+    /// the content-stable identity used to key the phrase's TestState.
+    pub fn phrase_range(&self, position: u16) -> Option<(u16, u16)> {
+        self.phrase_ranges.get(position as usize).copied()
+    }
+
+    /// Build `phrase_ranges` from a `phrase_word_counts` slice via
+    /// cumulative sum. `[2, 2, 2, 3]` → `[(0,2), (2,4), (4,6), (6,9)]`.
+    pub fn ranges_from_word_counts(counts: &[u16]) -> Vec<(u16, u16)> {
+        let mut ranges = Vec::with_capacity(counts.len());
+        let mut cursor: u16 = 0;
+        for &n in counts {
+            let next = cursor.saturating_add(n);
+            ranges.push((cursor, next));
+            cursor = next;
+        }
+        ranges
+    }
 }
 
 pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<TestKey> {
@@ -121,12 +147,16 @@ pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<
         _ => 0,
     };
     let mut out: Vec<TestKey> = (start..atoms.phrase_count)
-        .map(|p| TestKey {
-            kind: TestKind::PhraseFromContext,
-            element: ElementId::Phrase {
-                verse_id,
-                position: p,
-            },
+        .filter_map(|p| {
+            let (start_word, end_word) = atoms.phrase_range(p)?;
+            Some(TestKey {
+                kind: TestKind::PhraseFromContext,
+                element: ElementId::Phrase {
+                    verse_id,
+                    start_word,
+                    end_word,
+                },
+            })
         })
         .collect();
     if with_citation {
@@ -154,10 +184,19 @@ impl Card {
     pub fn tests(&self, atoms: &VerseAtoms) -> Vec<TestKey> {
         let verse_id = self.verse_id;
         match self.kind {
-            CardKind::PhraseFill { position } => vec![TestKey {
-                kind: TestKind::PhraseFromContext,
-                element: ElementId::Phrase { verse_id, position },
-            }],
+            CardKind::PhraseFill { position } => {
+                let (start_word, end_word) = atoms
+                    .phrase_range(position)
+                    .expect("PhraseFill position out of bounds for verse atoms");
+                vec![TestKey {
+                    kind: TestKind::PhraseFromContext,
+                    element: ElementId::Phrase {
+                        verse_id,
+                        start_word,
+                        end_word,
+                    },
+                }]
+            }
             CardKind::VerseAtVerseRef => vec![TestKey {
                 kind: TestKind::VerseRefPosition,
                 element: ElementId::VerseRefPosition { verse_id },
@@ -183,13 +222,14 @@ impl Card {
             }],
             CardKind::Recitation => {
                 let mut out: Vec<TestKey> = atoms
-                    .phrase_positions()
-                    .into_iter()
-                    .map(|p| TestKey {
+                    .phrase_ranges
+                    .iter()
+                    .map(|&(start_word, end_word)| TestKey {
                         kind: TestKind::PhraseFromContext,
                         element: ElementId::Phrase {
                             verse_id,
-                            position: p,
+                            start_word,
+                            end_word,
                         },
                     })
                     .collect();
@@ -243,9 +283,13 @@ mod tests {
     use super::*;
 
     fn sample_atoms(verse_id: u32, phrase_count: u16) -> VerseAtoms {
+        // Synthesize one-word phrases [0..count) so tests can refer to
+        // any position by index without managing word counts.
+        let phrase_ranges: Vec<(u16, u16)> = (0..phrase_count).map(|p| (p, p + 1)).collect();
         VerseAtoms {
             verse_id,
             phrase_count,
+            phrase_ranges,
             headings: vec![0, 1, 2],
             clubs: vec![ClubTier::Club150, ClubTier::Club300],
             ftv_word_count: None,
@@ -272,10 +316,24 @@ mod tests {
     }
 
     #[test]
+    fn phrase_ranges_from_word_counts_cumulative_sum() {
+        // Standard split: phraseWordCounts becomes half-open word ranges.
+        assert_eq!(
+            VerseAtoms::ranges_from_word_counts(&[2, 2, 2, 3]),
+            vec![(0, 2), (2, 4), (4, 6), (6, 9)]
+        );
+        // Single phrase covering the whole verse.
+        assert_eq!(VerseAtoms::ranges_from_word_counts(&[5]), vec![(0, 5)]);
+        // Empty input → no ranges.
+        assert!(VerseAtoms::ranges_from_word_counts(&[]).is_empty());
+    }
+
+    #[test]
     fn verse_atoms_phrase_positions() {
         let atoms = VerseAtoms {
             verse_id: 1,
             phrase_count: 3,
+            phrase_ranges: vec![(0, 2), (2, 4), (4, 6)],
             headings: vec![0],
             clubs: vec![ClubTier::Club150],
             ftv_word_count: Some(2),
@@ -289,6 +347,7 @@ mod tests {
     fn phrase_fill_grades_one_test() {
         let c = atomic_card(0, CardKind::PhraseFill { position: 1 }, 7);
         let atoms = sample_atoms(7, 4);
+        let (start_word, end_word) = atoms.phrase_range(1).unwrap();
         let tests = c.tests(&atoms);
         assert_eq!(
             tests,
@@ -296,7 +355,8 @@ mod tests {
                 kind: TestKind::PhraseFromContext,
                 element: ElementId::Phrase {
                     verse_id: 7,
-                    position: 1
+                    start_word,
+                    end_word,
                 }
             }]
         );
@@ -378,6 +438,7 @@ mod tests {
         let atoms = VerseAtoms {
             verse_id: 7,
             phrase_count: 4,
+            phrase_ranges: vec![(0, 1), (1, 2), (2, 3), (3, 4)],
             headings: vec![],
             clubs: vec![],
             ftv_word_count: Some(2),
@@ -401,6 +462,7 @@ mod tests {
         let atoms = VerseAtoms {
             verse_id: 7,
             phrase_count: 4,
+            phrase_ranges: vec![(0, 1), (1, 2), (2, 3), (3, 4)],
             headings: vec![],
             clubs: vec![],
             ftv_word_count: Some(6),
@@ -423,6 +485,7 @@ mod tests {
         let atoms = VerseAtoms {
             verse_id: 7,
             phrase_count: 4,
+            phrase_ranges: vec![(0, 1), (1, 2), (2, 3), (3, 4)],
             headings: vec![],
             clubs: vec![],
             ftv_word_count: Some(2),
