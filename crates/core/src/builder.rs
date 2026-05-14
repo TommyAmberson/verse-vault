@@ -402,6 +402,7 @@ pub fn build_with_config(
 mod tests {
     use super::*;
     use crate::element::ElementId;
+    use crate::material_config::ChapterListScope;
     use crate::test_kind::TestKind;
 
     fn material_one_verse_simple() -> MaterialData {
@@ -858,7 +859,13 @@ mod tests {
             "headings": []
         }"#;
         let m: MaterialData = serde_json::from_str(json).unwrap();
-        let r = build(&m, 0);
+        // chapter_list_scope defaults to Up150 (per ChapterListScope::default),
+        // so the Club300 chapter card needs an explicit Up300 to surface.
+        let cfg = MaterialConfig {
+            chapter_list_scope: ChapterListScope::Up300,
+            ..MaterialConfig::default()
+        };
+        let r = build_with_config(&m, &cfg, 0);
         let chapter_cards: Vec<&Card> = r
             .cards
             .iter()

@@ -88,7 +88,7 @@ describe('years routes', () => {
       newScope: 'all',
       reviewScope: 'all',
       clubCardScope: 'all',
-      chapterListScope: 'up300',
+      chapterListScope: 'up150',
       lessonBatchSize: 3,
     });
     for (const tier of ['150', '300', 'full'] as const) {

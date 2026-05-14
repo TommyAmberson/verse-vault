@@ -140,7 +140,7 @@ const ENROLLED_DEFAULTS: YearSettings = {
   newScope: 'all',
   reviewScope: 'all',
   clubCardScope: 'all',
-  chapterListScope: 'up300',
+  chapterListScope: 'up150',
   lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
 };
 

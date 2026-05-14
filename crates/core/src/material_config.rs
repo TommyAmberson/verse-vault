@@ -50,8 +50,8 @@ impl TierScope {
 #[serde(rename_all = "camelCase")]
 pub enum ChapterListScope {
     Off,
-    Up150,
     #[default]
+    Up150,
     Up300,
 }
 
@@ -103,7 +103,7 @@ impl Default for MaterialConfig {
             new_scope: TierScope::All,
             review_scope: TierScope::All,
             club_card_scope: TierScope::All,
-            chapter_list_scope: ChapterListScope::Up300,
+            chapter_list_scope: ChapterListScope::Up150,
         }
     }
 }
@@ -245,11 +245,13 @@ mod tests {
 
     #[test]
     fn missing_scopes_default_to_widest() {
-        // Older JSON may omit scopes. Default everything to All / Up300.
+        // Older JSON may omit scopes. Tier-scope toggles default to the
+        // widest (All); chapter-list defaults to Up150 since listing every
+        // Club 300 verse in a chapter is rarely useful out of the box.
         let c: MaterialConfig = serde_json::from_str(r#"{"headings":true,"ftv":true}"#).unwrap();
         assert_eq!(c.new_scope, TierScope::All);
         assert_eq!(c.review_scope, TierScope::All);
         assert_eq!(c.club_card_scope, TierScope::All);
-        assert_eq!(c.chapter_list_scope, ChapterListScope::Up300);
+        assert_eq!(c.chapter_list_scope, ChapterListScope::Up150);
     }
 }
