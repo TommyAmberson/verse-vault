@@ -40,10 +40,19 @@ impl ReviewEngine {
     }
 }
 
-/// Pick the card whose weakest test is furthest below
-/// `schedule_params.target_retention`. Cards at or above target are skipped
-/// (not yet due); cards in sibling cooldown are also skipped. Returns `None`
-/// when no card is both due and out of cooldown.
+/// Pick the next due card, ordered by **descending retrievability** of the
+/// card's weakest test. Cards at or above `schedule_params.target_retention`
+/// are skipped (not yet due); cards in sibling cooldown are skipped. Returns
+/// `None` when no card is both due and out of cooldown.
+///
+/// The high-R-first ordering matches the FSRS-author recommendation for
+/// capacity-limited sessions: well-known-but-due cards are cleared cheaply,
+/// banking their gains, while at-risk cards left for later will be
+/// rescheduled by FSRS regardless. Sims show this minimises retention loss
+/// when the learner doesn't finish their queue; for users who do finish, the
+/// order is irrelevant. See the research note in
+/// `~/.config/claude/plans/crystalline-wishing-garden-agent-ad6777b84ca7f2f08.md`
+/// for sources.
 ///
 /// See `docs/scheduling.md` for the full per-test FSRS scheduling story.
 pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
@@ -53,7 +62,7 @@ pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
         .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
         .filter_map(|c| Some((c.id, engine.card_min_r(c, now_secs)?)))
         .filter(|(_, r)| *r < engine.schedule_params.target_retention)
-        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .map(|(id, _)| id)
 }
 
@@ -265,6 +274,35 @@ mod tests {
         // Pass after the FSRS due window — lane should clear.
         engine.review(card_id, Grade::Good, now + 86400);
         assert!(next_relearn_card(&engine, now + 2 * 86400).is_none());
+    }
+
+    #[test]
+    fn next_card_orders_by_descending_retrievability() {
+        // Two cards both below target_retention. The one with the *higher*
+        // R (closer to remembered) should surface first per the FSRS-author-
+        // recommended ordering.
+        let m = sample_material_two_verses();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        let now = 86400 * 365 + 86400 * 60;
+
+        // Pick two PhraseFill cards from different verses to avoid sibling
+        // cooldown interactions. Boost one card's stability so its R is
+        // higher (closer to 1) at `now` than the other's.
+        let pfs: Vec<_> = engine
+            .cards
+            .iter()
+            .filter(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .map(|c| (c.id, c.verse_id))
+            .collect();
+        let (high_r_id, _) = pfs.iter().find(|(_, v)| *v == 0).copied().unwrap();
+        let (low_r_id, _) = pfs.iter().find(|(_, v)| *v == 1).copied().unwrap();
+        let high_test = engine.card(high_r_id).unwrap().tests(&engine.atoms_for(0))[0];
+        engine.tests.get_mut(&high_test).unwrap().stability = 100.0; // high R at `now`
+
+        let pick = next_card(&engine, now).expect("a card should be due");
+        assert_eq!(pick, high_r_id, "high-R card must surface before low-R");
+        assert_ne!(pick, low_r_id);
     }
 
     #[test]
