@@ -153,6 +153,22 @@ export class EngineStore {
       BigInt(this.now()),
     );
 
+    // Cards built from MaterialData start as `New`; apply every recorded
+    // graduation so the in-memory engine matches the user's actual progress.
+    const graduated = this.db
+      .select({ verseId: schema.graduatedVerses.verseId })
+      .from(schema.graduatedVerses)
+      .where(
+        and(
+          eq(schema.graduatedVerses.userId, key.userId),
+          eq(schema.graduatedVerses.materialId, key.materialId),
+        ),
+      )
+      .all();
+    for (const { verseId } of graduated) {
+      engine.graduate_verse(verseId);
+    }
+
     const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
     this.cache.set(userMaterialKey(key), loaded);
     return loaded;

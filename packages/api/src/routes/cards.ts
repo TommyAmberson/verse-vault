@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
+import { graduatedVerses } from '../db/schema.js';
 import { ApibibleCache } from '../lib/apibible-cache.js';
 import { EngineStore, NotEnrolledError, type TestStateEntry } from '../lib/engine.js';
 import { bookCodeOf } from '../lib/book-codes.js';
@@ -83,7 +84,7 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
 
   app.use('*', requireAuth());
 
-  app.get('/next', async (c) => {
+  app.get('/review/next', async (c) => {
     const materialId = c.req.query('materialId');
     if (!materialId) return c.json({ error: 'materialId required' }, 400);
     const user = getUser(c);
@@ -95,6 +96,21 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
       throw err;
     }
     const cardId = loaded.engine.next_review_card(BigInt(now()));
+    return c.json({ cardId: cardId ?? null });
+  });
+
+  app.get('/memorize/next', async (c) => {
+    const materialId = c.req.query('materialId');
+    if (!materialId) return c.json({ error: 'materialId required' }, 400);
+    const user = getUser(c);
+    let loaded;
+    try {
+      loaded = await deps.engines.load({ userId: user.id, materialId });
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
+    const cardId = loaded.engine.next_memorize_card(BigInt(now()));
     return c.json({ cardId: cardId ?? null });
   });
 
@@ -211,6 +227,45 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
         updates,
         nextCardId: nextCardId ?? null,
       });
+    });
+  });
+
+  app.post('/memorize/graduate', async (c) => {
+    let body: { materialId?: string; verseId?: number };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'invalid JSON body' }, 400);
+    }
+    if (typeof body.materialId !== 'string') {
+      return c.json({ error: 'materialId required' }, 400);
+    }
+    if (typeof body.verseId !== 'number' || !Number.isInteger(body.verseId)) {
+      return c.json({ error: 'verseId required (integer)' }, 400);
+    }
+    const user = getUser(c);
+    const materialId = body.materialId;
+    const verseId = body.verseId;
+    const key = { userId: user.id, materialId };
+    let loaded;
+    try {
+      loaded = await deps.engines.load(key);
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
+
+    const nowSecs = now();
+    return deps.engines.withLock(key, async () => {
+      const count = loaded.engine.graduate_verse(verseId);
+      // Persist regardless of in-memory count (e.g. cache re-loaded with
+      // graduation already applied still wants the row stable).
+      deps.db
+        .insert(graduatedVerses)
+        .values({ userId: user.id, materialId, verseId, graduatedAtSecs: nowSecs })
+        .onConflictDoNothing()
+        .run();
+      return c.json({ graduated: count });
     });
   });
 
