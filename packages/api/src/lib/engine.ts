@@ -38,6 +38,9 @@ export interface TestStateEntry {
   last_seen_secs: number;
   last_base_secs: number;
   last_root_secs: number;
+  /** Sticky after a card was graded Again; the relearning lane re-surfaces
+   *  these tests' cards. Cleared on any non-Again grade. */
+  pending_relearn: boolean;
 }
 
 /**
@@ -92,6 +95,7 @@ export function readTestStateEntries(db: DB, key: EngineKey): TestStateEntry[] {
       last_seen_secs: r.lastSeenSecs,
       last_base_secs: r.lastBaseSecs,
       last_root_secs: r.lastRootSecs,
+      pending_relearn: r.pendingRelearn !== 0,
     }));
 }
 

@@ -215,6 +215,25 @@ export const testStates = sqliteTable(
   }),
 );
 
+// Per-user verse-graduation log. Drives the engine's `CardState::Active`
+// flip after a user walks the memorize progression for a verse. Cards
+// rebuilt from MaterialData start as `New`; on engine load we apply
+// `graduate_verse(verseId)` for every row in this table.
+export const graduatedVerses = sqliteTable(
+  'graduated_verses',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    verseId: integer('verse_id').notNull(),
+    graduatedAtSecs: integer('graduated_at_secs').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.materialId, t.verseId] }),
+  }),
+);
+
 // Cached api.bible content. Per the API.Bible Minimum Acceptable Use
 // Agreement, cached entries must be refreshed within 30 days of fetch.
 // `ApibibleCache` enforces both via TTL-on-read and prune-on-load.
