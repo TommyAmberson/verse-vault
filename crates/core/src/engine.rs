@@ -168,7 +168,8 @@ impl ReviewEngine {
                 .tests
                 .get(&key)
                 .unwrap_or_else(|| panic!("review: missing TestState for {key:?}"));
-            let after = self.fsrs.update(&before, grade, 1.0, true, now_secs);
+            let mut after = self.fsrs.update(&before, grade, 1.0, true, now_secs);
+            after.pending_relearn = !grade.is_pass();
             self.tests.insert(key, after);
             return ReviewOutcome {
                 updates: vec![TestUpdate {
@@ -192,6 +193,7 @@ impl ReviewEngine {
             .collect();
         let p_total: f32 = probs.iter().product();
         let mut updates: Vec<TestUpdate> = Vec::with_capacity(tests.len());
+        let pending = !grade.is_pass();
         for (key, p_i) in tests.iter().zip(&probs) {
             let weight = if p_total >= 1.0 - 1e-9 {
                 0.0
@@ -202,7 +204,8 @@ impl ReviewEngine {
                 .tests
                 .get(key)
                 .unwrap_or_else(|| panic!("review: missing TestState for {key:?}"));
-            let after = self.fsrs.update(&before, grade, weight, false, now_secs);
+            let mut after = self.fsrs.update(&before, grade, weight, false, now_secs);
+            after.pending_relearn = pending;
             self.tests.insert(*key, after);
             updates.push(TestUpdate {
                 key: *key,
@@ -332,6 +335,48 @@ mod tests {
         });
         let outcome = engine.review(reading_id, Grade::Good, 86400 * 365);
         assert!(outcome.updates.is_empty());
+    }
+
+    #[test]
+    fn atomic_again_sets_pending_relearn_then_good_clears_it() {
+        let mut engine = build_engine();
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        let card = engine.card(card_id).unwrap().clone();
+        let key = card.tests(&engine.atoms_for(card.verse_id))[0];
+
+        engine.review(card_id, Grade::Again, 86400 * 365);
+        assert!(engine.test_state(key).unwrap().pending_relearn);
+
+        // 6h later, FSRS sub-day due time has passed for a fresh-lapse card.
+        engine.review(card_id, Grade::Good, 86400 * 365 + 6 * 3600);
+        assert!(!engine.test_state(key).unwrap().pending_relearn);
+    }
+
+    #[test]
+    fn composite_again_sets_pending_relearn_on_every_contained_test() {
+        let mut engine = build_engine();
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::Recitation))
+            .unwrap()
+            .id;
+        let card = engine.card(card_id).unwrap().clone();
+        let keys = card.tests(&engine.atoms_for(card.verse_id));
+
+        let outcome = engine.review(card_id, Grade::Again, 86400 * 365);
+        assert_eq!(outcome.updates.len(), keys.len());
+        for key in &keys {
+            assert!(
+                engine.test_state(*key).unwrap().pending_relearn,
+                "composite Again must set pending_relearn for {key:?}"
+            );
+        }
     }
 
     #[test]

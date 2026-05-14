@@ -35,6 +35,8 @@ pub struct TestStateEntry {
     pub last_seen_secs: i64,
     pub last_base_secs: i64,
     pub last_root_secs: i64,
+    #[serde(default)]
+    pub pending_relearn: bool,
 }
 
 impl TestStateEntry {
@@ -47,6 +49,7 @@ impl TestStateEntry {
             last_seen_secs: state.last_seen_secs,
             last_base_secs: state.last_base_secs,
             last_root_secs: state.last_root_secs,
+            pending_relearn: state.pending_relearn,
         }
     }
 
@@ -61,6 +64,7 @@ impl TestStateEntry {
             last_seen_secs: self.last_seen_secs,
             last_base_secs: self.last_base_secs,
             last_root_secs: self.last_root_secs,
+            pending_relearn: self.pending_relearn,
         };
         (key, state)
     }
@@ -471,6 +475,7 @@ mod tests {
             last_seen_secs: 1_700_000_000,
             last_base_secs: 1_699_000_000,
             last_root_secs: 1_690_000_000,
+            pending_relearn: true,
         };
         let j = serde_json::to_string(&entry).unwrap();
         let r: TestStateEntry = serde_json::from_str(&j).unwrap();
@@ -487,10 +492,31 @@ mod tests {
             last_seen_secs: 100,
             last_base_secs: 90,
             last_root_secs: 80,
+            pending_relearn: false,
         };
         let (key, state) = entry.clone().into_pair();
         let again = TestStateEntry::from_pair(key, &state);
         assert_eq!(entry, again);
+    }
+
+    #[test]
+    fn test_state_entry_missing_pending_relearn_defaults_false() {
+        // Pre-Slice-2 snapshots have no `pending_relearn` field. Make sure
+        // they still deserialize cleanly with the flag defaulting to false.
+        let with_flag = TestStateEntry {
+            element: ElementId::VerseRefPosition { verse_id: 1 },
+            test_kind: TestKind::VerseRefPosition,
+            stability: 3.0,
+            difficulty: 4.0,
+            last_seen_secs: 100,
+            last_base_secs: 90,
+            last_root_secs: 80,
+            pending_relearn: false,
+        };
+        let mut value = serde_json::to_value(&with_flag).unwrap();
+        value.as_object_mut().unwrap().remove("pending_relearn");
+        let entry: TestStateEntry = serde_json::from_value(value).unwrap();
+        assert!(!entry.pending_relearn);
     }
 
     #[test]
