@@ -11,12 +11,22 @@ subagent is dispatched for the re-split step of the phrase-splitter workflow.
 
 ## Required reading (do this once at start)
 
-* [`quality-criteria.md`](./quality-criteria.md) — what makes a split good or bad, with worked
-  examples and the guiding principle (completeness of thought > size).
+* [`quality-criteria.md`](./quality-criteria.md) — the stand-alone principle, hard constraints,
+  signals (context, not rules), and worked examples.
 
 The embedded `prompt` field in each batch entry contains the active `SPLIT_PROMPT`, so you don't
 need to read `prompts.py` separately. If anything in the embedded prompt conflicts with
 `quality-criteria.md`, the prompt wins (it's the version actually shipped to production).
+
+## Current split + signals (context, not echo)
+
+Each batch entry's `prompt` may contain a `Current split` section and a `Signals` section. Use them
+as context for your rewrite; don't echo them back. The goal is the best split — not necessarily a
+different split. If the current split already passes the stand-alone test (each phrase landing as a
+self-contained unit), return it verbatim. Change boundaries only when the new split is _clearly_
+better, not merely defensible. The signals are deterministic features of the current split (weak
+connectors, restrictive-relative boundaries, length balance, etc.) — read them to spot patterns, not
+to fix them mechanically.
 
 ## Workflow
 

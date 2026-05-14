@@ -27,25 +27,32 @@ The audit/editing tools below operate on the same two stores.
 
 ### `evaluate_phrases.py`
 
-Audit `phraseWordCounts` in the structural deck against api.bible's canonical token counts. Flags
-deck/canonical drift, fragments below the 3-word minimum mid-verse, runs over 12 words, and missing
-splits on long single-phrase verses.
+Audit `phraseWordCounts` in the structural deck against api.bible's canonical token counts. Emits
+one record per verse with two layers: structural **blockers** (deck/canonical sum drift, missing
+canonical tokens, unbalanced HTML inside a phrase, ftv out of range) that must be fixed before
+re-splitting, and a numeric **signal_score** in `[0, 1]` plus the full signals payload from the
+features module. The judge step is gone — the splitter prompt now folds in that judgement.
 
 ```bash
 python3 tools/evaluate_phrases.py --top 20
-python3 tools/evaluate_phrases.py --refs "1 Cor 12:11,1 Cor 1:26"
-python3 tools/evaluate_phrases.py --llm-judge   # ANTHROPIC_API_KEY needed
-python3 tools/evaluate_phrases.py --out /tmp/report.json
+python3 tools/evaluate_phrases.py data/4-john.json --min-score 0.3
+python3 tools/evaluate_phrases.py --refs "1 Cor 12:11,1 Cor 1:26" --all
+python3 tools/evaluate_phrases.py --out /tmp/report.json --all
 ```
 
 ### `split_phrases.py`
 
-Re-split verses by feeding canonical text + the existing split to an LLM and applying the proposed
-phrase boundaries back to `phraseWordCounts`.
+Re-split verses by feeding canonical text + the existing split + a signals block to an LLM, then
+applying the proposed phrase boundaries back to `phraseWordCounts`. The prompt's stability clause
+biases the LLM toward returning the current split unchanged when it already passes the stand-alone
+test.
 
 ```bash
-# emit the prompt(s) for one or more verses
+# emit the prompt(s) for one or more verses (current split + signals included by default)
 python3 tools/split_phrases.py print-prompt --refs "1 Cor 12:11"
+
+# bypass the current-split and signals sections (single-verse paste path)
+python3 tools/split_phrases.py print-prompt --refs "1 Cor 12:11" --no-current --no-signals
 
 # pull refs straight out of the evaluator's worst-first report
 python3 tools/split_phrases.py print-prompt --from-report /tmp/report.json --top 10 --json
@@ -158,11 +165,17 @@ Subject to the
 
 ## Phrase-splitter helper package
 
-`tools/phrase_splitter/` carries shared helpers + prompts:
+`tools/phrase_splitter/` carries shared helpers, the features layer, and prompts:
 
 * `apibible.py` — open the cache, fetch chapter HTML, extract per-verse tokens. Used by every
   audit/editing tool.
-* `prompts.py` — `SPLIT_PROMPT` (the LLM prompt for re-splitting) and `JUDGE_PROMPT` (the optional
-  quality auditor).
-* `helpers.py` — shared text utilities (severity ranks, reference parsing/normalisation, HTML strip,
-  word-level normalisation for audits) used across the phrase-splitter and audit tools.
+* `features.py` — deterministic signal extraction over a verse's phrase split. Emits per-phrase
+  features (cognitive weight, function ratio, weak-connector starts, mid-clause endings) and
+  per-boundary features (restrictive-relative, verb + content clause), plus a composite
+  `signal_score` in `[0, 1]` that drives the auditor's `--top` / `--min-score`. The auditor and the
+  splitter both consume this as context.
+* `prompts.py` — `SPLIT_PROMPT` + the `format_split_prompt(verse_text, current_split, signals)`
+  helper. The current-split section carries the stability clause that folds the old LLM-judge step
+  into the splitter call.
+* `helpers.py` — shared text utilities (reference parsing/normalisation, HTML strip, word-level
+  normalisation) used across the phrase-splitter and audit tools.

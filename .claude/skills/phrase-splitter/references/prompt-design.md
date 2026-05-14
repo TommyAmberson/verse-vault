@@ -1,9 +1,10 @@
 # Prompt design notes
 
 The active split prompt lives in `/home/amberson/Code/verse-vault/tools/phrase_splitter/prompts.py`
-as `SPLIT_PROMPT` (the main work) and `JUDGE_PROMPT` (the optional LLM auditor). Keep iterating in
-that file so the skill and the CLI stay in sync. This document captures _why_ the prompt is shaped
-the way it is, so future edits move it forward rather than recreating past mistakes.
+as `SPLIT_PROMPT` and the `format_split_prompt(verse_text, current_split, signals)` helper. Keep
+iterating in that file so the skill and the CLI stay in sync. This document captures _why_ the
+prompt is shaped the way it is, so future edits move it forward rather than recreating past
+mistakes.
 
 ## Core moves in the current draft
 
@@ -63,8 +64,23 @@ the way it is, so future edits move it forward rather than recreating past mista
 
 ## Prior iterations (running log)
 
-* **v0** (this draft) — first cohesive prompt with 5 examples, goal-first framing, and the rejoin
+* **v0** (legacy draft) — first cohesive prompt with 5 examples, goal-first framing, and the rejoin
   invariant as a contract. Replaces the legacy bullet-list rules from the old `prepare_batches.py`
   prompt. Known wins: gets 1 Cor 12:11, 1 Cor 1:26, 1 Cor 11:14 right when called per-verse. Known
   unknowns: behaviour on long lists, on quoted speech, on multi-clause verses with three or more
   natural breaks.
+
+* **v1 — stand-alone framing rewrite.** The v0 prompt leaned on a numbered-rule list that read as
+  hard constraints; this caused two correlated failures during a full John re-split: (a)
+  subject/verb severance and dangling NPs when the model mechanically applied "break before `and` /
+  `but`", and (b) restrictive-relative severance ("...nothing was made / that was made.") when the
+  model treated the relative as a new clause. v1 reframes the prompt around the _stand-alone
+  principle_: every phrase should land as a self-contained unit; there are no rules, only signals.
+  Heuristics demote from rules to "this often indicates…". The prompt now also has three
+  placeholders (`{verse_text}`, `{current_split}`, `{signals_block}`) and a **stability clause**
+  under the rendered current split: "if the current split already passes the stand-alone test,
+  return it verbatim; change boundaries only when the new split is _clearly_ better, not merely
+  defensible." This folds the previous LLM-judge step into the splitter — judging and splitting now
+  happen in one call with the same context. The numeric `composite_signal_score` in `features.py`
+  replaces the categorical `high`/`medium` severity, and the auditor surfaces signal-rich verses
+  without prescribing a fix.
