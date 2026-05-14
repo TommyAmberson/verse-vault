@@ -1,23 +1,25 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import {
-  ApiError,
-  type CardRender,
-  type MemorizeStep,
-  api,
-} from '@/api'
+import { type CardRender, type MemorizeStep, api } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 
-// Resolved at mount from /years — the first material with new cards.
-// Picker writes to /years (status, scopes) change this between sessions.
-const materialId = ref<string | null>(null)
-const lessonBatchSize = ref(3)
+// Per-year cap built at mount from /years. Each enrolled year with new
+// cards contributes min(newCardCount, lessonBatchSize) verses; the
+// session walks the queue front-to-back. The future mem-schedule work
+// will replace this aggregate-quota model with something smarter.
+interface YearQuota {
+  materialId: string
+  remaining: number
+}
+
+const queue = ref<YearQuota[]>([])
 const verseId = ref<number | null>(null)
 const progression = ref<MemorizeStep[]>([])
 const stepIndex = ref(0)
 const card = ref<CardRender | null>(null)
 const graduatedCount = ref(0)
+const totalTarget = ref(0)
 const done = ref(false)
 const empty = ref(false)
 const error = ref<string | null>(null)
@@ -29,35 +31,37 @@ const totalSteps = computed(() => progression.value.length)
 const isLastStep = computed(
   () => totalSteps.value > 0 && stepIndex.value === totalSteps.value - 1,
 )
+const currentMaterialId = computed(() => queue.value[0]?.materialId ?? null)
 
-async function resolveMaterial() {
-  // Pick the first year with new cards available. /api/years exposes
-  // newCardCount per year; the picker writes (scopes / status) decide
-  // what counts. If none, the view shows the empty state.
+async function buildQueue(): Promise<boolean> {
   const res = await api.getYears()
-  const target = res.years.find((y) => y.enrolled && y.newCardCount > 0)
-  if (target) {
-    materialId.value = target.materialId
-    lessonBatchSize.value = target.settings.lessonBatchSize
-    return true
+  const quotas: YearQuota[] = []
+  for (const y of res.years) {
+    if (!y.enrolled || y.settings.newScope === 'off' || y.newCardCount === 0) continue
+    quotas.push({
+      materialId: y.materialId,
+      remaining: Math.min(y.newCardCount, y.settings.lessonBatchSize),
+    })
   }
-  return false
+  queue.value = quotas
+  totalTarget.value = quotas.reduce((sum, q) => sum + q.remaining, 0)
+  return quotas.length > 0
 }
 
 async function loadVerse() {
-  if (!materialId.value) {
-    empty.value = true
+  if (!currentMaterialId.value) {
+    empty.value = !done.value
     return
   }
   loading.value = true
   error.value = null
   card.value = null
   try {
-    const res = await api.getNextMemorizeProgression(materialId.value)
+    const res = await api.getNextMemorizeProgression(currentMaterialId.value)
     if (res.verseId === null || res.progression.length === 0) {
-      verseId.value = null
-      progression.value = []
-      empty.value = true
+      // This year ran out before its quota — drop it and move on.
+      queue.value.shift()
+      await loadVerse()
       return
     }
     verseId.value = res.verseId
@@ -73,10 +77,10 @@ async function loadVerse() {
 
 async function loadStepCard() {
   const step = currentStep.value
-  if (!step || !materialId.value) return
+  if (!step || !currentMaterialId.value) return
   loading.value = true
   try {
-    card.value = await api.getCardRender(materialId.value, step.cardId)
+    card.value = await api.getCardRender(currentMaterialId.value, step.cardId)
   } catch (err) {
     error.value = formatError(err)
   } finally {
@@ -91,15 +95,18 @@ async function nextStep() {
     await loadStepCard()
     return
   }
-  // Last step: graduate the verse and either fetch the next verse or
-  // show the done state.
-  if (verseId.value === null || !materialId.value) return
+  // Last step for this verse: graduate, decrement the current year's
+  // quota, and move on. Pop the year when it hits zero.
+  const active = queue.value[0]
+  if (verseId.value === null || !active) return
   submitting.value = true
   error.value = null
   try {
-    await api.graduateVerse(materialId.value, verseId.value)
+    await api.graduateVerse(active.materialId, verseId.value)
     graduatedCount.value += 1
-    if (graduatedCount.value >= lessonBatchSize.value) {
+    active.remaining -= 1
+    if (active.remaining <= 0) queue.value.shift()
+    if (queue.value.length === 0) {
       verseId.value = null
       progression.value = []
       card.value = null
@@ -131,7 +138,7 @@ const buttonLabel = computed(() => (isLastStep.value ? 'Got it — graduate' : '
 onMounted(async () => {
   try {
     loading.value = true
-    const found = await resolveMaterial()
+    const found = await buildQueue()
     if (!found) {
       empty.value = true
       return
@@ -167,7 +174,7 @@ onMounted(async () => {
 
     <div v-else-if="card" class="card">
       <div class="meta">
-        Verse {{ graduatedCount + 1 }} of {{ lessonBatchSize }} ·
+        Verse {{ graduatedCount + 1 }} of {{ totalTarget }} ·
         Step {{ stepIndex + 1 }} of {{ totalSteps }} · {{ stepLabel }}
       </div>
       <CardPrompt :card="card" :revealed="true" />
