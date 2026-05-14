@@ -4,16 +4,15 @@ import { computed, onMounted, ref } from 'vue'
 import {
   ApiError,
   type CardRender,
-  MATERIAL_ID,
   type MemorizeStep,
   api,
 } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 
-// TODO: pull from year settings; hardcoded to the default lesson batch
-// size while the picker plumbing isn't wired into this view yet.
-const BATCH_SIZE = 3
-
+// Resolved at mount from /years — the first material with new cards.
+// Picker writes to /years (status, scopes) change this between sessions.
+const materialId = ref<string | null>(null)
+const lessonBatchSize = ref(3)
 const verseId = ref<number | null>(null)
 const progression = ref<MemorizeStep[]>([])
 const stepIndex = ref(0)
@@ -31,12 +30,30 @@ const isLastStep = computed(
   () => totalSteps.value > 0 && stepIndex.value === totalSteps.value - 1,
 )
 
+async function resolveMaterial() {
+  // Pick the first year with new cards available. /api/years exposes
+  // newCardCount per year; the picker writes (scopes / status) decide
+  // what counts. If none, the view shows the empty state.
+  const res = await api.getYears()
+  const target = res.years.find((y) => y.enrolled && y.newCardCount > 0)
+  if (target) {
+    materialId.value = target.materialId
+    lessonBatchSize.value = target.settings.lessonBatchSize
+    return true
+  }
+  return false
+}
+
 async function loadVerse() {
+  if (!materialId.value) {
+    empty.value = true
+    return
+  }
   loading.value = true
   error.value = null
   card.value = null
   try {
-    const res = await api.getNextMemorizeProgression(MATERIAL_ID)
+    const res = await api.getNextMemorizeProgression(materialId.value)
     if (res.verseId === null || res.progression.length === 0) {
       verseId.value = null
       progression.value = []
@@ -56,10 +73,10 @@ async function loadVerse() {
 
 async function loadStepCard() {
   const step = currentStep.value
-  if (!step) return
+  if (!step || !materialId.value) return
   loading.value = true
   try {
-    card.value = await api.getCardRender(MATERIAL_ID, step.cardId)
+    card.value = await api.getCardRender(materialId.value, step.cardId)
   } catch (err) {
     error.value = formatError(err)
   } finally {
@@ -76,13 +93,13 @@ async function nextStep() {
   }
   // Last step: graduate the verse and either fetch the next verse or
   // show the done state.
-  if (verseId.value === null) return
+  if (verseId.value === null || !materialId.value) return
   submitting.value = true
   error.value = null
   try {
-    await api.graduateVerse(MATERIAL_ID, verseId.value)
+    await api.graduateVerse(materialId.value, verseId.value)
     graduatedCount.value += 1
-    if (graduatedCount.value >= BATCH_SIZE) {
+    if (graduatedCount.value >= lessonBatchSize.value) {
       verseId.value = null
       progression.value = []
       card.value = null
@@ -94,15 +111,6 @@ async function nextStep() {
     error.value = formatError(err)
   } finally {
     submitting.value = false
-  }
-}
-
-async function ensureEnrolled() {
-  try {
-    await api.enroll(MATERIAL_ID)
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 409) return
-    throw err
   }
 }
 
@@ -122,10 +130,16 @@ const buttonLabel = computed(() => (isLastStep.value ? 'Got it — graduate' : '
 
 onMounted(async () => {
   try {
-    await ensureEnrolled()
+    loading.value = true
+    const found = await resolveMaterial()
+    if (!found) {
+      empty.value = true
+      return
+    }
     await loadVerse()
   } catch (err) {
     error.value = formatError(err)
+  } finally {
     loading.value = false
   }
 })
@@ -153,7 +167,7 @@ onMounted(async () => {
 
     <div v-else-if="card" class="card">
       <div class="meta">
-        Verse {{ graduatedCount + 1 }} of {{ BATCH_SIZE }} ·
+        Verse {{ graduatedCount + 1 }} of {{ lessonBatchSize }} ·
         Step {{ stepIndex + 1 }} of {{ totalSteps }} · {{ stepLabel }}
       </div>
       <CardPrompt :card="card" :revealed="true" />

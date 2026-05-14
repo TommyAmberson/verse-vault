@@ -95,13 +95,18 @@ async function refresh() {
       draft: { ...view.settings },
       saving: false,
     }))
-    // Re-resolve the active tab after the list changes: prefer the user's
-    // first enrolled year so the picker opens on a populated panel rather
-    // than a "Not enrolled" empty state.
+    // Re-resolve the active tab after the list changes. Prefer the year
+    // the user is actively studying (any scope above off) so the picker
+    // opens on a working panel; otherwise fall back to any enrolled year,
+    // and finally to the first listed.
     if (cards.value.length === 0) {
       selectedMaterialId.value = null
     } else if (!cards.value.some((c) => c.view.materialId === selectedMaterialId.value)) {
-      const next = cards.value.find((c) => c.view.enrolled) ?? cards.value[0]
+      const isStudying = (c: YearCard) =>
+        c.view.enrolled &&
+        (c.view.settings.newScope !== 'off' || c.view.settings.reviewScope !== 'off')
+      const next =
+        cards.value.find(isStudying) ?? cards.value.find((c) => c.view.enrolled) ?? cards.value[0]
       selectedMaterialId.value = next?.view.materialId ?? null
     }
   } catch (err) {
