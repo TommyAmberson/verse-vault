@@ -59,11 +59,29 @@ pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
     engine
         .cards
         .iter()
+        .filter(|c| matches!(c.state, CardState::Active))
         .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
         .filter_map(|c| Some((c.id, engine.card_min_r(c, now_secs)?)))
         .filter(|(_, r)| *r < engine.schedule_params.target_retention)
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .map(|(id, _)| id)
+}
+
+/// Pick the next card from the memorize queue: any `New` card. Returns one
+/// canonical card per call; the caller is expected to walk the per-verse
+/// progression client-side (see [`crate::session::Session::new_verse_progression`])
+/// and then graduate the verse via [`ReviewEngine::graduate_verse`].
+///
+/// Cooldown and FSRS due time don't apply — `New` cards have never been
+/// reviewed. Ties broken by `CardId` (insertion order), which means the
+/// memorize queue surfaces cards in the same order the builder emitted
+/// them (early verses first).
+pub fn next_memorize_card(engine: &ReviewEngine, _now_secs: i64) -> Option<CardId> {
+    engine
+        .cards
+        .iter()
+        .find(|c| matches!(c.state, CardState::New))
+        .map(|c| c.id)
 }
 
 /// Pick a card from the relearning priority lane: any `Active` card that has
@@ -158,6 +176,13 @@ mod tests {
         .unwrap()
     }
 
+    fn graduate_all(engine: &mut ReviewEngine) {
+        let verse_ids: Vec<u32> = engine.cards.iter().map(|c| c.verse_id).collect();
+        for v in verse_ids {
+            engine.graduate_verse(v);
+        }
+    }
+
     #[test]
     fn next_card_returns_some_when_seeded_unseen_advanced_a_year() {
         let m = sample_material_two_verses();
@@ -165,10 +190,44 @@ mod tests {
         // forgetting curve has had 365 days to decay, so retrievability is
         // far below the 0.9 target and `next_card` should return Some.
         let r = crate::builder::build(&m, 0);
-        let engine = ReviewEngine::new(r, 0.9);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        graduate_all(&mut engine);
         let now = 86400 * 365 + 86400 * 60;
         let pick = next_card(&engine, now);
         assert!(pick.is_some());
+    }
+
+    #[test]
+    fn next_card_skips_new_cards() {
+        let m = sample_material_two_verses();
+        let r = crate::builder::build(&m, 0);
+        let engine = ReviewEngine::new(r, 0.9);
+        // No graduation: every card is `New`. `next_card` is a review-only
+        // function, so it must return None.
+        assert!(next_card(&engine, 86400 * 400).is_none());
+    }
+
+    #[test]
+    fn next_memorize_card_returns_new_card() {
+        let m = sample_material_two_verses();
+        let r = crate::builder::build(&m, 0);
+        let engine = ReviewEngine::new(r, 0.9);
+        assert!(next_memorize_card(&engine, 0).is_some());
+    }
+
+    #[test]
+    fn graduate_verse_flips_state_and_unblocks_review() {
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        let count = engine.graduate_verse(0);
+        assert!(count > 0);
+        // Idempotent.
+        assert_eq!(engine.graduate_verse(0), 0);
+        // After graduation /memorize empties for that verse and /review
+        // sees the cards.
+        assert!(next_memorize_card(&engine, 0).is_none());
+        assert!(next_card(&engine, 86400 * 400).is_some());
     }
 
     #[test]
@@ -205,6 +264,7 @@ mod tests {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
+        graduate_all(&mut engine);
         let now = 86400 * 365;
         let card_id = engine
             .cards
@@ -222,6 +282,7 @@ mod tests {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
+        graduate_all(&mut engine);
         let now = 86400 * 365;
         let card_id = engine
             .cards
@@ -235,6 +296,28 @@ mod tests {
     }
 
     #[test]
+    fn relearn_lane_skips_new_cards() {
+        // A New card's pending_relearn flag should not surface in the lane:
+        // the lane is review-only.
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        let now = 86400 * 365;
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        // No graduation: card stays New. Forcibly set pending_relearn anyway.
+        let key = engine.card(card_id).unwrap().tests(&engine.atoms_for(0))[0];
+        engine.tests.get_mut(&key).unwrap().pending_relearn = true;
+        engine.tests.get_mut(&key).unwrap().stability = 0.25;
+        engine.tests.get_mut(&key).unwrap().last_base_secs = now - 86400;
+        assert!(next_relearn_card(&engine, now).is_none());
+    }
+
+    #[test]
     fn relearn_lane_bypasses_sibling_cooldown() {
         // Lapse a card, wait past the FSRS sub-day due time, then re-touch
         // one of its shared tests so the cooldown filter would mask it. The
@@ -243,6 +326,7 @@ mod tests {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
+        graduate_all(&mut engine);
         let now = 86400 * 365;
         let pf_id = engine
             .cards
@@ -263,6 +347,7 @@ mod tests {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
+        graduate_all(&mut engine);
         let now = 86400 * 365;
         let card_id = engine
             .cards
@@ -284,6 +369,7 @@ mod tests {
         let m = sample_material_two_verses();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
+        graduate_all(&mut engine);
         let now = 86400 * 365 + 86400 * 60;
 
         // Pick two PhraseFill cards from different verses to avoid sibling

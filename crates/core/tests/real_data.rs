@@ -20,6 +20,13 @@ fn try_load_material() -> Option<MaterialData> {
     Some(serde_json::from_str(&json).expect("fixture parses as MaterialData"))
 }
 
+fn graduate_all(engine: &mut ReviewEngine) {
+    let verse_ids: Vec<u32> = engine.cards.iter().map(|c| c.verse_id).collect();
+    for v in verse_ids {
+        engine.graduate_verse(v);
+    }
+}
+
 #[test]
 fn real_data_loads_and_runs_session() {
     let Some(material) = try_load_material() else {
@@ -29,7 +36,8 @@ fn real_data_loads_and_runs_session() {
     let now = 86400 * 365;
     let result = build(&material, now);
     assert!(!result.cards.is_empty(), "expected non-empty card set");
-    let engine = ReviewEngine::new(result, 0.9);
+    let mut engine = ReviewEngine::new(result, 0.9);
+    graduate_all(&mut engine);
     let pick = next_card(&engine, now + 86400 * 400);
     assert!(pick.is_some(), "scheduler should find a due card");
 }
@@ -43,6 +51,7 @@ fn real_data_review_first_due_card() {
     let now = 86400 * 365;
     let result = build(&material, now);
     let mut engine = ReviewEngine::new(result, 0.9);
+    graduate_all(&mut engine);
     let later = now + 86400 * 400;
     let card_id = next_card(&engine, later).expect("expected a due card to review");
     let outcome = engine.review(card_id, Grade::Good, later);

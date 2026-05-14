@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::builder::BuildResult;
-use crate::card::{Card, VerseAtoms};
+use crate::card::{Card, CardState, VerseAtoms};
 use crate::fsrs_bridge::FsrsBridge;
 use crate::render::VerseRender;
 use crate::test_kind::TestKey;
@@ -132,6 +132,21 @@ impl ReviewEngine {
             phrase_zero_word_count: 0,
             chapter_members: Vec::new(),
         }
+    }
+
+    /// Flip every `New` card whose `verse_id` matches to `Active`. Returns
+    /// the number of cards that transitioned. Idempotent: a second call on
+    /// the same verse_id returns 0. The memorize-session graduation step
+    /// uses this to "introduce" every card the verse owns in one go.
+    pub fn graduate_verse(&mut self, verse_id: u32) -> usize {
+        let mut count = 0;
+        for card in self.cards.iter_mut().filter(|c| c.verse_id == verse_id) {
+            if matches!(card.state, CardState::New) {
+                card.state = CardState::Active;
+                count += 1;
+            }
+        }
+        count
     }
 
     /// Apply a single grade to a card and return the resulting test

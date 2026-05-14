@@ -152,7 +152,7 @@ fn emit_chapter_club_list_cards(
                 id: CardId(*next_card_id),
                 kind: CardKind::ChapterClubList { tier: card_tier },
                 verse_id: pseudo_id,
-                state: CardState::Active,
+                state: CardState::New,
             });
             *next_card_id += 1;
         }
@@ -259,7 +259,7 @@ pub fn build_with_config(
                 id: CardId(*next),
                 kind,
                 verse_id,
-                state: CardState::Active,
+                state: CardState::New,
             });
             *next += 1;
         };
