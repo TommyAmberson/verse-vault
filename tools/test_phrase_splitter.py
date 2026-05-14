@@ -23,6 +23,16 @@ from phrase_splitter import (
     tokens,
     word_count,
 )
+from phrase_splitter.features import (
+    FUNCTION_WORDS,
+    WEAK_CONNECTORS,
+    composite_signal_score,
+    count_syllables,
+    extract_boundary_features,
+    extract_phrase_features,
+    extract_verse_features,
+    slice_phrases,
+)
 
 
 class WordCountTests(unittest.TestCase):
@@ -109,6 +119,134 @@ class SeverityTests(unittest.TestCase):
         self.assertLess(severity_rank("blocker"), severity_rank("high"))
         self.assertLess(severity_rank("high"), severity_rank("medium"))
         self.assertLess(severity_rank("medium"), severity_rank("low"))
+
+
+class SyllableTests(unittest.TestCase):
+    def test_monosyllables(self):
+        for w in ("the", "made", "John", "Christ", "through"):
+            self.assertEqual(count_syllables(w), 1, w)
+
+    def test_disyllables(self):
+        for w in ("Jesus", "apostle", "given"):
+            self.assertGreaterEqual(count_syllables(w), 2, w)
+
+    def test_handles_empty(self):
+        self.assertEqual(count_syllables(""), 0)
+
+    def test_handles_punctuation_only(self):
+        self.assertEqual(count_syllables(",,,"), 0)
+
+
+class SlicePhrasesTests(unittest.TestCase):
+    def test_basic_slice(self):
+        self.assertEqual(
+            slice_phrases(["a", "b", "c", "d"], [1, 3]),
+            [["a"], ["b", "c", "d"]],
+        )
+
+    def test_single_phrase(self):
+        self.assertEqual(slice_phrases(["a", "b"], [2]), [["a", "b"]])
+
+    def test_empty(self):
+        self.assertEqual(slice_phrases([], []), [])
+
+
+class PhraseFeatureTests(unittest.TestCase):
+    def test_function_heavy_phrase(self):
+        # "and of the things which" — almost entirely function words.
+        feat = extract_phrase_features(
+            ["and", "of", "the", "things", "which"], position="middle"
+        )
+        self.assertEqual(feat["word_count"], 5)
+        self.assertEqual(feat["content_word_count"], 1)
+        self.assertGreater(feat["function_ratio"], 0.7)
+        self.assertTrue(feat["starts_with_weak_connector"])
+
+    def test_content_heavy_phrase(self):
+        feat = extract_phrase_features(
+            ["Paul,", "called", "to", "be", "an", "apostle"], position="first"
+        )
+        self.assertEqual(feat["word_count"], 6)
+        self.assertGreater(feat["content_word_count"], 2)
+        self.assertFalse(feat["starts_with_weak_connector"])
+
+    def test_pause_punct_at_end(self):
+        feat = extract_phrase_features(["our", "brother,"], position="middle")
+        self.assertTrue(feat["ends_in_pause_punct"])
+        self.assertFalse(feat["ends_mid_clause"])
+
+    def test_mid_clause_ending(self):
+        feat = extract_phrase_features(["the", "kingdom", "of"], position="first")
+        self.assertTrue(feat["ends_mid_clause"])
+        self.assertFalse(feat["ends_in_pause_punct"])
+
+    def test_internal_pause(self):
+        feat = extract_phrase_features(
+            ["Paul,", "called", "to", "be"], position="first"
+        )
+        self.assertTrue(feat["contains_internal_pause"])
+
+
+class BoundaryFeatureTests(unittest.TestCase):
+    def test_restrictive_relative_no_comma(self):
+        # "nothing was made" / "that was made." — restrictive, no comma.
+        feat = extract_boundary_features(
+            ["nothing", "was", "made"], ["that", "was", "made."]
+        )
+        self.assertTrue(feat["restrictive_relative"])
+
+    def test_non_restrictive_relative_has_comma(self):
+        # "Nicodemus," / "who came to Jesus" — comma → non-restrictive.
+        feat = extract_boundary_features(
+            ["...", "Nicodemus,"], ["who", "came", "to", "Jesus"]
+        )
+        self.assertFalse(feat["restrictive_relative"])
+
+    def test_not_a_relative(self):
+        feat = extract_boundary_features(["Paul,"], ["called", "to", "be"])
+        self.assertFalse(feat["restrictive_relative"])
+
+
+class VerseFeatureTests(unittest.TestCase):
+    def test_single_phrase_verse(self):
+        feats = extract_verse_features(
+            ["For", "the", "kingdom", "of", "God"], [5]
+        )
+        self.assertEqual(feats["phrase_count"], 1)
+        self.assertEqual(feats["token_count"], 5)
+        self.assertEqual(feats["boundaries"], [])
+        self.assertEqual(len(feats["phrases"]), 1)
+        self.assertEqual(feats["phrases"][0]["position"], "only")
+
+    def test_multi_phrase_verse_shape(self):
+        feats = extract_verse_features(
+            ["a", "b", "c,", "d", "e", "f."], [3, 3]
+        )
+        self.assertEqual(feats["phrase_count"], 2)
+        self.assertEqual(len(feats["boundaries"]), 1)
+        self.assertEqual(feats["phrases"][0]["position"], "first")
+        self.assertEqual(feats["phrases"][1]["position"], "last")
+        self.assertAlmostEqual(feats["length_balance"], 1.0, places=2)
+
+    def test_empty_verse(self):
+        feats = extract_verse_features([], [])
+        self.assertEqual(feats["phrase_count"], 0)
+        self.assertEqual(feats["token_count"], 0)
+
+
+class CompositeScoreTests(unittest.TestCase):
+    def test_clean_verse_low_score(self):
+        feats = extract_verse_features(
+            ["For", "the", "kingdom", "of", "God"], [5]
+        )
+        # 5-word single-phrase verse: not missing-split, no other signals.
+        self.assertLess(composite_signal_score(feats), 0.1)
+
+    def test_restrictive_relative_raises_score(self):
+        feats = extract_verse_features(
+            ["nothing", "was", "made", "that", "was", "made."], [3, 3]
+        )
+        self.assertGreater(composite_signal_score(feats), 0.1)
 
 
 if __name__ == "__main__":
