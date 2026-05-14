@@ -66,6 +66,36 @@ PAUSE_PUNCT = frozenset({",", ";", ":", "—"})
 _TERMINAL_PUNCT = frozenset({".", "?", "!", ",", ";", ":", "—"})
 _TRAILING_QUOTES = frozenset({'"', "'", ")", "]", "}", "»", "”", "’"})
 
+# Verbs of perception / speech that take a content clause as their direct
+# object. See ``.claude/skills/phrase-splitter/references/quality-criteria.md``.
+# ``if`` is excluded from the complementiser set because conditional
+# ``if`` dominates the rare ``know if`` complementiser reading in
+# scripture.
+CONTENT_CLAUSE_VERBS = frozenset({
+    "know", "knew", "known", "knows",
+    "see", "saw", "seen", "sees",
+    "hear", "heard", "hears",
+    "tell", "told", "tells",
+    "say", "said", "says",
+    "believe", "believed", "believes",
+    "think", "thought", "thinks",
+    "understand", "understood", "understands",
+    "remember", "remembered", "remembers",
+    "perceive", "perceived", "perceives",
+    "consider", "considered", "considers",
+    "declare", "declared", "declares",
+    "suppose", "supposed", "supposes",
+    "recognize", "recognized", "recognizes",
+    "realize", "realized", "realizes",
+    "learn", "learned", "learns",
+})
+CONTENT_CLAUSE_COMPLEMENTISERS = frozenset({"that", "what", "how", "whether"})
+
+# Stronger reported-speech breaks where the verb-clause heuristic backs
+# off — ``say: If any brother…`` and ``say, "How…"`` aren't content
+# clauses for memorisation purposes.
+QUOTE_OPENERS = ("\"", "“", "‘", "'")
+
 
 def count_syllables(word: str) -> int:
     """Vowel-cluster heuristic — count contiguous vowel runs, with a
@@ -171,29 +201,44 @@ def extract_boundary_features(
     prev_tokens: Sequence[str],
     next_tokens: Sequence[str],
 ) -> Dict[str, bool]:
-    """Features for a boundary *between* two adjacent phrases. The
-    ``verb_content_clause`` key is filled in by a later commit when the
-    content-clause constants move to this module; for now only the
-    restrictive-relative check is computed.
-    """
+    """Features for a boundary *between* two adjacent phrases."""
     if not prev_tokens or not next_tokens:
-        return {"restrictive_relative": False}
+        return {"restrictive_relative": False, "verb_content_clause": False}
 
-    prev_last = strip_html(prev_tokens[-1]).rstrip()
+    prev_last_raw = prev_tokens[-1]
     next_first_raw = next_tokens[0]
-    next_first = normalise_word(next_first_raw)
+    prev_last_word = normalise_word(prev_last_raw)
+    next_first_word = normalise_word(next_first_raw)
+    prev_tail = _trailing_punct(prev_last_raw)
 
     # Restrictive relative: previous phrase ends in a noun (no trailing
-    # comma) and the next phrase starts with a bare ``who``, ``which``,
-    # or ``that`` (no preceding comma → restrictive).
+    # comma / pause) and the next phrase starts with a bare ``who``,
+    # ``which``, or ``that``.
     restrictive_relative = False
-    if next_first in {"who", "which", "that"} and prev_last:
-        tail = _trailing_punct(prev_tokens[-1])
-        # Bare = no trailing pause punctuation on the previous phrase.
-        if not tail or tail[-1] not in PAUSE_PUNCT:
+    if next_first_word in {"who", "which", "that"}:
+        if not prev_tail or prev_tail[-1] not in PAUSE_PUNCT:
             restrictive_relative = True
 
-    return {"restrictive_relative": restrictive_relative}
+    # Verb + content clause: ``know that``, ``see how``, ``believe
+    # whether`` — splitting between them severs a verb from its object.
+    # Backs off on reported-speech opens (``say: If…``, ``say, "How…"``).
+    verb_content_clause = False
+    if (
+        prev_last_word in CONTENT_CLAUSE_VERBS
+        and next_first_word in CONTENT_CLAUSE_COMPLEMENTISERS
+    ):
+        next_first_stripped = strip_html(next_first_raw)
+        if prev_tail and prev_tail.endswith(":"):
+            pass
+        elif next_first_stripped.startswith(QUOTE_OPENERS):
+            pass
+        else:
+            verb_content_clause = True
+
+    return {
+        "restrictive_relative": restrictive_relative,
+        "verb_content_clause": verb_content_clause,
+    }
 
 
 def extract_verse_features(

@@ -206,6 +206,22 @@ class BoundaryFeatureTests(unittest.TestCase):
         feat = extract_boundary_features(["Paul,"], ["called", "to", "be"])
         self.assertFalse(feat["restrictive_relative"])
 
+    def test_verb_content_clause(self):
+        # "Do you not know" / "that we shall judge angels?"
+        feat = extract_boundary_features(
+            ["Do", "you", "not", "know"], ["that", "we", "shall", "judge"]
+        )
+        self.assertTrue(feat["verb_content_clause"])
+
+    def test_verb_quote_break_backs_off(self):
+        # ``say, "How…"`` — reported speech, not a content clause.
+        feat = extract_boundary_features(["he", "said,"], ['"How', 'long?"'])
+        self.assertFalse(feat["verb_content_clause"])
+
+    def test_verb_colon_backs_off(self):
+        feat = extract_boundary_features(["I", "say:"], ["that", "no"])
+        self.assertFalse(feat["verb_content_clause"])
+
 
 class VerseFeatureTests(unittest.TestCase):
     def test_single_phrase_verse(self):

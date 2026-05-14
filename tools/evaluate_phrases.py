@@ -47,6 +47,11 @@ from phrase_splitter import (  # noqa: E402
     normalize_reference,
     severity_rank,
 )
+from phrase_splitter.features import (  # noqa: E402
+    CONTENT_CLAUSE_COMPLEMENTISERS,
+    CONTENT_CLAUSE_VERBS,
+    QUOTE_OPENERS as _QUOTE_OPENERS,
+)
 from phrase_splitter.helpers import normalise_word  # noqa: E402
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
@@ -65,35 +70,6 @@ WORD_MAX = 12
 # split. Tunable; 10 words is roughly the point where reciters benefit
 # from a break.
 MISSING_SPLIT_THRESHOLD = 10
-
-# Verbs of perception / speech that take a content clause as their direct
-# object — see ``references/quality-criteria.md``. ``if`` is excluded
-# from the complementiser set because conditional ``if`` dominates the
-# rare ``know if`` complementiser reading in scripture.
-CONTENT_CLAUSE_VERBS = frozenset({
-    "know", "knew", "known", "knows",
-    "see", "saw", "seen", "sees",
-    "hear", "heard", "hears",
-    "tell", "told", "tells",
-    "say", "said", "says",
-    "believe", "believed", "believes",
-    "think", "thought", "thinks",
-    "understand", "understood", "understands",
-    "remember", "remembered", "remembers",
-    "perceive", "perceived", "perceives",
-    "consider", "considered", "considers",
-    "declare", "declared", "declares",
-    "suppose", "supposed", "supposes",
-    "recognize", "recognized", "recognizes",
-    "realize", "realized", "realizes",
-    "learn", "learned", "learns",
-})
-CONTENT_CLAUSE_COMPLEMENTISERS = frozenset({"that", "what", "how", "whether"})
-
-# Stronger reported-speech breaks where the heuristic backs off —
-# ``say: If any brother…`` and ``say, "How…"`` aren't content clauses.
-_QUOTE_OPENERS = ("\"", "“", "‘", "'")
-
 
 def check_verse(ref: str, verse: Dict[str, Any], tokens: List[str]) -> List[Dict[str, str]]:
     """Return a list of ``{severity, reason, ...}`` for one structural
