@@ -99,9 +99,11 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     return c.json({ cardId: cardId ?? null });
   });
 
-  app.get('/memorize/next', async (c) => {
+  app.get('/memorize/session', async (c) => {
     const materialId = c.req.query('materialId');
     if (!materialId) return c.json({ error: 'materialId required' }, 400);
+    const maxRaw = Number(c.req.query('max') ?? '1');
+    const max = Number.isFinite(maxRaw) ? Math.max(1, Math.min(50, Math.floor(maxRaw))) : 1;
     const user = getUser(c);
     let loaded;
     try {
@@ -110,13 +112,11 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
       if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
       throw err;
     }
-    const cardId = loaded.engine.next_memorize_card(BigInt(now()));
-    if (cardId === undefined) {
-      return c.json({ verseId: null, cardIds: [] });
-    }
-    const card = JSON.parse(loaded.engine.get_card_render(cardId)) as { verseId: number };
-    const cardIds = JSON.parse(loaded.engine.memorize_progression(card.verseId)) as number[];
-    return c.json({ verseId: card.verseId, cardIds });
+    const verses = JSON.parse(loaded.engine.memorize_session(max)) as {
+      verseId: number;
+      cardIds: number[];
+    }[];
+    return c.json({ verses });
   });
 
   app.get('/:cardId{[0-9]+}', async (c) => {

@@ -401,6 +401,92 @@ impl WasmEngine {
             .map_err(|e| JsError::new(&format!("progression serialise error: {e}")))
     }
 
+    /// JSON-serialised list of up to `limit` New verses, each paired with
+    /// its memorize progression. Used by the web UI to plan a whole
+    /// memorize session in one trip — the client can show all verses up
+    /// front, drill across them in any order, and walk back through them
+    /// for graduation.
+    ///
+    /// Same per-card filtering rules as `memorize_progression`, plus an
+    /// extra session-scoped dedupe: a `VerseInHeading` heading is only
+    /// drilled on the first verse that introduces it within this batch,
+    /// and a `ChapterClubList` card only attaches to the single verse
+    /// (per session) whose last-member rule fires.
+    pub fn memorize_session(&self, limit: u32) -> Result<String, JsError> {
+        use std::collections::HashSet;
+        use verse_vault_core::card::{CardKind, CardState};
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Entry {
+            verse_id: u32,
+            card_ids: Vec<u32>,
+        }
+        let cards = &self.engine.cards;
+
+        let mut seen_verses: HashSet<u32> = HashSet::new();
+        let mut verse_order: Vec<u32> = Vec::new();
+        for card in cards.iter() {
+            if !matches!(card.state, CardState::New) {
+                continue;
+            }
+            if seen_verses.insert(card.verse_id) {
+                verse_order.push(card.verse_id);
+                if verse_order.len() >= limit as usize {
+                    break;
+                }
+            }
+        }
+
+        let mut session_headings: HashSet<u16> = HashSet::new();
+        let mut session_chapter_lists: HashSet<u32> = HashSet::new();
+        let mut entries: Vec<Entry> = Vec::with_capacity(verse_order.len());
+
+        for verse_id in verse_order {
+            let mut card_ids: Vec<u32> = Vec::new();
+            for card in cards.iter().filter(|c| c.verse_id == verse_id) {
+                match card.kind {
+                    CardKind::ChapterClubList { .. } | CardKind::Reading => continue,
+                    CardKind::VerseInHeading { heading_idx } => {
+                        let already_introduced = cards.iter().any(|other| {
+                            other.verse_id != verse_id
+                                && matches!(other.state, CardState::Active)
+                                && matches!(
+                                    other.kind,
+                                    CardKind::VerseInHeading { heading_idx: h } if h == heading_idx
+                                )
+                        });
+                        if !already_introduced && session_headings.insert(heading_idx) {
+                            card_ids.push(card.id.0);
+                        }
+                    }
+                    _ => card_ids.push(card.id.0),
+                }
+            }
+            for card in cards.iter() {
+                let CardKind::ChapterClubList { .. } = card.kind else {
+                    continue;
+                };
+                if !matches!(card.state, CardState::New) {
+                    continue;
+                }
+                if !session_chapter_lists.insert(card.id.0) {
+                    continue;
+                }
+                let atoms = self.engine.atoms_for(card.verse_id);
+                if atoms.chapter_members.last().map(|(v, _)| *v) == Some(verse_id) {
+                    card_ids.push(card.id.0);
+                } else {
+                    // Not this verse — un-mark so a later verse can claim it.
+                    session_chapter_lists.remove(&card.id.0);
+                }
+            }
+            entries.push(Entry { verse_id, card_ids });
+        }
+
+        serde_json::to_string(&entries)
+            .map_err(|e| JsError::new(&format!("session serialise error: {e}")))
+    }
+
     /// Flip every `New` card belonging to `verse_id` to `Active`. Returns
     /// the number of cards transitioned. Idempotent. Called by the
     /// `/memorize` flow after the learner walks the per-verse progression

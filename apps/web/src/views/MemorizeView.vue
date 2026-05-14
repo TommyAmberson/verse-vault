@@ -1,122 +1,132 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { type CardRender, api } from '@/api'
+import { type CardRender, type MemorizeSessionVerse, api } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 
-// Per-year cap built at mount from /years. Each enrolled year with new
-// cards contributes min(newCardCount, lessonBatchSize) verses; the
-// session walks the queue front-to-back. The future mem-schedule work
-// will replace this aggregate-quota model with something smarter.
-interface YearQuota {
+// One session walks three phases: read every verse first, drill every
+// card (shuffled by verse), then walk the verses again and graduate
+// each one. None of this is FSRS-graded — memorize stays pure-intro.
+type Phase = 'reading_start' | 'drilling' | 'reading_end' | 'done'
+
+interface SessionVerse extends MemorizeSessionVerse {
   materialId: string
-  remaining: number
+  /** Anchor render — the first card's data, used to show the verse
+   *  text during reading_start and reading_end. */
+  anchor: CardRender | null
+  graduated: boolean
 }
 
-// Per-verse drill phase: a quick "read the verse" intro, then cycle
-// the verse's cards (Again re-queues, Good removes) until every card
-// has been passed once, then a closing "read it again" before
-// graduating. None of these grades flow to FSRS — memorize stays
-// pure-intro per the planning notes.
-type Phase = 'reading_start' | 'drilling' | 'reading_end'
+interface DrillEntry {
+  materialId: string
+  verseId: number
+  cardId: number
+}
 
-const queue = ref<YearQuota[]>([])
-const verseId = ref<number | null>(null)
-const drillQueue = ref<number[]>([])
-const card = ref<CardRender | null>(null)
-const anchorCard = ref<CardRender | null>(null)
+const verses = ref<SessionVerse[]>([])
 const phase = ref<Phase>('reading_start')
-const revealed = ref(false)
-const graduatedCount = ref(0)
-const totalTarget = ref(0)
-const done = ref(false)
-const empty = ref(false)
+const readingIndex = ref(0)
+const drillQueue = ref<DrillEntry[]>([])
+const totalDrillCards = ref(0)
+const drillCard = ref<CardRender | null>(null)
+const drillRevealed = ref(false)
 const error = ref<string | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
 
-const currentMaterialId = computed(() => queue.value[0]?.materialId ?? null)
-const totalDrillCards = ref(0)
+const empty = computed(() => phase.value !== 'done' && verses.value.length === 0)
+const totalVerses = computed(() => verses.value.length)
 const remainingDrillCards = computed(() => drillQueue.value.length)
 
-async function buildQueue(): Promise<boolean> {
-  const res = await api.getYears()
-  const quotas: YearQuota[] = []
-  for (const y of res.years) {
+const currentReadingVerse = computed<SessionVerse | null>(() =>
+  verses.value[readingIndex.value] ?? null,
+)
+const onLastReading = computed(() => readingIndex.value === verses.value.length - 1)
+const currentDrill = computed<DrillEntry | null>(() => drillQueue.value[0] ?? null)
+
+function shuffled<T>(arr: T[]): T[] {
+  const out = [...arr]
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i]!, out[j]!] = [out[j]!, out[i]!]
+  }
+  return out
+}
+
+async function buildSession() {
+  // Collect every enrolled year with `New` cards. Each contributes up to
+  // its own lessonBatchSize verses. Random verse order is applied to the
+  // drill queue; reading walkthroughs stay in collection order so the
+  // user reads the same shape twice.
+  const yearsRes = await api.getYears()
+  const collected: SessionVerse[] = []
+  for (const y of yearsRes.years) {
     if (!y.enrolled || y.settings.newScope === 'off' || y.newCardCount === 0) continue
-    quotas.push({
-      materialId: y.materialId,
-      remaining: Math.min(y.newCardCount, y.settings.lessonBatchSize),
-    })
-  }
-  queue.value = quotas
-  totalTarget.value = quotas.reduce((sum, q) => sum + q.remaining, 0)
-  return quotas.length > 0
-}
-
-async function loadVerse() {
-  if (!currentMaterialId.value) {
-    empty.value = !done.value
-    return
-  }
-  loading.value = true
-  error.value = null
-  card.value = null
-  anchorCard.value = null
-  try {
-    const res = await api.getNextMemorizeProgression(currentMaterialId.value)
-    const firstCardId = res.cardIds[0]
-    if (res.verseId === null || firstCardId === undefined) {
-      // This year ran out before its quota — drop it and move on.
-      queue.value.shift()
-      await loadVerse()
-      return
+    const session = await api.getMemorizeSession(y.materialId, y.settings.lessonBatchSize)
+    for (const v of session.verses) {
+      if (v.cardIds.length === 0) continue
+      collected.push({
+        materialId: y.materialId,
+        verseId: v.verseId,
+        cardIds: v.cardIds,
+        anchor: null,
+        graduated: false,
+      })
     }
-    verseId.value = res.verseId
-    drillQueue.value = [...res.cardIds]
-    totalDrillCards.value = res.cardIds.length
-    phase.value = 'reading_start'
-    revealed.value = true
-    // Anchor render = first card, used to display the verse during the
-    // reading_start/reading_end phases.
-    anchorCard.value = await api.getCardRender(currentMaterialId.value, firstCardId)
-    card.value = anchorCard.value
-  } catch (err) {
-    error.value = formatError(err)
-  } finally {
-    loading.value = false
   }
-}
+  verses.value = collected
 
-async function loadCurrentDrillCard() {
-  const cardId = drillQueue.value[0]
-  if (cardId === undefined || !currentMaterialId.value) return
-  loading.value = true
-  try {
-    card.value = await api.getCardRender(currentMaterialId.value, cardId)
-    revealed.value = false
-  } catch (err) {
-    error.value = formatError(err)
-  } finally {
-    loading.value = false
+  // Pre-fetch each verse's anchor render so reading_start has the
+  // verse text ready without per-step round trips.
+  await Promise.all(
+    collected.map(async (v) => {
+      const first = v.cardIds[0]
+      if (first === undefined) return
+      v.anchor = await api.getCardRender(v.materialId, first)
+    }),
+  )
+
+  // Build the drill queue: verses in shuffled order, cards within each
+  // verse stay in builder order.
+  const drill: DrillEntry[] = []
+  for (const v of shuffled(collected)) {
+    for (const cardId of v.cardIds) {
+      drill.push({ materialId: v.materialId, verseId: v.verseId, cardId })
+    }
   }
+  drillQueue.value = drill
+  totalDrillCards.value = drill.length
 }
 
 async function startDrilling() {
   phase.value = 'drilling'
-  await loadCurrentDrillCard()
+  drillRevealed.value = false
+  await loadDrillCard()
 }
 
-function reveal() {
-  revealed.value = true
+async function loadDrillCard() {
+  const entry = currentDrill.value
+  if (!entry) return
+  loading.value = true
+  try {
+    drillCard.value = await api.getCardRender(entry.materialId, entry.cardId)
+    drillRevealed.value = false
+  } catch (err) {
+    error.value = formatError(err)
+  } finally {
+    loading.value = false
+  }
+}
+
+function revealDrill() {
+  drillRevealed.value = true
 }
 
 async function gradeAgain() {
   if (submitting.value) return
-  // Push the current card to the back of the queue so it cycles again.
-  const id = drillQueue.value.shift()
-  if (id !== undefined) drillQueue.value.push(id)
-  await loadCurrentDrillCard()
+  const entry = drillQueue.value.shift()
+  if (entry) drillQueue.value.push(entry)
+  await loadDrillCard()
 }
 
 async function gradeGood() {
@@ -124,37 +134,49 @@ async function gradeGood() {
   drillQueue.value.shift()
   if (drillQueue.value.length === 0) {
     phase.value = 'reading_end'
-    revealed.value = true
-    card.value = anchorCard.value
+    readingIndex.value = 0
     return
   }
-  await loadCurrentDrillCard()
+  await loadDrillCard()
 }
 
-async function graduate() {
-  const active = queue.value[0]
-  if (verseId.value === null || !active || submitting.value) return
+function advanceReadingStart() {
+  if (onLastReading.value) {
+    void startDrilling()
+    return
+  }
+  readingIndex.value += 1
+}
+
+async function graduateCurrentReadingEnd() {
+  const v = currentReadingVerse.value
+  if (!v || submitting.value) return
   submitting.value = true
   error.value = null
   try {
-    await api.graduateVerse(active.materialId, verseId.value)
-    graduatedCount.value += 1
-    active.remaining -= 1
-    if (active.remaining <= 0) queue.value.shift()
-    if (queue.value.length === 0) {
-      verseId.value = null
-      card.value = null
-      anchorCard.value = null
-      done.value = true
+    await api.graduateVerse(v.materialId, v.verseId)
+    v.graduated = true
+    if (onLastReading.value) {
+      phase.value = 'done'
       return
     }
-    await loadVerse()
+    readingIndex.value += 1
   } catch (err) {
     error.value = formatError(err)
   } finally {
     submitting.value = false
   }
 }
+
+function skipCurrentReadingEnd() {
+  if (onLastReading.value) {
+    phase.value = 'done'
+    return
+  }
+  readingIndex.value += 1
+}
+
+const graduatedCount = computed(() => verses.value.filter((v) => v.graduated).length)
 
 function formatError(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -164,12 +186,8 @@ function formatError(err: unknown): string {
 onMounted(async () => {
   try {
     loading.value = true
-    const found = await buildQueue()
-    if (!found) {
-      empty.value = true
-      return
-    }
-    await loadVerse()
+    await buildSession()
+    if (verses.value.length === 0) return
   } catch (err) {
     error.value = formatError(err)
   } finally {
@@ -182,11 +200,11 @@ onMounted(async () => {
   <div class="memorize">
     <div v-if="error" class="banner banner-error">{{ error }}</div>
 
-    <div v-if="loading && !card" class="status">Loading…</div>
+    <div v-if="loading && verses.length === 0" class="status">Loading…</div>
 
-    <div v-else-if="done" class="done">
+    <div v-else-if="phase === 'done'" class="done">
       <h2>Memorized {{ graduatedCount }} verse{{ graduatedCount === 1 ? '' : 's' }}</h2>
-      <p>Start another batch when you're ready, or move on to review.</p>
+      <p>Start another session when you're ready, or move on to review.</p>
       <RouterLink to="/review" class="link-button">Review now →</RouterLink>
     </div>
 
@@ -198,38 +216,38 @@ onMounted(async () => {
       </p>
     </div>
 
-    <div v-else-if="card" class="card">
+    <!-- Reading walkthrough (used at both ends of the session). -->
+    <div
+      v-else-if="phase === 'reading_start' && currentReadingVerse?.anchor"
+      class="card"
+    >
       <div class="meta">
-        <template v-if="phase === 'reading_start'">
-          Verse {{ graduatedCount + 1 }} of {{ totalTarget }} · Read it through
-        </template>
-        <template v-else-if="phase === 'drilling'">
-          Verse {{ graduatedCount + 1 }} of {{ totalTarget }} ·
-          {{ totalDrillCards - remainingDrillCards + 1 }} of {{ totalDrillCards }} cards
-        </template>
-        <template v-else>
-          Verse {{ graduatedCount + 1 }} of {{ totalTarget }} · Read it once more
-        </template>
+        Read it through · Verse {{ readingIndex + 1 }} of {{ totalVerses }}
       </div>
-      <CardPrompt :card="card" :revealed="revealed" />
+      <CardPrompt :card="currentReadingVerse.anchor" :revealed="true" />
+      <div class="actions">
+        <button class="primary" :disabled="submitting" @click="advanceReadingStart">
+          {{ onLastReading ? 'Start drilling' : 'Next verse' }}
+        </button>
+      </div>
+    </div>
+
+    <div v-else-if="phase === 'drilling' && drillCard" class="card">
+      <div class="meta">
+        Drilling · {{ totalDrillCards - remainingDrillCards + 1 }} of
+        {{ totalDrillCards }} cards
+      </div>
+      <CardPrompt :card="drillCard" :revealed="drillRevealed" />
       <div class="actions">
         <button
-          v-if="phase === 'reading_start'"
+          v-if="!drillRevealed"
           class="primary"
           :disabled="submitting"
-          @click="startDrilling"
-        >
-          Start drilling
-        </button>
-        <button
-          v-else-if="phase === 'drilling' && !revealed"
-          class="primary"
-          :disabled="submitting"
-          @click="reveal"
+          @click="revealDrill"
         >
           Reveal answer
         </button>
-        <div v-else-if="phase === 'drilling' && revealed" class="grades">
+        <div v-else class="grades">
           <button class="grade grade-again" :disabled="submitting" @click="gradeAgain">
             Again
           </button>
@@ -237,14 +255,34 @@ onMounted(async () => {
             Good
           </button>
         </div>
-        <button
-          v-else-if="phase === 'reading_end'"
-          class="primary"
-          :disabled="submitting"
-          @click="graduate"
-        >
-          Graduate verse
-        </button>
+      </div>
+    </div>
+
+    <div
+      v-else-if="phase === 'reading_end' && currentReadingVerse?.anchor"
+      class="card"
+    >
+      <div class="meta">
+        Read it once more · Verse {{ readingIndex + 1 }} of {{ totalVerses }}
+      </div>
+      <CardPrompt :card="currentReadingVerse.anchor" :revealed="true" />
+      <div class="actions">
+        <div class="grades">
+          <button
+            class="grade grade-again"
+            :disabled="submitting"
+            @click="skipCurrentReadingEnd"
+          >
+            Not yet
+          </button>
+          <button
+            class="grade grade-good"
+            :disabled="submitting"
+            @click="graduateCurrentReadingEnd"
+          >
+            Graduate
+          </button>
+        </div>
       </div>
     </div>
   </div>

@@ -125,17 +125,20 @@ export interface YearsResponse {
   years: YearView[]
 }
 
-export interface MemorizeProgressionResponse {
-  verseId: number | null
-  /** Every per-verse card to drill in memorize, in builder order. The
-   *  client cycles them in a drill loop until each gets graded Good. */
+export interface MemorizeSessionVerse {
+  verseId: number
+  /** Every per-verse card to drill, in builder order. */
   cardIds: number[]
+}
+
+export interface MemorizeSessionResponse {
+  verses: MemorizeSessionVerse[]
 }
 
 export interface ApiClient {
   enroll(materialId: string): Promise<{ snapshotId: string; version: number }>
   getNextReviewCard(materialId: string): Promise<{ cardId: number | null }>
-  getNextMemorizeProgression(materialId: string): Promise<MemorizeProgressionResponse>
+  getMemorizeSession(materialId: string, max: number): Promise<MemorizeSessionResponse>
   graduateVerse(materialId: string, verseId: number): Promise<{ graduated: number }>
   getCardRender(materialId: string, cardId: number): Promise<CardRender>
   submitReview(materialId: string, cardId: number, grade: Grade): Promise<ReviewResponse>
@@ -172,8 +175,11 @@ export function createApiClient(apiUrl: string): ApiClient {
       request('POST', '/api/materials/enroll', { materialId }),
     getNextReviewCard: (materialId) =>
       request('GET', `/api/cards/review/next?materialId=${encodeURIComponent(materialId)}`),
-    getNextMemorizeProgression: (materialId) =>
-      request('GET', `/api/cards/memorize/next?materialId=${encodeURIComponent(materialId)}`),
+    getMemorizeSession: (materialId, max) =>
+      request(
+        'GET',
+        `/api/cards/memorize/session?materialId=${encodeURIComponent(materialId)}&max=${max}`,
+      ),
     graduateVerse: (materialId, verseId) =>
       request('POST', '/api/cards/memorize/graduate', { materialId, verseId }),
     getCardRender: (materialId, cardId) =>
