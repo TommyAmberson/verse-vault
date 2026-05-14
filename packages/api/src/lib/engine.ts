@@ -1,9 +1,16 @@
+import { createHash, randomUUID } from 'node:crypto';
+
 import { and, desc, eq } from 'drizzle-orm';
 import { WasmEngine } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import { type UserMaterial, userMaterialKey } from './keys.js';
+import { getMaterialJson } from './materials.js';
+
+function sha256(s: string): string {
+  return createHash('sha256').update(s).digest('hex');
+}
 
 const DEFAULT_DESIRED_RETENTION = 0.9;
 
@@ -198,10 +205,11 @@ export class EngineStore {
   ) {}
 
   async load(key: EngineKey): Promise<LoadedEngine> {
-    const cached = this.cache.get(userMaterialKey(key));
-    if (cached) return cached;
-
-    const snapshot = this.db
+    // Detect content updates before consulting the cache: bundled
+    // materialData changes need to bump the user's snapshot and drop
+    // any stale in-memory engine. Otherwise existing users would never
+    // see edits to data/<year>.json after their first enrollment.
+    let snapshot = this.db
       .select()
       .from(schema.graphSnapshots)
       .where(
@@ -216,6 +224,35 @@ export class EngineStore {
     if (!snapshot) {
       throw new NotEnrolledError(key);
     }
+
+    const bundledJson = getMaterialJson(key.materialId);
+    if (sha256(bundledJson) !== sha256(snapshot.materialData.toString('utf8'))) {
+      const newId = randomUUID();
+      const newVersion = snapshot.version + 1;
+      const createdAt = this.now();
+      this.db
+        .insert(schema.graphSnapshots)
+        .values({
+          id: newId,
+          userId: key.userId,
+          materialId: key.materialId,
+          version: newVersion,
+          materialData: Buffer.from(bundledJson, 'utf8'),
+          createdAt,
+        })
+        .run();
+      this.invalidate(key);
+      snapshot = {
+        ...snapshot,
+        id: newId,
+        version: newVersion,
+        materialData: Buffer.from(bundledJson, 'utf8'),
+        createdAt,
+      };
+    }
+
+    const cached = this.cache.get(userMaterialKey(key));
+    if (cached) return cached;
 
     const testStates = readTestStateEntries(this.db, key);
     const materialJson = snapshot.materialData.toString('utf8');
