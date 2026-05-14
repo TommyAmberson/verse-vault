@@ -341,6 +341,48 @@ impl WasmEngine {
         schedule_next_memorize_card(&self.engine, now_secs).map(|c| c.0)
     }
 
+    /// JSON-serialised per-verse memorize progression in walk order:
+    /// every PhraseFill for the verse (sorted by position) followed by
+    /// the verse's Recitation card. Shape:
+    /// `[{ "cardId": 0, "kind": "PhraseFill", "position": 0 }, …,
+    ///   { "cardId": 8, "kind": "Recitation" }]`.
+    /// Returns an empty array if no progression cards exist.
+    pub fn memorize_progression(&self, verse_id: u32) -> Result<String, JsError> {
+        use verse_vault_core::card::CardKind;
+        #[derive(Serialize)]
+        #[serde(tag = "kind", rename_all_fields = "camelCase")]
+        enum Step {
+            PhraseFill { card_id: u32, position: u16 },
+            Recitation { card_id: u32 },
+        }
+        let mut phrase_fills: Vec<(u16, u32)> = self
+            .engine
+            .cards
+            .iter()
+            .filter(|c| c.verse_id == verse_id)
+            .filter_map(|c| match c.kind {
+                CardKind::PhraseFill { position } => Some((position, c.id.0)),
+                _ => None,
+            })
+            .collect();
+        phrase_fills.sort_by_key(|(p, _)| *p);
+        let recitation = self
+            .engine
+            .cards
+            .iter()
+            .find(|c| c.verse_id == verse_id && matches!(c.kind, CardKind::Recitation))
+            .map(|c| c.id.0);
+        let mut steps: Vec<Step> = phrase_fills
+            .into_iter()
+            .map(|(position, card_id)| Step::PhraseFill { card_id, position })
+            .collect();
+        if let Some(card_id) = recitation {
+            steps.push(Step::Recitation { card_id });
+        }
+        serde_json::to_string(&steps)
+            .map_err(|e| JsError::new(&format!("progression serialise error: {e}")))
+    }
+
     /// Flip every `New` card belonging to `verse_id` to `Active`. Returns
     /// the number of cards transitioned. Idempotent. Called by the
     /// `/memorize` flow after the learner walks the per-verse progression

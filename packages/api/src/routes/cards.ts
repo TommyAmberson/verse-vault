@@ -111,7 +111,12 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
       throw err;
     }
     const cardId = loaded.engine.next_memorize_card(BigInt(now()));
-    return c.json({ cardId: cardId ?? null });
+    if (cardId === undefined) {
+      return c.json({ verseId: null, progression: [] });
+    }
+    const card = JSON.parse(loaded.engine.get_card_render(cardId)) as { verseId: number };
+    const progression = JSON.parse(loaded.engine.memorize_progression(card.verseId)) as unknown[];
+    return c.json({ verseId: card.verseId, progression });
   });
 
   app.get('/:cardId{[0-9]+}', async (c) => {

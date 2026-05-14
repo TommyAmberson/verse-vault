@@ -125,10 +125,19 @@ export interface YearsResponse {
   years: YearView[]
 }
 
+export type MemorizeStep =
+  | { kind: 'PhraseFill'; cardId: number; position: number }
+  | { kind: 'Recitation'; cardId: number }
+
+export interface MemorizeProgressionResponse {
+  verseId: number | null
+  progression: MemorizeStep[]
+}
+
 export interface ApiClient {
   enroll(materialId: string): Promise<{ snapshotId: string; version: number }>
   getNextReviewCard(materialId: string): Promise<{ cardId: number | null }>
-  getNextMemorizeCard(materialId: string): Promise<{ cardId: number | null }>
+  getNextMemorizeProgression(materialId: string): Promise<MemorizeProgressionResponse>
   graduateVerse(materialId: string, verseId: number): Promise<{ graduated: number }>
   getCardRender(materialId: string, cardId: number): Promise<CardRender>
   submitReview(materialId: string, cardId: number, grade: Grade): Promise<ReviewResponse>
@@ -165,7 +174,7 @@ export function createApiClient(apiUrl: string): ApiClient {
       request('POST', '/api/materials/enroll', { materialId }),
     getNextReviewCard: (materialId) =>
       request('GET', `/api/cards/review/next?materialId=${encodeURIComponent(materialId)}`),
-    getNextMemorizeCard: (materialId) =>
+    getNextMemorizeProgression: (materialId) =>
       request('GET', `/api/cards/memorize/next?materialId=${encodeURIComponent(materialId)}`),
     graduateVerse: (materialId, verseId) =>
       request('POST', '/api/cards/memorize/graduate', { materialId, verseId }),
