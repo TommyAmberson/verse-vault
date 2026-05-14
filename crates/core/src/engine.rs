@@ -149,6 +149,14 @@ impl ReviewEngine {
         count
     }
 
+    /// Flip every card in the deck to `Active`. Convenience for tests and
+    /// the sim, which bypass the memorize flow.
+    pub fn graduate_all(&mut self) {
+        for card in self.cards.iter_mut() {
+            card.state = CardState::Active;
+        }
+    }
+
     /// Apply a single grade to a card and return the resulting test
     /// updates.
     ///

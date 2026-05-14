@@ -114,12 +114,9 @@ fn main() {
     let total_cards = result.cards.len();
     let total_tests = result.tests.len();
     let mut engine = ReviewEngine::new(result, 0.9);
-    // Sim doesn't model the memorize step — graduate every verse upfront so
-    // the review scheduler sees all cards. Real users go through /memorize.
-    let verse_ids: Vec<u32> = engine.cards.iter().map(|c| c.verse_id).collect();
-    for v in verse_ids {
-        engine.graduate_verse(v);
-    }
+    // Sim doesn't model the memorize step — graduate every card upfront so
+    // the review scheduler sees them all. Real users go through /memorize.
+    engine.graduate_all();
     let mut learner = match &learner_params {
         Some(params) => ProbLearner::with_parameters(RNG_SEED, 0.9, params, initial_seed_secs),
         None => ProbLearner::new(RNG_SEED, 0.9, initial_seed_secs),

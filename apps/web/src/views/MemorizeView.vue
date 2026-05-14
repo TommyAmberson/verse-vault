@@ -11,8 +11,10 @@ type Phase = 'reading_start' | 'drilling' | 'reading_end' | 'done'
 
 interface SessionVerse extends MemorizeSessionVerse {
   materialId: string
-  /** Anchor render — the first card's data, used to show the verse
-   *  text during reading_start and reading_end. */
+  /** Anchor render used during reading_start and reading_end: the
+   *  verse's Recitation when available, falling back to the first
+   *  drill card. Recitation avoids the phrase-0 highlight a PhraseFill
+   *  would impose. */
   anchor: CardRender | null
   graduated: boolean
 }
@@ -45,8 +47,7 @@ const onLastReading = computed(() => readingIndex.value === verses.value.length 
 const currentDrill = computed<DrillEntry | null>(() => drillQueue.value[0] ?? null)
 
 /** Interleave per-verse card lists so verses appear in random order
- *  but each verse's cards stay in their builder order. Equivalent to:
- *  at each step, pick a random non-empty verse and pop its next card. */
+ *  while each verse's cards stay in builder order. */
 function interleaveByVerse(byVerse: DrillEntry[][]): DrillEntry[] {
   const pools: DrillEntry[][] = byVerse.map((c) => [...c]).filter((c) => c.length > 0)
   const out: DrillEntry[] = []
@@ -60,19 +61,26 @@ function interleaveByVerse(byVerse: DrillEntry[][]): DrillEntry[] {
 }
 
 async function buildSession() {
-  // Collect every enrolled year with `New` cards. Each contributes up to
-  // its own lessonBatchSize verses. Random verse order is applied to the
-  // drill queue; reading walkthroughs stay in collection order so the
-  // user reads the same shape twice.
+  // Each enrolled year contributes up to its lessonBatchSize verses.
+  // Reading walkthroughs stay in collection order so opening + closing
+  // reads expose verses in the same shape.
   const yearsRes = await api.getYears()
+  const eligibleYears = yearsRes.years.filter(
+    (y) => y.enrolled && y.settings.newScope !== 'off' && y.newCardCount > 0,
+  )
+  const sessions = await Promise.all(
+    eligibleYears.map((y) =>
+      api
+        .getMemorizeSession(y.materialId, y.settings.lessonBatchSize)
+        .then((s) => ({ materialId: y.materialId, verses: s.verses })),
+    ),
+  )
   const collected: SessionVerse[] = []
-  for (const y of yearsRes.years) {
-    if (!y.enrolled || y.settings.newScope === 'off' || y.newCardCount === 0) continue
-    const session = await api.getMemorizeSession(y.materialId, y.settings.lessonBatchSize)
-    for (const v of session.verses) {
+  for (const { materialId, verses: ys } of sessions) {
+    for (const v of ys) {
       if (v.cardIds.length === 0) continue
       collected.push({
-        materialId: y.materialId,
+        materialId,
         verseId: v.verseId,
         cardIds: v.cardIds,
         recitationCardId: v.recitationCardId,
@@ -83,10 +91,9 @@ async function buildSession() {
   }
   verses.value = collected
 
-  // Pre-fetch each verse's anchor render so reading_start has the
-  // verse text ready without per-step round trips. Prefer the
-  // Recitation card so the verse displays as a plain reading prompt,
-  // not as a PhraseFill (which would highlight phrase 0).
+  // Pre-fetch anchor renders so the reading walkthroughs don't pause
+  // for a round trip per verse. Prefer Recitation to avoid the phrase-0
+  // highlight a PhraseFill render would impose.
   await Promise.all(
     collected.map(async (v) => {
       const anchorId = v.recitationCardId ?? v.cardIds[0]
@@ -95,10 +102,8 @@ async function buildSession() {
     }),
   )
 
-  // Build the drill queue. Per-verse card lists stay in builder order;
-  // interleaving picks a random non-empty verse for each step so the
-  // user moves between verses constantly without ever seeing a verse's
-  // card 2 before card 1 on the initial pass.
+  // Verses interleave; cards within a verse keep builder order on the
+  // initial pass so the user doesn't see card 2 before card 1.
   const byVerse: DrillEntry[][] = collected.map((v) =>
     v.cardIds.map((cardId) => ({ materialId: v.materialId, verseId: v.verseId, cardId })),
   )

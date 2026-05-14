@@ -71,6 +71,7 @@ export interface TestState {
   last_seen_secs: number
   last_base_secs: number
   last_root_secs: number
+  pending_relearn: boolean
 }
 
 export interface ReviewResponse {

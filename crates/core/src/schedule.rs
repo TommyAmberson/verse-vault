@@ -45,14 +45,11 @@ impl ReviewEngine {
 /// are skipped (not yet due); cards in sibling cooldown are skipped. Returns
 /// `None` when no card is both due and out of cooldown.
 ///
-/// The high-R-first ordering matches the FSRS-author recommendation for
-/// capacity-limited sessions: well-known-but-due cards are cleared cheaply,
-/// banking their gains, while at-risk cards left for later will be
-/// rescheduled by FSRS regardless. Sims show this minimises retention loss
-/// when the learner doesn't finish their queue; for users who do finish, the
-/// order is irrelevant. See the research note in
-/// `~/.config/claude/plans/crystalline-wishing-garden-agent-ad6777b84ca7f2f08.md`
-/// for sources.
+/// High-R-first matches the FSRS-author recommendation for capacity-limited
+/// sessions: well-known-but-due cards clear cheaply and bank their gains,
+/// while at-risk cards left for later get re-scheduled by FSRS regardless.
+/// Sims report ~1–5pp retention edge over ascending-R for non-finishers and
+/// no difference for users who finish their queue.
 ///
 /// See `docs/scheduling.md` for the full per-test FSRS scheduling story.
 pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
@@ -176,13 +173,6 @@ mod tests {
         .unwrap()
     }
 
-    fn graduate_all(engine: &mut ReviewEngine) {
-        let verse_ids: Vec<u32> = engine.cards.iter().map(|c| c.verse_id).collect();
-        for v in verse_ids {
-            engine.graduate_verse(v);
-        }
-    }
-
     #[test]
     fn next_card_returns_some_when_seeded_unseen_advanced_a_year() {
         let m = sample_material_two_verses();
@@ -191,7 +181,7 @@ mod tests {
         // far below the 0.9 target and `next_card` should return Some.
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
-        graduate_all(&mut engine);
+        engine.graduate_all();
         let now = 86400 * 365 + 86400 * 60;
         let pick = next_card(&engine, now);
         assert!(pick.is_some());
@@ -264,7 +254,7 @@ mod tests {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
-        graduate_all(&mut engine);
+        engine.graduate_all();
         let now = 86400 * 365;
         let card_id = engine
             .cards
@@ -282,7 +272,7 @@ mod tests {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
-        graduate_all(&mut engine);
+        engine.graduate_all();
         let now = 86400 * 365;
         let card_id = engine
             .cards
@@ -326,7 +316,7 @@ mod tests {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
-        graduate_all(&mut engine);
+        engine.graduate_all();
         let now = 86400 * 365;
         let pf_id = engine
             .cards
@@ -347,7 +337,7 @@ mod tests {
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
-        graduate_all(&mut engine);
+        engine.graduate_all();
         let now = 86400 * 365;
         let card_id = engine
             .cards
@@ -369,7 +359,7 @@ mod tests {
         let m = sample_material_two_verses();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
-        graduate_all(&mut engine);
+        engine.graduate_all();
         let now = 86400 * 365 + 86400 * 60;
 
         // Pick two PhraseFill cards from different verses to avoid sibling
