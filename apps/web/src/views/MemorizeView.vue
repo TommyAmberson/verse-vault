@@ -44,11 +44,17 @@ const currentReadingVerse = computed<SessionVerse | null>(() =>
 const onLastReading = computed(() => readingIndex.value === verses.value.length - 1)
 const currentDrill = computed<DrillEntry | null>(() => drillQueue.value[0] ?? null)
 
-function shuffled<T>(arr: T[]): T[] {
-  const out = [...arr]
-  for (let i = out.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[out[i]!, out[j]!] = [out[j]!, out[i]!]
+/** Interleave per-verse card lists so verses appear in random order
+ *  but each verse's cards stay in their builder order. Equivalent to:
+ *  at each step, pick a random non-empty verse and pop its next card. */
+function interleaveByVerse(byVerse: DrillEntry[][]): DrillEntry[] {
+  const pools: DrillEntry[][] = byVerse.map((c) => [...c]).filter((c) => c.length > 0)
+  const out: DrillEntry[] = []
+  while (pools.length > 0) {
+    const i = Math.floor(Math.random() * pools.length)
+    const next = pools[i]!.shift()!
+    out.push(next)
+    if (pools[i]!.length === 0) pools.splice(i, 1)
   }
   return out
 }
@@ -86,14 +92,14 @@ async function buildSession() {
     }),
   )
 
-  // Build the drill queue: verses in shuffled order, cards within each
-  // verse stay in builder order.
-  const drill: DrillEntry[] = []
-  for (const v of shuffled(collected)) {
-    for (const cardId of v.cardIds) {
-      drill.push({ materialId: v.materialId, verseId: v.verseId, cardId })
-    }
-  }
+  // Build the drill queue. Per-verse card lists stay in builder order;
+  // interleaving picks a random non-empty verse for each step so the
+  // user moves between verses constantly without ever seeing a verse's
+  // card 2 before card 1 on the initial pass.
+  const byVerse: DrillEntry[][] = collected.map((v) =>
+    v.cardIds.map((cardId) => ({ materialId: v.materialId, verseId: v.verseId, cardId })),
+  )
+  const drill = interleaveByVerse(byVerse)
   drillQueue.value = drill
   totalDrillCards.value = drill.length
 }
