@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """Re-split verses in the committed structural deck file.
 
-Operates on ``data/3-corinthians.json`` (durable source for
+Operates on ``data/<N>-<book>.json`` (durable source for
 ``phraseWordCounts``) plus the api.bible canonical-text cache for the
 verse content fed to the LLM.
 
 Two subcommands:
 
-  ``print-prompt`` — emit the LLM prompt for one or more verse refs
-                     (canonical text + the existing split, asking for
-                     an improved split as a JSON array of phrases).
+  ``print-prompt`` — emit the LLM prompt for one or more verse refs.
+                     The prompt includes the canonical text plus, by
+                     default, the verse's current split (with the
+                     stability clause) and a Signals block of
+                     deterministic features. Use ``--no-current`` to
+                     propose from scratch; use ``--no-signals`` for
+                     wording iterations.
 
   ``apply``        — read proposed ``{ref, phrases}`` JSON, count the
                      words per phrase, validate that the per-verse
@@ -25,13 +29,17 @@ is the skill's job — while letting the deck file remain the single
 source of truth for what counts as a valid split.
 
 Usage:
-    python3 tools/split_phrases.py print-prompt \\
-        --refs "1 Cor 12:11,1 Cor 1:26"
+    python3 tools/split_phrases.py --deck data/4-john.json print-prompt \\
+        --refs "John 1:14"
 
-    python3 tools/split_phrases.py apply --input /tmp/proposed.json [--dry-run]
+    python3 tools/split_phrases.py --deck data/4-john.json print-prompt \\
+        --refs "John 1:14" --no-current --no-signals
 
-    # Pull refs from an evaluator report:
-    python3 tools/split_phrases.py print-prompt \\
+    python3 tools/split_phrases.py --deck data/4-john.json apply \\
+        --input /tmp/proposed.json --dry-run
+
+    # Pull refs from an evaluator report (signals reused from report):
+    python3 tools/split_phrases.py --deck data/4-john.json print-prompt \\
         --from-report /tmp/report.json --top 10
 """
 
@@ -43,7 +51,13 @@ from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from phrase_splitter import SPLIT_PROMPT, normalize_reference  # noqa: E402
+from phrase_splitter import (  # noqa: E402
+    composite_signal_score,
+    extract_verse_features,
+    format_split_prompt,
+    normalize_reference,
+)
+from phrase_splitter.features import slice_phrases  # noqa: E402
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
     DEFAULT_NKJV_ID,
@@ -86,11 +100,79 @@ def _verse_by_ref(deck: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     }
 
 
+def _render_current_split(tokens: List[str], pwc: List[int]) -> str:
+    """One bullet per phrase, with quotes around the phrase text."""
+    phrase_token_lists = slice_phrases(tokens, pwc)
+    return "\n".join(f'  - "{" ".join(pt)}"' for pt in phrase_token_lists)
+
+
+def _render_signals(signals: Dict[str, Any]) -> str:
+    """Compact one-line-per-phrase format the LLM can scan. Boundary
+    flags only render when true."""
+    header_bits = [
+        f"{signals.get('token_count', 0)} tokens",
+        f"{signals.get('phrase_count', 0)} phrases",
+        f"balance {signals.get('length_balance', 0):.2f}x",
+        f"function ratio {signals.get('verse_function_ratio', 0):.2f}",
+    ]
+    lines = [f"Verse: {', '.join(header_bits)}"]
+    for i, p in enumerate(signals.get("phrases") or [], start=1):
+        flags = []
+        if p.get("starts_with_weak_connector"):
+            flags.append("starts-weak")
+        if p.get("ends_in_pause_punct"):
+            flags.append("ends-pause")
+        if p.get("ends_mid_clause"):
+            flags.append("ends-mid-clause")
+        if p.get("contains_internal_pause"):
+            flags.append("internal-pause")
+        flag_str = (" " + " ".join(flags)) if flags else ""
+        lines.append(
+            f"  [{i}] {p.get('word_count', 0)}w "
+            f"({p.get('content_word_count', 0)} content, "
+            f"{p.get('syllable_count', 0)} syll, "
+            f"fn {p.get('function_ratio', 0):.2f}){flag_str}"
+        )
+    for i, b in enumerate(signals.get("boundaries") or [], start=1):
+        flags = []
+        if b.get("restrictive_relative"):
+            flags.append("restrictive-relative")
+        if b.get("verb_content_clause"):
+            flags.append("verb-content-clause")
+        if flags:
+            lines.append(f"  boundary {i}→{i + 1}: {', '.join(flags)}")
+    score = composite_signal_score(signals)
+    lines.append(f"Composite score: {score:.2f}")
+    return "\n".join(lines)
+
+
+def _signals_for_ref(
+    ref: str,
+    tokens: List[str],
+    pwc: List[int],
+    from_report: Optional[List[Dict[str, Any]]],
+) -> Optional[Dict[str, Any]]:
+    """Prefer signals from a pre-computed report when available; else
+    compute fresh from the canonical tokens + the deck's pwc."""
+    if from_report is not None:
+        for entry in from_report:
+            if entry.get("ref") == ref and entry.get("signals"):
+                return entry["signals"]
+    if not tokens or not pwc:
+        return None
+    return extract_verse_features(tokens, pwc)
+
+
 def cmd_print_prompt(args: argparse.Namespace) -> None:
     with open(args.deck, encoding="utf-8") as f:
         deck = json.load(f)
     refs = _collect_refs(args.refs, args.from_report, args.top)
     by_ref = _verse_by_ref(deck)
+
+    report_data: Optional[List[Dict[str, Any]]] = None
+    if args.from_report:
+        with open(args.from_report, encoding="utf-8") as f:
+            report_data = json.load(f)
 
     conn = open_cache(args.db)
     try:
@@ -107,7 +189,22 @@ def cmd_print_prompt(args: argparse.Namespace) -> None:
                 chapter_cache[key] = extract_chapter_verses(html, verse["book"], verse["chapter"])
             tokens = chapter_cache[key].get(verse["verse"], [])
             text = " ".join(tokens)
-            prompts.append({"ref": ref, "prompt": SPLIT_PROMPT.format(verse_text=text)})
+            pwc = verse.get("phraseWordCounts") or []
+
+            current_split: Optional[str] = None
+            if not args.no_current and tokens and pwc and sum(pwc) == len(tokens):
+                current_split = _render_current_split(tokens, pwc)
+
+            signals_block: Optional[str] = None
+            if not args.no_signals:
+                signals = _signals_for_ref(ref, tokens, pwc, report_data)
+                if signals is not None:
+                    signals_block = _render_signals(signals)
+
+            prompts.append({
+                "ref": ref,
+                "prompt": format_split_prompt(text, current_split, signals_block),
+            })
     finally:
         conn.close()
 
@@ -233,6 +330,16 @@ def main() -> None:
         "--json",
         action="store_true",
         help="Emit a JSON array of {ref, prompt} instead of human-readable text",
+    )
+    pp.add_argument(
+        "--no-current",
+        action="store_true",
+        help="Omit the Current split section (ask the splitter to propose from scratch)",
+    )
+    pp.add_argument(
+        "--no-signals",
+        action="store_true",
+        help="Omit the Signals block (use when iterating on prompt wording)",
     )
     pp.set_defaults(func=cmd_print_prompt)
 

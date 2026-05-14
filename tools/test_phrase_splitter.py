@@ -34,6 +34,7 @@ from phrase_splitter.features import (
 from phrase_splitter.prompts import format_split_prompt
 
 from evaluate_phrases import check_verse
+from split_phrases import _render_current_split, _render_signals
 
 
 class WordCountTests(unittest.TestCase):
@@ -337,6 +338,29 @@ class CheckVerseTests(unittest.TestCase):
             ["a", "b", "c"],
         )
         self.assertTrue(out["blockers"])
+
+
+class PrintPromptRenderingTests(unittest.TestCase):
+    def test_render_current_split_bullets(self):
+        out = _render_current_split(
+            ["For", "the", "kingdom", "of", "God"],
+            [3, 2],
+        )
+        self.assertIn('"For the kingdom"', out)
+        self.assertIn('"of God"', out)
+        # Two bulleted lines.
+        self.assertEqual(out.count("  - "), 2)
+
+    def test_render_signals_includes_header_and_boundary(self):
+        feats = extract_verse_features(
+            ["nothing", "was", "made", "that", "was", "made."],
+            [3, 3],
+        )
+        rendered = _render_signals(feats)
+        self.assertIn("6 tokens", rendered)
+        self.assertIn("2 phrases", rendered)
+        self.assertIn("restrictive-relative", rendered)
+        self.assertIn("Composite score:", rendered)
 
 
 if __name__ == "__main__":
