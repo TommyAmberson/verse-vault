@@ -204,6 +204,11 @@ export const testStates = sqliteTable(
     lastSeenSecs: integer('last_seen_secs').notNull(),
     lastBaseSecs: integer('last_base_secs').notNull(),
     lastRootSecs: integer('last_root_secs').notNull(),
+    // Set by the engine when the card was last graded Again and the learner
+    // hasn't passed it since; cleared on any non-Again grade. The session's
+    // relearning lane re-surfaces these cards once their FSRS sub-day due
+    // time has elapsed, bypassing the sibling cooldown.
+    pendingRelearn: integer('pending_relearn').notNull().default(0),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.materialId, t.testKind, t.element] }),
