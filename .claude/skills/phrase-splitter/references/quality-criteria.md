@@ -18,8 +18,10 @@ natural one. All the rules below are in service of this principle, not above it.
   review. There is no validator cap: a phrase can exceed 12 when a clause is genuinely continuous
   and has no natural internal breakpoint (e.g.
   `"that his spirit may be saved in the day of the Lord Jesus."`). The lower bound allows 1+ to
-  admit short trailing closures like `"and Him crucified."`. Prefer naturalness over hitting the
-  target.
+  admit short _rhetorical or completive_ tails like `"and Him crucified."` or `"be the glory."` —
+  closing flourishes that stand on their own. A short tail is **not** licensed when it is a
+  grammatical fragment severed from a mid-verse clause (e.g. `"that was made."` chopped off
+  `"nothing was made that was made."`). Prefer naturalness over hitting the target.
 * **HTML tag balance.** Every `<b>`, `<i>`, `<span ...>` open must close inside the same phrase.
   Never split inside a tag.
 
@@ -44,6 +46,13 @@ natural one. All the rules below are in service of this principle, not above it.
 * **Keep rhetorical questions whole.** A question stem (`"Do you not know that..."`,
   `"Are you not aware that..."`) belongs with its content. Split _after_ the question mark, not
   inside it.
+* **Keep restrictive relative clauses attached to their antecedent.** When `that`, `who`, or `which`
+  follows a noun _without_ a preceding comma, it is a restrictive relative — it defines or restricts
+  the noun and reads as one unit with no pause. Don't break before it. `"nothing was made"` /
+  `"that was made."` is bad: the `that`-clause restrictively modifies "nothing". Same shape:
+  `"the bread"` / `"which I will give"`, `"the man"` / `"who came to Jesus"`. A _non-restrictive_
+  relative is the opposite — the preceding comma is a real pause and a valid break:
+  `"...Nicodemus, / who came to Jesus by night,"` is fine.
 * **Don't lop-side.** A verse split into one 15-word phrase and one 3-word phrase is worse than two
   9-word phrases. Aim for relatively even chunks while still respecting clause boundaries.
 * **Single-phrase verses.** Anything over ~10 words should split somewhere. Anything under ~8 can
@@ -53,8 +62,10 @@ natural one. All the rules below are in service of this principle, not above it.
 
 * A single-word opener like `"Moreover,"` or `"Therefore,"` at position 0. Stylistic, often
   deliberate in memorisation aids. Flagged `medium` by the evaluator, not `high`.
-* A short final phrase like `"are called."` or `"and Him crucified."` that carries closing
-  punctuation. Same treatment — `medium`, not blocking.
+* A short final phrase like `"are called."` or `"and Him crucified."` that is a rhetorical or
+  completive tail — a closing flourish, not a grammatical fragment chopped off a mid-verse clause.
+  Same treatment — `medium`, not blocking. (`"that was made."` lopped off `"nothing was made"`
+  doesn't qualify — see the restrictive-relative example below.)
 * A pair of short intro phrases like `"Therefore," / "my beloved,"`. Often the natural break is to
   merge them into one `"Therefore, my beloved,"` phrase, but both forms are defensible — the
   evaluator will surface this as `high` (middle 2-word phrase) for human review.
@@ -95,6 +106,25 @@ Bad (1 Cor 12:11):
 ```
 ["But one and the same Spirit works all these things,",
  "<b>distributing</b> to each one individually as He wills."]
+```
+
+### Restrictive relative clause
+
+Bad (John 1:3):
+
+```
+["All things were made through Him,",
+ "and without Him nothing was made",
+ "that was made."]
+```
+
+The `"that was made"` clause is a restrictive relative modifying `"nothing"` — no comma precedes it,
+and there's no natural pause between `"nothing was made"` and `"that was made"`. The emphatic
+doubling reads as one breath. Break only at the real pause (the comma after `"Him,"`):
+
+```
+["All things were made through Him,",
+ "and without Him nothing was made that was made."]
 ```
 
 ### Parallel structure
