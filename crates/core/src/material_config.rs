@@ -1,7 +1,18 @@
 use serde::{Deserialize, Serialize};
 
-use crate::club_status::ClubStatus;
 use crate::element::ClubTier;
+
+/// Per-(year, club) status that the user controls via the material picker.
+///
+/// The "year" is implicit in the user's engine instance — one engine is
+/// built per (user, year). The "club" is the verse's most-specific club
+/// tier from `parse_tiers`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ClubStatus {
+    Active,
+    Maintenance,
+    Paused,
+}
 
 /// How far up the tier ladder a "scope" reaches. `Up150` includes only
 /// `Club150` verses; `Up300` includes both `Club150` and `Club300`;
