@@ -125,13 +125,11 @@ export interface YearsResponse {
   years: YearView[]
 }
 
-export type MemorizeStep =
-  | { kind: 'PhraseFill'; cardId: number; position: number }
-  | { kind: 'Recitation'; cardId: number }
-
 export interface MemorizeProgressionResponse {
   verseId: number | null
-  progression: MemorizeStep[]
+  /** Every per-verse card to drill in memorize, in builder order. The
+   *  client cycles them in a drill loop until each gets graded Good. */
+  cardIds: number[]
 }
 
 export interface ApiClient {

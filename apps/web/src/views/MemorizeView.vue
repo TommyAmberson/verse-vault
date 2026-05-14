@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { type CardRender, type MemorizeStep, api } from '@/api'
+import { type CardRender, api } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 
 // Per-year cap built at mount from /years. Each enrolled year with new
@@ -13,11 +13,20 @@ interface YearQuota {
   remaining: number
 }
 
+// Per-verse drill phase: a quick "read the verse" intro, then cycle
+// the verse's cards (Again re-queues, Good removes) until every card
+// has been passed once, then a closing "read it again" before
+// graduating. None of these grades flow to FSRS — memorize stays
+// pure-intro per the planning notes.
+type Phase = 'reading_start' | 'drilling' | 'reading_end'
+
 const queue = ref<YearQuota[]>([])
 const verseId = ref<number | null>(null)
-const progression = ref<MemorizeStep[]>([])
-const stepIndex = ref(0)
+const drillQueue = ref<number[]>([])
 const card = ref<CardRender | null>(null)
+const anchorCard = ref<CardRender | null>(null)
+const phase = ref<Phase>('reading_start')
+const revealed = ref(false)
 const graduatedCount = ref(0)
 const totalTarget = ref(0)
 const done = ref(false)
@@ -26,12 +35,9 @@ const error = ref<string | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
 
-const currentStep = computed(() => progression.value[stepIndex.value] ?? null)
-const totalSteps = computed(() => progression.value.length)
-const isLastStep = computed(
-  () => totalSteps.value > 0 && stepIndex.value === totalSteps.value - 1,
-)
 const currentMaterialId = computed(() => queue.value[0]?.materialId ?? null)
+const totalDrillCards = ref(0)
+const remainingDrillCards = computed(() => drillQueue.value.length)
 
 async function buildQueue(): Promise<boolean> {
   const res = await api.getYears()
@@ -56,18 +62,25 @@ async function loadVerse() {
   loading.value = true
   error.value = null
   card.value = null
+  anchorCard.value = null
   try {
     const res = await api.getNextMemorizeProgression(currentMaterialId.value)
-    if (res.verseId === null || res.progression.length === 0) {
+    const firstCardId = res.cardIds[0]
+    if (res.verseId === null || firstCardId === undefined) {
       // This year ran out before its quota — drop it and move on.
       queue.value.shift()
       await loadVerse()
       return
     }
     verseId.value = res.verseId
-    progression.value = res.progression
-    stepIndex.value = 0
-    await loadStepCard()
+    drillQueue.value = [...res.cardIds]
+    totalDrillCards.value = res.cardIds.length
+    phase.value = 'reading_start'
+    revealed.value = true
+    // Anchor render = first card, used to display the verse during the
+    // reading_start/reading_end phases.
+    anchorCard.value = await api.getCardRender(currentMaterialId.value, firstCardId)
+    card.value = anchorCard.value
   } catch (err) {
     error.value = formatError(err)
   } finally {
@@ -75,12 +88,13 @@ async function loadVerse() {
   }
 }
 
-async function loadStepCard() {
-  const step = currentStep.value
-  if (!step || !currentMaterialId.value) return
+async function loadCurrentDrillCard() {
+  const cardId = drillQueue.value[0]
+  if (cardId === undefined || !currentMaterialId.value) return
   loading.value = true
   try {
-    card.value = await api.getCardRender(currentMaterialId.value, step.cardId)
+    card.value = await api.getCardRender(currentMaterialId.value, cardId)
+    revealed.value = false
   } catch (err) {
     error.value = formatError(err)
   } finally {
@@ -88,17 +102,38 @@ async function loadStepCard() {
   }
 }
 
-async function nextStep() {
+async function startDrilling() {
+  phase.value = 'drilling'
+  await loadCurrentDrillCard()
+}
+
+function reveal() {
+  revealed.value = true
+}
+
+async function gradeAgain() {
   if (submitting.value) return
-  if (!isLastStep.value) {
-    stepIndex.value += 1
-    await loadStepCard()
+  // Push the current card to the back of the queue so it cycles again.
+  const id = drillQueue.value.shift()
+  if (id !== undefined) drillQueue.value.push(id)
+  await loadCurrentDrillCard()
+}
+
+async function gradeGood() {
+  if (submitting.value) return
+  drillQueue.value.shift()
+  if (drillQueue.value.length === 0) {
+    phase.value = 'reading_end'
+    revealed.value = true
+    card.value = anchorCard.value
     return
   }
-  // Last step for this verse: graduate, decrement the current year's
-  // quota, and move on. Pop the year when it hits zero.
+  await loadCurrentDrillCard()
+}
+
+async function graduate() {
   const active = queue.value[0]
-  if (verseId.value === null || !active) return
+  if (verseId.value === null || !active || submitting.value) return
   submitting.value = true
   error.value = null
   try {
@@ -108,8 +143,8 @@ async function nextStep() {
     if (active.remaining <= 0) queue.value.shift()
     if (queue.value.length === 0) {
       verseId.value = null
-      progression.value = []
       card.value = null
+      anchorCard.value = null
       done.value = true
       return
     }
@@ -125,15 +160,6 @@ function formatError(err: unknown): string {
   if (err instanceof Error) return err.message
   return String(err)
 }
-
-const stepLabel = computed(() => {
-  const step = currentStep.value
-  if (!step) return ''
-  if (step.kind === 'PhraseFill') return `Phrase ${step.position + 1}`
-  return 'Recitation'
-})
-
-const buttonLabel = computed(() => (isLastStep.value ? 'Got it — graduate' : 'Next'))
 
 onMounted(async () => {
   try {
@@ -174,13 +200,50 @@ onMounted(async () => {
 
     <div v-else-if="card" class="card">
       <div class="meta">
-        Verse {{ graduatedCount + 1 }} of {{ totalTarget }} ·
-        Step {{ stepIndex + 1 }} of {{ totalSteps }} · {{ stepLabel }}
+        <template v-if="phase === 'reading_start'">
+          Verse {{ graduatedCount + 1 }} of {{ totalTarget }} · Read it through
+        </template>
+        <template v-else-if="phase === 'drilling'">
+          Verse {{ graduatedCount + 1 }} of {{ totalTarget }} ·
+          {{ totalDrillCards - remainingDrillCards + 1 }} of {{ totalDrillCards }} cards
+        </template>
+        <template v-else>
+          Verse {{ graduatedCount + 1 }} of {{ totalTarget }} · Read it once more
+        </template>
       </div>
-      <CardPrompt :card="card" :revealed="true" />
+      <CardPrompt :card="card" :revealed="revealed" />
       <div class="actions">
-        <button class="advance" :disabled="submitting" @click="nextStep">
-          {{ buttonLabel }}
+        <button
+          v-if="phase === 'reading_start'"
+          class="primary"
+          :disabled="submitting"
+          @click="startDrilling"
+        >
+          Start drilling
+        </button>
+        <button
+          v-else-if="phase === 'drilling' && !revealed"
+          class="primary"
+          :disabled="submitting"
+          @click="reveal"
+        >
+          Reveal answer
+        </button>
+        <div v-else-if="phase === 'drilling' && revealed" class="grades">
+          <button class="grade grade-again" :disabled="submitting" @click="gradeAgain">
+            Again
+          </button>
+          <button class="grade grade-good" :disabled="submitting" @click="gradeGood">
+            Good
+          </button>
+        </div>
+        <button
+          v-else-if="phase === 'reading_end'"
+          class="primary"
+          :disabled="submitting"
+          @click="graduate"
+        >
+          Graduate verse
         </button>
       </div>
     </div>
@@ -252,7 +315,7 @@ onMounted(async () => {
   margin-top: auto;
 }
 
-.advance {
+.primary {
   padding: 0.75rem 1.5rem;
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -262,7 +325,35 @@ onMounted(async () => {
   font-size: 1rem;
 }
 
-.advance:hover:not(:disabled) {
+.primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
+}
+
+.grades {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.grade {
+  padding: 0.75rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.grade-again {
+  background: var(--color-grade-again-bg);
+  color: var(--color-grade-again);
+}
+
+.grade-good {
+  background: var(--color-grade-good-bg);
+  color: var(--color-grade-good);
+}
+
+.grade:hover:not(:disabled) {
+  border-color: currentColor;
 }
 </style>
