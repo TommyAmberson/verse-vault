@@ -202,6 +202,10 @@ export class EngineStore {
     private readonly db: DB,
     private readonly desiredRetention: number = DEFAULT_DESIRED_RETENTION,
     private readonly now: () => number = () => Math.floor(Date.now() / 1000),
+    /** Source of the bundled MaterialData JSON, by material id. Tests
+     *  inject a stub to drive snapshot-bump scenarios; production
+     *  defaults to the on-disk loader. */
+    private readonly loadBundledJson: (id: string) => string = getMaterialJson,
   ) {}
 
   async load(key: EngineKey): Promise<LoadedEngine> {
@@ -225,7 +229,7 @@ export class EngineStore {
       throw new NotEnrolledError(key);
     }
 
-    const bundledJson = getMaterialJson(key.materialId);
+    const bundledJson = this.loadBundledJson(key.materialId);
     if (sha256(bundledJson) !== sha256(snapshot.materialData.toString('utf8'))) {
       const newId = randomUUID();
       const newVersion = snapshot.version + 1;
