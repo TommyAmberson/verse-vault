@@ -1,4 +1,4 @@
-use crate::card::Card;
+use crate::card::{Card, CardState};
 use crate::engine::ReviewEngine;
 use crate::types::CardId;
 
@@ -54,6 +54,40 @@ pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
         .filter_map(|c| Some((c.id, engine.card_min_r(c, now_secs)?)))
         .filter(|(_, r)| *r < engine.schedule_params.target_retention)
         .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .map(|(id, _)| id)
+}
+
+/// Pick a card from the relearning priority lane: any `Active` card that has
+/// at least one test with `pending_relearn = true` whose FSRS-computed due
+/// time has elapsed. Bypasses the sibling cooldown — a freshly-lapsed card
+/// is exactly what we want the user re-drilling, even if another card in the
+/// session just touched a shared test.
+///
+/// Returns `None` when no lane card is due. Ties broken by earliest due time
+/// (the lapse a learner has been kept waiting longest gets cleared first).
+pub fn next_relearn_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
+    let target = engine.schedule_params.target_retention;
+    engine
+        .cards
+        .iter()
+        .filter(|c| matches!(c.state, CardState::Active))
+        .filter_map(|c| {
+            let atoms = engine.atoms_for(c.verse_id);
+            let earliest_due = c
+                .tests(&atoms)
+                .into_iter()
+                .filter_map(|tk| {
+                    let state = engine.tests.get(&tk)?;
+                    if !state.pending_relearn {
+                        return None;
+                    }
+                    let due = engine.fsrs.due_at(state, target);
+                    (due <= now_secs).then_some(due)
+                })
+                .min()?;
+            Some((c.id, earliest_due))
+        })
+        .min_by_key(|(_, due)| *due)
         .map(|(id, _)| id)
 }
 
@@ -153,6 +187,84 @@ mod tests {
         // cooldown — we don't want the user drilling the same phrase twice
         // back-to-back.
         assert!(engine.is_in_cooldown(pf_id, now + 60));
+    }
+
+    #[test]
+    fn relearn_lane_empty_before_pending_relearn_due_elapsed() {
+        // Grade Again at t=now; the FSRS post-failure interval is ~6h, so the
+        // lane should not surface the card until that interval elapses.
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        let now = 86400 * 365;
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        engine.review(card_id, Grade::Again, now);
+        // 1 minute later — well before the 6h FSRS sub-day interval.
+        assert!(next_relearn_card(&engine, now + 60).is_none());
+    }
+
+    #[test]
+    fn relearn_lane_surfaces_card_once_fsrs_due_time_elapses() {
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        let now = 86400 * 365;
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        engine.review(card_id, Grade::Again, now);
+        // A day later — well past the 6h post-failure interval.
+        assert_eq!(next_relearn_card(&engine, now + 86400), Some(card_id));
+    }
+
+    #[test]
+    fn relearn_lane_bypasses_sibling_cooldown() {
+        // Lapse a card, wait past the FSRS sub-day due time, then re-touch
+        // one of its shared tests so the cooldown filter would mask it. The
+        // lane must still surface it — defeating that mask is the lane's
+        // only job.
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        let now = 86400 * 365;
+        let pf_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        engine.review(pf_id, Grade::Again, now);
+        let later = now + 86400;
+        let touched_test = engine.card(pf_id).unwrap().tests(&engine.atoms_for(0))[0];
+        engine.tests.get_mut(&touched_test).unwrap().last_seen_secs = later - 60;
+        assert!(engine.is_in_cooldown(pf_id, later));
+        assert_eq!(next_relearn_card(&engine, later), Some(pf_id));
+    }
+
+    #[test]
+    fn relearn_lane_clears_after_passing_grade() {
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        let now = 86400 * 365;
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        engine.review(card_id, Grade::Again, now);
+        // Pass after the FSRS due window — lane should clear.
+        engine.review(card_id, Grade::Good, now + 86400);
+        assert!(next_relearn_card(&engine, now + 2 * 86400).is_none());
     }
 
     #[test]
