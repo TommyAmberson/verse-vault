@@ -14,22 +14,18 @@ from .features import (
     extract_verse_features,
 )
 from .helpers import (
-    SEVERITIES,
     html_tags_balanced,
     normalize_reference,
     parse_reference,
     rejoin_matches,
-    severity_rank,
     strip_html,
     tokens,
     word_count,
 )
-from .prompts import JUDGE_PROMPT, SPLIT_PROMPT, format_split_prompt
+from .prompts import SPLIT_PROMPT, format_split_prompt
 
 __all__ = [
     "FUNCTION_WORDS",
-    "JUDGE_PROMPT",
-    "SEVERITIES",
     "SPLIT_PROMPT",
     "composite_signal_score",
     "extract_boundary_features",
@@ -40,7 +36,6 @@ __all__ = [
     "normalize_reference",
     "parse_reference",
     "rejoin_matches",
-    "severity_rank",
     "strip_html",
     "tokens",
     "word_count",

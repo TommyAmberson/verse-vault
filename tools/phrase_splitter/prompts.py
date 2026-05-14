@@ -150,19 +150,3 @@ def format_split_prompt(
 # current split or signals to inject can keep using ``SPLIT_PROMPT`` as
 # a plain ``.format(verse_text=...)`` template.
 SPLIT_PROMPT = SPLIT_PROMPT_HEADER + _OUTPUT_CONTRACT
-
-
-# Deprecated. Folded into ``SPLIT_PROMPT`` with the stability clause; the
-# evaluator's ``call_judge`` is the only remaining caller and is itself
-# removed in the same refactor. Kept here only so the deletion happens
-# in the same commit that drops the caller.
-JUDGE_PROMPT = """\
-You are auditing a memorisation split of a Bible verse. Reply with a
-single JSON object on one line:
-{{"verdict": "ok" | "needs_resplit", "reasons": ["...", "..."]}}.
-
-Verse: {ref}
-Text: {text}
-Current split:
-{phrases_block}
-"""

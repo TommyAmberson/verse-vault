@@ -13,12 +13,10 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from phrase_splitter import (
-    SEVERITIES,
     html_tags_balanced,
     normalize_reference,
     parse_reference,
     rejoin_matches,
-    severity_rank,
     strip_html,
     tokens,
     word_count,
@@ -34,6 +32,8 @@ from phrase_splitter.features import (
     slice_phrases,
 )
 from phrase_splitter.prompts import format_split_prompt
+
+from evaluate_phrases import check_verse
 
 
 class WordCountTests(unittest.TestCase):
@@ -109,17 +109,6 @@ class ReferenceTests(unittest.TestCase):
     def test_parse_rejects_garbage(self):
         with self.assertRaises(ValueError):
             parse_reference("not a reference")
-
-
-class SeverityTests(unittest.TestCase):
-    def test_ranking_ordered_worst_first(self):
-        ranks = [severity_rank(s) for s in SEVERITIES]
-        self.assertEqual(ranks, sorted(ranks))
-
-    def test_blocker_worst(self):
-        self.assertLess(severity_rank("blocker"), severity_rank("high"))
-        self.assertLess(severity_rank("high"), severity_rank("medium"))
-        self.assertLess(severity_rank("medium"), severity_rank("low"))
 
 
 class SyllableTests(unittest.TestCase):
@@ -301,6 +290,53 @@ class CompositeScoreTests(unittest.TestCase):
             ["nothing", "was", "made", "that", "was", "made."], [3, 3]
         )
         self.assertGreater(composite_signal_score(feats), 0.1)
+
+
+class CheckVerseTests(unittest.TestCase):
+    def test_missing_pwc_is_blocker(self):
+        out = check_verse({"phraseWordCounts": []}, ["a", "b", "c"])
+        self.assertTrue(out["blockers"])
+        self.assertEqual(out["signals"], None)
+
+    def test_sum_drift_is_blocker(self):
+        out = check_verse({"phraseWordCounts": [3, 3]}, ["a", "b", "c", "d", "e"])
+        self.assertTrue(any("drift" in b for b in out["blockers"]))
+        self.assertEqual(out["signals"], None)
+
+    def test_no_canonical_tokens_is_blocker(self):
+        out = check_verse({"phraseWordCounts": [3]}, [])
+        self.assertTrue(out["blockers"])
+
+    def test_unbalanced_html_is_blocker(self):
+        # Phrase 1 opens <b> but doesn't close it inside the phrase.
+        out = check_verse({"phraseWordCounts": [3, 3]}, ["a", "<b>b", "c", "d</b>", "e", "f"])
+        self.assertTrue(any("unbalanced HTML" in b for b in out["blockers"]))
+
+    def test_clean_split_no_blockers(self):
+        out = check_verse(
+            {"phraseWordCounts": [5]},
+            ["For", "the", "kingdom", "of", "God"],
+        )
+        self.assertEqual(out["blockers"], [])
+        self.assertIsInstance(out["signal_score"], float)
+        self.assertIsNotNone(out["signals"])
+
+    def test_restrictive_relative_lifts_score(self):
+        # "nothing was made" / "that was made." — restrictive relative
+        # boundary. No blockers expected; score should be above default.
+        out = check_verse(
+            {"phraseWordCounts": [3, 3]},
+            ["nothing", "was", "made", "that", "was", "made."],
+        )
+        self.assertEqual(out["blockers"], [])
+        self.assertGreater(out["signal_score"], 0.15)
+
+    def test_ftv_out_of_range_is_blocker(self):
+        out = check_verse(
+            {"phraseWordCounts": [3], "ftvWordCount": 99},
+            ["a", "b", "c"],
+        )
+        self.assertTrue(out["blockers"])
 
 
 if __name__ == "__main__":
