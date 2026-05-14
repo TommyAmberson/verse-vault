@@ -130,6 +130,7 @@ impl ReviewEngine {
             clubs,
             ftv_word_count: None,
             phrase_zero_word_count: 0,
+            chapter_members: Vec::new(),
         }
     }
 
@@ -327,7 +328,7 @@ mod tests {
             id: reading_id,
             kind: CardKind::Reading,
             verse_id: 0,
-            state: crate::card::CardState::Review,
+            state: crate::card::CardState::Active,
         });
         let outcome = engine.review(reading_id, Grade::Good, 86400 * 365);
         assert!(outcome.updates.is_empty());

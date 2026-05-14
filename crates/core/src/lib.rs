@@ -1,9 +1,11 @@
 pub mod builder;
 pub mod card;
+pub mod club_status;
 pub mod content;
 pub mod element;
 pub mod engine;
 pub mod fsrs_bridge;
+pub mod material_config;
 pub mod render;
 pub mod schedule;
 pub mod session;

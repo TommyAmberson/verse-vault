@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import { AlreadyEnrolledError, UnknownMaterialError, enrollUser } from './enrollment.js';
 
-const MATERIAL_ID = 'nkjv-1cor';
+const MATERIAL_ID = 'nkjv-cor';
 
 describe('enrollUser', () => {
   let cleanup: (() => void) | null = null;

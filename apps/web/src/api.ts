@@ -38,6 +38,7 @@ export type CardKind =
   | 'Recitation'
   | 'Citation'
   | 'Ftv'
+  | 'ChapterClubList'
   | 'Reading'
 
 export interface VerseRender {
@@ -85,12 +86,51 @@ export interface StatsResponse {
   testDistribution: Record<'weak' | 'learning' | 'familiar' | 'strong' | 'mastered', number>
 }
 
+export type ClubStatus = 'active' | 'maintenance' | 'paused'
+export type ClubTier = '150' | '300' | 'full'
+export type TierScope = 'off' | 'up150' | 'up300' | 'all'
+export type ChapterListScope = 'off' | 'up150' | 'up300'
+
+export interface YearSettings {
+  headings: boolean
+  ftv: boolean
+  newScope: TierScope
+  reviewScope: TierScope
+  clubCardScope: TierScope
+  chapterListScope: ChapterListScope
+  lessonBatchSize: number
+}
+
+export interface ClubView {
+  /** Derived from `activeScope` + `maintenanceScope`. The API returns
+   *  it for display; the client doesn't write to it directly. */
+  status: ClubStatus
+  cardCount: number
+}
+
+export interface YearView {
+  materialId: string
+  title: string
+  description: string
+  /** True when the user has a graph_snapshot + user_materials row for
+   *  this year. Bumping any scope above Off and saving will auto-enroll. */
+  enrolled: boolean
+  settings: YearSettings
+  clubs: Record<ClubTier, ClubView>
+}
+
+export interface YearsResponse {
+  years: YearView[]
+}
+
 export interface ApiClient {
   enroll(materialId: string): Promise<{ snapshotId: string; version: number }>
   getNextCard(materialId: string): Promise<{ cardId: number | null }>
   getCardRender(materialId: string, cardId: number): Promise<CardRender>
   submitReview(materialId: string, cardId: number, grade: Grade): Promise<ReviewResponse>
   getStats(materialId: string): Promise<StatsResponse>
+  getYears(): Promise<YearsResponse>
+  updateYearSettings(materialId: string, settings: Partial<YearSettings>): Promise<{ settings: YearSettings }>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
@@ -127,6 +167,9 @@ export function createApiClient(apiUrl: string): ApiClient {
       request('POST', '/api/cards/review', { materialId, cardId, grade }),
     getStats: (materialId) =>
       request('GET', `/api/stats/${encodeURIComponent(materialId)}`),
+    getYears: () => request('GET', '/api/years'),
+    updateYearSettings: (materialId, settings) =>
+      request('POST', `/api/years/${encodeURIComponent(materialId)}/settings`, settings),
   }
 }
 
@@ -145,4 +188,4 @@ export class ApiError extends Error {
 export const api = createApiClient(import.meta.env.VITE_API_URL ?? 'http://localhost:3000')
 
 /** Material id rendered in the thin client. Override with VITE_MATERIAL_ID. */
-export const MATERIAL_ID = import.meta.env.VITE_MATERIAL_ID ?? 'nkjv-1cor'
+export const MATERIAL_ID = import.meta.env.VITE_MATERIAL_ID ?? 'nkjv-cor'

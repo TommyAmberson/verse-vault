@@ -40,6 +40,47 @@ export interface TestStateEntry {
   last_root_secs: number;
 }
 
+/**
+ * Build a JSON-encoded `MaterialConfig` for this user × material from
+ * the picker table. No row means defaults (the WASM constructor uses
+ * `MaterialConfig::default()` directly when we return the empty string).
+ */
+function readMaterialConfigJson(db: DB, key: EngineKey): string {
+  const settings = db
+    .select()
+    .from(schema.userYearSettings)
+    .where(
+      and(
+        eq(schema.userYearSettings.userId, key.userId),
+        eq(schema.userYearSettings.materialId, key.materialId),
+      ),
+    )
+    .get();
+
+  if (!settings) return '';
+
+  const SCOPE_KEY: Record<string, string> = {
+    off: 'Off',
+    up150: 'Up150',
+    up300: 'Up300',
+    all: 'All',
+  };
+  const toRustScope = (field: string, value: string): string => {
+    const out = SCOPE_KEY[value];
+    if (!out) throw new Error(`unknown ${field} value: ${value}`);
+    return out;
+  };
+
+  return JSON.stringify({
+    headings: settings.headings,
+    ftv: settings.ftv,
+    new_scope: toRustScope('newScope', settings.newScope),
+    review_scope: toRustScope('reviewScope', settings.reviewScope),
+    club_card_scope: toRustScope('clubCardScope', settings.clubCardScope),
+    chapter_list_scope: toRustScope('chapterListScope', settings.chapterListScope),
+  });
+}
+
 export function readTestStateEntries(db: DB, key: EngineKey): TestStateEntry[] {
   return db
     .select()
@@ -106,8 +147,10 @@ export class EngineStore {
 
     const testStates = readTestStateEntries(this.db, key);
     const materialJson = snapshot.materialData.toString('utf8');
+    const configJson = readMaterialConfigJson(this.db, key);
     const engine = new WasmEngine(
       materialJson,
+      configJson,
       JSON.stringify(testStates),
       this.desiredRetention,
       BigInt(this.now()),
@@ -116,6 +159,20 @@ export class EngineStore {
     const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
     this.cache.set(userMaterialKey(key), loaded);
     return loaded;
+  }
+
+  /**
+   * Drop the cached engine for this key. The next `load` rebuilds from
+   * fresh DB state — used after material-picker writes change either the
+   * per-year toggles or the per-club paused set.
+   */
+  invalidate(key: EngineKey): void {
+    const k = userMaterialKey(key);
+    const cached = this.cache.get(k);
+    if (cached) {
+      cached.engine.free();
+      this.cache.delete(k);
+    }
   }
 
   /**

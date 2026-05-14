@@ -21,6 +21,7 @@ async function onSignOut() {
       <RouterLink to="/" class="brand">verse-vault</RouterLink>
       <nav v-if="user" class="nav">
         <RouterLink to="/session">Session</RouterLink>
+        <RouterLink to="/material">Material</RouterLink>
         <RouterLink to="/stats">Stats</RouterLink>
         <span class="who">{{ user.email }}</span>
         <button type="button" class="sign-out" @click="onSignOut">Sign out</button>

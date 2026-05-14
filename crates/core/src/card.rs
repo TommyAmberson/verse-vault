@@ -4,12 +4,20 @@ use crate::element::{ClubTier, ElementId};
 use crate::test_kind::{TestKey, TestKind};
 use crate::types::CardId;
 
+/// Per-user lifecycle state of a card.
+///
+/// `New` means the card exists in the user's deck but has not been
+/// introduced yet via the memorize session — `/review` should skip it.
+/// `Active` means it has been introduced and FSRS scheduling governs when
+/// it surfaces.
+///
+/// The relearning of failed reviews is handled by a session-level priority
+/// lane (slice 2), not by a discrete `Relearning` state — FSRS already
+/// produces the short post-lapse intervals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CardState {
     New,
-    Learning,
-    Review,
-    Relearning,
+    Active,
 }
 
 /// What this card asks the learner. Atomic kinds contain exactly one test;
@@ -41,6 +49,14 @@ pub enum CardKind {
     Ftv {
         with_citation: bool,
     },
+    /// "List the tier-T verses in this chapter." Composite card that
+    /// grades the per-verse `VerseClubBinding` for every real verse in
+    /// the chapter tagged with `tier`. The card itself is anchored to a
+    /// pseudo verse_id (allocated by the builder after the real verses)
+    /// whose `VerseAtoms` carries the member verse_ids.
+    ChapterClubList {
+        tier: ClubTier,
+    },
     /// UX-only: progressive-reveal entry that shows the verse text to the
     /// learner. Carries no FSRS state and is never emitted by `builder::build`;
     /// it only appears in `Session::new_verse_progression`.
@@ -66,7 +82,7 @@ pub struct CardSchedule {
     pub priority: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct VerseAtoms {
     pub verse_id: u32,
     pub phrase_count: u16,
@@ -78,6 +94,17 @@ pub struct VerseAtoms {
     /// where we'd otherwise schedule a redundant phrase-0 test (the FTV
     /// prompt already shows phrase 0 in full).
     pub phrase_zero_word_count: u16,
+    /// For pseudo verses anchoring `ChapterClubList` cards: the
+    /// (verse_id, most-specific tier) of every real verse in the same
+    /// chapter whose tier matches the card's exactly. A Club300
+    /// chapter card therefore lists only the chapter's Club300-tagged
+    /// verses (the 150 verses unique to Club 300, not the 150 shared
+    /// Club 150 verses); those Club150-tagged verses appear on a
+    /// separate Club150 chapter card. Tests for the card grade each
+    /// member's own-tier `VerseClubBinding`, so the chapter card
+    /// shares state with the per-verse `VerseInClub` cards rather
+    /// than spawning parallel bindings. Empty for real verses.
+    pub chapter_members: Vec<(u32, ClubTier)>,
 }
 
 impl VerseAtoms {
@@ -195,6 +222,17 @@ impl Card {
                 },
             ],
             CardKind::Ftv { with_citation } => ftv_tests(verse_id, atoms, with_citation),
+            CardKind::ChapterClubList { tier: _ } => atoms
+                .chapter_members
+                .iter()
+                .map(|&(v, member_tier)| TestKey {
+                    kind: TestKind::VerseClub,
+                    element: ElementId::VerseClubBinding {
+                        verse_id: v,
+                        tier: member_tier,
+                    },
+                })
+                .collect(),
             CardKind::Reading => Vec::new(),
         }
     }
@@ -212,6 +250,7 @@ mod tests {
             clubs: vec![ClubTier::Club150, ClubTier::Club300],
             ftv_word_count: None,
             phrase_zero_word_count: 0,
+            chapter_members: Vec::new(),
         }
     }
 
@@ -220,7 +259,7 @@ mod tests {
             id: CardId(id),
             kind,
             verse_id,
-            state: CardState::Review,
+            state: CardState::Active,
         }
     }
 
@@ -241,6 +280,7 @@ mod tests {
             clubs: vec![ClubTier::Club150],
             ftv_word_count: Some(2),
             phrase_zero_word_count: 4,
+            chapter_members: Vec::new(),
         };
         assert_eq!(atoms.phrase_positions(), vec![0u16, 1, 2]);
     }
@@ -342,6 +382,7 @@ mod tests {
             clubs: vec![],
             ftv_word_count: Some(2),
             phrase_zero_word_count: 6,
+            chapter_members: Vec::new(),
         };
         let c = atomic_card(
             0,
@@ -364,6 +405,7 @@ mod tests {
             clubs: vec![],
             ftv_word_count: Some(6),
             phrase_zero_word_count: 6,
+            chapter_members: Vec::new(),
         };
         let c = atomic_card(
             0,
@@ -385,6 +427,7 @@ mod tests {
             clubs: vec![],
             ftv_word_count: Some(2),
             phrase_zero_word_count: 6,
+            chapter_members: Vec::new(),
         };
         let c = atomic_card(
             0,

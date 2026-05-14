@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { authClient, useAuth } from '@/composables/useAuth'
+import { authClient } from '@/composables/useAuth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -22,24 +22,25 @@ const router = createRouter({
       name: 'stats',
       component: () => import('@/views/StatsView.vue'),
     },
+    {
+      path: '/material',
+      name: 'material',
+      component: () => import('@/views/MaterialView.vue'),
+    },
   ],
 })
 
-// Better Auth's `useSession()` issues an async fetch; on the very first
-// navigation (e.g. after a hard refresh) the reactive session is still
-// `{ data: null, isPending: true }`, so a guard that reads `data.user`
-// synchronously would bounce a signed-in user to /signin. Resolve the
-// initial `getSession()` once and gate on the flag — subsequent
-// navigations skip the microtask hop entirely.
-let initialSessionResolved = false
-
+// Read the signed-in state directly from `getSession()`'s return value
+// rather than from `useSession()`'s reactive ref. The reactive ref runs
+// its own async fetch and lags behind both (a) the initial cookie that
+// a hard refresh re-presents and (b) the just-set cookie that signIn
+// produces — so a synchronous read against it would bounce a real user
+// to /signin. `getSession()` always reflects the canonical state at the
+// moment of the await; Better Auth caches it internally so per-nav
+// fetches are cheap.
 router.beforeEach(async (to) => {
-  if (!initialSessionResolved) {
-    await authClient.getSession()
-    initialSessionResolved = true
-  }
-  const { session } = useAuth()
-  const signedIn = !!session.value?.data?.user
+  const result = await authClient.getSession()
+  const signedIn = !!result?.data?.user
   if (to.meta.public) {
     if (signedIn && to.name === 'signin') {
       const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/session'

@@ -28,11 +28,11 @@ describe('db', () => {
       .run();
     test.db
       .insert(userMaterials)
-      .values({ userId: 'u1', materialId: 'nkjv-1cor', clubTier: 150, createdAt: now })
+      .values({ userId: 'u1', materialId: 'nkjv-cor', clubTier: 150, createdAt: now })
       .run();
 
     const rows = test.db.select().from(userMaterials).all();
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.materialId).toBe('nkjv-1cor');
+    expect(rows[0]?.materialId).toBe('nkjv-cor');
   });
 });

@@ -27,7 +27,7 @@ const material = {
 const NOW = BigInt(Math.floor(Date.UTC(2026, 4, 8) / 1000));
 
 console.log('Loading engine...');
-const engine = new WasmEngine(JSON.stringify(material), '', 0.9, NOW);
+const engine = new WasmEngine(JSON.stringify(material), '', '', 0.9, NOW);
 
 const initialStates = JSON.parse(engine.export_test_states());
 console.log(`Seeded ${initialStates.length} test states`);

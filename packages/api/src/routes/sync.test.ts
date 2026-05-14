@@ -6,7 +6,7 @@ import { reviewEvents, testStates } from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { type TestApp, createTestApp, signUpTestUser } from '../test-utils.js';
 
-const MATERIAL_ID = 'nkjv-1cor';
+const MATERIAL_ID = 'nkjv-cor';
 
 interface TestStateWire {
   element: unknown;

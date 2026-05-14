@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::card::{Card, CardKind, CardState, VerseAtoms};
 use crate::content::{HeadingData, MaterialData};
 use crate::element::ClubTier;
+use crate::material_config::MaterialConfig;
 use crate::render::{HeadingRender, VerseRender};
 use crate::test_kind::TestKey;
 use crate::test_state::TestState;
@@ -39,6 +40,9 @@ pub struct BuildResult {
 /// Club 300) is *not* expanded here: each verse is associated with one
 /// most-specific tier, since the broader membership is trivially known
 /// and the user shouldn't be asked the same "what club?" twice per verse.
+///
+/// Verses with no club tag are `Full`-tier — the catch-all for content
+/// that's only quizzed at the full-curriculum level.
 fn parse_tiers(raw: &[u16]) -> Vec<ClubTier> {
     let mut tiers: Vec<ClubTier> = Vec::new();
     for &n in raw {
@@ -51,7 +55,108 @@ fn parse_tiers(raw: &[u16]) -> Vec<ClubTier> {
             tiers.push(t);
         }
     }
+    if tiers.is_empty() {
+        tiers.push(ClubTier::Full);
+    }
     tiers
+}
+
+/// Allocate pseudo verse_ids and emit `ChapterClubList` cards. Pseudo
+/// ids start one past the largest real verse_id so existing real-verse
+/// `TestState`s keyed by `ElementId` are unaffected. The pseudo's
+/// `VerseAtoms` carries the chapter's members so `Card::tests` can
+/// expand without consulting the engine.
+fn emit_chapter_club_list_cards(
+    cards: &mut Vec<Card>,
+    next_card_id: &mut u32,
+    verse_atoms_by_id: &mut HashMap<u32, VerseAtoms>,
+    verse_render_by_id: &mut HashMap<u32, VerseRender>,
+    config: &MaterialConfig,
+) {
+    // Group included real verses by (book, chapter), tracking each
+    // verse's most-specific tier so we can compute "tier T or below"
+    // chapter membership.
+    let mut by_chapter: HashMap<(String, u16), Vec<(u32, ClubTier)>> = HashMap::new();
+    for (vid, atoms) in verse_atoms_by_id.iter() {
+        let render = match verse_render_by_id.get(vid) {
+            Some(r) => r,
+            None => continue,
+        };
+        let tier = match atoms.clubs.first() {
+            Some(t) => *t,
+            None => continue,
+        };
+        by_chapter
+            .entry((render.book.clone(), render.chapter))
+            .or_default()
+            .push((*vid, tier));
+    }
+
+    let mut next_pseudo_verse_id: u32 =
+        verse_atoms_by_id.keys().copied().max().map_or(0, |m| m + 1);
+
+    let mut chapter_keys: Vec<(String, u16)> = by_chapter.keys().cloned().collect();
+    chapter_keys.sort();
+
+    for chapter_key in &chapter_keys {
+        let chapter_verses = &by_chapter[chapter_key];
+        // Only Club150 + Club300 emit chapter-list cards; Full never does.
+        for &card_tier in &[ClubTier::Club150, ClubTier::Club300] {
+            if !config.chapter_list_scope.includes(card_tier) {
+                continue;
+            }
+            // EXACT-tier membership: a Club300 chapter card lists only
+            // 300-tagged verses, never 150-tagged ones. Grading the card
+            // lifts the per-member VerseClubBinding for the card's tier
+            // — including 150-tagged verses would reinforce their 150
+            // memory, which the user explicitly doesn't want.
+            let mut members: Vec<(u32, ClubTier)> = chapter_verses
+                .iter()
+                .filter(|(_, vt)| *vt == card_tier)
+                .copied()
+                .collect();
+            members.sort_by_key(|(v, _)| *v);
+            if members.is_empty() {
+                continue;
+            }
+
+            let pseudo_id = next_pseudo_verse_id;
+            next_pseudo_verse_id += 1;
+
+            verse_atoms_by_id.insert(
+                pseudo_id,
+                VerseAtoms {
+                    verse_id: pseudo_id,
+                    phrase_count: 0,
+                    headings: Vec::new(),
+                    clubs: vec![card_tier],
+                    ftv_word_count: None,
+                    phrase_zero_word_count: 0,
+                    chapter_members: members,
+                },
+            );
+            verse_render_by_id.insert(
+                pseudo_id,
+                VerseRender {
+                    book: chapter_key.0.clone(),
+                    chapter: chapter_key.1,
+                    verse: 0, // sentinel: chapter-scoped, no specific verse
+                    phrase_word_counts: Vec::new(),
+                    annotations: Vec::new(),
+                    ftv_word_count: None,
+                    headings: Vec::new(),
+                    clubs: vec![card_tier],
+                },
+            );
+            cards.push(Card {
+                id: CardId(*next_card_id),
+                kind: CardKind::ChapterClubList { tier: card_tier },
+                verse_id: pseudo_id,
+                state: CardState::Active,
+            });
+            *next_card_id += 1;
+        }
+    }
 }
 
 /// `(book, chapter, verse) -> heading_idx` for the first heading whose range
@@ -87,12 +192,27 @@ fn build_heading_lookup(headings: &[HeadingData]) -> HashMap<(String, u16, u16),
     lookup
 }
 
+/// Build cards and seeded test states from material data, with the default
+/// (everything-on) `MaterialConfig`. Convenience wrapper around
+/// [`build_with_config`] for callers (sim, tests) that don't filter.
+pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
+    build_with_config(data, &MaterialConfig::default(), now_secs)
+}
+
 /// Build cards and seeded test states from material data.
 ///
 /// Verses are assigned `verse_id`s in `data.verses_with_content()` order
 /// starting at 0. `now_secs` is used to seed `TestState::new_unseen` for every
 /// test reachable from any emitted card.
-pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
+///
+/// `config` controls which card kinds the builder emits. See
+/// [`MaterialConfig`] for the toggles and the always-on cards that ignore
+/// it.
+pub fn build_with_config(
+    data: &MaterialData,
+    config: &MaterialConfig,
+    now_secs: i64,
+) -> BuildResult {
     let heading_lookup = build_heading_lookup(&data.headings);
 
     let mut verse_index = VerseIndex::new();
@@ -116,6 +236,14 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
 
         let clubs = parse_tiers(&verse.clubs);
 
+        // Per-user club statuses: verses in a `Paused` club are excluded
+        // entirely from the build. TestStates persisted from prior sessions
+        // still live in the DB and are restored verbatim when the club
+        // becomes Active/Maintenance again.
+        if config.verse_is_paused(&clubs) {
+            continue;
+        }
+
         verse_index.add_verse(
             verse_id,
             VerseElements {
@@ -131,7 +259,7 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
                 id: CardId(*next),
                 kind,
                 verse_id,
-                state: CardState::New,
+                state: CardState::Active,
             });
             *next += 1;
         };
@@ -149,22 +277,25 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
         push_card(CardKind::VerseAtVerseRef, &mut cards, &mut next_card_id);
         push_card(CardKind::VerseInChapter, &mut cards, &mut next_card_id);
         push_card(CardKind::VerseInBook, &mut cards, &mut next_card_id);
-        for &h_idx in &headings {
-            push_card(
-                CardKind::VerseInHeading { heading_idx: h_idx },
-                &mut cards,
-                &mut next_card_id,
-            );
+        if config.headings {
+            for &h_idx in &headings {
+                push_card(
+                    CardKind::VerseInHeading { heading_idx: h_idx },
+                    &mut cards,
+                    &mut next_card_id,
+                );
+            }
         }
         for &tier in &clubs {
-            push_card(
-                CardKind::VerseInClub { tier },
-                &mut cards,
-                &mut next_card_id,
-            );
+            if config.club_card_scope.includes(tier) {
+                push_card(
+                    CardKind::VerseInClub { tier },
+                    &mut cards,
+                    &mut next_card_id,
+                );
+            }
         }
 
-        // Composite: Recitation (phrases + citation triple) and Citation.
         push_card(CardKind::Recitation, &mut cards, &mut next_card_id);
         push_card(CardKind::Citation, &mut cards, &mut next_card_id);
 
@@ -172,7 +303,8 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
         // verse has phrases, FTV is short enough, FTV doesn't exceed
         // phrase 0 length. derive_structure verified the prefix invariant
         // when emitting ftv_word_count, so we trust it here.
-        if let Some(ftv_words) = verse.ftv_word_count
+        if config.ftv
+            && let Some(ftv_words) = verse.ftv_word_count
             && phrase_count > 0
             && (ftv_words as usize) <= FTV_MAX_WORDS
             && ftv_words <= phrase_zero_word_count
@@ -229,9 +361,18 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
                 clubs,
                 ftv_word_count: verse.ftv_word_count,
                 phrase_zero_word_count,
+                chapter_members: Vec::new(),
             },
         );
     }
+
+    emit_chapter_club_list_cards(
+        &mut cards,
+        &mut next_card_id,
+        &mut verse_atoms_by_id,
+        &mut verse_render_by_id,
+        config,
+    );
 
     // Seed `TestState::new_unseen` for every TestKey reachable from any card.
     let mut tests: HashMap<TestKey, TestState> = HashMap::new();
@@ -500,6 +641,7 @@ mod tests {
                 clubs,
                 ftv_word_count: None,
                 phrase_zero_word_count: 0,
+                chapter_members: Vec::new(),
             };
             for tk in card.tests(&atoms) {
                 assert!(
@@ -530,10 +672,16 @@ mod tests {
         }"#;
         let m: MaterialData = serde_json::from_str(json).unwrap();
         let r = build(&m, 0);
-        let ids: HashSet<u32> = r.cards.iter().map(|c| c.verse_id).collect();
-        assert!(ids.contains(&0));
-        assert!(ids.contains(&1));
-        assert!(!ids.contains(&2));
+        // Real verses get ids 0 and 1. Chapter-list pseudo verse_ids are
+        // allocated after real verses; we only care that 0 and 1 are
+        // present here.
+        let real_ids: HashSet<u32> = r
+            .cards
+            .iter()
+            .filter(|c| !matches!(c.kind, CardKind::ChapterClubList { .. }))
+            .map(|c| c.verse_id)
+            .collect();
+        assert_eq!(real_ids, HashSet::from([0u32, 1]));
     }
 
     #[test]
@@ -550,9 +698,227 @@ mod tests {
         }"#;
         let m: MaterialData = serde_json::from_str(json).unwrap();
         let r = build(&m, 0);
-        // Only the second verse counts. It gets verse_id 0 (skipping the empty).
-        assert!(r.cards.iter().all(|c| c.verse_id == 0));
-        assert_eq!(r.verse_render_data.get(&0).map(|v| v.verse), Some(2),);
+        // Only the second verse counts. It gets verse_id 0 (skipping the
+        // empty). Pseudo ids belong to the chapter-list cards and have
+        // their own anchors.
+        for c in &r.cards {
+            if matches!(c.kind, CardKind::ChapterClubList { .. }) {
+                continue;
+            }
+            assert_eq!(c.verse_id, 0);
+        }
+        assert_eq!(r.verse_render_data.get(&0).map(|v| v.verse), Some(2));
+    }
+
+    #[test]
+    fn builder_default_config_matches_legacy_build() {
+        // build_with_config(default) and the legacy build() must be
+        // identical card sets — the wrapper is the only difference.
+        let m = material_one_verse_with_heading_and_club();
+        let a = build(&m, 0);
+        let b = build_with_config(&m, &MaterialConfig::default(), 0);
+        assert_eq!(a.cards.len(), b.cards.len());
+        assert_eq!(a.tests.len(), b.tests.len());
+    }
+
+    #[test]
+    fn builder_headings_off_emits_no_heading_cards() {
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            headings: false,
+            ..MaterialConfig::default()
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInHeading { .. }))
+        );
+    }
+
+    #[test]
+    fn builder_ftv_off_emits_no_ftv_cards() {
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            ftv: false,
+            ..MaterialConfig::default()
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::Ftv { .. }))
+        );
+    }
+
+    fn config_with_club_cards_off() -> MaterialConfig {
+        MaterialConfig {
+            club_card_scope: crate::material_config::TierScope::Off,
+            ..MaterialConfig::default()
+        }
+    }
+
+    fn config_with_paused(tier: ClubTier) -> MaterialConfig {
+        // Carve a hole in both scopes so this single tier ends up paused
+        // while the others stay Active. For Club300, pick scopes that
+        // include Club150 only; for Club150, both scopes Off (everything
+        // paused — fine for that test). Bumps both scopes in lockstep
+        // since pause requires neither covering the tier.
+        let scope = match tier {
+            ClubTier::Club150 => crate::material_config::TierScope::Off,
+            ClubTier::Club300 => crate::material_config::TierScope::Up150,
+            ClubTier::Full => crate::material_config::TierScope::Up300,
+        };
+        MaterialConfig {
+            new_scope: scope,
+            review_scope: scope,
+            ..MaterialConfig::default()
+        }
+    }
+
+    #[test]
+    fn builder_club_cards_off_emits_no_verse_in_club_cards() {
+        let m = material_one_verse_with_heading_and_club();
+        let r = build_with_config(&m, &config_with_club_cards_off(), 0);
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInClub { .. }))
+        );
+    }
+
+    #[test]
+    fn builder_always_on_cards_present_with_everything_off() {
+        // Even with every toggleable knob off, the core mechanic cards
+        // still emit: PhraseFill, VerseAtVerseRef, VerseInChapter,
+        // VerseInBook, Recitation, Citation.
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            headings: false,
+            ftv: false,
+            ..config_with_club_cards_off()
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+        );
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseAtVerseRef))
+        );
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInChapter))
+        );
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInBook))
+        );
+        assert!(
+            r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::Recitation))
+        );
+        assert!(r.cards.iter().any(|c| matches!(c.kind, CardKind::Citation)));
+        // With club_cards=false the standalone VerseInClub card is gone.
+        // VerseInClub is the only card kind that grades VerseClubBinding,
+        // so the binding test disappears with it — by design.
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInClub { .. }))
+        );
+    }
+
+    #[test]
+    fn builder_paused_club_drops_the_verse_entirely() {
+        // Verse is in Club 150; pausing Club 150 must drop *all* of its
+        // cards, not just VerseInClub.
+        let m = material_one_verse_with_heading_and_club();
+        let r = build_with_config(&m, &config_with_paused(ClubTier::Club150), 0);
+        assert!(r.cards.is_empty(), "paused-club verse should emit nothing");
+    }
+
+    #[test]
+    fn builder_emits_chapter_club_list_cards_with_exact_tier_membership() {
+        // Chapter with one Club150 verse and one Club300 verse.
+        let json = r#"{
+            "year": 3,
+            "books": ["John"],
+            "chapters": [{"book": "John", "number": 3, "start_verse": 1, "end_verse": 2}],
+            "verses": [
+                {"book": "John", "chapter": 3, "verse": 1, "phraseWordCounts": [1], "annotations": [], "clubs": [150]},
+                {"book": "John", "chapter": 3, "verse": 2, "phraseWordCounts": [1], "annotations": [], "clubs": [300]}
+            ],
+            "headings": []
+        }"#;
+        let m: MaterialData = serde_json::from_str(json).unwrap();
+        let r = build(&m, 0);
+        let chapter_cards: Vec<&Card> = r
+            .cards
+            .iter()
+            .filter(|c| matches!(c.kind, CardKind::ChapterClubList { .. }))
+            .collect();
+        // One chapter, two emitting tiers (Club150 + Club300, not Full)
+        // → two chapter cards.
+        assert_eq!(chapter_cards.len(), 2);
+
+        let pick = |tier: ClubTier| -> &Card {
+            chapter_cards
+                .iter()
+                .find(|c| matches!(c.kind, CardKind::ChapterClubList { tier: t } if t == tier))
+                .copied()
+                .unwrap()
+        };
+
+        // Exact-tier membership: the Club300 card lists *only* the
+        // 300-tagged verse, never the 150-tagged one. Grading it
+        // therefore lifts the 300 binding alone.
+        let atoms_of = |c: &Card| r.verse_atoms_data.get(&c.verse_id).unwrap();
+        let m150 = &atoms_of(pick(ClubTier::Club150)).chapter_members;
+        let m300 = &atoms_of(pick(ClubTier::Club300)).chapter_members;
+        assert_eq!(m150.len(), 1);
+        assert_eq!(m150[0].1, ClubTier::Club150);
+        assert_eq!(m300.len(), 1);
+        assert_eq!(m300[0].1, ClubTier::Club300);
+    }
+
+    #[test]
+    fn builder_skips_chapter_card_for_full_tier() {
+        // A chapter of Full-only verses gets no chapter-list card —
+        // listing every verse in a chapter isn't a meaningful test.
+        let json = r#"{
+            "year": 3,
+            "books": ["John"],
+            "chapters": [{"book": "John", "number": 3, "start_verse": 1, "end_verse": 1}],
+            "verses": [
+                {"book": "John", "chapter": 3, "verse": 1, "phraseWordCounts": [1], "annotations": [], "clubs": []}
+            ],
+            "headings": []
+        }"#;
+        let m: MaterialData = serde_json::from_str(json).unwrap();
+        let r = build(&m, 0);
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::ChapterClubList { .. }))
+        );
+    }
+
+    #[test]
+    fn builder_paused_other_club_leaves_verse_alone() {
+        // Verse is in Club 150; pausing Club 300 must not affect it.
+        let m = material_one_verse_with_heading_and_club();
+        let r = build_with_config(&m, &config_with_paused(ClubTier::Club300), 0);
+        assert!(
+            !r.cards.is_empty(),
+            "non-matching pause should preserve cards"
+        );
     }
 
     #[test]

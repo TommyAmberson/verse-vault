@@ -69,6 +69,21 @@ export function requireEnrollment(
   return row;
 }
 
+/** Boolean form of `requireEnrollment` — for callers that need to branch
+ *  on enrollment without throwing. */
+export function isEnrolled(db: DB, key: UserMaterial): boolean {
+  return !!db
+    .select({ userId: schema.userMaterials.userId })
+    .from(schema.userMaterials)
+    .where(
+      and(
+        eq(schema.userMaterials.userId, key.userId),
+        eq(schema.userMaterials.materialId, key.materialId),
+      ),
+    )
+    .get();
+}
+
 /**
  * Enrolls a user in a material. Inserts the `user_materials` row, the initial
  * `graph_snapshots` row from the material JSON, and seeds `test_states` from
@@ -91,7 +106,10 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
   const snapshotId = randomUUID();
   const createdAt = now();
 
-  const seedEngine = new WasmEngine(materialJson, '', desiredRetention, BigInt(createdAt));
+  // Empty config = MaterialConfig::default() — enrollment seeds the same
+  // card set regardless of per-user picker choices; those are applied at
+  // query time (slice 1) and at /memorize introduction (slice 2).
+  const seedEngine = new WasmEngine(materialJson, '', '', desiredRetention, BigInt(createdAt));
   let testStates: TestStateEntry[];
   try {
     testStates = JSON.parse(seedEngine.export_test_states()) as TestStateEntry[];

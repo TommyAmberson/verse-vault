@@ -95,6 +95,40 @@ export const userMaterials = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
 );
 
+// Per-year material picker toggles. One row per (user, material). Four
+// "tier scope" columns plus two booleans plus the lesson batch size
+// drive the engine's `MaterialConfig` at construction time:
+//
+// - active_scope: which tiers introduce new verses (and review them).
+// - maintenance_scope: which tiers (additionally) review only.
+// - club_card_scope: which tiers get the per-verse "Which club?" card.
+// - chapter_list_scope: which tiers get the chapter-list card.
+//
+// Each scope is one of "off" | "up150" | "up300" | "all"
+// (chapter_list_scope omits "all" — Full never emits a chapter-list).
+//
+// Per-tier effective status is derived: a tier covered by active_scope
+// is Active; covered only by maintenance_scope is Maintenance; covered
+// by neither is Paused.
+export const userYearSettings = sqliteTable(
+  'user_year_settings',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    headings: integer('headings', { mode: 'boolean' }).notNull(),
+    ftv: integer('ftv', { mode: 'boolean' }).notNull(),
+    newScope: text('new_scope').notNull(),
+    reviewScope: text('review_scope').notNull(),
+    clubCardScope: text('club_card_scope').notNull(),
+    chapterListScope: text('chapter_list_scope').notNull(),
+    lessonBatchSize: integer('lesson_batch_size').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
+);
+
 // The bundled MaterialData blob the engine builds from. Rebuilt when content
 // changes; versioned so existing events can be replayed against a known
 // snapshot.
