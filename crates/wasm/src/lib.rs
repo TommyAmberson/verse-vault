@@ -327,6 +327,14 @@ impl WasmEngine {
         next_card(&self.engine, now_secs).map(|c| c.0)
     }
 
+    /// Flip every `New` card belonging to `verse_id` to `Active`. Returns
+    /// the number of cards transitioned. Idempotent. Called by the
+    /// `/memorize` flow after the learner walks the per-verse progression
+    /// and confirms.
+    pub fn graduate_verse(&mut self, verse_id: u32) -> u32 {
+        self.engine.graduate_verse(verse_id) as u32
+    }
+
     /// Render data for a card: kind, verse_id, plus the verse's render data
     /// (book / chapter / verse number, full text, phrases, ftv, headings,
     /// clubs). Returns JSON of `CardRenderWire`. Errors when the card id
