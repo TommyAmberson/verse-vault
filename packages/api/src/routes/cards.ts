@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
@@ -263,8 +264,26 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     const nowSecs = now();
     return deps.engines.withLock(key, async () => {
       const count = loaded.engine.graduate_verse(verseId);
-      // Persist regardless of in-memory count (e.g. cache re-loaded with
-      // graduation already applied still wants the row stable).
+      if (count === 0) {
+        // Two cases collapse to a zero count: (a) already-graduated
+        // verses replayed by engine load — idempotent, row exists; and
+        // (b) verseId doesn't belong to this material's deck at all.
+        // The graduated_verses table is the source of truth that
+        // distinguishes them.
+        const existing = deps.db
+          .select({ verseId: graduatedVerses.verseId })
+          .from(graduatedVerses)
+          .where(
+            and(
+              eq(graduatedVerses.userId, user.id),
+              eq(graduatedVerses.materialId, materialId),
+              eq(graduatedVerses.verseId, verseId),
+            ),
+          )
+          .get();
+        if (!existing) return c.json({ error: 'Unknown verse' }, 404);
+        return c.json({ graduated: 0 });
+      }
       deps.db
         .insert(graduatedVerses)
         .values({ userId: user.id, materialId, verseId, graduatedAtSecs: nowSecs })
