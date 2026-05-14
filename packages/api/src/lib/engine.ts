@@ -44,6 +44,11 @@ export interface TestStateEntry {
  * Build a JSON-encoded `MaterialConfig` for this user × material from
  * the picker table. No row means defaults (the WASM constructor uses
  * `MaterialConfig::default()` directly when we return the empty string).
+ *
+ * The DB stores scope values in the same camelCase form (`off` / `up150`
+ * / `up300` / `all`) that the Rust enums declare via
+ * `#[serde(rename_all = "camelCase")]`, so the values pass through with
+ * no translation step.
  */
 function readMaterialConfigJson(db: DB, key: EngineKey): string {
   const settings = db
@@ -59,25 +64,13 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
 
   if (!settings) return '';
 
-  const SCOPE_KEY: Record<string, string> = {
-    off: 'Off',
-    up150: 'Up150',
-    up300: 'Up300',
-    all: 'All',
-  };
-  const toRustScope = (field: string, value: string): string => {
-    const out = SCOPE_KEY[value];
-    if (!out) throw new Error(`unknown ${field} value: ${value}`);
-    return out;
-  };
-
   return JSON.stringify({
     headings: settings.headings,
     ftv: settings.ftv,
-    new_scope: toRustScope('newScope', settings.newScope),
-    review_scope: toRustScope('reviewScope', settings.reviewScope),
-    club_card_scope: toRustScope('clubCardScope', settings.clubCardScope),
-    chapter_list_scope: toRustScope('chapterListScope', settings.chapterListScope),
+    new_scope: settings.newScope,
+    review_scope: settings.reviewScope,
+    club_card_scope: settings.clubCardScope,
+    chapter_list_scope: settings.chapterListScope,
   });
 }
 

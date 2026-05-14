@@ -18,7 +18,12 @@ pub enum ClubStatus {
 /// `Club150` verses; `Up300` includes both `Club150` and `Club300`;
 /// `All` includes every verse. Used for the per-verse club card, the
 /// per-(year) Active scope, and the per-(year) Maintenance scope.
+///
+/// Wire form is camelCase (`off` / `up150` / `up300` / `all`) so the
+/// API can ship the same lowercase strings it stores in the DB straight
+/// through to the Rust serde layer with no translation step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub enum TierScope {
     Off,
     Up150,
@@ -39,8 +44,10 @@ impl TierScope {
 }
 
 /// Like `TierScope`, but `Full` is intentionally absent — listing every
-/// verse in a chapter isn't a meaningful quizzing test.
+/// verse in a chapter isn't a meaningful quizzing test. Same camelCase
+/// wire form as `TierScope`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub enum ChapterListScope {
     Off,
     Up150,

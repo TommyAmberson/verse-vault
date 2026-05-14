@@ -199,7 +199,7 @@ fn material_config_json_parses_and_filters_emission() {
     let off_engine = WasmEngine::new(
         MATERIAL_JSON,
         r#"{"headings":false,"ftv":false,
-            "club_card_scope":"Off","chapter_list_scope":"Off",
+            "club_card_scope":"off","chapter_list_scope":"off",
             "clubs":{"Full":"Active"}}"#,
         "",
         0.9,
