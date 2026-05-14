@@ -96,12 +96,14 @@ pub struct VerseAtoms {
     pub phrase_zero_word_count: u16,
     /// For pseudo verses anchoring `ChapterClubList` cards: the
     /// (verse_id, most-specific tier) of every real verse in the same
-    /// chapter that the card's tier "includes" (e.g. a Club300 chapter
-    /// card includes both Club150 and Club300 verses). Tests for the
-    /// card grade each member's own-tier `VerseClubBinding`, so the
-    /// chapter card shares state with the per-verse `VerseInClub`
-    /// cards rather than spawning parallel bindings. Empty for real
-    /// verses.
+    /// chapter whose tier matches the card's exactly. A Club300
+    /// chapter card therefore lists only the chapter's Club300-tagged
+    /// verses (the 150 verses unique to Club 300, not the 150 shared
+    /// Club 150 verses); those Club150-tagged verses appear on a
+    /// separate Club150 chapter card. Tests for the card grade each
+    /// member's own-tier `VerseClubBinding`, so the chapter card
+    /// shares state with the per-verse `VerseInClub` cards rather
+    /// than spawning parallel bindings. Empty for real verses.
     pub chapter_members: Vec<(u32, ClubTier)>,
 }
 
