@@ -36,13 +36,28 @@ if (initialStates.length === 0) {
   process.exit(1);
 }
 
+console.log(`Initial new card count: ${engine.new_card_count()}`);
+if (engine.next_review_card(NOW) !== undefined) {
+  console.error('FAIL: next_review_card should be empty before graduation');
+  process.exit(1);
+}
+
+const memorizeCardId = engine.next_memorize_card(NOW);
+if (memorizeCardId === undefined) {
+  console.error('FAIL: next_memorize_card returned undefined');
+  process.exit(1);
+}
+console.log(`Memorize queue surfaces card ${memorizeCardId}; graduating verse 0...`);
+const graduated = engine.graduate_verse(0);
+console.log(`Graduated ${graduated} cards; new_card_count=${engine.new_card_count()}`);
+
 console.log('Stepping through reviews...');
 let step = 0;
 let now = NOW;
 while (step < 20) {
-  const cardId = engine.next_card(now);
+  const cardId = engine.next_review_card(now);
   if (cardId === undefined) {
-    console.log(`Step ${step}: next_card returned undefined; loop done`);
+    console.log(`Step ${step}: next_review_card returned undefined; loop done`);
     break;
   }
 

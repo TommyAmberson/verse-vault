@@ -13,7 +13,9 @@ use verse_vault_core::element::{ClubTier, ElementId};
 use verse_vault_core::engine::{ReviewEngine, TestUpdate, UpdateKind};
 use verse_vault_core::material_config::MaterialConfig;
 use verse_vault_core::render::{HeadingRender, VerseRender};
-use verse_vault_core::schedule::next_card;
+use verse_vault_core::schedule::{
+    next_card, next_memorize_card as schedule_next_memorize_card, next_relearn_card,
+};
 use verse_vault_core::test_kind::{TestKey, TestKind};
 use verse_vault_core::test_state::TestState;
 use verse_vault_core::types::{CardId, Grade};
@@ -321,10 +323,22 @@ impl WasmEngine {
             .map_err(|e| JsError::new(&format!("export serialise error: {e}")))
     }
 
-    /// Pick the next card to review at `now_secs`, or `None` if every card
-    /// is currently above the target retention threshold.
-    pub fn next_card(&self, now_secs: i64) -> Option<u32> {
+    /// Pick the next card to review at `now_secs`, or `None` if no Active
+    /// card is due. Consults the relearning lane first (freshly-lapsed
+    /// cards past their FSRS sub-day due time, bypassing sibling cooldown)
+    /// then the regular descending-R schedule.
+    pub fn next_review_card(&self, now_secs: i64) -> Option<u32> {
+        if let Some(id) = next_relearn_card(&self.engine, now_secs) {
+            return Some(id.0);
+        }
         next_card(&self.engine, now_secs).map(|c| c.0)
+    }
+
+    /// Pick the next New card for the memorize queue. The caller walks the
+    /// per-verse progression client-side (see `new_verse_progression` on
+    /// the core `Session`) then calls `graduate_verse` to commit.
+    pub fn next_memorize_card(&self, now_secs: i64) -> Option<u32> {
+        schedule_next_memorize_card(&self.engine, now_secs).map(|c| c.0)
     }
 
     /// Flip every `New` card belonging to `verse_id` to `Active`. Returns
@@ -333,6 +347,16 @@ impl WasmEngine {
     /// and confirms.
     pub fn graduate_verse(&mut self, verse_id: u32) -> u32 {
         self.engine.graduate_verse(verse_id) as u32
+    }
+
+    /// Count of `New` cards still awaiting memorize. Drives the
+    /// "N to memorize" nudge in the web UI nav.
+    pub fn new_card_count(&self) -> u32 {
+        self.engine
+            .cards
+            .iter()
+            .filter(|c| matches!(c.state, verse_vault_core::card::CardState::New))
+            .count() as u32
     }
 
     /// Render data for a card: kind, verse_id, plus the verse's render data

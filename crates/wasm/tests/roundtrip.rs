@@ -138,7 +138,7 @@ fn next_card_returns_some_when_due_after_graduation() {
     // surface its cards — without graduation, /review is empty.
     let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
     engine.graduate_verse(0);
-    let pick = engine.next_card(86400 * 365 + 86400 * 60);
+    let pick = engine.next_review_card(86400 * 365 + 86400 * 60);
     assert!(pick.is_some(), "expected a due card");
 }
 
@@ -146,7 +146,7 @@ fn next_card_returns_some_when_due_after_graduation() {
 fn next_card_empty_until_verse_graduates() {
     // Brand-new engine: every card is `New`. /review must be empty.
     let engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
-    assert!(engine.next_card(86400 * 365 + 86400 * 60).is_none());
+    assert!(engine.next_review_card(86400 * 365 + 86400 * 60).is_none());
 }
 
 #[test]

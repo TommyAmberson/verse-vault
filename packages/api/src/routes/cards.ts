@@ -94,7 +94,7 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
       if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
       throw err;
     }
-    const cardId = loaded.engine.next_card(BigInt(now()));
+    const cardId = loaded.engine.next_review_card(BigInt(now()));
     return c.json({ cardId: cardId ?? null });
   });
 
@@ -206,7 +206,7 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
         });
       });
 
-      const nextCardId = loaded.engine.next_card(BigInt(nowSecs));
+      const nextCardId = loaded.engine.next_review_card(BigInt(nowSecs));
       return c.json({
         updates,
         nextCardId: nextCardId ?? null,
