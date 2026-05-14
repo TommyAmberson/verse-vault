@@ -139,7 +139,7 @@ const ENROLLED_DEFAULTS: YearSettings = {
   ftv: true,
   newScope: 'all',
   reviewScope: 'all',
-  clubCardScope: 'all',
+  clubCardScope: 'off',
   chapterListScope: 'up150',
   lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
 };

@@ -89,10 +89,17 @@ pub struct MaterialConfig {
     pub new_scope: TierScope,
     #[serde(default)]
     pub review_scope: TierScope,
-    #[serde(default)]
+    #[serde(default = "default_club_card_scope")]
     pub club_card_scope: TierScope,
     #[serde(default)]
     pub chapter_list_scope: ChapterListScope,
+}
+
+/// "Which club is this verse in?" prompts default off: they're high
+/// effort for low signal until the user has memorised enough verses
+/// to actually distinguish clubs. The picker exposes the toggle.
+fn default_club_card_scope() -> TierScope {
+    TierScope::Off
 }
 
 impl Default for MaterialConfig {
@@ -102,7 +109,7 @@ impl Default for MaterialConfig {
             ftv: true,
             new_scope: TierScope::All,
             review_scope: TierScope::All,
-            club_card_scope: TierScope::All,
+            club_card_scope: TierScope::Off,
             chapter_list_scope: ChapterListScope::Up150,
         }
     }
@@ -154,6 +161,9 @@ mod tests {
         assert!(c.ftv);
         assert_eq!(c.new_scope, TierScope::All);
         assert_eq!(c.review_scope, TierScope::All);
+        // Club-card prompts default off; chapter-list defaults to Up150.
+        assert_eq!(c.club_card_scope, TierScope::Off);
+        assert_eq!(c.chapter_list_scope, ChapterListScope::Up150);
         for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
             assert_eq!(c.effective_status(tier), ClubStatus::Active);
         }
@@ -244,14 +254,14 @@ mod tests {
     }
 
     #[test]
-    fn missing_scopes_default_to_widest() {
-        // Older JSON may omit scopes. Tier-scope toggles default to the
-        // widest (All); chapter-list defaults to Up150 since listing every
-        // Club 300 verse in a chapter is rarely useful out of the box.
+    fn missing_scopes_match_default_impl() {
+        // Older JSON may omit scopes. Each defaults to the same value that
+        // `MaterialConfig::default()` uses: new/review at All, club-card
+        // at Off (rarely useful out of the box), chapter-list at Up150.
         let c: MaterialConfig = serde_json::from_str(r#"{"headings":true,"ftv":true}"#).unwrap();
         assert_eq!(c.new_scope, TierScope::All);
         assert_eq!(c.review_scope, TierScope::All);
-        assert_eq!(c.club_card_scope, TierScope::All);
+        assert_eq!(c.club_card_scope, TierScope::Off);
         assert_eq!(c.chapter_list_scope, ChapterListScope::Up150);
     }
 }

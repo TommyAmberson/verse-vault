@@ -87,7 +87,7 @@ describe('years routes', () => {
       ftv: true,
       newScope: 'all',
       reviewScope: 'all',
-      clubCardScope: 'all',
+      clubCardScope: 'off',
       chapterListScope: 'up150',
       lessonBatchSize: 3,
     });

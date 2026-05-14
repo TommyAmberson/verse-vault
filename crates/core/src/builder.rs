@@ -484,7 +484,13 @@ mod tests {
     #[test]
     fn builder_emits_atomic_cards() {
         let m = material_one_verse_with_heading_and_club();
-        let r = build(&m, 0);
+        // club_card_scope defaults to Off, so VerseInClub cards need an
+        // explicit opt-in for this test to exercise their emission.
+        let cfg = MaterialConfig {
+            club_card_scope: crate::material_config::TierScope::All,
+            ..MaterialConfig::default()
+        };
+        let r = build_with_config(&m, &cfg, 0);
 
         let phrase_fill = r
             .cards
