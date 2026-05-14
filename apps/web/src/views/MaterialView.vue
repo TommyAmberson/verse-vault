@@ -85,6 +85,15 @@ const selected = computed<YearCard | null>(() => {
   return cards.value.find((c) => c.view.materialId === id) ?? null
 })
 
+/** A year reads as "studying" iff at least one of `newScope` or
+ *  `reviewScope` is on. Provisioned-but-all-paused years (e.g. the
+ *  user touched the year once then turned everything off) display the
+ *  same as never-touched years: no enrolled marker, no card counts. */
+function isStudying(c: YearCard): boolean {
+  if (!c.view.enrolled) return false
+  return c.view.settings.newScope !== 'off' || c.view.settings.reviewScope !== 'off'
+}
+
 async function refresh() {
   loading.value = true
   error.value = null
@@ -102,9 +111,6 @@ async function refresh() {
     if (cards.value.length === 0) {
       selectedMaterialId.value = null
     } else if (!cards.value.some((c) => c.view.materialId === selectedMaterialId.value)) {
-      const isStudying = (c: YearCard) =>
-        c.view.enrolled &&
-        (c.view.settings.newScope !== 'off' || c.view.settings.reviewScope !== 'off')
       const next =
         cards.value.find(isStudying) ?? cards.value.find((c) => c.view.enrolled) ?? cards.value[0]
       selectedMaterialId.value = next?.view.materialId ?? null
@@ -176,7 +182,7 @@ onMounted(refresh)
             'year-tab',
             {
               'tab-active': c.view.materialId === selectedMaterialId,
-              'tab-unenrolled': !c.view.enrolled,
+              'tab-unenrolled': !isStudying(c),
             },
           ]"
           :aria-selected="c.view.materialId === selectedMaterialId"
@@ -185,7 +191,7 @@ onMounted(refresh)
         >
           <span class="tab-title">{{ tabTitle(c.view.title) }}</span>
           <span
-            v-if="c.view.enrolled"
+            v-if="isStudying(c)"
             class="tab-marker tab-marker-enrolled"
             aria-hidden="true"
           />
@@ -195,12 +201,12 @@ onMounted(refresh)
         v-if="selected"
         :key="selected.view.materialId"
         class="year-card"
-        :class="{ 'year-card-unenrolled': !selected.view.enrolled }"
+        :class="{ 'year-card-unenrolled': !isStudying(selected) }"
       >
         <header class="year-header">
           <div class="year-title-row">
             <h3>{{ selected.view.title }}</h3>
-            <span v-if="!selected.view.enrolled" class="enrollment-badge">Not enrolled</span>
+            <span v-if="!isStudying(selected)" class="enrollment-badge">Not enrolled</span>
           </div>
           <p class="year-description">{{ selected.view.description }}</p>
           <div class="tier-summary">
@@ -211,7 +217,7 @@ onMounted(refresh)
               :class="`tier-status-${selected.view.clubs[tier].status}`"
             >
               <span class="tier-pill-name">{{ TIER_LABELS[tier] }}</span>
-              <span v-if="selected.view.enrolled" class="tier-pill-count">
+              <span v-if="isStudying(selected)" class="tier-pill-count">
                 {{ selected.view.clubs[tier].cardCount }}
               </span>
               <span :class="`status-chip status-${selected.view.clubs[tier].status}`">
