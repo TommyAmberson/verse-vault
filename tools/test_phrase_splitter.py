@@ -33,6 +33,7 @@ from phrase_splitter.features import (
     extract_verse_features,
     slice_phrases,
 )
+from phrase_splitter.prompts import format_split_prompt
 
 
 class WordCountTests(unittest.TestCase):
@@ -248,6 +249,43 @@ class VerseFeatureTests(unittest.TestCase):
         feats = extract_verse_features([], [])
         self.assertEqual(feats["phrase_count"], 0)
         self.assertEqual(feats["token_count"], 0)
+
+
+class FormatSplitPromptTests(unittest.TestCase):
+    VERSE = "For the kingdom of God is not in word but in power."
+
+    def test_bare_prompt(self):
+        out = format_split_prompt(self.VERSE)
+        self.assertIn("memorisation phrases", out)
+        self.assertIn(self.VERSE, out)
+        self.assertNotIn("Current split", out)
+        self.assertNotIn("Signals (auto-computed)", out)
+
+    def test_with_current_split(self):
+        out = format_split_prompt(
+            self.VERSE,
+            current_split='  - "For the kingdom of God"\n  - "is not in word but in power."',
+        )
+        self.assertIn("Current split", out)
+        self.assertIn("best split, not a different split", out)
+        self.assertNotIn("Signals (auto-computed)", out)
+
+    def test_with_signals_only(self):
+        out = format_split_prompt(self.VERSE, signals="Verse: 12 tokens, 2 phrases")
+        self.assertIn("Signals (auto-computed)", out)
+        self.assertIn("12 tokens", out)
+        self.assertNotIn("Current split", out)
+
+    def test_with_both(self):
+        out = format_split_prompt(
+            self.VERSE,
+            current_split="  - whole verse",
+            signals="Verse: 12 tokens",
+        )
+        self.assertIn("Current split", out)
+        self.assertIn("Signals (auto-computed)", out)
+        # Order: current split appears before signals.
+        self.assertLess(out.index("Current split"), out.index("Signals (auto-computed)"))
 
 
 class CompositeScoreTests(unittest.TestCase):

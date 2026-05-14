@@ -24,7 +24,7 @@ from .helpers import (
     tokens,
     word_count,
 )
-from .prompts import JUDGE_PROMPT, SPLIT_PROMPT
+from .prompts import JUDGE_PROMPT, SPLIT_PROMPT, format_split_prompt
 
 __all__ = [
     "FUNCTION_WORDS",
@@ -35,6 +35,7 @@ __all__ = [
     "extract_boundary_features",
     "extract_phrase_features",
     "extract_verse_features",
+    "format_split_prompt",
     "html_tags_balanced",
     "normalize_reference",
     "parse_reference",
