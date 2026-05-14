@@ -2,14 +2,13 @@
 import { onMounted, ref } from 'vue'
 
 import {
-  ApiError,
   type CardRender,
   type Grade,
-  MATERIAL_ID,
   api,
 } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 
+const materialId = ref<string | null>(null)
 const card = ref<CardRender | null>(null)
 const revealed = ref(false)
 const done = ref(false)
@@ -17,16 +16,30 @@ const error = ref<string | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
 
+async function resolveMaterial() {
+  // Pick the first enrolled year with review turned on. The scheduler
+  // returns null when nothing's due, which the view handles as the
+  // "session complete" state below.
+  const res = await api.getYears()
+  const target = res.years.find((y) => y.enrolled && y.settings.reviewScope !== 'off')
+  if (target) {
+    materialId.value = target.materialId
+    return true
+  }
+  return false
+}
+
 async function loadNext() {
+  if (!materialId.value) return
   loading.value = true
   error.value = null
   try {
-    const { cardId } = await api.getNextCard(MATERIAL_ID)
+    const { cardId } = await api.getNextReviewCard(materialId.value)
     if (cardId === null) {
       card.value = null
       done.value = true
     } else {
-      card.value = await api.getCardRender(MATERIAL_ID, cardId)
+      card.value = await api.getCardRender(materialId.value, cardId)
       revealed.value = false
       done.value = false
     }
@@ -38,32 +51,22 @@ async function loadNext() {
 }
 
 async function submit(grade: Grade) {
-  if (!card.value || submitting.value) return
+  if (!card.value || submitting.value || !materialId.value) return
   submitting.value = true
   error.value = null
   try {
-    const res = await api.submitReview(MATERIAL_ID, card.value.cardId, grade)
+    const res = await api.submitReview(materialId.value, card.value.cardId, grade)
     if (res.nextCardId === null) {
       card.value = null
       done.value = true
     } else {
-      card.value = await api.getCardRender(MATERIAL_ID, res.nextCardId)
+      card.value = await api.getCardRender(materialId.value, res.nextCardId)
       revealed.value = false
     }
   } catch (err) {
     error.value = formatError(err)
   } finally {
     submitting.value = false
-  }
-}
-
-async function ensureEnrolled() {
-  try {
-    await api.enroll(MATERIAL_ID)
-  } catch (err) {
-    // 409 = already enrolled, expected on subsequent loads.
-    if (err instanceof ApiError && err.status === 409) return
-    throw err
   }
 }
 
@@ -74,10 +77,16 @@ function formatError(err: unknown): string {
 
 onMounted(async () => {
   try {
-    await ensureEnrolled()
+    loading.value = true
+    const found = await resolveMaterial()
+    if (!found) {
+      done.value = true
+      return
+    }
     await loadNext()
   } catch (err) {
     error.value = formatError(err)
+  } finally {
     loading.value = false
   }
 })

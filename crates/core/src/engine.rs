@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::builder::BuildResult;
-use crate::card::{Card, VerseAtoms};
+use crate::card::{Card, CardState, VerseAtoms};
 use crate::fsrs_bridge::FsrsBridge;
 use crate::render::VerseRender;
 use crate::test_kind::TestKey;
@@ -134,6 +134,29 @@ impl ReviewEngine {
         }
     }
 
+    /// Flip every `New` card whose `verse_id` matches to `Active`. Returns
+    /// the number of cards that transitioned. Idempotent: a second call on
+    /// the same verse_id returns 0. The memorize-session graduation step
+    /// uses this to "introduce" every card the verse owns in one go.
+    pub fn graduate_verse(&mut self, verse_id: u32) -> usize {
+        let mut count = 0;
+        for card in self.cards.iter_mut().filter(|c| c.verse_id == verse_id) {
+            if matches!(card.state, CardState::New) {
+                card.state = CardState::Active;
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// Flip every card in the deck to `Active`. Convenience for tests and
+    /// the sim, which bypass the memorize flow.
+    pub fn graduate_all(&mut self) {
+        for card in self.cards.iter_mut() {
+            card.state = CardState::Active;
+        }
+    }
+
     /// Apply a single grade to a card and return the resulting test
     /// updates.
     ///
@@ -168,7 +191,8 @@ impl ReviewEngine {
                 .tests
                 .get(&key)
                 .unwrap_or_else(|| panic!("review: missing TestState for {key:?}"));
-            let after = self.fsrs.update(&before, grade, 1.0, true, now_secs);
+            let mut after = self.fsrs.update(&before, grade, 1.0, true, now_secs);
+            after.pending_relearn = !grade.is_pass();
             self.tests.insert(key, after);
             return ReviewOutcome {
                 updates: vec![TestUpdate {
@@ -192,6 +216,7 @@ impl ReviewEngine {
             .collect();
         let p_total: f32 = probs.iter().product();
         let mut updates: Vec<TestUpdate> = Vec::with_capacity(tests.len());
+        let pending = !grade.is_pass();
         for (key, p_i) in tests.iter().zip(&probs) {
             let weight = if p_total >= 1.0 - 1e-9 {
                 0.0
@@ -202,7 +227,8 @@ impl ReviewEngine {
                 .tests
                 .get(key)
                 .unwrap_or_else(|| panic!("review: missing TestState for {key:?}"));
-            let after = self.fsrs.update(&before, grade, weight, false, now_secs);
+            let mut after = self.fsrs.update(&before, grade, weight, false, now_secs);
+            after.pending_relearn = pending;
             self.tests.insert(*key, after);
             updates.push(TestUpdate {
                 key: *key,
@@ -332,6 +358,48 @@ mod tests {
         });
         let outcome = engine.review(reading_id, Grade::Good, 86400 * 365);
         assert!(outcome.updates.is_empty());
+    }
+
+    #[test]
+    fn atomic_again_sets_pending_relearn_then_good_clears_it() {
+        let mut engine = build_engine();
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        let card = engine.card(card_id).unwrap().clone();
+        let key = card.tests(&engine.atoms_for(card.verse_id))[0];
+
+        engine.review(card_id, Grade::Again, 86400 * 365);
+        assert!(engine.test_state(key).unwrap().pending_relearn);
+
+        // 6h later, FSRS sub-day due time has passed for a fresh-lapse card.
+        engine.review(card_id, Grade::Good, 86400 * 365 + 6 * 3600);
+        assert!(!engine.test_state(key).unwrap().pending_relearn);
+    }
+
+    #[test]
+    fn composite_again_sets_pending_relearn_on_every_contained_test() {
+        let mut engine = build_engine();
+        let card_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::Recitation))
+            .unwrap()
+            .id;
+        let card = engine.card(card_id).unwrap().clone();
+        let keys = card.tests(&engine.atoms_for(card.verse_id));
+
+        let outcome = engine.review(card_id, Grade::Again, 86400 * 365);
+        assert_eq!(outcome.updates.len(), keys.len());
+        for key in &keys {
+            assert!(
+                engine.test_state(*key).unwrap().pending_relearn,
+                "composite Again must set pending_relearn for {key:?}"
+            );
+        }
     }
 
     #[test]

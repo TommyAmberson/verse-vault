@@ -183,6 +183,7 @@ impl FsrsBridge {
                 } else {
                     state.last_root_secs
                 },
+                pending_relearn: state.pending_relearn,
             };
         }
         let elapsed = state.elapsed_days(now_secs).max(0.0);
@@ -203,6 +204,7 @@ impl FsrsBridge {
             } else {
                 state.last_root_secs
             },
+            pending_relearn: state.pending_relearn,
         }
     }
 
@@ -221,6 +223,7 @@ impl FsrsBridge {
             last_seen_secs: now_secs,
             last_base_secs: now_secs,
             last_root_secs: now_secs,
+            pending_relearn: state.pending_relearn,
         }
     }
 
@@ -370,6 +373,7 @@ mod tests {
             last_seen_secs: now,
             last_base_secs: now,
             last_root_secs: now,
+            pending_relearn: false,
         };
         let after = bridge.update(&ts, Grade::Hard, 1.0, true, now);
         assert!(
@@ -387,6 +391,7 @@ mod tests {
             last_seen_secs: 100,
             last_base_secs: 100,
             last_root_secs: 100,
+            pending_relearn: false,
         };
         let r = bridge.retrievability_of(&ts, 100);
         assert!((r - 1.0).abs() < 0.001);
@@ -401,6 +406,7 @@ mod tests {
             last_seen_secs: 0,
             last_base_secs: 0,
             last_root_secs: 0,
+            pending_relearn: false,
         };
         let due = bridge.due_at(&ts, 0.9);
         let secs_from_base = due - ts.last_base_secs;
@@ -425,6 +431,7 @@ mod tests {
             last_seen_secs: 0,
             last_base_secs: 0,
             last_root_secs: 0,
+            pending_relearn: false,
         };
         let r_before = bridge.retrievability_of(&ts, 86400 * 30);
         assert!(r_before < 0.95, "should have decayed: {r_before}");
@@ -452,6 +459,7 @@ mod tests {
             last_seen_secs: 100,
             last_base_secs: 100,
             last_root_secs: 100,
+            pending_relearn: false,
         };
         let grades = [Grade::Again, Grade::Hard, Grade::Good, Grade::Easy];
         let weights = [0.05_f32, 0.1, 0.3, 0.5, 0.7, 1.0];
@@ -509,6 +517,7 @@ mod tests {
             last_seen_secs: 0,
             last_base_secs: 0,
             last_root_secs: 0,
+            pending_relearn: false,
         }
     }
 
@@ -547,6 +556,7 @@ mod tests {
             last_seen_secs: 0,
             last_base_secs: 0,
             last_root_secs: 0,
+            pending_relearn: false,
         };
         let ms: MemoryState = (&ts).into();
         assert_eq!(ms.stability, 12.0);

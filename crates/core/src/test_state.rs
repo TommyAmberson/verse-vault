@@ -28,6 +28,12 @@ pub struct TestState {
     /// under propagation — that is the load-bearing invariant of HSRS that
     /// keeps propagated tests from masquerading as directly-reviewed ones.
     pub last_root_secs: i64,
+    /// Set to `true` when this test was last graded `Again` and the
+    /// learner hasn't passed it since. The session-level relearning lane
+    /// surfaces such tests' cards once their FSRS due time elapses,
+    /// bypassing the sibling cooldown. Cleared on any non-Again grade.
+    #[serde(default)]
+    pub pending_relearn: bool,
 }
 
 impl TestState {
@@ -42,6 +48,7 @@ impl TestState {
             last_seen_secs: prior,
             last_base_secs: prior,
             last_root_secs: prior,
+            pending_relearn: false,
         }
     }
 

@@ -38,6 +38,9 @@ export interface TestStateEntry {
   last_seen_secs: number;
   last_base_secs: number;
   last_root_secs: number;
+  /** Sticky after a card was graded Again; the relearning lane re-surfaces
+   *  these tests' cards. Cleared on any non-Again grade. */
+  pending_relearn: boolean;
 }
 
 /**
@@ -92,6 +95,7 @@ export function readTestStateEntries(db: DB, key: EngineKey): TestStateEntry[] {
       last_seen_secs: r.lastSeenSecs,
       last_base_secs: r.lastBaseSecs,
       last_root_secs: r.lastRootSecs,
+      pending_relearn: r.pendingRelearn !== 0,
     }));
 }
 
@@ -148,6 +152,22 @@ export class EngineStore {
       this.desiredRetention,
       BigInt(this.now()),
     );
+
+    // Cards built from MaterialData start as `New`; apply every recorded
+    // graduation so the in-memory engine matches the user's actual progress.
+    const graduated = this.db
+      .select({ verseId: schema.graduatedVerses.verseId })
+      .from(schema.graduatedVerses)
+      .where(
+        and(
+          eq(schema.graduatedVerses.userId, key.userId),
+          eq(schema.graduatedVerses.materialId, key.materialId),
+        ),
+      )
+      .all();
+    for (const { verseId } of graduated) {
+      engine.graduate_verse(verseId);
+    }
 
     const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
     this.cache.set(userMaterialKey(key), loaded);

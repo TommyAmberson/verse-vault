@@ -152,7 +152,7 @@ fn emit_chapter_club_list_cards(
                 id: CardId(*next_card_id),
                 kind: CardKind::ChapterClubList { tier: card_tier },
                 verse_id: pseudo_id,
-                state: CardState::Active,
+                state: CardState::New,
             });
             *next_card_id += 1;
         }
@@ -259,7 +259,7 @@ pub fn build_with_config(
                 id: CardId(*next),
                 kind,
                 verse_id,
-                state: CardState::Active,
+                state: CardState::New,
             });
             *next += 1;
         };
@@ -402,6 +402,7 @@ pub fn build_with_config(
 mod tests {
     use super::*;
     use crate::element::ElementId;
+    use crate::material_config::ChapterListScope;
     use crate::test_kind::TestKind;
 
     fn material_one_verse_simple() -> MaterialData {
@@ -483,7 +484,13 @@ mod tests {
     #[test]
     fn builder_emits_atomic_cards() {
         let m = material_one_verse_with_heading_and_club();
-        let r = build(&m, 0);
+        // club_card_scope defaults to Off, so VerseInClub cards need an
+        // explicit opt-in for this test to exercise their emission.
+        let cfg = MaterialConfig {
+            club_card_scope: crate::material_config::TierScope::All,
+            ..MaterialConfig::default()
+        };
+        let r = build_with_config(&m, &cfg, 0);
 
         let phrase_fill = r
             .cards
@@ -858,7 +865,13 @@ mod tests {
             "headings": []
         }"#;
         let m: MaterialData = serde_json::from_str(json).unwrap();
-        let r = build(&m, 0);
+        // chapter_list_scope defaults to Up150 (per ChapterListScope::default),
+        // so the Club300 chapter card needs an explicit Up300 to surface.
+        let cfg = MaterialConfig {
+            chapter_list_scope: ChapterListScope::Up300,
+            ..MaterialConfig::default()
+        };
+        let r = build_with_config(&m, &cfg, 0);
         let chapter_cards: Vec<&Card> = r
             .cards
             .iter()

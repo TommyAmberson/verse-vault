@@ -71,6 +71,7 @@ export interface TestState {
   last_seen_secs: number
   last_base_secs: number
   last_root_secs: number
+  pending_relearn: boolean
 }
 
 export interface ReviewResponse {
@@ -117,15 +118,33 @@ export interface YearView {
   enrolled: boolean
   settings: YearSettings
   clubs: Record<ClubTier, ClubView>
+  /** Total `New` cards in the engine — drives the "N to memorize" pill. */
+  newCardCount: number
 }
 
 export interface YearsResponse {
   years: YearView[]
 }
 
+export interface MemorizeSessionVerse {
+  verseId: number
+  /** Every per-verse card to drill, in builder order. */
+  cardIds: number[]
+  /** Card id of the verse's Recitation, when emitted. Used as the
+   *  anchor render for the session-opening + closing walkthroughs so
+   *  the verse displays without a PhraseFill's phrase-0 highlight. */
+  recitationCardId: number | null
+}
+
+export interface MemorizeSessionResponse {
+  verses: MemorizeSessionVerse[]
+}
+
 export interface ApiClient {
   enroll(materialId: string): Promise<{ snapshotId: string; version: number }>
-  getNextCard(materialId: string): Promise<{ cardId: number | null }>
+  getNextReviewCard(materialId: string): Promise<{ cardId: number | null }>
+  getMemorizeSession(materialId: string, max: number): Promise<MemorizeSessionResponse>
+  graduateVerse(materialId: string, verseId: number): Promise<{ graduated: number }>
   getCardRender(materialId: string, cardId: number): Promise<CardRender>
   submitReview(materialId: string, cardId: number, grade: Grade): Promise<ReviewResponse>
   getStats(materialId: string): Promise<StatsResponse>
@@ -159,8 +178,15 @@ export function createApiClient(apiUrl: string): ApiClient {
   return {
     enroll: (materialId) =>
       request('POST', '/api/materials/enroll', { materialId }),
-    getNextCard: (materialId) =>
-      request('GET', `/api/cards/next?materialId=${encodeURIComponent(materialId)}`),
+    getNextReviewCard: (materialId) =>
+      request('GET', `/api/cards/review/next?materialId=${encodeURIComponent(materialId)}`),
+    getMemorizeSession: (materialId, max) =>
+      request(
+        'GET',
+        `/api/cards/memorize/session?materialId=${encodeURIComponent(materialId)}&max=${max}`,
+      ),
+    graduateVerse: (materialId, verseId) =>
+      request('POST', '/api/cards/memorize/graduate', { materialId, verseId }),
     getCardRender: (materialId, cardId) =>
       request('GET', `/api/cards/${cardId}?materialId=${encodeURIComponent(materialId)}`),
     submitReview: (materialId, cardId, grade) =>

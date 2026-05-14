@@ -92,6 +92,20 @@
       "when": 1778710000000,
       "tag": "0012_rename_material_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1778796400000,
+      "tag": "0013_relearn_and_wipe",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1778796500000,
+      "tag": "0014_graduated_verses",
+      "breakpoints": true
     }
   ]
 }

@@ -24,11 +24,16 @@ split and a longer natural one, choose the natural one.
 Rules:
 
 - Target 3 to 10 words per phrase; up to ~12 is fine. A short final
-  phrase (1-2 words) is fine when it carries trailing punctuation like
-  ``...and Him crucified.``; short fragments in the middle of a verse
-  are not. A phrase may run longer than 12 when the clause is genuinely
-  continuous and has no natural break — prefer the natural unit over
-  forcing an awkward split.
+  phrase (1-3 words) is fine when it is a *rhetorical or completive
+  tail* like ``...and Him crucified.`` or ``...be the glory.`` — a
+  closing flourish that stands on its own. It is **not** fine when it
+  is a grammatical fragment severed from a mid-verse clause. ``nothing
+  was made`` / ``that was made.`` is bad even though the tail ends in
+  a period — the relative clause was chopped off, not closed off.
+  Short fragments in the middle of a verse are never fine. A phrase
+  may run longer than 12 when the clause is genuinely continuous and
+  has no natural break — prefer the natural unit over forcing an
+  awkward split.
 - Break at clause and phrase boundaries. Strong cues:
   - after a comma, semicolon, or colon
   - before a connector that starts a new clause: ``and``, ``but``,
@@ -48,6 +53,17 @@ Rules:
 - **Keep rhetorical questions whole.** A question stem (``"Do you not
   know that..."``, ``"Are you not aware that..."``) belongs with its
   content. Split *after* the question mark, not inside it.
+- **Keep restrictive relative clauses attached to their antecedent.**
+  When ``that``, ``who``, or ``which`` follows a noun *without* a
+  preceding comma, it is a restrictive relative — it defines or
+  restricts the noun and reads as one unit with no pause. Don't break
+  before it. ``"nothing was made"`` / ``"that was made."`` is bad: the
+  ``that``-clause restrictively modifies ``"nothing"``. Same shape:
+  ``"the bread"`` / ``"which I will give"``, ``"the man"`` / ``"who
+  came to Jesus"`` — keep them whole. A *non-restrictive* relative
+  (preceded by a comma) is the opposite — the comma is a real pause
+  and a valid break point: ``"...Nicodemus, / who came to Jesus by
+  night,"`` is fine.
 - Never strand a 1-2 word fragment in the middle of the verse (e.g.
   ``"But one"`` followed by the rest of the sentence). Keep small
   introductory phrases with the clause they introduce.
@@ -103,6 +119,12 @@ Output:
     ["Do you not know that we shall judge angels?",
      "How much more, things that pertain to this life?"]
 
+Input:
+    All things were made through Him, and without Him nothing was made that was made.
+Output:
+    ["All things were made through Him,",
+     "and without Him nothing was made that was made."]
+
 Now split this verse. Reply with a single JSON array of strings on one
 line, nothing else.
 
@@ -139,6 +161,16 @@ Look for:
   angels?"`` is a bad break — the rhetorical question is one unit.
 - Mid-question breaks — a rhetorical question stem split from its
   content. Keep the question whole; split *after* the question mark.
+- **Restrictive relative clause split from its antecedent** — ``that``
+  / ``who`` / ``which`` following a noun *without* a preceding comma
+  is restrictive and reads as one unit. ``"nothing was made"`` /
+  ``"that was made."`` is bad; the relative clause restrictively
+  modifies ``"nothing"`` with no pause. (A non-restrictive relative
+  preceded by a comma is a valid break.)
+- **Severed grammatical tail** — a short final phrase that is a
+  grammatical fragment chopped off a mid-verse clause, not a
+  rhetorical or completive ending. ``"that was made."`` as a
+  standalone tail is severed; ``"and Him crucified."`` is completive.
 - Anything that would feel jarring when reciting the verse aloud
 
 Verse: {ref}

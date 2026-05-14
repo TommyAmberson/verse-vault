@@ -29,7 +29,8 @@ fn real_data_loads_and_runs_session() {
     let now = 86400 * 365;
     let result = build(&material, now);
     assert!(!result.cards.is_empty(), "expected non-empty card set");
-    let engine = ReviewEngine::new(result, 0.9);
+    let mut engine = ReviewEngine::new(result, 0.9);
+    engine.graduate_all();
     let pick = next_card(&engine, now + 86400 * 400);
     assert!(pick.is_some(), "scheduler should find a due card");
 }
@@ -43,6 +44,7 @@ fn real_data_review_first_due_card() {
     let now = 86400 * 365;
     let result = build(&material, now);
     let mut engine = ReviewEngine::new(result, 0.9);
+    engine.graduate_all();
     let later = now + 86400 * 400;
     let card_id = next_card(&engine, later).expect("expected a due card to review");
     let outcome = engine.review(card_id, Grade::Good, later);

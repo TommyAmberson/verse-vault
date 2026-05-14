@@ -68,6 +68,7 @@ export function writeTestStates(
       lastSeenSecs: s.last_seen_secs,
       lastBaseSecs: s.last_base_secs,
       lastRootSecs: s.last_root_secs,
+      pendingRelearn: s.pending_relearn ? 1 : 0,
     }));
     const stmt = tx.insert(schema.testStates).values(values);
     if (opts.onConflict) {
@@ -85,6 +86,7 @@ export function writeTestStates(
             lastSeenSecs: sql`excluded.last_seen_secs`,
             lastBaseSecs: sql`excluded.last_base_secs`,
             lastRootSecs: sql`excluded.last_root_secs`,
+            pendingRelearn: sql`excluded.pending_relearn`,
           },
         })
         .run();

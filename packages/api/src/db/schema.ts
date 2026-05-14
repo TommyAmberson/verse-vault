@@ -204,9 +204,33 @@ export const testStates = sqliteTable(
     lastSeenSecs: integer('last_seen_secs').notNull(),
     lastBaseSecs: integer('last_base_secs').notNull(),
     lastRootSecs: integer('last_root_secs').notNull(),
+    // Set by the engine when the card was last graded Again and the learner
+    // hasn't passed it since; cleared on any non-Again grade. The session's
+    // relearning lane re-surfaces these cards once their FSRS sub-day due
+    // time has elapsed, bypassing the sibling cooldown.
+    pendingRelearn: integer('pending_relearn').notNull().default(0),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.materialId, t.testKind, t.element] }),
+  }),
+);
+
+// Per-user verse-graduation log. Drives the engine's `CardState::Active`
+// flip after a user walks the memorize progression for a verse. Cards
+// rebuilt from MaterialData start as `New`; on engine load we apply
+// `graduate_verse(verseId)` for every row in this table.
+export const graduatedVerses = sqliteTable(
+  'graduated_verses',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    verseId: integer('verse_id').notNull(),
+    graduatedAtSecs: integer('graduated_at_secs').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.materialId, t.verseId] }),
   }),
 );
 

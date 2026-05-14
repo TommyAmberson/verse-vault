@@ -13,7 +13,9 @@ use verse_vault_core::element::{ClubTier, ElementId};
 use verse_vault_core::engine::{ReviewEngine, TestUpdate, UpdateKind};
 use verse_vault_core::material_config::MaterialConfig;
 use verse_vault_core::render::{HeadingRender, VerseRender};
-use verse_vault_core::schedule::next_card;
+use verse_vault_core::schedule::{
+    next_card, next_memorize_card as schedule_next_memorize_card, next_relearn_card,
+};
 use verse_vault_core::test_kind::{TestKey, TestKind};
 use verse_vault_core::test_state::TestState;
 use verse_vault_core::types::{CardId, Grade};
@@ -35,6 +37,8 @@ pub struct TestStateEntry {
     pub last_seen_secs: i64,
     pub last_base_secs: i64,
     pub last_root_secs: i64,
+    #[serde(default)]
+    pub pending_relearn: bool,
 }
 
 impl TestStateEntry {
@@ -47,6 +51,7 @@ impl TestStateEntry {
             last_seen_secs: state.last_seen_secs,
             last_base_secs: state.last_base_secs,
             last_root_secs: state.last_root_secs,
+            pending_relearn: state.pending_relearn,
         }
     }
 
@@ -61,6 +66,7 @@ impl TestStateEntry {
             last_seen_secs: self.last_seen_secs,
             last_base_secs: self.last_base_secs,
             last_root_secs: self.last_root_secs,
+            pending_relearn: self.pending_relearn,
         };
         (key, state)
     }
@@ -317,10 +323,140 @@ impl WasmEngine {
             .map_err(|e| JsError::new(&format!("export serialise error: {e}")))
     }
 
-    /// Pick the next card to review at `now_secs`, or `None` if every card
-    /// is currently above the target retention threshold.
-    pub fn next_card(&self, now_secs: i64) -> Option<u32> {
+    /// Pick the next card to review at `now_secs`, or `None` if no Active
+    /// card is due. Consults the relearning lane first (freshly-lapsed
+    /// cards past their FSRS sub-day due time, bypassing sibling cooldown)
+    /// then the regular descending-R schedule.
+    pub fn next_review_card(&self, now_secs: i64) -> Option<u32> {
+        if let Some(id) = next_relearn_card(&self.engine, now_secs) {
+            return Some(id.0);
+        }
         next_card(&self.engine, now_secs).map(|c| c.0)
+    }
+
+    /// Pick the next New card for the memorize queue. The caller walks the
+    /// per-verse progression client-side (see `new_verse_progression` on
+    /// the core `Session`) then calls `graduate_verse` to commit.
+    pub fn next_memorize_card(&self, now_secs: i64) -> Option<u32> {
+        schedule_next_memorize_card(&self.engine, now_secs).map(|c| c.0)
+    }
+
+    /// JSON-serialised list of up to `limit` New verses, each paired with
+    /// its memorize progression. Used by the web UI to plan a whole
+    /// memorize session in one trip — the client can show all verses up
+    /// front, drill across them in any order, and walk back through them
+    /// for graduation.
+    ///
+    /// Same per-card filtering rules as `memorize_progression`, plus an
+    /// extra session-scoped dedupe: a `VerseInHeading` heading is only
+    /// drilled on the first verse that introduces it within this batch,
+    /// and a `ChapterClubList` card only attaches to the single verse
+    /// (per session) whose last-member rule fires.
+    pub fn memorize_session(&self, limit: u32) -> Result<String, JsError> {
+        use std::collections::HashSet;
+        use verse_vault_core::card::{CardKind, CardState};
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Entry {
+            verse_id: u32,
+            card_ids: Vec<u32>,
+            /// Card id of the verse's Recitation, when emitted. The web
+            /// client uses this to render the whole verse as a plain
+            /// reading prompt during the session's opening + closing
+            /// walkthroughs, avoiding the phrase-0 highlight that a
+            /// PhraseFill render would impose.
+            recitation_card_id: Option<u32>,
+        }
+        let cards = &self.engine.cards;
+
+        let mut seen_verses: HashSet<u32> = HashSet::new();
+        let mut verse_order: Vec<u32> = Vec::new();
+        for card in cards.iter() {
+            if !matches!(card.state, CardState::New) {
+                continue;
+            }
+            if seen_verses.insert(card.verse_id) {
+                verse_order.push(card.verse_id);
+                if verse_order.len() >= limit as usize {
+                    break;
+                }
+            }
+        }
+
+        let mut session_headings: HashSet<u16> = HashSet::new();
+        let mut session_chapter_lists: HashSet<u32> = HashSet::new();
+        let mut entries: Vec<Entry> = Vec::with_capacity(verse_order.len());
+
+        for verse_id in verse_order {
+            let mut card_ids: Vec<u32> = Vec::new();
+            for card in cards.iter().filter(|c| c.verse_id == verse_id) {
+                match card.kind {
+                    CardKind::ChapterClubList { .. } | CardKind::Reading => continue,
+                    CardKind::VerseInHeading { heading_idx } => {
+                        let already_introduced = cards.iter().any(|other| {
+                            other.verse_id != verse_id
+                                && matches!(other.state, CardState::Active)
+                                && matches!(
+                                    other.kind,
+                                    CardKind::VerseInHeading { heading_idx: h } if h == heading_idx
+                                )
+                        });
+                        if !already_introduced && session_headings.insert(heading_idx) {
+                            card_ids.push(card.id.0);
+                        }
+                    }
+                    _ => card_ids.push(card.id.0),
+                }
+            }
+            for card in cards.iter() {
+                let CardKind::ChapterClubList { .. } = card.kind else {
+                    continue;
+                };
+                if !matches!(card.state, CardState::New) {
+                    continue;
+                }
+                if !session_chapter_lists.insert(card.id.0) {
+                    continue;
+                }
+                let atoms = self.engine.atoms_for(card.verse_id);
+                if atoms.chapter_members.last().map(|(v, _)| *v) == Some(verse_id) {
+                    card_ids.push(card.id.0);
+                } else {
+                    // Not this verse — un-mark so a later verse can claim it.
+                    session_chapter_lists.remove(&card.id.0);
+                }
+            }
+            let recitation_card_id = cards
+                .iter()
+                .find(|c| c.verse_id == verse_id && matches!(c.kind, CardKind::Recitation))
+                .map(|c| c.id.0);
+            entries.push(Entry {
+                verse_id,
+                card_ids,
+                recitation_card_id,
+            });
+        }
+
+        serde_json::to_string(&entries)
+            .map_err(|e| JsError::new(&format!("session serialise error: {e}")))
+    }
+
+    /// Flip every `New` card belonging to `verse_id` to `Active`. Returns
+    /// the number of cards transitioned. Idempotent. Called by the
+    /// `/memorize` flow after the learner walks the per-verse progression
+    /// and confirms.
+    pub fn graduate_verse(&mut self, verse_id: u32) -> u32 {
+        self.engine.graduate_verse(verse_id) as u32
+    }
+
+    /// Count of `New` cards still awaiting memorize. Drives the
+    /// "N to memorize" nudge in the web UI nav.
+    pub fn new_card_count(&self) -> u32 {
+        self.engine
+            .cards
+            .iter()
+            .filter(|c| matches!(c.state, verse_vault_core::card::CardState::New))
+            .count() as u32
     }
 
     /// Render data for a card: kind, verse_id, plus the verse's render data
@@ -471,6 +607,7 @@ mod tests {
             last_seen_secs: 1_700_000_000,
             last_base_secs: 1_699_000_000,
             last_root_secs: 1_690_000_000,
+            pending_relearn: true,
         };
         let j = serde_json::to_string(&entry).unwrap();
         let r: TestStateEntry = serde_json::from_str(&j).unwrap();
@@ -487,10 +624,31 @@ mod tests {
             last_seen_secs: 100,
             last_base_secs: 90,
             last_root_secs: 80,
+            pending_relearn: false,
         };
         let (key, state) = entry.clone().into_pair();
         let again = TestStateEntry::from_pair(key, &state);
         assert_eq!(entry, again);
+    }
+
+    #[test]
+    fn test_state_entry_missing_pending_relearn_defaults_false() {
+        // Pre-Slice-2 snapshots have no `pending_relearn` field. Make sure
+        // they still deserialize cleanly with the flag defaulting to false.
+        let with_flag = TestStateEntry {
+            element: ElementId::VerseRefPosition { verse_id: 1 },
+            test_kind: TestKind::VerseRefPosition,
+            stability: 3.0,
+            difficulty: 4.0,
+            last_seen_secs: 100,
+            last_base_secs: 90,
+            last_root_secs: 80,
+            pending_relearn: false,
+        };
+        let mut value = serde_json::to_value(&with_flag).unwrap();
+        value.as_object_mut().unwrap().remove("pending_relearn");
+        let entry: TestStateEntry = serde_json::from_value(value).unwrap();
+        assert!(!entry.pending_relearn);
     }
 
     #[test]

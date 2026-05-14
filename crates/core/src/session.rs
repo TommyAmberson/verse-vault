@@ -103,10 +103,22 @@ impl Session {
         engine.review(card_id, grade, now_secs)
     }
 
-    /// Pick the next card. Cooldown is enforced by `schedule::next_card`
-    /// against `engine.tests[*].last_seen_secs`, which `engine.review`
-    /// updates for every test the just-reviewed card touched.
+    /// Pick the next card to review. Priority order:
+    ///
+    /// 1. **Relearning lane** — any `Active` card whose any test has
+    ///    `pending_relearn = true` and whose FSRS sub-day due time has
+    ///    elapsed. Bypasses the sibling cooldown so a freshly-lapsed card
+    ///    is re-drilled even when another card in the session just touched
+    ///    a shared test.
+    /// 2. **Regular schedule** — `schedule::next_card`, the descending-R
+    ///    review queue with cooldown enforcement.
+    ///
+    /// The FTV queue (`upcoming_cards`) is exposed for the UI to surface
+    /// independently; the scheduler doesn't drain it.
     pub fn next_card<'e>(&self, engine: &'e ReviewEngine, now_secs: i64) -> Option<&'e Card> {
+        if let Some(id) = schedule::next_relearn_card(engine, now_secs) {
+            return engine.card(id);
+        }
         let id = schedule::next_card(engine, now_secs)?;
         engine.card(id)
     }
@@ -256,6 +268,34 @@ mod tests {
                 .iter()
                 .any(|c| matches!(c.kind, CardKind::Ftv { .. }))
         );
+    }
+
+    #[test]
+    fn session_next_card_returns_lane_card_before_regular_schedule() {
+        // Lapse a card and advance time past the FSRS sub-day due. The
+        // session must hand the lane card back before consulting the
+        // descending-R review queue. This is the load-bearing wiring for
+        // /review surfacing freshly-lapsed cards within minutes.
+        let m = sample_material_with_ftv();
+        let r = build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        let verse_ids: Vec<u32> = engine.cards.iter().map(|c| c.verse_id).collect();
+        for v in verse_ids {
+            engine.graduate_verse(v);
+        }
+        let pf_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .unwrap()
+            .id;
+        let now = 86400 * 365;
+        engine.review(pf_id, Grade::Again, now);
+
+        let session = Session::start(&engine, now);
+        let later = now + 86400;
+        let pick = session.next_card(&engine, later).unwrap();
+        assert_eq!(pick.id, pf_id, "lane card must surface ahead of schedule");
     }
 
     #[test]

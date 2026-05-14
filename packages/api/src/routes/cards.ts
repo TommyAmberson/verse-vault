@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
+import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
+import { graduatedVerses } from '../db/schema.js';
 import { ApibibleCache } from '../lib/apibible-cache.js';
 import { EngineStore, NotEnrolledError, type TestStateEntry } from '../lib/engine.js';
 import { bookCodeOf } from '../lib/book-codes.js';
@@ -83,7 +85,7 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
 
   app.use('*', requireAuth());
 
-  app.get('/next', async (c) => {
+  app.get('/review/next', async (c) => {
     const materialId = c.req.query('materialId');
     if (!materialId) return c.json({ error: 'materialId required' }, 400);
     const user = getUser(c);
@@ -94,8 +96,28 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
       if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
       throw err;
     }
-    const cardId = loaded.engine.next_card(BigInt(now()));
+    const cardId = loaded.engine.next_review_card(BigInt(now()));
     return c.json({ cardId: cardId ?? null });
+  });
+
+  app.get('/memorize/session', async (c) => {
+    const materialId = c.req.query('materialId');
+    if (!materialId) return c.json({ error: 'materialId required' }, 400);
+    const maxRaw = Number(c.req.query('max') ?? '1');
+    const max = Number.isFinite(maxRaw) ? Math.max(1, Math.min(50, Math.floor(maxRaw))) : 1;
+    const user = getUser(c);
+    let loaded;
+    try {
+      loaded = await deps.engines.load({ userId: user.id, materialId });
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
+    const verses = JSON.parse(loaded.engine.memorize_session(max)) as {
+      verseId: number;
+      cardIds: number[];
+    }[];
+    return c.json({ verses });
   });
 
   app.get('/:cardId{[0-9]+}', async (c) => {
@@ -206,11 +228,68 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
         });
       });
 
-      const nextCardId = loaded.engine.next_card(BigInt(nowSecs));
+      const nextCardId = loaded.engine.next_review_card(BigInt(nowSecs));
       return c.json({
         updates,
         nextCardId: nextCardId ?? null,
       });
+    });
+  });
+
+  app.post('/memorize/graduate', async (c) => {
+    let body: { materialId?: string; verseId?: number };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'invalid JSON body' }, 400);
+    }
+    if (typeof body.materialId !== 'string') {
+      return c.json({ error: 'materialId required' }, 400);
+    }
+    if (typeof body.verseId !== 'number' || !Number.isInteger(body.verseId)) {
+      return c.json({ error: 'verseId required (integer)' }, 400);
+    }
+    const user = getUser(c);
+    const materialId = body.materialId;
+    const verseId = body.verseId;
+    const key = { userId: user.id, materialId };
+    let loaded;
+    try {
+      loaded = await deps.engines.load(key);
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
+
+    const nowSecs = now();
+    return deps.engines.withLock(key, async () => {
+      const count = loaded.engine.graduate_verse(verseId);
+      if (count === 0) {
+        // Two cases collapse to a zero count: (a) already-graduated
+        // verses replayed by engine load — idempotent, row exists; and
+        // (b) verseId doesn't belong to this material's deck at all.
+        // The graduated_verses table is the source of truth that
+        // distinguishes them.
+        const existing = deps.db
+          .select({ verseId: graduatedVerses.verseId })
+          .from(graduatedVerses)
+          .where(
+            and(
+              eq(graduatedVerses.userId, user.id),
+              eq(graduatedVerses.materialId, materialId),
+              eq(graduatedVerses.verseId, verseId),
+            ),
+          )
+          .get();
+        if (!existing) return c.json({ error: 'Unknown verse' }, 404);
+        return c.json({ graduated: 0 });
+      }
+      deps.db
+        .insert(graduatedVerses)
+        .values({ userId: user.id, materialId, verseId, graduatedAtSecs: nowSecs })
+        .onConflictDoNothing()
+        .run();
+      return c.json({ graduated: count });
     });
   });
 

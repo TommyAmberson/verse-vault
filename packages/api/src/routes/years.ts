@@ -57,6 +57,9 @@ interface YearView {
   enrolled: boolean;
   settings: YearSettings;
   clubs: Record<ClubTier, ClubView>;
+  /** Count of cards still in `CardState::New` — drives the
+   *  "N to memorize" nudge in the web nav. */
+  newCardCount: number;
 }
 
 interface SettingsBody {
@@ -136,8 +139,8 @@ const ENROLLED_DEFAULTS: YearSettings = {
   ftv: true,
   newScope: 'all',
   reviewScope: 'all',
-  clubCardScope: 'all',
-  chapterListScope: 'up300',
+  clubCardScope: 'off',
+  chapterListScope: 'up150',
   lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
 };
 
@@ -206,10 +209,12 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
       // no graph_snapshot yet. Card counts stay at zero until the user
       // enables a scope (which auto-enrolls on save).
       let counts: ClubCounts = {};
+      let newCardCount = 0;
       if (enrolled) {
         try {
           const loaded = await deps.engines.load({ userId: user.id, materialId: material.id });
           counts = JSON.parse(loaded.engine.card_count_by_club()) as ClubCounts;
+          newCardCount = loaded.engine.new_card_count();
         } catch (err) {
           // Don't fail the whole picker render if one year's engine can't
           // build — degrade that row to zero counts and log so it's
@@ -243,6 +248,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         enrolled,
         settings,
         clubs,
+        newCardCount,
       });
     }
 
