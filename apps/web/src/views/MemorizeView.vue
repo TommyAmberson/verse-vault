@@ -75,6 +75,7 @@ async function buildSession() {
         materialId: y.materialId,
         verseId: v.verseId,
         cardIds: v.cardIds,
+        recitationCardId: v.recitationCardId,
         anchor: null,
         graduated: false,
       })
@@ -83,12 +84,14 @@ async function buildSession() {
   verses.value = collected
 
   // Pre-fetch each verse's anchor render so reading_start has the
-  // verse text ready without per-step round trips.
+  // verse text ready without per-step round trips. Prefer the
+  // Recitation card so the verse displays as a plain reading prompt,
+  // not as a PhraseFill (which would highlight phrase 0).
   await Promise.all(
     collected.map(async (v) => {
-      const first = v.cardIds[0]
-      if (first === undefined) return
-      v.anchor = await api.getCardRender(v.materialId, first)
+      const anchorId = v.recitationCardId ?? v.cardIds[0]
+      if (anchorId === undefined || anchorId === null) return
+      v.anchor = await api.getCardRender(v.materialId, anchorId)
     }),
   )
 

@@ -420,6 +420,12 @@ impl WasmEngine {
         struct Entry {
             verse_id: u32,
             card_ids: Vec<u32>,
+            /// Card id of the verse's Recitation, when emitted. The web
+            /// client uses this to render the whole verse as a plain
+            /// reading prompt during the session's opening + closing
+            /// walkthroughs, avoiding the phrase-0 highlight that a
+            /// PhraseFill render would impose.
+            recitation_card_id: Option<u32>,
         }
         let cards = &self.engine.cards;
 
@@ -480,7 +486,15 @@ impl WasmEngine {
                     session_chapter_lists.remove(&card.id.0);
                 }
             }
-            entries.push(Entry { verse_id, card_ids });
+            let recitation_card_id = cards
+                .iter()
+                .find(|c| c.verse_id == verse_id && matches!(c.kind, CardKind::Recitation))
+                .map(|c| c.id.0);
+            entries.push(Entry {
+                verse_id,
+                card_ids,
+                recitation_card_id,
+            });
         }
 
         serde_json::to_string(&entries)

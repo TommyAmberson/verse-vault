@@ -129,6 +129,10 @@ export interface MemorizeSessionVerse {
   verseId: number
   /** Every per-verse card to drill, in builder order. */
   cardIds: number[]
+  /** Card id of the verse's Recitation, when emitted. Used as the
+   *  anchor render for the session-opening + closing walkthroughs so
+   *  the verse displays without a PhraseFill's phrase-0 highlight. */
+  recitationCardId: number | null
 }
 
 export interface MemorizeSessionResponse {
