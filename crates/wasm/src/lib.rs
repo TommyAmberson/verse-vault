@@ -342,22 +342,61 @@ impl WasmEngine {
     }
 
     /// JSON-serialised list of card IDs to drill while memorising the
-    /// verse. Every per-verse card except `ChapterClubList` (anchored to
-    /// a pseudo verse) and `Reading` (synthetic; never emitted) is
-    /// included; the frontend cycles them in a drill loop until each
-    /// gets a passing grade. Builder-insertion order is preserved so
-    /// PhraseFills surface before the citation triple, Recitation, and
-    /// FTV.
+    /// verse. Includes every per-verse card except `ChapterClubList`
+    /// (anchored to a pseudo verse) and `Reading` (synthetic; never
+    /// emitted), with two introduction-aware additions:
+    ///
+    /// * `VerseInHeading` is skipped when another verse under the same
+    ///   heading has already been graduated — once the user has seen the
+    ///   heading via any of its verses, re-drilling it on the next one is
+    ///   redundant.
+    /// * The pseudo-verse `ChapterClubList` card is appended when the
+    ///   verse being memorised is the last `chapter_member` for that
+    ///   (chapter, tier) and the list itself is still `New` — i.e. the
+    ///   chapter's tier is "completed" by this verse so the listing
+    ///   becomes meaningful to drill.
+    ///
+    /// Builder-insertion order is otherwise preserved so PhraseFills
+    /// surface before the citation triple, Recitation, and FTV.
     pub fn memorize_progression(&self, verse_id: u32) -> Result<String, JsError> {
-        use verse_vault_core::card::CardKind;
-        let card_ids: Vec<u32> = self
-            .engine
-            .cards
-            .iter()
-            .filter(|c| c.verse_id == verse_id)
-            .filter(|c| !matches!(c.kind, CardKind::ChapterClubList { .. } | CardKind::Reading))
-            .map(|c| c.id.0)
-            .collect();
+        use verse_vault_core::card::{CardKind, CardState};
+        let cards = &self.engine.cards;
+        let mut card_ids: Vec<u32> = Vec::new();
+
+        for card in cards.iter().filter(|c| c.verse_id == verse_id) {
+            match card.kind {
+                CardKind::ChapterClubList { .. } | CardKind::Reading => continue,
+                CardKind::VerseInHeading { heading_idx } => {
+                    let heading_introduced = cards.iter().any(|other| {
+                        other.verse_id != verse_id
+                            && matches!(other.state, CardState::Active)
+                            && matches!(
+                                other.kind,
+                                CardKind::VerseInHeading { heading_idx: h } if h == heading_idx
+                            )
+                    });
+                    if !heading_introduced {
+                        card_ids.push(card.id.0);
+                    }
+                }
+                _ => card_ids.push(card.id.0),
+            }
+        }
+
+        for card in cards.iter() {
+            let CardKind::ChapterClubList { .. } = card.kind else {
+                continue;
+            };
+            if !matches!(card.state, CardState::New) {
+                continue;
+            }
+            let atoms = self.engine.atoms_for(card.verse_id);
+            let last_member = atoms.chapter_members.last().map(|(v, _)| *v);
+            if last_member == Some(verse_id) {
+                card_ids.push(card.id.0);
+            }
+        }
+
         serde_json::to_string(&card_ids)
             .map_err(|e| JsError::new(&format!("progression serialise error: {e}")))
     }
