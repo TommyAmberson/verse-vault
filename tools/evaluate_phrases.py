@@ -10,10 +10,11 @@ NKJV tokens, then emits one record per verse with two layers:
   disagree; a human must fix the deck before any re-split is meaningful.
 
 * **Signals + composite score** — deterministic features of the current
-  split (cognitive weight, restrictive-relative boundaries, weak-connector
-  starts, length balance, …). These don't say a split is wrong; they
-  surface what's worth a look. The composite ``signal_score`` is a
-  weighted sum in ``[0, 1]`` and drives ``--top`` / ``--min-score``.
+  split (``boundary_severance`` with ``severance_kind``, ``stub_phrase``,
+  ``cognitive_overload``, ``missing_split``, …). These don't say a split
+  is wrong; they surface what's worth a look. The composite
+  ``signal_score`` is a weighted sum in ``[0, 1]`` and drives ``--top`` /
+  ``--min-score``.
 
 The judge step is gone — the splitter prompt now folds in that
 judgement using the current split + signals + a stability clause.
@@ -54,11 +55,6 @@ from phrase_splitter.apibible import (  # noqa: E402
 # while pure length-balance / weak-connector signals only emit if they
 # accumulate. Override with --min-score.
 DEFAULT_MIN_SCORE = 0.2
-
-# A single-phrase verse longer than this is almost certainly a missed
-# split. Handled inside composite_signal_score; surfaced here in the
-# blocker check shape only when the verse has no pwc at all.
-MISSING_SPLIT_THRESHOLD = 10
 
 
 def check_verse(verse: Dict[str, Any], tokens: List[str]) -> Dict[str, Any]:

@@ -164,7 +164,8 @@ def extract_phrase_features(
     next_first_token: str = "",
 ) -> Dict[str, object]:
     """Features for a single phrase. ``position`` is ``"first"``,
-    ``"middle"``, or ``"last"``."""
+    ``"middle"``, ``"last"``, or ``"only"`` (single-phrase verse, which
+    suppresses the ``stub_phrase`` signal)."""
     del prev_last_token, next_first_token  # reserved for future cross-phrase signals
     wc = len(phrase_tokens)
     content = 0
@@ -318,7 +319,7 @@ def extract_verse_features(
         feat["text"] = " ".join(ptoks)
         phrases.append(feat)
 
-    boundaries: List[Dict[str, bool]] = []
+    boundaries: List[Dict[str, object]] = []
     if phrase_count > 1:
         for i in range(phrase_count - 1):
             boundaries.append(
