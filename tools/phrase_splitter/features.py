@@ -157,6 +157,10 @@ def _ends_in_terminal(token: str) -> bool:
     return bool(tail) and tail[-1] in _TERMINAL_PUNCT
 
 
+def _clamp01(x: float) -> float:
+    return max(0.0, min(1.0, x))
+
+
 def _signal_float(d: object, key: str, default: float = 0.0) -> float:
     """Safely read a float-valued signal from a dict-of-mixed-types
     payload. Returns ``default`` if ``d`` isn't a dict or the value is
@@ -205,7 +209,7 @@ def extract_phrase_features(
     # to 1.0 at content_word_count >= 12. Content words dominate
     # memorisation difficulty; function-heavy phrases stay light
     # regardless of word_count.
-    cognitive_overload = max(0.0, min(1.0, (content - 6) / 6))
+    cognitive_overload = _clamp01((content - 6) / 6)
 
     # Stub phrase: ramps from 0 at word_count >= 4 to 0.75 at
     # word_count == 1. Suppressed for the "only" position (single-phrase
@@ -213,7 +217,7 @@ def extract_phrase_features(
     if position == "only":
         stub_phrase = 0.0
     else:
-        stub_phrase = max(0.0, min(1.0, (4 - wc) / 4))
+        stub_phrase = _clamp01((4 - wc) / 4)
 
     first_word = normalise_word(phrase_tokens[0]) if phrase_tokens else ""
     starts_with_weak_connector = first_word in WEAK_CONNECTORS
@@ -293,13 +297,13 @@ def extract_boundary_features(
     if kind is None:
         return {"boundary_severance": 0.0, "severance_kind": None}
 
-    # Base severity + modulators.
-    severance = 0.5
-    # Stubby prev intensifies (up to +0.3 at 1-word prev).
-    severance += 0.3 * max(0.0, (4 - len(prev_tokens)) / 4)
-    # Thin tail intensifies (up to +0.2 at 1-word next).
-    severance += 0.2 * max(0.0, (6 - len(next_tokens)) / 6)
-    severance = min(1.0, severance)
+    # Base severity + modulators. Stubby prev intensifies (up to +0.3 at
+    # 1-word prev); thin tail intensifies (up to +0.2 at 1-word next).
+    severance = _clamp01(
+        0.5
+        + 0.3 * _clamp01((4 - len(prev_tokens)) / 4)
+        + 0.2 * _clamp01((6 - len(next_tokens)) / 6)
+    )
 
     return {
         "boundary_severance": round(severance, 3),
@@ -357,7 +361,7 @@ def extract_verse_features(
     verse_function_ratio = (token_count - total_function) / token_count if token_count else 0.0
 
     if phrase_count == 1 and token_count > 12:
-        missing_split = min(1.0, (token_count - 12) / 10)
+        missing_split = _clamp01((token_count - 12) / 10)
     else:
         missing_split = 0.0
 
@@ -396,4 +400,4 @@ def composite_signal_score(verse_features: Dict[str, Any]) -> float:
         for list_key, field_key, weight in _COMPOSITE_COMPONENTS
     )
     score += _MISSING_SPLIT_WEIGHT * _signal_float(verse_features, "missing_split")
-    return min(1.0, score)
+    return _clamp01(score)
