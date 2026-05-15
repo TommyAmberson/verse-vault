@@ -117,12 +117,9 @@ def _render_signals(signals: Dict[str, Any]) -> str:
         header_bits.append(f"tokens={tc}")
     if isinstance(pc, int):
         header_bits.append(f"phrases={pc}")
-    lb = _signal_float(signals, "length_balance")
-    if lb:
-        header_bits.append(f"length_balance={lb:.2f}")
-    vfr = _signal_float(signals, "verse_function_ratio")
-    if vfr:
-        header_bits.append(f"function_ratio={vfr:.2f}")
+    # length_balance and verse_function_ratio stay in the report payload
+    # but are not rendered here — the splitter has tended to over-balance
+    # phrase lengths when shown the raw balance number.
     if header_bits:
         lines.append("  " + " ".join(header_bits))
 

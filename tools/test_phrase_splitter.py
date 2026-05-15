@@ -177,13 +177,22 @@ class PhraseFeatureTests(unittest.TestCase):
         )
         self.assertTrue(feat["contains_internal_pause"])
 
-    def test_cognitive_overload_ramp(self):
-        # 6 content words: at threshold, no signal
+    def test_cognitive_overload_below_threshold(self):
+        # 5 content words: below threshold, no signal
+        feat = extract_phrase_features(
+            ["walked", "saw", "told", "heard", "knew"], position="middle"
+        )
+        self.assertEqual(feat["content_word_count"], 5)
+        self.assertEqual(feat["cognitive_overload"], 0.0)
+
+    def test_cognitive_overload_tiny_at_six(self):
+        # 6 content words: tiny non-zero signal (quadratic curve)
         feat = extract_phrase_features(
             ["walked", "saw", "told", "heard", "knew", "ran"], position="middle"
         )
         self.assertEqual(feat["content_word_count"], 6)
-        self.assertEqual(feat["cognitive_overload"], 0.0)
+        self.assertGreater(feat["cognitive_overload"], 0.0)
+        self.assertLess(feat["cognitive_overload"], 0.1)
 
     def test_cognitive_overload_high(self):
         # 12 content words: full signal
@@ -204,10 +213,36 @@ class PhraseFeatureTests(unittest.TestCase):
         )
         self.assertLess(feat["cognitive_overload"], 0.2)
 
-    def test_stub_phrase_ramp(self):
-        # 1-word phrase: heavily stubby
-        feat = extract_phrase_features(["Behold!"], position="middle")
+    def test_word_overload_ramp(self):
+        # 15-word phrase (regardless of content): mid-ramp
+        feat = extract_phrase_features(
+            ["of"] * 15, position="middle"
+        )
+        self.assertEqual(feat["word_count"], 15)
+        self.assertAlmostEqual(feat["word_overload"], 0.5, places=2)
+
+    def test_word_overload_below_threshold(self):
+        feat = extract_phrase_features(["of"] * 10, position="middle")
+        self.assertEqual(feat["word_overload"], 0.0)
+
+    def test_stub_phrase_mid_clause_full_penalty(self):
+        # 1-word phrase ending mid-clause: full stub.
+        feat = extract_phrase_features(["one"], position="middle")
         self.assertAlmostEqual(feat["stub_phrase"], 0.75, places=3)
+
+    def test_stub_phrase_clean_end_reduced_penalty(self):
+        # 1-word phrase ending in terminal punct ("Behold!") — short but
+        # clean. Fires at 20% intensity.
+        feat = extract_phrase_features(["Behold!"], position="middle")
+        self.assertAlmostEqual(feat["stub_phrase"], 0.15, places=3)
+
+    def test_stub_phrase_comma_end_reduced_penalty(self):
+        # 3-word framing intro ending in comma ("And I, brethren,") —
+        # short and clean. 20% of raw 0.25 = 0.05.
+        feat = extract_phrase_features(
+            ["And", "I,", "brethren,"], position="first"
+        )
+        self.assertAlmostEqual(feat["stub_phrase"], 0.05, places=3)
 
     def test_stub_phrase_threshold(self):
         # 4-word phrase: at threshold, no signal
@@ -400,9 +435,10 @@ class CompositeScoreTests(unittest.TestCase):
             [12],
         )
         score = composite_signal_score(feats)
-        # missing_split kicks in too at 12 tokens — but threshold is > 12 so 0.
-        # cognitive_overload dominates.
-        self.assertGreater(score, 0.25)
+        # cognitive_overload saturates (1.0 * 0.2 weight = 0.2) and
+        # word_overload contributes (wc=12 → 0.2 * 0.2 weight = 0.04).
+        # Total ~0.24. position="only" suppresses stub.
+        self.assertGreater(score, 0.20)
 
     def test_missing_split_raises_score(self):
         # 22-token single-phrase verse: missing_split saturates at 1.0

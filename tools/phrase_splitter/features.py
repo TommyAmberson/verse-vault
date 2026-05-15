@@ -213,19 +213,15 @@ def extract_phrase_features(
             content += 1
     function_ratio = (wc - content) / wc if wc else 0.0
 
-    # Cognitive overload: ramps from 0 at content_word_count <= 6
-    # to 1.0 at content_word_count >= 12. Content words dominate
-    # memorisation difficulty; function-heavy phrases stay light
-    # regardless of word_count.
-    cognitive_overload = _clamp01((content - 6) / 6)
+    # Cognitive overload: quadratic ramp. Tiny signal at 6 content words,
+    # saturates at 12. Content words dominate memorisation difficulty;
+    # function-heavy phrases stay light regardless of word_count.
+    overload_excess = max(0.0, (content - 5) / 7)
+    cognitive_overload = min(1.0, overload_excess ** 2)
 
-    # Stub phrase: ramps from 0 at word_count >= 4 to 0.75 at
-    # word_count == 1. Suppressed for the "only" position (single-phrase
-    # verse) — a whole-verse phrase isn't a chunking problem.
-    if position == "only":
-        stub_phrase = 0.0
-    else:
-        stub_phrase = _clamp01((4 - wc) / 4)
+    # Word overload: absolute-length signal that fires regardless of
+    # content density. Linear ramp from 10 to 20 words.
+    word_overload = _clamp01((wc - 10) / 10)
 
     first_word = normalise_word(phrase_tokens[0]) if phrase_tokens else ""
     starts_with_weak_connector = first_word in WEAK_CONNECTORS
@@ -235,11 +231,24 @@ def extract_phrase_features(
     ends_in_pause_punct = bool(last_token) and _ends_in_pause(last_token)
     ends_mid_clause = bool(last_token) and not _ends_in_terminal(last_token)
 
+    # Stub phrase: ramps from 0 at word_count >= 4 to 0.75 at
+    # word_count == 1, but only at full strength when the phrase ends
+    # mid-clause. A short phrase ending in pause-punct or terminal
+    # ("And I, brethren," / "Behold!") is a clean framing chunk, not a
+    # stranded stub — fires at 20% intensity. Suppressed entirely for
+    # the "only" position (single-phrase verse).
+    if position == "only":
+        stub_phrase = 0.0
+    else:
+        raw_stub = _clamp01((4 - wc) / 4)
+        stub_phrase = raw_stub if ends_mid_clause else raw_stub * 0.2
+
     return {
         "word_count": wc,
         "content_word_count": content,
         "function_ratio": round(function_ratio, 3),
         "cognitive_overload": round(cognitive_overload, 3),
+        "word_overload": round(word_overload, 3),
         "stub_phrase": round(stub_phrase, 3),
         "syllable_count": syllables,
         "starts_with_weak_connector": starts_with_weak_connector,
@@ -386,12 +395,13 @@ def extract_verse_features(
 
 # Score components: (container key, signal key, weight). Drive the
 # max-aggregate signals from a table so adding a new continuous signal
-# is one row. Total weight at full strength is 1.3, intentionally over
+# is one row. Total weight at full strength is 1.4, intentionally over
 # 1.0 so multiple saturating problems hit the clamp instead of summing
 # past it.
 _COMPOSITE_COMPONENTS = [
     ("boundaries", "boundary_severance", 0.5),
-    ("phrases", "cognitive_overload", 0.3),
+    ("phrases", "cognitive_overload", 0.2),
+    ("phrases", "word_overload", 0.2),
     ("phrases", "stub_phrase", 0.2),
 ]
 _MISSING_SPLIT_WEIGHT = 0.3
