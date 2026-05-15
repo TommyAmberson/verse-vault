@@ -112,14 +112,9 @@ Output:
 
 _CURRENT_SPLIT_BLOCK = """\
 
-**Current split.**
+**Current split** (for context only — propose your honest best split,
+not a defence of this one):
 {current_split}
-
-The current split is one option. If it already passes the recall test
-— each phrase a coherent memorisable chunk with a recognisable shape
-— return it verbatim. Change boundaries only when the new split is
-*clearly* better (chunks the verse more usefully for recall), not
-merely defensible. The goal is the best split, not a different split.
 """
 
 _SIGNALS_BLOCK = """\
@@ -164,3 +159,82 @@ def format_split_prompt(
 # current split or signals to inject can keep using ``SPLIT_PROMPT`` as
 # a plain ``.format(verse_text=...)`` template.
 SPLIT_PROMPT = SPLIT_PROMPT_HEADER + _OUTPUT_CONTRACT
+
+
+JUDGE_PROMPT = """\
+You are picking the better of two memorisation phrase splits for a
+Bible verse.
+
+A phrase is a *memorisable unit* — a chunk a reciter could blank on
+and still sense the specific shape of the gap from what's left. The
+job of the split is to partition the verse into chunks each doing a
+discrete job, so that forgetting one of them leaves a recognisable
+hole rather than a fuzzy mid-thought blur. Partition by *function*,
+not by grammatical completeness; short framing intros and appositives
+are valid phrases when they do a discrete job different from their
+neighbours.
+
+**The recall test.** Mentally blank each phrase in each option. Can
+the reciter sense the specific shape of what's missing from the rest
+of the verse? An option whose blanks leave recognisable holes is
+better than one whose blanks leave mid-thought blurs.
+
+**How to read the signals.** The signal block under each option is
+deterministic features of that option — composite score, per-phrase
+content-word load and stub flags, boundary severance kinds
+(``verb_content``, ``bare_relative``, ``stranded_stub``), length
+balance. Lower composite generally means fewer flagged issues, but
+signals are context, not verdicts: a single high signal can reflect a
+deliberate trade-off (a stub parallel sibling, a deliberate
+``and``-start that continues a coordinated list). Read the recall
+test as the deciding criterion; the signals just point at where to
+look.
+
+**Hard constraints.** Both options have already been validated for
+rejoin, word-count sum, and HTML tag balance — you don't need to
+re-check.
+
+**Tie-breaking.** When the two options are genuinely equivalent under
+the recall test, prefer the current split (Option A) — needless
+churn is bad. Pick B only when it is *clearly* better, not merely
+defensible.
+
+**Verse.**
+    {verse_text}
+
+**Option A (current).**
+{option_a_split}
+
+Signals A:
+{signals_a}
+
+**Option B (proposed).**
+{option_b_split}
+
+Signals B:
+{signals_b}
+
+Reply with exactly one character — `A` or `B` — and nothing else.
+"""
+
+
+def format_judge_prompt(
+    verse_text: str,
+    option_a_split: str,
+    signals_a: str,
+    option_b_split: str,
+    signals_b: str,
+) -> str:
+    """Render ``JUDGE_PROMPT`` for a single verse comparison.
+
+    ``option_a_split`` / ``option_b_split`` are pre-rendered bullet
+    blocks (one phrase per line); ``signals_a`` / ``signals_b`` are
+    the same compact text blocks the splitter prompt sees, generated
+    by ``tools/split_phrases.py:_render_signals``."""
+    return JUDGE_PROMPT.format(
+        verse_text=verse_text,
+        option_a_split=option_a_split,
+        signals_a=signals_a,
+        option_b_split=option_b_split,
+        signals_b=signals_b,
+    )
