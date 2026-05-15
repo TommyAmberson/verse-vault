@@ -483,14 +483,17 @@ class PrintPromptRenderingTests(unittest.TestCase):
 
     def test_render_signals_includes_header_and_boundary(self):
         feats = extract_verse_features(
-            ["nothing", "was", "made", "that", "was", "made."],
-            [3, 3],
+            ["nothing", "was", "made", "that", "was", "made."], [3, 3]
         )
         rendered = _render_signals(feats)
-        self.assertIn("6 tokens", rendered)
-        self.assertIn("2 phrases", rendered)
-        self.assertIn("restrictive-relative", rendered)
-        self.assertIn("Composite score:", rendered)
+        # Header line with verse-level metrics
+        self.assertIn("tokens=6", rendered)
+        self.assertIn("phrases=2", rendered)
+        # Per-boundary line names the severance kind and value
+        self.assertIn("bare_relative", rendered)
+        self.assertIn("severance=", rendered)
+        # Composite score is displayed
+        self.assertIn("composite=", rendered.lower())
 
 
 if __name__ == "__main__":

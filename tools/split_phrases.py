@@ -106,43 +106,61 @@ def _render_current_split(tokens: List[str], pwc: List[int]) -> str:
     return "\n".join(f'  - "{" ".join(pt)}"' for pt in phrase_token_lists)
 
 
-def _render_signals(signals: Dict[str, Any]) -> str:
-    """Compact one-line-per-phrase format the LLM can scan. Boundary
-    flags only render when true."""
-    header_bits = [
-        f"{signals.get('token_count', 0)} tokens",
-        f"{signals.get('phrase_count', 0)} phrases",
-        f"balance {signals.get('length_balance', 0):.2f}x",
-        f"function ratio {signals.get('verse_function_ratio', 0):.2f}",
-    ]
-    lines = [f"Verse: {', '.join(header_bits)}"]
-    for i, p in enumerate(signals.get("phrases") or [], start=1):
-        flags = []
-        if p.get("starts_with_weak_connector"):
-            flags.append("starts-weak")
-        if p.get("ends_in_pause_punct"):
-            flags.append("ends-pause")
+def _render_signals(signals: Dict[str, object]) -> str:
+    """Render the continuous-signal payload as a compact text block for
+    the prompt's signals section. Shows graded numbers, not bare bools.
+    """
+    lines: List[str] = []
+    tc = signals.get("token_count")
+    pc = signals.get("phrase_count")
+    lb = signals.get("length_balance")
+    vfr = signals.get("verse_function_ratio")
+    header_bits = []
+    if isinstance(tc, int):
+        header_bits.append(f"tokens={tc}")
+    if isinstance(pc, int):
+        header_bits.append(f"phrases={pc}")
+    if isinstance(lb, (int, float)):
+        header_bits.append(f"length_balance={lb:.2f}")
+    if isinstance(vfr, (int, float)):
+        header_bits.append(f"function_ratio={vfr:.2f}")
+    if header_bits:
+        lines.append("  " + " ".join(header_bits))
+
+    phrases = signals.get("phrases") or []
+    for i, p in enumerate(phrases):
+        if not isinstance(p, dict):
+            continue
+        wc = p.get("word_count", 0)
+        cw = p.get("content_word_count", 0)
+        bits = [f"phrase {i+1}: {wc}w ({cw} content)"]
+        stub = p.get("stub_phrase", 0.0)
+        if isinstance(stub, (int, float)) and stub > 0:
+            bits.append(f"stub={stub:.2f}")
+        ov = p.get("cognitive_overload", 0.0)
+        if isinstance(ov, (int, float)) and ov > 0:
+            bits.append(f"overload={ov:.2f}")
         if p.get("ends_mid_clause"):
-            flags.append("ends-mid-clause")
-        if p.get("contains_internal_pause"):
-            flags.append("internal-pause")
-        flag_str = (" " + " ".join(flags)) if flags else ""
-        lines.append(
-            f"  [{i}] {p.get('word_count', 0)}w "
-            f"({p.get('content_word_count', 0)} content, "
-            f"{p.get('syllable_count', 0)} syll, "
-            f"fn {p.get('function_ratio', 0):.2f}){flag_str}"
-        )
-    for i, b in enumerate(signals.get("boundaries") or [], start=1):
-        flags = []
-        if b.get("restrictive_relative"):
-            flags.append("restrictive-relative")
-        if b.get("verb_content_clause"):
-            flags.append("verb-content-clause")
-        if flags:
-            lines.append(f"  boundary {i}→{i + 1}: {', '.join(flags)}")
-    score = composite_signal_score(signals)
-    lines.append(f"Composite score: {score:.2f}")
+            bits.append("ends-mid-clause")
+        if p.get("starts_with_weak_connector"):
+            bits.append("opens-with-connector")
+        lines.append("  " + " ".join(bits))
+
+    boundaries = signals.get("boundaries") or []
+    for i, b in enumerate(boundaries):
+        if not isinstance(b, dict):
+            continue
+        sev = b.get("boundary_severance", 0.0)
+        if isinstance(sev, (int, float)) and sev > 0:
+            kind = b.get("severance_kind") or "?"
+            lines.append(f"  boundary {i+1}→{i+2}: {kind} severance={sev:.2f}")
+
+    missing = signals.get("missing_split", 0.0)
+    if isinstance(missing, (int, float)) and missing > 0:
+        lines.append(f"  missing_split={missing:.2f}")
+
+    composite = composite_signal_score(signals)
+    lines.append(f"  composite={composite:.2f}")
     return "\n".join(lines)
 
 
