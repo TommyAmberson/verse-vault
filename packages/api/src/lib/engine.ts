@@ -12,6 +12,41 @@ function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex');
 }
 
+/** Memoise SHA over JSON content. Keyed by the string itself, so a
+ *  different blob gets a different entry (the materialId-keyed variant
+ *  would be wrong under any test or hot-reload that swaps content for
+ *  the same id). Bounded by the number of distinct blobs ever seen
+ *  per process — small. */
+const sha256Cache = new Map<string, string>();
+
+function sha256Memo(json: string): string {
+  let h = sha256Cache.get(json);
+  if (!h) {
+    h = sha256(json);
+    sha256Cache.set(json, h);
+  }
+  return h;
+}
+
+/** Latest stored snapshot row for the (user, material) pair, or
+ *  `undefined` when the user isn't enrolled. Shared by `EngineStore.load`,
+ *  the test-state adapter, and the `/state` sync endpoint so the
+ *  desc-version pick stays consistent across call sites. */
+export function getLatestSnapshot(db: DB, key: EngineKey) {
+  return db
+    .select()
+    .from(schema.graphSnapshots)
+    .where(
+      and(
+        eq(schema.graphSnapshots.userId, key.userId),
+        eq(schema.graphSnapshots.materialId, key.materialId),
+      ),
+    )
+    .orderBy(desc(schema.graphSnapshots.version))
+    .limit(1)
+    .get();
+}
+
 const DEFAULT_DESIRED_RETENTION = 0.9;
 
 export type EngineKey = UserMaterial;
@@ -135,26 +170,18 @@ function adaptElement(
   };
 }
 
-function readSnapshotMaterialJson(db: DB, key: EngineKey): string | null {
-  const snapshot = db
-    .select({ materialData: schema.graphSnapshots.materialData })
-    .from(schema.graphSnapshots)
-    .where(
-      and(
-        eq(schema.graphSnapshots.userId, key.userId),
-        eq(schema.graphSnapshots.materialId, key.materialId),
-      ),
-    )
-    .orderBy(desc(schema.graphSnapshots.version))
-    .limit(1)
-    .get();
-  return snapshot ? snapshot.materialData.toString('utf8') : null;
-}
-
-export function readTestStateEntries(db: DB, key: EngineKey): TestStateEntry[] {
-  const materialJson = readSnapshotMaterialJson(db, key);
-  const phraseRangesByVerse = materialJson
-    ? computePhraseRangesByVerse(materialJson)
+/** Load test_states for the user and translate any legacy positional
+ *  Phrase elements to the new range identity. Pass `materialJson` when
+ *  the caller already has the snapshot in hand (e.g. `EngineStore.load`)
+ *  to skip a redundant snapshot read; otherwise it's fetched here. */
+export function readTestStateEntries(
+  db: DB,
+  key: EngineKey,
+  materialJson?: string,
+): TestStateEntry[] {
+  const json = materialJson ?? getLatestSnapshot(db, key)?.materialData.toString('utf8');
+  const phraseRangesByVerse = json
+    ? computePhraseRangesByVerse(json)
     : new Map<number, [number, number][]>();
   return db
     .select()
@@ -213,24 +240,11 @@ export class EngineStore {
     // materialData changes need to bump the user's snapshot and drop
     // any stale in-memory engine. Otherwise existing users would never
     // see edits to data/<year>.json after their first enrollment.
-    let snapshot = this.db
-      .select()
-      .from(schema.graphSnapshots)
-      .where(
-        and(
-          eq(schema.graphSnapshots.userId, key.userId),
-          eq(schema.graphSnapshots.materialId, key.materialId),
-        ),
-      )
-      .orderBy(desc(schema.graphSnapshots.version))
-      .limit(1)
-      .get();
-    if (!snapshot) {
-      throw new NotEnrolledError(key);
-    }
+    let snapshot = getLatestSnapshot(this.db, key);
+    if (!snapshot) throw new NotEnrolledError(key);
 
     const bundledJson = this.loadBundledJson(key.materialId);
-    if (sha256(bundledJson) !== sha256(snapshot.materialData.toString('utf8'))) {
+    if (sha256Memo(bundledJson) !== sha256Memo(snapshot.materialData.toString('utf8'))) {
       const newId = randomUUID();
       const newVersion = snapshot.version + 1;
       const createdAt = this.now();
@@ -258,8 +272,8 @@ export class EngineStore {
     const cached = this.cache.get(userMaterialKey(key));
     if (cached) return cached;
 
-    const testStates = readTestStateEntries(this.db, key);
     const materialJson = snapshot.materialData.toString('utf8');
+    const testStates = readTestStateEntries(this.db, key, materialJson);
     const configJson = readMaterialConfigJson(this.db, key);
     const engine = new WasmEngine(
       materialJson,
