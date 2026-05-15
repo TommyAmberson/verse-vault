@@ -74,6 +74,13 @@ split). The splitter no longer carries that bias itself.
 
 ## Workflow
 
+Before any LLM step (re-split or judge), ask the user which model to dispatch subagents with.
+Default recommendation: **Opus for both** — splitting and judging are precision tasks that benefit
+from the stronger model. Sonnet is a reasonable pick for the splitter on a force-fresh pass where
+speed and cost outweigh peak quality. Pass the choice through to the `Agent` tool's `model`
+parameter (`"opus"` / `"sonnet"`); the agent-instructions docs the subagents read are
+model-agnostic.
+
 ### 1. Score (`tools/evaluate_phrases.py`)
 
 Walks the deck and emits one record per verse: structural blockers (deck/canonical drift, unbalanced
