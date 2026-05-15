@@ -68,8 +68,11 @@ include short framing phrases ("but these are written"), appositive chunks, and 
 all of which are fine even when they don't make sense in isolation as prose. What matters is that
 each chunk is doing a discrete job different from its neighbours.
 
-This is the test the splitter applies. Returning the current split verbatim is the right answer when
-the current split is already best. The goal is the best split, not a different split.
+This is the test both the splitter and the judge apply. The splitter uses it to construct its honest
+best split (no stability bias — just the recall test). The judge uses it to compare two concrete
+options and pick the better one. When the two options pass the test equivalently, the judge picks
+the current split (option A); needless churn is bad. Stability lives in the judge's tie-break, not
+in the splitter.
 
 ## Worked examples
 

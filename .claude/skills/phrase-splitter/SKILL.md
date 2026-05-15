@@ -8,12 +8,14 @@ description: >-
   "re-split this verse", "bad phrase chunking", "the splits are awkward",
   "split this verse for memorisation", "the splitter prompt", or any mention
   of `evaluate_phrases.py`, `split_phrases.py`, or a year-deck file like
-  `3-corinthians.json` / `4-john.json`. Drive a tight loop: score (auditor
-  emits features) → re-split (splitter sees the current split + signals +
-  stability clause) → apply → verify. The splitter step runs either as the
-  main agent answering prompts directly, or by dispatching parallel Claude
-  Code subagents.
-version: 0.4.0
+  `3-corinthians.json` / `4-john.json`. Drive a tight loop:
+  score (auditor emits features) → re-split (splitter sees the current split
+  + signals, proposes its honest best split) → score the proposals →
+  judge (LLM picks A or B per verse, where stability lives) → apply →
+  verify. The splitter and judge steps run either as the main agent
+  answering prompts directly, or by dispatching parallel Claude Code
+  subagents.
+version: 0.5.0
 ---
 
 # Phrase Splitter
@@ -63,9 +65,12 @@ The splitter operates on two stores:
 Verse text and word boundaries come from api.bible, **never the deck**. `phraseWordCounts` indexes
 the api.bible token stream — same convention as `packages/api/src/lib/render.ts` at runtime.
 
-The pipeline has two LLM-touching parts now, not three: the auditor (deterministic) and the splitter
-(LLM). The LLM-judge step is gone — the splitter prompt absorbs that judgement using the current
-split + a stability clause that biases toward keeping good splits as-is.
+The pipeline has two LLM-touching parts: the splitter (proposes its honest best split, no stability
+bias) and the judge (compares the current split against the proposed one and picks). The auditor is
+deterministic and runs twice — once on the current splits to build the worklist, once on the
+proposals so the judge sees both signal blocks. Stability lives _only_ in the judge step now: when
+the two options are genuinely equivalent under the recall test, the judge picks A (the current
+split). The splitter no longer carries that bias itself.
 
 ## Workflow
 
@@ -114,8 +119,9 @@ python3 tools/split_phrases.py --deck data/4-john.json print-prompt \
 `SPLIT_PROMPT` lives in `tools/phrase_splitter/prompts.py`. By default each prompt includes:
 
 * The canonical verse text.
-* The **current split** rendered as bullets, with the stability clause: "if it already passes the
-  recall test, return it verbatim; change boundaries only when the new split is _clearly_ better."
+* The **current split** rendered as bullets, framed as context only. The splitter is no longer asked
+  to defend the current split — it should propose its honest best split. Stability lives in the
+  judge step (step 3 below), not in this prompt.
 * A **signals** block — deterministic features of the current split, formatted as one line per
   phrase + boundary flags. The LLM reads these as context, not commands.
 
@@ -140,13 +146,47 @@ as:
 ]
 ```
 
-### 3. Apply (`tools/split_phrases.py apply`)
+### 3. Judge (`tools/split_phrases.py judge-pairs`)
+
+Skip this step on a force-fresh resplit (no current to compare against). For a second pass on an
+existing deck:
+
+```bash
+# Score the proposals so the judge sees signals for both sides
+python3 tools/split_phrases.py --deck data/4-john.json judge-pairs \
+    --proposals /tmp/proposed.json --out /tmp/judge-prompts.json
+```
+
+`judge-pairs` reads the proposals, recomputes signals against each proposal's `phraseWordCounts`,
+and emits one prompt per verse where current ≠ proposed. Each prompt embeds the verse text, both
+splits as bullets, and both signal blocks. The judge replies with one character — `A` (keep current)
+or `B` (take proposed) — and stability lives here: ties go to A.
+
+For a small worklist (≤ 20 verses), the main agent answers directly. For larger ones, dispatch
+parallel judge subagents (point them at
+[`references/judge-agent-instructions.md`](references/judge-agent-instructions.md)). Collect
+verdicts into a JSON file:
+
+```json
+[
+  { "ref": "1 Corinthians 6:7", "verdict": "B" },
+  { "ref": "1 Corinthians 1:15", "verdict": "A" }
+]
+```
+
+Feed the verdicts back into `apply` (step 4) — only `B` entries get written.
+
+### 4. Apply (`tools/split_phrases.py apply`)
 
 ```bash
 python3 tools/split_phrases.py --deck data/4-john.json apply \
     --input /tmp/proposed.json --dry-run
 python3 tools/split_phrases.py --deck data/4-john.json apply \
     --input /tmp/proposed.json
+
+# Second-pass form: filter by judge verdicts
+python3 tools/split_phrases.py --deck data/4-john.json apply \
+    --input /tmp/proposed.json --verdicts /tmp/verdicts.json
 ```
 
 `apply` rewrites only `phraseWordCounts` for the targeted verses. The validator confirms each
@@ -155,7 +195,10 @@ are listed and the deck is left untouched. `annotations.wordIndex` and `ftvWordC
 in the canonical token stream and don't shift when only the split boundaries change, so they're
 preserved. A proposal whose word counts already match the deck is a no-op.
 
-### 4. Verify
+With `--verdicts`, only refs whose verdict is `B` get applied; `A` verdicts are filtered out before
+the validator runs.
+
+### 5. Verify
 
 ```bash
 python3 tools/evaluate_phrases.py data/4-john.json --refs "John 1:14" --all
@@ -173,23 +216,27 @@ JSON array. Still mentally check the rejoin (joined phrases match the input) bef
 If the verse exists in a deck and the user wants the same context the LLM normally sees, the
 `--no-current --no-signals` form of `print-prompt` renders a clean prompt with just the verse text.
 
-## Transition note (was: judge step)
+## Transition notes
 
-Pre-v0.4 the pipeline had three steps: audit → LLM-judge → re-split. The `--llm-judge` flag and
-`JUDGE_PROMPT` are gone. The splitter prompt absorbs the judging via the current-split section +
-stability clause. If a workflow used `--llm-judge` historically, run `evaluate_phrases.py --all` to
-emit features for every verse, then feed the report straight into
-`split_phrases.py print-prompt --from-report …`. The splitter now decides whether each split needs
-changing.
+* **v0.4 (skipped).** Briefly had no judge step at all — the splitter prompt carried a stability
+  clause and decided whether to change boundaries itself. That over-merged because the splitter
+  could only see one side of the comparison (its own proposal); the conservatism collapsed into "the
+  current split is probably fine."
+* **v0.5 (current).** Judge restored, but at a different position. Pre-v0.4's judge gated _whether
+  to re-split_ — i.e. ran before the splitter. v0.5's judge runs _after_ the splitter and compares
+  two concrete options (current vs proposed). The splitter is free to propose its honest best split;
+  stability lives in the judge's tie-break rule (ties go to A = current). `JUDGE_PROMPT` and
+  `format_judge_prompt` are back in `tools/phrase_splitter/prompts.py`.
 
 ## Reference files
 
 * `references/quality-criteria.md` — the memorisable-chunk principle, hard constraints, signals
-  (context, not rules), and worked examples. Read before splitting any verse you're not sure about,
-  and pass to subagents.
+  (context, not rules), worked examples, and the recall test that's the judge's deciding criterion.
+  Read before splitting or judging any verse you're not sure about, and pass to subagents.
 * `references/splitter-agent-instructions.md` — entry point for splitter subagents.
-* `references/prompt-design.md` — current state of `SPLIT_PROMPT` and notes on prior iterations.
-  Read before editing `tools/phrase_splitter/prompts.py`.
+* `references/judge-agent-instructions.md` — entry point for judge subagents.
+* `references/prompt-design.md` — current state of `SPLIT_PROMPT` / `JUDGE_PROMPT` and notes on
+  prior iterations. Read before editing `tools/phrase_splitter/prompts.py`.
 
 ## Sibling audit tools
 
