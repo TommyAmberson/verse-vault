@@ -58,6 +58,7 @@ from phrase_splitter import (  # noqa: E402
     normalize_reference,
 )
 from phrase_splitter.features import _signal_float, slice_phrases  # noqa: E402
+from phrase_splitter.prompts import format_judge_prompt  # noqa: E402
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
     DEFAULT_NKJV_ID,
@@ -232,6 +233,97 @@ def _word_count(s: str) -> int:
     return len(s.split())
 
 
+def _render_split_from_tokens(tokens: List[str], pwc: List[int]) -> str:
+    """One bullet per phrase, identical to ``_render_current_split`` —
+    kept as a separate name so the judge-pairs code reads clearly when
+    it renders option B (the proposed split, not "current")."""
+    return _render_current_split(tokens, pwc)
+
+
+def cmd_judge_pairs(args: argparse.Namespace) -> None:
+    """Emit one JUDGE_PROMPT per verse whose proposed split differs
+    from the deck's current split. Signal blocks for both sides come
+    from the auditor's features module, freshly recomputed against
+    each pwc — there's no signal carryover from earlier reports."""
+    with open(args.deck, encoding="utf-8") as f:
+        deck = json.load(f)
+    with open(args.proposals, encoding="utf-8") as f:
+        proposals = json.load(f)
+    if not isinstance(proposals, list):
+        raise SystemExit("proposals must be a JSON array of {ref, phrases}")
+
+    by_ref = _verse_by_ref(deck)
+    prompts: List[Dict[str, Any]] = []
+    skipped_match = 0
+    skipped_unknown = 0
+    skipped_invalid = 0
+
+    conn = open_cache(args.db)
+    try:
+        chapter_cache: Dict[tuple, Dict[int, List[str]]] = {}
+        for item in proposals:
+            ref = normalize_reference(item["ref"])
+            phrases = item.get("phrases")
+            verse = by_ref.get(ref)
+            if not verse:
+                skipped_unknown += 1
+                continue
+            current_pwc = verse.get("phraseWordCounts") or []
+            proposed_pwc = [_word_count(p) for p in phrases] if isinstance(phrases, list) else []
+            key = (verse["book"], verse["chapter"])
+            if key not in chapter_cache:
+                html = get_chapter_html(conn, verse["book"], verse["chapter"], bible_id=args.bible)
+                chapter_cache[key] = extract_chapter_verses(html, verse["book"], verse["chapter"])
+            tokens = chapter_cache[key].get(verse["verse"], [])
+            if not tokens or not current_pwc or sum(current_pwc) != len(tokens):
+                skipped_invalid += 1
+                continue
+            if sum(proposed_pwc) != len(tokens):
+                skipped_invalid += 1
+                continue
+            if current_pwc == proposed_pwc:
+                skipped_match += 1
+                continue
+            current_split = _render_current_split(tokens, current_pwc)
+            proposed_split = _render_split_from_tokens(tokens, proposed_pwc)
+            current_signals = _render_signals(extract_verse_features(tokens, current_pwc))
+            proposed_signals = _render_signals(extract_verse_features(tokens, proposed_pwc))
+            text = " ".join(tokens)
+            prompts.append({
+                "ref": ref,
+                "prompt": format_judge_prompt(
+                    verse_text=text,
+                    option_a_split=current_split,
+                    signals_a=current_signals,
+                    option_b_split=proposed_split,
+                    signals_b=proposed_signals,
+                ),
+            })
+    finally:
+        conn.close()
+
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            json.dump(prompts, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        sys.stderr.write(
+            f"Wrote {len(prompts)} judge prompts to {args.out}"
+            f" (skipped: {skipped_match} match, {skipped_unknown} unknown, "
+            f"{skipped_invalid} invalid)\n"
+        )
+    else:
+        divider = "\n" + "=" * 72 + "\n"
+        for item in prompts:
+            sys.stdout.write(f"### {item['ref']}\n\n")
+            sys.stdout.write(item["prompt"])
+            sys.stdout.write(divider)
+        sys.stderr.write(
+            f"\n{len(prompts)} judge prompts emitted "
+            f"(skipped: {skipped_match} match, {skipped_unknown} unknown, "
+            f"{skipped_invalid} invalid)\n"
+        )
+
+
 def _validate(ref: str, phrases: List[str], canonical_tokens: int) -> List[str]:
     """Return a list of human-readable validation errors. Empty = OK."""
     errors: List[str] = []
@@ -268,6 +360,28 @@ def cmd_apply(args: argparse.Namespace) -> None:
     if not isinstance(proposed, list):
         raise SystemExit("input must be a JSON array of {ref, phrases} objects")
 
+    # When verdicts are supplied, drop every proposal whose verdict is
+    # "A" (keep current). Refs absent from the verdicts file pass
+    # through unchanged — letting the caller mix unjudged proposals
+    # (e.g. force-fresh) with judged ones in one apply.
+    judge_filtered = 0
+    if args.verdicts:
+        with open(args.verdicts, encoding="utf-8") as f:
+            verdicts = json.load(f)
+        verdict_by_ref = {
+            normalize_reference(v["ref"]): str(v.get("verdict", "")).strip().upper()
+            for v in verdicts
+        }
+        kept: List[Dict[str, Any]] = []
+        for item in proposed:
+            r = normalize_reference(item["ref"])
+            verdict = verdict_by_ref.get(r)
+            if verdict == "A":
+                judge_filtered += 1
+                continue
+            kept.append(item)
+        proposed = kept
+
     by_ref = _verse_by_ref(deck)
     applied = 0
     skipped = 0
@@ -303,6 +417,8 @@ def cmd_apply(args: argparse.Namespace) -> None:
 
     print(f"Applied: {applied}")
     print(f"Skipped (already current): {skipped}")
+    if args.verdicts:
+        print(f"Skipped (judge picked A): {judge_filtered}")
     print(f"Failed: {len(failures)}")
     for fail in failures:
         print(f"\n  {fail['ref']}")
@@ -352,11 +468,31 @@ def main() -> None:
     )
     pp.set_defaults(func=cmd_print_prompt)
 
+    jp = sub.add_parser(
+        "judge-pairs",
+        help="Emit one JUDGE_PROMPT per ref where the proposal differs from the deck",
+    )
+    jp.add_argument(
+        "--proposals",
+        required=True,
+        help="Path to a JSON file of {ref, phrases} objects (the splitter's output)",
+    )
+    jp.add_argument(
+        "--out",
+        help="Write the {ref, prompt} array to this path (default: stdout text form)",
+    )
+    jp.set_defaults(func=cmd_judge_pairs)
+
     ap_apply = sub.add_parser("apply", help="Validate proposed splits and write them back")
     ap_apply.add_argument(
         "--input",
         "-i",
         help="Path to a JSON file of {ref, phrases} objects (use '-' for stdin)",
+    )
+    ap_apply.add_argument(
+        "--verdicts",
+        help="Path to a JSON file of {ref, verdict} objects from the judge step. "
+        "Refs with verdict=A are dropped before applying.",
     )
     ap_apply.add_argument(
         "--dry-run", action="store_true", help="Validate without writing the deck"
