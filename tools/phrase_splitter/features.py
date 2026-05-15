@@ -176,6 +176,12 @@ def extract_phrase_features(
             content += 1
     function_ratio = (wc - content) / wc if wc else 0.0
 
+    # Cognitive overload: ramps from 0 at content_word_count <= 6
+    # to 1.0 at content_word_count >= 12. Content words dominate
+    # memorisation difficulty; function-heavy phrases stay light
+    # regardless of word_count.
+    cognitive_overload = max(0.0, min(1.0, (content - 6) / 6))
+
     first_word = normalise_word(phrase_tokens[0]) if phrase_tokens else ""
     starts_with_weak_connector = first_word in WEAK_CONNECTORS
 
@@ -188,6 +194,7 @@ def extract_phrase_features(
         "word_count": wc,
         "content_word_count": content,
         "function_ratio": round(function_ratio, 3),
+        "cognitive_overload": round(cognitive_overload, 3),
         "syllable_count": syllables,
         "starts_with_weak_connector": starts_with_weak_connector,
         "ends_in_pause_punct": ends_in_pause_punct,

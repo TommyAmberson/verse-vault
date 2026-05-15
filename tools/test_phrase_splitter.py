@@ -177,6 +177,33 @@ class PhraseFeatureTests(unittest.TestCase):
         )
         self.assertTrue(feat["contains_internal_pause"])
 
+    def test_cognitive_overload_ramp(self):
+        # 6 content words: at threshold, no signal
+        feat = extract_phrase_features(
+            ["walked", "saw", "told", "heard", "knew", "ran"], position="middle"
+        )
+        self.assertEqual(feat["content_word_count"], 6)
+        self.assertEqual(feat["cognitive_overload"], 0.0)
+
+    def test_cognitive_overload_high(self):
+        # 12 content words: full signal
+        feat = extract_phrase_features(
+            ["walked", "saw", "told", "heard", "knew", "ran",
+             "spoke", "judged", "called", "found", "wrote", "asked"],
+            position="middle",
+        )
+        self.assertEqual(feat["content_word_count"], 12)
+        self.assertAlmostEqual(feat["cognitive_overload"], 1.0, places=3)
+
+    def test_cognitive_overload_function_heavy_phrase_low(self):
+        # All function words: signal stays 0 even at high word_count
+        feat = extract_phrase_features(
+            ["of", "the", "and", "in", "to", "for", "by", "with",
+             "from", "of", "the", "in"],
+            position="middle",
+        )
+        self.assertLess(feat["cognitive_overload"], 0.2)
+
 
 class BoundaryFeatureTests(unittest.TestCase):
     def test_restrictive_relative_no_comma(self):
