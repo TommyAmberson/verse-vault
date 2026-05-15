@@ -204,6 +204,24 @@ class PhraseFeatureTests(unittest.TestCase):
         )
         self.assertLess(feat["cognitive_overload"], 0.2)
 
+    def test_stub_phrase_ramp(self):
+        # 1-word phrase: heavily stubby
+        feat = extract_phrase_features(["Behold!"], position="middle")
+        self.assertAlmostEqual(feat["stub_phrase"], 0.75, places=3)
+
+    def test_stub_phrase_threshold(self):
+        # 4-word phrase: at threshold, no signal
+        feat = extract_phrase_features(
+            ["the", "kingdom", "of", "God"], position="middle"
+        )
+        self.assertEqual(feat["stub_phrase"], 0.0)
+
+    def test_stub_phrase_only_position_zero(self):
+        # Single-phrase verse: stub_phrase stays 0 regardless of length.
+        # An "only" phrase is the whole verse; not a chunking problem.
+        feat = extract_phrase_features(["Jesus", "wept."], position="only")
+        self.assertEqual(feat["stub_phrase"], 0.0)
+
 
 class BoundaryFeatureTests(unittest.TestCase):
     def test_restrictive_relative_no_comma(self):

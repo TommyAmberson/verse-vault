@@ -182,6 +182,14 @@ def extract_phrase_features(
     # regardless of word_count.
     cognitive_overload = max(0.0, min(1.0, (content - 6) / 6))
 
+    # Stub phrase: ramps from 0 at word_count >= 4 to 0.75 at
+    # word_count == 1. Suppressed for the "only" position (single-phrase
+    # verse) — a whole-verse phrase isn't a chunking problem.
+    if position == "only":
+        stub_phrase = 0.0
+    else:
+        stub_phrase = max(0.0, min(1.0, (4 - wc) / 4))
+
     first_word = normalise_word(phrase_tokens[0]) if phrase_tokens else ""
     starts_with_weak_connector = first_word in WEAK_CONNECTORS
 
@@ -195,6 +203,7 @@ def extract_phrase_features(
         "content_word_count": content,
         "function_ratio": round(function_ratio, 3),
         "cognitive_overload": round(cognitive_overload, 3),
+        "stub_phrase": round(stub_phrase, 3),
         "syllable_count": syllables,
         "starts_with_weak_connector": starts_with_weak_connector,
         "ends_in_pause_punct": ends_in_pause_punct,
