@@ -213,6 +213,29 @@ class BoundaryFeatureTests(unittest.TestCase):
         feat = extract_boundary_features(["I", "say:"], ["that", "no"])
         self.assertFalse(feat["verb_content_clause"])
 
+    def test_stranded_weak_connector_fires_on_short_stubby_prev(self):
+        # 1 Cor 12:11 "But one" (2w, mid-clause) / "and the same Spirit…"
+        feat = extract_boundary_features(["But", "one"], ["and", "the", "same"])
+        self.assertTrue(feat["stranded_weak_connector"])
+
+    def test_stranded_weak_connector_skips_complete_prev_clause(self):
+        # Parallel siblings: "and the Word was with God," (complete, ends in
+        # pause) / "and the Word was God."
+        feat = extract_boundary_features(
+            ["and", "the", "Word", "was", "with", "God,"],
+            ["and", "the", "Word", "was", "God."],
+        )
+        self.assertFalse(feat["stranded_weak_connector"])
+
+    def test_stranded_weak_connector_skips_long_prev(self):
+        # Long previous phrase ending mid-clause is not a stranded stub
+        # even if the next phrase opens with a connector.
+        feat = extract_boundary_features(
+            ["The", "man", "departed", "and", "told", "the", "Jews"],
+            ["that", "it", "was", "Jesus"],
+        )
+        self.assertFalse(feat["stranded_weak_connector"])
+
 
 class VerseFeatureTests(unittest.TestCase):
     def test_single_phrase_verse(self):

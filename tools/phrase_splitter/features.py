@@ -203,7 +203,11 @@ def extract_boundary_features(
 ) -> Dict[str, bool]:
     """Features for a boundary *between* two adjacent phrases."""
     if not prev_tokens or not next_tokens:
-        return {"restrictive_relative": False, "verb_content_clause": False}
+        return {
+            "restrictive_relative": False,
+            "verb_content_clause": False,
+            "stranded_weak_connector": False,
+        }
 
     prev_last_raw = prev_tokens[-1]
     next_first_raw = next_tokens[0]
@@ -235,9 +239,22 @@ def extract_boundary_features(
         else:
             verb_content_clause = True
 
+    # Stranded weak connector: a short previous phrase ends mid-clause
+    # (no terminal punctuation) and the next phrase opens with a weak
+    # connector. This is the ``"But one" / "and the same Spirit…"``
+    # shape from 1 Cor 12:11 — a stubby fragment glued onto its
+    # continuation. Parallel-structure siblings don't fire because their
+    # previous phrase is a complete clause ending in pause punctuation
+    # (``", "``, ``"; "``).
+    stranded_weak_connector = False
+    if next_first_word in WEAK_CONNECTORS and len(prev_tokens) < 4:
+        if not _ends_in_terminal(prev_last_raw):
+            stranded_weak_connector = True
+
     return {
         "restrictive_relative": restrictive_relative,
         "verb_content_clause": verb_content_clause,
+        "stranded_weak_connector": stranded_weak_connector,
     }
 
 
@@ -307,22 +324,34 @@ def composite_signal_score(verse_features: Dict[str, object]) -> float:
     Components:
 
     * boundary signals (restrictive_relative, verb_content_clause)
+    * stranded weak connector boundaries (short stubby prev phrase +
+      next phrase opens with a weak connector)
     * length balance (``max(pwc) / mean`` above ~1.8 is lopsided)
-    * weak-connector starts on non-first phrases
     * short mid-phrases (word_count < 3 in middle positions)
     * single-phrase verses that exceed the missing-split threshold
+
+    Note: the per-phrase ``starts_with_weak_connector`` feature is *not*
+    scored directly. Under the memorisation framing a phrase opening
+    with ``and`` / ``but`` / ``that`` is often a legitimate
+    parallel-structure marker; the stubby-fragment shape it sometimes
+    indicates is captured more precisely by the ``stranded_weak_connector``
+    boundary signal above.
     """
     score = 0.0
 
     boundaries = verse_features.get("boundaries") or []
     if isinstance(boundaries, list) and boundaries:
-        flagged = 0
+        syntactic_flagged = 0
+        stranded_flagged = 0
         for b in boundaries:
             if not isinstance(b, dict):
                 continue
             if b.get("restrictive_relative") or b.get("verb_content_clause"):
-                flagged += 1
-        score += 0.4 * min(1.0, flagged / max(1, len(boundaries)))
+                syntactic_flagged += 1
+            if b.get("stranded_weak_connector"):
+                stranded_flagged += 1
+        score += 0.4 * min(1.0, syntactic_flagged / max(1, len(boundaries)))
+        score += 0.2 * min(1.0, stranded_flagged / max(1, len(boundaries)))
 
     balance = verse_features.get("length_balance")
     if isinstance(balance, (int, float)) and balance > 1.5:
@@ -330,18 +359,14 @@ def composite_signal_score(verse_features: Dict[str, object]) -> float:
 
     phrases = verse_features.get("phrases") or []
     if isinstance(phrases, list) and phrases:
-        weak_starts = 0
         short_middles = 0
         for p in phrases:
             if not isinstance(p, dict):
                 continue
-            if p.get("position") != "first" and p.get("starts_with_weak_connector"):
-                weak_starts += 1
             if p.get("position") == "middle":
                 wc = p.get("word_count", 0)
                 if isinstance(wc, int) and wc < 3:
                     short_middles += 1
-        score += 0.2 * min(1.0, weak_starts / max(1, len(phrases) - 1)) if len(phrases) > 1 else 0.0
         if short_middles:
             score += 0.2 * min(1.0, short_middles / max(1, len(phrases)))
 
