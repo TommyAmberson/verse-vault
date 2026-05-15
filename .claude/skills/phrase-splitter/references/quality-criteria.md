@@ -18,13 +18,34 @@ Aim for the _best_ split, which is not always a different split. Two fragments d
 introduces) usually want to be separate phrases, even when one is short. **Length is not a hard
 rule.**
 
+## How phrases are reviewed
+
+Each phrase ends up reviewed in two modes — the split is the partition both modes operate on, so
+boundary choices need to make sense for each.
+
+* **PhraseFill** (`CardKind::PhraseFill`, `crates/core/src/card.rs`). The whole verse is rendered
+  with one phrase blanked (`___`) and every other phrase visible. The reciter recovers the blanked
+  phrase from surrounding context. Grade updates that phrase's FSRS state directly — one grade, one
+  phrase.
+* **Recitation** (`CardKind::Recitation`). Only the verse reference is shown. The reciter recites
+  the whole verse from memory, then reveals to grade. One grade is decomposed across every phrase's
+  FSRS state (Bayesian-share decomposition in the engine).
+
+The third UI mode, `CardKind::Reading`, shows the full verse with no blanks — progressive-reveal
+teaching only, no FSRS state. Splits don't affect it.
+
+PhraseFill demands each phrase be **recoverable from context** — blank it, the rest of the verse
+must constrain what goes in the gap. Recitation demands each phrase be a **real memory unit** whose
+recall state means something on its own — when the composite grade is decomposed across phrases, it
+should land cleanly on the piece that failed.
+
 ## Why split at all
 
-Each phrase carries its own FSRS recall state. The split's job is to match phrase boundaries to
-memory boundaries — the points where the reciter could plausibly fail one side without the other.
-Both directions away from that sweet spot have costs.
+Each phrase carries its own FSRS recall state. The split's job is to put boundaries at real memory
+seams — points where the reciter could plausibly fail one side without the other. Both directions
+away from that have costs, and each direction primarily damages one of the two review modes.
 
-### Under-splitting
+### Under-splitting — hurts Recitation
 
 Bundling two separable memories under one state. Two costs:
 
@@ -34,30 +55,32 @@ Bundling two separable memories under one state. Two costs:
   S = (S_a × S_b) / (S_a + S_b)
   ```
 
-  — always lower than either piece alone, and approaching zero as more pieces are composed
+  — always lower than either piece alone, approaching zero as more pieces compose
   ([Memory Complexity in the open-spaced-repetition wiki](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/Spaced-Repetition-Algorithm%3A-A-Three%E2%80%90Day-Journey-from-Novice-to-Expert#memory-complexity)
   has the derivation). Two separable memories sharing one state means the state decays prematurely
-  for both, instead of each tracking its own real strength.
-* **State stops representing the memory.** The FSRS value for a composite reflects whichever piece
-  the reciter can't yet recall, not the memory it's nominally attached to. A reciter who half-knows
-  a clause grades the whole thing on the half they failed — polluting the state of the piece they
-  had down cold.
+  for both.
+* **State stops representing the memory.** When a Recitation grade is decomposed across phrases, the
+  share landing on a bundled phrase reflects whichever sub-piece the reciter failed — polluting the
+  state of the piece they had down cold. The FSRS value stops representing any single memory's
+  strength.
 
 The algorithmic pressure from this side runs toward _finer_ splits: atomic flashcards from the
 start.
 
-### Over-splitting
+### Over-splitting — hurts PhraseFill
 
-Cutting boundaries finer than the actual memory structure. Several costs:
+Cutting boundaries finer than the actual memory structure:
 
-* **Card multiplication.** More phrases means more reviews, without proportional information gain.
-* **Incoherent units.** A phrase too small to be a coherent memorisable unit — a sub-clause a
-  reciter can't grade independently — produces noise rather than signal in its FSRS state.
-* **Awkward, unnatural cuts.** Boundaries that fall mid-thought confuse the reciter about where they
-  are in the verse and break review flow.
+* **Incoherent units.** A phrase too small to be a coherent memorisable unit — a sub-clause the
+  reciter can't recover from context — produces noise on PhraseFill rather than signal. The blank
+  has no recognisable shape because the surrounding context doesn't constrain it.
+* **Awkward, unnatural cuts.** Boundaries that fall mid-thought break review flow and confuse the
+  reciter about where they are in the verse.
 * **Intertwined memories.** Two pieces the reciter would always succeed or fail _together_ are
-  intertwined enough to be one memory unit; giving them separate states produces noisy reviews on
+  intertwined enough to be one memory unit. Giving them separate states produces noisy reviews on
   either side of a boundary that isn't a memory boundary.
+* **Card multiplication.** More phrases means more PhraseFill reviews without proportional
+  information gain.
 
 ### The sweet spot
 
@@ -105,12 +128,13 @@ not a prohibition.
 
 ## The recall test
 
-Mentally blank each candidate phrase. Can the reciter sense the specific shape of what's missing
-from what's left? If yes — the gap has a recognisable function (the verb, the content clause, the
-relative modifier, the parallel sibling) — the boundary is doing useful work, because the blanked
-piece is something a reciter could plausibly fail _without_ failing its neighbours. If the blanked
-phrase leaves a fuzzy mid-thought gap that's hard to characterise, the two sides are one mental move
-— they always succeed or fail together — and the boundary is in the wrong place.
+Mentally do a PhraseFill on each candidate phrase: blank it, look at what's left. Can the reciter
+sense the specific shape of what's missing? If yes — the gap has a recognisable function (the verb,
+the content clause, the relative modifier, the parallel sibling) — the boundary is doing useful
+work, because the blanked piece is something a reciter could plausibly fail _without_ failing its
+neighbours. If the blanked phrase leaves a fuzzy mid-thought gap that's hard to characterise, the
+two sides are one mental move — they always succeed or fail together — and the boundary is in the
+wrong place.
 
 The test is _not_ whether each phrase reads as a stand-alone English sentence. Memorisable units
 include short framing phrases ("but these are written"), appositive chunks, and parallel siblings —
