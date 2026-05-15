@@ -8411,8 +8411,7 @@
       "chapter": 11,
       "verse": 2,
       "phraseWordCounts": [
-        8,
-        3,
+        11,
         7,
         5
       ],
@@ -8520,9 +8519,9 @@
       "chapter": 11,
       "verse": 9,
       "phraseWordCounts": [
+        2,
+        8,
         10,
-        6,
-        4,
         8
       ],
       "annotations": [
@@ -8621,7 +8620,8 @@
       "chapter": 11,
       "verse": 14,
       "phraseWordCounts": [
-        9
+        6,
+        3
       ],
       "annotations": [],
       "ftvWordCount": 6,
@@ -8672,7 +8672,8 @@
       "chapter": 11,
       "verse": 18,
       "phraseWordCounts": [
-        9
+        5,
+        4
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -8683,8 +8684,7 @@
       "chapter": 11,
       "verse": 19,
       "phraseWordCounts": [
-        9,
-        4,
+        13,
         6
       ],
       "annotations": [
@@ -8737,7 +8737,8 @@
       "chapter": 11,
       "verse": 22,
       "phraseWordCounts": [
-        11,
+        5,
+        6,
         4
       ],
       "annotations": [],
@@ -8751,7 +8752,8 @@
       "chapter": 11,
       "verse": 23,
       "phraseWordCounts": [
-        9
+        4,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -8796,7 +8798,8 @@
       "chapter": 11,
       "verse": 26,
       "phraseWordCounts": [
-        10,
+        7,
+        3,
         4
       ],
       "annotations": [],
@@ -8811,8 +8814,8 @@
       "verse": 27,
       "phraseWordCounts": [
         4,
-        9,
         4,
+        9,
         7
       ],
       "annotations": [],
@@ -8827,10 +8830,8 @@
       "verse": 28,
       "phraseWordCounts": [
         7,
-        4,
-        7,
-        4,
-        5
+        11,
+        9
       ],
       "annotations": [
         {
@@ -8892,8 +8893,7 @@
       "phraseWordCounts": [
         7,
         3,
-        6,
-        3,
+        9,
         6,
         6
       ],
@@ -8910,8 +8910,7 @@
       "phraseWordCounts": [
         6,
         8,
-        5,
-        3
+        8
       ],
       "annotations": [
         {
@@ -8929,10 +8928,8 @@
       "chapter": 11,
       "verse": 34,
       "phraseWordCounts": [
-        3,
-        5,
-        4,
-        4
+        8,
+        8
       ],
       "annotations": [],
       "ftvWordCount": 4,
@@ -8954,7 +8951,8 @@
       "chapter": 11,
       "verse": 36,
       "phraseWordCounts": [
-        9
+        4,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -8966,8 +8964,7 @@
       "verse": 37,
       "phraseWordCounts": [
         5,
-        4,
-        7,
+        11,
         7
       ],
       "annotations": [
@@ -8984,8 +8981,10 @@
       "chapter": 11,
       "verse": 38,
       "phraseWordCounts": [
-        10,
-        10
+        6,
+        4,
+        4,
+        6
       ],
       "annotations": [
         {
@@ -9025,7 +9024,8 @@
       "verse": 40,
       "phraseWordCounts": [
         4,
-        18
+        11,
+        7
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -9036,8 +9036,7 @@
       "chapter": 11,
       "verse": 41,
       "phraseWordCounts": [
-        6,
-        9,
+        15,
         8,
         9
       ],
@@ -9088,8 +9087,7 @@
       "chapter": 11,
       "verse": 44,
       "phraseWordCounts": [
-        7,
-        6,
+        13,
         8,
         4,
         6
@@ -9151,8 +9149,7 @@
       "chapter": 11,
       "verse": 47,
       "phraseWordCounts": [
-        7,
-        5,
+        12,
         4,
         6
       ],
@@ -9172,8 +9169,7 @@
       "phraseWordCounts": [
         7,
         5,
-        5,
-        8
+        13
       ],
       "annotations": [
         {
@@ -9203,7 +9199,8 @@
       "chapter": 11,
       "verse": 50,
       "phraseWordCounts": [
-        18,
+        10,
+        8,
         8
       ],
       "annotations": [
@@ -9239,7 +9236,8 @@
       "verse": 52,
       "phraseWordCounts": [
         6,
-        17
+        9,
+        8
       ],
       "annotations": [
         {
@@ -9398,8 +9396,7 @@
       "chapter": 12,
       "verse": 4,
       "phraseWordCounts": [
-        5,
-        4,
+        9,
         5
       ],
       "annotations": [],
@@ -9413,8 +9410,7 @@
       "chapter": 12,
       "verse": 5,
       "phraseWordCounts": [
-        11,
-        5
+        16
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -9429,8 +9425,7 @@
       "phraseWordCounts": [
         3,
         7,
-        6,
-        5,
+        11,
         10
       ],
       "annotations": [
@@ -9508,8 +9503,7 @@
       "chapter": 12,
       "verse": 11,
       "phraseWordCounts": [
-        11,
-        4
+        15
       ],
       "annotations": [
         {
@@ -9540,8 +9534,8 @@
       "verse": 13,
       "phraseWordCounts": [
         11,
-        4,
-        11,
+        3,
+        12,
         4
       ],
       "annotations": [
@@ -9682,8 +9676,7 @@
       "chapter": 12,
       "verse": 20,
       "phraseWordCounts": [
-        5,
-        10
+        15
       ],
       "annotations": [],
       "ftvWordCount": 4,
@@ -9735,8 +9728,7 @@
         6,
         11,
         3,
-        4,
-        4
+        8
       ],
       "annotations": [
         {
@@ -9784,10 +9776,8 @@
       "chapter": 12,
       "verse": 26,
       "phraseWordCounts": [
-        4,
-        4,
-        4,
-        6,
+        8,
+        10,
         4,
         5
       ],
@@ -9916,7 +9906,8 @@
       "chapter": 12,
       "verse": 33,
       "phraseWordCounts": [
-        10
+        3,
+        7
       ],
       "annotations": [],
       "ftvWordCount": 4,
@@ -9953,8 +9944,7 @@
         9,
         6,
         4,
-        5,
-        7
+        12
       ],
       "annotations": [
         {
@@ -9972,8 +9962,7 @@
       "chapter": 12,
       "verse": 36,
       "phraseWordCounts": [
-        5,
-        4,
+        9,
         7,
         4,
         7
@@ -10025,7 +10014,8 @@
       "chapter": 12,
       "verse": 39,
       "phraseWordCounts": [
-        9
+        5,
+        4
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -10036,8 +10026,7 @@
       "chapter": 12,
       "verse": 40,
       "phraseWordCounts": [
-        5,
-        4,
+        9,
         7,
         9,
         6
@@ -10069,8 +10058,7 @@
       "verse": 41,
       "phraseWordCounts": [
         4,
-        5,
-        4
+        9
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -10082,8 +10070,7 @@
       "verse": 42,
       "phraseWordCounts": [
         9,
-        5,
-        5,
+        10,
         9
       ],
       "annotations": [
@@ -10127,8 +10114,7 @@
       "phraseWordCounts": [
         6,
         5,
-        4,
-        6
+        10
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -10166,8 +10152,7 @@
       "phraseWordCounts": [
         10,
         5,
-        9,
-        5
+        14
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -10178,11 +10163,9 @@
       "chapter": 12,
       "verse": 48,
       "phraseWordCounts": [
-        4,
-        6,
+        10,
         5,
-        6,
-        7
+        13
       ],
       "annotations": [
         {
@@ -10226,7 +10209,8 @@
       "verse": 1,
       "phraseWordCounts": [
         7,
-        18,
+        8,
+        10,
         9,
         6
       ],
@@ -10303,8 +10287,7 @@
       "chapter": 13,
       "verse": 5,
       "phraseWordCounts": [
-        8,
-        7,
+        15,
         12
       ],
       "annotations": [
@@ -10397,8 +10380,7 @@
         4,
         10,
         4,
-        4,
-        5
+        9
       ],
       "annotations": [
         {
@@ -10432,8 +10414,7 @@
       "verse": 12,
       "phraseWordCounts": [
         7,
-        3,
-        4,
+        7,
         4,
         9
       ],
@@ -10447,8 +10428,7 @@
       "verse": 13,
       "phraseWordCounts": [
         6,
-        4,
-        4
+        8
       ],
       "annotations": [],
       "ftvWordCount": 2,
@@ -10526,8 +10506,7 @@
         8,
         6,
         7,
-        6,
-        7
+        13
       ],
       "annotations": [
         {
@@ -10610,8 +10589,8 @@
       "chapter": 13,
       "verse": 23,
       "phraseWordCounts": [
-        11,
-        3
+        7,
+        7
       ],
       "annotations": [
         {
@@ -10662,8 +10641,8 @@
       "chapter": 13,
       "verse": 26,
       "phraseWordCounts": [
-        14,
-        5,
+        2,
+        17,
         5,
         10
       ],
@@ -10714,8 +10693,7 @@
       "chapter": 13,
       "verse": 29,
       "phraseWordCounts": [
-        3,
-        6,
+        9,
         6,
         8,
         9
@@ -10768,7 +10746,8 @@
       "chapter": 13,
       "verse": 33,
       "phraseWordCounts": [
-        11,
+        2,
+        9,
         4,
         7,
         7,
@@ -10871,8 +10850,7 @@
       "verse": 1,
       "phraseWordCounts": [
         6,
-        4,
-        4
+        8
       ],
       "annotations": [],
       "ftvWordCount": 1,
@@ -10886,8 +10864,7 @@
       "verse": 2,
       "phraseWordCounts": [
         7,
-        5,
-        5,
+        10,
         8
       ],
       "annotations": [
@@ -10912,8 +10889,7 @@
       "phraseWordCounts": [
         10,
         9,
-        4,
-        5
+        9
       ],
       "annotations": [
         {
@@ -10961,10 +10937,8 @@
       "verse": 6,
       "phraseWordCounts": [
         4,
-        4,
-        5,
-        6,
-        3
+        9,
+        9
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -10979,8 +10953,7 @@
       "phraseWordCounts": [
         5,
         7,
-        7,
-        4
+        11
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -11008,8 +10981,7 @@
         7,
         8,
         9,
-        5,
-        4
+        9
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -11155,11 +11127,9 @@
       "chapter": 14,
       "verse": 19,
       "phraseWordCounts": [
-        4,
-        8,
+        12,
         5,
-        3,
-        4
+        7
       ],
       "annotations": [],
       "ftvWordCount": 4,
@@ -11186,8 +11156,7 @@
         8,
         6,
         11,
-        5,
-        5
+        10
       ],
       "annotations": [
         {
@@ -11222,11 +11191,9 @@
       "verse": 23,
       "phraseWordCounts": [
         6,
-        4,
-        5,
+        9,
         6,
-        6,
-        6
+        12
       ],
       "annotations": [],
       "ftvWordCount": 7,
@@ -11250,8 +11217,7 @@
       "chapter": 14,
       "verse": 25,
       "phraseWordCounts": [
-        7,
-        5
+        12
       ],
       "annotations": [
         {
@@ -11270,8 +11236,7 @@
         6,
         8,
         6,
-        5,
-        7
+        12
       ],
       "annotations": [
         {
@@ -11289,8 +11254,7 @@
       "chapter": 14,
       "verse": 27,
       "phraseWordCounts": [
-        5,
-        6,
+        11,
         10,
         6,
         5
@@ -11308,8 +11272,8 @@
       "phraseWordCounts": [
         7,
         9,
-        7,
-        9,
+        10,
+        6,
         7
       ],
       "annotations": [],
@@ -11322,8 +11286,7 @@
       "verse": 29,
       "phraseWordCounts": [
         9,
-        7,
-        3
+        10
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -11353,8 +11316,7 @@
       "verse": 31,
       "phraseWordCounts": [
         11,
-        7,
-        3,
+        10,
         6
       ],
       "annotations": [
@@ -11422,8 +11384,7 @@
       "chapter": 15,
       "verse": 3,
       "phraseWordCounts": [
-        4,
-        10
+        14
       ],
       "annotations": [],
       "ftvWordCount": 3,
@@ -11437,8 +11398,7 @@
         7,
         8,
         6,
-        3,
-        5
+        8
       ],
       "annotations": [
         {
@@ -11616,8 +11576,7 @@
       "chapter": 15,
       "verse": 14,
       "phraseWordCounts": [
-        4,
-        7
+        11
       ],
       "annotations": [
         {
@@ -11684,7 +11643,8 @@
       "chapter": 15,
       "verse": 17,
       "phraseWordCounts": [
-        10
+        5,
+        5
       ],
       "annotations": [],
       "ftvWordCount": 4,
@@ -11729,10 +11689,8 @@
       "phraseWordCounts": [
         8,
         8,
-        4,
-        5,
-        5,
-        5
+        9,
+        10
       ],
       "annotations": [
         {
@@ -11748,8 +11706,7 @@
       "chapter": 15,
       "verse": 21,
       "phraseWordCounts": [
-        9,
-        4,
+        13,
         9
       ],
       "annotations": [
@@ -11795,11 +11752,9 @@
       "chapter": 15,
       "verse": 24,
       "phraseWordCounts": [
-        7,
-        7,
+        14,
         5,
-        5,
-        8
+        13
       ],
       "annotations": [],
       "ftvWordCount": 5,
@@ -11810,8 +11765,7 @@
       "chapter": 15,
       "verse": 25,
       "phraseWordCounts": [
-        9,
-        6,
+        15,
         6
       ],
       "annotations": [
