@@ -57,7 +57,7 @@ from phrase_splitter import (  # noqa: E402
     format_split_prompt,
     normalize_reference,
 )
-from phrase_splitter.features import slice_phrases  # noqa: E402
+from phrase_splitter.features import _signal_float, slice_phrases  # noqa: E402
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
     DEFAULT_NKJV_ID,
@@ -106,39 +106,37 @@ def _render_current_split(tokens: List[str], pwc: List[int]) -> str:
     return "\n".join(f'  - "{" ".join(pt)}"' for pt in phrase_token_lists)
 
 
-def _render_signals(signals: Dict[str, object]) -> str:
-    """Render the continuous-signal payload as a compact text block for
-    the prompt's signals section. Shows graded numbers, not bare bools.
-    """
+def _render_signals(signals: Dict[str, Any]) -> str:
+    """Render the signal payload as a compact text block for the
+    prompt's signals section."""
     lines: List[str] = []
     tc = signals.get("token_count")
     pc = signals.get("phrase_count")
-    lb = signals.get("length_balance")
-    vfr = signals.get("verse_function_ratio")
-    header_bits = []
+    header_bits: List[str] = []
     if isinstance(tc, int):
         header_bits.append(f"tokens={tc}")
     if isinstance(pc, int):
         header_bits.append(f"phrases={pc}")
-    if isinstance(lb, (int, float)):
+    lb = _signal_float(signals, "length_balance")
+    if lb:
         header_bits.append(f"length_balance={lb:.2f}")
-    if isinstance(vfr, (int, float)):
+    vfr = _signal_float(signals, "verse_function_ratio")
+    if vfr:
         header_bits.append(f"function_ratio={vfr:.2f}")
     if header_bits:
         lines.append("  " + " ".join(header_bits))
 
-    phrases = signals.get("phrases") or []
-    for i, p in enumerate(phrases):
+    for i, p in enumerate(signals.get("phrases") or []):
         if not isinstance(p, dict):
             continue
         wc = p.get("word_count", 0)
         cw = p.get("content_word_count", 0)
         bits = [f"phrase {i+1}: {wc}w ({cw} content)"]
-        stub = p.get("stub_phrase", 0.0)
-        if isinstance(stub, (int, float)) and stub > 0:
+        stub = _signal_float(p, "stub_phrase")
+        if stub > 0:
             bits.append(f"stub={stub:.2f}")
-        ov = p.get("cognitive_overload", 0.0)
-        if isinstance(ov, (int, float)) and ov > 0:
+        ov = _signal_float(p, "cognitive_overload")
+        if ov > 0:
             bits.append(f"overload={ov:.2f}")
         if p.get("ends_mid_clause"):
             bits.append("ends-mid-clause")
@@ -146,21 +144,17 @@ def _render_signals(signals: Dict[str, object]) -> str:
             bits.append("opens-with-connector")
         lines.append("  " + " ".join(bits))
 
-    boundaries = signals.get("boundaries") or []
-    for i, b in enumerate(boundaries):
-        if not isinstance(b, dict):
-            continue
-        sev = b.get("boundary_severance", 0.0)
-        if isinstance(sev, (int, float)) and sev > 0:
-            kind = b.get("severance_kind") or "?"
+    for i, b in enumerate(signals.get("boundaries") or []):
+        sev = _signal_float(b, "boundary_severance")
+        if sev > 0:
+            kind = (b.get("severance_kind") if isinstance(b, dict) else None) or "?"
             lines.append(f"  boundary {i+1}→{i+2}: {kind} severance={sev:.2f}")
 
-    missing = signals.get("missing_split", 0.0)
-    if isinstance(missing, (int, float)) and missing > 0:
+    missing = _signal_float(signals, "missing_split")
+    if missing > 0:
         lines.append(f"  missing_split={missing:.2f}")
 
-    composite = composite_signal_score(signals)
-    lines.append(f"  composite={composite:.2f}")
+    lines.append(f"  composite={composite_signal_score(signals):.2f}")
     return "\n".join(lines)
 
 

@@ -41,7 +41,7 @@ from phrase_splitter import (  # noqa: E402
     normalize_reference,
 )
 from phrase_splitter.helpers import html_tags_balanced  # noqa: E402
-from phrase_splitter.features import slice_phrases  # noqa: E402
+from phrase_splitter.features import _signal_float, slice_phrases  # noqa: E402
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
     DEFAULT_NKJV_ID,
@@ -120,44 +120,35 @@ def check_verse(verse: Dict[str, Any], tokens: List[str]) -> Dict[str, Any]:
     return {"blockers": [], "signal_score": round(score, 3), "signals": signals}
 
 
-def _top_signals(signals: Dict[str, object], k: int = 3) -> List[str]:
+def _top_signals(signals: Dict[str, Any], k: int = 3) -> List[str]:
     """Extract the k most anomalous signal bullets for stdout display.
-
-    Reads the continuous-signal payload and emits at most k bullets
-    describing which signals fired hardest. Returns human-readable
-    strings, not data — for `--out` JSON, callers should write the
-    full `signals` dict directly.
-    """
+    Emits at most k human-readable strings; for ``--out`` JSON callers
+    write the full ``signals`` dict directly."""
     if not isinstance(signals, dict):
         return []
 
     bullets: List[Tuple[float, str]] = []  # (severity, message)
 
-    # Boundary severance — strongest discriminator.
     for i, b in enumerate(signals.get("boundaries") or []):
-        if not isinstance(b, dict):
-            continue
-        sev = b.get("boundary_severance", 0.0)
-        kind = b.get("severance_kind")
-        if isinstance(sev, (int, float)) and sev > 0.0 and kind:
-            bullets.append((float(sev), f"boundary {i+1}→{i+2}: {kind} (severance={sev:.2f})"))
+        sev = _signal_float(b, "boundary_severance")
+        kind = b.get("severance_kind") if isinstance(b, dict) else None
+        if sev > 0.0 and kind:
+            bullets.append((sev, f"boundary {i+1}→{i+2}: {kind} (severance={sev:.2f})"))
 
-    # Per-phrase stub / overload.
     for i, p in enumerate(signals.get("phrases") or []):
-        if not isinstance(p, dict):
-            continue
-        stub = p.get("stub_phrase", 0.0)
-        if isinstance(stub, (int, float)) and stub > 0.0:
-            bullets.append((float(stub) * 0.5, f"phrase {i+1}: stub ({p.get('word_count')}w)"))
-        ov = p.get("cognitive_overload", 0.0)
-        if isinstance(ov, (int, float)) and ov > 0.0:
-            bullets.append((float(ov) * 0.6, f"phrase {i+1}: overload ({p.get('content_word_count')} content words)"))
+        stub = _signal_float(p, "stub_phrase")
+        if stub > 0.0:
+            wc = p.get("word_count") if isinstance(p, dict) else None
+            bullets.append((stub * 0.5, f"phrase {i+1}: stub ({wc}w)"))
+        ov = _signal_float(p, "cognitive_overload")
+        if ov > 0.0:
+            cw = p.get("content_word_count") if isinstance(p, dict) else None
+            bullets.append((ov * 0.6, f"phrase {i+1}: overload ({cw} content words)"))
 
-    # Missing split (verse-level).
-    missing = signals.get("missing_split", 0.0)
-    if isinstance(missing, (int, float)) and missing > 0.0:
+    missing = _signal_float(signals, "missing_split")
+    if missing > 0.0:
         token_count = signals.get("token_count", 0)
-        bullets.append((float(missing) * 0.7, f"single phrase, {token_count} tokens — likely missing split"))
+        bullets.append((missing * 0.7, f"single phrase, {token_count} tokens — likely missing split"))
 
     bullets.sort(reverse=True)
     return [msg for _, msg in bullets[:k]]

@@ -10,7 +10,7 @@ The module is pure-stdlib and side-effect-free. It reuses ``tokens`` and
 is constants and small computations over token lists.
 """
 
-from typing import Dict, List, Sequence
+from typing import Any, Dict, List, Sequence
 
 from .helpers import normalise_word, strip_html
 
@@ -157,12 +157,36 @@ def _ends_in_terminal(token: str) -> bool:
     return bool(tail) and tail[-1] in _TERMINAL_PUNCT
 
 
+def _signal_float(d: object, key: str, default: float = 0.0) -> float:
+    """Safely read a float-valued signal from a dict-of-mixed-types
+    payload. Returns ``default`` if ``d`` isn't a dict or the value is
+    missing/non-numeric — the audit report is a JSON round-trip so
+    consumers see ``Dict[str, Any]`` shapes."""
+    if not isinstance(d, dict):
+        return default
+    v = d.get(key, default)
+    return float(v) if isinstance(v, (int, float)) else default
+
+
+def _signal_max(
+    d: object, list_key: str, field_key: str, default: float = 0.0
+) -> float:
+    """Max of ``field_key`` across the list at ``d[list_key]``. Returns
+    ``default`` when the list is missing, non-list, or empty."""
+    if not isinstance(d, dict):
+        return default
+    items = d.get(list_key) or []
+    if not isinstance(items, list):
+        return default
+    return max((_signal_float(it, field_key) for it in items), default=default)
+
+
 def extract_phrase_features(
     phrase_tokens: Sequence[str],
     position: str,
     prev_last_token: str = "",
     next_first_token: str = "",
-) -> Dict[str, object]:
+) -> Dict[str, Any]:
     """Features for a single phrase. ``position`` is ``"first"``,
     ``"middle"``, ``"last"``, or ``"only"`` (single-phrase verse, which
     suppresses the ``stub_phrase`` signal)."""
@@ -217,7 +241,7 @@ def extract_phrase_features(
 def extract_boundary_features(
     prev_tokens: Sequence[str],
     next_tokens: Sequence[str],
-) -> Dict[str, object]:
+) -> Dict[str, Any]:
     """Features for a boundary *between* two adjacent phrases.
 
     Returns a single continuous ``boundary_severance`` in ``[0, 1]``
@@ -286,7 +310,7 @@ def extract_boundary_features(
 def extract_verse_features(
     tokens_list: Sequence[str],
     pwc: Sequence[int],
-) -> Dict[str, object]:
+) -> Dict[str, Any]:
     """Full feature payload for a verse. Handles the single-phrase case
     (``len(pwc) == 1``) by emitting one phrase entry and no boundaries —
     the verse-level signals (token count vs threshold, function ratio)
@@ -305,7 +329,7 @@ def extract_verse_features(
         }
 
     phrase_token_lists = slice_phrases(tokens_list, pwc)
-    phrases: List[Dict[str, object]] = []
+    phrases: List[Dict[str, Any]] = []
     for i, ptoks in enumerate(phrase_token_lists):
         if phrase_count == 1:
             position = "only"
@@ -319,7 +343,7 @@ def extract_verse_features(
         feat["text"] = " ".join(ptoks)
         phrases.append(feat)
 
-    boundaries: List[Dict[str, object]] = []
+    boundaries: List[Dict[str, Any]] = []
     if phrase_count > 1:
         for i in range(phrase_count - 1):
             boundaries.append(
@@ -348,52 +372,28 @@ def extract_verse_features(
     }
 
 
-def composite_signal_score(verse_features: Dict[str, object]) -> float:
+# Score components: (container key, signal key, weight). Drive the
+# max-aggregate signals from a table so adding a new continuous signal
+# is one row. Total weight at full strength is 1.3, intentionally over
+# 1.0 so multiple saturating problems hit the clamp instead of summing
+# past it.
+_COMPOSITE_COMPONENTS = [
+    ("boundaries", "boundary_severance", 0.5),
+    ("phrases", "cognitive_overload", 0.3),
+    ("phrases", "stub_phrase", 0.2),
+]
+_MISSING_SPLIT_WEIGHT = 0.3
+
+
+def composite_signal_score(verse_features: Dict[str, Any]) -> float:
     """Weighted sum of continuous score signals, clamped to ``[0, 1]``.
-
-    Higher = more worth a human look. Each component signal is itself
-    a float in ``[0, 1]``; the composite is a simple weighted sum of
-    max-aggregates over phrases/boundaries.
-
-    Weights:
-
-    * ``boundary_severance`` (max over boundaries): 0.5
-    * ``cognitive_overload`` (max over phrases):    0.3
-    * ``missing_split`` (verse-level):              0.3
-    * ``stub_phrase`` (max over phrases):           0.2
-
-    Total at full strength = 1.3, intentionally over 1.0 so multiple
-    saturating problems hit the clamp instead of summing past it.
-    """
-    score = 0.0
-
-    boundaries = verse_features.get("boundaries") or []
-    if isinstance(boundaries, list) and boundaries:
-        max_sev = 0.0
-        for b in boundaries:
-            if isinstance(b, dict):
-                sev = b.get("boundary_severance", 0.0)
-                if isinstance(sev, (int, float)):
-                    max_sev = max(max_sev, float(sev))
-        score += 0.5 * max_sev
-
-    phrases = verse_features.get("phrases") or []
-    if isinstance(phrases, list) and phrases:
-        max_overload = 0.0
-        max_stub = 0.0
-        for p in phrases:
-            if isinstance(p, dict):
-                ov = p.get("cognitive_overload", 0.0)
-                if isinstance(ov, (int, float)):
-                    max_overload = max(max_overload, float(ov))
-                stub = p.get("stub_phrase", 0.0)
-                if isinstance(stub, (int, float)):
-                    max_stub = max(max_stub, float(stub))
-        score += 0.3 * max_overload
-        score += 0.2 * max_stub
-
-    missing = verse_features.get("missing_split", 0.0)
-    if isinstance(missing, (int, float)):
-        score += 0.3 * float(missing)
-
+    Higher = more worth a human look. Each component signal is a float
+    in ``[0, 1]``; the composite is a simple weighted sum of
+    max-aggregates over phrases/boundaries plus the verse-level
+    ``missing_split`` term."""
+    score = sum(
+        weight * _signal_max(verse_features, list_key, field_key)
+        for list_key, field_key, weight in _COMPOSITE_COMPONENTS
+    )
+    score += _MISSING_SPLIT_WEIGHT * _signal_float(verse_features, "missing_split")
     return min(1.0, score)
