@@ -169,9 +169,15 @@ mod tests {
     use verse_vault_core::test_kind::TestKind;
 
     fn key(verse_id: u32, position: u16) -> TestKey {
+        // Tests only need a unique element per (verse_id, position); the
+        // word range pair is synthesized as a 1-word slot for that index.
         TestKey {
             kind: TestKind::PhraseFromContext,
-            element: ElementId::Phrase { verse_id, position },
+            element: ElementId::Phrase {
+                verse_id,
+                start_word: position,
+                end_word: position + 1,
+            },
         }
     }
 

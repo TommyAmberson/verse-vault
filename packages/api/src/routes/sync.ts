@@ -7,6 +7,7 @@ import {
   EngineStore,
   NotEnrolledError,
   type TestStateEntry,
+  getLatestSnapshot,
   readTestStateEntries,
 } from '../lib/engine.js';
 import { type Grade, persistEngineState } from '../lib/review-log.js';
@@ -48,18 +49,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     const materialId = c.req.param('materialId');
     const key = { userId: user.id, materialId };
 
-    const snapshot = deps.db
-      .select()
-      .from(schema.graphSnapshots)
-      .where(
-        and(
-          eq(schema.graphSnapshots.userId, user.id),
-          eq(schema.graphSnapshots.materialId, materialId),
-        ),
-      )
-      .orderBy(desc(schema.graphSnapshots.version))
-      .limit(1)
-      .get();
+    const snapshot = getLatestSnapshot(deps.db, key);
     if (!snapshot) return c.json({ error: 'Not enrolled' }, 404);
 
     return c.json({

@@ -112,20 +112,16 @@ impl ReviewEngine {
         if let Some(atoms) = self.verse_atoms_data.get(&verse_id) {
             return atoms.clone();
         }
-        let phrases = self.verse_index.phrases_of(verse_id);
-        let headings = if let Some(e) = self.verse_index.elements_of(verse_id) {
-            e.headings.clone()
-        } else {
-            Vec::new()
-        };
-        let clubs = if let Some(e) = self.verse_index.elements_of(verse_id) {
-            e.clubs.clone()
-        } else {
-            Vec::new()
-        };
+        let elements = self.verse_index.elements_of(verse_id);
+        let phrase_ranges = elements
+            .map(|e| e.phrase_ranges.clone())
+            .unwrap_or_default();
+        let headings = elements.map(|e| e.headings.clone()).unwrap_or_default();
+        let clubs = elements.map(|e| e.clubs.clone()).unwrap_or_default();
         VerseAtoms {
             verse_id,
-            phrase_count: phrases.len() as u16,
+            phrase_count: phrase_ranges.len() as u16,
+            phrase_ranges,
             headings,
             clubs,
             ftv_word_count: None,

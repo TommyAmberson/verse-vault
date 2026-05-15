@@ -1,9 +1,51 @@
+import { createHash, randomUUID } from 'node:crypto';
+
 import { and, desc, eq } from 'drizzle-orm';
 import { WasmEngine } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import { type UserMaterial, userMaterialKey } from './keys.js';
+import { getMaterialJson } from './materials.js';
+
+function sha256(s: string): string {
+  return createHash('sha256').update(s).digest('hex');
+}
+
+/** Memoise SHA over JSON content. Keyed by the string itself, so a
+ *  different blob gets a different entry (the materialId-keyed variant
+ *  would be wrong under any test or hot-reload that swaps content for
+ *  the same id). Bounded by the number of distinct blobs ever seen
+ *  per process — small. */
+const sha256Cache = new Map<string, string>();
+
+function sha256Memo(json: string): string {
+  let h = sha256Cache.get(json);
+  if (!h) {
+    h = sha256(json);
+    sha256Cache.set(json, h);
+  }
+  return h;
+}
+
+/** Latest stored snapshot row for the (user, material) pair, or
+ *  `undefined` when the user isn't enrolled. Shared by `EngineStore.load`,
+ *  the test-state adapter, and the `/state` sync endpoint so the
+ *  desc-version pick stays consistent across call sites. */
+export function getLatestSnapshot(db: DB, key: EngineKey) {
+  return db
+    .select()
+    .from(schema.graphSnapshots)
+    .where(
+      and(
+        eq(schema.graphSnapshots.userId, key.userId),
+        eq(schema.graphSnapshots.materialId, key.materialId),
+      ),
+    )
+    .orderBy(desc(schema.graphSnapshots.version))
+    .limit(1)
+    .get();
+}
 
 const DEFAULT_DESIRED_RETENTION = 0.9;
 
@@ -77,7 +119,70 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
   });
 }
 
-export function readTestStateEntries(db: DB, key: EngineKey): TestStateEntry[] {
+/** Cumulative-sum half-open word ranges per phrase, keyed by verse_id.
+ *  verse_id is the index into `verses_with_content()` order — verses
+ *  with empty `phraseWordCounts` are skipped, matching Rust's iterator. */
+function computePhraseRangesByVerse(
+  materialJson: string,
+): Map<number, [number, number][]> {
+  const m = JSON.parse(materialJson) as {
+    verses?: { phraseWordCounts?: number[] }[];
+  };
+  const ranges = new Map<number, [number, number][]>();
+  let verseId = 0;
+  for (const v of m.verses ?? []) {
+    const counts = v.phraseWordCounts;
+    if (!counts || counts.length === 0) continue;
+    const r: [number, number][] = [];
+    let cursor = 0;
+    for (const n of counts) {
+      const next = cursor + n;
+      r.push([cursor, next]);
+      cursor = next;
+    }
+    ranges.set(verseId, r);
+    verseId += 1;
+  }
+  return ranges;
+}
+
+/** Translate a stored `Phrase` element from the legacy positional form
+ *  to the content-stable range form using the verse's phrase ranges.
+ *  Non-Phrase elements pass through untouched. Returns null when the
+ *  position no longer maps to any phrase range (verse removed or
+ *  shrunk past this position) — caller should drop the row. */
+function adaptElement(
+  element: unknown,
+  phraseRangesByVerse: Map<number, [number, number][]>,
+): unknown | null {
+  if (typeof element !== 'object' || element === null) return element;
+  const obj = element as Record<string, unknown>;
+  if (obj.kind !== 'Phrase' || !('position' in obj)) return element;
+  const verseId = obj.verse_id as number;
+  const position = obj.position as number;
+  const range = phraseRangesByVerse.get(verseId)?.[position];
+  if (!range) return null;
+  return {
+    kind: 'Phrase',
+    verse_id: verseId,
+    start_word: range[0],
+    end_word: range[1],
+  };
+}
+
+/** Load test_states for the user and translate any legacy positional
+ *  Phrase elements to the new range identity. Pass `materialJson` when
+ *  the caller already has the snapshot in hand (e.g. `EngineStore.load`)
+ *  to skip a redundant snapshot read; otherwise it's fetched here. */
+export function readTestStateEntries(
+  db: DB,
+  key: EngineKey,
+  materialJson?: string,
+): TestStateEntry[] {
+  const json = materialJson ?? getLatestSnapshot(db, key)?.materialData.toString('utf8');
+  const phraseRangesByVerse = json
+    ? computePhraseRangesByVerse(json)
+    : new Map<number, [number, number][]>();
   return db
     .select()
     .from(schema.testStates)
@@ -85,18 +190,22 @@ export function readTestStateEntries(db: DB, key: EngineKey): TestStateEntry[] {
       and(eq(schema.testStates.userId, key.userId), eq(schema.testStates.materialId, key.materialId)),
     )
     .all()
-    .map((r) => ({
-      // `r.element` is a JSON-text column; parse it back into the tagged
-      // ElementId object the WASM side expects.
-      element: JSON.parse(r.element) as unknown,
-      test_kind: r.testKind,
-      stability: r.stability,
-      difficulty: r.difficulty,
-      last_seen_secs: r.lastSeenSecs,
-      last_base_secs: r.lastBaseSecs,
-      last_root_secs: r.lastRootSecs,
-      pending_relearn: r.pendingRelearn !== 0,
-    }));
+    .flatMap((r) => {
+      const element = adaptElement(JSON.parse(r.element), phraseRangesByVerse);
+      if (element === null) return [];
+      return [
+        {
+          element,
+          test_kind: r.testKind,
+          stability: r.stability,
+          difficulty: r.difficulty,
+          last_seen_secs: r.lastSeenSecs,
+          last_base_secs: r.lastBaseSecs,
+          last_root_secs: r.lastRootSecs,
+          pending_relearn: r.pendingRelearn !== 0,
+        },
+      ];
+    });
 }
 
 /**
@@ -120,30 +229,51 @@ export class EngineStore {
     private readonly db: DB,
     private readonly desiredRetention: number = DEFAULT_DESIRED_RETENTION,
     private readonly now: () => number = () => Math.floor(Date.now() / 1000),
+    /** Source of the bundled MaterialData JSON, by material id. Tests
+     *  inject a stub to drive snapshot-bump scenarios; production
+     *  defaults to the on-disk loader. */
+    private readonly loadBundledJson: (id: string) => string = getMaterialJson,
   ) {}
 
   async load(key: EngineKey): Promise<LoadedEngine> {
+    // Detect content updates before consulting the cache: bundled
+    // materialData changes need to bump the user's snapshot and drop
+    // any stale in-memory engine. Otherwise existing users would never
+    // see edits to data/<year>.json after their first enrollment.
+    let snapshot = getLatestSnapshot(this.db, key);
+    if (!snapshot) throw new NotEnrolledError(key);
+
+    const bundledJson = this.loadBundledJson(key.materialId);
+    if (sha256Memo(bundledJson) !== sha256Memo(snapshot.materialData.toString('utf8'))) {
+      const newId = randomUUID();
+      const newVersion = snapshot.version + 1;
+      const createdAt = this.now();
+      this.db
+        .insert(schema.graphSnapshots)
+        .values({
+          id: newId,
+          userId: key.userId,
+          materialId: key.materialId,
+          version: newVersion,
+          materialData: Buffer.from(bundledJson, 'utf8'),
+          createdAt,
+        })
+        .run();
+      this.invalidate(key);
+      snapshot = {
+        ...snapshot,
+        id: newId,
+        version: newVersion,
+        materialData: Buffer.from(bundledJson, 'utf8'),
+        createdAt,
+      };
+    }
+
     const cached = this.cache.get(userMaterialKey(key));
     if (cached) return cached;
 
-    const snapshot = this.db
-      .select()
-      .from(schema.graphSnapshots)
-      .where(
-        and(
-          eq(schema.graphSnapshots.userId, key.userId),
-          eq(schema.graphSnapshots.materialId, key.materialId),
-        ),
-      )
-      .orderBy(desc(schema.graphSnapshots.version))
-      .limit(1)
-      .get();
-    if (!snapshot) {
-      throw new NotEnrolledError(key);
-    }
-
-    const testStates = readTestStateEntries(this.db, key);
     const materialJson = snapshot.materialData.toString('utf8');
+    const testStates = readTestStateEntries(this.db, key, materialJson);
     const configJson = readMaterialConfigJson(this.db, key);
     const engine = new WasmEngine(
       materialJson,

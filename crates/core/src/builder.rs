@@ -128,6 +128,7 @@ fn emit_chapter_club_list_cards(
                 VerseAtoms {
                     verse_id: pseudo_id,
                     phrase_count: 0,
+                    phrase_ranges: Vec::new(),
                     headings: Vec::new(),
                     clubs: vec![card_tier],
                     ftv_word_count: None,
@@ -247,7 +248,7 @@ pub fn build_with_config(
         verse_index.add_verse(
             verse_id,
             VerseElements {
-                phrases: phrases.clone(),
+                phrase_ranges: VerseAtoms::ranges_from_word_counts(&verse.phrase_word_counts),
                 headings: headings.clone(),
                 clubs: clubs.clone(),
             },
@@ -357,6 +358,7 @@ pub fn build_with_config(
             VerseAtoms {
                 verse_id,
                 phrase_count,
+                phrase_ranges: VerseAtoms::ranges_from_word_counts(&verse.phrase_word_counts),
                 headings,
                 clubs,
                 ftv_word_count: verse.ftv_word_count,
@@ -624,33 +626,11 @@ mod tests {
         let r = build(&m, now);
         // every test referenced by some card should have a seeded TestState.
         for card in &r.cards {
-            let phrases = r.verse_index.phrases_of(card.verse_id);
-            let phrase_count = phrases.len() as u16;
-            let bindings = r.verse_index.bindings_of(card.verse_id);
-            let headings: Vec<u16> = bindings
-                .iter()
-                .filter_map(|e| match e {
-                    ElementId::VerseHeadingBinding { heading_idx, .. } => Some(*heading_idx),
-                    _ => None,
-                })
-                .collect();
-            let clubs: Vec<ClubTier> = bindings
-                .iter()
-                .filter_map(|e| match e {
-                    ElementId::VerseClubBinding { tier, .. } => Some(*tier),
-                    _ => None,
-                })
-                .collect();
-            let atoms = VerseAtoms {
-                verse_id: card.verse_id,
-                phrase_count,
-                headings,
-                clubs,
-                ftv_word_count: None,
-                phrase_zero_word_count: 0,
-                chapter_members: Vec::new(),
-            };
-            for tk in card.tests(&atoms) {
+            let atoms = r
+                .verse_atoms_data
+                .get(&card.verse_id)
+                .expect("built verse_atoms_data should cover every card");
+            for tk in card.tests(atoms) {
                 assert!(
                     r.tests.contains_key(&tk),
                     "missing seeded TestState for {tk:?}"

@@ -105,4 +105,14 @@ if (movedStates.length === 0) {
   process.exit(1);
 }
 
+const phraseStates = finalStates.filter((s) => s.element.kind === 'Phrase');
+const ranged = phraseStates.every(
+  (s) => typeof s.element.start_word === 'number' && typeof s.element.end_word === 'number',
+);
+if (phraseStates.length === 0 || !ranged) {
+  console.error('FAIL: phrase elements should carry start_word/end_word');
+  process.exit(1);
+}
+console.log(`${phraseStates.length} phrase states all use the range identity`);
+
 console.log('\n✓ All smoke-test assertions passed');
