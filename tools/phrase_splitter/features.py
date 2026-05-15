@@ -216,14 +216,17 @@ def extract_phrase_features(
 def extract_boundary_features(
     prev_tokens: Sequence[str],
     next_tokens: Sequence[str],
-) -> Dict[str, bool]:
-    """Features for a boundary *between* two adjacent phrases."""
+) -> Dict[str, object]:
+    """Features for a boundary *between* two adjacent phrases.
+
+    Returns a single continuous ``boundary_severance`` in ``[0, 1]``
+    plus a ``severance_kind`` label naming the sub-pattern that fired
+    (``"verb_content"`` / ``"bare_relative"`` / ``"stranded_stub"`` /
+    ``None``). The kind is descriptive; the score is what the composite
+    reads.
+    """
     if not prev_tokens or not next_tokens:
-        return {
-            "restrictive_relative": False,
-            "verb_content_clause": False,
-            "stranded_weak_connector": False,
-        }
+        return {"boundary_severance": 0.0, "severance_kind": None}
 
     prev_last_raw = prev_tokens[-1]
     next_first_raw = next_tokens[0]
@@ -231,18 +234,11 @@ def extract_boundary_features(
     next_first_word = normalise_word(next_first_raw)
     prev_tail = _trailing_punct(prev_last_raw)
 
-    # Restrictive relative: previous phrase ends in a noun (no trailing
-    # comma / pause) and the next phrase starts with a bare ``who``,
-    # ``which``, or ``that``.
-    restrictive_relative = False
-    if next_first_word in {"who", "which", "that"}:
-        if not prev_tail or prev_tail[-1] not in PAUSE_PUNCT:
-            restrictive_relative = True
+    kind: str | None = None
 
-    # Verb + content clause: ``know that``, ``see how``, ``believe
-    # whether`` — splitting between them severs a verb from its object.
-    # Backs off on reported-speech opens (``say: If…``, ``say, "How…"``).
-    verb_content_clause = False
+    # Verb + content clause: tested first because it's the most specific
+    # shape (specific verb + specific complementiser, with quote/colon
+    # backoffs). Wins over bare_relative when both could apply.
     if (
         prev_last_word in CONTENT_CLAUSE_VERBS
         and next_first_word in CONTENT_CLAUSE_COMPLEMENTISERS
@@ -253,24 +249,36 @@ def extract_boundary_features(
         elif next_first_stripped.startswith(QUOTE_OPENERS):
             pass
         else:
-            verb_content_clause = True
+            kind = "verb_content"
 
-    # Stranded weak connector: a short previous phrase ends mid-clause
-    # (no terminal punctuation) and the next phrase opens with a weak
-    # connector. This is the ``"But one" / "and the same Spirit…"``
-    # shape from 1 Cor 12:11 — a stubby fragment glued onto its
-    # continuation. Parallel-structure siblings don't fire because their
-    # previous phrase is a complete clause ending in pause punctuation
-    # (``", "``, ``"; "``).
-    stranded_weak_connector = False
-    if next_first_word in WEAK_CONNECTORS and len(prev_tokens) < 4:
+    # Bare relative / complementiser: next starts with who/which/that and
+    # prev doesn't end in pause-punct. Captures both true restrictive
+    # relatives and stranded performatives ("I do not say to you / that…").
+    if kind is None and next_first_word in {"who", "which", "that"}:
+        if not prev_tail or prev_tail[-1] not in PAUSE_PUNCT:
+            kind = "bare_relative"
+
+    # Stranded stub: short prev ending mid-clause + next starts with weak
+    # connector. Catches "But one / and the same Spirit…" type strandings
+    # where neither verb_content nor bare_relative applied.
+    if kind is None and next_first_word in WEAK_CONNECTORS and len(prev_tokens) < 4:
         if not _ends_in_terminal(prev_last_raw):
-            stranded_weak_connector = True
+            kind = "stranded_stub"
+
+    if kind is None:
+        return {"boundary_severance": 0.0, "severance_kind": None}
+
+    # Base severity + modulators.
+    severance = 0.5
+    # Stubby prev intensifies (up to +0.3 at 1-word prev).
+    severance += 0.3 * max(0.0, (4 - len(prev_tokens)) / 4)
+    # Thin tail intensifies (up to +0.2 at 1-word next).
+    severance += 0.2 * max(0.0, (6 - len(next_tokens)) / 6)
+    severance = min(1.0, severance)
 
     return {
-        "restrictive_relative": restrictive_relative,
-        "verb_content_clause": verb_content_clause,
-        "stranded_weak_connector": stranded_weak_connector,
+        "boundary_severance": round(severance, 3),
+        "severance_kind": kind,
     }
 
 

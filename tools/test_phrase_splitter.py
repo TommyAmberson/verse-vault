@@ -224,62 +224,82 @@ class PhraseFeatureTests(unittest.TestCase):
 
 
 class BoundaryFeatureTests(unittest.TestCase):
-    def test_restrictive_relative_no_comma(self):
+    def test_bare_relative_no_comma(self):
         # "nothing was made" / "that was made." — restrictive, no comma.
         feat = extract_boundary_features(
             ["nothing", "was", "made"], ["that", "was", "made."]
         )
-        self.assertTrue(feat["restrictive_relative"])
+        self.assertGreater(feat["boundary_severance"], 0.5)
+        self.assertEqual(feat["severance_kind"], "bare_relative")
 
-    def test_non_restrictive_relative_has_comma(self):
+    def test_non_restrictive_relative_has_comma_no_signal(self):
         # "Nicodemus," / "who came to Jesus" — comma → non-restrictive.
         feat = extract_boundary_features(
             ["...", "Nicodemus,"], ["who", "came", "to", "Jesus"]
         )
-        self.assertFalse(feat["restrictive_relative"])
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
 
-    def test_not_a_relative(self):
+    def test_not_a_relative_no_signal(self):
         feat = extract_boundary_features(["Paul,"], ["called", "to", "be"])
-        self.assertFalse(feat["restrictive_relative"])
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
 
     def test_verb_content_clause(self):
         # "Do you not know" / "that we shall judge angels?"
         feat = extract_boundary_features(
             ["Do", "you", "not", "know"], ["that", "we", "shall", "judge"]
         )
-        self.assertTrue(feat["verb_content_clause"])
+        self.assertGreater(feat["boundary_severance"], 0.5)
+        self.assertEqual(feat["severance_kind"], "verb_content")
 
     def test_verb_quote_break_backs_off(self):
-        # ``say, "How…"`` — reported speech, not a content clause.
+        # `say, "How…"` — reported speech, not a content clause.
         feat = extract_boundary_features(["he", "said,"], ['"How', 'long?"'])
-        self.assertFalse(feat["verb_content_clause"])
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
 
     def test_verb_colon_backs_off(self):
         feat = extract_boundary_features(["I", "say:"], ["that", "no"])
-        self.assertFalse(feat["verb_content_clause"])
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
 
-    def test_stranded_weak_connector_fires_on_short_stubby_prev(self):
+    def test_stranded_stub_short_prev(self):
         # 1 Cor 12:11 "But one" (2w, mid-clause) / "and the same Spirit…"
         feat = extract_boundary_features(["But", "one"], ["and", "the", "same"])
-        self.assertTrue(feat["stranded_weak_connector"])
+        self.assertGreater(feat["boundary_severance"], 0.5)
+        self.assertEqual(feat["severance_kind"], "stranded_stub")
 
-    def test_stranded_weak_connector_skips_complete_prev_clause(self):
-        # Parallel siblings: "and the Word was with God," (complete, ends in
-        # pause) / "and the Word was God."
+    def test_stranded_stub_skips_complete_prev_clause(self):
+        # Parallel siblings: "...was with God," / "and the Word was God."
         feat = extract_boundary_features(
             ["and", "the", "Word", "was", "with", "God,"],
             ["and", "the", "Word", "was", "God."],
         )
-        self.assertFalse(feat["stranded_weak_connector"])
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
 
-    def test_stranded_weak_connector_skips_long_prev(self):
-        # Long previous phrase ending mid-clause is not a stranded stub
-        # even if the next phrase opens with a connector.
+    def test_stranded_stub_skips_long_prev(self):
+        # Long prev ending mid-clause is not stranded even if next opens with `that`.
+        # Falls into bare_relative because `that` follows a noun (Jews) without pause.
+        # Either bare_relative or verb_content is acceptable; we just assert NOT stranded_stub.
         feat = extract_boundary_features(
             ["The", "man", "departed", "and", "told", "the", "Jews"],
             ["that", "it", "was", "Jesus"],
         )
-        self.assertFalse(feat["stranded_weak_connector"])
+        self.assertNotEqual(feat["severance_kind"], "stranded_stub")
+
+    def test_short_next_intensifies_severance(self):
+        # "nothing was made / that was made." (3w next) should score
+        # higher than "told the Jews / that it was Jesus..." (10w next).
+        short_next = extract_boundary_features(
+            ["nothing", "was", "made"], ["that", "was", "made."]
+        )
+        long_next = extract_boundary_features(
+            ["nothing", "was", "made"],
+            ["that", "was", "made", "in", "the", "beginning", "of", "all", "things", "made."],
+        )
+        self.assertGreater(short_next["boundary_severance"], long_next["boundary_severance"])
 
 
 class VerseFeatureTests(unittest.TestCase):
