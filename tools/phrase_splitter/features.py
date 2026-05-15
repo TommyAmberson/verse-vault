@@ -298,6 +298,7 @@ def extract_verse_features(
             "phrase_count": 0,
             "length_balance": 0.0,
             "verse_function_ratio": 0.0,
+            "missing_split": 0.0,
             "phrases": [],
             "boundaries": [],
         }
@@ -330,78 +331,68 @@ def extract_verse_features(
     total_function = sum(int(p["content_word_count"]) for p in phrases)  # type: ignore[arg-type]
     verse_function_ratio = (token_count - total_function) / token_count if token_count else 0.0
 
+    if phrase_count == 1 and token_count > 12:
+        missing_split = min(1.0, (token_count - 12) / 10)
+    else:
+        missing_split = 0.0
+
     return {
         "token_count": token_count,
         "phrase_count": phrase_count,
         "length_balance": round(length_balance, 3),
         "verse_function_ratio": round(verse_function_ratio, 3),
+        "missing_split": round(missing_split, 3),
         "phrases": phrases,
         "boundaries": boundaries,
     }
 
 
 def composite_signal_score(verse_features: Dict[str, object]) -> float:
-    """Weighted sum of signals, normalised to ``[0, 1]``. Higher = more
-    worth a human look. Weights are an initial baseline — tune after
-    seeing a self-audit's distribution.
+    """Weighted sum of continuous score signals, clamped to ``[0, 1]``.
 
-    Components:
+    Higher = more worth a human look. Each component signal is itself
+    a float in ``[0, 1]``; the composite is a simple weighted sum of
+    max-aggregates over phrases/boundaries.
 
-    * boundary signals (restrictive_relative, verb_content_clause)
-    * stranded weak connector boundaries (short stubby prev phrase +
-      next phrase opens with a weak connector)
-    * length balance (``max(pwc) / mean`` above ~1.8 is lopsided)
-    * short mid-phrases (word_count < 3 in middle positions)
-    * single-phrase verses that exceed the missing-split threshold
+    Weights:
 
-    Note: the per-phrase ``starts_with_weak_connector`` feature is *not*
-    scored directly. Under the memorisation framing a phrase opening
-    with ``and`` / ``but`` / ``that`` is often a legitimate
-    parallel-structure marker; the stubby-fragment shape it sometimes
-    indicates is captured more precisely by the ``stranded_weak_connector``
-    boundary signal above.
+    * ``boundary_severance`` (max over boundaries): 0.5
+    * ``cognitive_overload`` (max over phrases):    0.3
+    * ``missing_split`` (verse-level):              0.3
+    * ``stub_phrase`` (max over phrases):           0.2
+
+    Total at full strength = 1.3, intentionally over 1.0 so multiple
+    saturating problems hit the clamp instead of summing past it.
     """
     score = 0.0
 
     boundaries = verse_features.get("boundaries") or []
     if isinstance(boundaries, list) and boundaries:
-        syntactic_flagged = 0
-        stranded_flagged = 0
+        max_sev = 0.0
         for b in boundaries:
-            if not isinstance(b, dict):
-                continue
-            if b.get("restrictive_relative") or b.get("verb_content_clause"):
-                syntactic_flagged += 1
-            if b.get("stranded_weak_connector"):
-                stranded_flagged += 1
-        score += 0.4 * min(1.0, syntactic_flagged / max(1, len(boundaries)))
-        score += 0.2 * min(1.0, stranded_flagged / max(1, len(boundaries)))
-
-    balance = verse_features.get("length_balance")
-    if isinstance(balance, (int, float)) and balance > 1.5:
-        score += 0.2 * min(1.0, (float(balance) - 1.5) / 1.5)
+            if isinstance(b, dict):
+                sev = b.get("boundary_severance", 0.0)
+                if isinstance(sev, (int, float)):
+                    max_sev = max(max_sev, float(sev))
+        score += 0.5 * max_sev
 
     phrases = verse_features.get("phrases") or []
     if isinstance(phrases, list) and phrases:
-        short_middles = 0
+        max_overload = 0.0
+        max_stub = 0.0
         for p in phrases:
-            if not isinstance(p, dict):
-                continue
-            if p.get("position") == "middle":
-                wc = p.get("word_count", 0)
-                if isinstance(wc, int) and wc < 3:
-                    short_middles += 1
-        if short_middles:
-            score += 0.2 * min(1.0, short_middles / max(1, len(phrases)))
+            if isinstance(p, dict):
+                ov = p.get("cognitive_overload", 0.0)
+                if isinstance(ov, (int, float)):
+                    max_overload = max(max_overload, float(ov))
+                stub = p.get("stub_phrase", 0.0)
+                if isinstance(stub, (int, float)):
+                    max_stub = max(max_stub, float(stub))
+        score += 0.3 * max_overload
+        score += 0.2 * max_stub
 
-    phrase_count = verse_features.get("phrase_count")
-    token_count = verse_features.get("token_count")
-    if (
-        isinstance(phrase_count, int)
-        and phrase_count == 1
-        and isinstance(token_count, int)
-        and token_count > 10
-    ):
-        score += 0.3 * min(1.0, (token_count - 10) / 10)
+    missing = verse_features.get("missing_split", 0.0)
+    if isinstance(missing, (int, float)):
+        score += 0.3 * float(missing)
 
     return min(1.0, score)

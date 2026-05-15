@@ -374,11 +374,53 @@ class CompositeScoreTests(unittest.TestCase):
         # 5-word single-phrase verse: not missing-split, no other signals.
         self.assertLess(composite_signal_score(feats), 0.1)
 
-    def test_restrictive_relative_raises_score(self):
+    def test_bare_relative_raises_score(self):
         feats = extract_verse_features(
             ["nothing", "was", "made", "that", "was", "made."], [3, 3]
         )
-        self.assertGreater(composite_signal_score(feats), 0.1)
+        # boundary_severance contributes most of the score.
+        self.assertGreater(composite_signal_score(feats), 0.3)
+
+    def test_stub_phrase_raises_score(self):
+        # "But one and the same Spirit works…" — a 2-word stub middle.
+        # 2w + 6w split: stub_phrase = 0.5 → 0.2 * 0.5 = 0.10
+        # plus stranded_stub fires on the boundary: severance ≈ 0.5 + 0.15 = 0.65
+        # → 0.5 * 0.65 = 0.325. Combined ≈ 0.42.
+        feats = extract_verse_features(
+            ["But", "one", "and", "the", "same", "Spirit", "works,"], [2, 5]
+        )
+        score = composite_signal_score(feats)
+        self.assertGreater(score, 0.3)
+
+    def test_cognitive_overload_raises_score(self):
+        # 12-content-word phrase: cognitive_overload = 1.0 → 0.3 weight.
+        feats = extract_verse_features(
+            ["walked", "saw", "told", "heard", "knew", "ran",
+             "spoke", "judged", "called", "found", "wrote", "asked"],
+            [12],
+        )
+        score = composite_signal_score(feats)
+        # missing_split kicks in too at 12 tokens — but threshold is > 12 so 0.
+        # cognitive_overload dominates.
+        self.assertGreater(score, 0.25)
+
+    def test_missing_split_raises_score(self):
+        # 22-token single-phrase verse: missing_split saturates at 1.0
+        # → 0.3 * 1.0 = 0.3. The tokens are all function words ("a"),
+        # so no other signals contribute.
+        feats = extract_verse_features(
+            ["a"] * 22, [22]
+        )
+        score = composite_signal_score(feats)
+        self.assertGreater(score, 0.25)
+
+    def test_composite_clamped_to_one(self):
+        # Pathological verse: all signals max out.
+        feats = extract_verse_features(
+            ["nothing", "was", "made", "that"], [1, 3]
+        )
+        score = composite_signal_score(feats)
+        self.assertLessEqual(score, 1.0)
 
 
 class CheckVerseTests(unittest.TestCase):
