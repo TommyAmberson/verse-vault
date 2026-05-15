@@ -18,6 +18,30 @@ Aim for the _best_ split, which is not always a different split. Two fragments d
 introduces) usually want to be separate phrases, even when one is short. **Length is not a hard
 rule.**
 
+## Why split at all — the FSRS granularity argument
+
+Each phrase carries its own FSRS recall state in the deck. The algorithm has a strong opinion on
+what that should mean: bundling two memorisable pieces under one state actively _destabilises_ both.
+The composite-memory stability follows roughly
+
+```
+S = (S_a × S_b) / (S_a + S_b)
+```
+
+— always lower than either piece alone, and approaching zero as you compose more pieces.
+[Memory Complexity in the open-spaced-repetition wiki](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/Spaced-Repetition-Algorithm%3A-A-Three%E2%80%90Day-Journey-from-Novice-to-Expert#memory-complexity)
+has the derivation; the takeaway is that flashcard atoms should be atomic from the start, and the
+algorithmic pressure runs toward _finer_ splits.
+
+There's a counter-pressure from the reciter's side: each phrase has to be a unit the reciter can
+blank, recover, and grade honestly. A "phrase" that can't be recovered from context can't receive a
+clean `Again` / `Good` signal — its FSRS state becomes noise rather than information. That's the
+floor on how fine you can go: an atom that nobody can grade independently is worse than a coherent
+composite.
+
+The recall test below is the operational test for whether a candidate phrase clears that floor. The
+two pressures combined: split as finely as you can _while keeping every phrase recoverable_.
+
 ## Hard constraints
 
 These three failures are blockers — the auditor flags them as `blockers` and the deck can't be
@@ -59,9 +83,10 @@ not a prohibition.
 
 Mentally blank each candidate phrase. Can the reciter sense the specific shape of what's missing
 from what's left? If yes — the gap has a recognisable function (the verb, the content clause, the
-relative modifier, the parallel sibling) — the boundary is doing useful work. If the blanked phrase
-leaves a fuzzy mid-thought gap that's hard to characterise, the boundary is in the wrong place and
-the two sides probably want to merge.
+relative modifier, the parallel sibling) — the boundary is doing useful work, because the blanked
+piece is something a reciter could plausibly fail _without_ failing its neighbours. If the blanked
+phrase leaves a fuzzy mid-thought gap that's hard to characterise, the two sides are one mental move
+— they always succeed or fail together — and the boundary is in the wrong place.
 
 The test is _not_ whether each phrase reads as a stand-alone English sentence. Memorisable units
 include short framing phrases ("but these are written"), appositive chunks, and parallel siblings —
