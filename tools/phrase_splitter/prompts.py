@@ -8,60 +8,61 @@ so iterations land in one place.
 SPLIT_PROMPT_HEADER = """\
 You are splitting a Bible verse into memorisation phrases.
 
-**Goal.** Partition the verse into chunks the reciter can forget and
-recover. A phrase is a *memorisable unit* — a chunk a reciter could
-blank on while still sensing the specific shape of the gap from the
-rest. Partition by *function*, not by prose-completeness. A 4-word
-framing intro is a valid phrase if it does a discrete job different
-from its neighbours; phrases don't have to read as complete sentences
-in isolation.
+**Goal.** Partition the verse into chunks the reciter can forget
+and recover independently. A phrase is a *memorisable unit* — a
+chunk doing a discrete job different from its neighbours. Partition
+by function, not prose-completeness: a 4-word framing intro is a
+valid phrase, and phrases needn't read as complete sentences in
+isolation. There are no rules, only guidelines; the best split
+sometimes leaves a long clause whole.
 
-There are no rules, only guidelines. Every verse is subjective; aim
-for the *best* split, which sometimes means leaving a long clause
-whole.
+**How phrases are reviewed.** Each phrase ends up reviewed in two
+modes:
+
+- *PhraseFill* — the whole verse is shown with one phrase blanked.
+  The reciter recovers that phrase from surrounding context, and the
+  grade updates that phrase's FSRS state directly.
+- *Recitation* — only the verse reference is shown. The reciter
+  recites the whole verse from memory, and one grade is decomposed
+  across every phrase's FSRS state.
+
+The split is the partition both modes operate on. PhraseFill demands
+each phrase be recoverable from context; Recitation demands each
+phrase be a real memory unit whose recall state means something on
+its own.
+
+**The recall test (operational).** Mentally do a PhraseFill on each
+candidate phrase: blank it, look at what's left. If the gap has a
+recognisable shape — a verb, a content clause, a relative modifier,
+a parallel sibling — the boundary is doing useful work; the blanked
+piece is a distinct unit that could fail without its neighbours. If
+blanking leaves a fuzzy mid-thought gap, the two sides are one
+mental move and the boundary is in the wrong place.
 
 **Why split at all.** Each phrase carries its own FSRS recall
-state. The split's job is to match phrase boundaries to memory
-boundaries — the points where the reciter could plausibly fail one
-side without the other.
+state. The split's job is to put boundaries at real memory seams —
+points where the reciter could plausibly fail one side without the
+other. Both directions away from that have costs.
 
-*Under-splitting* — bundling two memorisable pieces under one state
-— has two costs. Composite memory stability follows roughly ``S =
-(S_a × S_b) / (S_a + S_b)``, always lower than either piece alone
-and approaching zero as you compose more pieces; two separable
-memories then share one prematurely-decaying state instead of each
-carrying their own. And the FSRS value for a composite stops
-representing any one memory's actual strength — the reciter who
-half-knows a clause grades it on whichever piece they can't yet
-recall, polluting the state of the piece they had down cold.
+*Under-splitting* (boundaries too coarse) bundles separable memories
+under one state. Composite stability follows roughly ``S = (S_a ×
+S_b) / (S_a + S_b)`` and approaches zero as more pieces compose; the
+shared state decays prematurely for both. This hurts Recitation
+most — the decomposed grade can't cleanly attribute failure when two
+distinct things share one phrase, polluting the state of the piece
+the reciter actually had down cold.
 
-*Over-splitting* has its own costs. Too many phrases means more
-cards to review without proportional information gain. A phrase too
-small to be a coherent memorisable unit — a sub-clause the reciter
-can't grade independently — produces noise rather than signal.
-Awkward, unnatural cuts break review flow and confuse the reciter
-about where they are in the verse. And two pieces that the reciter
-would always succeed or fail *together* are intertwined enough to
-be one memory unit; separate states on them produce noisy reviews
-on either side of a boundary that isn't a memory boundary.
+*Over-splitting* (boundaries too fine) creates phrases too small to
+be coherent memorisable units. A sub-clause the reciter can't
+recover from context produces noise on PhraseFill rather than
+signal. Awkward, unnatural cuts break review flow. And two pieces
+the reciter would always succeed or fail *together* are intertwined
+enough to be one memory unit; giving them separate states produces
+noisy reviews on either side of a boundary that isn't a memory
+boundary.
 
-Aim for the sweet spot: as fine as the memory structure actually
-is, no finer.
-
-**Guiding principle.** Group by job. Two fragments doing the *same*
-job — setup and payoff of one thought — usually want to be one
-phrase: a 9-word complete clause beats 4 + 5 that severs the thought
-mid-stream. Two fragments doing *different* jobs — a framing intro
-and the content it introduces, or a subordinate setup and its main
-clause — usually want to be separate phrases, even when one is
-short.
-
-**The recall test.** Mentally blank each candidate phrase. Can the
-reciter sense the specific shape of what's missing? If yes, the
-boundary is doing useful work — the blanked piece is a distinct
-memorisable unit that could fail or succeed without its neighbours.
-If a blanked phrase leaves a fuzzy mid-thought gap, the two sides
-are one mental move and the boundary is in the wrong place.
+Aim for granularity that matches the verse's actual memory
+structure — neither finer nor coarser.
 
 **Hard constraints.**
 
@@ -195,54 +196,44 @@ JUDGE_PROMPT = """\
 You are picking the better of two memorisation phrase splits for a
 Bible verse.
 
+**How phrases are reviewed.** Each phrase ends up reviewed in two
+modes: *PhraseFill* (the whole verse is shown with one phrase
+blanked, the reciter recovers it from context, grade updates that
+phrase's FSRS state directly) and *Recitation* (only the verse
+reference is shown, the reciter recites the whole verse, one grade
+is decomposed across every phrase's FSRS state). The split is the
+partition both modes operate on.
+
 **Why split at all.** Each phrase carries its own FSRS recall
-state. The better split is the one whose phrase boundaries match
-the verse's memory boundaries — the points where the reciter could
-plausibly fail one side without the other.
-
-*Under-splitting* (boundaries too coarse) bundles two separable
-memories under one state. Composite stability follows roughly
-``S = (S_a × S_b) / (S_a + S_b)``, approaching zero as more pieces
-are composed; the shared state decays prematurely and stops
-representing any one memory's true strength.
-
-*Over-splitting* (boundaries too fine) creates phrases too small to
-be coherent memorisable units — sub-clauses the reciter can't grade
-independently, awkward cuts that break review flow, or pieces the
-reciter would always succeed or fail *together* (intertwined enough
-to be one memory unit). It also multiplies cards without
-proportional information gain.
-
-The better option is the one closer to the actual memory structure:
+state. The better split has boundaries at real memory seams —
 neither finer (boundaries fall mid-thought, intertwined pieces get
-separate states) nor coarser (independently-forgettable chunks
-share one state).
+separate states, hurting PhraseFill) nor coarser
+(independently-forgettable chunks share one state, and composite
+stability ``S = (S_a × S_b) / (S_a + S_b)`` decays prematurely for
+both, hurting Recitation).
 
-**The recall test.** Mentally blank each phrase in each option. An
-option whose blanks leave a recognisable shape (each phrase is a
-distinct memorisable unit that could fail without its neighbours) is
-better than one whose blanks leave mid-thought blurs (the two sides
-are one mental move).
+**The recall test (deciding criterion).** Mentally do a PhraseFill
+on each phrase in each option: blank it, look at what's left. An
+option whose blanks leave a recognisable shape — each phrase a
+distinct unit that could fail without its neighbours — is better
+than one whose blanks leave fuzzy mid-thought gaps.
 
-**How to read the signals.** The signal block under each option is
-deterministic features of that option — composite score, per-phrase
-content-word load and stub flags, boundary severance kinds
-(``verb_content``, ``bare_relative``, ``stranded_stub``), length
-balance. Lower composite generally means fewer flagged issues, but
-signals are context, not verdicts: a single high signal can reflect a
-deliberate trade-off (a stub parallel sibling, a deliberate
-``and``-start that continues a coordinated list). Read the recall
-test as the deciding criterion; the signals just point at where to
-look.
+**How to read the signals.** Each option carries a signal block —
+composite score, per-phrase content-word load and stub flags,
+boundary severance kinds (``verb_content``, ``bare_relative``,
+``stranded_stub``), length balance. Lower composite generally means
+fewer flagged issues, but signals are context, not verdicts: a
+single high signal can reflect a deliberate trade-off (a stub
+parallel sibling, an ``and``-start continuing a coordinated list).
+The recall test decides; signals point at where to look.
 
 **Hard constraints.** Both options have already been validated for
 rejoin, word-count sum, and HTML tag balance — you don't need to
 re-check.
 
-**Tie-breaking.** When the two options are genuinely equivalent under
-the recall test, prefer the current split (Option A) — needless
-churn is bad. Pick B only when it is *clearly* better, not merely
-defensible.
+**Pick rule.** Prefer Option A (the current split) by default —
+needless churn is bad. Pick B only when it is *clearly* better
+under the recall test, not merely defensible.
 
 **Verse.**
     {verse_text}
