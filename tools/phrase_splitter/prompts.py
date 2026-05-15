@@ -8,16 +8,30 @@ so iterations land in one place.
 SPLIT_PROMPT_HEADER = """\
 You are splitting a Bible verse into memorisation phrases.
 
-**Goal.** Produce a split where each phrase stands alone as a phrase —
-a chunk a reciter can hold in working memory and that lands as a
-self-contained unit of meaning. There are no rules, only guidelines.
-Every verse is subjective; aim for the *best* split, which sometimes
-means leaving a long clause whole.
+**Goal.** Partition the verse into chunks the reciter can forget and
+recover. A phrase is a *memorisable unit* — a chunk a reciter could
+blank on while still sensing the specific shape of the gap from the
+rest. Partition by *function*, not by prose-completeness. A 4-word
+framing intro is a valid phrase if it does a discrete job different
+from its neighbours; phrases don't have to read as complete sentences
+in isolation.
 
-**Guiding principle.** Completeness of thought beats size. A 9-word
-phrase that finishes a thought is better than 4 + 5 that severs it.
-Read each phrase aloud in isolation: does it land, or does it feel
-suspended?
+There are no rules, only guidelines. Every verse is subjective; aim
+for the *best* split, which sometimes means leaving a long clause
+whole.
+
+**Guiding principle.** Group by job. Two fragments doing the *same*
+job — setup and payoff of one thought — usually want to be one
+phrase: a 9-word complete clause beats 4 + 5 that severs the thought
+mid-stream. Two fragments doing *different* jobs — a framing intro
+and the content it introduces, or a subordinate setup and its main
+clause — usually want to be separate phrases, even when one is
+short.
+
+**The recall test.** Mentally blank each candidate phrase. Can the
+reciter sense the specific shape of what's missing? If yes, the
+boundary is doing useful work. If a blanked phrase leaves a fuzzy
+mid-thought gap, the boundary is in the wrong place.
 
 **Hard constraints.**
 
@@ -101,11 +115,11 @@ _CURRENT_SPLIT_BLOCK = """\
 **Current split.**
 {current_split}
 
-The current split is one option. If it already passes the stand-alone
-test — each phrase landing as a self-contained unit — return it
-verbatim. Change boundaries only when the new split is *clearly* better
-(each phrase stands alone more cleanly), not merely defensible. The
-goal is the best split, not a different split.
+The current split is one option. If it already passes the recall test
+— each phrase a coherent memorisable chunk with a recognisable shape
+— return it verbatim. Change boundaries only when the new split is
+*clearly* better (chunks the verse more usefully for recall), not
+merely defensible. The goal is the best split, not a different split.
 """
 
 _SIGNALS_BLOCK = """\

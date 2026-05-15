@@ -84,3 +84,18 @@ mistakes.
   happen in one call with the same context. The numeric `composite_signal_score` in `features.py`
   replaces the categorical `high`/`medium` severity, and the auditor surfaces signal-rich verses
   without prescribing a fix.
+
+* **v2 — memorisable-chunk reframe.** v1's "stand-alone unit / read aloud and see if it lands"
+  framing biased the reviewer (and an LLM splitter) toward prose-completeness, which produced false
+  negatives on short framing phrases. Concrete trigger: the round-2 review of John 20:31 proposed
+  `[4, 13, 10]` — "but these are written / that you may believe that Jesus is the Christ, the Son of
+  God, / and that believing you may have life in His name." The 4-word opener doesn't read as a
+  complete English sentence, so the v1 "does it land?" test rejected it; but as a _memorisation_
+  partition it's exactly right — framing intro / first content clause / second content clause, each
+  a discrete job. v2 replaces "stands alone as a phrase / lands as a self-contained unit of meaning
+  / read aloud in isolation" with **partition by function** language and **the recall test** —
+  "blank each candidate phrase; can the reciter sense the specific shape of what's missing?" The
+  Goal and Guiding principle paragraphs in `SPLIT_PROMPT_HEADER`, the stability clause in
+  `_CURRENT_SPLIT_BLOCK`, and the matching sections of `quality-criteria.md` and
+  `splitter-agent-instructions.md` all move in step. Signals, worked examples, and the rejoin
+  contract are unchanged.

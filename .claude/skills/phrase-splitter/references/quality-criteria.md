@@ -1,14 +1,22 @@
-# Each phrase should stand alone as a phrase
+# Each phrase is a memorisable chunk
 
 That is the guiding principle. There are no rules, only signals; every verse is subjective.
 
-A phrase is a unit a reciter holds in working memory while saying the verse from memory. The split
-should feel like natural pauses — where a careful reader would breathe. Read each phrase aloud in
-isolation: does it land as a self-contained unit, or does it feel suspended?
+A phrase is a _memorisable unit_ — a chunk a reciter could blank on while still sensing the specific
+shape of the gap from what's left. The job of the split is to partition the verse into chunks each
+doing a discrete job, so that forgetting one of them leaves a recognisable hole rather than a fuzzy
+mid-thought blur.
 
-Aim for the _best_ split, which is not always a different split. A 9-word phrase that finishes a
-thought is better than 4 + 5 that severs it. When in doubt between a shorter awkward split and a
-longer natural one, choose the natural one. **Length is not a hard rule.**
+Critically, this is **not** the same as "each phrase reads as a complete sentence." A 4-word framing
+intro like _"but these are written"_ doesn't stand alone as prose, but it's a perfectly valid
+memorisable chunk — it does a discrete job (introducing what follows) distinct from the content it
+introduces. Partition by _function_, not by grammatical completeness.
+
+Aim for the _best_ split, which is not always a different split. Two fragments doing the _same_ job
+(setup and payoff of one thought) usually want to be one phrase: a 9-word complete clause beats 4 +
+5 that severs the thought. Two fragments doing _different_ jobs (framing intro + the content it
+introduces) usually want to be separate phrases, even when one is short. **Length is not a hard
+rule.**
 
 ## Hard constraints
 
@@ -47,11 +55,18 @@ not a prohibition.
 * **Lopsidedness.** One phrase swallowing most of the verse while the rest are stubs often signals a
   missed boundary. Aim for relatively even chunks while still respecting clause boundaries.
 
-## The stand-alone test
+## The recall test
 
-Read each phrase aloud in isolation. If it lands — feels like a complete unit of meaning, even out
-of context — keep it. If it feels suspended (ends mid-thought, dangles a fragment, opens with a
-connector that needs the previous phrase to make sense), revisit the boundary.
+Mentally blank each candidate phrase. Can the reciter sense the specific shape of what's missing
+from what's left? If yes — the gap has a recognisable function (the verb, the content clause, the
+relative modifier, the parallel sibling) — the boundary is doing useful work. If the blanked phrase
+leaves a fuzzy mid-thought gap that's hard to characterise, the boundary is in the wrong place and
+the two sides probably want to merge.
+
+The test is _not_ whether each phrase reads as a stand-alone English sentence. Memorisable units
+include short framing phrases ("but these are written"), appositive chunks, and parallel siblings —
+all of which are fine even when they don't make sense in isolation as prose. What matters is that
+each chunk is doing a discrete job different from its neighbours.
 
 This is the test the splitter applies. Returning the current split verbatim is the right answer when
 the current split is already best. The goal is the best split, not a different split.

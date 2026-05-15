@@ -21,9 +21,11 @@ version: 0.4.0
 The verse-vault deck stores memorisation phrases as **word counts**, not strings: each year deck
 (`data/<N>-<book>.json` — e.g. `data/3-corinthians.json`, `data/4-john.json`) has a per-verse
 `phraseWordCounts: [n1, n2, …]` that slices the canonical NKJV (fetched from api.bible) into
-phrases. The guiding principle is that **each phrase should stand alone as a phrase** — a
-self-contained unit a reciter can hold in working memory. There are no rules, only signals; the
-splitter aspires to the best split, sometimes by leaving a long clause whole.
+phrases. The guiding principle is that **each phrase is a memorisable chunk** — a unit a reciter
+could blank on while still sensing the shape of the gap from what's left. Partition by _function_,
+not by grammatical completeness: short framing intros, appositive chunks, and parallel siblings are
+all valid even when they don't read as complete sentences in isolation. There are no rules, only
+signals; the splitter aspires to the best split, sometimes by leaving a long clause whole.
 
 ## When to invoke
 
@@ -113,8 +115,7 @@ python3 tools/split_phrases.py --deck data/4-john.json print-prompt \
 
 * The canonical verse text.
 * The **current split** rendered as bullets, with the stability clause: "if it already passes the
-  stand-alone test, return it verbatim; change boundaries only when the new split is _clearly_
-  better."
+  recall test, return it verbatim; change boundaries only when the new split is _clearly_ better."
 * A **signals** block — deterministic features of the current split, formatted as one line per
   phrase + boundary flags. The LLM reads these as context, not commands.
 
@@ -166,8 +167,8 @@ edit. No regeneration step is needed — the year deck IS the file.
 ## Single-verse path (no audit needed)
 
 When the user pastes a verse and asks for a split without referencing a specific ref or the deck,
-the workflow shortens to: read `references/quality-criteria.md`, apply the stand-alone test, return
-a JSON array. Still mentally check the rejoin (joined phrases match the input) before answering.
+the workflow shortens to: read `references/quality-criteria.md`, apply the recall test, return a
+JSON array. Still mentally check the rejoin (joined phrases match the input) before answering.
 
 If the verse exists in a deck and the user wants the same context the LLM normally sees, the
 `--no-current --no-signals` form of `print-prompt` renders a clean prompt with just the verse text.
@@ -183,9 +184,9 @@ changing.
 
 ## Reference files
 
-* `references/quality-criteria.md` — the stand-alone principle, hard constraints, signals (context,
-  not rules), and worked examples. Read before splitting any verse you're not sure about, and pass
-  to subagents.
+* `references/quality-criteria.md` — the memorisable-chunk principle, hard constraints, signals
+  (context, not rules), and worked examples. Read before splitting any verse you're not sure about,
+  and pass to subagents.
 * `references/splitter-agent-instructions.md` — entry point for splitter subagents.
 * `references/prompt-design.md` — current state of `SPLIT_PROMPT` and notes on prior iterations.
   Read before editing `tools/phrase_splitter/prompts.py`.
