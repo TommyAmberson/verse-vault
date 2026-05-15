@@ -20,16 +20,33 @@ There are no rules, only guidelines. Every verse is subjective; aim
 for the *best* split, which sometimes means leaving a long clause
 whole.
 
-**Why split at all.** Each phrase carries its own FSRS recall state
-in the deck. The point of a boundary is to give the algorithm useful
-granularity: when a reciter forgets *this* chunk while still
-remembering its neighbours, the failed chunk wants its own state so
-it can be reviewed on its own schedule without dragging the
-remembered ones along. Conversely, two pieces that always succeed or
-fail together are *one item of memory*; bundling them under separate
-phrases produces noisy reviews on either side of a boundary that
-isn't actually a memory boundary. The job of a split is to match the
-phrase boundaries to the memory boundaries.
+**Why split at all.** Each phrase carries its own FSRS recall
+state. The split's job is to match phrase boundaries to memory
+boundaries — the points where the reciter could plausibly fail one
+side without the other.
+
+*Under-splitting* — bundling two memorisable pieces under one state
+— has two costs. Composite memory stability follows roughly ``S =
+(S_a × S_b) / (S_a + S_b)``, always lower than either piece alone
+and approaching zero as you compose more pieces; two separable
+memories then share one prematurely-decaying state instead of each
+carrying their own. And the FSRS value for a composite stops
+representing any one memory's actual strength — the reciter who
+half-knows a clause grades it on whichever piece they can't yet
+recall, polluting the state of the piece they had down cold.
+
+*Over-splitting* has its own costs. Too many phrases means more
+cards to review without proportional information gain. A phrase too
+small to be a coherent memorisable unit — a sub-clause the reciter
+can't grade independently — produces noise rather than signal.
+Awkward, unnatural cuts break review flow and confuse the reciter
+about where they are in the verse. And two pieces that the reciter
+would always succeed or fail *together* are intertwined enough to
+be one memory unit; separate states on them produce noisy reviews
+on either side of a boundary that isn't a memory boundary.
+
+Aim for the sweet spot: as fine as the memory structure actually
+is, no finer.
 
 **Guiding principle.** Group by job. Two fragments doing the *same*
 job — setup and payoff of one thought — usually want to be one
@@ -178,14 +195,28 @@ JUDGE_PROMPT = """\
 You are picking the better of two memorisation phrase splits for a
 Bible verse.
 
-**Why split at all.** Each phrase carries its own FSRS recall state.
-The point of a boundary is to give the algorithm useful granularity:
-two pieces that could fail independently want their own states; two
-pieces that always succeed or fail together are one item of memory
-and want to share a state. The better split is the one whose phrase
-boundaries match the verse's memory boundaries — neither finer (so
-boundaries fall mid-thought) nor coarser (so two independently-
-forgettable chunks share one state).
+**Why split at all.** Each phrase carries its own FSRS recall
+state. The better split is the one whose phrase boundaries match
+the verse's memory boundaries — the points where the reciter could
+plausibly fail one side without the other.
+
+*Under-splitting* (boundaries too coarse) bundles two separable
+memories under one state. Composite stability follows roughly
+``S = (S_a × S_b) / (S_a + S_b)``, approaching zero as more pieces
+are composed; the shared state decays prematurely and stops
+representing any one memory's true strength.
+
+*Over-splitting* (boundaries too fine) creates phrases too small to
+be coherent memorisable units — sub-clauses the reciter can't grade
+independently, awkward cuts that break review flow, or pieces the
+reciter would always succeed or fail *together* (intertwined enough
+to be one memory unit). It also multiplies cards without
+proportional information gain.
+
+The better option is the one closer to the actual memory structure:
+neither finer (boundaries fall mid-thought, intertwined pieces get
+separate states) nor coarser (independently-forgettable chunks
+share one state).
 
 **The recall test.** Mentally blank each phrase in each option. An
 option whose blanks leave a recognisable shape (each phrase is a
