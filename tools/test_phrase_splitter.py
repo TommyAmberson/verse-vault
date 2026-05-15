@@ -493,7 +493,7 @@ class PrintPromptRenderingTests(unittest.TestCase):
         self.assertIn("bare_relative", rendered)
         self.assertIn("severance=", rendered)
         # Composite score is displayed
-        self.assertIn("composite=", rendered.lower())
+        self.assertIn("composite=", rendered)
 
 
 if __name__ == "__main__":
