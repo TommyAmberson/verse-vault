@@ -18,29 +18,53 @@ Aim for the _best_ split, which is not always a different split. Two fragments d
 introduces) usually want to be separate phrases, even when one is short. **Length is not a hard
 rule.**
 
-## Why split at all — the FSRS granularity argument
+## Why split at all
 
-Each phrase carries its own FSRS recall state in the deck. The algorithm has a strong opinion on
-what that should mean: bundling two memorisable pieces under one state actively _destabilises_ both.
-The composite-memory stability follows roughly
+Each phrase carries its own FSRS recall state. The split's job is to match phrase boundaries to
+memory boundaries — the points where the reciter could plausibly fail one side without the other.
+Both directions away from that sweet spot have costs.
 
-```
-S = (S_a × S_b) / (S_a + S_b)
-```
+### Under-splitting
 
-— always lower than either piece alone, and approaching zero as you compose more pieces.
-[Memory Complexity in the open-spaced-repetition wiki](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/Spaced-Repetition-Algorithm%3A-A-Three%E2%80%90Day-Journey-from-Novice-to-Expert#memory-complexity)
-has the derivation; the takeaway is that flashcard atoms should be atomic from the start, and the
-algorithmic pressure runs toward _finer_ splits.
+Bundling two separable memories under one state. Two costs:
 
-There's a counter-pressure from the reciter's side: each phrase has to be a unit the reciter can
-blank, recover, and grade honestly. A "phrase" that can't be recovered from context can't receive a
-clean `Again` / `Good` signal — its FSRS state becomes noise rather than information. That's the
-floor on how fine you can go: an atom that nobody can grade independently is worse than a coherent
-composite.
+* **Stability interference.** Composite-memory stability follows roughly
 
-The recall test below is the operational test for whether a candidate phrase clears that floor. The
-two pressures combined: split as finely as you can _while keeping every phrase recoverable_.
+  ```
+  S = (S_a × S_b) / (S_a + S_b)
+  ```
+
+  — always lower than either piece alone, and approaching zero as more pieces are composed
+  ([Memory Complexity in the open-spaced-repetition wiki](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/Spaced-Repetition-Algorithm%3A-A-Three%E2%80%90Day-Journey-from-Novice-to-Expert#memory-complexity)
+  has the derivation). Two separable memories sharing one state means the state decays prematurely
+  for both, instead of each tracking its own real strength.
+* **State stops representing the memory.** The FSRS value for a composite reflects whichever piece
+  the reciter can't yet recall, not the memory it's nominally attached to. A reciter who half-knows
+  a clause grades the whole thing on the half they failed — polluting the state of the piece they
+  had down cold.
+
+The algorithmic pressure from this side runs toward _finer_ splits: atomic flashcards from the
+start.
+
+### Over-splitting
+
+Cutting boundaries finer than the actual memory structure. Several costs:
+
+* **Card multiplication.** More phrases means more reviews, without proportional information gain.
+* **Incoherent units.** A phrase too small to be a coherent memorisable unit — a sub-clause a
+  reciter can't grade independently — produces noise rather than signal in its FSRS state.
+* **Awkward, unnatural cuts.** Boundaries that fall mid-thought confuse the reciter about where they
+  are in the verse and break review flow.
+* **Intertwined memories.** Two pieces the reciter would always succeed or fail _together_ are
+  intertwined enough to be one memory unit; giving them separate states produces noisy reviews on
+  either side of a boundary that isn't a memory boundary.
+
+### The sweet spot
+
+Aim for the granularity that matches the verse's actual memory structure: as fine as it really is,
+no finer. The recall test below is the operational test — if blanking a candidate phrase leaves a
+recognisable shape from what's left, the boundary is at a real memory seam; if it leaves a fuzzy
+mid-thought gap, the two sides are one memory unit.
 
 ## Hard constraints
 
