@@ -99,3 +99,17 @@ mistakes.
   `_CURRENT_SPLIT_BLOCK`, and the matching sections of `quality-criteria.md` and
   `splitter-agent-instructions.md` all move in step. Signals, worked examples, and the rejoin
   contract are unchanged.
+
+* **v3 — continuous signal architecture.** v2 reframed the prompt around memorisation but the
+  auditor's signals were still boolean — each signal contributed 0 or its full weight, producing
+  cliff effects in ranking and uninformative `restrictive_relative: true` lines in the signals
+  block. v3 makes every score-contributing signal a float in `[0, 1]`: the three boundary booleans
+  (`restrictive_relative`, `verb_content_clause`, `stranded_weak_connector`) collapse into one
+  `boundary_severance` with a `severance_kind` label, and two new per-phrase signals (`stub_phrase`,
+  `cognitive_overload`) replace the coarse `length_balance` and `short_middles` contributions. The
+  composite is now a clean weighted sum
+  (`0.5 * max_boundary_severance + 0.3 * max_cognitive_overload + 0.3 * missing_split + 0.2 * max_stub_phrase`,
+  clamped to 1). Descriptive features (function ratio, weak-connector starts, internal pauses, etc.)
+  stay in the payload but no longer contribute to the score — they're context for the reviewer, not
+  bits in the rank. The rendered signals block now shows graded numbers (`severance=0.65`,
+  `stub=0.50`) so the splitter can weigh severity instead of presence.

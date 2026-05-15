@@ -28,9 +28,11 @@ verbatim. Change boundaries only when the new split is _clearly_ better, not mer
 
 A phrase doesn't have to read as a complete English sentence to be a good memorisable unit — short
 framing intros and appositive chunks are valid when they do a discrete job. Partition by function,
-not by grammatical completeness. The signals are deterministic features of the current split (weak
-connectors, restrictive-relative boundaries, length balance, etc.) — read them to spot patterns, not
-to fix them mechanically.
+not by grammatical completeness. The signals are continuous floats in `[0, 1]` describing the
+current split: `boundary_severance` (with a `severance_kind` label — `verb_content`,
+`bare_relative`, or `stranded_stub`), `stub_phrase`, `cognitive_overload`, and `missing_split`. Read
+them to spot patterns and weigh severity, not to fix every flag mechanically — a high score on a
+single signal sometimes reflects a deliberate trade-off the splitter should keep.
 
 ## Workflow
 
