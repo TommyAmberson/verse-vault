@@ -96,6 +96,14 @@ CONTENT_CLAUSE_COMPLEMENTISERS = frozenset({"that", "what", "how", "whether"})
 # clauses for memorisation purposes.
 QUOTE_OPENERS = ("\"", "“", "‘", "'")
 
+# Severance sub-pattern labels emitted alongside ``boundary_severance``.
+# These string values are part of the prompt contract — they appear in
+# rendered prompts and are referenced by name in
+# ``.claude/skills/phrase-splitter/references/splitter-agent-instructions.md``.
+SEVERANCE_VERB_CONTENT = "verb_content"
+SEVERANCE_BARE_RELATIVE = "bare_relative"
+SEVERANCE_STRANDED_STUB = "stranded_stub"
+
 
 def count_syllables(word: str) -> int:
     """Vowel-cluster heuristic — count contiguous vowel runs, with a
@@ -278,21 +286,21 @@ def extract_boundary_features(
         elif next_first_stripped.startswith(QUOTE_OPENERS):
             pass
         else:
-            kind = "verb_content"
+            kind = SEVERANCE_VERB_CONTENT
 
     # Bare relative / complementiser: next starts with who/which/that and
     # prev doesn't end in pause-punct. Captures both true restrictive
     # relatives and stranded performatives ("I do not say to you / that…").
     if kind is None and next_first_word in {"who", "which", "that"}:
         if not prev_tail or prev_tail[-1] not in PAUSE_PUNCT:
-            kind = "bare_relative"
+            kind = SEVERANCE_BARE_RELATIVE
 
     # Stranded stub: short prev ending mid-clause + next starts with weak
     # connector. Catches "But one / and the same Spirit…" type strandings
     # where neither verb_content nor bare_relative applied.
     if kind is None and next_first_word in WEAK_CONNECTORS and len(prev_tokens) < 4:
         if not _ends_in_terminal(prev_last_raw):
-            kind = "stranded_stub"
+            kind = SEVERANCE_STRANDED_STUB
 
     if kind is None:
         return {"boundary_severance": 0.0, "severance_kind": None}
