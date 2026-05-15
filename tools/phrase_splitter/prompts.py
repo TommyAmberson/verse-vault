@@ -20,6 +20,17 @@ There are no rules, only guidelines. Every verse is subjective; aim
 for the *best* split, which sometimes means leaving a long clause
 whole.
 
+**Why split at all.** Each phrase carries its own FSRS recall state
+in the deck. The point of a boundary is to give the algorithm useful
+granularity: when a reciter forgets *this* chunk while still
+remembering its neighbours, the failed chunk wants its own state so
+it can be reviewed on its own schedule without dragging the
+remembered ones along. Conversely, two pieces that always succeed or
+fail together are *one item of memory*; bundling them under separate
+phrases produces noisy reviews on either side of a boundary that
+isn't actually a memory boundary. The job of a split is to match the
+phrase boundaries to the memory boundaries.
+
 **Guiding principle.** Group by job. Two fragments doing the *same*
 job — setup and payoff of one thought — usually want to be one
 phrase: a 9-word complete clause beats 4 + 5 that severs the thought
@@ -30,8 +41,10 @@ short.
 
 **The recall test.** Mentally blank each candidate phrase. Can the
 reciter sense the specific shape of what's missing? If yes, the
-boundary is doing useful work. If a blanked phrase leaves a fuzzy
-mid-thought gap, the boundary is in the wrong place.
+boundary is doing useful work — the blanked piece is a distinct
+memorisable unit that could fail or succeed without its neighbours.
+If a blanked phrase leaves a fuzzy mid-thought gap, the two sides
+are one mental move and the boundary is in the wrong place.
 
 **Hard constraints.**
 
@@ -165,19 +178,20 @@ JUDGE_PROMPT = """\
 You are picking the better of two memorisation phrase splits for a
 Bible verse.
 
-A phrase is a *memorisable unit* — a chunk a reciter could blank on
-and still sense the specific shape of the gap from what's left. The
-job of the split is to partition the verse into chunks each doing a
-discrete job, so that forgetting one of them leaves a recognisable
-hole rather than a fuzzy mid-thought blur. Partition by *function*,
-not by grammatical completeness; short framing intros and appositives
-are valid phrases when they do a discrete job different from their
-neighbours.
+**Why split at all.** Each phrase carries its own FSRS recall state.
+The point of a boundary is to give the algorithm useful granularity:
+two pieces that could fail independently want their own states; two
+pieces that always succeed or fail together are one item of memory
+and want to share a state. The better split is the one whose phrase
+boundaries match the verse's memory boundaries — neither finer (so
+boundaries fall mid-thought) nor coarser (so two independently-
+forgettable chunks share one state).
 
-**The recall test.** Mentally blank each phrase in each option. Can
-the reciter sense the specific shape of what's missing from the rest
-of the verse? An option whose blanks leave recognisable holes is
-better than one whose blanks leave mid-thought blurs.
+**The recall test.** Mentally blank each phrase in each option. An
+option whose blanks leave a recognisable shape (each phrase is a
+distinct memorisable unit that could fail without its neighbours) is
+better than one whose blanks leave mid-thought blurs (the two sides
+are one mental move).
 
 **How to read the signals.** The signal block under each option is
 deterministic features of that option — composite score, per-phrase
