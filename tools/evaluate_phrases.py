@@ -41,7 +41,12 @@ from phrase_splitter import (  # noqa: E402
     normalize_reference,
 )
 from phrase_splitter.helpers import html_tags_balanced  # noqa: E402
-from phrase_splitter.features import _signal_float, slice_phrases  # noqa: E402
+from phrase_splitter.features import (  # noqa: E402
+    _COMPOSITE_COMPONENTS,
+    _MISSING_SPLIT_WEIGHT,
+    _signal_float,
+    slice_phrases,
+)
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
     DEFAULT_NKJV_ID,
@@ -120,6 +125,13 @@ def check_verse(verse: Dict[str, Any], tokens: List[str]) -> Dict[str, Any]:
     return {"blockers": [], "signal_score": round(score, 3), "signals": signals}
 
 
+# Rank bullets by their actual contribution to the composite score
+# (signal value × composite weight) so the top-k surfaces the signals
+# that actually dominate the rank, not an arbitrary display priority.
+_SIGNAL_WEIGHTS = {sig_key: weight for _, sig_key, weight in _COMPOSITE_COMPONENTS}
+_SIGNAL_WEIGHTS["missing_split"] = _MISSING_SPLIT_WEIGHT
+
+
 def _top_signals(signals: Dict[str, Any], k: int = 3) -> List[str]:
     """Extract the k most anomalous signal bullets for stdout display.
     Emits at most k human-readable strings; for ``--out`` JSON callers
@@ -127,28 +139,40 @@ def _top_signals(signals: Dict[str, Any], k: int = 3) -> List[str]:
     if not isinstance(signals, dict):
         return []
 
-    bullets: List[Tuple[float, str]] = []  # (severity, message)
+    bullets: List[Tuple[float, str]] = []  # (contribution, message)
 
     for i, b in enumerate(signals.get("boundaries") or []):
         sev = _signal_float(b, "boundary_severance")
         kind = b.get("severance_kind") if isinstance(b, dict) else None
         if sev > 0.0 and kind:
-            bullets.append((sev, f"boundary {i+1}→{i+2}: {kind} (severance={sev:.2f})"))
+            bullets.append((
+                sev * _SIGNAL_WEIGHTS["boundary_severance"],
+                f"boundary {i+1}→{i+2}: {kind} (severance={sev:.2f})",
+            ))
 
     for i, p in enumerate(signals.get("phrases") or []):
         stub = _signal_float(p, "stub_phrase")
         if stub > 0.0:
             wc = p.get("word_count") if isinstance(p, dict) else None
-            bullets.append((stub * 0.5, f"phrase {i+1}: stub ({wc}w)"))
+            bullets.append((
+                stub * _SIGNAL_WEIGHTS["stub_phrase"],
+                f"phrase {i+1}: stub ({wc}w)",
+            ))
         ov = _signal_float(p, "cognitive_overload")
         if ov > 0.0:
             cw = p.get("content_word_count") if isinstance(p, dict) else None
-            bullets.append((ov * 0.6, f"phrase {i+1}: overload ({cw} content words)"))
+            bullets.append((
+                ov * _SIGNAL_WEIGHTS["cognitive_overload"],
+                f"phrase {i+1}: overload ({cw} content words)",
+            ))
 
     missing = _signal_float(signals, "missing_split")
     if missing > 0.0:
         token_count = signals.get("token_count", 0)
-        bullets.append((missing * 0.7, f"single phrase, {token_count} tokens — likely missing split"))
+        bullets.append((
+            missing * _SIGNAL_WEIGHTS["missing_split"],
+            f"single phrase, {token_count} tokens — likely missing split",
+        ))
 
     bullets.sort(reverse=True)
     return [msg for _, msg in bullets[:k]]
