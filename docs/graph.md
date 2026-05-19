@@ -10,8 +10,8 @@ review pipeline see [`review.md`](review.md); for scheduling see [`scheduling.md
 
 The old design carried FSRS state on edges of a multi-layer memory graph (phrase ↔ phrase, gist
 hubs, ref bindings, club hierarchies, …) with credit assignment fanning out across paths. That
-layered into structural problems (see `audit-fsrs6-2026-04-28.md`), and we chose Approach 2 of
-`path-posterior-memory-model.md`: state lives on **tests**, and each test is attached to a single
+layered into structural problems (see `archive/audit-fsrs6-2026-04-28.md`), and we chose Approach 2
+of `path-posterior-memory-model.md`: state lives on **tests**, and each test is attached to a single
 concrete verse-scoped element.
 
 The core therefore needs only two things at build time:
