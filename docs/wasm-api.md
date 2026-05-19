@@ -90,12 +90,16 @@ Throws a JS `Error` if the card id is unknown or `grade` is outside `1..=4`.
 ### Picking the next card
 
 ```ts
-next_card(now_secs: bigint): number | undefined
+next_review_card(now_secs: bigint): number | undefined
+next_memorize_card(now_secs: bigint): number | undefined
 ```
 
-Returns the `card_id` of the card whose weakest test is furthest below the target retention, or
-`undefined` if every card is currently above target. Cards whose tests were touched within the
-sibling-cooldown window are skipped.
+`next_review_card` returns the `card_id` of the card whose weakest test is furthest below the target
+retention, or `undefined` if every card is currently above target. Cards whose tests were touched
+within the sibling-cooldown window are skipped.
+
+`next_memorize_card` picks the next card from the new-verse memorize pool (graduated verses are
+excluded). Used by the memorize flow; the review flow uses `next_review_card`.
 
 ### Rendering a card
 
@@ -228,4 +232,4 @@ Convert with `BigInt(Math.floor(Date.now() / 1000))`.
 
 The constructor throws a JS `Error` (mapped from `JsError`) on malformed JSON. `replay_event` and
 `get_card_render` throw on unknown card ids; `replay_event` additionally rejects grades outside
-`1..=4`. `next_card` and `export_test_states` are infallible.
+`1..=4`. `next_review_card`, `next_memorize_card`, and `export_test_states` are infallible.
