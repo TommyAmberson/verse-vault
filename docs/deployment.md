@@ -180,31 +180,45 @@ sudo -u verse-vault litestream restore -o /var/lib/verse-vault/verse-vault.db \
 
 ### 1. CF Pages project for the SPA
 
-In the CF dashboard, create a Pages project connected to the verse-vault GitHub repo:
+Deploys are driven by `.github/workflows/deploy-web.yml`, which builds on the runner and pushes via
+`wrangler pages deploy` (so CF Pages' native git integration is **not** enabled — we gate releases
+on `version` bumps in `apps/web/package.json` instead of every push).
 
-* **Build command**: `pnpm install && pnpm --filter @verse-vault/web build`
-* **Build output**: `apps/web/dist`
-* **Root directory**: leave blank
-* **Environment variables (Production)** — set both:
-  * `VITE_BASE_PATH=/vv/`
-  * `VITE_API_BASE=/vv/api`
+One-time setup (run locally, with `wrangler` logged into the same CF account):
 
-(Setting them as Production env vars rather than inlining in the build command keeps them visible in
-the dashboard and easy to flip when migrating off the subpath.)
+```bash
+pnpm dlx wrangler pages project create verse-vault-web \
+  --production-branch master \
+  --compatibility-date 2026-05-01
+```
+
+In GitHub repo settings → Secrets and variables → Actions, add:
+
+* `CLOUDFLARE_API_TOKEN` — token with **Pages: Edit** + **Workers Scripts: Edit** + **Account
+  Settings: Read** (Profile → API Tokens → Create Token).
+* `CLOUDFLARE_ACCOUNT_ID` — `92302b1ae0bb49089e62d3a5af313e41`.
+
+To ship: bump `version` in `apps/web/package.json` on master. The workflow detects the change,
+builds with `VITE_BASE_PATH=/vv/` + `VITE_API_BASE=/vv/api`, and runs `wrangler pages deploy`.
+`workflow_dispatch` is the manual escape hatch for the first deploy.
 
 Pages assigns a `*.pages.dev` hostname (e.g. `verse-vault-web.pages.dev`). The Worker will proxy to
 that hostname; no custom domain on the Pages project itself.
 
 ### 2. CF Worker (`vv-router`)
 
-The Worker source is at `deploy/vv-router/`. Deploy it:
+The Worker source is at `deploy/vv-router/` (a workspace member, so it's covered by the root
+`pnpm install`). Deploy it locally:
 
 ```bash
-cd deploy/vv-router
-pnpm install
-# Edit wrangler.toml: set PAGES_HOST = "<your-pages-project>.pages.dev"
-pnpm wrangler deploy
+# Edit deploy/vv-router/wrangler.toml: set PAGES_HOST = "<your-pages-project>.pages.dev"
+pnpm install --frozen-lockfile
+pnpm --filter @verse-vault/vv-router deploy
 ```
+
+Or push a `version` bump in `deploy/vv-router/package.json` to master and the
+`.github/workflows/deploy-vv-router.yml` workflow ships it (uses `CLOUDFLARE_API_TOKEN` +
+`CLOUDFLARE_ACCOUNT_ID` from repo secrets).
 
 The route `www.versevault.ca/vv/*` is declared in `wrangler.toml`, so the deploy registers it
 automatically. The Worker has two responsibilities:
