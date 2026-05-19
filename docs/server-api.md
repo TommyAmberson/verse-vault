@@ -1,279 +1,341 @@
 # Server API
 
-HTTP contract exposed by `@verse-vault/api`. JSON in, JSON out; cookie-based sessions via
-[Better Auth](https://www.better-auth.com). Unless noted, all non-auth endpoints require a valid
-session cookie (401 otherwise).
+HTTP contract exposed by `@verse-vault/api`. JSON in, JSON out; cookie-based auth via Better Auth.
+All `/api/*` routes except `/api/auth/*` require a valid Better Auth session cookie (401 otherwise).
+`Content-Type: application/json` on every request with a body.
 
-## Auth — `/api/auth/*`
+## Thin vs. fat
 
-Handled by Better Auth directly. See the [Better Auth docs](https://www.better-auth.com/docs) for
-the full surface; the ones we rely on today:
+Two parallel route surfaces sit on top of the same engine + event log:
 
-| Method | Path                        | Purpose                      |
-| ------ | --------------------------- | ---------------------------- |
-| POST   | `/api/auth/sign-up/email`   | register with email+password |
-| POST   | `/api/auth/sign-in/email`   | log in                       |
-| POST   | `/api/auth/sign-out`        | log out                      |
-| GET    | `/api/auth/session`         | current session or null      |
-| GET    | `/api/auth/sign-in/social`  | start Google OAuth redirect  |
-| GET    | `/api/auth/callback/google` | OAuth callback               |
+* **Thin client** (`/api/cards/*`) — server picks the next card, server replays the grade. The Vue
+  web app drives this path today.
+* **Fat client** (`/api/sync/*`) — server returns the snapshot + test states; the client runs the
+  engine locally and uploads batched events on reconnect. Server-side routes exist; no client
+  consumes them yet.
+
+Both paths go through the same `EngineStore.withLock(key, …)` serialisation per `(user, material)`
+and write to the same `review_events` table with `clientEventId` dedup. See
+[`persistence.md`](persistence.md) for the storage layer and [`wasm-api.md`](wasm-api.md) for the
+wire shapes the engine emits.
+
+## Auth — `/api/auth/*` (Better Auth)
+
+Mounted by Better Auth's request handler — all routes the library exposes (sign-in, sign-up,
+session, OAuth callbacks, password reset, …) live under this prefix. Configured providers and flows
+depend on the env vars set on the server (`GOOGLE_CLIENT_ID`, etc. — see
+[`deployment.md`](deployment.md)). Sessions are HTTP-only cookies.
+
+Useful endpoints (Better Auth defaults):
+
+| method | path                            | purpose                                       |
+| ------ | ------------------------------- | --------------------------------------------- |
+| GET    | `/api/auth/get-session`         | current session or null                       |
+| POST   | `/api/auth/sign-in/email`       | password sign-in                              |
+| POST   | `/api/auth/sign-out`            | clear session cookie                          |
+| GET    | `/api/auth/callback/<provider>` | OAuth provider callback (per provider config) |
 
 ### `GET /api/me`
 
-Echoes the authenticated user. Useful smoke test.
+Returns the current user. Shortcut over `/api/auth/get-session` that's tighter than the Better Auth
+shape:
 
 ```json
-{ "user": { "id": "...", "email": "alice@example.com", "name": "Alice" } }
+{ "user": { "id": "...", "email": "...", "name": "..." } }
 ```
 
-## Sessions — `/api/sessions/*`
+### `GET /health`
 
-The server owns the review engine: a session is an in-memory handle on the user's `WasmEngine`. Only
-one active session per (user, material) — starting a new one aborts the previous one.
+Unauthenticated. Returns `{ "status": "ok" }`. Useful for uptime probes.
 
-Shared shapes:
+## Cards — `/api/cards/*`
 
-```ts
-SessionCard = {
-  shown: number[];             // node IDs the user can see
-  hidden: number[];             // node IDs they must recall (grade these)
-  is_reading: boolean;          // if true, it's a reading-stage card — send grades: []
-  source_kind: 'scheduled' | 'redrill' | 'new_verse';
-  source_card_id: number | null;
-}
+Thin-client surface: the server holds the engine, picks the next card, renders it, accepts a grade,
+returns updates + the next card.
 
-Grade = { node_id: number; grade: 1 | 2 | 3 | 4 }   // 1=Again … 4=Easy
+### `GET /api/cards/review/next?materialId=...`
 
-ReviewOutcome = {
-  edge_updates: Array<{ edge_id: number; grade: number; weight: number }>;
-  redrills_inserted: number;
+Returns the id of the next card the scheduler wants reviewed, or null if every card is currently
+above target retention (and the sibling cooldown is satisfied).
+
+```json
+{ "cardId": 42 }              // or { "cardId": null }
+```
+
+### `GET /api/cards/memorize/session?materialId=...&max=N`
+
+Returns the next batch of verses to memorise. `max` is clamped to `[1, 50]` (default `1`).
+
+```json
+{
+  "verses": [
+    { "verseId": 12, "cardIds": [101, 102, 103, ...], "recitationCardId": 110 }
+  ]
 }
 ```
 
-### `POST /api/sessions/start`
+`cardIds` are the per-verse drill cards in builder order; `recitationCardId` is the verse's
+Recitation card (or null), used as the anchor render for the session's opening + closing
+walkthroughs.
+
+### `GET /api/cards/:cardId?materialId=...`
+
+Returns everything needed to render a card prompt: the structural wire payload from the engine plus
+optional `composed` HTML layered from the api.bible cache.
+
+```json
+{
+  "cardId": 42,
+  "verseId": 0,
+  "kind": "PhraseFill",
+  "position": 1,
+  "verse": { /* VerseRender — see wasm-api.md */ },
+  "composed": {
+    "phraseHtml": ["<span>…</span>", "…"],
+    "ftvHtml": null,
+    "headings": [{ "headingIdx": 0, "title": "…" }]
+  }
+}
+```
+
+`composed` is `null` when the api.bible cache is unavailable (e.g. `BIBLE_API_KEY` unset). The
+client can still render the prompt from the structural data; just without NKJV text.
+
+### `POST /api/cards/review`
+
+Submit a grade. The server replays the event into the cached engine, persists the touched
+`test_states` rows + an entry in `review_events` in a single transaction, and returns the engine's
+update list plus the next card id.
 
 Request:
 
 ```json
-{
-  "materialId": "nkjv-1cor",
-  "newVerses": [{ "verse_ref": 0, "verse_phrases": [2, 3, 4] }]
-}
+{ "materialId": "nkjv-1cor", "cardId": 42, "grade": 3 }
 ```
-
-`newVerses` is optional; omit to only review scheduled cards.
 
 Response:
 
 ```json
-{ "sessionId": "uuid", "card": SessionCard | null, "done": boolean }
+{
+  "updates": [ /* TestUpdateWire[] — see wasm-api.md */ ],
+  "nextCardId": 43
+}
 ```
 
-`done: true` with `card: null` means there was nothing to review.
+`grade` is `1=Again, 2=Hard, 3=Good, 4=Easy`. `clientEventId` is generated server-side as a UUID;
+the thin path doesn't need clients to supply one.
 
-### `GET /api/sessions/:id/next`
+### `POST /api/cards/memorize/graduate`
 
-Returns the card awaiting review, or `done: true` if the session is exhausted. Idempotent — it peeks
-at the same card until a review lands.
-
-```json
-{ "sessionId": "uuid", "card": SessionCard | null, "done": boolean }
-```
-
-### `POST /api/sessions/:id/review`
+Flips a verse's cards from `New` to `Active`, recording a row in `graduated_verses`. Idempotent —
+re-graduating a graduated verse is a no-op.
 
 Request:
 
 ```json
-{ "grades": [{ "node_id": 2, "grade": 3 }] }
+{ "materialId": "nkjv-1cor", "verseId": 12 }
 ```
 
-For reading-stage cards (`is_reading: true`), send `{ "grades": [] }`.
+Response:
 
-Response — outcome plus the next card (or `done: true`):
+```json
+{ "graduated": 1 }   // 1 = newly graduated, 0 = already was
+```
+
+## Sync — `/api/sync/*`
+
+Fat-client surface. The client hydrates from `/state`, runs reviews offline, uploads batches to
+`/events` on reconnect. Both endpoints share the same data layer as the thin-client routes, so a
+client can mix the two on a single device (a fat client that posts to `/sync/.../events` while
+elsewhere the same user is reviewing via `/cards/review` on another tab will serialise correctly
+through `engines.withLock`).
+
+### `GET /api/sync/:materialId/state`
+
+Hydrate a fresh client. Returns the latest snapshot + every persisted test state + the most recent
+event id (so the client can know where to resume).
 
 ```json
 {
-  "outcome": ReviewOutcome,
-  "sessionId": "uuid",
-  "card": SessionCard | null,
-  "done": boolean
+  "snapshot": {
+    "version": 3,
+    "materialData": { /* parsed MaterialData JSON — see wasm-api.md */ }
+  },
+  "testStates": [ /* TestStateEntry[] */ ],
+  "lastEventId": "01HXX..."
+}
+```
+
+404 if the user isn't enrolled in the material.
+
+### `POST /api/sync/:materialId/events`
+
+Upload a batch. The client supplies a `clientEventId` per event so retries are idempotent. Batch
+size is capped at 500 (413 otherwise — keeps the dedup `inArray` under SQLite's 999-param limit).
+
+Request:
+
+```json
+{
+  "events": [
+    {
+      "clientEventId": "...uuid...",
+      "timestampSecs": 1747600000,
+      "snapshotVersion": 3,
+      "cardId": 42,
+      "grade": 3
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "accepted": 12,
+  "duplicates": 0,
+  "testStates": [ /* TestStateEntry[] — full set after replay */ ],
+  "lastEventId": "01HXX..."
 }
 ```
 
 Side effects (atomic, one transaction):
 
-* Appends a row to `review_events`.
-* Upserts the changed edges into `edge_states`.
-* Upserts `card_states` for every card in the catalog.
+* Appends accepted events to `review_events`.
+* Upserts touched rows in `test_states` (filtered to the keys the engine reported as changed).
 
-When `done: true`, the session is removed from the in-memory store; a later `/next` returns 404.
-
-### `POST /api/sessions/:id/abort`
-
-Aborts the session — any new-verse cards that were flipped to Learning roll back to New. Returns
-`{ "ok": true }`.
-
-## Sync — `/api/sync/*`
-
-Fat-client endpoints for offline review + catch-up. The client hydrates its local cache from
-`/state`, runs reviews offline, and uploads batches to `/events` when it reconnects.
-
-Shared shapes:
-
-```ts
-EdgeStateEntry = {
-  edge_id: number;
-  stability: number;
-  difficulty: number;
-  last_review_secs: number;
-}
-
-CardStateEntry = {
-  card_id: number;
-  state: 'new' | 'learning' | 'review' | 'relearning';
-  due_r: number | null;
-  due_date_secs: number | null;
-  priority: number | null;
-}
-
-ReviewEventUpload = {
-  clientEventId: string;          // client-generated UUID — idempotency key
-  timestampSecs: number;
-  snapshotVersion: number;
-  cardId: number | null;          // null for re-drills
-  shown: number[];
-  hidden: number[];
-  grades: Grade[];
-}
-```
-
-### `GET /api/sync/:materialId/state`
-
-Hydrate a fresh client. Returns the latest graph snapshot plus the user's materialized state.
-
-```json
-{
-  "snapshot": {
-    "version": 1,
-    "graphData": { ... },     // parsed graph JSON
-    "cardsData": [ ... ]      // parsed card catalog JSON
-  },
-  "edgeStates": EdgeStateEntry[],
-  "cardStates": CardStateEntry[],
-  "lastEventId": "uuid" | null
-}
-```
-
-404 if the caller isn't enrolled in the material.
-
-### `POST /api/sync/:materialId/events`
-
-Upload a batch of offline review events.
-
-Request:
-
-```json
-{ "events": ReviewEventUpload[] }
-```
-
-Response:
-
-```json
-{
-  "accepted": 3,                 // new events applied
-  "duplicates": 1,               // events skipped by clientEventId match
-  "edgeStates": EdgeStateEntry[], // engine's full state after replay
-  "cardStates": CardStateEntry[],
-  "lastEventId": "uuid" | null
-}
-```
-
-Side effects are a single transaction: append new events, upsert the union of changed edges, upsert
-every card's state. See [persistence.md](persistence.md#upload-flow--post-apisyncmaterialidevents)
-for replay semantics.
-
-`lastEventId` is the chronologically latest event (ordered by `timestampSecs` then `id`), the same
-value GET `/state` returns. Safe to use as a resume cursor — re-uploading an older batch does not
-rewind it.
+Snapshot-version mismatch returns 409 — the client must re-fetch `/state` and rebuild its local
+engine before retrying. A duplicate `clientEventId` is silently dropped (counted under
+`duplicates`); the rest of the batch still applies.
 
 ## Materials — `/api/materials/*`
 
-Catalog of available materials + per-user enrollment. The catalog is a static manifest today; the
-content pipeline will eventually feed it.
+### `GET /api/materials/`
 
-### `GET /api/materials`
+Lists the materials the server knows about (decks bundled in `data/`). Doesn't reveal enrollment
+state; pair with `/years` for per-material status.
 
 ```json
-{
-  "materials": [
-    { "id": "nkjv-1cor", "title": "1 Corinthians (NKJV)", "description": "…" }
-  ]
-}
+{ "materials": [ { "id": "nkjv-1cor", "title": "1 Corinthians", "description": "..." } ] }
 ```
 
 ### `POST /api/materials/enroll`
 
-Enrolls the caller, inserts the initial graph snapshot, and seeds `card_states` so status queries
-work before any reviews. Re-enrolling returns 409.
+Enrolls the current user in a material. Idempotent at the user-error level (409 if already enrolled
+— use `/api/years/:materialId/settings` to change a scope on an existing enrollment).
 
 Request:
 
 ```json
-{ "materialId": "nkjv-1cor", "clubTier": 150 }
+{ "materialId": "nkjv-1cor", "clubTier": 300 }   // clubTier: 150 | 300 | null
 ```
-
-`clubTier` is optional (`150`, `300`, or omitted for "full material").
 
 Response:
 
 ```json
-{ "materialId": "nkjv-1cor", "snapshotId": "uuid", "version": 1 }
+{ "materialId": "nkjv-1cor", "snapshotId": "...", "version": 1 }
 ```
-
-Errors: 404 for an unknown material, 409 for a duplicate enrollment.
 
 ### `GET /api/materials/:id/status`
 
+Per-material enrollment summary:
+
+```json
+{ "materialId": "nkjv-1cor", "clubTier": 300, "testCount": 1247 }
+```
+
+`testCount` is the number of persisted `test_states` rows — proxies "how much progress is on file."
+
+## Years — `/api/years/*`
+
+The material picker. `years` is a misnomer left over from the original deck-per-year naming; returns
+one row per material the user can interact with (enrolled or not).
+
+### `GET /api/years/`
+
+Returns every material plus per-tier counts and the user's current scope settings. Drives the
+material-picker UI.
+
 ```json
 {
-  "materialId": "nkjv-1cor",
-  "clubTier": 150,
-  "cardCounts": { "new": 1, "learning": 0, "review": 0, "relearning": 0 },
-  "nextDueSecs": null
+  "years": [
+    {
+      "materialId": "nkjv-1cor",
+      "title": "1 Corinthians",
+      "description": "...",
+      "enrolled": true,
+      "settings": {
+        "headings": true,
+        "ftv": false,
+        "newScope": "up300",
+        "reviewScope": "all",
+        "clubCardScope": "up300",
+        "chapterListScope": "up150",
+        "lessonBatchSize": 5
+      },
+      "clubs": {
+        "Club150": { "status": "active", "totalVerses": 312, "newVerses": 42 },
+        "Club300": { "status": "maintenance", "totalVerses": 580, "newVerses": 0 }
+      },
+      "newCardCount": 87
+    }
+  ]
 }
 ```
 
-404 if the material is unknown or the caller isn't enrolled.
+### `POST /api/years/:materialId/settings`
+
+Update the user's scope toggles for a material. Auto-enrolls if `newScope` or `reviewScope` is
+bumped above `off` and the user isn't yet enrolled. Invalidates the in-memory engine for the key on
+success so the next `/cards/*` call rebuilds.
+
+Request body is a partial `YearSettings`:
+
+```json
+{ "newScope": "up300", "headings": true }
+```
+
+Response returns the full updated settings:
+
+```json
+{ "settings": { "headings": true, "ftv": false, "newScope": "up300", ... } }
+```
 
 ## Stats — `/api/stats/:materialId`
+
+Per-material progress dashboard payload. Returns retention rate (passes / total grades over all
+`review_events`), the number of verses with at least one Familiar+ test, and a stability histogram
+over `test_states`:
 
 ```json
 {
   "materialId": "nkjv-1cor",
-  "versesLearned": 0,
-  "retentionRate": 0.92,
-  "totalGrades": 120,
-  "edgeDistribution": {
-    "weak": 0, "learning": 5, "familiar": 3, "strong": 2, "mastered": 1
+  "versesLearned": 84,
+  "retentionRate": 0.91,
+  "totalGrades": 1432,
+  "testDistribution": {
+    "weak": 410,
+    "learning": 230,
+    "familiar": 180,
+    "strong": 120,
+    "mastered": 95
   }
 }
 ```
 
-* `versesLearned`: cards currently in `review` state.
-* `retentionRate`: fraction of all grades in `review_events` that were a pass (3 or 4). `null` if no
-  reviews yet.
-* `totalGrades`: denominator for `retentionRate`, handy for displaying sample size.
-* `edgeDistribution`: edge counts bucketed by stability (days): `weak < 1`, `learning < 7`,
-  `familiar < 30`, `strong < 90`, `mastered ≥ 90`.
+Stability buckets (days): `weak < 1`, `learning [1, 7)`, `familiar [7, 30)`, `strong [30, 90)`,
+`mastered >= 90`.
 
-404 on unknown material or non-enrolled caller.
+## Status codes
 
-## Errors
+| status | when                                                                                                 |
+| ------ | ---------------------------------------------------------------------------------------------------- |
+| 400    | malformed JSON, missing required field, invalid `grade`, invalid scope value, …                      |
+| 401    | no session cookie / expired session                                                                  |
+| 404    | material id unknown, or caller not enrolled in the requested material, or card id unknown            |
+| 409    | sync batch uses a stale `snapshotVersion`, or already-enrolled on `/enroll`                          |
+| 413    | sync batch exceeds the 500-event cap                                                                 |
+| 500    | engine threw on `replay_event` / `get_card_render` (unknown card id, malformed state) — caller's bug |
 
-| Status | Meaning                                                                                                |
-| ------ | ------------------------------------------------------------------------------------------------------ |
-| 400    | Malformed body, missing field, or engine rejected input                                                |
-| 401    | No session cookie / expired session                                                                    |
-| 404    | Session ID unknown / not owned by caller, or user not enrolled in the material                         |
-| 409    | Session found but no card awaiting review, sync batch uses a stale `snapshotVersion`, or re-enrollment |
+All error bodies follow `{ "error": "..." }`.
