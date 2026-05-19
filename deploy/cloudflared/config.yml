@@ -1,0 +1,17 @@
+# /etc/cloudflared/config.yml
+#
+# Map the `vv-api` tunnel to the local Node API. Replace <UUID> with the
+# value `cloudflared tunnel create vv-api` printed (also the filename of
+# the credentials file it wrote under /opt/verse-vault/.cloudflared/).
+
+tunnel: <UUID>
+credentials-file: /opt/verse-vault/.cloudflared/<UUID>.json
+
+ingress:
+  - hostname: vv-api.versevault.ca
+    service: http://127.0.0.1:3000
+    originRequest:
+      # Hono is a Node server; HTTP/1.1 over the loopback is fine.
+      noTLSVerify: true
+  # cloudflared requires a catch-all 404 rule at the end.
+  - service: http_status:404
