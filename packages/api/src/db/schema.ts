@@ -146,6 +146,14 @@ export const graphSnapshots = sqliteTable(
   },
   (t) => ({
     userMaterialIdx: index('idx_graph_snapshots_user_material').on(t.userId, t.materialId),
+    // Two concurrent EngineStore.load callers on a stale snapshot would
+    // otherwise both insert version=N+1, leaving the desc-version pick
+    // non-deterministic.
+    versionUnique: uniqueIndex('uniq_graph_snapshots_user_material_version').on(
+      t.userId,
+      t.materialId,
+      t.version,
+    ),
   }),
 );
 

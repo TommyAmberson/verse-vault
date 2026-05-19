@@ -66,7 +66,8 @@ fn recitation_lifts_phrases_and_bindings_without_advancing_last_root() {
         kind: TestKind::PhraseFromContext,
         element: ElementId::Phrase {
             verse_id: 0,
-            position: 0,
+            start_word: 0,
+            end_word: 2,
         },
     };
     let phrase_state = engine
@@ -142,7 +143,8 @@ fn recitation_does_not_saturate_bindings_to_s_max() {
         kind: TestKind::PhraseFromContext,
         element: ElementId::Phrase {
             verse_id: 0,
-            position: 0,
+            start_word: 0,
+            end_word: 2,
         },
     };
     let chapter_state = engine.test_state(chapter_binding).copied().unwrap();

@@ -3,7 +3,10 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct VerseElements {
-    pub phrases: Vec<u16>,
+    /// Per-phrase content-stable word ranges `[start, end)`. Replaces
+    /// the older positional list; one entry per phrase, in builder
+    /// order.
+    pub phrase_ranges: Vec<(u16, u16)>,
     pub headings: Vec<u16>,
     pub clubs: Vec<ClubTier>,
 }
@@ -30,11 +33,12 @@ impl VerseIndex {
         self.verses
             .get(&verse_id)
             .map(|e| {
-                e.phrases
+                e.phrase_ranges
                     .iter()
-                    .map(|&p| ElementId::Phrase {
+                    .map(|&(start_word, end_word)| ElementId::Phrase {
                         verse_id,
-                        position: p,
+                        start_word,
+                        end_word,
                     })
                     .collect()
             })
@@ -72,7 +76,7 @@ mod tests {
         idx.add_verse(
             7,
             VerseElements {
-                phrases: vec![0, 1, 2],
+                phrase_ranges: vec![(0, 2), (2, 4), (4, 6)],
                 headings: vec![],
                 clubs: vec![],
             },
@@ -87,7 +91,7 @@ mod tests {
         idx.add_verse(
             7,
             VerseElements {
-                phrases: vec![0],
+                phrase_ranges: vec![(0, 3)],
                 headings: vec![0],
                 clubs: vec![ClubTier::Club150],
             },

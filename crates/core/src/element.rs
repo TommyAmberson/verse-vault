@@ -19,12 +19,33 @@ pub enum ClubTier {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum ElementId {
-    Phrase { verse_id: u32, position: u16 },
-    VerseRefPosition { verse_id: u32 },
-    VerseChapterBinding { verse_id: u32 },
-    VerseBookBinding { verse_id: u32 },
-    VerseHeadingBinding { verse_id: u32, heading_idx: u16 },
-    VerseClubBinding { verse_id: u32, tier: ClubTier },
+    /// A phrase identified by its half-open word range `[start_word,
+    /// end_word)` in the verse text. Stable across phrase-split changes
+    /// as long as the underlying verse text doesn't move: a phrase whose
+    /// boundaries shift becomes a different element and gets fresh FSRS
+    /// state; a phrase whose boundaries survive keeps its state.
+    Phrase {
+        verse_id: u32,
+        start_word: u16,
+        end_word: u16,
+    },
+    VerseRefPosition {
+        verse_id: u32,
+    },
+    VerseChapterBinding {
+        verse_id: u32,
+    },
+    VerseBookBinding {
+        verse_id: u32,
+    },
+    VerseHeadingBinding {
+        verse_id: u32,
+        heading_idx: u16,
+    },
+    VerseClubBinding {
+        verse_id: u32,
+        tier: ClubTier,
+    },
 }
 
 #[cfg(test)]
@@ -35,7 +56,8 @@ mod tests {
     fn element_id_serializes() {
         let e = ElementId::Phrase {
             verse_id: 1,
-            position: 0,
+            start_word: 0,
+            end_word: 2,
         };
         let j = serde_json::to_string(&e).unwrap();
         let r: ElementId = serde_json::from_str(&j).unwrap();
