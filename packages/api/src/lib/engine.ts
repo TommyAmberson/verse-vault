@@ -77,6 +77,21 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
   });
 }
 
+export function getLatestSnapshot(db: DB, key: EngineKey) {
+  return db
+    .select()
+    .from(schema.graphSnapshots)
+    .where(
+      and(
+        eq(schema.graphSnapshots.userId, key.userId),
+        eq(schema.graphSnapshots.materialId, key.materialId),
+      ),
+    )
+    .orderBy(desc(schema.graphSnapshots.version))
+    .limit(1)
+    .get();
+}
+
 export function readTestStateEntries(db: DB, key: EngineKey): TestStateEntry[] {
   return db
     .select()
@@ -126,18 +141,7 @@ export class EngineStore {
     const cached = this.cache.get(userMaterialKey(key));
     if (cached) return cached;
 
-    const snapshot = this.db
-      .select()
-      .from(schema.graphSnapshots)
-      .where(
-        and(
-          eq(schema.graphSnapshots.userId, key.userId),
-          eq(schema.graphSnapshots.materialId, key.materialId),
-        ),
-      )
-      .orderBy(desc(schema.graphSnapshots.version))
-      .limit(1)
-      .get();
+    const snapshot = getLatestSnapshot(this.db, key);
     if (!snapshot) {
       throw new NotEnrolledError(key);
     }
