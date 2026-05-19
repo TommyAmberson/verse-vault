@@ -45,6 +45,9 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 * `docs/session.md` — within-session flow (re-drills, progressive reveal)
 * `docs/validation.md` — proofs, simulation framework, test scenarios
 * `docs/wasm-api.md` — WASM boundary: exposed functions, JSON shapes
+* `docs/server-api.md` — HTTP API contract: routes, payloads, status codes
+* `docs/persistence.md` — database schema + event sourcing
+* `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
 * `docs/audit-fsrs6-2026-04-28.md` — historical audit folded into the HSRS migration
 
 ## Pre-commit checks
