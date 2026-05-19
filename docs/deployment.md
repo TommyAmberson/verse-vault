@@ -148,7 +148,7 @@ DB.
 ### 5. Cloudflare Tunnel
 
 ```bash
-sudo -u verse-vault cloudflared tunnel login           # opens a browser flow on a paired laptop
+sudo -u verse-vault cloudflared tunnel login           # prints a URL — open it in a local browser to authorise the box
 sudo -u verse-vault cloudflared tunnel create vv-api
 sudo cp /opt/verse-vault/app/deploy/cloudflared/config.yml /etc/cloudflared/config.yml
 sudoedit /etc/cloudflared/config.yml                   # paste in the tunnel UUID + credentials path
@@ -182,11 +182,15 @@ sudo -u verse-vault litestream restore -o /var/lib/verse-vault/verse-vault.db \
 
 In the CF dashboard, create a Pages project connected to the verse-vault GitHub repo:
 
-* **Build command**:
-  `VITE_BASE_PATH=/vv/ VITE_API_BASE=/vv/api pnpm install && pnpm --filter @verse-vault/web build`
+* **Build command**: `pnpm install && pnpm --filter @verse-vault/web build`
 * **Build output**: `apps/web/dist`
 * **Root directory**: leave blank
-* **Environment variables (Production)**: copy `VITE_BASE_PATH` and `VITE_API_BASE` from above.
+* **Environment variables (Production)** — set both:
+  * `VITE_BASE_PATH=/vv/`
+  * `VITE_API_BASE=/vv/api`
+
+(Setting them as Production env vars rather than inlining in the build command keeps them visible in
+the dashboard and easy to flip when migrating off the subpath.)
 
 Pages assigns a `*.pages.dev` hostname (e.g. `verse-vault-web.pages.dev`). The Worker will proxy to
 that hostname; no custom domain on the Pages project itself.
