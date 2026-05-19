@@ -105,11 +105,7 @@ SEVERANCE_BARE_RELATIVE = "bare_relative"
 SEVERANCE_STRANDED_STUB = "stranded_stub"
 
 
-def count_syllables(word: str) -> int:
-    """Vowel-cluster heuristic — count contiguous vowel runs, with a
-    light correction for silent trailing ``e``. Off-by-one is fine; the
-    signal only needs to order phrases roughly by speakability."""
-    w = normalise_word(word)
+def _count_syllables_normalised(w: str) -> int:
     if not w:
         return 0
     vowels = "aeiouy"
@@ -125,6 +121,13 @@ def count_syllables(word: str) -> int:
     if w.endswith("e") and count > 1:
         count -= 1
     return max(1, count)
+
+
+def count_syllables(word: str) -> int:
+    """Vowel-cluster heuristic — count contiguous vowel runs, with a
+    light correction for silent trailing ``e``. Off-by-one is fine; the
+    signal only needs to order phrases roughly by speakability."""
+    return _count_syllables_normalised(normalise_word(word))
 
 
 def slice_phrases(tokens_list: Sequence[str], pwc: Sequence[int]) -> List[List[str]]:
@@ -208,7 +211,7 @@ def extract_phrase_features(
     syllables = 0
     for t in phrase_tokens:
         w = normalise_word(t)
-        syllables += count_syllables(t)
+        syllables += _count_syllables_normalised(w)
         if w and w not in FUNCTION_WORDS:
             content += 1
     function_ratio = (wc - content) / wc if wc else 0.0
