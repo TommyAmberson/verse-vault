@@ -52,12 +52,19 @@ desktop) runs the same compiled Rust.
 
 ## Client modes
 
-* **Thin client**: UI asks the server for the next card and submits grades. Server runs the WASM
-  engine, holds state in memory, persists to SQLite.
-* **Fat client**: UI downloads graph + event log, runs the WASM engine locally for offline reviews,
-  uploads new events when back online.
+The server exposes two parallel route surfaces over the same engine + event log; both paths go
+through the same per-(user, material) lock and share the `review_events` audit trail.
 
-Both modes use the same WASM module. The server's event log is the source of truth; a client that
+* **Thin client** (`/api/cards/*`): UI asks the server for the next card and submits one grade at a
+  time. Server runs the WASM engine, holds state in memory, persists to SQLite. _Implemented and
+  driving the Vue web app today._
+* **Fat client** (`/api/sync/*`): UI downloads the latest snapshot + test states from `/state`, runs
+  the WASM engine locally for offline reviews, uploads batched events to `/events` on reconnect
+  (with a `snapshotVersion` gate + `clientEventId` dedup). _Server-side endpoints are implemented;
+  no client uses them yet — needs the WASM crate built with `--target web`, an IndexedDB-backed
+  engine wrapper, and offline plumbing in the Vue app._
+
+Both modes use the same compiled core. The server's event log is the source of truth; a client that
 goes offline and submits events later has its events merged by timestamp and the state recomputed.
 
 ## Why a TypeScript server?
