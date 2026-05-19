@@ -80,17 +80,18 @@ def _collect_refs(
     refs_arg: Optional[str],
     from_report: Optional[str],
     top: Optional[int],
-) -> List[str]:
+) -> tuple[List[str], Optional[List[Dict[str, Any]]]]:
     if refs_arg:
         raw = [r.strip() for r in refs_arg.split(",") if r.strip()]
-        return [normalize_reference(r) for r in raw]
+        return [normalize_reference(r) for r in raw], None
     if from_report:
         with open(from_report, encoding="utf-8") as f:
             report = json.load(f)
         refs = [entry["ref"] for entry in report]
         if top is not None:
             refs = refs[:top]
-        return refs
+            report = report[:top]
+        return refs, report
     raise SystemExit("must pass --refs or --from-report")
 
 
@@ -160,14 +161,14 @@ def _signals_for_ref(
     ref: str,
     tokens: List[str],
     pwc: List[int],
-    from_report: Optional[List[Dict[str, Any]]],
+    report_by_ref: Optional[Dict[str, Dict[str, Any]]],
 ) -> Optional[Dict[str, Any]]:
     """Prefer signals from a pre-computed report when available; else
     compute fresh from the canonical tokens + the deck's pwc."""
-    if from_report is not None:
-        for entry in from_report:
-            if entry.get("ref") == ref and entry.get("signals"):
-                return entry["signals"]
+    if report_by_ref is not None:
+        signals = report_by_ref.get(ref)
+        if signals:
+            return signals
     if not tokens or not pwc:
         return None
     return extract_verse_features(tokens, pwc)
@@ -176,13 +177,14 @@ def _signals_for_ref(
 def cmd_print_prompt(args: argparse.Namespace) -> None:
     with open(args.deck, encoding="utf-8") as f:
         deck = json.load(f)
-    refs = _collect_refs(args.refs, args.from_report, args.top)
+    refs, report_data = _collect_refs(args.refs, args.from_report, args.top)
     by_ref = _verse_by_ref(deck)
 
-    report_data: Optional[List[Dict[str, Any]]] = None
-    if args.from_report:
-        with open(args.from_report, encoding="utf-8") as f:
-            report_data = json.load(f)
+    report_by_ref: Optional[Dict[str, Dict[str, Any]]] = None
+    if report_data is not None:
+        report_by_ref = {
+            e["ref"]: e["signals"] for e in report_data if e.get("signals")
+        }
 
     conn = open_cache(args.db)
     try:
@@ -207,7 +209,7 @@ def cmd_print_prompt(args: argparse.Namespace) -> None:
 
             signals_block: Optional[str] = None
             if not args.no_signals:
-                signals = _signals_for_ref(ref, tokens, pwc, report_data)
+                signals = _signals_for_ref(ref, tokens, pwc, report_by_ref)
                 if signals is not None:
                     signals_block = _render_signals(signals)
 
@@ -231,13 +233,6 @@ def cmd_print_prompt(args: argparse.Namespace) -> None:
 
 def _word_count(s: str) -> int:
     return len(s.split())
-
-
-def _render_split_from_tokens(tokens: List[str], pwc: List[int]) -> str:
-    """One bullet per phrase, identical to ``_render_current_split`` —
-    kept as a separate name so the judge-pairs code reads clearly when
-    it renders option B (the proposed split, not "current")."""
-    return _render_current_split(tokens, pwc)
 
 
 def cmd_judge_pairs(args: argparse.Namespace) -> None:
@@ -285,7 +280,7 @@ def cmd_judge_pairs(args: argparse.Namespace) -> None:
                 skipped_match += 1
                 continue
             current_split = _render_current_split(tokens, current_pwc)
-            proposed_split = _render_split_from_tokens(tokens, proposed_pwc)
+            proposed_split = _render_current_split(tokens, proposed_pwc)
             current_signals = _render_signals(extract_verse_features(tokens, current_pwc))
             proposed_signals = _render_signals(extract_verse_features(tokens, proposed_pwc))
             text = " ".join(tokens)
