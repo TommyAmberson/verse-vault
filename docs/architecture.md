@@ -20,9 +20,12 @@ verse-vault is structured as:
   Used by the TypeScript server and the browser frontend.
 * **Simulation binary (`crates/sim/`)** — offline validation tool. Runs a synthetic learner against
   the core to benchmark behavior.
-* **Server (`packages/api/`, TBD)** — Hono + Better Auth + Drizzle. Hosts the engine, handles
-  persistence, auth, and multi-user state.
-* **Clients (`apps/`, TBD)** — Vue web app, Tauri desktop, CLI.
+* **Server (`packages/api/`)** — Hono + Better Auth + Drizzle + better-sqlite3. Hosts the engine,
+  handles persistence, auth, and multi-user state. Five route groups under `/api/`: `cards`, `sync`,
+  `materials`, `years`, `stats`.
+* **Web client (`apps/web/`)** — Vue 3 + Vite SPA. Currently a thin client (no local WASM); the Vue
+  app + the server engine round-trip every grade.
+* **Desktop / CLI** — planned, not yet started.
 
 The core is the single source of truth for memory modeling. Every platform (server, browser,
 desktop) runs the same compiled Rust.
@@ -31,23 +34,24 @@ desktop) runs the same compiled Rust.
 
 ```
 ┌──────────────┐                    ┌──────────────────┐
-│  Client UI   │  HTTP (auth/api)   │  TypeScript API  │
-│  Vue / Tauri │ ─────────────────► │  Hono + Better   │
+│  Vue web SPA │  HTTP (auth/api)   │  TypeScript API  │
+│  (thin)      │ ─────────────────► │  Hono + Better   │
 │              │                    │  Auth + Drizzle  │
-└──────┬───────┘                    └────────┬─────────┘
-       │                                     │
-       │ (offline, same WASM module)         │ (server-side engine)
-       ▼                                     ▼
-┌──────────────────────────────────────────────────────┐
-│           verse-vault-wasm (WASM module)             │
-│  WasmEngine: load → session → review → export        │
-└──────────────────────┬───────────────────────────────┘
-                       │ (pure Rust)
-                       ▼
-┌──────────────────────────────────────────────────────┐
-│            verse-vault-core (crates/core)            │
-│   TestState, ReviewEngine, Session, FsrsBridge       │
-└──────────────────────────────────────────────────────┘
+└──────────────┘                    └────────┬─────────┘
+   (future fat-client: same WASM             │
+    module loaded in browser)                ▼
+                                ┌──────────────────────────────────┐
+                                │    verse-vault-wasm (nodejs)     │
+                                │  WasmEngine: load → next_card    │
+                                │            → replay_event        │
+                                │            → export_test_states  │
+                                └──────────────┬───────────────────┘
+                                               │ (pure Rust)
+                                               ▼
+                                ┌──────────────────────────────────┐
+                                │     verse-vault-core (crates)    │
+                                │  TestState, ReviewEngine, …      │
+                                └──────────────────────────────────┘
 ```
 
 ## Client modes
@@ -87,5 +91,7 @@ limits for larger verse sets). See `docs/deployment.md`.
 * `docs/scheduling.md` — per-test FSRS scheduling and sibling cooldown
 * `docs/session.md` — within-session flow
 * `docs/wasm-api.md` — WASM boundary contract
+* `docs/server-api.md` — HTTP API contract (routes, payloads, status codes)
 * `docs/persistence.md` — database schema + event sourcing
+* `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
 * `docs/audit-fsrs6-2026-04-28.md` — historical audit notes folded into the migration
