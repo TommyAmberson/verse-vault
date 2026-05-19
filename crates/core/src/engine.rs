@@ -113,15 +113,9 @@ impl ReviewEngine {
             return atoms.clone();
         }
         let phrases = self.verse_index.phrases_of(verse_id);
-        let headings = if let Some(e) = self.verse_index.elements_of(verse_id) {
-            e.headings.clone()
-        } else {
-            Vec::new()
-        };
-        let clubs = if let Some(e) = self.verse_index.elements_of(verse_id) {
-            e.clubs.clone()
-        } else {
-            Vec::new()
+        let (headings, clubs) = match self.verse_index.elements_of(verse_id) {
+            Some(e) => (e.headings.clone(), e.clubs.clone()),
+            None => (Vec::new(), Vec::new()),
         };
         VerseAtoms {
             verse_id,
