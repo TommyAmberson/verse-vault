@@ -1,78 +1,157 @@
-# Phrase-split quality criteria
+# Each phrase is a memorisable chunk
 
-A phrase is a unit a reciter holds in working memory while saying the verse from memory. The split
-should feel like natural pauses — where a careful reader would breathe.
+That is the guiding principle. There are no rules, only signals; every verse is subjective.
 
-## Guiding principle
+A phrase is a _memorisable unit_ — a chunk a reciter could blank on while still sensing the specific
+shape of the gap from what's left. The job of the split is to partition the verse into chunks each
+doing a discrete job, so that forgetting one of them leaves a recognisable hole rather than a fuzzy
+mid-thought blur.
 
-**Keep splits small, but completeness of thought matters more than size.** Every phrase should be a
-self-contained unit of meaning. A 9-word phrase that finishes a thought is better than 4 + 5 that
-severs it. When in doubt between a shorter awkward split and a longer natural one, choose the
-natural one. All the rules below are in service of this principle, not above it.
+Critically, this is **not** the same as "each phrase reads as a complete sentence." A 4-word framing
+intro like _"but these are written"_ doesn't stand alone as prose, but it's a perfectly valid
+memorisable chunk — it does a discrete job (introducing what follows) distinct from the content it
+introduces. Partition by _function_, not by grammatical completeness.
 
-## Hard rules (deterministic checks enforce these)
+Aim for the _best_ split, which is not always a different split. Two fragments doing the _same_ job
+(setup and payoff of one thought) usually want to be one phrase: a 9-word complete clause beats 4 +
+5 that severs the thought. Two fragments doing _different_ jobs (framing intro + the content it
+introduces) usually want to be separate phrases, even when one is short. **Length is not a hard
+rule.**
+
+## How phrases are reviewed
+
+Each phrase ends up reviewed in two modes — the split is the partition both modes operate on, so
+boundary choices need to make sense for each.
+
+* **PhraseFill** (`CardKind::PhraseFill`, `crates/core/src/card.rs`). The whole verse is rendered
+  with one phrase blanked (`___`) and every other phrase visible. The reciter recovers the blanked
+  phrase from surrounding context. Grade updates that phrase's FSRS state directly — one grade, one
+  phrase.
+* **Recitation** (`CardKind::Recitation`). Only the verse reference is shown. The reciter recites
+  the whole verse from memory, then reveals to grade. One grade is decomposed across every phrase's
+  FSRS state (Bayesian-share decomposition in the engine).
+
+The third UI mode, `CardKind::Reading`, shows the full verse with no blanks — progressive-reveal
+teaching only, no FSRS state. Splits don't affect it.
+
+PhraseFill demands each phrase be **recoverable from context** — blank it, the rest of the verse
+must constrain what goes in the gap. Recitation demands each phrase be a **real memory unit** whose
+recall state means something on its own — when the composite grade is decomposed across phrases, it
+should land cleanly on the piece that failed.
+
+## Why split at all
+
+Each phrase carries its own FSRS recall state. The split's job is to put boundaries at real memory
+seams — points where the reciter could plausibly fail one side without the other. Both directions
+away from that have costs, and each direction primarily damages one of the two review modes.
+
+### Under-splitting — hurts Recitation
+
+Bundling two separable memories under one state. Two costs:
+
+* **Stability interference.** Composite-memory stability follows roughly
+
+  ```
+  S = (S_a × S_b) / (S_a + S_b)
+  ```
+
+  — always lower than either piece alone, approaching zero as more pieces compose
+  ([Memory Complexity in the open-spaced-repetition wiki](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/Spaced-Repetition-Algorithm%3A-A-Three%E2%80%90Day-Journey-from-Novice-to-Expert#memory-complexity)
+  has the derivation). Two separable memories sharing one state means the state decays prematurely
+  for both.
+* **State stops representing the memory.** When a Recitation grade is decomposed across phrases, the
+  share landing on a bundled phrase reflects whichever sub-piece the reciter failed — polluting the
+  state of the piece they had down cold. The FSRS value stops representing any single memory's
+  strength.
+
+The algorithmic pressure from this side runs toward _finer_ splits: atomic flashcards from the
+start.
+
+### Over-splitting — hurts PhraseFill
+
+Cutting boundaries finer than the actual memory structure:
+
+* **Incoherent units.** A phrase too small to be a coherent memorisable unit — a sub-clause the
+  reciter can't recover from context — produces noise on PhraseFill rather than signal. The blank
+  has no recognisable shape because the surrounding context doesn't constrain it.
+* **Awkward, unnatural cuts.** Boundaries that fall mid-thought break review flow and confuse the
+  reciter about where they are in the verse.
+* **Intertwined memories.** Two pieces the reciter would always succeed or fail _together_ are
+  intertwined enough to be one memory unit. Giving them separate states produces noisy reviews on
+  either side of a boundary that isn't a memory boundary.
+* **Card multiplication.** More phrases means more PhraseFill reviews without proportional
+  information gain.
+
+### The sweet spot
+
+Aim for the granularity that matches the verse's actual memory structure: as fine as it really is,
+no finer. The recall test below is the operational test — if blanking a candidate phrase leaves a
+recognisable shape from what's left, the boundary is at a real memory seam; if it leaves a fuzzy
+mid-thought gap, the two sides are one memory unit.
+
+## Hard constraints
+
+These three failures are blockers — the auditor flags them as `blockers` and the deck can't be
+written until they're fixed:
 
 * **Rejoin invariant.** `" ".join(phrases) == text` — exact match including HTML tags, punctuation,
   and quotation marks. If a split doesn't round-trip, it's wrong.
-* **Phrase length: target 3–10 words.** 12 is the soft warning ceiling that the auditor surfaces for
-  review. There is no validator cap: a phrase can exceed 12 when a clause is genuinely continuous
-  and has no natural internal breakpoint (e.g.
-  `"that his spirit may be saved in the day of the Lord Jesus."`). The lower bound allows 1+ to
-  admit short _rhetorical or completive_ tails like `"and Him crucified."` or `"be the glory."` —
-  closing flourishes that stand on their own. A short tail is **not** licensed when it is a
-  grammatical fragment severed from a mid-verse clause (e.g. `"that was made."` chopped off
-  `"nothing was made that was made."`). Prefer naturalness over hitting the target.
-* **HTML tag balance.** Every `<b>`, `<i>`, `<span ...>` open must close inside the same phrase.
-  Never split inside a tag.
+* **Word counts sum.** The per-verse `phraseWordCounts` must sum to the canonical token count from
+  api.bible. Drift means the deck and canonical text disagree.
+* **HTML tag balance inside each phrase.** Every `<b>`, `<i>`, `<span ...>` open inside a phrase
+  must close inside the same phrase. A split that falls inside a tag fails this check.
 
-## Soft rules (where most quality problems hide)
+## Signals (context, not rules)
 
-* **No stranded short fragments mid-verse.** `"But one"` followed by the rest of the verse is the
-  classic bad break. If a 1–2 word phrase sits between two longer ones, it almost always belongs
-  glued to the next.
-* **Honour parallel structure.** `"not many wise / not many mighty / not many noble"` should be
-  three sibling phrases, not lumped into one or arbitrarily merged.
-* **Break at clause boundaries.** Strong cues:
-  * after a comma, semicolon, or colon
-  * before a connector that starts a new thought: `and`, `but`, `for`, `that`, `who`, `which`, `or`
-    — only when it really begins a new clause, not when it just glues list items
-* **Never split a verb from its content clause.** `that` (and `what`, `how`, `whether`, `if`) after
-  a verb of perception or speech — `know`, `see`, `tell`, `say`, `believe`, `think`, `hear`,
-  `understand`, `remember`, `perceive` — is introducing the _object_ of the verb, not a new clause
-  for recitation. `"Do you not know"` / `"that we shall judge angels?"` is a bad break; the
-  rhetorical question is one unit. Same for `"I declare to you"` /
-  `"that flesh and blood cannot inherit..."`. The auditor flags this pattern automatically
-  (`verb-clause-split`).
-* **Keep rhetorical questions whole.** A question stem (`"Do you not know that..."`,
-  `"Are you not aware that..."`) belongs with its content. Split _after_ the question mark, not
-  inside it.
-* **Keep restrictive relative clauses attached to their antecedent.** When `that`, `who`, or `which`
-  follows a noun _without_ a preceding comma, it is a restrictive relative — it defines or restricts
-  the noun and reads as one unit with no pause. Don't break before it. `"nothing was made"` /
-  `"that was made."` is bad: the `that`-clause restrictively modifies "nothing". Same shape:
-  `"the bread"` / `"which I will give"`, `"the man"` / `"who came to Jesus"`. A _non-restrictive_
-  relative is the opposite — the preceding comma is a real pause and a valid break:
-  `"...Nicodemus, / who came to Jesus by night,"` is fine.
-* **Don't lop-side.** A verse split into one 15-word phrase and one 3-word phrase is worse than two
-  9-word phrases. Aim for relatively even chunks while still respecting clause boundaries.
-* **Single-phrase verses.** Anything over ~10 words should split somewhere. Anything under ~8 can
-  stay whole.
+These are cues the auditor surfaces and the splitter sees. Treat each as a question worth asking,
+not a prohibition.
 
-## Edge cases that are usually fine
+* **Cognitive weight.** Phrases dense with content words are heavier than equally long phrases thick
+  with function words. `of the spirit of the world which is in him` is long but light;
+  `judging righteous judgment by faithful witness` would be heavier at the same word count.
+* **Parallel structure.** Coordinated items at the same syntactic level often want to land as
+  sibling phrases of similar shape — `not many wise, / not many mighty, / not many noble`.
+* **Weak-connector starts.** A phrase opening with `and`, `but`, `that`, `which`, `who` often
+  signals it was glued back onto the previous one. Check whether the boundary should move or
+  disappear.
+* **Verb + content clause.** `that`, `what`, `how`, `whether` after a perception/speech verb
+  (`know`, `see`, `tell`, `believe`, `understand`, …) usually introduces the _object_ of the verb,
+  not a new clause. `"Do you not know"` / `"that we shall judge angels?"` is one unit, not two.
+* **Restrictive relatives.** When `that`, `who`, or `which` follows a noun _without_ a preceding
+  comma, the relative restrictively modifies the noun and reads as one unit. `"nothing was made"` /
+  `"that was made."` severs it. A _non-restrictive_ relative (preceded by a comma) is the opposite —
+  the comma is a real pause and a valid break.
+* **Mid-clause endings.** A phrase that ends without any pause punctuation often wants to extend
+  until it reaches a natural break.
+* **Lopsidedness.** One phrase swallowing most of the verse while the rest are stubs often signals a
+  missed boundary. Aim for relatively even chunks while still respecting clause boundaries.
 
-* A single-word opener like `"Moreover,"` or `"Therefore,"` at position 0. Stylistic, often
-  deliberate in memorisation aids. Flagged `medium` by the evaluator, not `high`.
-* A short final phrase like `"are called."` or `"and Him crucified."` that is a rhetorical or
-  completive tail — a closing flourish, not a grammatical fragment chopped off a mid-verse clause.
-  Same treatment — `medium`, not blocking. (`"that was made."` lopped off `"nothing was made"`
-  doesn't qualify — see the restrictive-relative example below.)
-* A pair of short intro phrases like `"Therefore," / "my beloved,"`. Often the natural break is to
-  merge them into one `"Therefore, my beloved,"` phrase, but both forms are defensible — the
-  evaluator will surface this as `high` (middle 2-word phrase) for human review.
+## The recall test
+
+Mentally do a PhraseFill on each candidate phrase: blank it, look at what's left. Can the reciter
+sense the specific shape of what's missing? If yes — the gap has a recognisable function (the verb,
+the content clause, the relative modifier, the parallel sibling) — the boundary is doing useful
+work, because the blanked piece is something a reciter could plausibly fail _without_ failing its
+neighbours. If the blanked phrase leaves a fuzzy mid-thought gap that's hard to characterise, the
+two sides are one mental move — they always succeed or fail together — and the boundary is in the
+wrong place.
+
+The test is _not_ whether each phrase reads as a stand-alone English sentence. Memorisable units
+include short framing phrases ("but these are written"), appositive chunks, and parallel siblings —
+all of which are fine even when they don't make sense in isolation as prose. What matters is that
+each chunk is doing a discrete job different from its neighbours.
+
+This is the test both the splitter and the judge apply. The splitter uses it to construct its honest
+best split (no stability bias — just the recall test). The judge uses it to compare two concrete
+options and pick the better one. When the two options pass the test equivalently, the judge picks
+the current split (option A); needless churn is bad. Stability lives in the judge's tie-break, not
+in the splitter.
 
 ## Worked examples
 
-### Long clause that needs a break
+Each tagged with the signal(s) that drove the decision.
+
+### Long clause that needs a break — _parallel structure_
 
 Bad:
 
@@ -82,7 +161,7 @@ Bad:
  "are called."]
 ```
 
-Phrase 1 is 14 words. Split it on the comma after `brethren,`:
+Phrase 1 is 14 words. Break on the comma after `brethren,` so the parallel items each get a phrase:
 
 ```
 ["For you see your calling, brethren,",
@@ -91,7 +170,7 @@ Phrase 1 is 14 words. Split it on the comma after `brethren,`:
  "are called."]
 ```
 
-### Stranded fragment
+### Stranded fragment — _weak-connector start, mid-clause ending_
 
 Bad (1 Cor 12:11):
 
@@ -101,14 +180,15 @@ Bad (1 Cor 12:11):
  "<b>distributing</b> to each one individually as He wills."]
 ```
 
-`"But one"` belongs glued to the same-Spirit clause; the natural break is after the comma:
+`"But one"` is two words ending mid-clause; phrase 2 opens with a weak connector that glues right
+back onto it. The natural break is after the comma:
 
 ```
 ["But one and the same Spirit works all these things,",
  "<b>distributing</b> to each one individually as He wills."]
 ```
 
-### Restrictive relative clause
+### Restrictive relative — _restrictive-relative boundary, mid-clause ending_
 
 Bad (John 1:3):
 
@@ -118,31 +198,30 @@ Bad (John 1:3):
  "that was made."]
 ```
 
-The `"that was made"` clause is a restrictive relative modifying `"nothing"` — no comma precedes it,
-and there's no natural pause between `"nothing was made"` and `"that was made"`. The emphatic
-doubling reads as one breath. Break only at the real pause (the comma after `"Him,"`):
+`"that was made"` restrictively modifies `"nothing"` — no comma precedes it, and the emphatic
+doubling reads as one breath. The boundary auditor flags this. Break only at the real pause:
 
 ```
 ["All things were made through Him,",
  "and without Him nothing was made that was made."]
 ```
 
-### Parallel structure
+### Verb + content clause — _verb-content-clause boundary_
 
-Verse:
+`"Do you not know"` / `"that we shall judge angels?"` severs `know` from its content clause. Keep
+the rhetorical question whole:
 
 ```
-For you see your calling, brethren, that not many wise according to the flesh, not many mighty, not many <b>noble</b>, are called.
+["Do you not know that we shall judge angels?",
+ "How much more, things that pertain to this life?"]
 ```
 
-Good split: each parallel `"not many …"` item gets its own phrase rather than being lumped together.
+### Whole-verse short verse — _cognitive weight_
 
-### Whole-verse short verse
+`"For the kingdom of God is not in word but in power."` — 10 words, one self-contained idea, low
+content-word density. One phrase is correct; forcing a break would weaken the unit.
 
-`"For the kingdom of God is not in word but in power."` — 10 words and one self-contained idea. One
-phrase is correct; forcing a break would weaken the unit.
+### HTML markup — _hard constraint_
 
-### HTML markup
-
-`"<b><i>asking</i></b>"` is one word, one indivisible unit. A split that strips or rewrites the
-markup fails the rejoin invariant and the HTML- balance check. Always preserve markup byte-for-byte.
+`"<b><i>asking</i></b>"` is one word, one indivisible unit. A split that opens a tag in one phrase
+and closes it in another fails the HTML-balance blocker check. Always preserve markup byte-for-byte.

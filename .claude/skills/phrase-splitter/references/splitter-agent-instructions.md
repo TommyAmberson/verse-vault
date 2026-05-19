@@ -11,12 +11,28 @@ subagent is dispatched for the re-split step of the phrase-splitter workflow.
 
 ## Required reading (do this once at start)
 
-* [`quality-criteria.md`](./quality-criteria.md) — what makes a split good or bad, with worked
-  examples and the guiding principle (completeness of thought > size).
+* [`quality-criteria.md`](./quality-criteria.md) — the memorisable-chunk principle, hard
+  constraints, signals (context, not rules), and worked examples.
 
 The embedded `prompt` field in each batch entry contains the active `SPLIT_PROMPT`, so you don't
 need to read `prompts.py` separately. If anything in the embedded prompt conflicts with
 `quality-criteria.md`, the prompt wins (it's the version actually shipped to production).
+
+## Current split + signals (context, not echo)
+
+Each batch entry's `prompt` may contain a `Current split` section and a `Signals` section. Use them
+as context for your rewrite; don't echo them back. The goal is the best split — not necessarily a
+different split. If the current split already passes the recall test (each phrase a coherent
+memorisable chunk that the reciter could blank on and still sense the shape of the gap), return it
+verbatim. Change boundaries only when the new split is _clearly_ better, not merely defensible.
+
+A phrase doesn't have to read as a complete English sentence to be a good memorisable unit — short
+framing intros and appositive chunks are valid when they do a discrete job. Partition by function,
+not by grammatical completeness. The signals are continuous floats in `[0, 1]` describing the
+current split: `boundary_severance` (with a `severance_kind` label — `verb_content`,
+`bare_relative`, or `stranded_stub`), `stub_phrase`, `cognitive_overload`, and `missing_split`. Read
+them to spot patterns and weigh severity, not to fix every flag mechanically — a high score on a
+single signal sometimes reflects a deliberate trade-off the splitter should keep.
 
 ## Workflow
 

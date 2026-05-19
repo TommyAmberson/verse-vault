@@ -1,53 +1,52 @@
 #!/usr/bin/env python3
-"""Audit phrase splits in the committed structural deck file.
+"""Audit phrase splits in a committed structural deck file.
 
-Operates on ``data/3-corinthians.json`` (the durable source of truth for
-``phraseWordCounts`` and ``annotations``) plus the api.bible HTML
-cache (canonical NKJV tokens). Phrase text shown in the report is
-sliced from api.bible tokens by the deck's word counts — no per-verse
-text crosses through the deck anymore.
+Reads the deck's ``phraseWordCounts`` against the canonical api.bible
+NKJV tokens, then emits one record per verse with two layers:
 
-Checks (deterministic, run on every verse):
+* **Blockers** — structural failures (missing/wrong-shape word counts,
+  sum drift, missing canonical tokens, unbalanced HTML inside a phrase).
+  A non-empty blockers list means the deck and the canonical text
+  disagree; a human must fix the deck before any re-split is meaningful.
 
-- ``phraseWordCounts`` sum matches the api.bible token count → drift
-  between the deck's structural metadata and the canonical text.
-- Each phrase word count is in [3, 12] with edge phrases allowed to
-  be shorter (an intro / closing stub).
-- Single-phrase verse whose token count exceeds the missing-split
-  threshold → almost certainly a split that was never applied.
-- No phrase ends in a perception/speech verb (``know``, ``see``,
-  ``tell``, …) immediately followed by a phrase starting with
-  ``that`` / ``what`` / ``how`` / ``whether`` — that splits a verb
-  from its content clause, which is one rhetorical unit.
-- ``ftvWordCount`` is in range when set.
+* **Signals + composite score** — deterministic features of the current
+  split (``boundary_severance`` with ``severance_kind``, ``stub_phrase``,
+  ``cognitive_overload``, ``missing_split``, …). These don't say a split
+  is wrong; they surface what's worth a look. The composite
+  ``signal_score`` is a weighted sum in ``[0, 1]`` and drives ``--top`` /
+  ``--min-score``.
 
-The optional ``--llm-judge`` flag adds a Claude-Haiku quality check
-for verses that pass the deterministic checks but might still feel
-awkward.
+The judge step is gone — the splitter prompt now folds in that
+judgement using the current split + signals + a stability clause.
 
 Usage:
     python3 tools/evaluate_phrases.py
-    python3 tools/evaluate_phrases.py --top 10
-    python3 tools/evaluate_phrases.py --refs "1 Cor 12:11,1 Cor 1:26"
-    python3 tools/evaluate_phrases.py --out report.json
-    python3 tools/evaluate_phrases.py --llm-judge
+    python3 tools/evaluate_phrases.py data/4-john.json --top 20
+    python3 tools/evaluate_phrases.py data/4-john.json --min-score 0.3
+    python3 tools/evaluate_phrases.py data/4-john.json --refs "John 1:14"
+    python3 tools/evaluate_phrases.py data/4-john.json --all --out report.json
 """
 
 import argparse
 import json
 import os
 import sys
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from phrase_splitter import (  # noqa: E402
-    JUDGE_PROMPT,
-    SEVERITIES,
+    composite_signal_score,
+    extract_verse_features,
     normalize_reference,
-    severity_rank,
 )
-from phrase_splitter.helpers import normalise_word  # noqa: E402
+from phrase_splitter.helpers import html_tags_balanced  # noqa: E402
+from phrase_splitter.features import (  # noqa: E402
+    _COMPOSITE_COMPONENTS,
+    _MISSING_SPLIT_WEIGHT,
+    _signal_float,
+    slice_phrases,
+)
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
     DEFAULT_NKJV_ID,
@@ -56,138 +55,127 @@ from phrase_splitter.apibible import (  # noqa: E402
     open_cache,
 )
 
-WORD_MIN = 3
-# Soft ceiling above which the auditor flags a phrase as too long. There is
-# no validator cap in split_phrases.py — long phrases are a quality flag for
-# human review, not a hard error.
-WORD_MAX = 12
-# A single-phrase verse longer than this is almost certainly a missed
-# split. Tunable; 10 words is roughly the point where reciters benefit
-# from a break.
-MISSING_SPLIT_THRESHOLD = 10
-
-# Verbs of perception / speech that take a content clause as their direct
-# object — see ``references/quality-criteria.md``. ``if`` is excluded
-# from the complementiser set because conditional ``if`` dominates the
-# rare ``know if`` complementiser reading in scripture.
-CONTENT_CLAUSE_VERBS = frozenset({
-    "know", "knew", "known", "knows",
-    "see", "saw", "seen", "sees",
-    "hear", "heard", "hears",
-    "tell", "told", "tells",
-    "say", "said", "says",
-    "believe", "believed", "believes",
-    "think", "thought", "thinks",
-    "understand", "understood", "understands",
-    "remember", "remembered", "remembers",
-    "perceive", "perceived", "perceives",
-    "consider", "considered", "considers",
-    "declare", "declared", "declares",
-    "suppose", "supposed", "supposes",
-    "recognize", "recognized", "recognizes",
-    "realize", "realized", "realizes",
-    "learn", "learned", "learns",
-})
-CONTENT_CLAUSE_COMPLEMENTISERS = frozenset({"that", "what", "how", "whether"})
-
-# Stronger reported-speech breaks where the heuristic backs off —
-# ``say: If any brother…`` and ``say, "How…"`` aren't content clauses.
-_QUOTE_OPENERS = ("\"", "“", "‘", "'")
+# Default cutoff for emitting a verse based on its composite signal
+# score. Tuned so a single boundary signal (≈ 0.35) lands above the line
+# while pure length-balance / weak-connector signals only emit if they
+# accumulate. Override with --min-score.
+DEFAULT_MIN_SCORE = 0.2
 
 
-def check_verse(ref: str, verse: Dict[str, Any], tokens: List[str]) -> List[Dict[str, str]]:
-    """Return a list of ``{severity, reason, ...}`` for one structural
-    verse entry. ``tokens`` is the canonical token stream from
-    api.bible (used both to detect deck/api drift and to quote phrase
-    text in the report)."""
-    issues: List[Dict[str, str]] = []
+def check_verse(verse: Dict[str, Any], tokens: List[str]) -> Dict[str, Any]:
+    """Return ``{blockers, signal_score, signals}`` for one verse.
+
+    ``blockers`` is a list of human-readable strings. Non-empty means
+    the deck disagrees with the canonical text and the rest of the
+    record is meaningless. ``signals`` is the full feature payload
+    from ``extract_verse_features`` (or ``None`` when a blocker
+    short-circuits the computation).
+    """
+    blockers: List[str] = []
     pwc = verse.get("phraseWordCounts") or []
 
     if not isinstance(pwc, list) or not pwc:
-        issues.append({"severity": "blocker", "reason": "missing or empty phraseWordCounts"})
-        return issues
+        return {
+            "blockers": ["missing or empty phraseWordCounts"],
+            "signal_score": 0.0,
+            "signals": None,
+        }
 
-    pwc_sum = sum(pwc)
     api_count = len(tokens)
     if api_count == 0:
-        issues.append({
-            "severity": "blocker",
-            "reason": "no canonical tokens — verse missing from api.bible cache",
-        })
-        return issues
+        return {
+            "blockers": ["no canonical tokens — verse missing from api.bible cache"],
+            "signal_score": 0.0,
+            "signals": None,
+        }
 
+    pwc_sum = sum(pwc)
     if pwc_sum != api_count:
-        issues.append({
-            "severity": "blocker",
-            "reason": (
-                f"phraseWordCounts sum ({pwc_sum}) differs from api.bible "
-                f"token count ({api_count}) — deck/canonical drift"
-            ),
-        })
+        blockers.append(
+            f"phraseWordCounts sum ({pwc_sum}) differs from api.bible "
+            f"token count ({api_count}) — deck/canonical drift"
+        )
 
-    if len(pwc) == 1 and api_count > MISSING_SPLIT_THRESHOLD:
-        issues.append({
-            "severity": "high",
-            "reason": f"single phrase for {api_count}-word verse",
-        })
+    # HTML balance: each phrase must keep its inline tags closed within
+    # the phrase. A phrase that opens <b> but never closes it (or vice
+    # versa) is the canary for a split that fell inside a tag.
+    if pwc_sum == api_count:
+        phrase_token_lists = slice_phrases(tokens, pwc)
+        for i, ptoks in enumerate(phrase_token_lists):
+            if not html_tags_balanced(" ".join(ptoks)):
+                blockers.append(
+                    f"phrase {i + 1} has unbalanced HTML tags — split fell inside a tag"
+                )
 
-    cursor = 0
-    phrase_first: List[str] = []
-    phrase_last: List[str] = []
-    for i, count in enumerate(pwc):
-        chunk = tokens[cursor : cursor + count]
-        cursor += count
-        phrase_first.append(chunk[0] if chunk else "")
-        phrase_last.append(chunk[-1] if chunk else "")
-        is_edge = i == 0 or i == len(pwc) - 1
-        if count < WORD_MIN:
-            sev = "medium" if is_edge else "high"
-            issues.append({
-                "severity": sev,
-                "reason": f"phrase {i+1} has {count} word{'s' if count != 1 else ''}: {_clip(' '.join(chunk))}",
-            })
-        elif count > WORD_MAX:
-            issues.append({
-                "severity": "high",
-                "reason": f"phrase {i+1} has {count} words: {_clip(' '.join(chunk))}",
-            })
+    if blockers:
+        return {"blockers": blockers, "signal_score": 0.0, "signals": None}
 
-    for i in range(len(pwc) - 1):
-        last_raw = phrase_last[i]
-        next_raw = phrase_first[i + 1]
-        if not last_raw or not next_raw:
-            continue
-        last = normalise_word(last_raw)
-        nxt = normalise_word(next_raw)
-        if last not in CONTENT_CLAUSE_VERBS or nxt not in CONTENT_CLAUSE_COMPLEMENTISERS:
-            continue
-        if last_raw.endswith(":") or next_raw.startswith(_QUOTE_OPENERS):
-            continue
-        issues.append({
-            "severity": "high",
-            "reason": (
-                f"verb-clause split between phrase {i+1} (…{last!r}) and "
-                f"phrase {i+2} ({nxt!r}…) — keep verb with its content clause"
-            ),
-        })
+    signals = extract_verse_features(tokens, pwc)
+    score = composite_signal_score(signals)
 
     ftv = verse.get("ftvWordCount")
-    if ftv is not None:
-        if not isinstance(ftv, int) or ftv < 1 or ftv > api_count:
-            issues.append({
-                "severity": "high",
-                "reason": f"ftvWordCount={ftv} out of [1, {api_count}]",
-            })
+    if ftv is not None and (not isinstance(ftv, int) or ftv < 1 or ftv > api_count):
+        # ftv out-of-range is a deck/canonical disagreement → blocker.
+        return {
+            "blockers": [f"ftvWordCount={ftv} out of [1, {api_count}]"],
+            "signal_score": 0.0,
+            "signals": None,
+        }
 
-    return issues
-
-
-def _clip(s: str, n: int = 70) -> str:
-    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+    return {"blockers": [], "signal_score": round(score, 3), "signals": signals}
 
 
-def _top_severity(issues: List[Dict[str, str]]) -> str:
-    return SEVERITIES[min(severity_rank(i["severity"]) for i in issues)]
+# Rank bullets by their actual contribution to the composite score
+# (signal value × composite weight) so the top-k surfaces the signals
+# that actually dominate the rank, not an arbitrary display priority.
+_SIGNAL_WEIGHTS = {sig_key: weight for _, sig_key, weight in _COMPOSITE_COMPONENTS}
+_SIGNAL_WEIGHTS["missing_split"] = _MISSING_SPLIT_WEIGHT
+
+
+def _top_signals(signals: Dict[str, Any], k: int = 3) -> List[str]:
+    """Extract the k most anomalous signal bullets for stdout display.
+    Emits at most k human-readable strings; for ``--out`` JSON callers
+    write the full ``signals`` dict directly."""
+    if not isinstance(signals, dict):
+        return []
+
+    bullets: List[Tuple[float, str]] = []  # (contribution, message)
+
+    for i, b in enumerate(signals.get("boundaries") or []):
+        sev = _signal_float(b, "boundary_severance")
+        kind = b.get("severance_kind") if isinstance(b, dict) else None
+        if sev > 0.0 and kind:
+            bullets.append((
+                sev * _SIGNAL_WEIGHTS["boundary_severance"],
+                f"boundary {i+1}→{i+2}: {kind} (severance={sev:.2f})",
+            ))
+
+    for i, p in enumerate(signals.get("phrases") or []):
+        stub = _signal_float(p, "stub_phrase")
+        if stub > 0.0:
+            wc = p.get("word_count") if isinstance(p, dict) else None
+            bullets.append((
+                stub * _SIGNAL_WEIGHTS["stub_phrase"],
+                f"phrase {i+1}: stub ({wc}w)",
+            ))
+        ov = _signal_float(p, "cognitive_overload")
+        if ov > 0.0:
+            cw = p.get("content_word_count") if isinstance(p, dict) else None
+            bullets.append((
+                ov * _SIGNAL_WEIGHTS["cognitive_overload"],
+                f"phrase {i+1}: overload ({cw} content words)",
+            ))
+
+    missing = _signal_float(signals, "missing_split")
+    if missing > 0.0:
+        token_count = signals.get("token_count", 0)
+        bullets.append((
+            missing * _SIGNAL_WEIGHTS["missing_split"],
+            f"single phrase, {token_count} tokens — likely missing split",
+        ))
+
+    bullets.sort(reverse=True)
+    return [msg for _, msg in bullets[:k]]
 
 
 def evaluate(
@@ -197,7 +185,9 @@ def evaluate(
     ref_filter: Optional[Set[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Walk the structural deck verse-by-verse, fetching each chapter's
-    canonical tokens once and reusing across the chapter's verses."""
+    canonical tokens once and reusing them across the chapter's verses.
+    Returns one record per verse that was checked (filtering happens in
+    main, not here)."""
     report: List[Dict[str, Any]] = []
     chapter_tokens: Dict[tuple, Dict[int, List[str]]] = {}
     for v in deck.get("verses", []):
@@ -209,84 +199,18 @@ def evaluate(
             html = get_chapter_html(conn, v["book"], v["chapter"], bible_id=bible_id)
             chapter_tokens[key] = extract_chapter_verses(html, v["book"], v["chapter"])
         tokens = chapter_tokens[key].get(v["verse"], [])
-        issues = check_verse(ref, v, tokens)
-        if issues:
-            report.append({
-                "ref": ref,
-                "top_severity": _top_severity(issues),
-                "reasons": issues,
-            })
-    report.sort(key=lambda r: (severity_rank(r["top_severity"]), r["ref"]))
+        record = check_verse(v, tokens)
+        record["ref"] = ref
+        report.append(record)
     return report
 
 
-def call_judge(
-    deck: Dict[str, Any],
-    conn,
-    bible_id: str,
-    deterministic_flagged: Set[str],
-    ref_filter: Optional[Set[str]],
-    model: str,
-) -> List[Dict[str, Any]]:
-    """Ask Claude Haiku to flag awkward splits among verses that passed
-    the deterministic checks. Requires the ``anthropic`` package and
-    ``ANTHROPIC_API_KEY`` in the env."""
-    try:
-        from anthropic import Anthropic  # type: ignore
-    except ImportError as e:
-        raise SystemExit(
-            "--llm-judge requires the 'anthropic' package. "
-            "Install with: pip install anthropic"
-        ) from e
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise SystemExit("--llm-judge requires ANTHROPIC_API_KEY in env")
-
-    client = Anthropic()
-    extra: List[Dict[str, Any]] = []
-    chapter_tokens: Dict[tuple, Dict[int, List[str]]] = {}
-    for v in deck.get("verses", []):
-        ref = f"{v['book']} {v['chapter']}:{v['verse']}"
-        if ref in deterministic_flagged:
-            continue
-        if ref_filter is not None and ref not in ref_filter:
-            continue
-        pwc = v.get("phraseWordCounts") or []
-        if len(pwc) < 2:
-            continue  # single-phrase verses don't have a split to judge
-        key = (v["book"], v["chapter"])
-        if key not in chapter_tokens:
-            html = get_chapter_html(conn, v["book"], v["chapter"], bible_id=bible_id)
-            chapter_tokens[key] = extract_chapter_verses(html, v["book"], v["chapter"])
-        tokens = chapter_tokens[key].get(v["verse"], [])
-        phrases: List[str] = []
-        cursor = 0
-        for c in pwc:
-            phrases.append(" ".join(tokens[cursor : cursor + c]))
-            cursor += c
-        text = " ".join(tokens)
-        phrases_block = "\n".join(f"  - {p}" for p in phrases)
-        prompt = JUDGE_PROMPT.format(ref=ref, text=text, phrases_block=phrases_block)
-        try:
-            resp = client.messages.create(
-                model=model,
-                max_tokens=400,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            body = resp.content[0].text.strip()
-            if body.startswith("```"):
-                body = body.split("\n", 1)[1] if "\n" in body else body
-                body = body.rsplit("```", 1)[0]
-            verdict = json.loads(body)
-        except Exception as e:
-            sys.stderr.write(f"  judge failed for {ref}: {e}\n")
-            continue
-        if verdict.get("verdict") == "needs_resplit":
-            reasons = [
-                {"severity": "medium", "reason": r}
-                for r in verdict.get("reasons", []) or ["llm judge flagged"]
-            ]
-            extra.append({"ref": ref, "top_severity": "medium", "reasons": reasons})
-    return extra
+def _emit(record: Dict[str, Any], min_score: float, show_all: bool) -> bool:
+    if record["blockers"]:
+        return True
+    if show_all:
+        return True
+    return record["signal_score"] >= min_score
 
 
 def main() -> None:
@@ -302,15 +226,25 @@ def main() -> None:
     )
     ap.add_argument("--refs", help="Comma-separated refs to limit the check to")
     ap.add_argument(
-        "--llm-judge",
-        action="store_true",
-        help="Ask Claude Haiku to audit splits that passed the deterministic checks",
+        "--top",
+        type=int,
+        help="Emit only the top N entries (sorted: blockers first, then by signal_score desc)",
     )
-    ap.add_argument("--judge-model", default="claude-haiku-4-5-20251001")
+    ap.add_argument(
+        "--min-score",
+        type=float,
+        default=DEFAULT_MIN_SCORE,
+        help=f"Composite signal-score threshold for emission (default: {DEFAULT_MIN_SCORE})",
+    )
+    ap.add_argument(
+        "--all",
+        action="store_true",
+        dest="show_all",
+        help="Bypass --min-score; emit every checked verse",
+    )
     ap.add_argument("--db", default=DEFAULT_DB_PATH, help="Shared api.bible SQLite cache")
     ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")
     ap.add_argument("--out", help="Write the JSON report to this path")
-    ap.add_argument("--top", type=int, help="Print only the top N worst entries")
     args = ap.parse_args()
 
     with open(args.deck, encoding="utf-8") as f:
@@ -322,31 +256,38 @@ def main() -> None:
 
     conn = open_cache(args.db)
     try:
-        report = evaluate(deck, conn, args.bible, ref_filter)
-        if args.llm_judge:
-            deterministic_flagged = {r["ref"] for r in report}
-            report.extend(
-                call_judge(deck, conn, args.bible, deterministic_flagged, ref_filter, args.judge_model)
-            )
-            report.sort(key=lambda r: (severity_rank(r["top_severity"]), r["ref"]))
+        full_report = evaluate(deck, conn, args.bible, ref_filter)
     finally:
         conn.close()
 
-    print(f"Checked {sum(1 for v in deck.get('verses', []) if v.get('phraseWordCounts'))} verses.")
-    print(f"Flagged: {len(report)}")
-    to_show = report if args.top is None else report[: args.top]
-    for r in to_show:
-        print(f"\n  [{r['top_severity']}] {r['ref']}")
-        for i in r["reasons"]:
-            print(f"    - {i['reason']}")
+    emitted = [r for r in full_report if _emit(r, args.min_score, args.show_all)]
+    # Blockers float to the top; within each layer, sort by score desc, ref asc.
+    emitted.sort(key=lambda r: (0 if r["blockers"] else 1, -r["signal_score"], r["ref"]))
+    if args.top is not None:
+        emitted = emitted[: args.top]
+
+    checked = len(full_report)
+    blocker_count = sum(1 for r in emitted if r["blockers"])
+    print(f"Checked {checked} verses (filter min_score={args.min_score}, all={args.show_all}).")
+    print(f"Emitted: {len(emitted)} ({blocker_count} blocker, {len(emitted) - blocker_count} signal).")
+    for r in emitted:
+        if r["blockers"]:
+            print(f"\n  [BLOCK] {r['ref']}")
+            for b in r["blockers"]:
+                print(f"    - {b}")
+        else:
+            print(f"\n  [{r['signal_score']:.2f}] {r['ref']}")
+            if r["signals"]:
+                for s in _top_signals(r["signals"]):
+                    print(f"    - {s}")
 
     if args.out:
         os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
         with open(args.out, "w", encoding="utf-8") as f:
-            json.dump(report, f, indent=2, ensure_ascii=False)
+            json.dump(emitted, f, indent=2, ensure_ascii=False)
         print(f"\nWrote report to {args.out}")
 
-    sys.exit(1 if any(r["top_severity"] == "blocker" for r in report) else 0)
+    sys.exit(1 if blocker_count else 0)
 
 
 if __name__ == "__main__":

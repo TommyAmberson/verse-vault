@@ -89,14 +89,6 @@ def normalize_reference(ref: str) -> str:
     return f"{canon} {chap}:{verse}"
 
 
-SEVERITIES = ("blocker", "high", "medium", "low")
-
-
-def severity_rank(s: str) -> int:
-    """Lower is worse. Use as a sort key."""
-    return SEVERITIES.index(s)
-
-
 # Trim a token to its bare lemma form. Curly U+2019 folds to straight
 # U+0027 first so the deck's typographic apostrophes compare equal to
 # Anki's straight ones. Leading non-letter/non-digit is stripped

@@ -13,16 +13,28 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from phrase_splitter import (
-    SEVERITIES,
     html_tags_balanced,
     normalize_reference,
     parse_reference,
     rejoin_matches,
-    severity_rank,
     strip_html,
     tokens,
     word_count,
 )
+from phrase_splitter.features import (
+    FUNCTION_WORDS,
+    WEAK_CONNECTORS,
+    composite_signal_score,
+    count_syllables,
+    extract_boundary_features,
+    extract_phrase_features,
+    extract_verse_features,
+    slice_phrases,
+)
+from phrase_splitter.prompts import format_split_prompt
+
+from evaluate_phrases import check_verse
+from split_phrases import _render_current_split, _render_signals
 
 
 class WordCountTests(unittest.TestCase):
@@ -100,15 +112,424 @@ class ReferenceTests(unittest.TestCase):
             parse_reference("not a reference")
 
 
-class SeverityTests(unittest.TestCase):
-    def test_ranking_ordered_worst_first(self):
-        ranks = [severity_rank(s) for s in SEVERITIES]
-        self.assertEqual(ranks, sorted(ranks))
+class SyllableTests(unittest.TestCase):
+    def test_monosyllables(self):
+        for w in ("the", "made", "John", "Christ", "through"):
+            self.assertEqual(count_syllables(w), 1, w)
 
-    def test_blocker_worst(self):
-        self.assertLess(severity_rank("blocker"), severity_rank("high"))
-        self.assertLess(severity_rank("high"), severity_rank("medium"))
-        self.assertLess(severity_rank("medium"), severity_rank("low"))
+    def test_disyllables(self):
+        for w in ("Jesus", "apostle", "given"):
+            self.assertGreaterEqual(count_syllables(w), 2, w)
+
+    def test_handles_empty(self):
+        self.assertEqual(count_syllables(""), 0)
+
+    def test_handles_punctuation_only(self):
+        self.assertEqual(count_syllables(",,,"), 0)
+
+
+class SlicePhrasesTests(unittest.TestCase):
+    def test_basic_slice(self):
+        self.assertEqual(
+            slice_phrases(["a", "b", "c", "d"], [1, 3]),
+            [["a"], ["b", "c", "d"]],
+        )
+
+    def test_single_phrase(self):
+        self.assertEqual(slice_phrases(["a", "b"], [2]), [["a", "b"]])
+
+    def test_empty(self):
+        self.assertEqual(slice_phrases([], []), [])
+
+
+class PhraseFeatureTests(unittest.TestCase):
+    def test_function_heavy_phrase(self):
+        # "and of the things which" — almost entirely function words.
+        feat = extract_phrase_features(
+            ["and", "of", "the", "things", "which"], position="middle"
+        )
+        self.assertEqual(feat["word_count"], 5)
+        self.assertEqual(feat["content_word_count"], 1)
+        self.assertGreater(feat["function_ratio"], 0.7)
+        self.assertTrue(feat["starts_with_weak_connector"])
+
+    def test_content_heavy_phrase(self):
+        feat = extract_phrase_features(
+            ["Paul,", "called", "to", "be", "an", "apostle"], position="first"
+        )
+        self.assertEqual(feat["word_count"], 6)
+        self.assertGreater(feat["content_word_count"], 2)
+        self.assertFalse(feat["starts_with_weak_connector"])
+
+    def test_pause_punct_at_end(self):
+        feat = extract_phrase_features(["our", "brother,"], position="middle")
+        self.assertTrue(feat["ends_in_pause_punct"])
+        self.assertFalse(feat["ends_mid_clause"])
+
+    def test_mid_clause_ending(self):
+        feat = extract_phrase_features(["the", "kingdom", "of"], position="first")
+        self.assertTrue(feat["ends_mid_clause"])
+        self.assertFalse(feat["ends_in_pause_punct"])
+
+    def test_internal_pause(self):
+        feat = extract_phrase_features(
+            ["Paul,", "called", "to", "be"], position="first"
+        )
+        self.assertTrue(feat["contains_internal_pause"])
+
+    def test_cognitive_overload_below_threshold(self):
+        # 5 content words: below threshold, no signal
+        feat = extract_phrase_features(
+            ["walked", "saw", "told", "heard", "knew"], position="middle"
+        )
+        self.assertEqual(feat["content_word_count"], 5)
+        self.assertEqual(feat["cognitive_overload"], 0.0)
+
+    def test_cognitive_overload_tiny_at_six(self):
+        # 6 content words: tiny non-zero signal (quadratic curve)
+        feat = extract_phrase_features(
+            ["walked", "saw", "told", "heard", "knew", "ran"], position="middle"
+        )
+        self.assertEqual(feat["content_word_count"], 6)
+        self.assertGreater(feat["cognitive_overload"], 0.0)
+        self.assertLess(feat["cognitive_overload"], 0.1)
+
+    def test_cognitive_overload_high(self):
+        # 12 content words: full signal
+        feat = extract_phrase_features(
+            ["walked", "saw", "told", "heard", "knew", "ran",
+             "spoke", "judged", "called", "found", "wrote", "asked"],
+            position="middle",
+        )
+        self.assertEqual(feat["content_word_count"], 12)
+        self.assertAlmostEqual(feat["cognitive_overload"], 1.0, places=3)
+
+    def test_cognitive_overload_function_heavy_phrase_low(self):
+        # All function words: signal stays 0 even at high word_count
+        feat = extract_phrase_features(
+            ["of", "the", "and", "in", "to", "for", "by", "with",
+             "from", "of", "the", "in"],
+            position="middle",
+        )
+        self.assertLess(feat["cognitive_overload"], 0.2)
+
+    def test_word_overload_ramp(self):
+        # 15-word phrase (regardless of content): mid-ramp
+        feat = extract_phrase_features(
+            ["of"] * 15, position="middle"
+        )
+        self.assertEqual(feat["word_count"], 15)
+        self.assertAlmostEqual(feat["word_overload"], 0.5, places=2)
+
+    def test_word_overload_below_threshold(self):
+        feat = extract_phrase_features(["of"] * 10, position="middle")
+        self.assertEqual(feat["word_overload"], 0.0)
+
+    def test_stub_phrase_mid_clause_full_penalty(self):
+        # 1-word phrase ending mid-clause: full stub.
+        feat = extract_phrase_features(["one"], position="middle")
+        self.assertAlmostEqual(feat["stub_phrase"], 0.75, places=3)
+
+    def test_stub_phrase_clean_end_reduced_penalty(self):
+        # 1-word phrase ending in terminal punct ("Behold!") — short but
+        # clean. Fires at 20% intensity.
+        feat = extract_phrase_features(["Behold!"], position="middle")
+        self.assertAlmostEqual(feat["stub_phrase"], 0.15, places=3)
+
+    def test_stub_phrase_comma_end_reduced_penalty(self):
+        # 3-word framing intro ending in comma ("And I, brethren,") —
+        # short and clean. 20% of raw 0.25 = 0.05.
+        feat = extract_phrase_features(
+            ["And", "I,", "brethren,"], position="first"
+        )
+        self.assertAlmostEqual(feat["stub_phrase"], 0.05, places=3)
+
+    def test_stub_phrase_threshold(self):
+        # 4-word phrase: at threshold, no signal
+        feat = extract_phrase_features(
+            ["the", "kingdom", "of", "God"], position="middle"
+        )
+        self.assertEqual(feat["stub_phrase"], 0.0)
+
+    def test_stub_phrase_only_position_zero(self):
+        # Single-phrase verse: stub_phrase stays 0 regardless of length.
+        # An "only" phrase is the whole verse; not a chunking problem.
+        feat = extract_phrase_features(["Jesus", "wept."], position="only")
+        self.assertEqual(feat["stub_phrase"], 0.0)
+
+
+class BoundaryFeatureTests(unittest.TestCase):
+    def test_bare_relative_no_comma(self):
+        # "nothing was made" / "that was made." — restrictive, no comma.
+        feat = extract_boundary_features(
+            ["nothing", "was", "made"], ["that", "was", "made."]
+        )
+        self.assertGreater(feat["boundary_severance"], 0.5)
+        self.assertEqual(feat["severance_kind"], "bare_relative")
+
+    def test_non_restrictive_relative_has_comma_no_signal(self):
+        # "Nicodemus," / "who came to Jesus" — comma → non-restrictive.
+        feat = extract_boundary_features(
+            ["...", "Nicodemus,"], ["who", "came", "to", "Jesus"]
+        )
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
+
+    def test_not_a_relative_no_signal(self):
+        feat = extract_boundary_features(["Paul,"], ["called", "to", "be"])
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
+
+    def test_verb_content_clause(self):
+        # "Do you not know" / "that we shall judge angels?"
+        feat = extract_boundary_features(
+            ["Do", "you", "not", "know"], ["that", "we", "shall", "judge"]
+        )
+        self.assertGreater(feat["boundary_severance"], 0.5)
+        self.assertEqual(feat["severance_kind"], "verb_content")
+
+    def test_verb_quote_break_backs_off(self):
+        # `say, "How…"` — reported speech, not a content clause.
+        feat = extract_boundary_features(["he", "said,"], ['"How', 'long?"'])
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
+
+    def test_verb_colon_backs_off(self):
+        feat = extract_boundary_features(["I", "say:"], ["that", "no"])
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
+
+    def test_stranded_stub_short_prev(self):
+        # 1 Cor 12:11 "But one" (2w, mid-clause) / "and the same Spirit…"
+        feat = extract_boundary_features(["But", "one"], ["and", "the", "same"])
+        self.assertGreater(feat["boundary_severance"], 0.5)
+        self.assertEqual(feat["severance_kind"], "stranded_stub")
+
+    def test_stranded_stub_skips_complete_prev_clause(self):
+        # Parallel siblings: "...was with God," / "and the Word was God."
+        feat = extract_boundary_features(
+            ["and", "the", "Word", "was", "with", "God,"],
+            ["and", "the", "Word", "was", "God."],
+        )
+        self.assertEqual(feat["boundary_severance"], 0.0)
+        self.assertIsNone(feat["severance_kind"])
+
+    def test_stranded_stub_skips_long_prev(self):
+        # Long prev ending mid-clause is not stranded even if next opens with `that`.
+        # Falls into bare_relative because `that` follows a noun (Jews) without pause.
+        # Either bare_relative or verb_content is acceptable; we just assert NOT stranded_stub.
+        feat = extract_boundary_features(
+            ["The", "man", "departed", "and", "told", "the", "Jews"],
+            ["that", "it", "was", "Jesus"],
+        )
+        self.assertNotEqual(feat["severance_kind"], "stranded_stub")
+
+    def test_short_next_intensifies_severance(self):
+        # "nothing was made / that was made." (3w next) should score
+        # higher than "told the Jews / that it was Jesus..." (10w next).
+        short_next = extract_boundary_features(
+            ["nothing", "was", "made"], ["that", "was", "made."]
+        )
+        long_next = extract_boundary_features(
+            ["nothing", "was", "made"],
+            ["that", "was", "made", "in", "the", "beginning", "of", "all", "things", "made."],
+        )
+        self.assertGreater(short_next["boundary_severance"], long_next["boundary_severance"])
+
+
+class VerseFeatureTests(unittest.TestCase):
+    def test_single_phrase_verse(self):
+        feats = extract_verse_features(
+            ["For", "the", "kingdom", "of", "God"], [5]
+        )
+        self.assertEqual(feats["phrase_count"], 1)
+        self.assertEqual(feats["token_count"], 5)
+        self.assertEqual(feats["boundaries"], [])
+        self.assertEqual(len(feats["phrases"]), 1)
+        self.assertEqual(feats["phrases"][0]["position"], "only")
+
+    def test_multi_phrase_verse_shape(self):
+        feats = extract_verse_features(
+            ["a", "b", "c,", "d", "e", "f."], [3, 3]
+        )
+        self.assertEqual(feats["phrase_count"], 2)
+        self.assertEqual(len(feats["boundaries"]), 1)
+        self.assertEqual(feats["phrases"][0]["position"], "first")
+        self.assertEqual(feats["phrases"][1]["position"], "last")
+        self.assertAlmostEqual(feats["length_balance"], 1.0, places=2)
+
+    def test_empty_verse(self):
+        feats = extract_verse_features([], [])
+        self.assertEqual(feats["phrase_count"], 0)
+        self.assertEqual(feats["token_count"], 0)
+
+
+class FormatSplitPromptTests(unittest.TestCase):
+    VERSE = "For the kingdom of God is not in word but in power."
+
+    def test_bare_prompt(self):
+        out = format_split_prompt(self.VERSE)
+        self.assertIn("memorisation phrases", out)
+        self.assertIn(self.VERSE, out)
+        self.assertNotIn("Current split", out)
+        self.assertNotIn("Signals (auto-computed)", out)
+
+    def test_with_current_split(self):
+        out = format_split_prompt(
+            self.VERSE,
+            current_split='  - "For the kingdom of God"\n  - "is not in word but in power."',
+        )
+        self.assertIn("Current split", out)
+        self.assertIn("best split, not a different split", out)
+        self.assertNotIn("Signals (auto-computed)", out)
+
+    def test_with_signals_only(self):
+        out = format_split_prompt(self.VERSE, signals="Verse: 12 tokens, 2 phrases")
+        self.assertIn("Signals (auto-computed)", out)
+        self.assertIn("12 tokens", out)
+        self.assertNotIn("Current split", out)
+
+    def test_with_both(self):
+        out = format_split_prompt(
+            self.VERSE,
+            current_split="  - whole verse",
+            signals="Verse: 12 tokens",
+        )
+        self.assertIn("Current split", out)
+        self.assertIn("Signals (auto-computed)", out)
+        # Order: current split appears before signals.
+        self.assertLess(out.index("Current split"), out.index("Signals (auto-computed)"))
+
+
+class CompositeScoreTests(unittest.TestCase):
+    def test_clean_verse_low_score(self):
+        feats = extract_verse_features(
+            ["For", "the", "kingdom", "of", "God"], [5]
+        )
+        # 5-word single-phrase verse: not missing-split, no other signals.
+        self.assertLess(composite_signal_score(feats), 0.1)
+
+    def test_bare_relative_raises_score(self):
+        feats = extract_verse_features(
+            ["nothing", "was", "made", "that", "was", "made."], [3, 3]
+        )
+        # boundary_severance contributes most of the score.
+        self.assertGreater(composite_signal_score(feats), 0.3)
+
+    def test_stub_phrase_raises_score(self):
+        # "But one and the same Spirit works…" — a 2-word stub middle.
+        # 2w + 6w split: stub_phrase = 0.5 → 0.2 * 0.5 = 0.10
+        # plus stranded_stub fires on the boundary: severance ≈ 0.5 + 0.15 = 0.65
+        # → 0.5 * 0.65 = 0.325. Combined ≈ 0.42.
+        feats = extract_verse_features(
+            ["But", "one", "and", "the", "same", "Spirit", "works,"], [2, 5]
+        )
+        score = composite_signal_score(feats)
+        self.assertGreater(score, 0.3)
+
+    def test_cognitive_overload_raises_score(self):
+        # 12-content-word phrase: cognitive_overload = 1.0 → 0.3 weight.
+        feats = extract_verse_features(
+            ["walked", "saw", "told", "heard", "knew", "ran",
+             "spoke", "judged", "called", "found", "wrote", "asked"],
+            [12],
+        )
+        score = composite_signal_score(feats)
+        # cognitive_overload saturates (1.0 * 0.2 weight = 0.2) and
+        # word_overload contributes (wc=12 → 0.2 * 0.2 weight = 0.04).
+        # Total ~0.24. position="only" suppresses stub.
+        self.assertGreater(score, 0.20)
+
+    def test_missing_split_raises_score(self):
+        # 22-token single-phrase verse: missing_split saturates at 1.0
+        # → 0.3 * 1.0 = 0.3. The tokens are all function words ("a"),
+        # so no other signals contribute.
+        feats = extract_verse_features(
+            ["a"] * 22, [22]
+        )
+        score = composite_signal_score(feats)
+        self.assertGreater(score, 0.25)
+
+    def test_composite_clamped_to_one(self):
+        # Pathological verse: all signals max out.
+        feats = extract_verse_features(
+            ["nothing", "was", "made", "that"], [1, 3]
+        )
+        score = composite_signal_score(feats)
+        self.assertLessEqual(score, 1.0)
+
+
+class CheckVerseTests(unittest.TestCase):
+    def test_missing_pwc_is_blocker(self):
+        out = check_verse({"phraseWordCounts": []}, ["a", "b", "c"])
+        self.assertTrue(out["blockers"])
+        self.assertEqual(out["signals"], None)
+
+    def test_sum_drift_is_blocker(self):
+        out = check_verse({"phraseWordCounts": [3, 3]}, ["a", "b", "c", "d", "e"])
+        self.assertTrue(any("drift" in b for b in out["blockers"]))
+        self.assertEqual(out["signals"], None)
+
+    def test_no_canonical_tokens_is_blocker(self):
+        out = check_verse({"phraseWordCounts": [3]}, [])
+        self.assertTrue(out["blockers"])
+
+    def test_unbalanced_html_is_blocker(self):
+        # Phrase 1 opens <b> but doesn't close it inside the phrase.
+        out = check_verse({"phraseWordCounts": [3, 3]}, ["a", "<b>b", "c", "d</b>", "e", "f"])
+        self.assertTrue(any("unbalanced HTML" in b for b in out["blockers"]))
+
+    def test_clean_split_no_blockers(self):
+        out = check_verse(
+            {"phraseWordCounts": [5]},
+            ["For", "the", "kingdom", "of", "God"],
+        )
+        self.assertEqual(out["blockers"], [])
+        self.assertIsInstance(out["signal_score"], float)
+        self.assertIsNotNone(out["signals"])
+
+    def test_restrictive_relative_lifts_score(self):
+        # "nothing was made" / "that was made." — restrictive relative
+        # boundary. No blockers expected; score should be above default.
+        out = check_verse(
+            {"phraseWordCounts": [3, 3]},
+            ["nothing", "was", "made", "that", "was", "made."],
+        )
+        self.assertEqual(out["blockers"], [])
+        self.assertGreater(out["signal_score"], 0.15)
+
+    def test_ftv_out_of_range_is_blocker(self):
+        out = check_verse(
+            {"phraseWordCounts": [3], "ftvWordCount": 99},
+            ["a", "b", "c"],
+        )
+        self.assertTrue(out["blockers"])
+
+
+class PrintPromptRenderingTests(unittest.TestCase):
+    def test_render_current_split_bullets(self):
+        out = _render_current_split(
+            ["For", "the", "kingdom", "of", "God"],
+            [3, 2],
+        )
+        self.assertIn('"For the kingdom"', out)
+        self.assertIn('"of God"', out)
+        # Two bulleted lines.
+        self.assertEqual(out.count("  - "), 2)
+
+    def test_render_signals_includes_header_and_boundary(self):
+        feats = extract_verse_features(
+            ["nothing", "was", "made", "that", "was", "made."], [3, 3]
+        )
+        rendered = _render_signals(feats)
+        # Header line with verse-level metrics
+        self.assertIn("tokens=6", rendered)
+        self.assertIn("phrases=2", rendered)
+        # Per-boundary line names the severance kind and value
+        self.assertIn("bare_relative", rendered)
+        self.assertIn("severance=", rendered)
+        # Composite score is displayed
+        self.assertIn("composite=", rendered)
 
 
 if __name__ == "__main__":
