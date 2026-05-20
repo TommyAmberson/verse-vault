@@ -41,6 +41,8 @@ jobs:
     needs: filter
     if: needs.filter.outputs.bumped == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to push the release tag
     steps:
       - uses: actions/checkout@v4
 
@@ -70,3 +72,17 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy apps/web/dist --project-name=verse-vault-web --branch=master
+
+      - name: Tag release
+        run: |
+          version=$(jq -r .version apps/web/package.json)
+          tag="web@${version}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists; skipping"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$tag" -m "Deployed @verse-vault/web $version to Cloudflare Pages"
+            git push origin "$tag"
+            echo "Tagged $tag at $(git rev-parse HEAD)"
+          fi

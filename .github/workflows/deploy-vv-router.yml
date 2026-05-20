@@ -40,6 +40,8 @@ jobs:
     needs: filter
     if: needs.filter.outputs.bumped == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to push the release tag
     steps:
       - uses: actions/checkout@v4
 
@@ -63,3 +65,17 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: deploy/vv-router
           command: deploy
+
+      - name: Tag release
+        run: |
+          version=$(jq -r .version deploy/vv-router/package.json)
+          tag="vv-router@${version}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists; skipping"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$tag" -m "Deployed @verse-vault/vv-router $version to Cloudflare Workers"
+            git push origin "$tag"
+            echo "Tagged $tag at $(git rev-parse HEAD)"
+          fi
