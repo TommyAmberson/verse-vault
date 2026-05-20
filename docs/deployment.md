@@ -159,9 +159,7 @@ binds 0.0.0.0:3000; the only path in is the Cloudflare Tunnel proxying to 127.0.
 
 `cloudflared tunnel login` writes a temp key to the current directory and the cert to
 `~/.cloudflared/`. The `verse-vault` user can't write to `/root`, and `sudo -u` doesn't set `HOME`
-by default, so cd
-
-* `-H` are both required:
+by default, so both `cd /opt/verse-vault` and the `-H` flag are required:
 
 ```bash
 cd /opt/verse-vault && sudo -u verse-vault -H cloudflared tunnel login    # prints a URL — open it in a local browser to authorise the box
