@@ -91,19 +91,18 @@ sudo mkdir -p /var/lib/verse-vault /var/log/verse-vault
 sudo chown verse-vault:verse-vault /var/lib/verse-vault /var/log/verse-vault
 ```
 
-### 2. Clone + build the API
+> ### Or just run the provisioning script
+>
+> Sections 1 above is automated by `deploy/provision.sh`. From a fresh box as root:
+>
+> ```bash
+> curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/provision.sh | bash
+> ```
+>
+> Sections 2 (env file) through 5 (Litestream) still need manual setup; the CI workflow then handles
+> every subsequent deploy.
 
-```bash
-sudo -u verse-vault git clone https://github.com/<owner>/verse-vault.git /opt/verse-vault/app
-cd /opt/verse-vault/app
-
-sudo -u verse-vault cargo install wasm-pack
-sudo -u verse-vault pnpm install --frozen-lockfile
-sudo -u verse-vault wasm-pack build crates/wasm --target nodejs --out-dir pkg
-sudo -u verse-vault pnpm --filter @verse-vault/api... build
-```
-
-### 3. Environment file
+### 2. Environment file
 
 ```bash
 sudo install -m 640 -o root -g verse-vault /dev/null /etc/verse-vault.env
@@ -139,41 +138,61 @@ NKJV_BIBLE_ID=de4e12af7f28f599-02
 RENDER_DIALECT=canadian
 ```
 
-### 4. systemd unit
+### 3. systemd unit
+
+Fetch the unit file from the branch (or master once merged) and register it. **Don't enable
+`--now`** yet — the API binary won't exist on the box until the first CI deploy lands.
 
 ```bash
-sudo cp /opt/verse-vault/app/deploy/verse-vault.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now verse-vault
-sudo systemctl status verse-vault
+curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/verse-vault.service \
+  -o /etc/systemd/system/verse-vault.service
+systemctl daemon-reload
 ```
 
-The unit binds to `127.0.0.1:3000` only — the only way in is through the Tunnel. Drizzle migrations
-run on each boot (`runMigrations` in `packages/api/src/index.ts`), so first start initialises the
-DB.
+The unit runs `node dist/index.js` as the `verse-vault` user with
+`WorkingDirectory=/opt/verse-vault/app` (a symlink the CI workflow flips between releases). Hono
+binds 0.0.0.0:3000; the only path in is the Cloudflare Tunnel proxying to 127.0.0.1:3000 because
+`ufw` blocks everything else inbound. Drizzle migrations run on each boot (`runMigrations` in
+`packages/api/src/index.ts`).
 
-### 5. Cloudflare Tunnel
+### 4. Cloudflare Tunnel
+
+`cloudflared tunnel login` writes a temp key to the current directory and the cert to
+`~/.cloudflared/`. The `verse-vault` user can't write to `/root`, and `sudo -u` doesn't set `HOME`
+by default, so cd
+
+* `-H` are both required:
 
 ```bash
-sudo -u verse-vault cloudflared tunnel login           # prints a URL — open it in a local browser to authorise the box
-sudo -u verse-vault cloudflared tunnel create vv-api
-sudo cp /opt/verse-vault/app/deploy/cloudflared/config.yml /etc/cloudflared/config.yml
-sudoedit /etc/cloudflared/config.yml                   # paste in the tunnel UUID + credentials path
-sudo -u verse-vault cloudflared tunnel route dns vv-api vv-api.versevault.ca
-sudo cp /opt/verse-vault/app/deploy/cloudflared/cloudflared.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now cloudflared
+cd /opt/verse-vault && sudo -u verse-vault -H cloudflared tunnel login    # prints a URL — open it in a local browser to authorise the box
+sudo -u verse-vault -H cloudflared tunnel create vv-api      # note the UUID it prints
+
+# Fetch templates from the repo (no clone needed on the box)
+mkdir -p /etc/cloudflared
+curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/cloudflared/config.yml \
+  -o /etc/cloudflared/config.yml
+curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/cloudflared/cloudflared.service \
+  -o /etc/systemd/system/cloudflared.service
+
+# Substitute the UUID into config.yml (replace `<UUID>` — the literal placeholder)
+TUNNEL_UUID=$(basename /opt/verse-vault/.cloudflared/*.json .json)
+sed -i "s|<UUID>|$TUNNEL_UUID|g" /etc/cloudflared/config.yml
+
+sudo -u verse-vault -H cloudflared tunnel route dns vv-api vv-api.versevault.ca
+systemctl daemon-reload
+systemctl enable --now cloudflared
 ```
 
 After this `vv-api.versevault.ca` resolves through CF and reaches the VPS via the Tunnel. The VPS
 still has no public ports open — `ufw default deny incoming` is fine.
 
-### 6. Litestream
+### 5. Litestream
 
 ```bash
-sudo cp /opt/verse-vault/app/deploy/litestream.yml /etc/litestream.yml
+curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/litestream.yml \
+  -o /etc/litestream.yml
 sudoedit /etc/litestream.yml      # bucket + B2 keys
-sudo systemctl enable --now litestream
+systemctl enable --now litestream
 ```
 
 Restore on a fresh box (before first service start):
@@ -182,6 +201,44 @@ Restore on a fresh box (before first service start):
 sudo -u verse-vault litestream restore -o /var/lib/verse-vault/verse-vault.db \
   s3://<bucket>/verse-vault.db
 ```
+
+### 6. SSH deploy key for CI
+
+The `.github/workflows/deploy-api.yml` workflow SSHes in as `verse-vault` and runs `rsync` + a few
+shell commands. Three pieces of setup:
+
+```bash
+# Give verse-vault a real shell (was nologin from provision.sh)
+chsh -s /bin/bash verse-vault
+
+# Generate the deploy key as verse-vault, authorise it for inbound SSH
+cd /opt/verse-vault && sudo -u verse-vault -H mkdir -p .ssh
+sudo -u verse-vault -H ssh-keygen -t ed25519 -f /opt/verse-vault/.ssh/deploy_key -N "" \
+  -C "github-actions-deploy@verse-vault-api"
+sudo -u verse-vault -H bash -c '
+  cp /opt/verse-vault/.ssh/deploy_key.pub /opt/verse-vault/.ssh/authorized_keys
+  chmod 700 /opt/verse-vault/.ssh
+  chmod 600 /opt/verse-vault/.ssh/authorized_keys
+'
+
+# Let verse-vault restart the service without a password (limited sudo)
+cat > /etc/sudoers.d/verse-vault <<'EOF'
+verse-vault ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart verse-vault, /usr/bin/systemctl is-active verse-vault, /usr/bin/systemctl status verse-vault
+EOF
+chmod 440 /etc/sudoers.d/verse-vault
+visudo -cf /etc/sudoers.d/verse-vault    # syntax check
+
+# Releases dir owned by verse-vault
+sudo -u verse-vault mkdir -p /opt/verse-vault/releases
+```
+
+Then in **GitHub repo Settings → Secrets and variables → Actions**, add:
+
+* `VPS_SSH_KEY` — paste the private key (`cat /opt/verse-vault/.ssh/deploy_key`)
+* `VPS_HOST` — the VPS's public IPv4 (e.g. `138.197.161.124`)
+
+(The same `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are already configured for the
+web + worker workflows.)
 
 ## Cloudflare edge setup
 
@@ -261,22 +318,29 @@ the expected callback in its error.
 
 ## Updating
 
-API changes (VPS side):
+All three deploys are version-gated CI workflows. Bump the relevant `package.json` version on master
+and the matching workflow detects the change, builds, and ships:
 
-```bash
-sudo -u verse-vault /opt/verse-vault/app/deploy/deploy.sh
-```
+| Bump                            | Workflow                                 | Target                  |
+| ------------------------------- | ---------------------------------------- | ----------------------- |
+| `apps/web/package.json`         | `.github/workflows/deploy-web.yml`       | CF Pages                |
+| `deploy/vv-router/package.json` | `.github/workflows/deploy-vv-router.yml` | CF Worker (`vv-router`) |
+| `packages/api/package.json`     | `.github/workflows/deploy-api.yml`       | VPS (rsync + restart)   |
 
-What it does: `git pull`, `pnpm install --frozen-lockfile`, rebuild WASM, `tsc`,
-`systemctl restart verse-vault`. Migrations run on the restart.
+`workflow_dispatch` is the manual escape hatch on each workflow — useful for the first deploy and
+for retries when nothing in the diff actually changed (e.g., re-running after a transient CI flake).
 
-Web changes: push to the deploy branch. CF Pages rebuilds and ships within a couple of minutes.
+The API workflow builds the WASM + TypeScript artifacts on the GitHub runner, runs
+`pnpm --filter @verse-vault/api deploy --prod` to bundle a self-contained directory (no workspace
+links left), rsyncs to `/opt/verse-vault/releases/<sha>/` on the VPS, atomically flips the
+`/opt/verse-vault/app` symlink, and restarts `verse-vault.service`. Old releases are pruned to the
+last 5 for rollback headroom.
 
-Worker changes:
-
-```bash
-cd deploy/vv-router && pnpm wrangler deploy
-```
+A health check (`curl https://vv-api.versevault.ca/health`) gates the workflow as success — if the
+API doesn't come up within 45 s after restart, the workflow fails and the previous release stays in
+place (because the symlink was already flipped, you'd have to roll back manually by repointing
+`/opt/verse-vault/app` at the prior release dir). Worth tightening later with a true blue/green
+setup, but adequate for now.
 
 ## Operating notes
 
