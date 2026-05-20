@@ -16,8 +16,10 @@
 #   2. Service account + paths
 #   3. Cloudflare Tunnel — pauses for browser auth
 #   4. CI deploy key + sudoers + systemd unit
-#   5. API env file (auto-generates BETTER_AUTH_SECRET; OAuth + Bible
-#      API key left as optional, commented-out lines)
+#   5. API env file (auto-generates BETTER_AUTH_SECRET; Bible API key
+#      left as optional commented-out line)
+#   6. Optional Google OAuth prompt — paste client id/secret or enter
+#      to skip (re-run later to add)
 #
 # When this finishes, the only remaining manual steps are:
 #   - Paste 2 values into GitHub Actions secrets (VPS_HOST + VPS_SSH_KEY)
@@ -246,6 +248,61 @@ RENDER_DIALECT=canadian
 EOF
 	chmod 640 "$ENV_FILE"
 	chown root:verse-vault "$ENV_FILE"
+fi
+
+###############################################################################
+# Phase 6: Optional OAuth prompt
+###############################################################################
+
+echo ""
+echo "==[6/6]==== Google OAuth (optional) ======================"
+echo ""
+echo "  Needed for 'Sign in with Google'. Skip to defer — you can edit"
+echo "  $ENV_FILE and restart the service later."
+echo ""
+
+if grep -qE "^GOOGLE_CLIENT_ID=." "$ENV_FILE" 2>/dev/null; then
+	echo "  -> Already configured in $ENV_FILE; skipping prompt"
+elif ! [ -r /dev/tty ]; then
+	echo "  -> No TTY available (non-interactive run); skipping"
+else
+	# `< /dev/tty` because stdin is the curl pipe when invoked as
+	# `curl ... | bash`, not the terminal.
+	printf "  GOOGLE_CLIENT_ID (enter to skip): "
+	read google_id < /dev/tty
+
+	if [ -z "$google_id" ]; then
+		echo "  -> Skipping Google OAuth"
+	else
+		printf "  GOOGLE_CLIENT_SECRET (hidden): "
+		stty -echo < /dev/tty
+		read google_secret < /dev/tty
+		stty echo < /dev/tty
+		printf "\n"
+
+		if [ -z "$google_secret" ]; then
+			echo "  -> Empty secret; not setting client ID either"
+		else
+			# Escape sed-meaningful chars in the values (typical Google
+			# creds don't include any of these, but defensive).
+			esc_id=$(printf '%s' "$google_id" | sed 's|[&\\|]|\\&|g')
+			esc_secret=$(printf '%s' "$google_secret" | sed 's|[&\\|]|\\&|g')
+			sed -i -E "s|^#?GOOGLE_CLIENT_ID=$|GOOGLE_CLIENT_ID=${esc_id}|" "$ENV_FILE"
+			sed -i -E "s|^#?GOOGLE_CLIENT_SECRET=$|GOOGLE_CLIENT_SECRET=${esc_secret}|" "$ENV_FILE"
+
+			echo "  -> Configured in $ENV_FILE"
+			echo ""
+			echo "  Register this callback URL in your Google Cloud Console OAuth client:"
+			echo "    $PUBLIC_BASE_URL/api/auth/callback/google"
+
+			# If the service is already running (re-run after a previous deploy),
+			# restart it to pick up the new env.
+			if systemctl is-active --quiet verse-vault; then
+				systemctl restart verse-vault
+				echo "  -> Restarted verse-vault to pick up new env"
+			fi
+		fi
+	fi
 fi
 
 ###############################################################################
