@@ -241,7 +241,30 @@ ENV_FILE=/etc/verse-vault.env
 
 if [ -f "$ENV_FILE" ]; then
 	echo "  -> $ENV_FILE already exists; leaving it alone"
-	echo "     (delete it and re-run this script to regenerate)"
+
+	# Offer to rotate BETTER_AUTH_SECRET. Default is no — rotation invalidates
+	# every active Better Auth session, so users get logged out. Worth doing
+	# after a suspected leak or as periodic hygiene, but not by accident.
+	if grep -qE "^BETTER_AUTH_SECRET=." "$ENV_FILE" 2>/dev/null && [ -r /dev/tty ]; then
+		printf "  Rotate BETTER_AUTH_SECRET? (invalidates all active sessions) [y/N]: "
+		read response < /dev/tty
+		case "$response" in
+			[yY] | [yY][eE][sS])
+				new_secret=$(openssl rand -hex 64)
+				# Escape & for sed (the secret is hex so this is belt-and-braces).
+				esc_secret=$(printf '%s' "$new_secret" | sed 's|[&\\|]|\\&|g')
+				sed -i -E "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=${esc_secret}|" "$ENV_FILE"
+				echo "  -> BETTER_AUTH_SECRET rotated"
+				if systemctl is-active --quiet verse-vault; then
+					systemctl restart verse-vault
+					echo "  -> Restarted verse-vault"
+				fi
+				;;
+			*)
+				echo "  -> Keeping existing BETTER_AUTH_SECRET"
+				;;
+		esac
+	fi
 else
 	echo "  -> Writing $ENV_FILE (auto-generated BETTER_AUTH_SECRET)"
 	install -m 640 -o root -g verse-vault /dev/null "$ENV_FILE"
@@ -261,7 +284,10 @@ PORT=3000
 # structural metadata only (no verse text); the flashcard UI can't display
 # anything to memorise. The 'optional' fallback in the code is for tests.
 #BIBLE_API_KEY=
-NKJV_BIBLE_ID=de4e12af7f28f599-02
+# Matches DEFAULT_NKJV_BIBLE_ID in packages/api/src/routes/cards.ts. If
+# your api.bible account doesn't expose this exact bible id, look up the
+# NKJV id you have access to via the api.bible /v1/bibles endpoint.
+NKJV_BIBLE_ID=63097d2a0a2f7db3-01
 
 # Google OAuth — optional. Email/password auth works without it.
 #GOOGLE_CLIENT_ID=
