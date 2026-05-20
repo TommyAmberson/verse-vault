@@ -16,10 +16,11 @@
 #   2. Service account + paths
 #   3. Cloudflare Tunnel — pauses for browser auth
 #   4. CI deploy key + sudoers + systemd unit
-#   5. API env file (auto-generates BETTER_AUTH_SECRET; Bible API key
-#      left as optional commented-out line)
-#   6. Optional Google OAuth prompt — paste client id/secret or enter
-#      to skip (re-run later to add)
+#   5. API env file (auto-generates BETTER_AUTH_SECRET; secrets left
+#      as commented-out lines to fill in next)
+#   6. Interactive secret prompts — paste BIBLE_API_KEY (required for
+#      the app to actually display verses) and optionally Google OAuth.
+#      All prompts accept enter-to-skip; re-run later to add them.
 #
 # When this finishes, the only remaining manual steps are:
 #   - Paste 2 values into GitHub Actions secrets (VPS_HOST + VPS_SSH_KEY)
@@ -234,14 +235,15 @@ WEB_BASE_URL=$PUBLIC_BASE_URL
 DATABASE_PATH=/var/lib/verse-vault/verse-vault.db
 PORT=3000
 
-# Optional — uncomment + fill in to enable each feature.
-# Google OAuth (Better Auth):
-#GOOGLE_CLIENT_ID=
-#GOOGLE_CLIENT_SECRET=
-
-# api.bible cache (NKJV verse text in card renders):
+# api.bible cache — functionally required. Without this the API returns
+# structural metadata only (no verse text); the flashcard UI can't display
+# anything to memorise. The 'optional' fallback in the code is for tests.
 #BIBLE_API_KEY=
 NKJV_BIBLE_ID=de4e12af7f28f599-02
+
+# Google OAuth — optional. Email/password auth works without it.
+#GOOGLE_CLIENT_ID=
+#GOOGLE_CLIENT_SECRET=
 
 # american | british | canadian (default canadian if unset)
 RENDER_DIALECT=canadian
@@ -251,58 +253,76 @@ EOF
 fi
 
 ###############################################################################
-# Phase 6: Optional OAuth prompt
+# Phase 6: Interactive secrets
 ###############################################################################
 
-echo ""
-echo "==[6/6]==== Google OAuth (optional) ======================"
-echo ""
-echo "  Needed for 'Sign in with Google'. Skip to defer — you can edit"
-echo "  $ENV_FILE and restart the service later."
-echo ""
+# Helper: prompt for one env var, optionally hidden. Updates the env file in
+# place by uncommenting + filling the matching `#VAR=` line. No-op if the var
+# is already set or stdin isn't a TTY.
+prompt_secret() {
+	local var=$1
+	local label=$2
+	local hidden=${3:-0}
+	local value=""
 
-if grep -qE "^GOOGLE_CLIENT_ID=." "$ENV_FILE" 2>/dev/null; then
-	echo "  -> Already configured in $ENV_FILE; skipping prompt"
-elif ! [ -r /dev/tty ]; then
-	echo "  -> No TTY available (non-interactive run); skipping"
-else
-	# `< /dev/tty` because stdin is the curl pipe when invoked as
-	# `curl ... | bash`, not the terminal.
-	printf "  GOOGLE_CLIENT_ID (enter to skip): "
-	read google_id < /dev/tty
-
-	if [ -z "$google_id" ]; then
-		echo "  -> Skipping Google OAuth"
-	else
-		printf "  GOOGLE_CLIENT_SECRET (hidden): "
-		stty -echo < /dev/tty
-		read google_secret < /dev/tty
-		stty echo < /dev/tty
-		printf "\n"
-
-		if [ -z "$google_secret" ]; then
-			echo "  -> Empty secret; not setting client ID either"
-		else
-			# Escape sed-meaningful chars in the values (typical Google
-			# creds don't include any of these, but defensive).
-			esc_id=$(printf '%s' "$google_id" | sed 's|[&\\|]|\\&|g')
-			esc_secret=$(printf '%s' "$google_secret" | sed 's|[&\\|]|\\&|g')
-			sed -i -E "s|^#?GOOGLE_CLIENT_ID=$|GOOGLE_CLIENT_ID=${esc_id}|" "$ENV_FILE"
-			sed -i -E "s|^#?GOOGLE_CLIENT_SECRET=$|GOOGLE_CLIENT_SECRET=${esc_secret}|" "$ENV_FILE"
-
-			echo "  -> Configured in $ENV_FILE"
-			echo ""
-			echo "  Register this callback URL in your Google Cloud Console OAuth client:"
-			echo "    $PUBLIC_BASE_URL/api/auth/callback/google"
-
-			# If the service is already running (re-run after a previous deploy),
-			# restart it to pick up the new env.
-			if systemctl is-active --quiet verse-vault; then
-				systemctl restart verse-vault
-				echo "  -> Restarted verse-vault to pick up new env"
-			fi
-		fi
+	if grep -qE "^${var}=." "$ENV_FILE" 2>/dev/null; then
+		echo "  -> $var already configured; skipping"
+		return 0
 	fi
+	if ! [ -r /dev/tty ]; then
+		echo "  -> No TTY; skipping $var (edit $ENV_FILE later)"
+		return 0
+	fi
+
+	printf "  %s: " "$label"
+	if [ "$hidden" = "1" ]; then stty -echo < /dev/tty; fi
+	read value < /dev/tty
+	if [ "$hidden" = "1" ]; then stty echo < /dev/tty; printf "\n"; fi
+
+	if [ -z "$value" ]; then
+		echo "  -> Skipped (edit $ENV_FILE later to add it)"
+		return 1
+	fi
+
+	# Escape sed-meaningful chars defensively. Typical OAuth + API keys
+	# don't contain these but better safe.
+	local esc
+	esc=$(printf '%s' "$value" | sed 's|[&\\|]|\\&|g')
+	sed -i -E "s|^#?${var}=$|${var}=${esc}|" "$ENV_FILE"
+	echo "  -> $var written"
+	return 0
+}
+
+echo ""
+echo "==[6/6]==== Interactive secrets =========================="
+echo ""
+echo "  BIBLE_API_KEY is functionally required — without it, the API"
+echo "  returns structural metadata only and the client can't display"
+echo "  any NKJV verse text. (The 'optional' fallback in the code is"
+echo "  for tests.) You can skip here and add it later, but the app"
+echo "  won't be usable until you do."
+echo ""
+echo "  Get a key at https://scripture.api.bible (free for personal use)."
+echo ""
+prompt_secret BIBLE_API_KEY "BIBLE_API_KEY (enter to skip — app non-functional until added)"
+
+echo ""
+echo "  GOOGLE_CLIENT_ID/SECRET enable 'Sign in with Google'. Optional —"
+echo "  email/password auth works without it."
+echo ""
+if prompt_secret GOOGLE_CLIENT_ID "GOOGLE_CLIENT_ID (enter to skip)"; then
+	prompt_secret GOOGLE_CLIENT_SECRET "GOOGLE_CLIENT_SECRET (hidden)" 1
+	echo ""
+	echo "  Register this callback URL in your Google Cloud Console OAuth client:"
+	echo "    $PUBLIC_BASE_URL/api/auth/callback/google"
+fi
+
+# If the service is already running (re-run after a previous deploy),
+# restart it to pick up the new env.
+if systemctl is-active --quiet verse-vault; then
+	systemctl restart verse-vault
+	echo ""
+	echo "  -> Restarted verse-vault to pick up env changes"
 fi
 
 ###############################################################################
@@ -333,7 +353,10 @@ echo "        OR bump packages/api/package.json version and push to master."
 echo ""
 echo "After (1), clear scrollback (Ctrl-L then Cmd-K / Ctrl-Shift-K)."
 echo ""
-echo "Optional follow-ups (all deferrable — API works without them):"
-echo "  - Edit /etc/verse-vault.env to add GOOGLE_CLIENT_ID/SECRET (Google OAuth)"
-echo "  - Edit /etc/verse-vault.env to add BIBLE_API_KEY (NKJV text in cards)"
-echo "  - Fetch deploy/litestream.yml + fill in B2 creds + 'systemctl enable --now litestream'"
+echo "Follow-ups:"
+echo "  - If you skipped BIBLE_API_KEY above, the app will render empty cards"
+echo "    until you set it. Get a key at https://scripture.api.bible and edit"
+echo "    /etc/verse-vault.env, then 'systemctl restart verse-vault'."
+echo "  - Optional: add GOOGLE_CLIENT_ID/SECRET for 'Sign in with Google'"
+echo "  - Optional: fetch deploy/litestream.yml, fill in B2 creds, enable"
+echo "    'systemctl enable --now litestream' for continuous DB backups"
