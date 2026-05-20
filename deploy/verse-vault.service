@@ -10,7 +10,11 @@ Wants=litestream.service
 Type=simple
 User=verse-vault
 Group=verse-vault
-WorkingDirectory=/opt/verse-vault/app/packages/api
+# /opt/verse-vault/app is a symlink to /opt/verse-vault/releases/<sha>/ — the
+# self-contained API bundle produced by `pnpm --filter @verse-vault/api deploy`
+# in the deploy-api workflow. node_modules, dist/, and migrations/ all live at
+# the bundle root.
+WorkingDirectory=/opt/verse-vault/app
 EnvironmentFile=/etc/verse-vault.env
 # Hono binds 0.0.0.0:$PORT but the host runs `ufw default deny incoming`,
 # so the only path in is the Cloudflare Tunnel proxying to 127.0.0.1:3000
