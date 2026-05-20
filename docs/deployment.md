@@ -24,7 +24,7 @@ Worker (existing)            │                       Pages (existing)
      (cloudflared on VPS)               (verse-vault-web)
              │
      ┌───────┴─────────┐
-     │ Hetzner CX11    │
+     │ Hetzner CX23    │
      │ node dist/…     │  → /var/lib/verse-vault/verse-vault.db
      │ better-sqlite3  │  → Litestream → Backblaze B2
      │ Litestream      │
@@ -44,8 +44,15 @@ Why this shape:
 
 ## Host sizing
 
-A Hetzner CX11 (€4.51/mo, 2 vCPU / 2 GB) is plenty for single-user + a handful of friends. The
-bottleneck is per-user `WasmEngine` cache memory (a few MB each), not request CPU.
+A Hetzner CX23 (€4.49/mo, 2 vCPU / 4 GB / 40 GB SSD, EU region) is plenty for single-user + a
+handful of friends and the cheapest VPS that comfortably runs the Rust + wasm-pack build on the box.
+The bottleneck is per-user `WasmEngine` cache memory (a few MB each), not request CPU. The ARM
+equivalent (CAX11, Ampere, €4.99/mo) also works — all our deps have arm64 builds — but x86 is the
+more boring choice for the first deploy.
+
+EU location adds ~100ms latency vs a Toronto provider but it's invisible for flashcard review — the
+slowest network round-trip a user hits is OAuth sign-in (once per session), and even that's well
+under a second. Migration to a Canadian host later is a few hours via `litestream restore`.
 
 Debian 12 or Ubuntu 24.04. Instructions assume `apt`.
 
@@ -282,7 +289,7 @@ cd deploy/vv-router && pnpm wrangler deploy
 
 ## Costs (May 2026)
 
-* Hetzner CX11: €4.51/mo (~$5).
+* Hetzner CX23 (EU): €4.49/mo (~$4.85 USD / ~$6.70 CAD).
 * CF Pages + Workers + Tunnel: free at this scale.
 * Backblaze B2 (Litestream): cents per month.
 * Total: ~$5/mo on top of existing domain.
