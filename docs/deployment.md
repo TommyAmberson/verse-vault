@@ -202,38 +202,28 @@ sudo -u verse-vault litestream restore -o /var/lib/verse-vault/verse-vault.db \
 
 ### 6. SSH deploy key for CI
 
-The `.github/workflows/deploy-api.yml` workflow SSHes in as `verse-vault` and runs `rsync` + a few
-shell commands. Three pieces of setup:
+The `.github/workflows/deploy-api.yml` workflow SSHes in as `verse-vault` and runs `rsync` plus a
+few shell commands. Setup is automated by `deploy/setup-ci.sh`:
 
 ```bash
-# Give verse-vault a real shell (was nologin from provision.sh)
-chsh -s /bin/bash verse-vault
-
-# Generate the deploy key as verse-vault, authorise it for inbound SSH
-cd /opt/verse-vault && sudo -u verse-vault -H mkdir -p .ssh
-sudo -u verse-vault -H ssh-keygen -t ed25519 -f /opt/verse-vault/.ssh/deploy_key -N "" \
-  -C "github-actions-deploy@verse-vault-api"
-sudo -u verse-vault -H bash -c '
-  cp /opt/verse-vault/.ssh/deploy_key.pub /opt/verse-vault/.ssh/authorized_keys
-  chmod 700 /opt/verse-vault/.ssh
-  chmod 600 /opt/verse-vault/.ssh/authorized_keys
-'
-
-# Let verse-vault restart the service without a password (limited sudo)
-cat > /etc/sudoers.d/verse-vault <<'EOF'
-verse-vault ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart verse-vault, /usr/bin/systemctl is-active verse-vault, /usr/bin/systemctl status verse-vault
-EOF
-chmod 440 /etc/sudoers.d/verse-vault
-visudo -cf /etc/sudoers.d/verse-vault    # syntax check
-
-# Releases dir owned by verse-vault
-sudo -u verse-vault mkdir -p /opt/verse-vault/releases
+curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/setup-ci.sh | bash
 ```
+
+What it does:
+
+1. Switches `verse-vault`'s shell from `nologin` → `/bin/bash` so SSH command execution works
+2. Generates an ed25519 deploy keypair in `/opt/verse-vault/.ssh/` (idempotent — won't overwrite
+   existing)
+3. Authorises the public key for inbound SSH as `verse-vault`
+4. Installs a sudoers rule letting `verse-vault` run
+   `systemctl restart|is-active|status verse-vault` without a password (and nothing else)
+5. Creates `/opt/verse-vault/releases/` owned by `verse-vault`
+6. Prints the private key for you to paste into the GitHub Actions secret
 
 Then in **GitHub repo Settings → Secrets and variables → Actions**, add:
 
-* `VPS_SSH_KEY` — paste the private key (`cat /opt/verse-vault/.ssh/deploy_key`)
-* `VPS_HOST` — the VPS's public IPv4 (e.g. `138.197.161.124`)
+* `VPS_SSH_KEY` — paste the private key from the script's output
+* `VPS_HOST` — the VPS's public IPv4 (the script also prints this for you)
 
 (The same `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are already configured for the
 web + worker workflows.)
