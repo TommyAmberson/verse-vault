@@ -15,7 +15,7 @@
     "postinstall": "simple-git-hooks"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm lint-staged && cargo fmt --check && typos",
+    "pre-commit": "pnpm lint-staged && cargo fmt --check && typos && tools/check-contract-versions.sh",
     "commit-msg": "pnpm commitlint --edit $1"
   },
   "lint-staged": {

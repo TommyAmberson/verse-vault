@@ -57,6 +57,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fail fast if the API CHANGELOG entry for the version being deployed
+      # doesn't reference the current verse-vault-core / verse-vault-wasm
+      # contract crate versions. Catches "bumped core but forgot to update
+      # the API changelog's Bundled algorithm contract subsection."
+      - name: Verify contract crate references in CHANGELOG
+        run: tools/check-contract-versions.sh --ci
+
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
