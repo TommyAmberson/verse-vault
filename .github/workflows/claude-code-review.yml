@@ -1,28 +1,87 @@
 name: Claude Code Review
 
+# Pure opt-in. Tokens aren't free, so nothing fires by default — not on PR
+# open, not on push. To get a review:
+#
+#   Comment `@claude review` (or any `@claude ...`) on the PR.
+#
+# That fires the review immediately and adds a `claude-watch` label, after
+# which every push to the PR also fires. Remove the label in the PR UI to
+# unsubscribe.
+
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    # `synchronize` only — gated on the `claude-watch` label in the `if:`.
+    # No `opened` / `ready_for_review` because opening a PR shouldn't burn
+    # a review unless explicitly requested.
+    types: [synchronize]
+  issue_comment:
+    types: [created]
 
 jobs:
   claude-review:
     if: |
-      github.event.pull_request.author_association == 'OWNER' ||
-      github.event.pull_request.author_association == 'MEMBER' ||
-      github.event.pull_request.author_association == 'COLLABORATOR'
+      (
+        (
+          github.event_name == 'pull_request' &&
+          (
+            github.event.pull_request.author_association == 'OWNER' ||
+            github.event.pull_request.author_association == 'MEMBER' ||
+            github.event.pull_request.author_association == 'COLLABORATOR'
+          ) &&
+          contains(github.event.pull_request.labels.*.name, 'claude-watch')
+        ) || (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request != null &&
+          contains(github.event.comment.body, '@claude') &&
+          (
+            github.event.comment.author_association == 'OWNER' ||
+            github.event.comment.author_association == 'MEMBER' ||
+            github.event.comment.author_association == 'COLLABORATOR'
+          )
+        )
+      )
 
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      # write so we can add the `claude-watch` label on first @claude mention
+      pull-requests: write
+      issues: write
       id-token: write
 
     steps:
+      - name: Resolve PR number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # First @claude comment subscribes the PR to per-push reviews by adding
+      # a label. Creating the label first is idempotent (`|| true`).
+      - name: Subscribe PR to per-push reviews
+        if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create claude-watch \
+            --color ededed \
+            --description "Run claude-review on every push (remove label to unsubscribe)" \
+            --repo ${{ github.repository }} || true
+          gh pr edit ${{ steps.pr.outputs.number }} \
+            --add-label claude-watch \
+            --repo ${{ github.repository }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          # issue_comment workflows checkout the default branch by default;
+          # point at the PR head so the review sees the actual diff.
+          ref: refs/pull/${{ steps.pr.outputs.number }}/head
 
       - name: Run Claude Code Review
         id: claude-review
@@ -32,4 +91,4 @@ jobs:
           allowed_bots: 'claude'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ steps.pr.outputs.number }}'
