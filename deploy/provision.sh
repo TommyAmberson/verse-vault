@@ -44,7 +44,10 @@ LITESTREAM_VERSION="${LITESTREAM_VERSION:-0.3.13}"
 TUNNEL_NAME="${TUNNEL_NAME:-vv-api}"
 TUNNEL_HOSTNAME="${TUNNEL_HOSTNAME:-vv-api.versevault.ca}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-https://www.versevault.ca/vv}"
-RAW_URL_BASE="https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy"
+
+# Override to fetch templates from a non-master branch during testing:
+#   curl ... | RAW_URL_BASE=https://raw.githubusercontent.com/.../docs-deploy/deploy bash
+RAW_URL_BASE="${RAW_URL_BASE:-https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy}"
 
 ###############################################################################
 # Phase 1: Base system
