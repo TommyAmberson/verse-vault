@@ -151,8 +151,16 @@ if [ -n "$TUNNEL_UUID" ]; then
 else
 	echo "  -> Creating tunnel '$TUNNEL_NAME'"
 	cd /opt/verse-vault && sudo -u verse-vault -H cloudflared tunnel create "$TUNNEL_NAME"
-	# Fresh credentials file lands in ~/.cloudflared/<UUID>.json
+	# Fresh credentials file lands in ~/.cloudflared/<UUID>.json. Guard
+	# against the case where cloudflared exits 0 but the file isn't where
+	# we expect — otherwise TUNNEL_UUID becomes empty and the sed
+	# substitution silently produces a malformed config, and cloudflared
+	# fails much later with a confusing error.
 	CREDS_FILE=$(ls -t /opt/verse-vault/.cloudflared/*.json 2>/dev/null | head -1)
+	if [ -z "$CREDS_FILE" ]; then
+		echo "ERROR: cloudflared tunnel create succeeded but no credentials JSON was written to /opt/verse-vault/.cloudflared/" >&2
+		exit 1
+	fi
 	TUNNEL_UUID=$(basename "$CREDS_FILE" .json)
 fi
 echo "     Tunnel UUID: $TUNNEL_UUID"
