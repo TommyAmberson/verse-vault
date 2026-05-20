@@ -20,7 +20,12 @@
 #      as commented-out lines to fill in next)
 #   6. Interactive secret prompts — paste BIBLE_API_KEY (required for
 #      the app to actually display verses) and optionally Google OAuth.
-#      All prompts accept enter-to-skip; re-run later to add them.
+#   7. Litestream backup setup — paste Backblaze B2 bucket + credentials
+#      to enable continuous SQLite replication. Optional; the app works
+#      without it but unbacked reviews are lost on box failure.
+#
+# All prompts accept enter-to-skip; re-run later to add them. Existing
+# values in /etc/verse-vault.env and /etc/litestream.yml are preserved.
 #
 # When this finishes, the only remaining manual steps are:
 #   - Paste 2 values into GitHub Actions secrets (VPS_HOST + VPS_SSH_KEY)
@@ -53,7 +58,7 @@ RAW_URL_BASE="${RAW_URL_BASE:-https://raw.githubusercontent.com/TommyAmberson/ve
 # Phase 1: Base system
 ###############################################################################
 
-echo "==[1/6]==== Base system =================================="
+echo "==[1/7]==== Base system =================================="
 
 echo "  -> NTP sync"
 timedatectl set-ntp true
@@ -99,7 +104,7 @@ fi
 ###############################################################################
 
 echo ""
-echo "==[2/6]==== Service account + paths ======================"
+echo "==[2/7]==== Service account + paths ======================"
 
 echo "  -> verse-vault service account"
 if ! id -u verse-vault &>/dev/null; then
@@ -124,7 +129,7 @@ ufw --force enable
 ###############################################################################
 
 echo ""
-echo "==[3/6]==== Cloudflare Tunnel ============================"
+echo "==[3/7]==== Cloudflare Tunnel ============================"
 echo ""
 echo "  About to run 'cloudflared tunnel login'."
 echo "  It will print a URL — open that URL on your workstation,"
@@ -192,7 +197,7 @@ fi
 ###############################################################################
 
 echo ""
-echo "==[4/6]==== CI deploy key + systemd unit ================="
+echo "==[4/7]==== CI deploy key + systemd unit ================="
 
 KEY_PATH=/opt/verse-vault/.ssh/deploy_key
 
@@ -230,13 +235,36 @@ systemctl daemon-reload
 ###############################################################################
 
 echo ""
-echo "==[5/6]==== API environment file ========================="
+echo "==[5/7]==== API environment file ========================="
 
 ENV_FILE=/etc/verse-vault.env
 
 if [ -f "$ENV_FILE" ]; then
 	echo "  -> $ENV_FILE already exists; leaving it alone"
-	echo "     (delete it and re-run this script to regenerate)"
+
+	# Offer to rotate BETTER_AUTH_SECRET. Default is no — rotation invalidates
+	# every active Better Auth session, so users get logged out. Worth doing
+	# after a suspected leak or as periodic hygiene, but not by accident.
+	if grep -qE "^BETTER_AUTH_SECRET=." "$ENV_FILE" 2>/dev/null && [ -r /dev/tty ]; then
+		printf "  Rotate BETTER_AUTH_SECRET? (invalidates all active sessions) [y/N]: "
+		read response < /dev/tty
+		case "$response" in
+			[yY] | [yY][eE][sS])
+				new_secret=$(openssl rand -hex 64)
+				# Escape & for sed (the secret is hex so this is belt-and-braces).
+				esc_secret=$(printf '%s' "$new_secret" | sed 's|[&\\|]|\\&|g')
+				sed -i -E "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=${esc_secret}|" "$ENV_FILE"
+				echo "  -> BETTER_AUTH_SECRET rotated"
+				if systemctl is-active --quiet verse-vault; then
+					systemctl restart verse-vault
+					echo "  -> Restarted verse-vault"
+				fi
+				;;
+			*)
+				echo "  -> Keeping existing BETTER_AUTH_SECRET"
+				;;
+		esac
+	fi
 else
 	echo "  -> Writing $ENV_FILE (auto-generated BETTER_AUTH_SECRET)"
 	install -m 640 -o root -g verse-vault /dev/null "$ENV_FILE"
@@ -256,7 +284,10 @@ PORT=3000
 # structural metadata only (no verse text); the flashcard UI can't display
 # anything to memorise. The 'optional' fallback in the code is for tests.
 #BIBLE_API_KEY=
-NKJV_BIBLE_ID=de4e12af7f28f599-02
+# Matches DEFAULT_NKJV_BIBLE_ID in packages/api/src/routes/cards.ts. If
+# your api.bible account doesn't expose this exact bible id, look up the
+# NKJV id you have access to via the api.bible /v1/bibles endpoint.
+NKJV_BIBLE_ID=63097d2a0a2f7db3-01
 
 # Google OAuth — optional. Email/password auth works without it.
 #GOOGLE_CLIENT_ID=
@@ -274,44 +305,77 @@ fi
 ###############################################################################
 
 # Helper: prompt for one env var, optionally hidden. Updates the env file in
-# place by uncommenting + filling the matching `#VAR=` line. No-op if the var
-# is already set or stdin isn't a TTY.
+# place.
+#
+# When the variable already has a value, offers Keep / change / remove
+# (default Keep). When unset, prompts for a value (enter to leave unset).
+# Return code: 0 if the variable is set after the call, 1 if not.
 prompt_secret() {
 	local var=$1
 	local label=$2
 	local hidden=${3:-0}
 	local value=""
+	local existing=0
 
 	if grep -qE "^${var}=." "$ENV_FILE" 2>/dev/null; then
-		echo "  -> $var already configured; skipping"
-		return 0
-	fi
-	if ! [ -r /dev/tty ]; then
-		echo "  -> No TTY; skipping $var (edit $ENV_FILE later)"
-		return 0
+		existing=1
 	fi
 
+	# Non-interactive run (CI, curl|bash with no TTY).
+	if ! [ -r /dev/tty ]; then
+		if [ "$existing" = "1" ]; then
+			echo "  -> $var already set; non-interactive, leaving alone"
+			return 0
+		fi
+		echo "  -> No TTY; skipping $var (edit $ENV_FILE later)"
+		return 1
+	fi
+
+	# Existing-value flow: keep / change / clear.
+	if [ "$existing" = "1" ]; then
+		printf "  %s already set. [K]eep / [c]hange / [r]emove: " "$var"
+		read action < /dev/tty
+		case "$action" in
+			[cC]*) ;; # fall through to the value prompt below
+			[rR]*)
+				sed -i -E "s|^${var}=.*|#${var}=|" "$ENV_FILE"
+				echo "  -> $var cleared"
+				return 1
+				;;
+			*)
+				echo "  -> Keeping existing $var"
+				return 0
+				;;
+		esac
+	fi
+
+	# Prompt for a (new) value.
 	printf "  %s: " "$label"
 	if [ "$hidden" = "1" ]; then stty -echo < /dev/tty; fi
 	read value < /dev/tty
 	if [ "$hidden" = "1" ]; then stty echo < /dev/tty; printf "\n"; fi
 
 	if [ -z "$value" ]; then
+		if [ "$existing" = "1" ]; then
+			echo "  -> Empty value; keeping existing $var"
+			return 0
+		fi
 		echo "  -> Skipped (edit $ENV_FILE later to add it)"
 		return 1
 	fi
 
 	# Escape sed-meaningful chars defensively. Typical OAuth + API keys
-	# don't contain these but better safe.
+	# don't contain these but better safe. Replaces the line whether it's
+	# currently #VAR=, VAR=, or VAR=oldvalue.
 	local esc
 	esc=$(printf '%s' "$value" | sed 's|[&\\|]|\\&|g')
-	sed -i -E "s|^#?${var}=$|${var}=${esc}|" "$ENV_FILE"
+	sed -i -E "s|^#?${var}=.*|${var}=${esc}|" "$ENV_FILE"
 	echo "  -> $var written"
 	return 0
 }
 
 echo ""
-echo "==[6/6]==== Interactive secrets =========================="
+echo "==[6/7]==== Interactive secrets =========================="
 echo ""
 echo "  BIBLE_API_KEY is functionally required — without it, the API"
 echo "  returns structural metadata only and the client can't display"
@@ -343,6 +407,111 @@ if systemctl is-active --quiet verse-vault; then
 fi
 
 ###############################################################################
+# Phase 7: Litestream backups (optional)
+###############################################################################
+
+echo ""
+echo "==[7/7]==== Litestream backups (optional) ================"
+echo ""
+echo "  Continuous SQLite replication to Backblaze B2. Skip to defer —"
+echo "  the app works without it, but unbacked reviews are lost on box"
+echo "  failure. Setup requires a B2 account + bucket + application key:"
+echo "    https://www.backblaze.com/cloud-storage"
+echo ""
+
+LITESTREAM_CONFIG=/etc/litestream.yml
+
+# Helper: prompt for the four B2 values, write the config, enable + start the
+# service. Returns silently if the user enters a blank bucket name.
+configure_litestream_fresh() {
+	local b2_bucket b2_endpoint b2_key_id b2_app_key
+	printf "  B2 bucket name (enter to skip Litestream setup): "
+	read b2_bucket < /dev/tty
+	if [ -z "$b2_bucket" ]; then
+		echo "  -> Skipping Litestream (configure later by editing $LITESTREAM_CONFIG)"
+		return
+	fi
+	printf "  B2 S3 endpoint (e.g. s3.us-east-005.backblazeb2.com): "
+	read b2_endpoint < /dev/tty
+	printf "  B2 application key ID: "
+	read b2_key_id < /dev/tty
+	printf "  B2 application key (hidden): "
+	stty -echo < /dev/tty
+	read b2_app_key < /dev/tty
+	stty echo < /dev/tty
+	printf "\n"
+
+	if [ -z "$b2_endpoint" ] || [ -z "$b2_key_id" ] || [ -z "$b2_app_key" ]; then
+		echo "  -> One or more values empty; skipping Litestream"
+		return
+	fi
+
+	install -m 600 -o root -g root /dev/null "$LITESTREAM_CONFIG"
+	cat > "$LITESTREAM_CONFIG" <<EOF
+# Generated by provision.sh on $(date -u +%FT%TZ).
+
+dbs:
+  - path: /var/lib/verse-vault/verse-vault.db
+    replicas:
+      - type: s3
+        bucket: ${b2_bucket}
+        path: verse-vault.db
+        endpoint: ${b2_endpoint}
+        # B2 uses path-style URLs, not AWS-style virtual hosting.
+        force-path-style: true
+        access-key-id: ${b2_key_id}
+        secret-access-key: ${b2_app_key}
+        # 24h of fine-grained PITR via Litestream; older snapshots compact.
+        # B2 bucket-level versioning (if enabled) gives a longer recovery
+        # window for the deleted snapshots.
+        retention: 24h
+        snapshot-interval: 1h
+        sync-interval: 10s
+EOF
+	chmod 600 "$LITESTREAM_CONFIG"
+
+	systemctl enable --now litestream
+	sleep 2
+	if systemctl is-active --quiet litestream; then
+		echo "  -> Litestream configured and running"
+		echo "     (logs warnings until the DB file exists — gone after first API deploy)"
+	else
+		echo "  -> WARNING: litestream failed to start. Recent logs:"
+		journalctl -u litestream --no-pager -n 15 || true
+	fi
+}
+
+if [ -f "$LITESTREAM_CONFIG" ]; then
+	if ! [ -r /dev/tty ]; then
+		echo "  -> $LITESTREAM_CONFIG exists; non-interactive, leaving alone"
+	else
+		printf "  Litestream already configured. [K]eep / [r]egenerate / [d]isable: "
+		read action < /dev/tty
+		case "$action" in
+			[rR]*)
+				echo "  -> Regenerating $LITESTREAM_CONFIG"
+				systemctl stop litestream 2>/dev/null || true
+				rm -f "$LITESTREAM_CONFIG"
+				configure_litestream_fresh
+				;;
+			[dD]*)
+				systemctl disable --now litestream 2>/dev/null || true
+				rm -f "$LITESTREAM_CONFIG"
+				echo "  -> Litestream disabled (service stopped, config removed)"
+				;;
+			*)
+				echo "  -> Keeping existing Litestream config"
+				;;
+		esac
+	fi
+elif ! [ -r /dev/tty ]; then
+	echo "  -> No TTY (non-interactive run); skipping Litestream"
+else
+	configure_litestream_fresh
+fi
+
+
+###############################################################################
 # Done — print what's left
 ###############################################################################
 
@@ -370,10 +539,12 @@ echo "        OR bump packages/api/package.json version and push to master."
 echo ""
 echo "After (1), clear scrollback (Ctrl-L then Cmd-K / Ctrl-Shift-K)."
 echo ""
-echo "Follow-ups:"
-echo "  - If you skipped BIBLE_API_KEY above, the app will render empty cards"
-echo "    until you set it. Get a key at https://scripture.api.bible and edit"
-echo "    /etc/verse-vault.env, then 'systemctl restart verse-vault'."
-echo "  - Optional: add GOOGLE_CLIENT_ID/SECRET for 'Sign in with Google'"
-echo "  - Optional: fetch deploy/litestream.yml, fill in B2 creds, enable"
-echo "    'systemctl enable --now litestream' for continuous DB backups"
+echo "Follow-ups (anything you skipped above can be added later):"
+echo "  - BIBLE_API_KEY (functionally required for verses to render). Get a"
+echo "    key at https://scripture.api.bible, edit /etc/verse-vault.env,"
+echo "    then 'systemctl restart verse-vault'."
+echo "  - GOOGLE_CLIENT_ID/SECRET for 'Sign in with Google' (optional)."
+echo "  - Litestream config in /etc/litestream.yml (optional, but reviews"
+echo "    aren't backed up without it). Create a Backblaze B2 bucket + key,"
+echo "    re-run this script (idempotent), or edit /etc/litestream.yml then"
+echo "    'systemctl enable --now litestream'."

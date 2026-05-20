@@ -49,6 +49,8 @@ jobs:
     needs: filter
     if: needs.filter.outputs.bumped == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to push the release tag
     env:
       RELEASE_DIR: /opt/verse-vault/releases/${{ github.sha }}
       VPS_USER: verse-vault
@@ -56,6 +58,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # Fail fast if the API CHANGELOG entry for the version being deployed
+      # doesn't reference the current verse-vault-core / verse-vault-wasm
+      # contract crate versions. Catches "bumped core but forgot to update
+      # the API changelog's Bundled algorithm contract subsection."
+      - name: Verify contract crate references in CHANGELOG
+        run: tools/check-contract-versions.sh --ci
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -142,3 +151,32 @@ jobs:
             cd /opt/verse-vault/releases
             ls -1t | tail -n +6 | xargs -r rm -rf
           "
+
+      # Tag the API release. Also tag the bundled contract crate versions
+      # (core, wasm) if they haven't been tagged yet — they ship as part of
+      # this deploy and have no workflow of their own.
+      - name: Tag release
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          tag_if_missing() {
+            local tag=$1
+            local subject=$2
+            if git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "Tag $tag already exists; skipping"
+            else
+              git tag -a "$tag" -m "$subject"
+              git push origin "$tag"
+              echo "Tagged $tag at $(git rev-parse HEAD)"
+            fi
+          }
+
+          api_v=$(jq -r .version packages/api/package.json)
+          core_v=$(grep -E '^version = ' crates/core/Cargo.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          wasm_v=$(grep -E '^version = ' crates/wasm/Cargo.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+
+          tag_if_missing "api@${api_v}"  "Deployed @verse-vault/api ${api_v} to VPS"
+          tag_if_missing "core@${core_v}" "Bundled verse-vault-core ${core_v} (ships with api@${api_v})"
+          tag_if_missing "wasm@${wasm_v}" "Bundled verse-vault-wasm ${wasm_v} (ships with api@${api_v})"

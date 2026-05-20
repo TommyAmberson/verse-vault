@@ -1,22 +1,30 @@
 # /etc/litestream.yml
 #
-# Continuous replication of the SQLite DB to S3-compatible storage.
-# Backblaze B2 is the cheapest option for this size of DB (cents/month).
+# Continuous replication of the SQLite DB to S3-compatible storage
+# (Backblaze B2 — cheapest at this size, cents/month).
 #
-# Fill in `bucket`, `endpoint`, and credentials before enabling the unit.
+# This file is normally written by `deploy/provision.sh` phase 7 from
+# interactive prompts. If you skipped that or are setting this up
+# standalone, copy this file to /etc/litestream.yml, fill in the four
+# placeholders below via `sudoedit`, and `systemctl enable --now litestream`.
+#
+# Format matches what provision.sh writes — values are embedded directly
+# rather than substituted from env vars at runtime.
 
 dbs:
   - path: /var/lib/verse-vault/verse-vault.db
     replicas:
       - type: s3
-        bucket: verse-vault-backup
+        bucket: <your-bucket-name>
         path: verse-vault.db
-        endpoint: s3.us-west-002.backblazeb2.com
-        region: us-west-002
-        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
-        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
-
-        # Keep 24h of point-in-time recovery; older snapshots compact.
+        endpoint: <s3.region.backblazeb2.com>
+        # B2 uses path-style URLs, not AWS-style virtual hosting.
+        force-path-style: true
+        access-key-id: <your-b2-application-key-id>
+        secret-access-key: <your-b2-application-key>
+        # 24h of fine-grained PITR via Litestream; older snapshots compact.
+        # B2 bucket-level versioning gives a longer recovery window for
+        # the deleted snapshots.
         retention: 24h
         snapshot-interval: 1h
         sync-interval: 10s

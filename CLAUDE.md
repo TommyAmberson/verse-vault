@@ -54,8 +54,10 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 
 Hooks are wired via `simple-git-hooks` + `lint-staged` and installed by `pnpm install` (see the
 `postinstall` script in `package.json`). The `pre-commit` hook runs `lint-staged`,
-`cargo fmt --check`, and `typos`; `commit-msg` runs `commitlint` against the conventional-commits
-config.
+`cargo fmt --check`, `typos`, and `tools/check-contract-versions.sh` (blocks commits that touch
+`crates/{core,wasm}/src/` without a matching `Cargo.toml` version bump — bypass with `--no-verify`
+for refactors that don't change observable behaviour). `commit-msg` runs `commitlint` against the
+conventional-commits config.
 
 Manually run the slower checks before pushing:
 
@@ -110,6 +112,34 @@ cross-cutting changes (e.g. `chore: bump version to 0.2.0`).
 
 Subject in lowercase, no trailing period, imperative mood ("add X", not "added X"), and **≤ 50
 characters** including the type/scope prefix. Body wrapped at ~72 cols, focuses on the why.
+
+## Contract crate versioning
+
+`crates/core` (algorithm + state semantics) and `crates/wasm` (JS↔Rust wire format) are contracts
+across consumers: the API today, future browser/Tauri/CLI fat clients. Their `Cargo.toml` version is
+the contract version — same number across consumers means same observable behaviour. A mismatch at
+sync time (eventually enforceable in the sync API) is a real compat signal, not informational.
+
+Discipline when changing them:
+
+1. Bump the package version in the matching `Cargo.toml`. Semver semantics: MAJOR for breaking
+   state/wire changes (event replay would produce different state, or wire shape changed
+   incompatibly), MINOR for additive features, PATCH for pure implementation fixes.
+2. Add an entry under `## [Unreleased]` in the crate's `CHANGELOG.md`.
+3. When releasing a consumer (bumping its `package.json`), promote the contract crate's
+   `[Unreleased]` entries to a real version section and update the consumer's
+   `### Bundled algorithm contract` subsection with the new versions.
+
+Enforcement:
+
+* **Pre-commit** (`tools/check-contract-versions.sh`): blocks commits where
+  `crates/<core|wasm>/src/` changed but the version didn't. Bypass with `git commit --no-verify` for
+  refactors with no observable effect.
+* **CI** (`.github/workflows/deploy-api.yml`, run on API deploys): blocks deploys when
+  `packages/api/CHANGELOG.md`'s entry for the version being deployed doesn't reference the current
+  contract crate versions. Catches "bumped core but forgot to update the API changelog."
+
+See top-level `CHANGELOG.md` for the contract model and per-package changelog index.
 
 ## Other conventions
 
