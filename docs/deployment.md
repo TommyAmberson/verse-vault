@@ -203,13 +203,14 @@ sudo -u verse-vault litestream restore -o /var/lib/verse-vault/verse-vault.db \
 ### 6. SSH deploy key for CI
 
 The `.github/workflows/deploy-api.yml` workflow SSHes in as `verse-vault` and runs `rsync` plus a
-few shell commands. Setup is automated by `deploy/setup-ci.sh`:
+few shell commands. This is **phase 4 of `provision.sh`** — if you ran the provisioning script in
+§1, this is already done. To do it standalone (or to rotate the key later), re-run `provision.sh`:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/setup-ci.sh | bash
+curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/provision.sh | bash
 ```
 
-What it does:
+It's idempotent — already-completed phases are skipped. Phase 4 specifically:
 
 1. Switches `verse-vault`'s shell from `nologin` → `/bin/bash` so SSH command execution works
 2. Generates an ed25519 deploy keypair in `/opt/verse-vault/.ssh/` (idempotent — won't overwrite
@@ -336,7 +337,13 @@ setup, but adequate for now.
   → Workers → vv-router → logs (edge).
 * DB inspection: `sqlite3 /var/lib/verse-vault/verse-vault.db` (use `.open -readonly` while the
   service is running; WAL mode handles concurrent reads).
-* Roll back API: `git -C /opt/verse-vault/app checkout <previous-sha>` then re-run `deploy.sh`.
+* Roll back API: `/opt/verse-vault/app` is a symlink the deploy workflow flips. Point it at a
+  previous release dir and restart:
+  ```bash
+  sudo -u verse-vault ln -sfn /opt/verse-vault/releases/<previous-sha> /opt/verse-vault/app.tmp
+  sudo -u verse-vault mv -T /opt/verse-vault/app.tmp /opt/verse-vault/app
+  sudo systemctl restart verse-vault
+  ```
   Migrations are forward-only — rolling back across a migration boundary needs a Litestream restore.
 
 ## Costs (May 2026)
