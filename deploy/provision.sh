@@ -61,7 +61,7 @@ echo "     System time: $(date -u +%FT%TZ)"
 echo "  -> apt update + base packages"
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
-	curl ca-certificates git ufw unattended-upgrades
+	curl ca-certificates git ufw unattended-upgrades jq
 
 echo "  -> Enabling unattended security upgrades"
 dpkg-reconfigure -f noninteractive unattended-upgrades
@@ -136,16 +136,22 @@ else
 	sudo -u verse-vault -H cloudflared tunnel login
 fi
 
-if sudo -u verse-vault -H cloudflared tunnel list -o json 2>/dev/null \
-	| grep -q "\"name\":\"$TUNNEL_NAME\""; then
-	echo "  -> Tunnel '$TUNNEL_NAME' already exists; reusing"
+# Use jq to inspect cloudflared's pretty-printed JSON output safely. The
+# previous `grep '"name":"vv-api"'` failed because cloudflared formats with
+# spaces ('"name": "vv-api"'), making the script try to re-create existing
+# tunnels.
+TUNNEL_UUID=$(sudo -u verse-vault -H cloudflared tunnel list -o json 2>/dev/null \
+	| jq -r ".[] | select(.name == \"$TUNNEL_NAME\") | .id" | head -1)
+
+if [ -n "$TUNNEL_UUID" ]; then
+	echo "  -> Tunnel '$TUNNEL_NAME' already exists ($TUNNEL_UUID); reusing"
 else
 	echo "  -> Creating tunnel '$TUNNEL_NAME'"
 	cd /opt/verse-vault && sudo -u verse-vault -H cloudflared tunnel create "$TUNNEL_NAME"
+	# Fresh credentials file lands in ~/.cloudflared/<UUID>.json
+	CREDS_FILE=$(ls -t /opt/verse-vault/.cloudflared/*.json 2>/dev/null | head -1)
+	TUNNEL_UUID=$(basename "$CREDS_FILE" .json)
 fi
-
-# Pull the UUID from the credentials file name in ~/.cloudflared/
-TUNNEL_UUID=$(basename /opt/verse-vault/.cloudflared/*.json .json | head -1)
 echo "     Tunnel UUID: $TUNNEL_UUID"
 
 echo "  -> Fetching config + systemd unit templates"
