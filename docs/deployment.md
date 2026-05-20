@@ -93,14 +93,18 @@ sudo chown verse-vault:verse-vault /var/lib/verse-vault /var/log/verse-vault
 
 > ### Or just run the provisioning script
 >
-> Sections 1 above is automated by `deploy/provision.sh`. From a fresh box as root:
+> **All of sections 1-6 below are automated by `deploy/provision.sh`** (seven phases: packages,
+> service account, Tunnel, SSH deploy key + systemd units, env file with auto-generated
+> `BETTER_AUTH_SECRET`, interactive secret prompts for BIBLE_API_KEY + Google OAuth, and Litestream
+> setup). From a fresh box as root:
 >
 > ```bash
 > curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/provision.sh | bash
 > ```
 >
-> Sections 2 (env file) through 5 (Litestream) still need manual setup; the CI workflow then handles
-> every subsequent deploy.
+> Idempotent — re-run later to add anything you initially skipped (Litestream, OAuth, etc.). The
+> manual sections below document the equivalents in case you want to understand each phase or run
+> one standalone; CI handles every subsequent deploy.
 
 ### 2. Environment file
 
@@ -186,12 +190,20 @@ still has no public ports open — `ufw default deny incoming` is fine.
 
 ### 5. Litestream
 
+**`provision.sh` phase 7 covers this interactively** — if you ran the script in §1, this is already
+done (or you entered blank at the bucket-name prompt and skipped). Re-run `provision.sh` to add
+Litestream later; it'll detect the missing config and prompt. To do it manually instead:
+
 ```bash
 curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/litestream.yml \
   -o /etc/litestream.yml
-sudoedit /etc/litestream.yml      # bucket + B2 keys
+chmod 600 /etc/litestream.yml
+sudoedit /etc/litestream.yml      # fill in the four <…> placeholders
 systemctl enable --now litestream
 ```
+
+Don't curl the template file over a config `provision.sh` already wrote — the template has
+placeholders; the script-written config has real values. Pick one path.
 
 Restore on a fresh box (before first service start):
 
