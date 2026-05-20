@@ -10,6 +10,18 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-05-20
+
+### Fixed
+
+* CI: same `pnpm/action-setup@v4` version-conflict fix as the other deployables. 0.1.2 is the first
+  successful API deploy to the VPS.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged from 0.1.1 (CI-only fix)
+* `verse-vault-wasm@0.1.0` — unchanged from 0.1.1 (CI-only fix)
+
 ## [0.1.1] — 2026-05-20
 
 ### Added

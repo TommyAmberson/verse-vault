@@ -13,6 +13,13 @@ app-level changes don't need a bump here.
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-05-20
+
+### Fixed
+
+* CI: same `pnpm/action-setup@v4` version-conflict fix as the other deployables (see top-level
+  `CHANGELOG.md`). 0.1.2 is the first successful deploy of the Worker.
+
 ## [0.1.1] — 2026-05-20
 
 ### Added

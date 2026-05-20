@@ -9,6 +9,14 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-05-20
+
+### Fixed
+
+* CI: `pnpm/action-setup@v4` errored on redundant version pin (both `with: version: 10` and
+  `package.json`'s `packageManager: pnpm@10.7.0`). Dropped the `with` arg; 0.1.1 never reached
+  production because of this, so 0.1.2 is the first successful deploy.
+
 ## [0.1.1] — 2026-05-20
 
 ### Added
