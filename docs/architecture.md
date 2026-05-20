@@ -20,9 +20,12 @@ verse-vault is structured as:
   Used by the TypeScript server and the browser frontend.
 * **Simulation binary (`crates/sim/`)** — offline validation tool. Runs a synthetic learner against
   the core to benchmark behavior.
-* **Server (`packages/api/`, TBD)** — Hono + Better Auth + Drizzle. Hosts the engine, handles
-  persistence, auth, and multi-user state.
-* **Clients (`apps/`, TBD)** — Vue web app, Tauri desktop, CLI.
+* **Server (`packages/api/`)** — Hono + Better Auth + Drizzle + better-sqlite3. Hosts the engine,
+  handles persistence, auth, and multi-user state. Five route groups under `/api/`: `cards`, `sync`,
+  `materials`, `years`, `stats`.
+* **Web client (`apps/web/`)** — Vue 3 + Vite SPA. Currently a thin client (no local WASM); the Vue
+  app + the server engine round-trip every grade.
+* **Desktop / CLI** — planned, not yet started.
 
 The core is the single source of truth for memory modeling. Every platform (server, browser,
 desktop) runs the same compiled Rust.
@@ -31,33 +34,41 @@ desktop) runs the same compiled Rust.
 
 ```
 ┌──────────────┐                    ┌──────────────────┐
-│  Client UI   │  HTTP (auth/api)   │  TypeScript API  │
-│  Vue / Tauri │ ─────────────────► │  Hono + Better   │
+│  Vue web SPA │  HTTP (auth/api)   │  TypeScript API  │
+│  (thin)      │ ─────────────────► │  Hono + Better   │
 │              │                    │  Auth + Drizzle  │
-└──────┬───────┘                    └────────┬─────────┘
-       │                                     │
-       │ (offline, same WASM module)         │ (server-side engine)
-       ▼                                     ▼
-┌──────────────────────────────────────────────────────┐
-│           verse-vault-wasm (WASM module)             │
-│  WasmEngine: load → session → review → export        │
-└──────────────────────┬───────────────────────────────┘
-                       │ (pure Rust)
-                       ▼
-┌──────────────────────────────────────────────────────┐
-│            verse-vault-core (crates/core)            │
-│   TestState, ReviewEngine, Session, FsrsBridge       │
-└──────────────────────────────────────────────────────┘
+└──────────────┘                    └────────┬─────────┘
+   (future fat-client: same WASM             │
+    module loaded in browser)                ▼
+                                ┌──────────────────────────────────┐
+                                │    verse-vault-wasm (nodejs)     │
+                                │  WasmEngine: load → next_card    │
+                                │            → replay_event        │
+                                │            → export_test_states  │
+                                └──────────────┬───────────────────┘
+                                               │ (pure Rust)
+                                               ▼
+                                ┌──────────────────────────────────┐
+                                │     verse-vault-core (crates)    │
+                                │  TestState, ReviewEngine, …      │
+                                └──────────────────────────────────┘
 ```
 
 ## Client modes
 
-* **Thin client**: UI asks the server for the next card and submits grades. Server runs the WASM
-  engine, holds state in memory, persists to SQLite.
-* **Fat client**: UI downloads graph + event log, runs the WASM engine locally for offline reviews,
-  uploads new events when back online.
+The server exposes two parallel route surfaces over the same engine + event log; both paths go
+through the same per-(user, material) lock and share the `review_events` audit trail.
 
-Both modes use the same WASM module. The server's event log is the source of truth; a client that
+* **Thin client** (`/api/cards/*`): UI asks the server for the next card and submits one grade at a
+  time. Server runs the WASM engine, holds state in memory, persists to SQLite. _Implemented and
+  driving the Vue web app today._
+* **Fat client** (`/api/sync/*`): UI downloads the latest snapshot + test states from `/state`, runs
+  the WASM engine locally for offline reviews, uploads batched events to `/events` on reconnect
+  (with a `snapshotVersion` gate + `clientEventId` dedup). _Server-side endpoints are implemented;
+  no client uses them yet — needs the WASM crate built with `--target web`, an IndexedDB-backed
+  engine wrapper, and offline plumbing in the Vue app._
+
+Both modes use the same compiled core. The server's event log is the source of truth; a client that
 goes offline and submits events later has its events merged by timestamp and the state recomputed.
 
 ## Why a TypeScript server?
@@ -80,5 +91,7 @@ limits for larger verse sets). See `docs/deployment.md`.
 * `docs/scheduling.md` — per-test FSRS scheduling and sibling cooldown
 * `docs/session.md` — within-session flow
 * `docs/wasm-api.md` — WASM boundary contract
+* `docs/server-api.md` — HTTP API contract (routes, payloads, status codes)
 * `docs/persistence.md` — database schema + event sourcing
-* `docs/audit-fsrs6-2026-04-28.md` — historical audit notes folded into the migration
+* `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
+* `docs/archive/audit-fsrs6-2026-04-28.md` — historical audit notes folded into the HSRS migration

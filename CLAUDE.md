@@ -45,7 +45,10 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 * `docs/session.md` — within-session flow (re-drills, progressive reveal)
 * `docs/validation.md` — proofs, simulation framework, test scenarios
 * `docs/wasm-api.md` — WASM boundary: exposed functions, JSON shapes
-* `docs/audit-fsrs6-2026-04-28.md` — historical audit folded into the HSRS migration
+* `docs/server-api.md` — HTTP API contract: routes, payloads, status codes
+* `docs/persistence.md` — database schema + event sourcing
+* `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
+* `docs/archive/` — historical audits (FSRS-6 + per-deck keyword-markup snapshots)
 
 ## Pre-commit checks
 
@@ -85,6 +88,12 @@ dprint check          # formatting for docs (also runs via lint-staged)
   fixups, `git push --force-with-lease`) when it produces a cleaner, more readable series _before_
   merging.
 * **Master:** never rewrite history. Once a commit is on master, it stays.
+* **What to squash:** "changed my mind from X to Y" iterations where the intermediate state never
+  ships. Keep small atomic commits that each did meaningful incremental work — the goal is that
+  `git blame` on any given line lands on a commit whose message explains the change.
+* **`git rebase -i` is unavailable in Claude Code** (no interactive input). For targeted squashes,
+  `git cherry-pick --no-commit <a> <b> <c>` followed by a single `git commit` collapses a contiguous
+  group; for wider restructures, `git reset --soft <base>` then re-stage and re-commit in groups.
 
 ### Commit message format ([Conventional Commits](https://www.conventionalcommits.org/))
 

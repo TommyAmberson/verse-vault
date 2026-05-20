@@ -210,8 +210,14 @@ export class ApiError extends Error {
 }
 
 /** Singleton instance configured against the Vite-injected API URL.
- *  Falls back to the local dev server when no override is provided. */
-export const api = createApiClient(import.meta.env.VITE_API_URL ?? 'http://localhost:3000')
+ *  Falls back to the local dev server when no override is provided.
+ *
+ *  `VITE_API_BASE` is the new path-aware setting (e.g. `/vv/api` when
+ *  co-hosting under versevault.ca). `VITE_API_URL` is the legacy
+ *  full-origin form, kept for any existing dev setups that set it. */
+export const api = createApiClient(
+  import.meta.env.VITE_API_BASE ?? import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
+)
 
 /** Material id rendered in the thin client. Override with VITE_MATERIAL_ID. */
 export const MATERIAL_ID = import.meta.env.VITE_MATERIAL_ID ?? 'nkjv-cor'

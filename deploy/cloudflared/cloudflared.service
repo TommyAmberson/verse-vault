@@ -1,0 +1,25 @@
+[Unit]
+Description=Cloudflare Tunnel (vv-api)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=verse-vault
+Group=verse-vault
+ExecStart=/usr/bin/cloudflared tunnel --config /etc/cloudflared/config.yml run
+Restart=on-failure
+RestartSec=5
+
+# The credentials file lives in the service account's home so cloudflared
+# can read it; nothing else on the host needs filesystem write access.
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=true
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

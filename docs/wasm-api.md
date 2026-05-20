@@ -25,16 +25,18 @@ tests and the `roundtrip` integration smoke without needing `wasm-pack`.
 
 ```ts
 new WasmEngine(
-  material_json: string,         // MaterialData JSON
-  persisted_states_json: string, // '' or '[]' for fresh state
-  desired_retention: number,     // e.g. 0.9
-  now_secs: bigint,              // unix seconds; seeds unseen TestStates
+  material_json: string,           // MaterialData JSON
+  material_config_json: string,    // MaterialConfig JSON; '' for defaults
+  persisted_states_json: string,   // '' or '[]' for fresh state
+  desired_retention: number,       // e.g. 0.9
+  now_secs: bigint,                // unix seconds; seeds unseen TestStates
 )
 ```
 
 The constructor parses `material_json` into `MaterialData`, calls `build` to derive the cards and
 seeded `TestState` table, then overlays any persisted entries (so the JS layer can resume a user's
-progress from the database).
+progress from the database). `material_config_json` controls per-user scope toggles (headings, FTV,
+new/review/club/chapter-list scopes); pass `''` to use `MaterialConfig::default()`.
 
 `now_secs` is used to seed every fresh `TestState::new_unseen` — the seeded states have
 `last_base_secs = now_secs - 365 days`, which puts them well below the target retention so the
@@ -71,7 +73,7 @@ Returns a JSON array of `TestUpdateWire` — one entry per state transition prod
 ```json
 [
   {
-    "key": { "kind": "PhraseFromContext", "element": { "kind": "Phrase", "verse_id": 0, "position": 1 } },
+    "key": { "kind": "PhraseFromContext", "element": { "kind": "Phrase", "verse_id": 0, "start_word": 3, "end_word": 6 } },
     "kind": "Sub",
     "before": { "stability": 1.0, "difficulty": 5.0, "last_seen_secs": ..., "last_base_secs": ..., "last_root_secs": ... },
     "after":  { ... }
@@ -90,12 +92,16 @@ Throws a JS `Error` if the card id is unknown or `grade` is outside `1..=4`.
 ### Picking the next card
 
 ```ts
-next_card(now_secs: bigint): number | undefined
+next_review_card(now_secs: bigint): number | undefined
+next_memorize_card(now_secs: bigint): number | undefined
 ```
 
-Returns the `card_id` of the card whose weakest test is furthest below the target retention, or
-`undefined` if every card is currently above target. Cards whose tests were touched within the
-sibling-cooldown window are skipped.
+`next_review_card` returns the `card_id` of the card whose weakest test is furthest below the target
+retention, or `undefined` if every card is currently above target. Cards whose tests were touched
+within the sibling-cooldown window are skipped.
+
+`next_memorize_card` picks the next card from the new-verse memorize pool (graduated verses are
+excluded). Used by the memorize flow; the review flow uses `next_review_card`.
 
 ### Rendering a card
 
@@ -142,7 +148,7 @@ Returns a JSON array of `TestStateEntry` — one entry per known `(TestKind, Ele
 ```json
 [
   {
-    "element": { "kind": "Phrase", "verse_id": 0, "position": 1 },
+    "element": { "kind": "Phrase", "verse_id": 0, "start_word": 3, "end_word": 6 },
     "test_kind": "PhraseFromContext",
     "stability": 12.3,
     "difficulty": 5.5,
@@ -172,7 +178,7 @@ to resume.
 ### `ElementId` (tagged on `kind`)
 
 ```json
-{ "kind": "Phrase", "verse_id": <u32>, "position": <u16> }
+{ "kind": "Phrase", "verse_id": <u32>, "start_word": <u16>, "end_word": <u16> }
 { "kind": "VerseRefPosition", "verse_id": <u32> }
 { "kind": "VerseChapterBinding", "verse_id": <u32> }
 { "kind": "VerseBookBinding", "verse_id": <u32> }
@@ -228,4 +234,4 @@ Convert with `BigInt(Math.floor(Date.now() / 1000))`.
 
 The constructor throws a JS `Error` (mapped from `JsError`) on malformed JSON. `replay_event` and
 `get_card_render` throw on unknown card ids; `replay_event` additionally rejects grades outside
-`1..=4`. `next_card` and `export_test_states` are infallible.
+`1..=4`. `next_review_card`, `next_memorize_card`, and `export_test_states` are infallible.

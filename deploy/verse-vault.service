@@ -1,0 +1,44 @@
+[Unit]
+Description=verse-vault API
+After=network.target
+# Litestream replicates DB writes out to B2; the unit isn't strictly
+# required for boot, but co-locating the dependency keeps `systemctl start`
+# behaviour predictable.
+Wants=litestream.service
+
+[Service]
+Type=simple
+User=verse-vault
+Group=verse-vault
+# /opt/verse-vault/app is a symlink to /opt/verse-vault/releases/<sha>/ — the
+# self-contained API bundle produced by `pnpm --filter @verse-vault/api deploy`
+# in the deploy-api workflow. node_modules, dist/, and migrations/ all live at
+# the bundle root.
+WorkingDirectory=/opt/verse-vault/app
+EnvironmentFile=/etc/verse-vault.env
+# Hono binds 0.0.0.0:$PORT but the host runs `ufw default deny incoming`,
+# so the only path in is the Cloudflare Tunnel proxying to 127.0.0.1:3000
+# (see deploy/cloudflared/config.yml).
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+# Migrations run in-process on boot; give them time on first start.
+TimeoutStartSec=120
+
+# Filesystem hardening — the API only needs to read the app dir and write
+# to the DB dir.
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ReadWritePaths=/var/lib/verse-vault /var/log/verse-vault
+
+# Don't let a runaway request take the host down.
+MemoryMax=1G
+TasksMax=256
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

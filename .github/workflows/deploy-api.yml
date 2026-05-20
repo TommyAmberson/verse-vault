@@ -1,0 +1,144 @@
+name: Deploy API to VPS
+
+# Triggered by a version bump in packages/api/package.json on master.
+# Build happens entirely in CI; the VPS just receives a rsync'd bundle and
+# restarts the service. No Rust toolchain on the box.
+on:
+  push:
+    branches: [master]
+    paths:
+      - packages/api/package.json
+  workflow_dispatch:
+
+# Serialise deploys to the same VPS — prevents two runs racing on the
+# symlink swap or the "keep last 5 releases" cleanup. cancel-in-progress
+# is false so a queued bump waits for the current deploy + health check
+# rather than getting stomped mid-rollout.
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  filter:
+    runs-on: ubuntu-latest
+    outputs:
+      bumped: ${{ steps.check.outputs.bumped }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch — deploying."
+            exit 0
+          fi
+          OLD=$(git show HEAD~1:packages/api/package.json 2>/dev/null | jq -r .version || echo "")
+          NEW=$(jq -r .version packages/api/package.json)
+          echo "old=$OLD new=$NEW"
+          if [ "$OLD" = "$NEW" ]; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "packages/api/package.json touched but version unchanged. Skipping."
+          else
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: filter
+    if: needs.filter.outputs.bumped == 'true'
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_DIR: /opt/verse-vault/releases/${{ github.sha }}
+      VPS_USER: verse-vault
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/wasm
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install wasm-pack
+        run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build WASM (nodejs target)
+        run: wasm-pack build crates/wasm --target nodejs --out-dir pkg
+
+      - name: Build API (tsc)
+        run: pnpm --filter @verse-vault/api... build
+
+      # `pnpm deploy` produces a self-contained directory with all production
+      # deps installed and workspace links resolved into real files. The
+      # output of this step is the exact bytes we ship to the VPS.
+      - name: Bundle API for deploy
+        run: pnpm --filter @verse-vault/api deploy --prod /tmp/api-bundle
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Rsync bundle to release dir
+        run: |
+          ssh -i ~/.ssh/deploy_key "$VPS_USER@$VPS_HOST" "mkdir -p $RELEASE_DIR"
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            /tmp/api-bundle/ "$VPS_USER@$VPS_HOST:$RELEASE_DIR/"
+
+      # Atomic activation: create app.next as a symlink, then rename over
+      # the existing app/. `mv -T` (and the underlying renameat2) is
+      # atomic on the same filesystem.
+      - name: Activate release + restart service
+        run: |
+          ssh -i ~/.ssh/deploy_key "$VPS_USER@$VPS_HOST" "
+            set -euo pipefail
+            ln -sfn $RELEASE_DIR /opt/verse-vault/app.next
+            mv -T /opt/verse-vault/app.next /opt/verse-vault/app
+            sudo systemctl restart verse-vault
+            sleep 2
+            sudo systemctl is-active verse-vault
+          "
+
+      - name: Health check via Tunnel
+        run: |
+          for i in $(seq 1 15); do
+            code=$(curl -sf -o /dev/null -w '%{http_code}' https://vv-api.versevault.ca/health || true)
+            if [ "$code" = "200" ]; then
+              echo "API healthy after $i attempts"
+              exit 0
+            fi
+            echo "Attempt $i: got '$code', retrying in 3s"
+            sleep 3
+          done
+          echo "Health check failed after 45s"
+          exit 1
+
+      # Keep only the last 5 releases. Cheap to keep more, but disk on the
+      # 512 MB box is 10 GB and bundles include node_modules (~150 MB each).
+      - name: Cleanup old releases (keep last 5)
+        if: success()
+        run: |
+          ssh -i ~/.ssh/deploy_key "$VPS_USER@$VPS_HOST" "
+            cd /opt/verse-vault/releases
+            ls -1t | tail -n +6 | xargs -r rm -rf
+          "

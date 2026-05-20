@@ -1,0 +1,18 @@
+name = "vv-router"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+
+# Mount under /vv/* on the apex. Caddy isn't involved — Cloudflare evaluates
+# Worker routes longest-prefix-first, so this co-exists with qzr-api's
+# /api/* route and the qzr-sheet Pages catch-all at /*.
+[[routes]]
+pattern = "www.versevault.ca/vv/*"
+zone_name = "versevault.ca"
+
+[vars]
+# Public hostname of the CF Pages project that hosts the SPA bundle.
+# Set this to whatever Pages assigned (e.g. "verse-vault-web.pages.dev").
+PAGES_HOST = "verse-vault-web.pages.dev"
+
+# Tunnel-fronted API hostname (from `cloudflared tunnel route dns`).
+API_HOST = "vv-api.versevault.ca"

@@ -10,8 +10,8 @@ review pipeline see [`review.md`](review.md); for scheduling see [`scheduling.md
 
 The old design carried FSRS state on edges of a multi-layer memory graph (phrase ↔ phrase, gist
 hubs, ref bindings, club hierarchies, …) with credit assignment fanning out across paths. That
-layered into structural problems (see `audit-fsrs6-2026-04-28.md`), and we chose Approach 2 of
-`path-posterior-memory-model.md`: state lives on **tests**, and each test is attached to a single
+layered into structural problems (see `archive/audit-fsrs6-2026-04-28.md`), and we chose Approach 2
+of `path-posterior-memory-model.md`: state lives on **tests**, and each test is attached to a single
 concrete verse-scoped element.
 
 The core therefore needs only two things at build time:
@@ -28,7 +28,7 @@ Both live in `crates/core/src/verse_index.rs` and `crates/core/src/element.rs`.
 
 ```rust
 pub enum ElementId {
-    Phrase { verse_id, position },
+    Phrase { verse_id, start_word, end_word },
     VerseRefPosition { verse_id },
     VerseChapterBinding { verse_id },
     VerseBookBinding { verse_id },
@@ -36,6 +36,10 @@ pub enum ElementId {
     VerseClubBinding { verse_id, tier },
 }
 ```
+
+`Phrase` is identified by its half-open word range `[start_word, end_word)` in the verse text. The
+range form is stable across phrase-split changes: a phrase whose boundaries survive a re-split keeps
+its FSRS state; a phrase whose boundaries shift becomes a different element with fresh state.
 
 Every element is verse-scoped; there are no chapter-, book-, heading-, or club-level identities of
 their own (see _Why no chapter or book identities_ in the canonical spec). A binding like
@@ -50,9 +54,9 @@ to?"_ — it is a property of the verse, not a node in a hierarchy.
 
 ```rust
 pub struct VerseElements {
-    pub phrases: Vec<u16>,         // phrase positions present
-    pub headings: Vec<u16>,        // heading indices this verse falls under
-    pub clubs: Vec<ClubTier>,      // club tiers this verse belongs to
+    pub phrase_ranges: Vec<(u16, u16)>,  // half-open word ranges, one per phrase, builder order
+    pub headings: Vec<u16>,              // heading indices this verse falls under
+    pub clubs: Vec<ClubTier>,            // club tiers this verse belongs to
 }
 
 pub struct VerseIndex { /* HashMap<verse_id, VerseElements> */ }

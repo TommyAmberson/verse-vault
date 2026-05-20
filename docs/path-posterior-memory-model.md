@@ -66,7 +66,7 @@ assignment to distribute card outcomes across edges. This has run into several s
 
 * **Linear blending in stability space** for multi-grade updates produces pathological
   cancellations: `(Again, 0.5) + (Good, 0.5) ≈ 0` net change even when both observations carry
-  information. (S1 in `docs/audit-fsrs6-2026-04-28.md`.)
+  information. (S1 in `docs/archive/audit-fsrs6-2026-04-28.md`.)
 * **Per-edge weight is unbounded across hidden atoms.** Hub edges participating in paths to multiple
   hidden atoms accumulate weights up to ~N. The FSRS update then applies "N full reviews' worth" of
   delta in one blend. (S2.)
