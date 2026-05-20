@@ -64,12 +64,17 @@ jobs:
           VITE_API_BASE: /vv/api
         run: pnpm --filter @verse-vault/web build
 
+      # Using pnpm dlx wrangler instead of cloudflare/wrangler-action@v3:
+      # the action runs `pnpm add wrangler@<v>` at the workspace root if
+      # wrangler isn't present, and pnpm v10 errors on adding to root
+      # without `-w`. Direct invocation sidesteps that.
       - name: Publish to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/dist --project-name=verse-vault-web --branch=master
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          pnpm dlx wrangler@3 pages deploy apps/web/dist \
+            --project-name=verse-vault-web --branch=master
 
       - name: Tag release
         run: |

@@ -93,8 +93,10 @@ jobs:
       # `pnpm deploy` produces a self-contained directory with all production
       # deps installed and workspace links resolved into real files. The
       # output of this step is the exact bytes we ship to the VPS.
+      # --legacy keeps the pre-v10 deploy behaviour; pnpm v10 otherwise
+      # errors out demanding `inject-workspace-packages=true` in .npmrc.
       - name: Bundle API for deploy
-        run: pnpm --filter @verse-vault/api deploy --prod /tmp/api-bundle
+        run: pnpm --filter @verse-vault/api deploy --legacy --prod /tmp/api-bundle
 
       - name: Configure SSH
         env:

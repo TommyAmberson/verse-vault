@@ -10,6 +10,19 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-20
+
+### Fixed
+
+* CI: `pnpm deploy` in v10 now requires `--legacy` flag (or the `inject-workspace-packages=true`
+  setting). Added `--legacy` to the bundle step. 0.1.3 is the first successful API deploy to the
+  VPS.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged from 0.1.2 (CI-only fix)
+* `verse-vault-wasm@0.1.0` — unchanged from 0.1.2 (CI-only fix)
+
 ## [0.1.2] — 2026-05-20
 
 ### Fixed

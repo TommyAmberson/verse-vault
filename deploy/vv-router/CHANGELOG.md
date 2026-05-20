@@ -13,6 +13,14 @@ app-level changes don't need a bump here.
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-20
+
+### Fixed
+
+* CI: dropped `cloudflare/wrangler-action@v3`; deploys via `pnpm exec wrangler deploy` from
+  `deploy/vv-router` directly (the dir has wrangler as a workspace devDependency). 0.1.3 is the
+  first successful Worker deploy.
+
 ## [0.1.2] — 2026-05-20
 
 ### Fixed
