@@ -53,7 +53,7 @@ RAW_URL_BASE="${RAW_URL_BASE:-https://raw.githubusercontent.com/TommyAmberson/ve
 # Phase 1: Base system
 ###############################################################################
 
-echo "==[1/4]==== Base system =================================="
+echo "==[1/6]==== Base system =================================="
 
 echo "  -> NTP sync"
 timedatectl set-ntp true
@@ -99,7 +99,7 @@ fi
 ###############################################################################
 
 echo ""
-echo "==[2/4]==== Service account + paths ======================"
+echo "==[2/6]==== Service account + paths ======================"
 
 echo "  -> verse-vault service account"
 if ! id -u verse-vault &>/dev/null; then
@@ -124,7 +124,7 @@ ufw --force enable
 ###############################################################################
 
 echo ""
-echo "==[3/4]==== Cloudflare Tunnel ============================"
+echo "==[3/6]==== Cloudflare Tunnel ============================"
 echo ""
 echo "  About to run 'cloudflared tunnel login'."
 echo "  It will print a URL — open that URL on your workstation,"
@@ -184,7 +184,7 @@ fi
 ###############################################################################
 
 echo ""
-echo "==[4/4]==== CI deploy key + systemd unit ================="
+echo "==[4/6]==== CI deploy key + systemd unit ================="
 
 KEY_PATH=/opt/verse-vault/.ssh/deploy_key
 
@@ -222,7 +222,7 @@ systemctl daemon-reload
 ###############################################################################
 
 echo ""
-echo "==[5/5]==== API environment file ========================="
+echo "==[5/6]==== API environment file ========================="
 
 ENV_FILE=/etc/verse-vault.env
 

@@ -28,22 +28,20 @@ export default {
     }
 
     const rest = url.pathname.slice(PREFIX.length) || '/';
-    const target = new URL(url.toString());
+    const target = new URL(url);
     target.pathname = rest;
+    target.hostname = rest === '/api' || rest.startsWith('/api/')
+      ? env.API_HOST
+      : env.PAGES_HOST;
 
-    if (rest === '/api' || rest.startsWith('/api/')) {
-      target.hostname = env.API_HOST;
-    } else {
-      target.hostname = env.PAGES_HOST;
-    }
-
-    // Forward the original method, headers, and body. fetch() handles
-    // redirect following on the edge; we want the raw response to flow
-    // back so Set-Cookie etc. survives.
-    return fetch(target.toString(), {
+    // redirect: manual preserves Better Auth's OAuth bounce (Set-Cookie
+    // + Location both flow through to the browser). Body omitted on
+    // bodiless verbs because some runtimes throw if body is set on GET/HEAD.
+    const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+    return fetch(target, {
       method: request.method,
       headers: request.headers,
-      body: request.body,
+      body: hasBody ? request.body : undefined,
       redirect: 'manual',
     });
   },

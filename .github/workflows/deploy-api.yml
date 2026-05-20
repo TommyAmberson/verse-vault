@@ -10,6 +10,14 @@ on:
       - packages/api/package.json
   workflow_dispatch:
 
+# Serialise deploys to the same VPS — prevents two runs racing on the
+# symlink swap or the "keep last 5 releases" cleanup. cancel-in-progress
+# is false so a queued bump waits for the current deploy + health check
+# rather than getting stomped mid-rollout.
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
 jobs:
   filter:
     runs-on: ubuntu-latest
