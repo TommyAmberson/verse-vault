@@ -9,6 +9,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-20
+
+### Fixed
+
+* CI: dropped `cloudflare/wrangler-action@v3` (its self-install path runs `pnpm add wrangler@<v>` at
+  the workspace root, which pnpm v10 rejects without `-w`). Now publishes via
+  `pnpm dlx wrangler@3 pages deploy ...` directly. 0.1.2 never reached production for the same
+  family of pnpm-v10 CI breakage; 0.1.3 is the first successful deploy.
+
 ## [0.1.2] — 2026-05-20
 
 ### Fixed

@@ -56,13 +56,17 @@ jobs:
       # under deploy/vv-router/node_modules/.bin/.
       - run: pnpm install --frozen-lockfile
 
+      # wrangler is a workspace dep of @verse-vault/vv-router, so it's
+      # installed under deploy/vv-router/node_modules/.bin/ after the root
+      # pnpm install above. `pnpm exec` from that dir picks it up — no
+      # need for cloudflare/wrangler-action@v3 (which trips on pnpm v10's
+      # workspace-root install guard when it tries to self-install).
       - name: Deploy
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: deploy/vv-router
-          command: deploy
+        working-directory: deploy/vv-router
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler deploy
 
       - name: Tag release
         run: |
