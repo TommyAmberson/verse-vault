@@ -10,6 +10,27 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-05-21
+
+### Fixed
+
+* `trustedOrigins` and the Hono CORS allow-list both compared the configured `WEB_BASE_URL` verbatim
+  against the browser's `Origin` header. In production `WEB_BASE_URL` is
+  `https://www.versevault.ca/vv` (with subpath), but the browser always sends Origin as
+  scheme+host+port only (`https://www.versevault.ca`). The mismatch would have 403'd every POST
+  through Better Auth once the path issues were fixed — strip the path from `env.webOrigin` at the
+  comparison sites so the equality holds.
+* Pin Google OAuth's `redirectURI` to `${env.baseUrl}/api/auth/callback/google`. Better Auth's
+  default redirect URI is `${baseURL}/callback/google`, which with our stripped origin-only
+  `baseURL` resolves to `https://<origin>/callback/google` — missing `/api/auth/` and routed to the
+  sibling qzr-api Worker instead of vv-router. The explicit override matches the URL `provision.sh`
+  already tells users to register in the Google OAuth client.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged from 0.1.5 (auth-only fix)
+* `verse-vault-wasm@0.1.0` — unchanged from 0.1.5 (auth-only fix)
+
 ## [0.1.5] — 2026-05-21
 
 ### Fixed
