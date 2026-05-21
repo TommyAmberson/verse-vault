@@ -52,6 +52,21 @@ async function onSignOut() {
     <main class="site-main">
       <RouterView />
     </main>
+    <!-- API.Bible Starter-plan attribution: a visible citation +
+         hyperlink to api.bible is required by their terms. The NKJV
+         copyright line is the canonical Thomas Nelson citation
+         (mirrored in NOTICE.md). -->
+    <footer class="site-footer">
+      <p>
+        Scripture quotations marked NKJV are taken from the New King James
+        Version®. Copyright © 1982 by Thomas Nelson. Used by permission.
+        All rights reserved.
+      </p>
+      <p>
+        Scripture text served via
+        <a href="https://api.bible" target="_blank" rel="noopener">API.Bible</a>.
+      </p>
+    </footer>
   </div>
 </template>
 
@@ -135,5 +150,31 @@ async function onSignOut() {
   display: flex;
   justify-content: center;
   padding: 2rem 1rem;
+}
+
+.site-footer {
+  border-top: 1px solid var(--color-border);
+  padding: 1rem 1.5rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+.site-footer p + p {
+  margin-top: 0.25rem;
+}
+
+.site-footer a {
+  color: var(--color-muted);
+  text-decoration: underline;
+}
+
+.site-footer a:hover {
+  color: var(--color-text);
 }
 </style>
