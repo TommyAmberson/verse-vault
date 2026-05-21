@@ -5,6 +5,12 @@
  * through `credentials: 'include'`.
  */
 
+import type {
+  SyncEventsRequest,
+  SyncEventsResponse,
+  SyncStateResponse,
+} from './lib/engine/types'
+
 export type Grade = 1 | 2 | 3 | 4
 
 export interface CardRender {
@@ -150,6 +156,13 @@ export interface ApiClient {
   getStats(materialId: string): Promise<StatsResponse>
   getYears(): Promise<YearsResponse>
   updateYearSettings(materialId: string, settings: Partial<YearSettings>): Promise<{ settings: YearSettings }>
+  /** Fat-client sync: snapshot + materialised test states + last
+   *  applied event id. Mirrors `/sync/:materialId/state` on the API. */
+  getSyncState(materialId: string): Promise<SyncStateResponse>
+  /** Fat-client sync: batch-upload queued events. The server applies
+   *  them, possibly triggering a full-log rebuild (`rebuilt: true`) or
+   *  returning a `needsConfirm` envelope for stale-merge UX. */
+  postSyncEvents(materialId: string, body: SyncEventsRequest): Promise<SyncEventsResponse>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
@@ -196,6 +209,10 @@ export function createApiClient(apiUrl: string): ApiClient {
     getYears: () => request('GET', '/api/years'),
     updateYearSettings: (materialId, settings) =>
       request('POST', `/api/years/${encodeURIComponent(materialId)}/settings`, settings),
+    getSyncState: (materialId) =>
+      request('GET', `/api/sync/${encodeURIComponent(materialId)}/state`),
+    postSyncEvents: (materialId, body) =>
+      request('POST', `/api/sync/${encodeURIComponent(materialId)}/events`, body),
   }
 }
 

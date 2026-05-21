@@ -7,7 +7,10 @@
  * server and client can't drift.
  */
 
-import type { Grade } from '../../api'
+/** FSRS rating: 1=Again, 2=Hard, 3=Good, 4=Easy. Duplicated from
+ *  `api.ts` to avoid a circular import — both files reference this
+ *  shape, and api.ts depends on this module for the sync types. */
+export type Grade = 1 | 2 | 3 | 4
 
 /** Snapshot of one `(TestKind, ElementId)` pair from the WASM engine.
  *  Mirrors `verse-vault-wasm` `TestStateEntry`. The `element` field is
