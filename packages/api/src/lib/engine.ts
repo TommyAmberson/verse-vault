@@ -333,8 +333,12 @@ export class EngineStore {
       BigInt(this.now()),
     );
 
-    // Graduations live outside reviewEvents; apply them before replay so
-    // the engine's card lifecycle matches what review_event expects.
+    // Graduations live outside reviewEvents; apply them upfront so the
+    // rebuilt engine's card-lifecycle state matches what a fresh
+    // EngineStore.load() would produce (which also applies graduations
+    // after constructor init). `replay_event` itself is
+    // lifecycle-agnostic — it works on New cards too — so ordering
+    // matters for parity with the live-load path, not correctness.
     const graduated = this.db
       .select({ verseId: schema.graduatedVerses.verseId })
       .from(schema.graduatedVerses)
