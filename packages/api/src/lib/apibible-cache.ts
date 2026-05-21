@@ -48,14 +48,22 @@ function tightenCurlyQuotes(html: string): string {
 }
 
 /**
- * Server-side cache for api.bible content, backed by SQLite. The TOS
- * (API.Bible Minimum Acceptable Use Agreement) requires that cached
- * scripture content be refreshed within 30 days of fetch and not used
- * to train an AI/LLM; this class is runtime plumbing only.
+ * Server-side cache for api.bible content, backed by SQLite. The API.Bible
+ * Acceptable Use clause
+ * (https://api.bible/terms-and-conditions#acceptable_use) imposes four
+ * constraints relevant here:
  *
- * The TTL is enforced both at read (every lookup checks `now - fetchedAt`)
- * and at startup (`pruneExpired` runs in the constructor) so on-disk
- * rows never sit past the TTL even when a passage is never re-read.
+ *   1. Cached scripture content must be refreshed within 30 days of fetch.
+ *   2. Cached content may not be used to train generative AI or LLMs.
+ *   3. Text content may not be converted to derivative formats (text→audio).
+ *   4. No systematic bulk extraction of content into separate databases.
+ *
+ * This class enforces (1) directly: TTL-on-read on every lookup and a
+ * `pruneExpired` sweep in the constructor so on-disk rows never sit past
+ * the TTL even when a passage is never re-read. (2) and (3) are honoured
+ * by what this codebase does NOT do; (4) is honoured at the routes layer
+ * (one-card-at-a-time on `/api/cards/:id`; the opt-in bulk path
+ * `/api/materials/:id/renders` is gated on an explicit user toggle).
  */
 export const CACHE_TTL_SECS = 30 * 24 * 60 * 60;
 const API_BASE = 'https://rest.api.bible/v1';

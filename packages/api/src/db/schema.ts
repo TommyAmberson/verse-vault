@@ -242,9 +242,15 @@ export const graduatedVerses = sqliteTable(
   }),
 );
 
-// Cached api.bible content. Per the API.Bible Minimum Acceptable Use
-// Agreement, cached entries must be refreshed within 30 days of fetch.
-// `ApibibleCache` enforces both via TTL-on-read and prune-on-load.
+// Cached api.bible content. Per the API.Bible Acceptable Use clause
+// (https://api.bible/terms-and-conditions#acceptable_use), cached entries
+// must be refreshed within 30 days of fetch, may not be used to train
+// AI/LLMs, may not be converted to derivative formats (e.g. text→audio),
+// and may not be systematically extracted into separate databases.
+// `ApibibleCache` enforces the TTL via TTL-on-read and prune-on-load; the
+// other clauses are honoured at the routes layer (one-card-at-a-time on
+// /api/cards/:id; opt-in bulk download via /api/materials/:id/renders gated
+// on an explicit user toggle).
 //
 // `apibible_passages` holds chapter HTML (one row per (bibleId, "{USX}.{ch}")).
 // `apibible_sections` holds the per-book section list as a JSON string (one

@@ -147,13 +147,17 @@ Tools auto-create the table on first run if the API migrations haven't been appl
 fall through to a fresh fetch when an entry is missing or past the 30-day TTL. Set `BIBLE_API_KEY`
 (or `API_BIBLE_KEY`) in the environment for the fallback fetch to succeed.
 
-Subject to the
-[API.Bible Minimum Acceptable Use Agreement](https://docs.api.bible/guides/terms-of-use):
+Subject to the [API.Bible Terms of Service](https://api.bible/terms-and-conditions) — in particular
+the [Acceptable Use](https://api.bible/terms-and-conditions#acceptable_use) clause and the
+[licensing & access overview](https://docs.api.bible/quick-start/licensing-and-access):
 
-* Cached scripture is re-fetched within 30 days of capture.
-* Cached content is for runtime + diagnostic use only — never for training generative AI.
+* Cached scripture is re-fetched within 30 days of capture (TTL-on-read + prune-on-load).
+* Cached content is for runtime + diagnostic use only — never used to train generative AI or LLMs.
+* Text content stays in text form — no derivative-format conversion (text → audio, etc.).
+* No systematic bulk extraction of scripture into separate databases. Server-side fetches are one
+  passage at a time; the planned client-side render cache is opt-in per device.
 * Starter-plan callers must include a visible citation + link to https://api.bible in any UI
-  surfacing the content.
+  surfacing the content. See [`NOTICE.md`](../NOTICE.md) for the NKJV citation.
 
 ## File map
 

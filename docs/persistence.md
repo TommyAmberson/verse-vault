@@ -106,8 +106,14 @@ the cards into `Active`. Primary key `(user_id, material_id, verse_id)`.
 
 ### `apibible_passages` + `apibible_sections`
 
-Cached api.bible content. Per the API.Bible Minimum Acceptable Use Agreement, cached entries must be
-refreshed within 30 days of fetch. `ApibibleCache` enforces both via TTL-on-read and prune-on-load.
+Cached api.bible content. Per the
+[API.Bible Acceptable Use](https://api.bible/terms-and-conditions#acceptable_use) clause, cached
+entries must be refreshed within 30 days of fetch and may not be used for AI/LLM training,
+derivative format conversion, or systematic bulk extraction. `ApibibleCache` enforces the TTL via
+TTL-on-read and prune-on-load; the bulk-extraction clause is why `/sync/state` does not ship a bulk
+`renders` field (the opt-in `/api/materials/:id/renders` endpoint is the only path that delivers
+more than one composed card per request, and it fires only at explicit user request via the per-deck
+"Available offline" toggle).
 
 * `apibible_passages` — chapter HTML, one row per `(bibleId, "{USX}.{ch}")`.
 * `apibible_sections` — per-book section list as a JSON string, one row per
