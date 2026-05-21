@@ -9,6 +9,22 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-05-21
+
+### Fixed
+
+* Production-only URL plumbing audit. Two issues:
+  1. **API client double-pathed every request.** `VITE_API_BASE` was `/vv/api`, but every path
+     passed to the api client already starts with `/api/` — so the final URLs became
+     `/vv/api/api/cards/...` and 404'd the entire (non-auth) API surface in production. Confirmed by
+     curl: `/vv/api/api/me` → 404, `/vv/api/me` → 401.
+  2. **Better Auth client's `withPath` skips the `/api/auth` auto-append** when the baseURL has any
+     path component (and `/vv` counts), so route calls were landing at `/vv/sign-up/email` (405)
+     instead of `/vv/api/auth/sign-up/email`.
+
+  Fix: `VITE_API_BASE` is now the subpath-only prefix (`/vv`) without `/api`. The api client adds
+  `/api/...` itself, and `useAuth.ts` adds `/api/auth` explicitly for Better Auth.
+
 ## [0.1.5] — 2026-05-21
 
 ### Fixed

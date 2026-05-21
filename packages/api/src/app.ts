@@ -42,6 +42,10 @@ export function createApp(deps: AppDeps) {
 
   app.use('*', logger());
   const isProd = process.env.NODE_ENV === 'production';
+  // Browser-sent Origin headers are scheme+host+port only. Strip any path
+  // (e.g. `/vv` for subpath deployments) from the configured webOrigin so
+  // the equality check works.
+  const webOrigin = new URL(deps.authEnv.webOrigin).origin;
   app.use(
     '*',
     cors({
@@ -50,7 +54,7 @@ export function createApp(deps: AppDeps) {
       // API without a coordinated WEB_BASE_URL. In production only the
       // configured webOrigin is allowed.
       origin: (origin) => {
-        if (origin === deps.authEnv.webOrigin) return origin;
+        if (origin === webOrigin) return origin;
         if (
           !isProd &&
           origin &&

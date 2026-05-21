@@ -212,9 +212,11 @@ export class ApiError extends Error {
 /** Singleton instance configured against the Vite-injected API URL.
  *  Falls back to the local dev server when no override is provided.
  *
- *  `VITE_API_BASE` is the new path-aware setting (e.g. `/vv/api` when
- *  co-hosting under versevault.ca). `VITE_API_URL` is the legacy
- *  full-origin form, kept for any existing dev setups that set it. */
+ *  `VITE_API_BASE` is an origin-relative subpath prefix that does NOT
+ *  include `/api` (e.g. `/vv` when co-hosting under
+ *  www.versevault.ca/vv/). Paths passed to `request()` start with `/api/`,
+ *  so the final URL is `${VITE_API_BASE}/api/...`. `VITE_API_URL` is the
+ *  legacy absolute-origin form, kept for any existing dev setups. */
 export const api = createApiClient(
   import.meta.env.VITE_API_BASE ?? import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
 )

@@ -1,19 +1,19 @@
 import { createAppAuthClient } from '@/lib/authClient'
 
-// Better Auth's baseURL is the URL prefix in front of `/api/auth/*` — i.e.
-// the API base with the `/api` suffix stripped. In dev that's just the API
-// origin (`http://localhost:3000`). In prod the SPA sees the API through the
-// vv-router at `/vv/api`, so the stripped base is `/vv` — but Better Auth's
-// client validates baseURL via `new URL(...)` which rejects relative paths,
-// so resolve relative results against `window.location.origin`. VITE_API_URL
-// is the legacy flat-URL form, kept as a fallback.
+// Better Auth's client auto-appends `/api/auth` to baseURL only when the
+// URL has no path component (see `withPath` / `checkHasPath` in
+// better-auth/utils/url). In our subpath deployment VITE_API_BASE is `/vv`,
+// which already has a path, so the auto-append is skipped — we add the
+// `/api/auth` suffix ourselves. Better Auth also validates baseURL via
+// `new URL(...)`, which rejects relative inputs, so we absolutize against
+// `window.location.origin` when VITE_API_BASE is origin-relative.
+// VITE_API_URL is the legacy absolute-origin form, kept as a fallback.
 const apiBase =
   import.meta.env.VITE_API_BASE ??
   import.meta.env.VITE_API_URL ??
   'http://localhost:3000'
-const stripped = apiBase.replace(/\/api$/, '')
-const authBaseURL = stripped.startsWith('/')
-  ? window.location.origin + stripped
-  : stripped
+const authBaseURL = apiBase.startsWith('/')
+  ? `${window.location.origin}${apiBase}/api/auth`
+  : `${apiBase}/api/auth`
 
 export const { authClient, useAuth } = createAppAuthClient(authBaseURL)
