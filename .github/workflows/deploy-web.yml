@@ -58,10 +58,13 @@ jobs:
       - name: Build
         env:
           # Subpath layout: SPA serves from www.versevault.ca/vv/, API calls
-          # go to /vv/api/*. Flip both to root values when we move off the
-          # subpath (see docs/deployment.md "Future: cutting over to subdomains").
+          # go through the same prefix. VITE_API_BASE is the origin-relative
+          # prefix (subpath only, NOT including `/api`); api.ts paths begin
+          # with `/api/`, so the final URLs become `/vv/api/*`. Flip both to
+          # root values when we move off the subpath (see docs/deployment.md
+          # "Future: cutting over to subdomains").
           VITE_BASE_PATH: /vv/
-          VITE_API_BASE: /vv/api
+          VITE_API_BASE: /vv
         run: pnpm --filter @verse-vault/web build
 
       # Using pnpm dlx wrangler instead of cloudflare/wrangler-action@v3:
