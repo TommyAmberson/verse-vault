@@ -13,6 +13,16 @@ app-level changes don't need a bump here.
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-05-21
+
+### Fixed
+
+* Bare `/vv` (no trailing slash) wasn't matched by the single `/vv/*` Worker route, so the request
+  fell through to the qzr-sheet Pages catch-all at `/*`. qzr-sheet's SPA loaded, its Vue Router
+  didn't know `/vv`, and the user was bounced to apex — looking like "going to `/vv` redirects to
+  the apex." Added a second route pattern (`/vv` exactly) and a 301 in the Worker that sends `/vv` →
+  `/vv/` so the SPA always loads under its proper base path.
+
 ## [0.1.3] — 2026-05-20
 
 ### Fixed
