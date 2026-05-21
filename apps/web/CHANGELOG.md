@@ -9,6 +9,17 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-05-21
+
+### Fixed
+
+* Better Auth's client `withPath()` helper only appends `/api/auth` to `baseURL` when there is no
+  path component on the URL. With the production `baseURL = https://www.versevault.ca/vv`, the `/vv`
+  path already counted as "has path," so nothing was appended and route calls hit
+  `/vv/sign-up/email` → 405 (the Worker forwards the path to the Pages SPA, which doesn't accept
+  POSTs). Hand Better Auth the full auth-route prefix explicitly: `${apiBase}/auth` when `apiBase`
+  already ends with `/api`, otherwise `${apiBase}/api/auth`.
+
 ## [0.1.5] — 2026-05-21
 
 ### Fixed
