@@ -1,8 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { type CardRender, type MemorizeSessionVerse, api } from '@/api'
+import {
+  type CardRender,
+  type MemorizeSessionResponse,
+  type MemorizeSessionVerse,
+  api,
+} from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
+import { useEngine } from '@/composables/useEngine'
+
+// MemorizeView spans every enrolled year with new cards. useEngine
+// supports multiple materials in one session — each year's verses get
+// loaded via init(materialId), then the per-call materialId on the
+// action methods routes work to the right engine.
+const engine = useEngine()
 
 // One session walks three phases: read every verse first, drill every
 // card (shuffled by verse), then walk the verses again and graduate
@@ -68,12 +80,15 @@ async function buildSession() {
   const eligibleYears = yearsRes.years.filter(
     (y) => y.enrolled && y.settings.newScope !== 'off' && y.newCardCount > 0,
   )
-  const sessions = await Promise.all(
-    eligibleYears.map((y) =>
-      api
-        .getMemorizeSession(y.materialId, y.settings.lessonBatchSize)
-        .then((s) => ({ materialId: y.materialId, verses: s.verses })),
-    ),
+  // Boot the engine for every eligible year in parallel, then compute
+  // each year's session payload locally.
+  await Promise.all(eligibleYears.map((y) => engine.init(y.materialId)))
+  const sessions: { materialId: string; verses: MemorizeSessionVerse[] }[] = eligibleYears.map(
+    (y) => ({
+      materialId: y.materialId,
+      verses: (engine.memorizeSession(y.materialId, y.settings.lessonBatchSize) as MemorizeSessionResponse)
+        .verses,
+    }),
   )
   const collected: SessionVerse[] = []
   for (const { materialId, verses: ys } of sessions) {
@@ -93,12 +108,13 @@ async function buildSession() {
 
   // Pre-fetch anchor renders so the reading walkthroughs don't pause
   // for a round trip per verse. Prefer Recitation to avoid the phrase-0
-  // highlight a PhraseFill render would impose.
+  // highlight a PhraseFill render would impose. Renders come from the
+  // engine's IDB-cached + lazy network path.
   await Promise.all(
     collected.map(async (v) => {
       const anchorId = v.recitationCardId ?? v.cardIds[0]
       if (anchorId === undefined || anchorId === null) return
-      v.anchor = await api.getCardRender(v.materialId, anchorId)
+      v.anchor = await engine.getCardRender(v.materialId, anchorId)
     }),
   )
 
@@ -123,7 +139,7 @@ async function loadDrillCard() {
   if (!entry) return
   loading.value = true
   try {
-    drillCard.value = await api.getCardRender(entry.materialId, entry.cardId)
+    drillCard.value = await engine.getCardRender(entry.materialId, entry.cardId)
     drillRevealed.value = false
   } catch (err) {
     error.value = formatError(err)
@@ -168,7 +184,7 @@ async function graduateCurrentReadingEnd() {
   submitting.value = true
   error.value = null
   try {
-    await api.graduateVerse(v.materialId, v.verseId)
+    await engine.submitGraduation(v.materialId, v.verseId)
     v.graduated = true
     if (onLastReading.value) {
       phase.value = 'done'

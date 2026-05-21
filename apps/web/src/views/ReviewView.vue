@@ -36,16 +36,16 @@ async function resolveMaterial() {
 }
 
 async function loadNext() {
-  if (!engine.ready.value) return
+  if (!engine.ready.value || !materialId.value) return
   loading.value = true
   error.value = null
   try {
-    const cardId = engine.nextReviewCard()
+    const cardId = engine.nextReviewCard(materialId.value)
     if (cardId === null) {
       card.value = null
       done.value = true
     } else {
-      card.value = await engine.getCardRender(cardId)
+      card.value = await engine.getCardRender(materialId.value, cardId)
       revealed.value = false
       done.value = false
     }
@@ -57,19 +57,19 @@ async function loadNext() {
 }
 
 async function submit(grade: Grade) {
-  if (!engine.ready.value || !card.value || submitting.value) return
+  if (!engine.ready.value || !card.value || submitting.value || !materialId.value) return
   submitting.value = true
   error.value = null
   try {
-    await engine.submitGrade(card.value.cardId, grade)
+    await engine.submitGrade(materialId.value, card.value.cardId, grade)
     // Engine pick + render happen locally now; the network sync
     // catches up in the background. No spinner between cards.
-    const nextId = engine.nextReviewCard()
+    const nextId = engine.nextReviewCard(materialId.value)
     if (nextId === null) {
       card.value = null
       done.value = true
     } else {
-      card.value = await engine.getCardRender(nextId)
+      card.value = await engine.getCardRender(materialId.value, nextId)
       revealed.value = false
     }
   } catch (err) {
