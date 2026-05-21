@@ -10,11 +10,23 @@ wire shapes a JS caller sees.
 
 ## Building
 
+Two targets ship from the same Rust source:
+
 ```
+# Server (Node 22). Consumed by `@verse-vault/api` as the
+# `verse-vault-wasm` workspace package.
 wasm-pack build crates/wasm --target nodejs --out-dir pkg
+
+# Browser bundle. Consumed by `apps/web` via `vite-plugin-wasm`
+# as the `verse-vault-wasm-web` workspace package; the wrapper
+# script renames the generated package.json so both outputs can
+# coexist in pnpm-workspace.yaml.
+bash tools/build-wasm-web.sh    # wasm-pack build --target bundler --out-dir pkg-web
 ```
 
-For the browser: `--target web`.
+`--target web` was the original plan for the browser side but `--target bundler` is what we actually
+ship — Vite handles the init / .wasm-asset wiring through `vite-plugin-wasm`, so the `bundler` shape
+integrates cleaner than the standalone `web` target's manual `init()` call would.
 
 The crate is also a plain `rlib`, so `cargo test -p verse-vault-wasm` runs the wire-format unit
 tests and the `roundtrip` integration smoke without needing `wasm-pack`.
