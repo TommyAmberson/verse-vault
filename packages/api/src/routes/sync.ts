@@ -49,7 +49,16 @@ type SyncEventUpload = ReviewEventUpload | GraduateEventUpload;
 
 interface UploadBody {
   events: SyncEventUpload[];
+  /** Set true to bypass the stale-merge preflight after the client has
+   *  shown the confirmation modal. */
+  confirmMerge?: boolean;
 }
+
+/** Threshold for the stale-merge preflight: a batch whose oldest event
+ *  predates more than this many already-applied server events triggers
+ *  a `needsConfirm` response so the user can choose Sync / Discard /
+ *  Cancel before the merge actually runs. */
+const STALE_MERGE_THRESHOLD = 10;
 
 interface TestUpdateWire {
   key: { kind: string; element: unknown };
@@ -151,6 +160,53 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
     if (fresh.length === 0) {
       return c.json(unchangedResponse(deps.db, key, 0, events.length));
+    }
+
+    // Stale-merge preflight: if the batch's oldest event predates more
+    // than STALE_MERGE_THRESHOLD already-applied server events, the
+    // user probably didn't sync this device for a long time and the
+    // automatic merge can drag down FSRS stability on cards reviewed
+    // since. Surface the confirmation prompt before doing any work.
+    // The client re-POSTs with confirmMerge:true to proceed, or
+    // discards locally and never returns.
+    if (body.confirmMerge !== true) {
+      const oldestQueuedTs = fresh.reduce(
+        (min, e) => (e.timestampSecs < min ? e.timestampSecs : min),
+        fresh[0].timestampSecs,
+      );
+      const sinceRow = deps.db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(schema.reviewEvents)
+        .where(
+          and(
+            eq(schema.reviewEvents.userId, user.id),
+            eq(schema.reviewEvents.materialId, materialId),
+            sql`${schema.reviewEvents.timestampSecs} > ${oldestQueuedTs}`,
+          ),
+        )
+        .get();
+      const serverEventsSince = sinceRow?.count ?? 0;
+      if (serverEventsSince > STALE_MERGE_THRESHOLD) {
+        const newestRow = deps.db
+          .select({ ts: sql<number>`MAX(${schema.reviewEvents.timestampSecs})` })
+          .from(schema.reviewEvents)
+          .where(
+            and(
+              eq(schema.reviewEvents.userId, user.id),
+              eq(schema.reviewEvents.materialId, materialId),
+            ),
+          )
+          .get();
+        return c.json({
+          needsConfirm: true,
+          staleSummary: {
+            queuedCount: fresh.length,
+            serverEventsSince,
+            oldestQueuedTs,
+            newestServerTs: newestRow?.ts ?? oldestQueuedTs,
+          },
+        });
+      }
     }
 
     // Per-card out-of-order detection: any incoming review with a

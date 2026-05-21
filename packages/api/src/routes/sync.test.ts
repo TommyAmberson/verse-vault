@@ -371,6 +371,106 @@ describe('sync routes', () => {
     }
   });
 
+  it('returns needsConfirm when the batch predates many server events', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    // Seed 11 newer server events (over the STALE_MERGE_THRESHOLD of 10).
+    for (let i = 0; i < 11; i++) {
+      const e = event({ timestampSecs: 1_700_001_000 + i, grade: 3, cardId: 0 });
+      const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify({ events: [e] }),
+      });
+      expect(res.status).toBe(200);
+    }
+
+    // Stale batch: ts well before the seeded server events.
+    const stale = event({ timestampSecs: 1_700_000_000, grade: 1, cardId: 0 });
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [stale] }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      needsConfirm: boolean;
+      staleSummary: {
+        queuedCount: number;
+        serverEventsSince: number;
+        oldestQueuedTs: number;
+        newestServerTs: number;
+      };
+    };
+    expect(body.needsConfirm).toBe(true);
+    expect(body.staleSummary.queuedCount).toBe(1);
+    expect(body.staleSummary.serverEventsSince).toBe(11);
+    expect(body.staleSummary.oldestQueuedTs).toBe(1_700_000_000);
+
+    // Preflight did not insert the stale event.
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(11);
+  });
+
+  it('bypasses the preflight when confirmMerge is true', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    for (let i = 0; i < 11; i++) {
+      const e = event({ timestampSecs: 1_700_001_000 + i, grade: 3, cardId: 0 });
+      await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify({ events: [e] }),
+      });
+    }
+
+    const stale = event({ timestampSecs: 1_700_000_000, grade: 1, cardId: 0 });
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [stale], confirmMerge: true }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadResponse;
+    expect(body.accepted).toBe(1);
+    // The stale event triggers the rebuild path (its ts is older than
+    // server-applied events for the same card), so rebuilt is true.
+    expect(body.rebuilt).toBe(true);
+
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(12);
+  });
+
+  it('does not return needsConfirm under the threshold', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    // Seed 8 server events — under the threshold of 10.
+    for (let i = 0; i < 8; i++) {
+      const e = event({ timestampSecs: 1_700_001_000 + i, grade: 3, cardId: 0 });
+      await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify({ events: [e] }),
+      });
+    }
+
+    const stale = event({ timestampSecs: 1_700_000_000, grade: 1, cardId: 0 });
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [stale] }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadResponse;
+    expect(body.accepted).toBe(1);
+    // Under threshold — preflight didn't fire, merge proceeded silently.
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(9);
+  });
+
   it('accepts a mixed batch of review and graduate events', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
