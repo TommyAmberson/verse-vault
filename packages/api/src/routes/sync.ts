@@ -10,7 +10,7 @@ import {
   getLatestSnapshot,
   readTestStateEntries,
 } from '../lib/engine.js';
-import { type Grade, persistEngineState } from '../lib/review-log.js';
+import { type Grade, type ReviewEventInput, persistEngineState } from '../lib/review-log.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface SyncRoutesDeps {
@@ -22,16 +22,33 @@ export interface SyncRoutesDeps {
 /** Caps each upload so the `inArray` dedup stays under SQLite's 999-param limit. */
 const MAX_BATCH_SIZE = 500;
 
-interface ReviewEventUpload {
+/** Events with `timestampSecs` more than this far in the future are rejected.
+ *  A broken device RTC (BIOS battery dead, etc.) would otherwise wedge the
+ *  user's event timeline arbitrarily. */
+const CLOCK_SKEW_TOLERANCE_SECS = 24 * 60 * 60;
+
+interface BaseEventUpload {
   clientEventId: string;
   timestampSecs: number;
   snapshotVersion: number;
+}
+
+interface ReviewEventUpload extends BaseEventUpload {
+  /** Optional for backward compat: legacy uploads omit `kind`. */
+  kind?: 'review';
   cardId: number;
   grade: Grade;
 }
 
+interface GraduateEventUpload extends BaseEventUpload {
+  kind: 'graduate';
+  verseId: number;
+}
+
+type SyncEventUpload = ReviewEventUpload | GraduateEventUpload;
+
 interface UploadBody {
-  events: ReviewEventUpload[];
+  events: SyncEventUpload[];
 }
 
 interface TestUpdateWire {
@@ -39,8 +56,13 @@ interface TestUpdateWire {
   kind: 'Root' | 'Sub';
 }
 
+function eventKind(e: SyncEventUpload): 'review' | 'graduate' {
+  return e.kind ?? 'review';
+}
+
 export function syncRoutes(deps: SyncRoutesDeps) {
   const app = new Hono<{ Variables: SessionVariables }>();
+  const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
 
   app.use('*', requireAuth());
 
@@ -80,8 +102,9 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     if (events.length > MAX_BATCH_SIZE) {
       return c.json({ error: `Batch too large — max ${MAX_BATCH_SIZE} events per request` }, 413);
     }
+    const nowSecs = now();
     for (const e of events) {
-      const problem = validateUpload(e);
+      const problem = validateUpload(e, nowSecs);
       if (problem) return c.json({ error: problem }, 400);
     }
 
@@ -132,12 +155,40 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
     return deps.engines.withLock(key, async () => {
       const touchedKeys = new Set<string>();
+      const reviewEventInputs: ReviewEventInput[] = [];
+      const graduations: { verseId: number; timestampSecs: number }[] = [];
+      // Graduate events whose `engine.graduate_verse` returned 0 (verse was
+      // already Active before this batch) are counted alongside
+      // clientEventId duplicates: they're no-ops the client should not
+      // expect to flip any cards.
+      let graduateNoops = 0;
+
       for (const e of fresh) {
-        const updates = JSON.parse(
-          loaded.engine.replay_event(e.cardId, e.grade, BigInt(e.timestampSecs)),
-        ) as TestUpdateWire[];
-        for (const u of updates) {
-          touchedKeys.add(`${u.key.kind}|${JSON.stringify(u.key.element)}`);
+        if (eventKind(e) === 'graduate') {
+          const ge = e as GraduateEventUpload;
+          const count = loaded.engine.graduate_verse(ge.verseId);
+          if (count === 0) graduateNoops += 1;
+          // Even when count is 0 we still upsert the graduatedVerses row
+          // (no-op via onConflictDoNothing) so the table reflects every
+          // graduate event the client tried to apply.
+          graduations.push({ verseId: ge.verseId, timestampSecs: ge.timestampSecs });
+        } else {
+          const re = e as ReviewEventUpload;
+          const updates = JSON.parse(
+            loaded.engine.replay_event(re.cardId, re.grade, BigInt(re.timestampSecs)),
+          ) as TestUpdateWire[];
+          for (const u of updates) {
+            touchedKeys.add(`${u.key.kind}|${JSON.stringify(u.key.element)}`);
+          }
+          reviewEventInputs.push({
+            userId: user.id,
+            materialId,
+            snapshotVersion: re.snapshotVersion,
+            timestampSecs: re.timestampSecs,
+            cardId: re.cardId,
+            grade: re.grade,
+            clientEventId: re.clientEventId,
+          });
         }
       }
 
@@ -150,22 +201,25 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         persistEngineState(tx, {
           userId: user.id,
           materialId,
-          events: fresh.map((e) => ({
-            userId: user.id,
-            materialId,
-            snapshotVersion: e.snapshotVersion,
-            timestampSecs: e.timestampSecs,
-            cardId: e.cardId,
-            grade: e.grade,
-            clientEventId: e.clientEventId,
-          })),
+          events: reviewEventInputs,
           testStateUpdates: changed,
         });
+        for (const g of graduations) {
+          tx.insert(schema.graduatedVerses)
+            .values({
+              userId: user.id,
+              materialId,
+              verseId: g.verseId,
+              graduatedAtSecs: g.timestampSecs,
+            })
+            .onConflictDoNothing()
+            .run();
+        }
       });
 
       return c.json({
-        accepted: fresh.length,
-        duplicates: events.length - fresh.length,
+        accepted: fresh.length - graduateNoops,
+        duplicates: events.length - fresh.length + graduateNoops,
         // Send the full state so fat clients can replace their cache in one
         // shot; DB writes were filtered above to just the touched keys.
         testStates: allStates,
@@ -207,19 +261,33 @@ function latestEventId(db: DB, userId: string, materialId: string): string | nul
   return latest?.id ?? null;
 }
 
-function validateUpload(e: ReviewEventUpload): string | null {
+function validateUpload(e: SyncEventUpload, nowSecs: number): string | null {
   if (typeof e.clientEventId !== 'string' || !e.clientEventId) return 'clientEventId required';
   if (!Number.isInteger(e.timestampSecs) || e.timestampSecs < 0) {
     return 'timestampSecs must be a non-negative integer';
   }
+  if (e.timestampSecs > nowSecs + CLOCK_SKEW_TOLERANCE_SECS) {
+    return 'timestampSecs more than 24h in the future — check device clock';
+  }
   if (!Number.isInteger(e.snapshotVersion) || e.snapshotVersion < 1) {
     return 'snapshotVersion must be a positive integer';
   }
-  if (!Number.isInteger(e.cardId) || e.cardId < 0) {
-    return 'cardId must be a non-negative integer';
-  }
-  if (![1, 2, 3, 4].includes(e.grade)) {
-    return 'grade must be 1..=4';
+  const kind = eventKind(e);
+  if (kind === 'review') {
+    const re = e as ReviewEventUpload;
+    if (!Number.isInteger(re.cardId) || re.cardId < 0) {
+      return 'cardId must be a non-negative integer';
+    }
+    if (![1, 2, 3, 4].includes(re.grade)) {
+      return 'grade must be 1..=4';
+    }
+  } else if (kind === 'graduate') {
+    const ge = e as GraduateEventUpload;
+    if (!Number.isInteger(ge.verseId) || ge.verseId < 0) {
+      return 'verseId must be a non-negative integer';
+    }
+  } else {
+    return `unknown event kind: ${String((e as { kind: unknown }).kind)}`;
   }
   return null;
 }
