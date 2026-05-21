@@ -8,11 +8,10 @@ All `/api/*` routes except `/api/auth/*` require a valid Better Auth session coo
 
 Two parallel route surfaces sit on top of the same engine + event log:
 
-* **Thin client** (`/api/cards/*`) — server picks the next card, server replays the grade. The Vue
-  web app drives this path today.
 * **Fat client** (`/api/sync/*`) — server returns the snapshot + test states; the client runs the
-  engine locally and uploads batched events on reconnect. Server-side routes exist; no client
-  consumes them yet.
+  engine locally and uploads batched events on reconnect. _Drives the Vue web app today._
+* **Thin client** (`/api/cards/*`) — server picks the next card, server replays the grade. _Legacy;
+  kept for tests + ad-hoc tooling. No view consumes it now._
 
 Both paths go through the same `EngineStore.withLock(key, …)` serialisation per `(user, material)`
 and write to the same `review_events` table with `clientEventId` dedup. See
@@ -179,35 +178,92 @@ Request:
 {
   "events": [
     {
+      "kind": "review",
       "clientEventId": "...uuid...",
       "timestampSecs": 1747600000,
       "snapshotVersion": 3,
       "cardId": 42,
       "grade": 3
+    },
+    {
+      "kind": "graduate",
+      "clientEventId": "...uuid...",
+      "timestampSecs": 1747600005,
+      "snapshotVersion": 3,
+      "verseId": 17
     }
-  ]
+  ],
+  "confirmMerge": false
 }
 ```
 
-Response:
+Event kinds:
+
+* `review` — replays through `engine.replay_event(cardId, grade, …)`. Required fields: `cardId`,
+  `grade` (1=Again, 2=Hard, 3=Good, 4=Easy).
+* `graduate` — calls `engine.graduate_verse(verseId)` and upserts a `graduated_verses` row in the
+  same transaction. Required field: `verseId`.
+* Events without a `kind` field default to `review` for backward compatibility with the original
+  thin-client wire shape.
+
+`confirmMerge: true` bypasses the stale-merge preflight (see below). Defaults to `false`.
+
+Validation rejects (400) with these conditions:
+
+* `timestampSecs > server_now + 24h` (clock-skew guard — a broken device RTC could otherwise insert
+  events at arbitrary positions in the timeline).
+* `clientEventId` missing/empty, `snapshotVersion < 1`, `cardId < 0`, `grade ∉ {1,2,3,4}`,
+  `verseId < 0`, or an unknown `kind`.
+
+Response — normal merge:
 
 ```json
 {
   "accepted": 12,
   "duplicates": 0,
+  "rebuilt": false,
   "testStates": [ /* TestStateEntry[] — full set after replay */ ],
   "lastEventId": "01HXX..."
 }
 ```
 
+Response — stale-merge preflight (when the batch's oldest event predates more than
+`STALE_MERGE_THRESHOLD` already-applied server events and `confirmMerge !== true`):
+
+```json
+{
+  "needsConfirm": true,
+  "staleSummary": {
+    "queuedCount": 50,
+    "serverEventsSince": 3000,
+    "oldestQueuedTs": 1700000000,
+    "newestServerTs": 1747600000
+  }
+}
+```
+
+No events are applied in the preflight response. The client surfaces a confirmation prompt and
+re-POSTs the same batch with `confirmMerge: true` to proceed, or discards locally.
+
 Side effects (atomic, one transaction):
 
 * Appends accepted events to `review_events`.
-* Upserts touched rows in `test_states` (filtered to the keys the engine reported as changed).
+* For `graduate` events: upserts `graduated_verses` rows (`onConflictDoNothing`).
+* Upserts touched rows in `test_states`.
+* On out-of-order arrival (an incoming review's `timestampSecs` is earlier than any already applied
+  for the same `card_id`): drops the cached engine, replays the full `review_events` log in
+  `(timestamp_secs, client_event_id)` order through a fresh engine, writes the resulting
+  `test_states` back wholesale, and returns `rebuilt: true`. The client treats this as a wholesale
+  state replacement rather than a merge.
+* If the transaction itself throws, the cached engine is invalidated so the next request rebuilds
+  from disk state (the handler calls `engine.replay_event` / `engine.graduate_verse` before the
+  transaction, so the in-memory engine would otherwise diverge from `review_events` +
+  `graduated_verses` until process restart).
 
 Snapshot-version mismatch returns 409 — the client must re-fetch `/state` and rebuild its local
 engine before retrying. A duplicate `clientEventId` is silently dropped (counted under
-`duplicates`); the rest of the batch still applies.
+`duplicates`); the rest of the batch still applies. Graduate events whose `engine.graduate_verse()`
+returned 0 (the verse was already Active before this batch) are counted as duplicates too.
 
 ## Materials — `/api/materials/*`
 
