@@ -56,6 +56,21 @@ function requireSession(materialId: string, caller: string): EngineSession {
 
 const sessions = new Map<string, EngineSession>()
 const inflightFlushes = new Map<string, Promise<FlushResult>>()
+/** Materials the server has flagged with a stale-merge `needsConfirm`.
+ *  Flush calls for these no-op until either `confirmMerge: true` is
+ *  passed (which bypasses the gate and clears it on success) or
+ *  `clearStaleGate` is called explicitly (the discard path). Prevents
+ *  the per-grade debounce + visibilitychange listeners from looping the
+ *  same stale batch through the server endlessly. */
+const staleGate = new Set<string>()
+
+export function isStaleGated(materialId: string): boolean {
+  return staleGate.has(materialId)
+}
+
+export function clearStaleGate(materialId: string): void {
+  staleGate.delete(materialId)
+}
 
 /** Outcome of a flush attempt. Surfaced to callers (the useEngine
  *  composable) so the UI can show stale-merge prompts or
@@ -301,6 +316,12 @@ export async function flush(
   nowSecs: number,
   opts: { confirmMerge?: boolean } = {},
 ): Promise<FlushResult> {
+  // Don't keep re-POSTing a batch the server already told us needs
+  // user confirmation. confirmMerge:true is the explicit override that
+  // resumes flushing (and clears the gate on success).
+  if (!opts.confirmMerge && staleGate.has(materialId)) {
+    return { accepted: 0, duplicates: 0, rebuilt: false }
+  }
   const existing = inflightFlushes.get(materialId)
   if (existing) return existing
 
@@ -361,6 +382,7 @@ async function doFlush(
   }
 
   if ('needsConfirm' in response && response.needsConfirm) {
+    staleGate.add(materialId)
     return {
       accepted: 0,
       duplicates: 0,
@@ -370,6 +392,10 @@ async function doFlush(
   }
   // The union narrows here: the `needsConfirm` arm returned above, so
   // the rest of this function sees only the merged-response shape.
+  // Successful merge — clear the gate (covers the confirmMerge:true
+  // retry path and the case where prior server activity drained below
+  // the stale-merge threshold).
+  staleGate.delete(materialId)
 
   await idb.replaceAllTestStates(materialId, response.testStates)
   if (response.rebuilt) {

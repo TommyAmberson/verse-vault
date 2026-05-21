@@ -234,6 +234,10 @@ export function useEngine() {
     if (!stale) return
     const queued = await idb.getQueuedEvents(stale.materialId)
     await idb.deleteQueuedEvents(queued.map((q) => q.clientEventId))
+    // Re-open the flush path: the gate was set on the needsConfirm
+    // response; without clearing it here, subsequent flushes would
+    // continue to no-op even though there's nothing to confirm.
+    engineStore.clearStaleGate(stale.materialId)
     staleSummary.value = null
     await refreshCounts()
     await engineStore.loadEngine(stale.materialId, nowSecs())
