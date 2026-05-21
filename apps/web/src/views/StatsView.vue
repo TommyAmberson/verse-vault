@@ -1,34 +1,52 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { MATERIAL_ID, type StatsResponse, api } from '@/api'
+import { type StatsResponse, api } from '@/api'
 
-const stats = ref<StatsResponse | null>(null)
+interface YearStats {
+  materialId: string
+  title: string
+  stats: StatsResponse
+}
+
+const years = ref<YearStats[]>([])
 const error = ref<string | null>(null)
 const loading = ref(true)
 
-const buckets = computed(() => {
-  if (!stats.value) return []
-  const dist = stats.value.testDistribution
+const DIST_LABELS = ['weak', 'learning', 'familiar', 'strong', 'mastered'] as const
+
+function bucketsFor(stats: StatsResponse) {
+  const dist = stats.testDistribution
   const total = Object.values(dist).reduce((a, b) => a + b, 0)
   if (total === 0) return []
-  const labels: Array<keyof typeof dist> = ['weak', 'learning', 'familiar', 'strong', 'mastered']
-  return labels.map((label) => ({
+  return DIST_LABELS.map((label) => ({
     label,
     count: dist[label],
     percent: (dist[label] / total) * 100,
   }))
-})
+}
 
-const retentionPct = computed(() =>
-  stats.value && stats.value.retentionRate !== null
-    ? `${(stats.value.retentionRate * 100).toFixed(0)}%`
-    : '—',
-)
+function retentionPct(stats: StatsResponse) {
+  return stats.retentionRate !== null ? `${(stats.retentionRate * 100).toFixed(0)}%` : '—'
+}
+
+const empty = computed(() => !loading.value && years.value.length === 0 && !error.value)
 
 onMounted(async () => {
   try {
-    stats.value = await api.getStats(MATERIAL_ID)
+    // Stats are per-year. Show every year the user is enrolled in; sort by
+    // total reviews so the most-worked year leads.
+    const yearsRes = await api.getYears()
+    const enrolled = yearsRes.years.filter((y) => y.enrolled)
+    const results = await Promise.all(
+      enrolled.map(async (y) => ({
+        materialId: y.materialId,
+        title: y.title,
+        stats: await api.getStats(y.materialId),
+      })),
+    )
+    results.sort((a, b) => b.stats.totalGrades - a.stats.totalGrades)
+    years.value = results
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -41,34 +59,40 @@ onMounted(async () => {
   <div class="stats">
     <div v-if="error" class="banner banner-error">{{ error }}</div>
     <div v-else-if="loading" class="status">Loading…</div>
-    <div v-else-if="stats" class="content">
+    <div v-else-if="empty" class="status">
+      No enrolled years yet. Pick one in
+      <RouterLink to="/material">/material</RouterLink> to start.
+    </div>
+    <div v-else class="content">
       <h2>Stats</h2>
-
-      <div class="grid">
-        <div class="metric">
-          <div class="metric-label">Verses learned</div>
-          <div class="metric-value">{{ stats.versesLearned }}</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Retention</div>
-          <div class="metric-value">{{ retentionPct }}</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Total reviews</div>
-          <div class="metric-value">{{ stats.totalGrades }}</div>
-        </div>
-      </div>
-
-      <div class="histogram">
-        <div class="histogram-title">Test stability</div>
-        <div v-for="b in buckets" :key="b.label" class="bar-row">
-          <div class="bar-label">{{ b.label }}</div>
-          <div class="bar-track">
-            <div :class="['bar', `bar-${b.label}`]" :style="{ width: `${b.percent}%` }" />
+      <section v-for="y in years" :key="y.materialId" class="year-stats">
+        <h3>{{ y.title }}</h3>
+        <div class="grid">
+          <div class="metric">
+            <div class="metric-label">Verses learned</div>
+            <div class="metric-value">{{ y.stats.versesLearned }}</div>
           </div>
-          <div class="bar-count">{{ b.count }}</div>
+          <div class="metric">
+            <div class="metric-label">Retention</div>
+            <div class="metric-value">{{ retentionPct(y.stats) }}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Total reviews</div>
+            <div class="metric-value">{{ y.stats.totalGrades }}</div>
+          </div>
         </div>
-      </div>
+
+        <div v-if="bucketsFor(y.stats).length > 0" class="histogram">
+          <div class="histogram-title">Test stability</div>
+          <div v-for="b in bucketsFor(y.stats)" :key="b.label" class="bar-row">
+            <div class="bar-label">{{ b.label }}</div>
+            <div class="bar-track">
+              <div :class="['bar', `bar-${b.label}`]" :style="{ width: `${b.percent}%` }" />
+            </div>
+            <div class="bar-count">{{ b.count }}</div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -131,6 +155,17 @@ h2 {
   font-size: 1.75rem;
   font-weight: 500;
   margin-top: 0.25rem;
+}
+
+.year-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.year-stats h3 {
+  font-size: 1.1rem;
+  margin: 0;
 }
 
 .histogram {
