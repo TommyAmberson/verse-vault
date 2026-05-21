@@ -98,6 +98,17 @@ jobs:
       - name: Bundle API for deploy
         run: pnpm --filter @verse-vault/api deploy --legacy --prod /tmp/api-bundle
 
+      # Ship the structural deck JSONs alongside the API. `pnpm deploy`
+      # only includes files under the package; the decks live at repo
+      # root in /data/, so copy them in after the bundle is staged.
+      # materials.ts looks under <bundle>/data/ first, then falls back
+      # to <repo>/data/ for local dev.
+      - name: Stage deck data into bundle
+        run: |
+          mkdir -p /tmp/api-bundle/data
+          cp data/[0-9]-*.json /tmp/api-bundle/data/
+          ls -la /tmp/api-bundle/data/
+
       - name: Configure SSH
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}

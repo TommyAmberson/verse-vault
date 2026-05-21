@@ -10,6 +10,24 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-05-21
+
+### Fixed
+
+* Structural deck JSONs (`data/[0-9]-*.json`) weren't reaching production. `pnpm deploy` only
+  packages files under the API workspace, but the decks live at the repo root, so the bundled
+  `<root>/data/<deck>.json` path resolved to `/opt/data/<deck>.json` on the VPS — a directory that
+  doesn't exist. Auto-enrollment via `POST /api/years/:materialId/settings` then threw
+  `Unknown material: <id>` for every deck without an inline fixture (which is all of them except
+  `nkjv-cor`), surfacing as a 500. Fix is two-part: the deploy workflow now copies the deck JSONs
+  into `<bundle>/data/` after `pnpm deploy`, and `materials.ts` searches the bundle-local dir first
+  with a repo-root fallback so dev keeps working.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged from 0.1.6 (deploy-packaging fix)
+* `verse-vault-wasm@0.1.0` — unchanged from 0.1.6 (deploy-packaging fix)
+
 ## [0.1.6] — 2026-05-21
 
 ### Fixed
