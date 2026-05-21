@@ -11,6 +11,15 @@ export { bookCodeOf, passageIdOf } from './book-codes.js';
  * structural metadata (phrase word counts + user annotations) to produce
  * per-card render output.
  *
+ * **MAUA boundary.** The output of this function (`composeRender`) is the
+ * only form of api.bible-derived content that crosses the server boundary
+ * to a client. Raw api.bible chapter HTML never leaves the server — it
+ * stays in `apibible_passages` (TTL'd per the Acceptable Use clause at
+ * https://api.bible/terms-and-conditions#acceptable_use) and is composed
+ * into per-card output on demand. Keep it that way: any new endpoint that
+ * delivers api.bible-derived content must ship `composeRender` output,
+ * not the underlying chapter HTML.
+ *
  * api.bible's HTML carries NKJV editorial typography (small caps for
  * YHWH, translator-supplied italics, divine-name bold) as `<span class>`
  * wrappers. The composer keeps those wrappers intact and layers user

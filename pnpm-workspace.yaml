@@ -2,4 +2,5 @@ packages:
   - "packages/*"
   - "apps/*"
   - "crates/wasm/pkg"
+  - "crates/wasm/pkg-web"
   - "deploy/vv-router"

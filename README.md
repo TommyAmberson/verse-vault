@@ -36,3 +36,12 @@ docs/       Design docs — graph model, review algorithm, scheduling, validatio
 cargo test             # run all tests
 cargo run -p verse-vault-sim   # run simulation
 ```
+
+## Third-party content
+
+The `LICENSE` file (MIT) covers source code only. The NKJV scripture text the app displays is
+delivered through [API.Bible](https://api.bible) and is subject to separate copyright and terms. See
+[`NOTICE.md`](./NOTICE.md) for the citation and the
+[API.Bible Acceptable Use](https://api.bible/terms-and-conditions#acceptable_use) constraints
+verse-vault honours (30-day cache TTL, no AI/LLM training, no derivative format conversion, no
+systematic bulk extraction).

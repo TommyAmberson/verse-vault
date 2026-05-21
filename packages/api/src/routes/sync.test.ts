@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { reviewEvents, testStates } from '../db/schema.js';
+import { graduatedVerses, reviewEvents, testStates } from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { type TestApp, createTestApp, signUpTestUser } from '../test-utils.js';
 
@@ -28,6 +28,7 @@ interface StateResponse {
 interface UploadResponse {
   accepted: number;
   duplicates: number;
+  rebuilt: boolean;
   testStates: TestStateWire[];
   lastEventId: string | null;
 }
@@ -174,7 +175,10 @@ describe('sync routes', () => {
     cleanup = test.cleanup;
     const { cookie } = await enroll(test, 'alice@example.com');
 
-    const newer = event({ timestampSecs: 2_000_000_000 });
+    // Both timestamps in the past — the clock-skew guard rejects events
+    // more than 24h in the future. We only need strict newer-vs-older
+    // ordering, not a specific era.
+    const newer = event({ timestampSecs: 1_700_000_000 });
     const older = event({ timestampSecs: 1_000_000_000 });
 
     const firstRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
@@ -253,5 +257,244 @@ describe('sync routes', () => {
       body: JSON.stringify({ events: [event({ snapshotVersion: 99 })] }),
     });
     expect(res.status).toBe(409);
+  });
+
+  it('rejects events more than 24h in the future with 400', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    const farFuture = Math.floor(Date.now() / 1000) + 25 * 60 * 60;
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [event({ timestampSecs: farFuture })] }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts a graduate event and writes graduatedVerses', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie, userId } = await enroll(test, 'alice@example.com');
+
+    const grad = {
+      kind: 'graduate' as const,
+      clientEventId: randomUUID(),
+      timestampSecs: 1_700_000_000,
+      snapshotVersion: 1,
+      verseId: 0,
+    };
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [grad] }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadResponse;
+    expect(body.accepted).toBe(1);
+    expect(body.duplicates).toBe(0);
+
+    const rows = test.db.select().from(graduatedVerses).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].userId).toBe(userId);
+    expect(rows[0].verseId).toBe(0);
+
+    // Re-applying the graduation is a no-op (engine.graduate_verse returns
+    // 0 because the verse is already Active). The wire dedup based on
+    // clientEventId doesn't catch this — different clientEventId, same
+    // semantic outcome — so the server tracks it as a duplicate via the
+    // engine return value.
+    const grad2 = { ...grad, clientEventId: randomUUID() };
+    const res2 = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [grad2] }),
+    });
+    expect(res2.status).toBe(200);
+    const body2 = (await res2.json()) as UploadResponse;
+    expect(body2.accepted).toBe(0);
+    expect(body2.duplicates).toBe(1);
+  });
+
+  it('triggers a rebuild when an older event arrives after a newer one', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    const newer = event({ timestampSecs: 1_700_000_100, grade: 3, cardId: 0 });
+    const firstRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [newer] }),
+    });
+    expect(firstRes.status).toBe(200);
+    const firstBody = (await firstRes.json()) as UploadResponse;
+    expect(firstBody.rebuilt).toBe(false);
+    expect(firstBody.accepted).toBe(1);
+
+    // Second batch: same card, earlier timestamp. The server should
+    // detect the per-card out-of-order arrival, replay the full log
+    // from baseline, and signal rebuilt: true.
+    const older = event({ timestampSecs: 1_700_000_000, grade: 1, cardId: 0 });
+    const secondRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [older] }),
+    });
+    expect(secondRes.status).toBe(200);
+    const secondBody = (await secondRes.json()) as UploadResponse;
+    expect(secondBody.rebuilt).toBe(true);
+    expect(secondBody.accepted).toBe(1);
+
+    // Both events landed in the audit log.
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(2);
+    // Rebuilt testStates were written back.
+    expect(test.db.select().from(testStates).all().length).toBeGreaterThan(0);
+  });
+
+  it('does not rebuild when events arrive in order', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    const e1 = event({ timestampSecs: 1_700_000_000, grade: 3, cardId: 0 });
+    const e2 = event({ timestampSecs: 1_700_000_100, grade: 3, cardId: 0 });
+    for (const e of [e1, e2]) {
+      const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify({ events: [e] }),
+      });
+      const body = (await res.json()) as UploadResponse;
+      expect(body.rebuilt).toBe(false);
+    }
+  });
+
+  it('returns needsConfirm when the batch predates many server events', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    // Seed 11 newer server events (over the STALE_MERGE_THRESHOLD of 10).
+    for (let i = 0; i < 11; i++) {
+      const e = event({ timestampSecs: 1_700_001_000 + i, grade: 3, cardId: 0 });
+      const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify({ events: [e] }),
+      });
+      expect(res.status).toBe(200);
+    }
+
+    // Stale batch: ts well before the seeded server events.
+    const stale = event({ timestampSecs: 1_700_000_000, grade: 1, cardId: 0 });
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [stale] }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      needsConfirm: boolean;
+      staleSummary: {
+        queuedCount: number;
+        serverEventsSince: number;
+        oldestQueuedTs: number;
+        newestServerTs: number;
+      };
+    };
+    expect(body.needsConfirm).toBe(true);
+    expect(body.staleSummary.queuedCount).toBe(1);
+    expect(body.staleSummary.serverEventsSince).toBe(11);
+    expect(body.staleSummary.oldestQueuedTs).toBe(1_700_000_000);
+
+    // Preflight did not insert the stale event.
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(11);
+  });
+
+  it('bypasses the preflight when confirmMerge is true', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    for (let i = 0; i < 11; i++) {
+      const e = event({ timestampSecs: 1_700_001_000 + i, grade: 3, cardId: 0 });
+      await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify({ events: [e] }),
+      });
+    }
+
+    const stale = event({ timestampSecs: 1_700_000_000, grade: 1, cardId: 0 });
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [stale], confirmMerge: true }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadResponse;
+    expect(body.accepted).toBe(1);
+    // The stale event triggers the rebuild path (its ts is older than
+    // server-applied events for the same card), so rebuilt is true.
+    expect(body.rebuilt).toBe(true);
+
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(12);
+  });
+
+  it('does not return needsConfirm under the threshold', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    // Seed 8 server events — under the threshold of 10.
+    for (let i = 0; i < 8; i++) {
+      const e = event({ timestampSecs: 1_700_001_000 + i, grade: 3, cardId: 0 });
+      await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify({ events: [e] }),
+      });
+    }
+
+    const stale = event({ timestampSecs: 1_700_000_000, grade: 1, cardId: 0 });
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [stale] }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadResponse;
+    expect(body.accepted).toBe(1);
+    // Under threshold — preflight didn't fire, merge proceeded silently.
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(9);
+  });
+
+  it('accepts a mixed batch of review and graduate events', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    const review = event({ timestampSecs: 1_700_000_000 });
+    const grad = {
+      kind: 'graduate' as const,
+      clientEventId: randomUUID(),
+      timestampSecs: 1_700_000_001,
+      snapshotVersion: 1,
+      verseId: 0,
+    };
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [review, grad] }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadResponse;
+    expect(body.accepted).toBe(2);
+    expect(body.duplicates).toBe(0);
+
+    expect(test.db.select().from(graduatedVerses).all()).toHaveLength(1);
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(1);
   });
 });
