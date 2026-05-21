@@ -181,6 +181,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # actions/checkout@v4 doesn't fetch tags; without this,
+          # tag_if_missing's `git rev-parse` only sees tags created in
+          # this run. Existing remote tags (e.g. core@0.1.0 from prior
+          # deploys) look missing → push tries again → remote rejects.
+          # Pull them once so the local check matches reality.
+          git fetch --tags --quiet origin
+
           tag_if_missing() {
             local tag=$1
             local subject=$2
