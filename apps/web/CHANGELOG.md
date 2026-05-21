@@ -9,6 +9,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-05-20
+
+### Fixed
+
+* Better Auth client's `baseURL` came from `VITE_API_URL` (legacy env var) and fell back to
+  `http://localhost:3000` in production because CI only sets `VITE_API_BASE`. The deployed SPA was
+  therefore calling `localhost` for every auth request. Switched to deriving the auth base from
+  `VITE_API_BASE` (the same env var the API client reads) by stripping the trailing `/api`.
+
 ## [0.1.3] — 2026-05-20
 
 ### Fixed

@@ -22,6 +22,10 @@ export function createAuth(db: DB, env: AuthEnv) {
 
   return betterAuth({
     baseURL: env.baseUrl,
+    // Path the API actually receives requests on (vv-router strips the `/vv`
+    // prefix before forwarding to the Tunnel, so Better Auth must not derive
+    // its match path from baseURL's `/vv/...` path component).
+    basePath: '/api/auth',
     secret: env.secret,
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     trustedOrigins,

@@ -10,6 +10,21 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-05-20
+
+### Fixed
+
+* Better Auth's path matcher derived its basePath from `baseURL`, which in production is
+  `https://www.versevault.ca/vv` (the SPA-facing URL). The Tunnel-fronted API actually receives
+  requests at `/api/auth/*` (vv-router strips the `/vv` prefix before forwarding), so the derived
+  match path `/vv/api/auth/*` never matched and every `/api/auth/*` request 404'd. Pinned
+  `basePath: '/api/auth'` explicitly so the match is independent of `baseURL`'s path component.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged from 0.1.3 (auth-only fix)
+* `verse-vault-wasm@0.1.0` — unchanged from 0.1.3 (auth-only fix)
+
 ## [0.1.3] — 2026-05-20
 
 ### Fixed
