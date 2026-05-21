@@ -9,6 +9,7 @@ import {
 } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 import { useEngine } from '@/composables/useEngine'
+import { buildMaterialConfig } from '@/lib/engine/types'
 
 // MemorizeView spans every enrolled year with new cards. useEngine
 // supports multiple materials in one session — each year's verses get
@@ -81,8 +82,11 @@ async function buildSession() {
     (y) => y.enrolled && y.settings.newScope !== 'off' && y.newCardCount > 0,
   )
   // Boot the engine for every eligible year in parallel, then compute
-  // each year's session payload locally.
-  await Promise.all(eligibleYears.map((y) => engine.init(y.materialId)))
+  // each year's session payload locally. Settings pass through so the
+  // engine respects per-year scope toggles (e.g. chapter_list_scope).
+  await Promise.all(
+    eligibleYears.map((y) => engine.init(y.materialId, buildMaterialConfig(y.settings))),
+  )
   const sessions: { materialId: string; verses: MemorizeSessionVerse[] }[] = eligibleYears.map(
     (y) => ({
       materialId: y.materialId,

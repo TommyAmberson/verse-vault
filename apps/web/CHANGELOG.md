@@ -9,6 +9,24 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Added
+
+* **Fat-client engine**: ReviewView, MemorizeView, and MaterialView now drive the WASM engine
+  locally. Each grade runs `engine.replay_event` in-browser and queues an event to IndexedDB; the
+  background flush ships them to `POST /api/sync/:materialId/events` on a 5 s debounce + on tab
+  hide. No more network round-trip per card. Per-card render output caches in IDB (MAUA-compliant
+  30-day TTL); the engine sources next-card decisions locally so review feels instant.
+* `verse-vault-wasm-web` workspace package (wasm-pack `--target bundler` output) — same Rust source
+  as the API's nodejs target, different JS shim. Vite emits the .wasm asset (~117 KB gzipped) as
+  part of the build.
+* `useEngine` composable + `engineStore` module-singleton that own per-material `WasmEngine`
+  instances across navigations. Multi-material capable for MemorizeView's cross-year sessions.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged
+* `verse-vault-wasm@0.1.0` / `verse-vault-wasm-web@0.1.0` — same crate, two pkg targets
+
 ## [0.1.6] — 2026-05-21
 
 ### Fixed

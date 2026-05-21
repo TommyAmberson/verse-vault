@@ -12,6 +12,42 @@
  *  shape, and api.ts depends on this module for the sync types. */
 export type Grade = 1 | 2 | 3 | 4
 
+/** Wire-format MaterialConfig consumed by the WASM engine's
+ *  constructor. Mirrors `packages/api/src/lib/engine.ts`
+ *  `readMaterialConfigJson` output — snake_case to match the core's
+ *  `#[serde(rename_all = "camelCase")]` enum values combined with
+ *  snake_case struct field names. */
+export interface WireMaterialConfig {
+  headings: boolean
+  ftv: boolean
+  new_scope: 'off' | 'up150' | 'up300' | 'all'
+  review_scope: 'off' | 'up150' | 'up300' | 'all'
+  club_card_scope: 'off' | 'up150' | 'up300' | 'all'
+  chapter_list_scope: 'off' | 'up150' | 'up300'
+}
+
+/** Convert a client-side `YearSettings` (camelCase) to the wire
+ *  format the WASM engine expects. The values themselves don't
+ *  translate — `off`, `up150`, `up300`, `all` are camelCase already
+ *  per the Rust serde rename — only the field names change. */
+export function buildMaterialConfig(s: {
+  headings: boolean
+  ftv: boolean
+  newScope: 'off' | 'up150' | 'up300' | 'all'
+  reviewScope: 'off' | 'up150' | 'up300' | 'all'
+  clubCardScope: 'off' | 'up150' | 'up300' | 'all'
+  chapterListScope: 'off' | 'up150' | 'up300'
+}): WireMaterialConfig {
+  return {
+    headings: s.headings,
+    ftv: s.ftv,
+    new_scope: s.newScope,
+    review_scope: s.reviewScope,
+    club_card_scope: s.clubCardScope,
+    chapter_list_scope: s.chapterListScope,
+  }
+}
+
 /** Snapshot of one `(TestKind, ElementId)` pair from the WASM engine.
  *  Mirrors `verse-vault-wasm` `TestStateEntry`. The `element` field is
  *  the serde-tagged JSON form of `ElementId` and is round-tripped opaque. */

@@ -33,6 +33,7 @@ import type { CardRender, Grade } from '../api'
 import * as engineStore from '../lib/engine/engineStore'
 import type { FlushResult } from '../lib/engine/engineStore'
 import * as idb from '../lib/engine/persistence'
+import type { WireMaterialConfig } from '../lib/engine/types'
 
 /** Debounce window for the auto-flush trigger after a grade — long enough
  *  to coalesce a stream of grades into one round-trip, short enough that
@@ -141,10 +142,15 @@ export function useEngine() {
   /** Boot the engine for the given material. Idempotent per id. Can be
    *  called multiple times for different materials in the same session
    *  (MemorizeView). `ready` flips true after the first successful
-   *  init; the per-material flag is the membership in `active`. */
-  async function init(id: string) {
+   *  init; the per-material flag is the membership in `active`.
+   *
+   *  Pass `config` to apply the user's year-settings (scope toggles,
+   *  headings/ftv) when constructing the engine. Without it the engine
+   *  uses `MaterialConfig::default()` — fine on a brand-new account,
+   *  but surfaces the wrong card set after /material is touched. */
+  async function init(id: string, config?: WireMaterialConfig) {
     try {
-      await engineStore.loadEngine(id, nowSecs())
+      await engineStore.loadEngine(id, nowSecs(), config)
       active.add(id)
       await refreshCounts()
       ready.value = true
@@ -154,6 +160,14 @@ export function useEngine() {
     } catch (e) {
       error.value = e
     }
+  }
+
+  /** Drop the cached engine for one material — used after settings
+   *  change so the next view trigger reloads the engine with fresh
+   *  `MaterialConfig`. */
+  function invalidate(id: string) {
+    engineStore.invalidateSession(id)
+    active.delete(id)
   }
 
   // --- Public surface ---
@@ -222,6 +236,7 @@ export function useEngine() {
     orphanCount,
     staleSummary,
     init,
+    invalidate,
     submitGrade,
     submitGraduation,
     nextReviewCard,

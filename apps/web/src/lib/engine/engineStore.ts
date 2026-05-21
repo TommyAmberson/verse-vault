@@ -34,6 +34,7 @@ import type {
   SyncEventsResponse,
   TestStateEntry,
   TestUpdateWire,
+  WireMaterialConfig,
 } from './types'
 
 const DEFAULT_DESIRED_RETENTION = 0.9
@@ -72,10 +73,16 @@ export interface FlushResult {
 
 /** Boot or recover the engine for `materialId`. IDB-first; falls back to
  *  `GET /api/sync/:materialId/state` on cache miss. Subsequent calls
- *  return the cached session. */
+ *  return the cached session.
+ *
+ *  `materialConfig` lets callers pass the user's year settings so the
+ *  engine respects scope toggles (newScope, reviewScope, etc.). Omit
+ *  to use `MaterialConfig::default()` — only safe before the user has
+ *  touched settings; after that the wrong card set surfaces. */
 export async function loadEngine(
   materialId: string,
   nowSecs: number,
+  materialConfig?: WireMaterialConfig,
 ): Promise<EngineSession> {
   const existing = sessions.get(materialId)
   if (existing) return existing
@@ -100,7 +107,7 @@ export async function loadEngine(
 
   const engine = createEngine({
     materialData: snapshot.materialData,
-    materialConfig: '',
+    materialConfig: materialConfig ?? '',
     testStates,
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
@@ -135,7 +142,8 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
   session.engine.free()
   session.engine = createEngine({
     materialData: fetched.snapshot.materialData,
-    materialConfig: '',
+    materialConfig: '', // refetch path mirrors the cached session's config
+
     testStates: fetched.testStates,
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
@@ -333,7 +341,8 @@ async function doFlush(materialId: string, nowSecs: number): Promise<FlushResult
       session.engine.free()
       session.engine = createEngine({
         materialData: snapshot.materialData,
-        materialConfig: '',
+        materialConfig: '', // refetch path mirrors the cached session's config
+
         testStates: response.testStates,
         desiredRetention: DEFAULT_DESIRED_RETENTION,
         nowSecs,

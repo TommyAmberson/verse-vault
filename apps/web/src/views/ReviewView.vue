@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, shallowRef } from 'vue'
 
 import {
   type CardRender,
@@ -8,6 +8,7 @@ import {
 } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 import { useEngine } from '@/composables/useEngine'
+import { buildMaterialConfig } from '@/lib/engine/types'
 
 // useEngine is bound synchronously at setup so its lifecycle hooks
 // register correctly; init(materialId) defers the actual engine load
@@ -15,6 +16,7 @@ import { useEngine } from '@/composables/useEngine'
 const engine = useEngine()
 
 const materialId = ref<string | null>(null)
+const materialConfig = shallowRef<ReturnType<typeof buildMaterialConfig> | null>(null)
 const card = ref<CardRender | null>(null)
 const revealed = ref(false)
 const done = ref(false)
@@ -30,6 +32,7 @@ async function resolveMaterial() {
   const target = res.years.find((y) => y.enrolled && y.settings.reviewScope !== 'off')
   if (target) {
     materialId.value = target.materialId
+    materialConfig.value = buildMaterialConfig(target.settings)
     return true
   }
   return false
@@ -92,7 +95,7 @@ onMounted(async () => {
       done.value = true
       return
     }
-    await engine.init(materialId.value)
+    await engine.init(materialId.value, materialConfig.value ?? undefined)
     await loadNext()
   } catch (err) {
     error.value = formatError(err)
