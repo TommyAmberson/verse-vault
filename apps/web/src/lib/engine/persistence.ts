@@ -1,0 +1,276 @@
+/**
+ * IndexedDB layer for the browser-side fat-client. Five object stores
+ * under one DB (`verse-vault`):
+ *
+ *   - `snapshots` — one row per material (`{ materialId, version,
+ *     materialData, fetchedAt }`). Source of the MaterialData blob the
+ *     WASM engine consumes; mirrors `graph_snapshots` server-side.
+ *   - `testStates` — materialised FSRS state per
+ *     `(materialId, testKind, element)`. Fast warm-start on boot.
+ *   - `eventQueue` — append-only outbound events awaiting sync. Each
+ *     entry is deleted by `clientEventId` after the server acks it.
+ *   - `eventQueueOrphans` — events whose `cardId` failed validation
+ *     after a snapshot upgrade. Surfaced to the UI as a loud-failure
+ *     affordance; never silently dropped.
+ *   - `renders` — composed-HTML per card, MAUA-compliant cache. Entries
+ *     with `fetchedAt > 30d` are treated as misses; bulk-invalidated on
+ *     `snapshotVersion` bump.
+ *
+ * Hand-rolled to avoid a Dexie dependency for what's really five small
+ * stores. Promise-wrapped IDBRequest primitives at the bottom.
+ *
+ * MAUA note: the `renders` store holds api.bible-derived content. The
+ * client honours the same 30-day TTL the server's `ApibibleCache` does,
+ * and never bulk-extracts: lazy fill from `/api/cards/:id` is the
+ * default path; opt-in bulk-download (`GET /api/materials/:id/renders`)
+ * fires only when the user flips the per-deck "Available offline"
+ * toggle. See `NOTICE.md` and the
+ * [API.Bible Acceptable Use](https://api.bible/terms-and-conditions#acceptable_use)
+ * clause for the full rules.
+ */
+
+import type { SyncEventUpload, TestStateEntry } from './types'
+
+const DB_NAME = 'verse-vault'
+const DB_VERSION = 1
+
+/** TTL the client cache honours, mirroring the server's
+ *  `CACHE_TTL_SECS` in `packages/api/src/lib/apibible-cache.ts`. */
+export const RENDER_TTL_SECS = 30 * 24 * 60 * 60
+
+let dbPromise: Promise<IDBDatabase> | null = null
+
+/** Open (or cache) the singleton DB. Subsequent calls return the same
+ *  promise so multiple async callers share one open handle. */
+export function openDb(): Promise<IDBDatabase> {
+  if (dbPromise) return dbPromise
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION)
+    req.onupgradeneeded = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains('snapshots')) {
+        db.createObjectStore('snapshots', { keyPath: 'materialId' })
+      }
+      if (!db.objectStoreNames.contains('testStates')) {
+        const s = db.createObjectStore('testStates', {
+          keyPath: ['materialId', 'compositeKey'],
+        })
+        s.createIndex('byMaterialId', 'materialId', { unique: false })
+      }
+      if (!db.objectStoreNames.contains('eventQueue')) {
+        const s = db.createObjectStore('eventQueue', { keyPath: 'clientEventId' })
+        s.createIndex('byMaterialId', 'materialId', { unique: false })
+      }
+      if (!db.objectStoreNames.contains('eventQueueOrphans')) {
+        const s = db.createObjectStore('eventQueueOrphans', {
+          keyPath: 'clientEventId',
+        })
+        s.createIndex('byMaterialId', 'materialId', { unique: false })
+      }
+      if (!db.objectStoreNames.contains('renders')) {
+        const s = db.createObjectStore('renders', {
+          keyPath: ['materialId', 'cardId'],
+        })
+        s.createIndex('byMaterialId', 'materialId', { unique: false })
+      }
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+  return dbPromise
+}
+
+/** Drop the cached open-promise. Tests + sign-out paths use this to
+ *  force a fresh handle on the next openDb call. */
+export function resetDbHandle(): void {
+  dbPromise = null
+}
+
+// --- Snapshot store ---
+
+export interface SnapshotRow {
+  materialId: string
+  version: number
+  /** MaterialData parsed to JSON object. Stored structured so callers
+   *  don't re-parse on every read. */
+  materialData: unknown
+  fetchedAt: number
+}
+
+export async function getSnapshot(materialId: string): Promise<SnapshotRow | undefined> {
+  const db = await openDb()
+  return promiseRequest<SnapshotRow | undefined>(
+    db.transaction('snapshots', 'readonly').objectStore('snapshots').get(materialId),
+  )
+}
+
+export async function putSnapshot(row: SnapshotRow): Promise<void> {
+  const db = await openDb()
+  await promiseRequest(
+    db.transaction('snapshots', 'readwrite').objectStore('snapshots').put(row),
+  )
+}
+
+// --- Test-states store ---
+
+function testStateCompositeKey(entry: TestStateEntry): string {
+  // JSON.stringify of the element is stable across writes — same shape,
+  // same key. Combined with test_kind it's unique per engine entry.
+  return `${entry.test_kind}|${JSON.stringify(entry.element)}`
+}
+
+interface TestStateRow {
+  materialId: string
+  compositeKey: string
+  entry: TestStateEntry
+}
+
+export async function getAllTestStates(materialId: string): Promise<TestStateEntry[]> {
+  const db = await openDb()
+  const tx = db.transaction('testStates', 'readonly')
+  const store = tx.objectStore('testStates')
+  const idx = store.index('byMaterialId')
+  return promiseRequest<TestStateRow[]>(idx.getAll(materialId)).then((rows) =>
+    rows.map((r) => r.entry),
+  )
+}
+
+/** Replace all test states for one material in a single transaction.
+ *  Used by the rebuild flow when the server returns a freshly-replayed
+ *  set, and by the initial sync-state load. */
+export async function replaceAllTestStates(
+  materialId: string,
+  entries: TestStateEntry[],
+): Promise<void> {
+  const db = await openDb()
+  const tx = db.transaction('testStates', 'readwrite')
+  const store = tx.objectStore('testStates')
+  const idx = store.index('byMaterialId')
+  // Delete existing rows for this material first. getAllKeys is faster
+  // than fetching the full rows when we only need to delete.
+  const existingKeys = await promiseRequest<IDBValidKey[]>(idx.getAllKeys(materialId))
+  for (const k of existingKeys) store.delete(k)
+  for (const entry of entries) {
+    const row: TestStateRow = {
+      materialId,
+      compositeKey: testStateCompositeKey(entry),
+      entry,
+    }
+    store.put(row)
+  }
+  await transactionComplete(tx)
+}
+
+// --- Event-queue store ---
+
+export type QueuedEvent = SyncEventUpload & { materialId: string }
+
+export async function appendQueuedEvent(event: QueuedEvent): Promise<void> {
+  const db = await openDb()
+  await promiseRequest(
+    db.transaction('eventQueue', 'readwrite').objectStore('eventQueue').put(event),
+  )
+}
+
+export async function getQueuedEvents(materialId: string): Promise<QueuedEvent[]> {
+  const db = await openDb()
+  const tx = db.transaction('eventQueue', 'readonly')
+  const idx = tx.objectStore('eventQueue').index('byMaterialId')
+  return promiseRequest<QueuedEvent[]>(idx.getAll(materialId))
+}
+
+/** Delete acked events by clientEventId. Mid-flush additions to the
+ *  queue survive because we delete by explicit key, not by clearing
+ *  the whole store. */
+export async function deleteQueuedEvents(clientEventIds: string[]): Promise<void> {
+  if (clientEventIds.length === 0) return
+  const db = await openDb()
+  const tx = db.transaction('eventQueue', 'readwrite')
+  const store = tx.objectStore('eventQueue')
+  for (const id of clientEventIds) store.delete(id)
+  await transactionComplete(tx)
+}
+
+// --- Orphan-queue store ---
+
+export async function moveToOrphans(events: QueuedEvent[]): Promise<void> {
+  if (events.length === 0) return
+  const db = await openDb()
+  const tx = db.transaction(['eventQueue', 'eventQueueOrphans'], 'readwrite')
+  const queue = tx.objectStore('eventQueue')
+  const orphans = tx.objectStore('eventQueueOrphans')
+  for (const e of events) {
+    queue.delete(e.clientEventId)
+    orphans.put(e)
+  }
+  await transactionComplete(tx)
+}
+
+export async function getOrphans(materialId: string): Promise<QueuedEvent[]> {
+  const db = await openDb()
+  const tx = db.transaction('eventQueueOrphans', 'readonly')
+  const idx = tx.objectStore('eventQueueOrphans').index('byMaterialId')
+  return promiseRequest<QueuedEvent[]>(idx.getAll(materialId))
+}
+
+// --- Render cache (MAUA-compliant) ---
+
+export interface RenderRow {
+  materialId: string
+  cardId: number
+  /** Pre-composed HTML output of `composeRender` on the server. */
+  composed: unknown
+  fetchedAt: number
+}
+
+export async function getRender(
+  materialId: string,
+  cardId: number,
+  nowSecs: number,
+): Promise<RenderRow | undefined> {
+  const db = await openDb()
+  const row = await promiseRequest<RenderRow | undefined>(
+    db.transaction('renders', 'readonly').objectStore('renders').get([materialId, cardId]),
+  )
+  if (!row) return undefined
+  // TTL-on-read: treat anything past 30d as a miss so callers refresh.
+  if (nowSecs - row.fetchedAt > RENDER_TTL_SECS) return undefined
+  return row
+}
+
+export async function putRender(row: RenderRow): Promise<void> {
+  const db = await openDb()
+  await promiseRequest(
+    db.transaction('renders', 'readwrite').objectStore('renders').put(row),
+  )
+}
+
+/** Clear all renders for a material. Used on snapshotVersion bump:
+ *  composed HTML is stale even if within TTL once the deck structure
+ *  changes underneath. */
+export async function clearRenders(materialId: string): Promise<void> {
+  const db = await openDb()
+  const tx = db.transaction('renders', 'readwrite')
+  const store = tx.objectStore('renders')
+  const idx = store.index('byMaterialId')
+  const keys = await promiseRequest<IDBValidKey[]>(idx.getAllKeys(materialId))
+  for (const k of keys) store.delete(k)
+  await transactionComplete(tx)
+}
+
+// --- IDB → Promise primitives ---
+
+function promiseRequest<T>(req: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function transactionComplete(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error)
+  })
+}
