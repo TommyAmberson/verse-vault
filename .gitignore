@@ -152,6 +152,7 @@ __pycache__/
 
 # wasm-pack build output
 /crates/wasm/pkg/
+/crates/wasm/pkg-web/
 
 # Large untracked scratch files (PostScript, scratch outputs)
 /math

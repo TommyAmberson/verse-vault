@@ -46,6 +46,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # WASM toolchain — the web bundle now embeds the verse-vault engine
+      # via crates/wasm/pkg-web (bundler target). Built before pnpm install
+      # so the `verse-vault-wasm-web` workspace package exists when pnpm
+      # resolves apps/web's dependencies.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/wasm
+
+      - name: Install wasm-pack
+        run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+
+      - name: Build WASM (bundler target)
+        run: bash tools/build-wasm-web.sh
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
