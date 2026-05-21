@@ -2,9 +2,16 @@ name = "vv-router"
 main = "src/index.ts"
 compatibility_date = "2026-05-01"
 
-# Mount under /vv/* on the apex. Caddy isn't involved — Cloudflare evaluates
-# Worker routes longest-prefix-first, so this co-exists with qzr-api's
-# /api/* route and the qzr-sheet Pages catch-all at /*.
+# Mount under /vv on the apex. Cloudflare evaluates Worker routes
+# longest-prefix-first, so this co-exists with qzr-api's /api/* route and the
+# qzr-sheet Pages catch-all at /*. Two patterns: `/vv` matches the bare prefix
+# (so the Worker — not the qzr-sheet Pages fallback — handles a no-trailing-
+# slash visit and redirects to `/vv/`), and `/vv/*` matches everything under
+# it.
+[[routes]]
+pattern = "www.versevault.ca/vv"
+zone_name = "versevault.ca"
+
 [[routes]]
 pattern = "www.versevault.ca/vv/*"
 zone_name = "versevault.ca"
