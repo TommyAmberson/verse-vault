@@ -11,6 +11,7 @@ interface YearStats {
 
 const years = ref<YearStats[]>([])
 const error = ref<string | null>(null)
+const partial = ref<{ failed: number } | null>(null)
 const loading = ref(true)
 
 const DIST_LABELS = ['weak', 'learning', 'familiar', 'strong', 'mastered'] as const
@@ -38,15 +39,25 @@ onMounted(async () => {
     // total reviews so the most-worked year leads.
     const yearsRes = await api.getYears()
     const enrolled = yearsRes.years.filter((y) => y.enrolled)
-    const results = await Promise.all(
-      enrolled.map(async (y) => ({
+    // allSettled so one bad year (stale enrollment 404, transient 5xx)
+    // doesn't blank the entire page — surface a small "N years failed
+    // to load" note alongside the successful ones instead.
+    const settled = await Promise.allSettled(
+      enrolled.map(async (y): Promise<YearStats> => ({
         materialId: y.materialId,
         title: y.title,
         stats: await api.getStats(y.materialId),
       })),
     )
-    results.sort((a, b) => b.stats.totalGrades - a.stats.totalGrades)
-    years.value = results
+    const succeeded: YearStats[] = []
+    let failed = 0
+    for (const r of settled) {
+      if (r.status === 'fulfilled') succeeded.push(r.value)
+      else failed += 1
+    }
+    succeeded.sort((a, b) => b.stats.totalGrades - a.stats.totalGrades)
+    years.value = succeeded
+    if (failed > 0) partial.value = { failed }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -65,6 +76,10 @@ onMounted(async () => {
     </div>
     <div v-else class="content">
       <h2>Stats</h2>
+      <div v-if="partial" class="banner banner-warning">
+        {{ partial.failed }} year{{ partial.failed === 1 ? '' : 's' }} couldn't
+        be loaded. Refresh to retry.
+      </div>
       <section v-for="y in years" :key="y.materialId" class="year-stats">
         <h3>{{ y.title }}</h3>
         <div class="grid">
@@ -118,6 +133,11 @@ onMounted(async () => {
 .banner-error {
   background: var(--color-error-bg);
   color: var(--color-error);
+}
+
+.banner-warning {
+  background: var(--color-grade-hard-bg);
+  color: var(--color-grade-hard);
 }
 
 .content {
