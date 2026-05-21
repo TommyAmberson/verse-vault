@@ -12,7 +12,6 @@ import {
   api,
 } from '@/api'
 import { invalidateSession } from '@/lib/engine/engineStore'
-import { clearRenders } from '@/lib/engine/persistence'
 
 const CLUB_TIERS: ClubTier[] = ['150', '300', 'full']
 
@@ -149,12 +148,11 @@ async function onSave(card: YearCard) {
   card.saving = true
   try {
     await api.updateYearSettings(card.view.materialId, card.draft)
-    // Drop the cached engine and any composed renders for this year so
-    // the next ReviewView/MemorizeView visit rebuilds with the new
+    // invalidateSession drops the cached engine AND the render cache,
+    // so the next ReviewView/MemorizeView visit rebuilds with the new
     // MaterialConfig (and re-fetches renders that may reflect new card
     // visibility under the changed scope toggles).
-    invalidateSession(card.view.materialId)
-    await clearRenders(card.view.materialId)
+    await invalidateSession(card.view.materialId)
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)

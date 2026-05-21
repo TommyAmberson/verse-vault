@@ -66,14 +66,20 @@ export function useEngine() {
   }
 
   async function refreshCounts() {
-    let pending = 0
-    let orphans = 0
-    for (const id of active) {
-      pending += await engineStore.pendingCount(id)
-      orphans += (await idb.getOrphans(id)).length
-    }
-    pendingCount.value = pending
-    orphanCount.value = orphans
+    // Parallel per-material so MemorizeView's ~8-year sessions don't
+    // pay 16 serial IDB transactions after every grade. count() runs
+    // against the index without materialising rows.
+    const counts = await Promise.all(
+      [...active].map(async (id) => {
+        const [pending, orphans] = await Promise.all([
+          engineStore.pendingCount(id),
+          idb.countOrphans(id),
+        ])
+        return { pending, orphans }
+      }),
+    )
+    pendingCount.value = counts.reduce((sum, c) => sum + c.pending, 0)
+    orphanCount.value = counts.reduce((sum, c) => sum + c.orphans, 0)
   }
 
   async function flushOne(materialId: string): Promise<FlushResult> {
@@ -88,16 +94,12 @@ export function useEngine() {
     if (active.size === 0) return
     syncing.value = true
     try {
-      // Sequential flushes — engineStore already coalesces per-material,
-      // but going serial keeps the syncing UI affordance honest about
-      // total work, and SQLite-backed servers like writes one user at a
-      // time anyway.
-      let anyConfirm = false
-      for (const id of active) {
-        const result = await flushOne(id)
-        if (result.needsConfirm) anyConfirm = true
-      }
-      if (!anyConfirm) staleSummary.value = null
+      // Parallel per-material: the server's per-(user, material) lock
+      // serialises writes that actually collide, and different materials
+      // never do. Engine-store coalesces same-material races to a single
+      // round-trip already.
+      const results = await Promise.all([...active].map(flushOne))
+      if (!results.some((r) => r.needsConfirm)) staleSummary.value = null
     } catch (e) {
       error.value = e
       throw e
@@ -162,11 +164,12 @@ export function useEngine() {
     }
   }
 
-  /** Drop the cached engine for one material — used after settings
-   *  change so the next view trigger reloads the engine with fresh
-   *  `MaterialConfig`. */
-  function invalidate(id: string) {
-    engineStore.invalidateSession(id)
+  /** Drop the cached engine + render cache for one material — used
+   *  after settings change so the next view trigger reloads the engine
+   *  with fresh `MaterialConfig` and refetches renders that may
+   *  reflect changed card visibility. */
+  async function invalidate(id: string) {
+    await engineStore.invalidateSession(id)
     active.delete(id)
   }
 
@@ -190,7 +193,7 @@ export function useEngine() {
     return engineStore.nextReviewCard(materialId, nowSecs())
   }
 
-  function memorizeSession(materialId: string, limit: number): unknown {
+  function memorizeSession(materialId: string, limit: number) {
     return engineStore.memorizeSession(materialId, limit)
   }
 
@@ -198,7 +201,7 @@ export function useEngine() {
     return engineStore.newCardCount(materialId)
   }
 
-  function cardCountByClub(materialId: string): unknown {
+  function cardCountByClub(materialId: string): engineStore.ClubCounts {
     return engineStore.cardCountByClub(materialId)
   }
 
@@ -207,13 +210,21 @@ export function useEngine() {
   }
 
   /** Re-POST the affected material's queue with `confirmMerge: true`
-   *  after the user approves the stale-merge modal. Implementation
-   *  pending — needs the engineStore.flush API to accept the
-   *  confirmMerge flag; for now the queue stays put. */
+   *  after the user approves the stale-merge modal. */
   async function confirmMerge() {
-    // TODO: re-flush with confirmMerge:true once engineStore exposes it.
+    const stale = staleSummary.value
+    if (!stale) return
     staleSummary.value = null
-    return flushAll()
+    syncing.value = true
+    try {
+      await engineStore.flush(stale.materialId, nowSecs(), { confirmMerge: true })
+    } catch (e) {
+      error.value = e
+      throw e
+    } finally {
+      syncing.value = false
+      await refreshCounts()
+    }
   }
 
   /** Drop the queued events the server flagged stale on the affected

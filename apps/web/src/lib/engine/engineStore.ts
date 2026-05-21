@@ -39,10 +39,19 @@ import type {
 
 const DEFAULT_DESIRED_RETENTION = 0.9
 
-export interface EngineSession {
+interface EngineSession {
   materialId: string
   engine: WasmEngine
   snapshotVersion: number
+  /** Cached so refetch + rebuild paths can re-pass it to `createEngine`
+   *  without the caller having to reload year settings every time. */
+  materialConfig: WireMaterialConfig | undefined
+}
+
+function requireSession(materialId: string, caller: string): EngineSession {
+  const session = sessions.get(materialId)
+  if (!session) throw new Error(`engineStore.${caller}: no session for ${materialId}`)
+  return session
 }
 
 const sessions = new Map<string, EngineSession>()
@@ -117,6 +126,7 @@ export async function loadEngine(
     materialId,
     engine,
     snapshotVersion: snapshot.version,
+    materialConfig,
   }
   sessions.set(materialId, session)
   return session
@@ -142,8 +152,7 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
   session.engine.free()
   session.engine = createEngine({
     materialData: fetched.snapshot.materialData,
-    materialConfig: '', // refetch path mirrors the cached session's config
-
+    materialConfig: session.materialConfig ?? '',
     testStates: fetched.testStates,
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
@@ -160,22 +169,30 @@ export async function submitGrade(
   grade: Grade,
   nowSecs: number,
 ): Promise<TestUpdateWire[]> {
-  const session = sessions.get(materialId)
-  if (!session) throw new Error(`engineStore.submitGrade: no session for ${materialId}`)
+  const session = requireSession(materialId, 'submitGrade')
 
   const updates = JSON.parse(
     session.engine.replay_event(cardId, grade, BigInt(nowSecs)),
   ) as TestUpdateWire[]
 
-  await idb.appendQueuedEvent({
-    materialId,
-    kind: 'review',
-    clientEventId: crypto.randomUUID(),
-    timestampSecs: nowSecs,
-    snapshotVersion: session.snapshotVersion,
-    cardId,
-    grade,
-  })
+  // Fire-and-forget: the WASM call already updated the local engine
+  // (the source of truth for the next-card pick), and a queued event
+  // lost to a crash mid-write will be recomputed from server state on
+  // next session. Awaiting the IDB write here would block every grade
+  // on a tx round-trip for no correctness gain.
+  void idb
+    .appendQueuedEvent({
+      materialId,
+      kind: 'review',
+      clientEventId: crypto.randomUUID(),
+      timestampSecs: nowSecs,
+      snapshotVersion: session.snapshotVersion,
+      cardId,
+      grade,
+    })
+    .catch((e) => {
+      console.warn('engineStore.submitGrade: queue append failed', e)
+    })
 
   return updates
 }
@@ -187,53 +204,63 @@ export async function submitGraduation(
   verseId: number,
   nowSecs: number,
 ): Promise<number> {
-  const session = sessions.get(materialId)
-  if (!session) throw new Error(`engineStore.submitGraduation: no session for ${materialId}`)
-
+  const session = requireSession(materialId, 'submitGraduation')
   const count = session.engine.graduate_verse(verseId)
 
-  await idb.appendQueuedEvent({
-    materialId,
-    kind: 'graduate',
-    clientEventId: crypto.randomUUID(),
-    timestampSecs: nowSecs,
-    snapshotVersion: session.snapshotVersion,
-    verseId,
-  })
+  void idb
+    .appendQueuedEvent({
+      materialId,
+      kind: 'graduate',
+      clientEventId: crypto.randomUUID(),
+      timestampSecs: nowSecs,
+      snapshotVersion: session.snapshotVersion,
+      verseId,
+    })
+    .catch((e) => {
+      console.warn('engineStore.submitGraduation: queue append failed', e)
+    })
 
   return count
 }
 
 /** Look up the next due review card. */
 export function nextReviewCard(materialId: string, nowSecs: number): number | null {
-  const session = sessions.get(materialId)
-  if (!session) throw new Error(`engineStore.nextReviewCard: no session for ${materialId}`)
+  const session = requireSession(materialId, 'nextReviewCard')
   const id = session.engine.next_review_card(BigInt(nowSecs))
   return id ?? null
+}
+
+interface MemorizeSessionEntry {
+  verseId: number
+  cardIds: number[]
+  recitationCardId: number | null
 }
 
 /** Build a memorize session payload locally. The WASM engine returns
  *  a raw JSON array of `{ verseId, cardIds, recitationCardId }`; wrap
  *  it as `{ verses: [...] }` so the shape matches what the server's
- *  `/api/cards/memorize/session` route returns. Callers cast to
- *  `MemorizeSessionResponse`. */
-export function memorizeSession(materialId: string, limit: number): unknown {
-  const session = sessions.get(materialId)
-  if (!session) throw new Error(`engineStore.memorizeSession: no session for ${materialId}`)
-  const verses = JSON.parse(session.engine.memorize_session(limit))
-  return { verses }
+ *  `/api/cards/memorize/session` route returns. */
+export function memorizeSession(
+  materialId: string,
+  limit: number,
+): { verses: MemorizeSessionEntry[] } {
+  const session = requireSession(materialId, 'memorizeSession')
+  return { verses: JSON.parse(session.engine.memorize_session(limit)) }
 }
 
 export function newCardCount(materialId: string): number {
-  const session = sessions.get(materialId)
-  if (!session) throw new Error(`engineStore.newCardCount: no session for ${materialId}`)
-  return session.engine.new_card_count()
+  return requireSession(materialId, 'newCardCount').engine.new_card_count()
 }
 
-export function cardCountByClub(materialId: string): unknown {
-  const session = sessions.get(materialId)
-  if (!session) throw new Error(`engineStore.cardCountByClub: no session for ${materialId}`)
-  return JSON.parse(session.engine.card_count_by_club())
+export interface ClubCounts {
+  Club150: number
+  Club300: number
+  Full: number
+}
+
+export function cardCountByClub(materialId: string): ClubCounts {
+  const session = requireSession(materialId, 'cardCountByClub')
+  return JSON.parse(session.engine.card_count_by_club()) as ClubCounts
 }
 
 /** Fetch a card's render — IDB cache first, network fallback. Stores
@@ -258,18 +285,26 @@ export async function getCardRender(
 }
 
 /** Pending event count for the material — drives the "Syncing N…" UI
- *  affordance. */
+ *  affordance. Uses IDB `count()` so we don't materialise rows the
+ *  caller is going to discard. */
 export async function pendingCount(materialId: string): Promise<number> {
-  return (await idb.getQueuedEvents(materialId)).length
+  return idb.countQueuedEvents(materialId)
 }
 
 /** Flush queued events. Coalesces concurrent calls so two near-simultaneous
- *  flushes share one round-trip and one event-deletion pass. */
-export async function flush(materialId: string, nowSecs: number): Promise<FlushResult> {
+ *  flushes share one round-trip and one event-deletion pass.
+ *
+ *  `opts.confirmMerge` bypasses the server's stale-merge preflight —
+ *  set after the user clicks Sync on the confirmation modal. */
+export async function flush(
+  materialId: string,
+  nowSecs: number,
+  opts: { confirmMerge?: boolean } = {},
+): Promise<FlushResult> {
   const existing = inflightFlushes.get(materialId)
   if (existing) return existing
 
-  const promise = doFlush(materialId, nowSecs)
+  const promise = doFlush(materialId, nowSecs, opts.confirmMerge ?? false)
   inflightFlushes.set(materialId, promise)
   try {
     return await promise
@@ -278,13 +313,16 @@ export async function flush(materialId: string, nowSecs: number): Promise<FlushR
   }
 }
 
-async function doFlush(materialId: string, nowSecs: number): Promise<FlushResult> {
+async function doFlush(
+  materialId: string,
+  nowSecs: number,
+  confirmMerge: boolean,
+): Promise<FlushResult> {
   const queued = await idb.getQueuedEvents(materialId)
   if (queued.length === 0) {
     return { accepted: 0, duplicates: 0, rebuilt: false }
   }
-  const session = sessions.get(materialId)
-  if (!session) throw new Error(`engineStore.flush: no session for ${materialId}`)
+  const session = requireSession(materialId, 'flush')
 
   const events = queued.map<SyncEventUpload>((q) => {
     if (q.kind === 'graduate') {
@@ -308,7 +346,7 @@ async function doFlush(materialId: string, nowSecs: number): Promise<FlushResult
 
   let response: SyncEventsResponse
   try {
-    response = await api.postSyncEvents(materialId, { events })
+    response = await api.postSyncEvents(materialId, { events, confirmMerge })
   } catch (err) {
     // 409 from snapshot mismatch is the one we can recover from
     // without user input: refetch /state, rebuild the engine, and
@@ -330,15 +368,9 @@ async function doFlush(materialId: string, nowSecs: number): Promise<FlushResult
       needsConfirm: response.staleSummary,
     }
   }
+  // The union narrows here: the `needsConfirm` arm returned above, so
+  // the rest of this function sees only the merged-response shape.
 
-  // Non-needsConfirm path: response carries testStates + lastEventId.
-  if (response.needsConfirm) {
-    // Type narrowing — the union arm above already handled this.
-    throw new Error('unreachable')
-  }
-
-  // Replace local testStates wholesale and rebuild the engine if the
-  // server rebuilt. Otherwise just merge.
   await idb.replaceAllTestStates(materialId, response.testStates)
   if (response.rebuilt) {
     const snapshot = await idb.getSnapshot(materialId)
@@ -346,8 +378,7 @@ async function doFlush(materialId: string, nowSecs: number): Promise<FlushResult
       session.engine.free()
       session.engine = createEngine({
         materialData: snapshot.materialData,
-        materialConfig: '', // refetch path mirrors the cached session's config
-
+        materialConfig: session.materialConfig ?? '',
         testStates: response.testStates,
         desiredRetention: DEFAULT_DESIRED_RETENTION,
         nowSecs,
@@ -364,13 +395,17 @@ async function doFlush(materialId: string, nowSecs: number): Promise<FlushResult
   }
 }
 
-/** Drop the cached session — used after settings change or sign-out. */
-export function invalidateSession(materialId: string): void {
+/** Drop the cached session + render cache — used after settings
+ *  change or sign-out. Stale composed HTML is always wrong once
+ *  scope toggles flip card visibility, so we don't make callers
+ *  remember to clear it separately. */
+export async function invalidateSession(materialId: string): Promise<void> {
   const session = sessions.get(materialId)
   if (session) {
     session.engine.free()
     sessions.delete(materialId)
   }
+  await idb.clearRenders(materialId)
 }
 
 /** Test/dev helper: clear all in-memory state. Does not touch IDB. */

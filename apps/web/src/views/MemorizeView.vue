@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import {
-  type CardRender,
-  type MemorizeSessionResponse,
-  type MemorizeSessionVerse,
-  api,
-} from '@/api'
+import { type CardRender, type MemorizeSessionVerse, api } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 import { useEngine } from '@/composables/useEngine'
 import { buildMaterialConfig } from '@/lib/engine/types'
@@ -90,8 +85,7 @@ async function buildSession() {
   const sessions: { materialId: string; verses: MemorizeSessionVerse[] }[] = eligibleYears.map(
     (y) => ({
       materialId: y.materialId,
-      verses: (engine.memorizeSession(y.materialId, y.settings.lessonBatchSize) as MemorizeSessionResponse)
-        .verses,
+      verses: engine.memorizeSession(y.materialId, y.settings.lessonBatchSize).verses,
     }),
   )
   const collected: SessionVerse[] = []

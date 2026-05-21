@@ -179,6 +179,15 @@ export async function getQueuedEvents(materialId: string): Promise<QueuedEvent[]
   return promiseRequest<QueuedEvent[]>(idx.getAll(materialId))
 }
 
+/** Cheap row count without materialising the rows — IDB `count()` runs
+ *  against the index directly. Hot path: refreshCounts after every grade. */
+export async function countQueuedEvents(materialId: string): Promise<number> {
+  const db = await openDb()
+  const tx = db.transaction('eventQueue', 'readonly')
+  const idx = tx.objectStore('eventQueue').index('byMaterialId')
+  return promiseRequest<number>(idx.count(IDBKeyRange.only(materialId)))
+}
+
 /** Delete acked events by clientEventId. Mid-flush additions to the
  *  queue survive because we delete by explicit key, not by clearing
  *  the whole store. */
@@ -211,6 +220,15 @@ export async function getOrphans(materialId: string): Promise<QueuedEvent[]> {
   const tx = db.transaction('eventQueueOrphans', 'readonly')
   const idx = tx.objectStore('eventQueueOrphans').index('byMaterialId')
   return promiseRequest<QueuedEvent[]>(idx.getAll(materialId))
+}
+
+/** Cheap orphan count. Pairs with countQueuedEvents for the
+ *  refreshCounts reactive surface. */
+export async function countOrphans(materialId: string): Promise<number> {
+  const db = await openDb()
+  const tx = db.transaction('eventQueueOrphans', 'readonly')
+  const idx = tx.objectStore('eventQueueOrphans').index('byMaterialId')
+  return promiseRequest<number>(idx.count(IDBKeyRange.only(materialId)))
 }
 
 // --- Render cache (MAUA-compliant) ---
