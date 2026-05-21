@@ -68,20 +68,31 @@ export function getMaterial(id: string): Material | undefined {
   return MATERIALS.find((m) => m.id === id);
 }
 
-/** packages/api/src/lib/materials.ts -> repo root. */
-const REPO_ROOT = resolve(import.meta.dirname, '../../../..');
+/** Candidate directories where structural deck files might live.
+ *  Searched in order — bundle-local first because that's the production
+ *  layout, repo-root second so dev keeps working without a build step.
+ *
+ *  Production (pnpm-deploy bundle): `<bundle>/data/` is populated by
+ *    the deploy workflow (see `.github/workflows/deploy-api.yml`),
+ *    which copies repo `data/[0-9]-*.json` into the bundle after
+ *    `pnpm deploy` flattens it.
+ *  Development: `<repo>/data/` is where the structural decks live in
+ *    git. Resolved relative to `dist/lib/materials.js` so it works
+ *    whether the file is built (`dist/`) or run via tsx from source. */
+const DECK_DIRS: readonly string[] = [
+  resolve(import.meta.dirname, '../..', 'data'),
+  resolve(import.meta.dirname, '../../../..', 'data'),
+];
 
-/** Per-material override: relative path under the repo root for the
- *  structural MaterialData JSON. Missing on disk → inline fallback. */
 const DATA_FILES: Record<string, string> = {
-  'nkjv-gepc': 'data/1-gepc.json',
-  'nkjv-nt': 'data/2-nt-survey.json',
-  'nkjv-cor': 'data/3-corinthians.json',
-  'nkjv-john': 'data/4-john.json',
-  'nkjv-hp': 'data/5-hp.json',
-  'nkjv-ot': 'data/6-ot-survey.json',
-  'nkjv-rj': 'data/7-rj.json',
-  'nkjv-luke': 'data/8-luke.json',
+  'nkjv-gepc': '1-gepc.json',
+  'nkjv-nt': '2-nt-survey.json',
+  'nkjv-cor': '3-corinthians.json',
+  'nkjv-john': '4-john.json',
+  'nkjv-hp': '5-hp.json',
+  'nkjv-ot': '6-ot-survey.json',
+  'nkjv-rj': '7-rj.json',
+  'nkjv-luke': '8-luke.json',
 };
 
 /** Inline structural stand-in MaterialData per id, kept tiny so tests
@@ -115,13 +126,15 @@ export function getMaterialJson(id: string): string {
   const cached = cache.get(id);
   if (cached !== undefined) return cached;
 
-  const rel = DATA_FILES[id];
-  if (rel !== undefined) {
-    const full = resolve(REPO_ROOT, rel);
-    if (existsSync(full)) {
-      const json = readFileSync(full, 'utf8');
-      cache.set(id, json);
-      return json;
+  const filename = DATA_FILES[id];
+  if (filename !== undefined) {
+    for (const dir of DECK_DIRS) {
+      const full = resolve(dir, filename);
+      if (existsSync(full)) {
+        const json = readFileSync(full, 'utf8');
+        cache.set(id, json);
+        return json;
+      }
     }
   }
 
