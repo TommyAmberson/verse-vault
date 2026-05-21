@@ -10,6 +10,23 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.9] — 2026-05-21
+
+### Fixed
+
+* CI: `deploy-api.yml`'s `pnpm install --frozen-lockfile` failed at the "Bundle API for deploy" step
+  with `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` because apps/web (resolved as part of the workspace)
+  depends on `verse-vault-wasm-web@workspace:*`, and the bundler wasm-pack output at
+  `crates/wasm/pkg-web/` is gitignored — not built before install ran. Mirror the deploy-web
+  pattern: build both wasm-pack targets (nodejs + bundler) before `pnpm install`. 0.1.8's deploy
+  never reached the VPS; 0.1.9 is the first successful deploy of the fat-client sync-protocol
+  extensions documented in 0.1.8's entry below.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged from 0.1.8 (CI-only fix)
+* `verse-vault-wasm@0.1.0` — unchanged from 0.1.8 (CI-only fix)
+
 ## [0.1.8] — 2026-05-21
 
 ### Added

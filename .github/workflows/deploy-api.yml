@@ -81,11 +81,20 @@ jobs:
       - name: Install wasm-pack
         run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
 
-      - name: Install workspace deps
-        run: pnpm install --frozen-lockfile
-
+      # Build both wasm-pack outputs BEFORE pnpm install — pnpm resolves
+      # the full workspace at install time, and `apps/web` depends on
+      # `verse-vault-wasm-web@workspace:*` (the bundler target). With
+      # pkg-web/ missing, pnpm errors out with ERR_PNPM_WORKSPACE_PKG_NOT_FOUND
+      # even though the API bundle itself only needs the nodejs target.
+      # Cost is two wasm-pack runs (~3 s each); cheap enough to mirror.
       - name: Build WASM (nodejs target)
         run: wasm-pack build crates/wasm --target nodejs --out-dir pkg
+
+      - name: Build WASM (bundler target)
+        run: bash tools/build-wasm-web.sh
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
 
       - name: Build API (tsc)
         run: pnpm --filter @verse-vault/api... build
