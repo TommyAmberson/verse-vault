@@ -34,7 +34,10 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 * Other branches (`django-vue*`, `laravel*`, `express-vue`, etc.) are abandoned spikes. Do not merge
   from them.
 
-## Design docs
+## Reference Docs
+
+When working on a specific area, read the relevant design doc first — they're the source of truth,
+not the code.
 
 * `docs/architecture.md` — system overview, crates/packages/clients, data flow
 * `docs/path-posterior-memory-model.md` — **canonical memory model** (HSRS-state architecture);
@@ -49,6 +52,11 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 * `docs/persistence.md` — database schema + event sourcing
 * `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
 * `docs/archive/` — historical audits (FSRS-6 + per-deck keyword-markup snapshots)
+
+Per-package CHANGELOGs (`apps/web/CHANGELOG.md`, `packages/api/CHANGELOG.md`,
+`deploy/vv-router/CHANGELOG.md`) plus contract crate CHANGELOGs (`crates/core/CHANGELOG.md`,
+`crates/wasm/CHANGELOG.md`) document why each release shipped. Read the latest entry of the package
+you're touching before making non-trivial changes.
 
 ## Pre-commit checks
 
@@ -148,3 +156,31 @@ See top-level `CHANGELOG.md` for the contract model and per-package changelog in
   code is obvious should be brief or perhaps even omitted. Prefer comments that explain "why" or
   clarify complex logic. Docstrings should be brief and focused on info that is not obvious from the
   signature and would be useful to consumers. (but don't be too picky about removing comments)
+
+## Gotchas
+
+Footguns and non-obvious wiring. Add to this list when you trip over something that wasn't obvious
+from the code or design docs.
+
+* **`crates/wasm/pkg/` is gitignored.** Regenerate with
+  `wasm-pack build crates/wasm --target nodejs --out-dir pkg` before running anything that imports
+  it (the API tests, `apps/web` in WASM mode). The deploy workflow rebuilds it from scratch on every
+  API deploy.
+* **Better Auth `baseURL` rejects relative paths.** `createAuthClient({ baseURL: '/vv' })` throws
+  `Invalid base URL: /vv` because Better Auth runs it through `new URL(...)`. Resolve against
+  `window.location.origin` first. See the `apps/web/CHANGELOG.md` [0.1.5] entry for the original
+  incident.
+* **Better Auth client `withPath` skips the `/api/auth` auto-append when the baseURL has any path
+  component.** With baseURL `/vv`, route calls land at `/vv/sign-up/email` (405) instead of
+  `/vv/api/auth/sign-up/email`. Add `/api/auth` to `baseURL` explicitly when constructing the
+  client. See `apps/web/CHANGELOG.md` [0.1.6].
+* **`VITE_API_BASE` is the subpath prefix only** (`/vv` in production), not including `/api`. The
+  api client adds `/api/...` itself; doubling it produces `/vv/api/api/...` 404s. Same applies to
+  the CORS/origin comparison on the server — strip the path from `WEB_BASE_URL` before comparing
+  against the browser's `Origin` header (always scheme+host+port only).
+* **Deck JSONs live at repo root `/data/`, not under `packages/api/`.** `pnpm deploy` only bundles
+  files under the API workspace, so the deploy workflow has to copy `/data/*.json` into the bundle
+  separately. `materials.ts` searches bundle-local first with a repo-root fallback so dev keeps
+  working.
+* **Abandoned branches.** `django-vue*`, `laravel*`, `express-vue`, and similar are spike
+  experiments that were superseded. Don't merge from them; treat as read-only history.
