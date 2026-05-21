@@ -12,7 +12,19 @@ export default {
     'scope-enum': [
       1,
       'always',
-      ['core', 'wasm', 'sim', 'api', 'web', 'desktop', 'cli', 'tools', 'docs'],
+      [
+        'core',
+        'wasm',
+        'sim',
+        'api',
+        'web',
+        'desktop',
+        'cli',
+        'tools',
+        'docs',
+        'ci',
+        'deploy',
+      ],
     ],
   },
 };

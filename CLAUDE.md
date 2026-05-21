@@ -121,8 +121,12 @@ dprint check          # formatting for docs (also runs via lint-staged)
 
 Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `style`, `revert`, `perf`, `build`.
 
-Scopes: `core`, `wasm`, `sim`, `api`, `web`, `desktop`, `cli`, `tools`, `docs`. Omit the scope for
-cross-cutting changes (e.g. `chore: bump version to 0.2.0`).
+Scopes: `core`, `wasm`, `sim`, `api`, `web`, `desktop`, `cli`, `tools`, `docs`, `ci`, `deploy`. Each
+corresponds to a top-level workspace member or root-level directory (`crates/<scope>`,
+`packages/<scope>`, `apps/<scope>`, plus `docs/`, `.github/workflows/` → `ci`, `deploy/` →
+`deploy`). Omit the scope for cross-cutting changes (e.g. `chore: bump version to 0.2.0`). Use bare
+`docs:` (no sub-scope) for doc-only edits — sub-scoping by doc-area (`docs(arch)`,
+`docs(server-api)`, etc.) sprawls fast and isn't enforced.
 
 Subject in lowercase, no trailing period, imperative mood ("add X", not "added X"), and **≤ 50
 characters** including the type/scope prefix. Body wrapped at ~72 cols, focuses on the why.
