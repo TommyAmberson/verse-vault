@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { WasmEngine } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
+import { type Grade, writeTestStates } from './review-log.js';
 import { type UserMaterial, userMaterialKey } from './keys.js';
 import { getMaterialJson } from './materials.js';
 
@@ -299,6 +300,93 @@ export class EngineStore {
       engine.graduate_verse(verseId);
     }
 
+    const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
+    this.cache.set(userMaterialKey(key), loaded);
+    return loaded;
+  }
+
+  /**
+   * Drop the in-memory engine and recompute test_states from the full
+   * event log. Used by the sync handler when an incoming batch carries
+   * events older than what's already been applied for the same card —
+   * FSRS state is order-sensitive, so the only way to get the right
+   * result is to replay from scratch in (timestampSecs, clientEventId)
+   * order.
+   *
+   * The reviewEvents table is the source of truth; testStates is a
+   * materialised view that this method drops and rewrites. Callers
+   * MUST hold the per-key lock (via `withLock`) so the rebuild's
+   * delete-then-insert pass doesn't race a concurrent review.
+   */
+  rebuildFromEvents(key: EngineKey): LoadedEngine {
+    const snapshot = getLatestSnapshot(this.db, key);
+    if (!snapshot) throw new NotEnrolledError(key);
+
+    const materialJson = snapshot.materialData.toString('utf8');
+    const configJson = readMaterialConfigJson(this.db, key);
+    const engine = new WasmEngine(
+      materialJson,
+      configJson,
+      // Empty persisted states — we'll replay the full log on top.
+      '[]',
+      this.desiredRetention,
+      BigInt(this.now()),
+    );
+
+    // Graduations live outside reviewEvents; apply them before replay so
+    // the engine's card lifecycle matches what review_event expects.
+    const graduated = this.db
+      .select({ verseId: schema.graduatedVerses.verseId })
+      .from(schema.graduatedVerses)
+      .where(
+        and(
+          eq(schema.graduatedVerses.userId, key.userId),
+          eq(schema.graduatedVerses.materialId, key.materialId),
+        ),
+      )
+      .all();
+    for (const { verseId } of graduated) {
+      engine.graduate_verse(verseId);
+    }
+
+    // Chronological replay. Tiebreak on clientEventId so two events with
+    // identical timestampSecs produce a deterministic ordering — same
+    // tiebreak the sync POST handler uses for the in-order path.
+    const events = this.db
+      .select({
+        cardId: schema.reviewEvents.cardId,
+        grade: schema.reviewEvents.grade,
+        timestampSecs: schema.reviewEvents.timestampSecs,
+        clientEventId: schema.reviewEvents.clientEventId,
+      })
+      .from(schema.reviewEvents)
+      .where(
+        and(
+          eq(schema.reviewEvents.userId, key.userId),
+          eq(schema.reviewEvents.materialId, key.materialId),
+        ),
+      )
+      .orderBy(asc(schema.reviewEvents.timestampSecs), asc(schema.reviewEvents.clientEventId))
+      .all();
+    for (const e of events) {
+      engine.replay_event(e.cardId, e.grade as Grade, BigInt(e.timestampSecs));
+    }
+
+    const rebuiltStates = JSON.parse(engine.export_test_states()) as TestStateEntry[];
+    this.db.transaction((tx) => {
+      tx.delete(schema.testStates)
+        .where(
+          and(
+            eq(schema.testStates.userId, key.userId),
+            eq(schema.testStates.materialId, key.materialId),
+          ),
+        )
+        .run();
+      writeTestStates(tx, key.userId, key.materialId, rebuiltStates, { onConflict: false });
+    });
+
+    // Replace the cached engine. invalidate() frees the old one if any.
+    this.invalidate(key);
     const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
     this.cache.set(userMaterialKey(key), loaded);
     return loaded;

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
@@ -153,6 +153,48 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       return c.json(unchangedResponse(deps.db, key, 0, events.length));
     }
 
+    // Per-card out-of-order detection: any incoming review with a
+    // timestamp earlier than what's already applied for the same card
+    // means the cached engine's state for that card was computed
+    // against the wrong ordering. FSRS is path-dependent, so the only
+    // correct fix is to drop the cached engine and replay the full log
+    // in (timestamp, clientEventId) order. Graduation events are
+    // order-insensitive — they just flip lifecycle — so we only check
+    // review events here.
+    const freshReviewCardIds = [
+      ...new Set(
+        fresh.filter((e) => eventKind(e) === 'review').map((e) => (e as ReviewEventUpload).cardId),
+      ),
+    ];
+    let outOfOrder = false;
+    if (freshReviewCardIds.length > 0) {
+      const maxByCard = deps.db
+        .select({
+          cardId: schema.reviewEvents.cardId,
+          maxTs: sql<number>`MAX(${schema.reviewEvents.timestampSecs})`,
+        })
+        .from(schema.reviewEvents)
+        .where(
+          and(
+            eq(schema.reviewEvents.userId, user.id),
+            eq(schema.reviewEvents.materialId, materialId),
+            inArray(schema.reviewEvents.cardId, freshReviewCardIds),
+          ),
+        )
+        .groupBy(schema.reviewEvents.cardId)
+        .all();
+      const maxByCardMap = new Map(maxByCard.map((r) => [r.cardId, r.maxTs]));
+      for (const e of fresh) {
+        if (eventKind(e) !== 'review') continue;
+        const re = e as ReviewEventUpload;
+        const existingMax = maxByCardMap.get(re.cardId);
+        if (existingMax !== undefined && re.timestampSecs < existingMax) {
+          outOfOrder = true;
+          break;
+        }
+      }
+    }
+
     return deps.engines.withLock(key, async () => {
       const touchedKeys = new Set<string>();
       const reviewEventInputs: ReviewEventInput[] = [];
@@ -166,19 +208,22 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       for (const e of fresh) {
         if (eventKind(e) === 'graduate') {
           const ge = e as GraduateEventUpload;
+          // On the in-order path we apply to the cached engine for the
+          // no-op count. On the rebuild path the cached engine is about
+          // to be thrown away — the call is wasted but cheap, and it
+          // keeps the no-op accounting consistent across both paths.
           const count = loaded.engine.graduate_verse(ge.verseId);
           if (count === 0) graduateNoops += 1;
-          // Even when count is 0 we still upsert the graduatedVerses row
-          // (no-op via onConflictDoNothing) so the table reflects every
-          // graduate event the client tried to apply.
           graduations.push({ verseId: ge.verseId, timestampSecs: ge.timestampSecs });
         } else {
           const re = e as ReviewEventUpload;
-          const updates = JSON.parse(
-            loaded.engine.replay_event(re.cardId, re.grade, BigInt(re.timestampSecs)),
-          ) as TestUpdateWire[];
-          for (const u of updates) {
-            touchedKeys.add(`${u.key.kind}|${JSON.stringify(u.key.element)}`);
+          if (!outOfOrder) {
+            const updates = JSON.parse(
+              loaded.engine.replay_event(re.cardId, re.grade, BigInt(re.timestampSecs)),
+            ) as TestUpdateWire[];
+            for (const u of updates) {
+              touchedKeys.add(`${u.key.kind}|${JSON.stringify(u.key.element)}`);
+            }
           }
           reviewEventInputs.push({
             userId: user.id,
@@ -192,10 +237,16 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         }
       }
 
-      const allStates = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
-      const changed = allStates.filter((s) =>
-        touchedKeys.has(`${s.test_kind}|${JSON.stringify(s.element)}`),
-      );
+      // Persist events first so rebuildFromEvents (if triggered) sees the
+      // new rows when it reads the log. On the in-order path the changed
+      // test states are filtered from the cached engine's export.
+      let changed: TestStateEntry[] = [];
+      if (!outOfOrder) {
+        const allStates = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
+        changed = allStates.filter((s) =>
+          touchedKeys.has(`${s.test_kind}|${JSON.stringify(s.element)}`),
+        );
+      }
 
       deps.db.transaction((tx) => {
         persistEngineState(tx, {
@@ -217,12 +268,25 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         }
       });
 
+      let resultStates: TestStateEntry[];
+      if (outOfOrder) {
+        // Rebuild from the full log. testStates table is wiped and
+        // re-written inside rebuildFromEvents; the in-memory engine is
+        // replaced too. Use the new engine to source the response.
+        const rebuilt = deps.engines.rebuildFromEvents(key);
+        resultStates = JSON.parse(rebuilt.engine.export_test_states()) as TestStateEntry[];
+      } else {
+        resultStates = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
+      }
+
       return c.json({
         accepted: fresh.length - graduateNoops,
         duplicates: events.length - fresh.length + graduateNoops,
+        rebuilt: outOfOrder,
         // Send the full state so fat clients can replace their cache in one
-        // shot; DB writes were filtered above to just the touched keys.
-        testStates: allStates,
+        // shot; DB writes were filtered above to just the touched keys
+        // (or wholesale-replaced inside rebuildFromEvents).
+        testStates: resultStates,
         lastEventId: latestEventId(deps.db, user.id, materialId),
       });
     });
@@ -240,6 +304,7 @@ function unchangedResponse(
   return {
     accepted,
     duplicates,
+    rebuilt: false,
     testStates: readTestStateEntries(db, key),
     lastEventId: latestEventId(db, key.userId, key.materialId),
   };
