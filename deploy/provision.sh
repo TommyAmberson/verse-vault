@@ -366,10 +366,16 @@ prompt_secret() {
 
 	# Escape sed-meaningful chars defensively. Typical OAuth + API keys
 	# don't contain these but better safe. Replaces the line whether it's
-	# currently #VAR=, VAR=, or VAR=oldvalue.
+	# currently #VAR=, VAR=, or VAR=oldvalue. Appends when no such line
+	# exists — older env files that pre-date a template addition silently
+	# no-op'd a pure substitution, so the value never actually landed.
 	local esc
 	esc=$(printf '%s' "$value" | sed 's|[&\\|]|\\&|g')
-	sed -i -E "s|^#?${var}=.*|${var}=${esc}|" "$ENV_FILE"
+	if grep -qE "^#?${var}=" "$ENV_FILE"; then
+		sed -i -E "s|^#?${var}=.*|${var}=${esc}|" "$ENV_FILE"
+	else
+		printf '%s=%s\n' "$var" "$value" >> "$ENV_FILE"
+	fi
 	echo "  -> $var written"
 	return 0
 }
