@@ -153,7 +153,7 @@ onMounted(async () => {
       :busy="engine.syncing.value"
       @confirm="engine.confirmMerge"
       @discard="engine.discardStale"
-      @cancel="engine.staleSummary.value = null"
+      @cancel="engine.cancelStale"
     />
   </div>
 </template>

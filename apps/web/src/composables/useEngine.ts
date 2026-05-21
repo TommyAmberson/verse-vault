@@ -227,6 +227,16 @@ export function useEngine() {
     }
   }
 
+  /** Dismiss the stale-merge prompt without acting on it. Clears the
+   *  gate so the next flush re-surfaces the modal rather than
+   *  silently no-op'ing. */
+  function cancelStale() {
+    const stale = staleSummary.value
+    if (!stale) return
+    engineStore.clearStaleGate(stale.materialId)
+    staleSummary.value = null
+  }
+
   /** Drop the queued events the server flagged stale on the affected
    *  material. The user explicitly chose to throw them away. */
   async function discardStale() {
@@ -262,6 +272,7 @@ export function useEngine() {
     flush: flushAll,
     confirmMerge,
     discardStale,
+    cancelStale,
   }
 }
 
