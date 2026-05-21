@@ -10,6 +10,57 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-05-21
+
+### Added
+
+* **Kinded sync events.** `POST /api/sync/:materialId/events` now accepts a discriminated event
+  union: `{ kind: 'review', cardId, grade }` or `{ kind: 'graduate', verseId }`. Untyped events
+  default to `kind: 'review'` so existing online-review callers keep working unchanged. Graduate
+  events route through `engine.graduate_verse()` + a `graduatedVerses` upsert in the same
+  transaction as the review-event log writes — closes the graduate-while-offline hole the previous
+  thin-client `POST /api/cards/memorize/graduate` route was the only path for.
+* **Out-of-order rebuild.** When a batch arrives with `timestampSecs` earlier than what's already
+  applied for the same card, the server now triggers `EngineStore.rebuildFromEvents`: drops the
+  cached engine, instantiates a fresh one from baseline, applies all graduations, replays every row
+  in `reviewEvents` in `(timestampSecs, clientEventId)` order, and writes the resulting `testStates`
+  back atomically. Response gains a `rebuilt: boolean` field so multi-device clients can replace
+  their local state wholesale instead of merging. Fixes silent FSRS drift for any user with
+  phone+laptop offline review sessions that synced in the "wrong" order.
+* **Stale-merge preflight.** When a batch's oldest event predates more than 10 already-applied
+  server events (`STALE_MERGE_THRESHOLD`), the response is a `{ needsConfirm: true, staleSummary }`
+  envelope instead of an immediate merge. Client re-POSTs with `confirmMerge: true` to proceed.
+  Stops months-old offline reviews from silently dragging FSRS stability down on accounts the user
+  has continued to study elsewhere.
+* **Clock-skew guard.** Events with `timestampSecs > server_now + 24h` are rejected with 400. A
+  device with a broken RTC could otherwise wedge the user's timeline arbitrarily — the rebuild path
+  would replay those events at year-2099 positions.
+
+### Fixed
+
+* Sync POST handler now wraps the `db.transaction` in try/catch and calls
+  `deps.engines.invalidate(key)` on failure. The handler calls `engine.replay_event` /
+  `engine.graduate_verse` BEFORE the transaction, so a SQLite write failure used to leave the cached
+  engine ahead of `reviewEvents` + `graduatedVerses` until process restart. Real impact is small
+  (production SQLite writes rarely throw, and `graduatedVerses` inserts are `onConflictDoNothing`),
+  but the divergence was real and self-healing only across restarts.
+
+### Documentation
+
+* MAUA reference URLs (`docs.api.bible/guides/terms-of-use` → 404) replaced with the canonical
+  `api.bible/terms-and-conditions#acceptable_use` clause across the schema comment, cache class
+  docstring, render.ts header, `docs/persistence.md`, and `tools/README.md`.
+* `EngineStore.rebuildFromEvents` ordering rationale corrected: `replay_event` is
+  lifecycle-agnostic; graduations run first for parity with `EngineStore.load` (which also
+  constructs the engine then applies graduations), not because `replay_event` requires Active state.
+* New `NOTICE.md` carries the NKJV citation in the Starter-plan canonical form, plus the API.Bible
+  attribution surface. `README.md` gains a "Third-party content" section pointing at it.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged from 0.1.7 (sync-protocol additive; no core changes)
+* `verse-vault-wasm@0.1.0` — unchanged from 0.1.7 (same)
+
 ## [0.1.7] — 2026-05-21
 
 ### Fixed
