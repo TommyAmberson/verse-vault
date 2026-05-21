@@ -304,25 +304,36 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         );
       }
 
-      deps.db.transaction((tx) => {
-        persistEngineState(tx, {
-          userId: user.id,
-          materialId,
-          events: reviewEventInputs,
-          testStateUpdates: changed,
+      try {
+        deps.db.transaction((tx) => {
+          persistEngineState(tx, {
+            userId: user.id,
+            materialId,
+            events: reviewEventInputs,
+            testStateUpdates: changed,
+          });
+          for (const g of graduations) {
+            tx.insert(schema.graduatedVerses)
+              .values({
+                userId: user.id,
+                materialId,
+                verseId: g.verseId,
+                graduatedAtSecs: g.timestampSecs,
+              })
+              .onConflictDoNothing()
+              .run();
+          }
         });
-        for (const g of graduations) {
-          tx.insert(schema.graduatedVerses)
-            .values({
-              userId: user.id,
-              materialId,
-              verseId: g.verseId,
-              graduatedAtSecs: g.timestampSecs,
-            })
-            .onConflictDoNothing()
-            .run();
-        }
-      });
+      } catch (err) {
+        // The cached engine already absorbed engine.replay_event /
+        // engine.graduate_verse calls for this batch above. If the DB
+        // write failed, drop the cached engine so the next request
+        // reconstructs it from disk state — otherwise the in-memory
+        // engine would diverge from `reviewEvents` + `graduatedVerses`
+        // until process restart.
+        deps.engines.invalidate(key);
+        throw err;
+      }
 
       let resultStates: TestStateEntry[];
       if (outOfOrder) {
