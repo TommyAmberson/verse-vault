@@ -290,12 +290,19 @@ export async function getCardRender(
   if (cached) return cached.composed as CardRender
 
   const fresh = await api.getCardRender(materialId, cardId)
-  await idb.putRender({
-    materialId,
-    cardId,
-    composed: fresh,
-    fetchedAt: nowSecs,
-  })
+  // Skip the cache write when the server returned no composed HTML
+  // (BIBLE_API_KEY unset on the server — see apps/web/src/api.ts).
+  // Caching the null would mean the client returns it for 30 days even
+  // after the operator sets the key, hiding recovery until the
+  // snapshotVersion bump invalidates renders.
+  if (fresh.composed !== null) {
+    await idb.putRender({
+      materialId,
+      cardId,
+      composed: fresh,
+      fetchedAt: nowSecs,
+    })
+  }
   return fresh
 }
 
