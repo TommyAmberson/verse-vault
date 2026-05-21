@@ -7,6 +7,12 @@ import {
   api,
 } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
+import { useEngine } from '@/composables/useEngine'
+
+// useEngine is bound synchronously at setup so its lifecycle hooks
+// register correctly; init(materialId) defers the actual engine load
+// until we know which year to review.
+const engine = useEngine()
 
 const materialId = ref<string | null>(null)
 const card = ref<CardRender | null>(null)
@@ -17,9 +23,9 @@ const loading = ref(false)
 const submitting = ref(false)
 
 async function resolveMaterial() {
-  // Pick the first enrolled year with review turned on. The scheduler
-  // returns null when nothing's due, which the view handles as the
-  // "session complete" state below.
+  // Pick the first enrolled year with review turned on. The local
+  // engine's next_review_card returns null when nothing's due, which
+  // the view handles as the "session complete" state below.
   const res = await api.getYears()
   const target = res.years.find((y) => y.enrolled && y.settings.reviewScope !== 'off')
   if (target) {
@@ -30,16 +36,16 @@ async function resolveMaterial() {
 }
 
 async function loadNext() {
-  if (!materialId.value) return
+  if (!engine.ready.value) return
   loading.value = true
   error.value = null
   try {
-    const { cardId } = await api.getNextReviewCard(materialId.value)
+    const cardId = engine.nextReviewCard()
     if (cardId === null) {
       card.value = null
       done.value = true
     } else {
-      card.value = await api.getCardRender(materialId.value, cardId)
+      card.value = await engine.getCardRender(cardId)
       revealed.value = false
       done.value = false
     }
@@ -51,16 +57,19 @@ async function loadNext() {
 }
 
 async function submit(grade: Grade) {
-  if (!card.value || submitting.value || !materialId.value) return
+  if (!engine.ready.value || !card.value || submitting.value) return
   submitting.value = true
   error.value = null
   try {
-    const res = await api.submitReview(materialId.value, card.value.cardId, grade)
-    if (res.nextCardId === null) {
+    await engine.submitGrade(card.value.cardId, grade)
+    // Engine pick + render happen locally now; the network sync
+    // catches up in the background. No spinner between cards.
+    const nextId = engine.nextReviewCard()
+    if (nextId === null) {
       card.value = null
       done.value = true
     } else {
-      card.value = await api.getCardRender(materialId.value, res.nextCardId)
+      card.value = await engine.getCardRender(nextId)
       revealed.value = false
     }
   } catch (err) {
@@ -79,10 +88,11 @@ onMounted(async () => {
   try {
     loading.value = true
     const found = await resolveMaterial()
-    if (!found) {
+    if (!found || !materialId.value) {
       done.value = true
       return
     }
+    await engine.init(materialId.value)
     await loadNext()
   } catch (err) {
     error.value = formatError(err)
