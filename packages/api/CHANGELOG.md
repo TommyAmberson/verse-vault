@@ -10,6 +10,22 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-05-21
+
+### Fixed
+
+* 0.1.4's `basePath: '/api/auth'` option turned out to be a no-op for path matching — Better Auth's
+  request router derives the match prefix directly from `new URL(baseURL).pathname`, ignoring the
+  `basePath` option in this code path. With production `baseURL = https://www.versevault.ca/vv`, the
+  match prefix became `/vv` and every incoming `/api/auth/*` request still 404'd. Pass just
+  `new URL(env.baseUrl).origin` (i.e. drop the `/vv` path component) to Better Auth so the match
+  prefix is empty and `/api/auth/*` is matched directly.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged from 0.1.4 (auth-only fix)
+* `verse-vault-wasm@0.1.0` — unchanged from 0.1.4 (auth-only fix)
+
 ## [0.1.4] — 2026-05-20
 
 ### Fixed
