@@ -13,12 +13,18 @@ export interface AuthEnv {
 
 export function createAuth(db: DB, env: AuthEnv) {
   const isProd = process.env.NODE_ENV === 'production';
+  // Browsers send Origin headers as scheme+host+port only — never a path.
+  // env.webOrigin may include a subpath in prod (e.g.
+  // `https://www.versevault.ca/vv`), but matching against trustedOrigins
+  // needs the bare origin. Strip the path here once and reuse below.
+  const webOrigin = new URL(env.webOrigin).origin;
+
   // In dev, trust any localhost port the thin client might land on (Vite
   // falls back through 5180/5181/… when ports collide). Production sticks
   // to the single configured origin.
   const trustedOrigins = isProd
-    ? [env.webOrigin]
-    : [env.webOrigin, 'http://localhost:5173', 'http://localhost:5180'];
+    ? [webOrigin]
+    : [webOrigin, 'http://localhost:5173', 'http://localhost:5180'];
 
   // Better Auth derives its request-matching basePath from
   // `new URL(baseURL).pathname` — so any path component in env.baseUrl
@@ -37,7 +43,22 @@ export function createAuth(db: DB, env: AuthEnv) {
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     trustedOrigins,
     emailAndPassword: { enabled: true },
-    socialProviders: env.googleOAuth ? { google: env.googleOAuth } : {},
+    socialProviders: env.googleOAuth
+      ? {
+          google: {
+            ...env.googleOAuth,
+            // Better Auth's auto-generated redirect URI is
+            // `${baseURL}/callback/google`. With our stripped origin-only
+            // baseURL that resolves to https://<origin>/callback/google —
+            // wrong on two fronts: it's missing `/api/auth/`, and the path
+            // would hit the sibling qzr-api Worker, not vv-router → API.
+            // Pin the redirect URI to a URL that goes through vv-router and
+            // matches the value provision.sh tells the user to register in
+            // the Google OAuth client.
+            redirectURI: `${env.baseUrl}/api/auth/callback/google`,
+          },
+        }
+      : {},
     account: {
       accountLinking: {
         // Google verifies email addresses — safe to auto-link with the
