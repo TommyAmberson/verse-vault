@@ -212,11 +212,16 @@ export function nextReviewCard(materialId: string, nowSecs: number): number | nu
   return id ?? null
 }
 
-/** Build a memorize session payload locally. */
+/** Build a memorize session payload locally. The WASM engine returns
+ *  a raw JSON array of `{ verseId, cardIds, recitationCardId }`; wrap
+ *  it as `{ verses: [...] }` so the shape matches what the server's
+ *  `/api/cards/memorize/session` route returns. Callers cast to
+ *  `MemorizeSessionResponse`. */
 export function memorizeSession(materialId: string, limit: number): unknown {
   const session = sessions.get(materialId)
   if (!session) throw new Error(`engineStore.memorizeSession: no session for ${materialId}`)
-  return JSON.parse(session.engine.memorize_session(limit))
+  const verses = JSON.parse(session.engine.memorize_session(limit))
+  return { verses }
 }
 
 export function newCardCount(materialId: string): number {
