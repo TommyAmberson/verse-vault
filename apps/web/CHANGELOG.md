@@ -9,6 +9,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-05-21
+
+### Fixed
+
+* 0.1.4 stripped `/api` off `VITE_API_BASE` to derive the Better Auth client `baseURL`, yielding
+  `/vv` in production. Better Auth's `createAuthClient` validates that string with `new URL(...)`,
+  which rejects relative paths (`Invalid base URL: /vv`) and the SPA crashed on first render.
+  Resolve the relative path against `window.location.origin` before passing it in.
+
 ## [0.1.4] — 2026-05-20
 
 ### Fixed
