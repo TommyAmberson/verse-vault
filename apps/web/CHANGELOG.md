@@ -9,18 +9,53 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-05-21
+
 ### Added
 
-* **Fat-client engine**: ReviewView, MemorizeView, and MaterialView now drive the WASM engine
-  locally. Each grade runs `engine.replay_event` in-browser and queues an event to IndexedDB; the
-  background flush ships them to `POST /api/sync/:materialId/events` on a 5 s debounce + on tab
+* **Fat-client engine.** ReviewView, MemorizeView, MaterialView, and StatsView now drive the WASM
+  engine locally. Each grade runs `engine.replay_event` in-browser and queues an event to IndexedDB;
+  the background flush ships them to `POST /api/sync/:materialId/events` on a 5 s debounce + on tab
   hide. No more network round-trip per card. Per-card render output caches in IDB (MAUA-compliant
   30-day TTL); the engine sources next-card decisions locally so review feels instant.
 * `verse-vault-wasm-web` workspace package (wasm-pack `--target bundler` output) — same Rust source
   as the API's nodejs target, different JS shim. Vite emits the .wasm asset (~117 KB gzipped) as
   part of the build.
-* `useEngine` composable + `engineStore` module-singleton that own per-material `WasmEngine`
-  instances across navigations. Multi-material capable for MemorizeView's cross-year sessions.
+* `useEngine` composable + `engineStore` module-singleton owning per-material `WasmEngine` instances
+  across navigations. Multi-material capable for MemorizeView's cross-year sessions.
+* `getSyncState` + `postSyncEvents` methods on the API client wrapping the new server endpoints.
+* `MaterialConfig` (newScope, reviewScope, clubCardScope, chapterListScope, headings, ftv) now
+  threads through to the client engine; `MaterialView.onSave` invalidates the cached engine + render
+  cache for the affected material so the next view visit rebuilds with fresh settings.
+
+### Fixed
+
+* `StatsView` no longer hardcodes `MATERIAL_ID = 'nkjv-cor'` — fetches stats per enrolled year via
+  `getYears` and renders one card per year, sorted by total reviews. Single-year failures degrade
+  gracefully via `Promise.allSettled` rather than blanking the whole page.
+* Stale-merge `needsConfirm` responses no longer trigger an unbounded re-POST loop. The
+  `engineStore` module now tracks a per-material `staleGate`; flushes for gated materials no-op
+  until a `confirmMerge: true` flush succeeds or `clearStaleGate(materialId)` is called by the
+  discard path.
+* Render cache skips IDB writes when the server returns `composed: null` (the BIBLE_API_KEY-unset
+  fallback path), so a misconfigured first request can't wedge the cache with empty composed HTML
+  for the full 30-day TTL.
+
+### Build
+
+* `tools/build-wasm-web.sh` runs `wasm-pack build crates/wasm --target bundler --out-dir pkg-web`
+  and renames the output package to `verse-vault-wasm-web` so both bundler + nodejs targets can
+  coexist in the pnpm workspace.
+* `vite-plugin-wasm` + `vite-plugin-top-level-await` handle the bundler-target import; build target
+  bumped to `es2022` to compile the wasm-bindgen TLA shim cleanly.
+* `.github/workflows/deploy-web.yml` installs the Rust toolchain + wasm-pack before `pnpm install`
+  so the workspace `verse-vault-wasm-web` package exists when pnpm resolves the apps/web dependency.
+
+### Documentation
+
+* New top-level `NOTICE.md` carries the NKJV citation in the Starter-plan canonical form + the
+  API.Bible attribution surface. `README.md` gains a "Third-party content" section pointing at it.
+* MAUA URL fixes — see `packages/api/CHANGELOG.md` 0.1.8 for the matching server-side cleanup.
 
 ### Bundled algorithm contract
 
