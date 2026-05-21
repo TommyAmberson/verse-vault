@@ -20,12 +20,19 @@ export function createAuth(db: DB, env: AuthEnv) {
     ? [env.webOrigin]
     : [env.webOrigin, 'http://localhost:5173', 'http://localhost:5180'];
 
+  // Better Auth derives its request-matching basePath from
+  // `new URL(baseURL).pathname` — so any path component in env.baseUrl
+  // (e.g. `/vv` in prod, where the SPA is mounted under a subpath) becomes
+  // part of what Better Auth expects every request URL to start with. The
+  // API actually receives requests at `/api/auth/*` because vv-router
+  // strips `/vv` before forwarding. Pass just the origin so the match path
+  // stays empty and `/api/auth/*` is matched directly. We still keep
+  // env.baseUrl as the source of truth for the public-facing URL (used
+  // elsewhere for things like OAuth-flow URL construction).
+  const betterAuthBaseURL = new URL(env.baseUrl).origin;
+
   return betterAuth({
-    baseURL: env.baseUrl,
-    // Path the API actually receives requests on (vv-router strips the `/vv`
-    // prefix before forwarding to the Tunnel, so Better Auth must not derive
-    // its match path from baseURL's `/vv/...` path component).
-    basePath: '/api/auth',
+    baseURL: betterAuthBaseURL,
     secret: env.secret,
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     trustedOrigins,
