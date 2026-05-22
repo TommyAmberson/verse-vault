@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { authClient, loadActiveProfileFromRegistry, markSyncState } from '@/composables/useAuth'
-import { getLastActiveProfileId } from '@/lib/engine/registry'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -48,9 +47,7 @@ const router = createRouter({
 // If the registry has no last-active profile (or the referenced DB
 // has been wiped), fall through to the sign-in form.
 router.beforeEach(async (to) => {
-  await loadActiveProfileFromRegistry()
-  const lastActive = await getLastActiveProfileId()
-  const signedIn = lastActive != null
+  const signedIn = await loadActiveProfileFromRegistry()
 
   // Kick off the live session check in the background. We don't await
   // it; it just feeds the sync-state indicator. The three-way outcome

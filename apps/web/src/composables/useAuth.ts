@@ -61,29 +61,32 @@ function nowSecs(): number {
  *  its per-profile DB exists, populate `activeProfile` and tell the
  *  persistence layer to open that DB. If the pointer is stale (DB was
  *  deleted out from under us, etc.), clear it so the router falls back
- *  to the sign-in form. */
-export async function loadActiveProfileFromRegistry(): Promise<void> {
-  if (activeProfileLoaded) return
+ *  to the sign-in form. Returns true when the active profile is set
+ *  and ready to use, false when the router should redirect to /signin.
+ *  Idempotent — repeat calls in the same session short-circuit. */
+export async function loadActiveProfileFromRegistry(): Promise<boolean> {
+  if (activeProfileLoaded) return activeProfile.value != null
   activeProfileLoaded = true
   const id = await registry.getLastActiveProfileId()
   if (!id) {
     activeProfile.value = null
-    return
+    return false
   }
   const exists = await registry.profileDbExists(id)
   if (!exists) {
     await registry.setLastActiveProfileId(null)
     activeProfile.value = null
-    return
+    return false
   }
   const row = await registry.getProfile(id)
   if (!row) {
     await registry.setLastActiveProfileId(null)
     activeProfile.value = null
-    return
+    return false
   }
   await setActiveProfile(id)
   activeProfile.value = row
+  return true
 }
 
 /** Update the sync indicator state. Called from the router boot's
@@ -166,6 +169,10 @@ export async function signOut(): Promise<void> {
   await setActiveProfile(null)
   clearAllSessions()
   activeProfile.value = null
+  // Reset the load-once flag so the next sign-in re-reads the
+  // registry — keeps the "flag true ⟺ registry consulted this
+  // session for the current profile" invariant honest.
+  activeProfileLoaded = false
   syncState.value = 'signed-out'
 }
 
