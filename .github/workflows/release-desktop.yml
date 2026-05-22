@@ -100,6 +100,16 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      # Cache ~/.cargo/registry + src-tauri/target keyed on lockfile +
+      # target. First desktop release per branch is still cold (~15min);
+      # subsequent matrix runs drop to ~5min/leg because tauri's heavy
+      # transitive deps (wry, webkit2gtk, tao, muda, …) no longer
+      # recompile.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/web/src-tauri -> target
+          key: ${{ matrix.target }}
+
       - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
