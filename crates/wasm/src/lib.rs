@@ -491,6 +491,17 @@ impl WasmEngine {
         serde_json::to_string(&self.club_counts())
             .map_err(|e| JsError::new(&format!("serialise error: {e}")))
     }
+
+    /// Render data for every card in the deck, in card-id order. Returns
+    /// JSON of `CardRenderWire[]`. The server uses this on the bulk
+    /// `GET /materials/:id/renders` path to compose every card's HTML in
+    /// one engine call rather than N round-trips; the client doesn't call
+    /// this directly today.
+    pub fn all_card_renders(&self) -> Result<String, JsError> {
+        let wires = self.all_card_renders_inner()?;
+        serde_json::to_string(&wires)
+            .map_err(|e| JsError::new(&format!("render serialise error: {e}")))
+    }
 }
 
 fn parse_material_config(json: &str) -> Result<MaterialConfig, serde_json::Error> {
@@ -525,6 +536,35 @@ impl WasmEngine {
     /// surface). Returns the same JSON the JS side would receive.
     pub fn card_count_by_club_for_test(&self) -> String {
         serde_json::to_string(&self.club_counts()).unwrap()
+    }
+
+    /// Shared body of the bindgen `all_card_renders` and its native test
+    /// shim. Skips cards whose verse has no render data — defensive; the
+    /// builder seeds render data for every verse, but bug-bait if that
+    /// invariant ever drifts.
+    fn all_card_renders_inner(&self) -> Result<Vec<CardRenderWire>, JsError> {
+        let mut wires = Vec::with_capacity(self.engine.cards.len());
+        for card in &self.engine.cards {
+            let Some(verse) = self.engine.verse_render(card.verse_id) else {
+                continue;
+            };
+            wires.push(CardRenderWire {
+                card_id: card.id.0,
+                verse_id: card.verse_id,
+                kind: card.kind.into(),
+                verse: VerseRenderWire::from(verse),
+            });
+        }
+        Ok(wires)
+    }
+
+    /// Native-Rust shim for `all_card_renders`. Same JsError-on-native
+    /// caveat as `get_card_render_for_test`.
+    pub fn all_card_renders_for_test(&self) -> Result<String, String> {
+        let wires = self
+            .all_card_renders_inner()
+            .map_err(|e| format!("render error: {e:?}"))?;
+        serde_json::to_string(&wires).map_err(|e| format!("serialise error: {e}"))
     }
 
     /// Native-Rust shim for `replay_event` so integration tests can drive

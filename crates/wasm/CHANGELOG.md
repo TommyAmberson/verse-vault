@@ -22,6 +22,12 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+### Added
+
+* `all_card_renders()` — returns `CardRenderWire[]` for every card in the deck in card-id order.
+  Used by the API's bulk `GET /materials/:id/renders` endpoint to compose every card's HTML in one
+  engine call. Additive; existing consumers ignore it.
+
 ## [0.1.0] — 2026-05-20 (baseline)
 
 ### Added
