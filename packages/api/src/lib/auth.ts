@@ -21,10 +21,15 @@ export function createAuth(db: DB, env: AuthEnv) {
 
   // In dev, trust any localhost port the thin client might land on (Vite
   // falls back through 5180/5181/… when ports collide). Production sticks
-  // to the single configured origin.
+  // to the configured web origin plus the Tauri origins — the desktop
+  // shell reuses the same API so the user-facing surface is identical.
+  // `useHttpsScheme: true` in tauri.conf.json means the in-app origin is
+  // `https://tauri.localhost` on Windows (Edge WebView2) and
+  // `tauri://localhost` on macOS/Linux (WebKit) — allowlist both.
+  const tauriOrigins = ['tauri://localhost', 'https://tauri.localhost'];
   const trustedOrigins = isProd
-    ? [webOrigin]
-    : [webOrigin, 'http://localhost:5173', 'http://localhost:5180'];
+    ? [webOrigin, ...tauriOrigins]
+    : [webOrigin, 'http://localhost:5173', 'http://localhost:5180', ...tauriOrigins];
 
   // Better Auth derives its request-matching basePath from
   // `new URL(baseURL).pathname` — so any path component in env.baseUrl
@@ -55,6 +60,14 @@ export function createAuth(db: DB, env: AuthEnv) {
             // Pin the redirect URI to a URL that goes through vv-router and
             // matches the value provision.sh tells the user to register in
             // the Google OAuth client.
+            //
+            // Tauri-side OAuth is not yet wired: Better Auth 1.6.5's
+            // `redirectURI` is `string | undefined`, not an array, so the
+            // desktop shell can't initiate the Google flow without
+            // additional infrastructure (e.g. tauri-plugin-deep-link to
+            // intercept the callback, or a separate Google OAuth client
+            // for the desktop redirect URI). Email + password sign-in
+            // works from Tauri today via the trustedOrigins entries above.
             redirectURI: `${env.baseUrl}/api/auth/callback/google`,
           },
         }
