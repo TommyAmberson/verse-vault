@@ -402,6 +402,10 @@ if prompt_secret GOOGLE_CLIENT_ID "GOOGLE_CLIENT_ID (enter to skip)"; then
 	echo ""
 	echo "  Register this callback URL in your Google Cloud Console OAuth client:"
 	echo "    $PUBLIC_BASE_URL/api/auth/callback/google"
+	echo ""
+	echo "  Tauri desktop users sign in with email/password today; Google OAuth"
+	echo "  in the desktop shell needs additional design (tauri-plugin-deep-link"
+	echo "  or a separate OAuth client) before its callback URL is registered."
 fi
 
 # If the service is already running (re-run after a previous deploy),

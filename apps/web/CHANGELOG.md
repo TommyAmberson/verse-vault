@@ -11,6 +11,24 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ### Added
 
+* **Tauri v2 desktop shell.** New `apps/web/src-tauri/` Cargo project wraps the existing Vue + WASM
+  bundle as a native desktop app (mac / linux / windows). Layout mirrors the qzr-sheet pattern:
+  `src-tauri/` is a sibling to `src/` and `public/` so the same `package.json` drives both
+  `pnpm dev` (web) and `pnpm tauri dev` (desktop). Crate is intentionally outside the root Cargo
+  workspace (empty `[workspace]` table detaches it) so Tauri's transitive deps don't slow
+  `cargo check` for the algorithm crates.
+* Window config uses `useHttpsScheme: true` so the in-app origin is `https://tauri.localhost`
+  (Windows / Edge WebView2) and `tauri://localhost` (macOS / Linux / WebKit). Both the API CORS
+  allowlist and Better Auth `trustedOrigins` accept the two origins. No `fs`/`dialog` plugins — the
+  app is fully self-contained in the webview (IndexedDB + fetch); default capabilities are
+  core-only.
+* `.github/workflows/release-desktop.yml` builds matrix on linux/windows/macos when
+  `apps/web/src-tauri/tauri.conf.json` `version` field bumps; uploads installers to a draft GitHub
+  release that flips to published after all three platforms upload cleanly. No code signing (Apple
+  Developer ID and Windows EV cert are paperwork-blocked); unsigned builds work for
+  self-distribution.
+* Icons generated via `pnpm tauri icon` from a 1024×1024 PNG source; SVG master committed alongside
+  as `icon.svg` so future re-rasterisation stays faithful.
 * **Stale-merge confirmation modal.** New `StaleMergeModal.vue` component reads
   `useEngine().staleSummary` and renders Sync / Discard / Cancel. Rendered as an overlay from
   ReviewView and MemorizeView when the server flags a batch as stale. The composable surface
@@ -43,6 +61,16 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 * `MaterialView.onSave` no longer invalidates the cached engine + render cache when only
   `lessonBatchSize` (a session-size knob the engine doesn't consume) changed. Previously every
   settings save wiped a full deck's lazy-cached renders.
+
+### Known limitations
+
+* **Google OAuth not yet wired in the Tauri shell.** Better Auth 1.6.5's `redirectURI` is
+  `string | undefined`, not an array — the original plan's "swap to an array" approach doesn't
+  apply. Email + password sign-in works in the desktop window today via the new `trustedOrigins`
+  entries; Google sign-in needs either `tauri-plugin-deep-link` to intercept the callback or a
+  separate OAuth client with the Tauri redirect URI registered. Filed as a follow-up.
+* Code signing for macOS and Windows installers is unwired. Builds work; the installers trigger
+  Gatekeeper / SmartScreen warnings until Developer ID / EV certs are added to CI secrets.
 
 ### Bundled algorithm contract
 
