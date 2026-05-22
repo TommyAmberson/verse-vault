@@ -31,7 +31,6 @@
 
 import type { SyncEventUpload, TestStateEntry } from './types'
 
-const DB_NAME = 'verse-vault'
 const DB_VERSION = 1
 
 /** TTL the client cache honours, mirroring the server's
@@ -52,14 +51,34 @@ const STORE = {
 
 const BY_MATERIAL_ID_INDEX = 'byMaterialId'
 
+/** Profile-id of the currently active DB. Module-level — every helper
+ *  in this file opens `verse-vault-${activeProfileId}` indirectly
+ *  through `openDb()`. Set by `setActiveProfile` (called from the
+ *  profile-switch flow); null before any profile is active. */
+let activeProfileId: string | null = null
 let dbPromise: Promise<IDBDatabase> | null = null
 
-/** Open (or cache) the singleton DB. Subsequent calls return the same
- *  promise so multiple async callers share one open handle. */
+class NoActiveProfileError extends Error {
+  constructor() {
+    super('No active profile — call setActiveProfile() before opening the DB.')
+    this.name = 'NoActiveProfileError'
+  }
+}
+
+function dbNameFor(profileId: string): string {
+  return `verse-vault-${profileId}`
+}
+
+/** Open the active profile's DB (or return the cached handle). Throws
+ *  if no profile is active; the caller is responsible for ordering. */
 export function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise
+  if (activeProfileId == null) {
+    return Promise.reject(new NoActiveProfileError())
+  }
+  const dbName = dbNameFor(activeProfileId)
   dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
+    const req = indexedDB.open(dbName, DB_VERSION)
     req.onupgradeneeded = () => {
       const db = req.result
       if (!db.objectStoreNames.contains(STORE.Snapshots)) {
@@ -94,8 +113,41 @@ export function openDb(): Promise<IDBDatabase> {
   return dbPromise
 }
 
-/** Drop the cached open-promise. Tests + sign-out paths use this to
- *  force a fresh handle on the next openDb call. */
+/** Set (or clear) the active profile. Closes any open handle for the
+ *  previous profile and resets the cache so the next `openDb()` opens
+ *  the new profile's DB. Pass `null` to detach; pass a profileId to
+ *  switch. Eagerly opens the new DB so the upgrade handler runs and
+ *  subsequent reads are cheap. */
+export async function setActiveProfile(profileId: string | null): Promise<void> {
+  if (profileId === activeProfileId) return
+  // Close the existing handle (if any) before swapping.
+  if (dbPromise) {
+    try {
+      const db = await dbPromise
+      db.close()
+    } catch {
+      // Resolution failure on the existing promise is fine — we're
+      // discarding it anyway.
+    }
+  }
+  dbPromise = null
+  activeProfileId = profileId
+  if (profileId != null) {
+    // Eagerly open so the upgrade handler runs now (rather than on
+    // the first helper call after a profile switch).
+    await openDb()
+  }
+}
+
+/** Returns the currently active profile id (null if none). Mostly
+ *  useful in tests + diagnostics. */
+export function getActiveProfileId(): string | null {
+  return activeProfileId
+}
+
+/** Drop the cached open-promise without changing the active profile.
+ *  Used by tests that want to force a fresh handle on the next openDb
+ *  call. Behaviour is identical to the historical `resetDbHandle`. */
 export function resetDbHandle(): void {
   dbPromise = null
 }
