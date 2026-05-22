@@ -12,11 +12,17 @@ const route = useRoute()
 const pending = ref<number>(0)
 
 async function refresh() {
-  if (!activeProfile.value) {
+  // Skip the IDB read when the banner is invisible. The watcher re-fires
+  // on syncState flips, so the count populates the moment offline shows up.
+  if (!activeProfile.value || syncState.value === 'online') {
     pending.value = 0
     return
   }
   try {
+    // Scoped to the current material — countQueuedEvents requires a
+    // materialId. A global "total queued across all materials" would
+    // need a full eventQueue scan per nav, which isn't worth it for a
+    // banner copy. Routes without a materialId param show 0.
     const materialId = typeof route.params.materialId === 'string'
       ? route.params.materialId
       : null
