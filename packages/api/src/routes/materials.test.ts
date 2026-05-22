@@ -21,6 +21,10 @@ interface OfflineModeResponse {
   offlineMode: boolean;
 }
 
+interface RendersResponse {
+  renders: Array<{ cardId: number; composed: unknown; fetchedAt: number }>;
+}
+
 describe('materials routes', () => {
   let cleanup: (() => void) | null = null;
   afterEach(() => {
@@ -179,5 +183,54 @@ describe('materials routes', () => {
       body: JSON.stringify({ offlineMode: 'yes' }),
     });
     expect(res.status).toBe(400);
+  });
+
+  it('rejects GET /renders when offline_mode is off with 403', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID);
+
+    const res = await test.app.request(`/api/materials/${MATERIAL_ID}/renders`, {
+      headers: { cookie },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('returns every card render once offline_mode is on', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID);
+    await test.app.request(`/api/materials/${MATERIAL_ID}/offline-mode`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ offlineMode: true }),
+    });
+
+    const res = await test.app.request(`/api/materials/${MATERIAL_ID}/renders`, {
+      headers: { cookie },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as RendersResponse;
+    expect(body.renders.length).toBeGreaterThan(0);
+    // Test app skips wiring apibibleCache, so `composed` is null and the
+    // client would fall back to single-card fetches if it lived without
+    // the bulk path. Card-id ordering is the load-bearing contract.
+    for (let i = 1; i < body.renders.length; i++) {
+      expect(body.renders[i]!.cardId).toBeGreaterThan(body.renders[i - 1]!.cardId);
+    }
+    for (const r of body.renders) expect(r.composed).toBeNull();
+  });
+
+  it('rejects GET /renders for an unenrolled caller with 404', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+
+    const res = await test.app.request(`/api/materials/${MATERIAL_ID}/renders`, {
+      headers: { cookie },
+    });
+    expect(res.status).toBe(404);
   });
 });

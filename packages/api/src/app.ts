@@ -94,7 +94,17 @@ export function createApp(deps: AppDeps) {
     }),
   );
   app.route('/api/sync', syncRoutes({ db: deps.db, engines, now: deps.now }));
-  app.route('/api/materials', materialsRoutes({ db: deps.db, now: deps.now }));
+  app.route(
+    '/api/materials',
+    materialsRoutes({
+      db: deps.db,
+      engines,
+      apibibleCache,
+      bibleId: deps.bibleId,
+      dialect: deps.dialect,
+      now: deps.now,
+    }),
+  );
   app.route('/api/years', yearsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/stats', statsRoutes({ db: deps.db }));
 
