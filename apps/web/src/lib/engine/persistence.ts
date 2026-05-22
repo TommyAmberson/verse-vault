@@ -1,6 +1,13 @@
 /**
  * IndexedDB layer for the browser-side fat-client. Five object stores
- * under one DB (`verse-vault`):
+ * under one DB per profile, named `verse-vault-${profileId}`. The
+ * "current profile" is a module-level variable set by
+ * `setActiveProfile()` (called from `useAuth.signInComplete` /
+ * `useAuth.signOut` / profile-switch paths). The shared registry of
+ * known profiles + the last-active pointer lives in a separate
+ * `verse-vault-registry` DB; see `./registry.ts`.
+ *
+ * The five stores in a profile DB:
  *
  *   - `snapshots` — one row per material (`{ materialId, version,
  *     materialData, fetchedAt }`). Source of the MaterialData blob the

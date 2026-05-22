@@ -87,9 +87,14 @@ function deleteLegacy(): Promise<void> {
     req.onerror = () => reject(req.error)
     req.onblocked = () => {
       // Another tab holding a handle to the legacy DB — drop the
-      // wait and continue. Next launch will retry the delete (the
-      // helper sees the legacy DB and re-migrates; copyStore is
-      // idempotent against an empty target).
+      // wait and continue. The user's data has already been copied
+      // to the target by this point (delete is the final step), so
+      // they keep their cards. The legacy DB just sticks around
+      // taking up storage until the holding tab closes; the next
+      // first-ever sign-in (no profiles in registry) will see it
+      // and retry the cleanup. Subsequent sign-ins for the SAME
+      // user skip migration entirely (gate is per-device, not
+      // per-user) so we don't accidentally re-copy stale data.
       resolve()
     }
   })
