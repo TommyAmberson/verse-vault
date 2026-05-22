@@ -26,6 +26,11 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 * **Response compression.** Hono's built-in `compress` middleware on every route. Honours
   `Accept-Encoding`, so the test harness (which doesn't send the header) keeps seeing raw JSON for
   body assertions. Drops the bulk renders payload for `nkjv-cor` from ~5 MB to ~1 MB.
+* **Tauri origin allowlist.** CORS allowlist and Better Auth `trustedOrigins` accept
+  `tauri://localhost` (macOS / Linux WebKit) and `https://tauri.localhost` (Windows Edge WebView2 +
+  `useHttpsScheme: true`). Lets the desktop shell hit the same API as the web app for email +
+  password sign-in and sync. Google OAuth in Tauri still needs additional design (Better Auth
+  1.6.5's `redirectURI` is a single string, not an array — the original plan didn't apply).
 
 ### Fixed
 
