@@ -122,6 +122,9 @@ export interface YearView {
   /** True when the user has a graph_snapshot + user_materials row for
    *  this year. Bumping any scope above Off and saving will auto-enroll. */
   enrolled: boolean
+  /** True when the user has opted into bulk-renders download for this
+   *  year. Server returns false for unenrolled years. */
+  offlineMode: boolean
   settings: YearSettings
   clubs: Record<ClubTier, ClubView>
   /** Total `New` cards in the engine — drives the "N to memorize" pill. */
