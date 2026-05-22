@@ -125,8 +125,16 @@ export async function signInComplete(user: {
     return
   }
 
+  // Read this BEFORE the upsert so the migration gate sees the
+  // pre-state (no profiles yet = this is the device's first-ever
+  // sign-in post-PR-A = legacy `verse-vault` data should be adopted
+  // into this user's profile DB). Gating on per-user `isNew` would
+  // be a footgun: if user A's first sign-in failed mid-migration and
+  // left the legacy DB on disk, user B signing in later would inherit
+  // A's data into B's profile.
+  const isFirstEverProfile = (await registry.listProfiles()).length === 0
+
   const now = nowSecs()
-  const isNew = existing == null
   const row: registry.ProfileRow = {
     profileId: user.id,
     email: user.email,
@@ -143,7 +151,7 @@ export async function signInComplete(user: {
   clearAllSessions()
   await setActiveProfile(user.id)
 
-  if (isNew) {
+  if (isFirstEverProfile) {
     try {
       await migrateLegacyDb(user.id)
     } catch (err) {
