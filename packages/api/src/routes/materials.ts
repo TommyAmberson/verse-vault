@@ -156,7 +156,7 @@ export function materialsRoutes(deps: MaterialsRoutesDeps) {
     // skip apibible still get a working response. The live server
     // always has the cache.
     if (!deps.apibibleCache) {
-      return c.json({ renders: wires.map((w) => ({ cardId: w.cardId, composed: null, fetchedAt: 0 })) });
+      return c.json({ renders: wires.map((w) => ({ ...w, composed: null, fetchedAt: 0 })) });
     }
 
     const bibleId = deps.bibleId ?? DEFAULT_NKJV_BIBLE_ID;
@@ -206,17 +206,22 @@ export function materialsRoutes(deps: MaterialsRoutesDeps) {
       }),
     );
 
-    const renders: Array<{ cardId: number; composed: ComposedRender | null; fetchedAt: number }> = [];
+    // Each row is the same shape `GET /api/cards/:cardId` returns
+    // (full CardRenderWire + composed) plus a fetchedAt timestamp the
+    // client uses for the 30-day TTL. Matching the single-card shape
+    // lets the client store the row as-is in the same IDB `renders`
+    // store the lazy path writes to, so reads use one code path.
+    const renders: Array<CardRenderWire & { composed: ComposedRender | null; fetchedAt: number }> = [];
     for (const [passageId, { bookCode, cards }] of cardsByChapter) {
       const chapterHtml = chapterHtmlByPassage.get(passageId);
       if (chapterHtml == null) {
-        for (const card of cards) renders.push({ cardId: card.cardId, composed: null, fetchedAt: 0 });
+        for (const card of cards) renders.push({ ...card, composed: null, fetchedAt: 0 });
         continue;
       }
       const sections = sectionsByBook.get(bookCode) ?? [];
       for (const card of cards) {
         const composed = composeRender(card.verse, chapterHtml, sections, dialect);
-        renders.push({ cardId: card.cardId, composed, fetchedAt: now });
+        renders.push({ ...card, composed, fetchedAt: now });
       }
     }
     return c.json({ renders });

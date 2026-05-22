@@ -228,7 +228,10 @@ async function seedOfflineRenders(materialId: string): Promise<void> {
     materialId,
     renders
       .filter((r) => r.composed !== null)
-      .map((r) => ({ materialId, cardId: r.cardId, composed: r.composed, fetchedAt: r.fetchedAt })),
+      .map((r) => {
+        const { fetchedAt, ...cardRender } = r
+        return { materialId, cardId: r.cardId, composed: cardRender, fetchedAt }
+      }),
   )
 }
 

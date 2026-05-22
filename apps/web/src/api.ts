@@ -156,11 +156,12 @@ export interface MaterialStatus {
   testCount: number
 }
 
-export interface MaterialRender {
-  cardId: number
-  composed: ComposedRender | null
-  fetchedAt: number
-}
+/** One row of the bulk `GET /materials/:id/renders` payload. Same
+ *  shape as the single-card `GET /api/cards/:cardId` endpoint (full
+ *  CardRender) plus a `fetchedAt` timestamp the client uses for the
+ *  30-day TTL. The matching shape lets the client cache rows as-is
+ *  in the same IDB `renders` store the lazy path writes to. */
+export type MaterialRender = CardRender & { fetchedAt: number }
 
 export interface ApiClient {
   enroll(materialId: string): Promise<{ snapshotId: string; version: number }>
