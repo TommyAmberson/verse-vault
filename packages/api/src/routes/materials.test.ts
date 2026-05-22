@@ -12,7 +12,13 @@ interface ListResponse {
 interface StatusResponse {
   materialId: string;
   clubTier: number | null;
+  offlineMode: boolean;
   testCount: number;
+}
+
+interface OfflineModeResponse {
+  materialId: string;
+  offlineMode: boolean;
 }
 
 describe('materials routes', () => {
@@ -118,5 +124,60 @@ describe('materials routes', () => {
     const body = (await res.json()) as StatusResponse;
     expect(body.materialId).toBe(MATERIAL_ID);
     expect(body.testCount).toBeGreaterThan(0);
+    expect(body.offlineMode).toBe(false);
+  });
+
+  it('toggles offline_mode via PATCH and reflects it in status', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID);
+
+    const on = await test.app.request(`/api/materials/${MATERIAL_ID}/offline-mode`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ offlineMode: true }),
+    });
+    expect(on.status).toBe(200);
+    expect(((await on.json()) as OfflineModeResponse).offlineMode).toBe(true);
+
+    const status = await test.app.request(`/api/materials/${MATERIAL_ID}/status`, {
+      headers: { cookie },
+    });
+    expect(((await status.json()) as StatusResponse).offlineMode).toBe(true);
+
+    const off = await test.app.request(`/api/materials/${MATERIAL_ID}/offline-mode`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ offlineMode: false }),
+    });
+    expect(((await off.json()) as OfflineModeResponse).offlineMode).toBe(false);
+  });
+
+  it('rejects offline-mode PATCH for an unenrolled caller with 404', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+
+    const res = await test.app.request(`/api/materials/${MATERIAL_ID}/offline-mode`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ offlineMode: true }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects offline-mode PATCH with a non-boolean body', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID);
+
+    const res = await test.app.request(`/api/materials/${MATERIAL_ID}/offline-mode`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ offlineMode: 'yes' }),
+    });
+    expect(res.status).toBe(400);
   });
 });

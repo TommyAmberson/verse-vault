@@ -88,8 +88,43 @@ export function materialsRoutes(deps: MaterialsRoutesDeps) {
     return c.json({
       materialId,
       clubTier: enrolled.clubTier,
+      offlineMode: enrolled.offlineMode,
       testCount: testCountRow?.count ?? 0,
     });
+  });
+
+  app.patch('/:id/offline-mode', async (c) => {
+    const user = getUser(c);
+    const materialId = c.req.param('id');
+    try {
+      requireEnrollment(deps.db, { userId: user.id, materialId });
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
+
+    let body: { offlineMode?: unknown };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'invalid JSON body' }, 400);
+    }
+    if (typeof body.offlineMode !== 'boolean') {
+      return c.json({ error: 'offlineMode must be a boolean' }, 400);
+    }
+
+    deps.db
+      .update(schema.userMaterials)
+      .set({ offlineMode: body.offlineMode })
+      .where(
+        and(
+          eq(schema.userMaterials.userId, user.id),
+          eq(schema.userMaterials.materialId, materialId),
+        ),
+      )
+      .run();
+
+    return c.json({ materialId, offlineMode: body.offlineMode });
   });
 
   return app;
