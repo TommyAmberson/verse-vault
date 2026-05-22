@@ -83,6 +83,22 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     const snapshot = getLatestSnapshot(deps.db, key);
     if (!snapshot) return c.json({ error: 'Not enrolled' }, 404);
 
+    // Cards default to `New` when the client constructs the engine
+    // from materialData + testStates; the client needs the graduation
+    // log so it can flip the right cards to `Active` after build
+    // (server-side `EngineStore.load` does the same — keep parity).
+    const graduatedVerseIds = deps.db
+      .select({ verseId: schema.graduatedVerses.verseId })
+      .from(schema.graduatedVerses)
+      .where(
+        and(
+          eq(schema.graduatedVerses.userId, user.id),
+          eq(schema.graduatedVerses.materialId, materialId),
+        ),
+      )
+      .all()
+      .map((r) => r.verseId);
+
     return c.json({
       snapshot: {
         version: snapshot.version,
@@ -92,6 +108,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       },
       testStates: readTestStateEntries(deps.db, key),
       lastEventId: latestEventId(deps.db, user.id, materialId),
+      graduatedVerseIds,
     });
   });
 

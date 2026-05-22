@@ -23,6 +23,7 @@ interface StateResponse {
   snapshot: { version: number; materialData: unknown };
   testStates: TestStateWire[];
   lastEventId: string | null;
+  graduatedVerseIds: number[];
 }
 
 interface UploadResponse {
@@ -315,6 +316,14 @@ describe('sync routes', () => {
     const body2 = (await res2.json()) as UploadResponse;
     expect(body2.accepted).toBe(0);
     expect(body2.duplicates).toBe(1);
+
+    // GET /state must surface the graduation so the client can re-apply
+    // it after a fresh engine build (cards default to New otherwise).
+    const stateRes = await test.app.request(`/api/sync/${MATERIAL_ID}/state`, {
+      headers: { cookie },
+    });
+    const stateBody = (await stateRes.json()) as StateResponse;
+    expect(stateBody.graduatedVerseIds).toEqual([0]);
   });
 
   it('triggers a rebuild when an older event arrives after a newer one', async () => {

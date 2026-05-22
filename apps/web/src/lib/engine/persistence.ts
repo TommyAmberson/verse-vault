@@ -109,6 +109,13 @@ export interface SnapshotRow {
    *  don't re-parse on every read. */
   materialData: unknown
   fetchedAt: number
+  /** Verse ids the user has graduated. Persisted here (alongside the
+   *  snapshot rather than in a separate store) because they share a
+   *  lifecycle: same (user, material) key, same wipe semantics on
+   *  snapshot-version drift. Optional for backward-compat — rows
+   *  written before the field existed read back as undefined and are
+   *  treated as an empty list. */
+  graduatedVerseIds?: number[]
 }
 
 export async function getSnapshot(materialId: string): Promise<SnapshotRow | undefined> {

@@ -123,6 +123,7 @@ export async function loadEngine(
       version: fetched.snapshot.version,
       materialData: fetched.snapshot.materialData,
       fetchedAt: nowSecs,
+      graduatedVerseIds: fetched.graduatedVerseIds,
     }
     testStates = fetched.testStates
     await idb.putSnapshot(snapshot)
@@ -136,6 +137,13 @@ export async function loadEngine(
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
   })
+
+  // Cards built from materialData default to `New`; flip each
+  // graduated verse to `Active` so the in-memory engine matches
+  // the persisted state. Mirrors `EngineStore.load` server-side.
+  for (const verseId of snapshot.graduatedVerseIds ?? []) {
+    engine.graduate_verse(verseId)
+  }
 
   const session: EngineSession = {
     materialId,
@@ -157,6 +165,7 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
     version: fetched.snapshot.version,
     materialData: fetched.snapshot.materialData,
     fetchedAt: nowSecs,
+    graduatedVerseIds: fetched.graduatedVerseIds,
   })
   await idb.replaceAllTestStates(session.materialId, fetched.testStates)
   // Snapshot version moved — invalidate the render cache wholesale; the
@@ -172,6 +181,9 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
   })
+  for (const verseId of fetched.graduatedVerseIds) {
+    session.engine.graduate_verse(verseId)
+  }
   session.snapshotVersion = fetched.snapshot.version
 }
 
@@ -235,7 +247,22 @@ export async function submitGraduation(
       console.warn('engineStore.submitGraduation: queue append failed', e)
     })
 
+  // Persist the graduation locally too so a page reload before the
+  // event flushes (or after it flushes but before /state is re-fetched)
+  // still resurrects the verse as Active.
+  void persistLocalGraduation(materialId, verseId).catch((e) => {
+    console.warn('engineStore.submitGraduation: snapshot update failed', e)
+  })
+
   return count
+}
+
+async function persistLocalGraduation(materialId: string, verseId: number): Promise<void> {
+  const snapshot = await idb.getSnapshot(materialId)
+  if (!snapshot) return
+  const ids = snapshot.graduatedVerseIds ?? []
+  if (ids.includes(verseId)) return
+  await idb.putSnapshot({ ...snapshot, graduatedVerseIds: [...ids, verseId] })
 }
 
 /** Look up the next due review card. */

@@ -78,6 +78,12 @@ export interface SyncStateResponse {
   }
   testStates: TestStateEntry[]
   lastEventId: string | null
+  /** Verse ids the user has graduated. Cards default to `New` when the
+   *  engine is constructed from materialData + testStates; the client
+   *  flips each of these to `Active` via `engine.graduate_verse` after
+   *  build so the in-memory engine matches the user's actual progress
+   *  across page reloads. */
+  graduatedVerseIds: number[]
 }
 
 /** One queued event in `POST /api/sync/:materialId/events`. Mirrors the
