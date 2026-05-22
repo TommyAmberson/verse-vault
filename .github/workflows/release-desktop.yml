@@ -1,0 +1,137 @@
+name: Release desktop
+
+# Fires on master pushes that change apps/web/src-tauri/tauri.conf.json
+# AND only releases when the `version` field actually moved.
+# `workflow_dispatch` is the manual escape hatch.
+#
+# Desktop releases are intentionally decoupled from web releases (which
+# trigger off apps/web/package.json). The web app patches frequently —
+# a settings tweak, a CSS fix — and re-cutting a 3-platform Tauri
+# release for every web patch is wasteful. The flow is:
+#
+#   1. Bump apps/web/src-tauri/tauri.conf.json `version` when you want
+#      a new desktop release.
+#   2. Master push triggers this workflow.
+#   3. `create-release` pre-creates a draft GitHub release so the
+#      matrix doesn't race on release creation.
+#   4. `desktop` matrix (linux/windows/macos) builds, signs (when
+#      certs are configured later), uploads installers to the release.
+#   5. tauri-action flips the release from draft to published when
+#      all three platforms upload cleanly.
+#
+# Code signing is NOT wired here — Apple Developer ID + Windows EV
+# cert are paperwork-blocked. Unsigned builds work for self-distribution
+# and CI verification; users on macOS will need to right-click → Open
+# and Windows will surface SmartScreen until certs land.
+on:
+  push:
+    branches: [master]
+    paths:
+      - apps/web/src-tauri/tauri.conf.json
+  workflow_dispatch:
+
+jobs:
+  filter:
+    runs-on: ubuntu-latest
+    outputs:
+      bumped: ${{ steps.check.outputs.bumped }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - id: check
+        run: |
+          NEW=$(jq -r .version apps/web/src-tauri/tauri.conf.json)
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch — releasing desktop@$NEW."
+            exit 0
+          fi
+          OLD=$(git show HEAD~1:apps/web/src-tauri/tauri.conf.json 2>/dev/null | jq -r .version || echo "")
+          echo "old=$OLD new=$NEW"
+          if [ "$OLD" = "$NEW" ]; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "tauri.conf.json touched but version unchanged. Skipping release."
+          else
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  create-release:
+    needs: filter
+    if: needs.filter.outputs.bumped == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release-id: ${{ steps.create.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create release
+        id: create
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop@${{ needs.filter.outputs.version }}
+          name: verse-vault desktop ${{ needs.filter.outputs.version }}
+          draft: true
+          body: 'Tauri desktop bundles for verse-vault. See [apps/web/CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/apps/web/CHANGELOG.md) for the web app changelog the shell wraps.'
+
+  desktop:
+    needs: [filter, create-release]
+    if: needs.filter.outputs.bumped == 'true'
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: aarch64-apple-darwin
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # The Tauri build runs `pnpm build` (via beforeBuildCommand in
+      # tauri.conf.json), which itself runs `pnpm run build:wasm`
+      # before vite. wasm-pack is installed by build:wasm via the
+      # bash script; no extra install step needed here.
+      - run: pnpm install --frozen-lockfile
+
+      # Upload to the release pre-created above via releaseId — sidesteps
+      # tauri-action's "create if missing" path so the three matrix legs
+      # don't race on release creation. tauri-action publishes the
+      # release (draft → live) at the end of a successful matrix run.
+      - name: Build and upload
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release-id }}
+          projectPath: apps/web
+          args: --target ${{ matrix.target }}
