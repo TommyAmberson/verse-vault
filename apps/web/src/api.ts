@@ -146,6 +146,19 @@ export interface MemorizeSessionResponse {
   verses: MemorizeSessionVerse[]
 }
 
+export interface MaterialStatus {
+  materialId: string
+  clubTier: number | null
+  offlineMode: boolean
+  testCount: number
+}
+
+export interface MaterialRender {
+  cardId: number
+  composed: ComposedRender | null
+  fetchedAt: number
+}
+
 export interface ApiClient {
   enroll(materialId: string): Promise<{ snapshotId: string; version: number }>
   getNextReviewCard(materialId: string): Promise<{ cardId: number | null }>
@@ -163,13 +176,19 @@ export interface ApiClient {
    *  them, possibly triggering a full-log rebuild (`rebuilt: true`) or
    *  returning a `needsConfirm` envelope for stale-merge UX. */
   postSyncEvents(materialId: string, body: SyncEventsRequest): Promise<SyncEventsResponse>
+  /** Toggle the per-(user, material) `offline_mode` flag. Server gates
+   *  `getMaterialRenders` on this. */
+  setOfflineMode(materialId: string, offlineMode: boolean): Promise<{ offlineMode: boolean }>
+  /** Bulk download every card's composed HTML for offline study.
+   *  Requires `offline_mode=true`; returns 403 otherwise. */
+  getMaterialRenders(materialId: string): Promise<{ renders: MaterialRender[] }>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
  *  so the Better Auth session cookie flows through on every call. */
 export function createApiClient(apiUrl: string): ApiClient {
   async function request<T>(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PATCH',
     path: string,
     body?: unknown,
   ): Promise<T> {
@@ -213,6 +232,12 @@ export function createApiClient(apiUrl: string): ApiClient {
       request('GET', `/api/sync/${encodeURIComponent(materialId)}/state`),
     postSyncEvents: (materialId, body) =>
       request('POST', `/api/sync/${encodeURIComponent(materialId)}/events`, body),
+    setOfflineMode: (materialId, offlineMode) =>
+      request('PATCH', `/api/materials/${encodeURIComponent(materialId)}/offline-mode`, {
+        offlineMode,
+      }),
+    getMaterialRenders: (materialId) =>
+      request('GET', `/api/materials/${encodeURIComponent(materialId)}/renders`),
   }
 }
 
