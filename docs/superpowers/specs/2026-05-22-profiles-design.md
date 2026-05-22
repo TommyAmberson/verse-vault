@@ -282,7 +282,8 @@ is a rare edge case; documented but not specifically guarded.
 
 ## Phasing
 
-The change splits into two PRs that are individually shippable. Order matters; PR A blocks PR B.
+The change splits into three PRs that are individually shippable. Order matters; PR A blocks PR B,
+and PR C builds on the profile model PR A introduces but is otherwise independent.
 
 ### PR A — Profile infrastructure + offline boot
 
@@ -337,6 +338,148 @@ Changes:
 Not in PR B: the substantive infrastructure (that's PR A) or any new offline behaviours.
 
 Expected size: ~250 LOC.
+
+### PR C — Device tokens for stale-cookie render refresh
+
+Goal: a user whose Better Auth session has expired (cookie gone, but the device is otherwise healthy
+and online) can still refresh stale renders from the API without being forced to re-sign-in. Writes
+(grades, graduations, sync flush) still require a fresh session — the device token is read-only.
+
+The narrow UX gap this closes: card viewed online 31 days ago, app signed-out/offline since, back
+online but cookie is gone. Today `/api/cards/:cardId` returns 401, the render stays expired in IDB,
+the user sees a blank space until they re-sign-in. After PR C, the device token authenticates the
+read, the render refreshes, the user keeps going.
+
+#### Server
+
+New table:
+
+```sql
+CREATE TABLE device_tokens (
+  token TEXT PRIMARY KEY,         -- random opaque, ~256-bit URL-safe
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,    -- unix secs
+  last_seen_at INTEGER NOT NULL   -- unix secs; updated on every request
+);
+CREATE INDEX idx_device_tokens_user ON device_tokens (user_id);
+```
+
+Issuance:
+
+* On every successful Better Auth sign-in (email/password + social), mint a new token and set it as
+  a long-lived cookie. The cleanest hook is a Better Auth `after`/`hooks` handler on the sign-in
+  callback; if that proves awkward, fall back to a `POST /api/auth/device-token` endpoint the client
+  calls right after sign-in.
+* Cookie: `Set-Cookie: vv-device=<token>; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000; Path=/`
+  (1-year `Max-Age` — practical "doesn't expire" without being literally infinite).
+* If the user signs in from a device that already has a `vv-device` cookie, reuse it (look up by
+  token; if it matches the just-signed-in user, refresh `last_seen_at`; if it doesn't, issue a new
+  one — the old one keeps working for whoever it belonged to until it ages out).
+
+New middleware `requireDeviceOrSession`:
+
+* Try Better Auth session first; if present, populate `c.var.user` and continue.
+* If no session, look for `vv-device` cookie. If present, look up the token row, populate
+  `c.var.user` with `{ id: token.user_id, ... }` (we can join `user` for email/name if needed for
+  logging), and continue. Update `last_seen_at` in the same request (async; don't block).
+* If neither, 401.
+
+Applied to: `GET /api/cards/:cardId` and `GET /api/materials/:id/renders`. Both are read-only
+renders, both have MAUA bulk-extraction concerns that rate-limiting + user-binding adequately
+mitigate.
+
+NOT applied to:
+
+* `POST /api/sync/:materialId/events` (writes — state mutations).
+* `GET /api/sync/:materialId/state` (returns testStates — per-user state, leak-sensitive).
+* `POST /api/years/:materialId/settings` (writes).
+* `POST /api/materials/enroll` (writes).
+* `PATCH /api/materials/:id/offline-mode` (writes — toggles per-user flag).
+* `GET /api/materials/:id/status` (returns enrolment + offline-mode state — sensitive enough to gate
+  on a real session).
+* Anything under `/api/auth/*` — Better Auth manages those internally.
+
+Rate limit per device token: simple sliding-window counter in process memory. Suggested ceiling: 1k
+requests/day per token. Generous for legitimate use (a heavy daily reviewer flips through ~200 cards
+a day with most served from IDB cache); chokes obvious bots. The counter lives in memory because
+verse-vault is single-instance; if we ever scale horizontally, move to a SQLite-backed
+sliding-window or a Redis-like layer.
+
+#### Client
+
+No new code paths needed beyond letting the existing cookie machinery flow:
+
+* `apiClient` already uses `credentials: 'include'` on every fetch, so the `vv-device` cookie
+  travels alongside the session cookie automatically. Same applies inside the Tauri webview.
+* On first sign-in post-PR-C, the server sets the cookie in the response to the sign-in call. The
+  client doesn't need to know; subsequent requests carry it.
+
+One small UX consideration: when a user is on a device-token-only auth state (no fresh session), the
+offline banner from PR A still appears because the session attempt to `getSession` returns null.
+That's correct — they ARE signed out as far as Better Auth is concerned. The banner just prompts
+them to sign in to get a fresh session, which they need for writes anyway. Renders refresh
+transparently in the background while they're in this state.
+
+#### Revocation
+
+Per the "doesn't need to be invalidated" framing, there's no explicit revoke API. Cleanups that
+happen anyway:
+
+* `ON DELETE CASCADE` on the user FK drops all tokens for that user when an account is deleted
+  (rare).
+* PR B's "Delete profile" flow can optionally call a `DELETE /api/auth/device-token` endpoint to
+  clean up server-side. Even if it doesn't, the token ages out via the sliding TTL below.
+* **Sliding 1-year TTL.** Server prunes tokens whose `last_seen_at` is older than 1 year on every
+  API boot (mirrors the `apibible_cache.pruneExpired()` pattern). Dormant devices forget themselves
+  naturally; active devices renew their `last_seen_at` on every request and never expire.
+
+If a token ever does get genuinely compromised and we want explicit revocation, adding a
+`DELETE /api/auth/device-token/:token` endpoint or a row-by-row admin view is straightforward — but
+not in scope for PR C.
+
+#### MAUA implications
+
+* **Bulk extraction (clause #4):** rate-limit-per-token × tokens-per-legitimate-user ×
+  legitimate-user-count = bounded throughput. For verse-vault's user base, well within bounds.
+  Compare to the unauth case where this guard doesn't exist at all.
+* **30-day cache TTL (clause #1):** unchanged. Client still expires renders at 30d; with a valid
+  device token, it can refresh them without prompting a re-sign-in. The clause is about server-side
+  cache freshness, not about session lifetime.
+* **No AI/LLM training (clause #2/#3):** unchanged. No new API surface emits raw api.bible HTML;
+  same `composeRender` output as today.
+
+#### Migration
+
+New table; no migration of existing data needed. Schema bump lands as the next
+`migrations/0017_device_tokens.sql`. Existing sessions stay valid; users get a device token the next
+time they sign in (or one can be backfilled lazily on first device-token-required request).
+
+#### Critical files (PR C)
+
+Created:
+
+* `packages/api/migrations/0017_device_tokens.sql`
+* `packages/api/src/lib/device-token.ts` — mint, lookup, prune helpers
+* `packages/api/src/middleware/device-or-session.ts` — the relaxed auth middleware
+
+Modified:
+
+* `packages/api/src/db/schema.ts` — add `device_tokens` table definition
+* `packages/api/src/lib/auth.ts` — wire the sign-in callback to mint a token
+* `packages/api/src/routes/cards.ts` — swap `requireAuth` → `requireDeviceOrSession` on
+  `GET /:cardId`
+* `packages/api/src/routes/materials.ts` — same swap on `GET /:id/renders`
+* `packages/api/src/index.ts` (or wherever startup hooks live) — call `pruneExpiredDeviceTokens()`
+  on boot
+* `packages/api/CHANGELOG.md` — entry + version bump
+
+Expected size: ~200 LOC.
+
+Out of scope for PR C:
+
+* Explicit revocation UI / API.
+* Per-IP rate limiting on top of per-token.
+* Token rotation on a schedule (sliding TTL is enough).
 
 ## Critical files
 
