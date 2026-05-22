@@ -12,6 +12,9 @@ import {
   api,
 } from '@/api'
 import { invalidateSession } from '@/lib/engine/engineStore'
+import { bulkPutRenders, clearRenders, newestRenderFetchedAt } from '@/lib/engine/persistence'
+
+const SECS_PER_DAY = 86400
 
 const CLUB_TIERS: ClubTier[] = ['150', '300', 'full']
 
@@ -73,6 +76,13 @@ interface YearCard {
   view: YearView
   draft: YearSettings
   saving: boolean
+  /** True while the toggle's flip-and-fetch (or flip-and-clear) is
+   *  in flight. Drives the row's spinner state independent of the
+   *  larger settings-form `saving` flag. */
+  offlineBusy: boolean
+  /** Unix-secs of the newest IDB render for this material, or 0 if
+   *  none cached. Used to render "Last refreshed N days ago". */
+  newestRenderAt: number
 }
 
 const cards = ref<YearCard[]>([])
@@ -100,11 +110,16 @@ async function refresh() {
   error.value = null
   try {
     const res = await api.getYears()
-    cards.value = res.years.map((view) => ({
-      view,
-      draft: { ...view.settings },
-      saving: false,
-    }))
+    const enriched = await Promise.all(
+      res.years.map(async (view) => ({
+        view,
+        draft: { ...view.settings },
+        saving: false,
+        offlineBusy: false,
+        newestRenderAt: view.offlineMode ? await newestRenderFetchedAt(view.materialId) : 0,
+      })),
+    )
+    cards.value = enriched
     // Re-resolve the active tab after the list changes. Prefer the year
     // the user is actively studying (any scope above off) so the picker
     // opens on a working panel; otherwise fall back to any enrolled year,
@@ -187,6 +202,48 @@ function settingsAreDirty(card: YearCard): boolean {
   return (Object.keys(card.draft) as Array<keyof YearSettings>).some(
     (k) => card.draft[k] !== card.view.settings[k],
   )
+}
+
+function refreshedLabel(card: YearCard): string {
+  if (!card.view.offlineMode) return ''
+  if (card.newestRenderAt === 0) return 'Not yet downloaded.'
+  const days = Math.floor((Date.now() / 1000 - card.newestRenderAt) / SECS_PER_DAY)
+  if (days <= 0) return 'Refreshed today.'
+  if (days === 1) return 'Refreshed 1 day ago.'
+  return `Refreshed ${days} days ago.`
+}
+
+async function onToggleOffline(card: YearCard) {
+  if (card.offlineBusy) return
+  const next = !card.view.offlineMode
+  card.offlineBusy = true
+  try {
+    if (next) {
+      // Flip the flag first so a partial failure mid-download still
+      // leaves the user's intent on record (they can retry the
+      // download from the toggle without re-flipping). Roll back if
+      // the server rejects the PATCH.
+      await api.setOfflineMode(card.view.materialId, true)
+      const { renders } = await api.getMaterialRenders(card.view.materialId)
+      await bulkPutRenders(
+        card.view.materialId,
+        renders.map((r) => ({
+          materialId: card.view.materialId,
+          cardId: r.cardId,
+          composed: r.composed,
+          fetchedAt: r.fetchedAt,
+        })),
+      )
+    } else {
+      await clearRenders(card.view.materialId)
+      await api.setOfflineMode(card.view.materialId, false)
+    }
+    await refresh()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    card.offlineBusy = false
+  }
 }
 
 onMounted(refresh)
@@ -327,6 +384,31 @@ onMounted(refresh)
                 aria-label="Chapter-list scope"
               />
             </div>
+          </div>
+
+          <div class="section-title section-title-spaced">Offline study</div>
+          <div class="scope-stack">
+            <label class="toggle">
+              <input
+                type="checkbox"
+                :checked="selected.view.offlineMode"
+                :disabled="selected.offlineBusy || !selected.view.enrolled"
+                @change="onToggleOffline(selected)"
+              />
+              <span>Make this year available offline</span>
+            </label>
+            <p class="scope-fineprint">
+              Downloads ~5&nbsp;MB of pre-composed verse HTML so reviews work
+              without a network. Refreshes every 30&nbsp;days from
+              <a href="https://api.bible" target="_blank" rel="noopener">api.bible</a>
+              per the cache policy.
+            </p>
+            <p v-if="selected.offlineBusy" class="scope-fineprint" aria-live="polite">
+              {{ selected.view.offlineMode ? 'Clearing offline copy…' : 'Downloading offline copy…' }}
+            </p>
+            <p v-else-if="selected.view.offlineMode" class="scope-fineprint">
+              {{ refreshedLabel(selected) }}
+            </p>
           </div>
 
           <div class="section-title section-title-spaced">Session</div>
