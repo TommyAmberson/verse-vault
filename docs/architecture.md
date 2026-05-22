@@ -23,8 +23,10 @@ verse-vault is structured as:
 * **Server (`packages/api/`)** — Hono + Better Auth + Drizzle + better-sqlite3. Hosts the engine,
   handles persistence, auth, and multi-user state. Five route groups under `/api/`: `cards`, `sync`,
   `materials`, `years`, `stats`.
-* **Web client (`apps/web/`)** — Vue 3 + Vite SPA. Currently a thin client (no local WASM); the Vue
-  app + the server engine round-trip every grade.
+* **Web client (`apps/web/`)** — Vue 3 + Vite SPA running the WASM engine in-browser. Each grade
+  replays locally; an IndexedDB-backed event queue ships batches to `/api/sync/*` on a 5 s
+  debounce + on tab hide. Ships as a fat client today; the thin `/api/cards/*` surface is kept for
+  tests + transitional callers.
 * **Desktop / CLI** — planned, not yet started.
 
 The core is the single source of truth for memory modeling. Every platform (server, browser,
@@ -33,25 +35,25 @@ desktop) runs the same compiled Rust.
 ## Data flow
 
 ```
-┌──────────────┐                    ┌──────────────────┐
-│  Vue web SPA │  HTTP (auth/api)   │  TypeScript API  │
-│  (thin)      │ ─────────────────► │  Hono + Better   │
-│              │                    │  Auth + Drizzle  │
-└──────────────┘                    └────────┬─────────┘
-   (future fat-client: same WASM             │
-    module loaded in browser)                ▼
-                                ┌──────────────────────────────────┐
-                                │    verse-vault-wasm (nodejs)     │
-                                │  WasmEngine: load → next_card    │
-                                │            → replay_event        │
-                                │            → export_test_states  │
-                                └──────────────┬───────────────────┘
-                                               │ (pure Rust)
-                                               ▼
-                                ┌──────────────────────────────────┐
-                                │     verse-vault-core (crates)    │
-                                │  TestState, ReviewEngine, …      │
-                                └──────────────────────────────────┘
+┌────────────────────────────┐  HTTP (auth/sync)   ┌──────────────────┐
+│  Vue web SPA               │ ──────────────────► │  TypeScript API  │
+│  + verse-vault-wasm-web    │                     │  Hono + Better   │
+│    (WasmEngine in-browser) │                     │  Auth + Drizzle  │
+│  + IndexedDB queue/cache   │                     └────────┬─────────┘
+└────────────────────────────┘                              │
+   (Tauri shell: same Vue + WASM bundle)                    ▼
+                                          ┌──────────────────────────────────┐
+                                          │    verse-vault-wasm (nodejs)     │
+                                          │  WasmEngine: load → next_card    │
+                                          │            → replay_event        │
+                                          │            → export_test_states  │
+                                          └──────────────┬───────────────────┘
+                                                         │ (pure Rust)
+                                                         ▼
+                                          ┌──────────────────────────────────┐
+                                          │     verse-vault-core (crates)    │
+                                          │  TestState, ReviewEngine, …      │
+                                          └──────────────────────────────────┘
 ```
 
 ## Client modes
@@ -59,17 +61,18 @@ desktop) runs the same compiled Rust.
 The server exposes two parallel route surfaces over the same engine + event log; both paths go
 through the same per-(user, material) lock and share the `review_events` audit trail.
 
-* **Thin client** (`/api/cards/*`): UI asks the server for the next card and submits one grade at a
-  time. Server runs the WASM engine, holds state in memory, persists to SQLite. _Implemented and
-  driving the Vue web app today._
 * **Fat client** (`/api/sync/*`): UI downloads the latest snapshot + test states from `/state`, runs
-  the WASM engine locally for offline reviews, uploads batched events to `/events` on reconnect
-  (with a `snapshotVersion` gate + `clientEventId` dedup). _Server-side endpoints are implemented;
-  no client uses them yet — needs the WASM crate built with `--target web`, an IndexedDB-backed
-  engine wrapper, and offline plumbing in the Vue app._
+  the WASM engine locally, queues grades + graduations in IndexedDB, and POSTs batches to `/events`
+  (with a `snapshotVersion` gate + `clientEventId` dedup). _Drives the Vue web app today._
+  Out-of-order arrivals trigger a full-log rebuild via `EngineStore.rebuildFromEvents`; batches
+  older than `STALE_MERGE_THRESHOLD` recent server events return a `needsConfirm` envelope so the
+  user can review before merging.
+* **Thin client** (`/api/cards/*`): legacy per-grade round-trip surface. UI asks the server for the
+  next card and submits one grade at a time. _Kept for tests + ad-hoc tooling; no view uses it now._
 
 Both modes use the same compiled core. The server's event log is the source of truth; a client that
-goes offline and submits events later has its events merged by timestamp and the state recomputed.
+goes offline and submits events later has its events merged by timestamp (or replayed from baseline
+when ordering drifts) and the state recomputed.
 
 ## Why a TypeScript server?
 

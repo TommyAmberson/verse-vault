@@ -7,6 +7,7 @@ import {
   api,
 } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
+import StaleMergeModal from '@/components/StaleMergeModal.vue'
 import { useEngine } from '@/composables/useEngine'
 import { buildMaterialConfig } from '@/lib/engine/types'
 
@@ -145,6 +146,15 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <StaleMergeModal
+      v-if="engine.staleSummary.value"
+      :summary="engine.staleSummary.value"
+      :busy="engine.syncing.value"
+      @confirm="engine.confirmMerge"
+      @discard="engine.discardStale"
+      @cancel="engine.cancelStale"
+    />
   </div>
 </template>
 

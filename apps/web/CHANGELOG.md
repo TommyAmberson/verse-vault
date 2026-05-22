@@ -9,6 +9,29 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Added
+
+* **Stale-merge confirmation modal.** New `StaleMergeModal.vue` component reads
+  `useEngine().staleSummary` and renders Sync / Discard / Cancel. Rendered as an overlay from
+  ReviewView and MemorizeView when the server flags a batch as stale. The composable surface
+  (`confirmMerge`, `discardStale`) existed in 0.1.7 but no view consumed it; flushes for affected
+  materials silently no-op'd via the `staleGate` until this UI shipped.
+* **MAUA attribution footer.** Site-wide footer in `App.vue` carrying the canonical NKJV citation
+  and a `https://api.bible` link, visible on every route. Required by the API.Bible Starter-plan
+  terms and previously only present in `NOTICE.md` (not surfaced to end users).
+
+### Refactored
+
+* `apps/web/src/lib/engine/persistence.ts` centralises IDB store names in a single `STORE` const +
+  `BY_MATERIAL_ID_INDEX` constant. Inline string literals across the helper functions are typo-prone
+  — TypeScript catches them at the type layer now. No emitted-string change.
+
+### Performance
+
+* `MaterialView.onSave` no longer invalidates the cached engine + render cache when only
+  `lessonBatchSize` (a session-size knob the engine doesn't consume) changed. Previously every
+  settings save wiped a full deck's lazy-cached renders.
+
 ## [0.1.7] — 2026-05-21
 
 ### Added

@@ -10,6 +10,15 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### Fixed
+
+* CI: `deploy-api.yml`'s "Tag release" step did `git rev-parse "$tag"` against the local clone to
+  decide whether to push. `actions/checkout@v4` doesn't fetch tags by default, so existing remote
+  tags (e.g. `core@0.1.0` from prior deploys) looked missing — the step tried to push them and the
+  remote rejected as duplicates, even though the deploy itself succeeded. Added
+  `git fetch --tags --quiet origin` at the top of the step. Cosmetic in 0.1.9 (the deploy was fine;
+  only the tag step went red); prevents the false-red on every future deploy.
+
 ## [0.1.9] — 2026-05-21
 
 ### Fixed

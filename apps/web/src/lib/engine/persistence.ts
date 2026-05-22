@@ -38,6 +38,20 @@ const DB_VERSION = 1
  *  `CACHE_TTL_SECS` in `packages/api/src/lib/apibible-cache.ts`. */
 export const RENDER_TTL_SECS = 30 * 24 * 60 * 60
 
+/** Object-store names + the shared `byMaterialId` index name in one
+ *  place. Inline string literals across the helper functions are
+ *  typo-prone; centralising lets TypeScript catch typos and lets a
+ *  grep for a store name find every site. */
+const STORE = {
+  Snapshots: 'snapshots',
+  TestStates: 'testStates',
+  EventQueue: 'eventQueue',
+  EventQueueOrphans: 'eventQueueOrphans',
+  Renders: 'renders',
+} as const
+
+const BY_MATERIAL_ID_INDEX = 'byMaterialId'
+
 let dbPromise: Promise<IDBDatabase> | null = null
 
 /** Open (or cache) the singleton DB. Subsequent calls return the same
@@ -48,30 +62,30 @@ export function openDb(): Promise<IDBDatabase> {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
       const db = req.result
-      if (!db.objectStoreNames.contains('snapshots')) {
-        db.createObjectStore('snapshots', { keyPath: 'materialId' })
+      if (!db.objectStoreNames.contains(STORE.Snapshots)) {
+        db.createObjectStore(STORE.Snapshots, { keyPath: 'materialId' })
       }
-      if (!db.objectStoreNames.contains('testStates')) {
-        const s = db.createObjectStore('testStates', {
+      if (!db.objectStoreNames.contains(STORE.TestStates)) {
+        const s = db.createObjectStore(STORE.TestStates, {
           keyPath: ['materialId', 'compositeKey'],
         })
-        s.createIndex('byMaterialId', 'materialId', { unique: false })
+        s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
       }
-      if (!db.objectStoreNames.contains('eventQueue')) {
-        const s = db.createObjectStore('eventQueue', { keyPath: 'clientEventId' })
-        s.createIndex('byMaterialId', 'materialId', { unique: false })
+      if (!db.objectStoreNames.contains(STORE.EventQueue)) {
+        const s = db.createObjectStore(STORE.EventQueue, { keyPath: 'clientEventId' })
+        s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
       }
-      if (!db.objectStoreNames.contains('eventQueueOrphans')) {
-        const s = db.createObjectStore('eventQueueOrphans', {
+      if (!db.objectStoreNames.contains(STORE.EventQueueOrphans)) {
+        const s = db.createObjectStore(STORE.EventQueueOrphans, {
           keyPath: 'clientEventId',
         })
-        s.createIndex('byMaterialId', 'materialId', { unique: false })
+        s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
       }
-      if (!db.objectStoreNames.contains('renders')) {
-        const s = db.createObjectStore('renders', {
+      if (!db.objectStoreNames.contains(STORE.Renders)) {
+        const s = db.createObjectStore(STORE.Renders, {
           keyPath: ['materialId', 'cardId'],
         })
-        s.createIndex('byMaterialId', 'materialId', { unique: false })
+        s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
       }
     }
     req.onsuccess = () => resolve(req.result)
@@ -100,14 +114,14 @@ export interface SnapshotRow {
 export async function getSnapshot(materialId: string): Promise<SnapshotRow | undefined> {
   const db = await openDb()
   return promiseRequest<SnapshotRow | undefined>(
-    db.transaction('snapshots', 'readonly').objectStore('snapshots').get(materialId),
+    db.transaction(STORE.Snapshots, 'readonly').objectStore(STORE.Snapshots).get(materialId),
   )
 }
 
 export async function putSnapshot(row: SnapshotRow): Promise<void> {
   const db = await openDb()
   await promiseRequest(
-    db.transaction('snapshots', 'readwrite').objectStore('snapshots').put(row),
+    db.transaction(STORE.Snapshots, 'readwrite').objectStore(STORE.Snapshots).put(row),
   )
 }
 
@@ -127,9 +141,9 @@ interface TestStateRow {
 
 export async function getAllTestStates(materialId: string): Promise<TestStateEntry[]> {
   const db = await openDb()
-  const tx = db.transaction('testStates', 'readonly')
-  const store = tx.objectStore('testStates')
-  const idx = store.index('byMaterialId')
+  const tx = db.transaction(STORE.TestStates, 'readonly')
+  const store = tx.objectStore(STORE.TestStates)
+  const idx = store.index(BY_MATERIAL_ID_INDEX)
   return promiseRequest<TestStateRow[]>(idx.getAll(materialId)).then((rows) =>
     rows.map((r) => r.entry),
   )
@@ -143,9 +157,9 @@ export async function replaceAllTestStates(
   entries: TestStateEntry[],
 ): Promise<void> {
   const db = await openDb()
-  const tx = db.transaction('testStates', 'readwrite')
-  const store = tx.objectStore('testStates')
-  const idx = store.index('byMaterialId')
+  const tx = db.transaction(STORE.TestStates, 'readwrite')
+  const store = tx.objectStore(STORE.TestStates)
+  const idx = store.index(BY_MATERIAL_ID_INDEX)
   // Delete existing rows for this material first. getAllKeys is faster
   // than fetching the full rows when we only need to delete.
   const existingKeys = await promiseRequest<IDBValidKey[]>(idx.getAllKeys(materialId))
@@ -168,14 +182,14 @@ export type QueuedEvent = SyncEventUpload & { materialId: string }
 export async function appendQueuedEvent(event: QueuedEvent): Promise<void> {
   const db = await openDb()
   await promiseRequest(
-    db.transaction('eventQueue', 'readwrite').objectStore('eventQueue').put(event),
+    db.transaction(STORE.EventQueue, 'readwrite').objectStore(STORE.EventQueue).put(event),
   )
 }
 
 export async function getQueuedEvents(materialId: string): Promise<QueuedEvent[]> {
   const db = await openDb()
-  const tx = db.transaction('eventQueue', 'readonly')
-  const idx = tx.objectStore('eventQueue').index('byMaterialId')
+  const tx = db.transaction(STORE.EventQueue, 'readonly')
+  const idx = tx.objectStore(STORE.EventQueue).index(BY_MATERIAL_ID_INDEX)
   return promiseRequest<QueuedEvent[]>(idx.getAll(materialId))
 }
 
@@ -183,8 +197,8 @@ export async function getQueuedEvents(materialId: string): Promise<QueuedEvent[]
  *  against the index directly. Hot path: refreshCounts after every grade. */
 export async function countQueuedEvents(materialId: string): Promise<number> {
   const db = await openDb()
-  const tx = db.transaction('eventQueue', 'readonly')
-  const idx = tx.objectStore('eventQueue').index('byMaterialId')
+  const tx = db.transaction(STORE.EventQueue, 'readonly')
+  const idx = tx.objectStore(STORE.EventQueue).index(BY_MATERIAL_ID_INDEX)
   return promiseRequest<number>(idx.count(IDBKeyRange.only(materialId)))
 }
 
@@ -194,8 +208,8 @@ export async function countQueuedEvents(materialId: string): Promise<number> {
 export async function deleteQueuedEvents(clientEventIds: string[]): Promise<void> {
   if (clientEventIds.length === 0) return
   const db = await openDb()
-  const tx = db.transaction('eventQueue', 'readwrite')
-  const store = tx.objectStore('eventQueue')
+  const tx = db.transaction(STORE.EventQueue, 'readwrite')
+  const store = tx.objectStore(STORE.EventQueue)
   for (const id of clientEventIds) store.delete(id)
   await transactionComplete(tx)
 }
@@ -205,9 +219,9 @@ export async function deleteQueuedEvents(clientEventIds: string[]): Promise<void
 export async function moveToOrphans(events: QueuedEvent[]): Promise<void> {
   if (events.length === 0) return
   const db = await openDb()
-  const tx = db.transaction(['eventQueue', 'eventQueueOrphans'], 'readwrite')
-  const queue = tx.objectStore('eventQueue')
-  const orphans = tx.objectStore('eventQueueOrphans')
+  const tx = db.transaction([STORE.EventQueue, STORE.EventQueueOrphans], 'readwrite')
+  const queue = tx.objectStore(STORE.EventQueue)
+  const orphans = tx.objectStore(STORE.EventQueueOrphans)
   for (const e of events) {
     queue.delete(e.clientEventId)
     orphans.put(e)
@@ -217,8 +231,8 @@ export async function moveToOrphans(events: QueuedEvent[]): Promise<void> {
 
 export async function getOrphans(materialId: string): Promise<QueuedEvent[]> {
   const db = await openDb()
-  const tx = db.transaction('eventQueueOrphans', 'readonly')
-  const idx = tx.objectStore('eventQueueOrphans').index('byMaterialId')
+  const tx = db.transaction(STORE.EventQueueOrphans, 'readonly')
+  const idx = tx.objectStore(STORE.EventQueueOrphans).index(BY_MATERIAL_ID_INDEX)
   return promiseRequest<QueuedEvent[]>(idx.getAll(materialId))
 }
 
@@ -226,8 +240,8 @@ export async function getOrphans(materialId: string): Promise<QueuedEvent[]> {
  *  refreshCounts reactive surface. */
 export async function countOrphans(materialId: string): Promise<number> {
   const db = await openDb()
-  const tx = db.transaction('eventQueueOrphans', 'readonly')
-  const idx = tx.objectStore('eventQueueOrphans').index('byMaterialId')
+  const tx = db.transaction(STORE.EventQueueOrphans, 'readonly')
+  const idx = tx.objectStore(STORE.EventQueueOrphans).index(BY_MATERIAL_ID_INDEX)
   return promiseRequest<number>(idx.count(IDBKeyRange.only(materialId)))
 }
 
@@ -248,7 +262,7 @@ export async function getRender(
 ): Promise<RenderRow | undefined> {
   const db = await openDb()
   const row = await promiseRequest<RenderRow | undefined>(
-    db.transaction('renders', 'readonly').objectStore('renders').get([materialId, cardId]),
+    db.transaction(STORE.Renders, 'readonly').objectStore(STORE.Renders).get([materialId, cardId]),
   )
   if (!row) return undefined
   // TTL-on-read: treat anything past 30d as a miss so callers refresh.
@@ -259,7 +273,7 @@ export async function getRender(
 export async function putRender(row: RenderRow): Promise<void> {
   const db = await openDb()
   await promiseRequest(
-    db.transaction('renders', 'readwrite').objectStore('renders').put(row),
+    db.transaction(STORE.Renders, 'readwrite').objectStore(STORE.Renders).put(row),
   )
 }
 
@@ -268,9 +282,9 @@ export async function putRender(row: RenderRow): Promise<void> {
  *  changes underneath. */
 export async function clearRenders(materialId: string): Promise<void> {
   const db = await openDb()
-  const tx = db.transaction('renders', 'readwrite')
-  const store = tx.objectStore('renders')
-  const idx = store.index('byMaterialId')
+  const tx = db.transaction(STORE.Renders, 'readwrite')
+  const store = tx.objectStore(STORE.Renders)
+  const idx = store.index(BY_MATERIAL_ID_INDEX)
   const keys = await promiseRequest<IDBValidKey[]>(idx.getAllKeys(materialId))
   for (const k of keys) store.delete(k)
   await transactionComplete(tx)

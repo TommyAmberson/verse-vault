@@ -91,6 +91,12 @@ dprint check          # formatting for docs (also runs via lint-staged)
   `chore: merge <branch-name>`. For local merges, set this via `git merge --no-ff -m "..."`. For
   PRs, pass `--subject "chore: merge <branch>"` to `gh pr merge` (or edit before confirming) —
   GitHub's default `Merge pull request #N from …` template doesn't conform.
+* **master is branch-protected.** GitHub blocks merge until: (a) the three required CI checks
+  (`rust`, `typos`, `dprint`) pass on the PR head, and (b) the PR branch is up-to-date with master
+  (forces a refresh-from-master when something else lands between PR open + merge). Net effect: the
+  merge commit's content is always equivalent to a SHA that CI already validated, so the deploy
+  workflows that fire on master push can't race a broken merge. Owner can `--admin` bypass
+  (`gh pr merge <N> --admin --merge ...`) for true hotfixes; do that consciously, not by default.
 
 ### Rewriting history
 
@@ -115,8 +121,12 @@ dprint check          # formatting for docs (also runs via lint-staged)
 
 Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `style`, `revert`, `perf`, `build`.
 
-Scopes: `core`, `wasm`, `sim`, `api`, `web`, `desktop`, `cli`, `tools`, `docs`. Omit the scope for
-cross-cutting changes (e.g. `chore: bump version to 0.2.0`).
+Scopes: `core`, `wasm`, `sim`, `api`, `web`, `desktop`, `cli`, `tools`, `docs`, `ci`, `deploy`. Each
+corresponds to a top-level workspace member or root-level directory (`crates/<scope>`,
+`packages/<scope>`, `apps/<scope>`, plus `docs/`, `.github/workflows/` → `ci`, `deploy/` →
+`deploy`). Omit the scope for cross-cutting changes (e.g. `chore: bump version to 0.2.0`). Use bare
+`docs:` (no sub-scope) for doc-only edits — sub-scoping by doc-area (`docs(arch)`,
+`docs(server-api)`, etc.) sprawls fast and isn't enforced.
 
 Subject in lowercase, no trailing period, imperative mood ("add X", not "added X"), and **≤ 50
 characters** including the type/scope prefix. Body wrapped at ~72 cols, focuses on the why.

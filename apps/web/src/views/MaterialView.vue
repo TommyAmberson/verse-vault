@@ -144,15 +144,38 @@ function reviewBehindNew(s: YearSettings): boolean {
   return TIER_SCOPE_RANK[s.reviewScope] < TIER_SCOPE_RANK[s.newScope]
 }
 
+/** Settings that drive the WASM engine's MaterialConfig — change to
+ *  any of these means the engine + render cache must be rebuilt.
+ *  `lessonBatchSize` is intentionally excluded: it's a session-size
+ *  knob the engine doesn't consume, so flipping it shouldn't wipe a
+ *  full deck's render cache. */
+const ENGINE_AFFECTING_SETTINGS: ReadonlyArray<keyof YearSettings> = [
+  'headings',
+  'ftv',
+  'newScope',
+  'reviewScope',
+  'clubCardScope',
+  'chapterListScope',
+]
+
+function affectsEngine(draft: YearSettings, current: YearSettings): boolean {
+  return ENGINE_AFFECTING_SETTINGS.some((k) => draft[k] !== current[k])
+}
+
 async function onSave(card: YearCard) {
   card.saving = true
   try {
+    const shouldInvalidate = affectsEngine(card.draft, card.view.settings)
     await api.updateYearSettings(card.view.materialId, card.draft)
-    // invalidateSession drops the cached engine AND the render cache,
-    // so the next ReviewView/MemorizeView visit rebuilds with the new
-    // MaterialConfig (and re-fetches renders that may reflect new card
-    // visibility under the changed scope toggles).
-    await invalidateSession(card.view.materialId)
+    if (shouldInvalidate) {
+      // invalidateSession drops the cached engine AND the render cache,
+      // so the next ReviewView/MemorizeView visit rebuilds with the new
+      // MaterialConfig (and re-fetches renders that may reflect new card
+      // visibility under the changed scope toggles). Skip when only
+      // session-size knobs (lessonBatchSize) changed — those don't move
+      // the engine state.
+      await invalidateSession(card.view.materialId)
+    }
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)

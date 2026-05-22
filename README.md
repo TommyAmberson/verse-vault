@@ -26,8 +26,16 @@ Core algorithm and simulation framework in development. See `docs/` for the full
 ```
 crates/
   core/     Rust library — graph, FSRS, credit assignment, scheduling (no I/O)
+  wasm/     wasm-bindgen wrappers; nodejs target for the API, bundler for the web
   sim/      Simulation binary — validates algorithm against synthetic data
-docs/       Design docs — graph model, review algorithm, scheduling, validation
+packages/
+  api/      Hono + Better Auth + Drizzle + better-sqlite3 server (Node 22)
+apps/
+  web/      Vue 3 + Vite SPA running the WASM engine in-browser (fat client)
+data/       Structural deck JSONs (committed) + gitignored content + caches
+deploy/     systemd unit, provision script, vv-router worker, tunnel config
+docs/       Design docs — architecture, memory model, persistence, deployment
+tools/      Python content pipeline + the wasm-pack bundler build script
 ```
 
 ## Build
