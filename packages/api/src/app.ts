@@ -5,7 +5,7 @@ import { logger } from 'hono/logger';
 
 import type { DB } from './db/client.js';
 import { ApibibleCache } from './lib/apibible-cache.js';
-import { type AuthEnv, createAuth } from './lib/auth.js';
+import { TAURI_ORIGINS, type AuthEnv, createAuth } from './lib/auth.js';
 import { EngineStore } from './lib/engine.js';
 import { type Dialect } from './lib/spelling.js';
 import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
@@ -55,9 +55,13 @@ export function createApp(deps: AppDeps) {
       // Outside production, accept any http://localhost:PORT origin so the
       // thin client running on whatever port Vite picked can talk to the
       // API without a coordinated WEB_BASE_URL. In production only the
-      // configured webOrigin is allowed.
+      // configured webOrigin + Tauri origins are allowed. See TAURI_ORIGINS
+      // in auth.ts for the per-webview-family rationale.
       origin: (origin) => {
         if (origin === webOrigin) return origin;
+        if (TAURI_ORIGINS.includes(origin as (typeof TAURI_ORIGINS)[number])) {
+          return origin;
+        }
         if (
           !isProd &&
           origin &&

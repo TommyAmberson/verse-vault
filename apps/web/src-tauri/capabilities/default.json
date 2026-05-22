@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default permissions for the verse-vault main window. Core only — the engine is self-contained in the webview (IndexedDB + fetch), no fs/dialog access required.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

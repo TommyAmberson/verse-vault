@@ -10,6 +10,13 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.11] — 2026-05-22
+
+0.1.10's deploy failed because the offline-mode entries stayed under `[Unreleased]` instead of being
+promoted to a dated section (the contract-version check requires the dated section to exist for the
+current `package.json` version). Code has been on master since `d2f58876`; production goes straight
+from 0.1.9 → 0.1.11, bundling the changelog-promotion fix with the Tauri origin allowlist.
+
 ### Added
 
 * **Bulk renders endpoint.** `GET /api/materials/:materialId/renders` returns a JSON array of
@@ -26,6 +33,13 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 * **Response compression.** Hono's built-in `compress` middleware on every route. Honours
   `Accept-Encoding`, so the test harness (which doesn't send the header) keeps seeing raw JSON for
   body assertions. Drops the bulk renders payload for `nkjv-cor` from ~5 MB to ~1 MB.
+* **Tauri origin allowlist.** CORS allowlist and Better Auth `trustedOrigins` accept
+  `tauri://localhost` (macOS / Linux WebKit) and `https://tauri.localhost` (Windows Edge WebView2 +
+  `useHttpsScheme: true`). Lets the desktop shell hit the same API as the web app for email +
+  password sign-in and sync. Google OAuth follows qzr-sheet's working pattern (no special
+  `redirectURI` override needed — Better Auth's defaults handle the cross-origin cookie bounce
+  through the API's own callback URL); not end-to-end smoke-tested against verse-vault in this
+  release, will validate during real desktop usage.
 
 ### Fixed
 

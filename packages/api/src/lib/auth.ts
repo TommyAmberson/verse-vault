@@ -11,6 +11,15 @@ export interface AuthEnv {
   googleOAuth?: { clientId: string; clientSecret: string };
 }
 
+/** Origins served inside the Tauri desktop shell — one per webview
+ *  family. WebKit (macOS / Linux) loads the frontend at `tauri://`;
+ *  Edge WebView2 (Windows) loads it at `https://tauri.localhost`
+ *  because `useHttpsScheme: true` in `apps/web/src-tauri/tauri.conf.json`
+ *  is what makes Secure session cookies eligible to be sent. Both
+ *  values must be allowlisted on every server surface that gates by
+ *  origin (CORS, Better Auth `trustedOrigins`). */
+export const TAURI_ORIGINS = ['tauri://localhost', 'https://tauri.localhost'] as const;
+
 export function createAuth(db: DB, env: AuthEnv) {
   const isProd = process.env.NODE_ENV === 'production';
   // Browsers send Origin headers as scheme+host+port only — never a path.
@@ -21,10 +30,11 @@ export function createAuth(db: DB, env: AuthEnv) {
 
   // In dev, trust any localhost port the thin client might land on (Vite
   // falls back through 5180/5181/… when ports collide). Production sticks
-  // to the single configured origin.
+  // to the configured web origin plus the Tauri origins — the desktop
+  // shell reuses the same API so the user-facing surface is identical.
   const trustedOrigins = isProd
-    ? [webOrigin]
-    : [webOrigin, 'http://localhost:5173', 'http://localhost:5180'];
+    ? [webOrigin, ...TAURI_ORIGINS]
+    : [webOrigin, 'http://localhost:5173', 'http://localhost:5180', ...TAURI_ORIGINS];
 
   // Better Auth derives its request-matching basePath from
   // `new URL(baseURL).pathname` — so any path component in env.baseUrl
@@ -52,9 +62,12 @@ export function createAuth(db: DB, env: AuthEnv) {
             // baseURL that resolves to https://<origin>/callback/google —
             // wrong on two fronts: it's missing `/api/auth/`, and the path
             // would hit the sibling qzr-api Worker, not vv-router → API.
-            // Pin the redirect URI to a URL that goes through vv-router and
-            // matches the value provision.sh tells the user to register in
-            // the Google OAuth client.
+            // This override is load-bearing for the web path; do not
+            // remove without first checking the qzr-api/vv-router routing
+            // story still holds. Tauri-shell OAuth is expected to reuse
+            // this same URI (the flow lands on the API, which bounces to
+            // the in-app `callbackURL`) but isn't smoke-tested yet — see
+            // the Known limitations entry in apps/web/CHANGELOG.md.
             redirectURI: `${env.baseUrl}/api/auth/callback/google`,
           },
         }

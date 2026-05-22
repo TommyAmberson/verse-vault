@@ -31,7 +31,7 @@ crates/
 packages/
   api/      Hono + Better Auth + Drizzle + better-sqlite3 server (Node 22)
 apps/
-  web/      Vue 3 + Vite SPA running the WASM engine in-browser (fat client)
+  web/      Vue 3 + Vite SPA running the WASM engine in-browser (fat client); `src-tauri/` wraps the same bundle as a native desktop app (Tauri v2)
 data/       Structural deck JSONs (committed) + gitignored content + caches
 deploy/     systemd unit, provision script, vv-router worker, tunnel config
 docs/       Design docs — architecture, memory model, persistence, deployment

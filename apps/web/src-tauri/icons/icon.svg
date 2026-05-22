@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#243352"/>
+      <stop offset="100%" stop-color="#0d1424"/>
+    </radialGradient>
+
+    <linearGradient id="page" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f7ecd2"/>
+      <stop offset="100%" stop-color="#dcc596"/>
+    </linearGradient>
+
+    <linearGradient id="spineShadow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#000" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </linearGradient>
+
+    <radialGradient id="brass" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#fce28a"/>
+      <stop offset="55%" stop-color="#d09e3c"/>
+      <stop offset="100%" stop-color="#6f4f17"/>
+    </radialGradient>
+
+    <linearGradient id="brassFlat" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f3cf65"/>
+      <stop offset="100%" stop-color="#9a7320"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="200" ry="200" fill="url(#bg)"/>
+
+  <!-- Subtle inner glow / vignette suggestion: a very soft inset rounded square stroke -->
+  <rect x="60" y="60" width="904" height="904" rx="170" ry="170"
+        fill="none" stroke="#2a3a5e" stroke-width="3" opacity="0.5"/>
+
+  <!-- Soft drop shadow under the book -->
+  <ellipse cx="512" cy="820" rx="320" ry="28" fill="#000" opacity="0.4"/>
+
+  <!-- ============ OPEN BOOK ============ -->
+  <!-- Big, simple, clearly an open book. Pages span most of the canvas width
+       so even at 32×32 the silhouette reads. -->
+
+  <!-- Left page -->
+  <path d="M 512 360
+           L 512 760
+           L 180 730
+           Q 162 728 162 710
+           L 162 378
+           Q 162 360 180 358
+           Z"
+        fill="url(#page)" stroke="#7a5820" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- Right page -->
+  <path d="M 512 360
+           L 512 760
+           L 844 730
+           Q 862 728 862 710
+           L 862 378
+           Q 862 360 844 358
+           Z"
+        fill="url(#page)" stroke="#7a5820" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- Spine shadow -->
+  <rect x="488" y="360" width="48" height="400" fill="url(#spineShadow)"/>
+
+  <!-- Page text lines — chunky bars, kept BELOW the dial so they don't get obscured -->
+  <g fill="#7a5820" opacity="0.6">
+    <!-- left page lines (only lower half — upper area is covered by the dial) -->
+    <rect x="210" y="588" width="240" height="20" rx="9"/>
+    <rect x="210" y="630" width="210" height="20" rx="9"/>
+    <rect x="210" y="672" width="230" height="20" rx="9"/>
+    <!-- right page lines -->
+    <rect x="574" y="588" width="230" height="20" rx="9"/>
+    <rect x="574" y="630" width="250" height="20" rx="9"/>
+    <rect x="574" y="672" width="215" height="20" rx="9"/>
+  </g>
+
+  <!-- ============ VAULT DIAL (hero element) ============ -->
+  <!-- Big, centered, dominates the upper half. This is what reads at 32×32. -->
+
+  <!-- Dial drop shadow -->
+  <circle cx="512" cy="436" r="208" fill="#000" opacity="0.35"/>
+
+  <!-- Dial outer brass ring -->
+  <circle cx="512" cy="430" r="200" fill="url(#brass)" stroke="#553c10" stroke-width="8"/>
+
+  <!-- Dial inner dark face -->
+  <circle cx="512" cy="430" r="148" fill="#101a30" stroke="#553c10" stroke-width="5"/>
+
+  <!-- Tick marks: 8 chunky brass ticks around the inner face edge -->
+  <g stroke="#f4d878" stroke-width="14" stroke-linecap="round">
+    <line x1="512" y1="290" x2="512" y2="318"/>
+    <line x1="611" y1="331" x2="591" y2="351"/>
+    <line x1="652" y1="430" x2="624" y2="430"/>
+    <line x1="611" y1="529" x2="591" y2="509"/>
+    <line x1="512" y1="570" x2="512" y2="542"/>
+    <line x1="413" y1="529" x2="433" y2="509"/>
+    <line x1="372" y1="430" x2="400" y2="430"/>
+    <line x1="413" y1="331" x2="433" y2="351"/>
+  </g>
+
+  <!-- Dial pointer — pointing up-and-slightly-right to look "set" not "default" -->
+  <g transform="rotate(-30 512 430)">
+    <rect x="496" y="310" width="32" height="130" rx="14"
+          fill="url(#brassFlat)" stroke="#553c10" stroke-width="4"/>
+  </g>
+
+  <!-- Center hub -->
+  <circle cx="512" cy="430" r="32" fill="url(#brass)" stroke="#553c10" stroke-width="5"/>
+  <circle cx="512" cy="430" r="12" fill="#2a1c08"/>
+</svg>
