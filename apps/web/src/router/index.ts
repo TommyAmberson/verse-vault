@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { authClient, loadActiveProfileFromRegistry, markOnline } from '@/composables/useAuth'
+import { authClient, loadActiveProfileFromRegistry, markSyncState } from '@/composables/useAuth'
 import { getLastActiveProfileId } from '@/lib/engine/registry'
 
 const router = createRouter({
@@ -53,11 +53,15 @@ router.beforeEach(async (to) => {
   const signedIn = lastActive != null
 
   // Kick off the live session check in the background. We don't await
-  // it; it just feeds the online/offline indicator via the watcher.
+  // it; it just feeds the sync-state indicator. The three-way outcome
+  // matters: a resolved-with-user response means online, a resolved-
+  // without-user response means the server is reachable but we're
+  // signed out (cookie expired or never set), and a rejection means
+  // we couldn't reach the server at all.
   void authClient
     .getSession()
-    .then((result) => markOnline(!!result?.data?.user))
-    .catch(() => markOnline(false))
+    .then((result) => markSyncState(result?.data?.user ? 'online' : 'signed-out'))
+    .catch(() => markSyncState('offline'))
 
   if (to.meta.public) {
     if (signedIn && to.name === 'signin') {

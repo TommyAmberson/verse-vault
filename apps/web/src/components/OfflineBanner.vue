@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { countQueuedEvents } from '@/lib/engine/persistence'
 
-const { isOnline, activeProfile } = useAuth()
+const { syncState, activeProfile } = useAuth()
 const router = useRouter()
 const route = useRoute()
 
@@ -17,11 +17,6 @@ async function refresh() {
     return
   }
   try {
-    // Sum the queue across every material the user is enrolled in.
-    // Without a materialId-list helper we can't count globally; for
-    // the banner copy "N grades" is good enough as a per-material
-    // proxy of the currently-routed material when applicable. For
-    // routes outside a material context we show 0.
     const materialId = typeof route.params.materialId === 'string'
       ? route.params.materialId
       : null
@@ -31,18 +26,23 @@ async function refresh() {
   }
 }
 
-watch([isOnline, () => route.fullPath, activeProfile], refresh, { immediate: true })
+watch([syncState, () => route.fullPath, activeProfile], refresh, { immediate: true })
 
-const visible = computed(() => activeProfile.value != null && !isOnline.value)
+const visible = computed(() => activeProfile.value != null && syncState.value !== 'online')
 
 const message = computed(() => {
   const n = pending.value
-  if (n === 0) return 'Offline — sign in to sync.'
-  if (n === 1) return 'Offline — sign in to sync 1 grade.'
-  return `Offline — sign in to sync ${n} grades.`
+  const pluralised = n === 1 ? '1 grade' : `${n} grades`
+  if (syncState.value === 'offline') {
+    return n === 0
+      ? 'Offline — changes will sync when you reconnect.'
+      : `Offline — ${pluralised} queued for next sync.`
+  }
+  // signed-out: server reachable, just no session.
+  return n === 0 ? 'Sign in to sync.' : `Sign in to sync ${pluralised}.`
 })
 
-function onSignIn() {
+function onClick() {
   void router.push({ name: 'signin', query: { redirect: route.fullPath } })
 }
 </script>
@@ -52,8 +52,9 @@ function onSignIn() {
     v-if="visible"
     type="button"
     class="offline-banner"
+    :class="{ 'is-offline': syncState === 'offline' }"
     aria-live="polite"
-    @click="onSignIn"
+    @click="onClick"
   >
     <span class="dot" aria-hidden="true" />
     <span class="msg">{{ message }}</span>

@@ -32,11 +32,19 @@ export { authClient }
  *  (boot before registry-read; sign-out; first-ever launch). */
 const activeProfile = ref<registry.ProfileRow | null>(null)
 
-/** True when the most recent sync attempt (or session check) succeeded.
- *  Drives the offline banner. Defaults true so the banner doesn't flash
- *  on cold boot before the first attempt resolves; flipped to false on
- *  any failure, back to true on the next success. */
-const isOnline = ref<boolean>(true)
+/** Three-state sync status:
+ *  - `online`     — most recent sync attempt succeeded with a live session.
+ *  - `signed-out` — the server is reachable but rejected the request
+ *                   (no cookie / cookie expired). Sign-in will work.
+ *  - `offline`    — the network call itself failed; can't sign in until
+ *                   connectivity is restored.
+ *
+ *  Defaults to `online` so the banner doesn't flash on cold boot before
+ *  the first attempt resolves. Distinguishing signed-out from offline
+ *  drives the banner copy (and lets us NOT misleadingly tell an offline
+ *  user to "sign in" as if that would help). */
+export type SyncState = 'online' | 'signed-out' | 'offline'
+const syncState = ref<SyncState>('online')
 
 /** Non-null when Better Auth returns a different user than the
  *  currently-active profile expected. The workspace surfaces this so
@@ -78,11 +86,12 @@ export async function loadActiveProfileFromRegistry(): Promise<void> {
   activeProfile.value = row
 }
 
-/** Mark the active profile as online (sync succeeded) or offline
- *  (sync failed for any reason). Called by the engine flush path and
- *  by anything else that wants to nudge the indicator. */
-export function markOnline(online: boolean): void {
-  isOnline.value = online
+/** Update the sync indicator state. Called from the router boot's
+ *  background `getSession()` and (eventually) from the engine flush
+ *  path so the banner reflects the actual result of the most recent
+ *  attempt. */
+export function markSyncState(state: SyncState): void {
+  syncState.value = state
 }
 
 /** Acknowledge + clear a pending conflict. UI calls this after the
@@ -140,7 +149,7 @@ export async function signInComplete(user: {
   }
 
   activeProfile.value = row
-  isOnline.value = true
+  syncState.value = 'online'
 }
 
 /** Sign out the current profile. Best-effort API call to invalidate
@@ -157,7 +166,7 @@ export async function signOut(): Promise<void> {
   await setActiveProfile(null)
   clearAllSessions()
   activeProfile.value = null
-  isOnline.value = false
+  syncState.value = 'signed-out'
 }
 
 // --- Composable surface -------------------------------------------------------
@@ -199,11 +208,12 @@ export function useAuth() {
     signUpEmail,
     // Profile-aware additions.
     activeProfile: computed(() => activeProfile.value),
-    isOnline: computed(() => isOnline.value),
+    syncState: computed(() => syncState.value),
+    isOnline: computed(() => syncState.value === 'online'),
     conflict: computed(() => conflict.value),
     signOut,
     signInComplete,
-    markOnline,
+    markSyncState,
     clearConflict,
   }
 }
