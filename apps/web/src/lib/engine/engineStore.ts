@@ -123,6 +123,7 @@ export async function loadEngine(
       version: fetched.snapshot.version,
       materialData: fetched.snapshot.materialData,
       fetchedAt: nowSecs,
+      graduatedVerseIds: fetched.graduatedVerseIds,
     }
     testStates = fetched.testStates
     await idb.putSnapshot(snapshot)
@@ -136,6 +137,7 @@ export async function loadEngine(
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
   })
+  applyGraduations(engine, snapshot.graduatedVerseIds)
 
   const session: EngineSession = {
     materialId,
@@ -157,6 +159,7 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
     version: fetched.snapshot.version,
     materialData: fetched.snapshot.materialData,
     fetchedAt: nowSecs,
+    graduatedVerseIds: fetched.graduatedVerseIds,
   })
   await idb.replaceAllTestStates(session.materialId, fetched.testStates)
   // Snapshot version moved — invalidate the render cache wholesale; the
@@ -172,7 +175,16 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
   })
+  applyGraduations(session.engine, fetched.graduatedVerseIds)
   session.snapshotVersion = fetched.snapshot.version
+}
+
+/** Flip each graduated verse from `New` to `Active`. Cards default to
+ *  `New` when the engine is built from materialData + testStates, so
+ *  this call mirrors what `EngineStore.load` does server-side and
+ *  keeps the in-memory engine consistent across page reloads. */
+function applyGraduations(engine: WasmEngine, verseIds: number[] | undefined): void {
+  for (const id of verseIds ?? []) engine.graduate_verse(id)
 }
 
 /** Apply a review grade locally and queue the event for sync. Returns
@@ -235,7 +247,26 @@ export async function submitGraduation(
       console.warn('engineStore.submitGraduation: queue append failed', e)
     })
 
+  // Persist the graduation locally too so a page reload before the
+  // event flushes (or after it flushes but before /state is re-fetched)
+  // still resurrects the verse as Active.
+  void persistLocalGraduation(materialId, verseId).catch((e) => {
+    console.warn('engineStore.submitGraduation: snapshot update failed', e)
+  })
+
   return count
+}
+
+async function persistLocalGraduation(materialId: string, verseId: number): Promise<void> {
+  // Caller (`submitGraduation`) already validated a live session via
+  // `requireSession`, and sessions imply a snapshot row in IDB —
+  // `getSnapshot` is treated as infallible here. A missing row
+  // signals genuine IDB corruption and propagates as a thrown error
+  // through the surrounding fire-and-forget `.catch`.
+  const snapshot = (await idb.getSnapshot(materialId))!
+  const ids = snapshot.graduatedVerseIds ?? []
+  if (ids.includes(verseId)) return
+  await idb.putSnapshot({ ...snapshot, graduatedVerseIds: [...ids, verseId] })
 }
 
 /** Look up the next due review card. */

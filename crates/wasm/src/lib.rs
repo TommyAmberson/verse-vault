@@ -491,6 +491,16 @@ impl WasmEngine {
         serde_json::to_string(&self.club_counts())
             .map_err(|e| JsError::new(&format!("serialise error: {e}")))
     }
+
+    /// Render data for every card in the deck, in card-id order. Returns
+    /// JSON of `CardRenderWire[]`. The server uses this on the bulk
+    /// `GET /materials/:id/renders` path to compose every card's HTML in
+    /// one engine call rather than N round-trips; the client doesn't call
+    /// this directly today.
+    pub fn all_card_renders(&self) -> Result<String, JsError> {
+        serde_json::to_string(&self.all_card_renders_inner())
+            .map_err(|e| JsError::new(&format!("render serialise error: {e}")))
+    }
 }
 
 fn parse_material_config(json: &str) -> Result<MaterialConfig, serde_json::Error> {
@@ -525,6 +535,37 @@ impl WasmEngine {
     /// surface). Returns the same JSON the JS side would receive.
     pub fn card_count_by_club_for_test(&self) -> String {
         serde_json::to_string(&self.club_counts()).unwrap()
+    }
+
+    /// Shared body of the bindgen `all_card_renders` and its native
+    /// test shim. The builder seeds render data for every card's verse,
+    /// so a missing entry is a real invariant break worth panicking on
+    /// — silently skipping would deliver a partial deck to the
+    /// offline-mode client with no signal.
+    fn all_card_renders_inner(&self) -> Vec<CardRenderWire> {
+        self.engine
+            .cards
+            .iter()
+            .map(|card| {
+                let verse = self
+                    .engine
+                    .verse_render(card.verse_id)
+                    .expect("builder guarantees verse render for every card");
+                CardRenderWire {
+                    card_id: card.id.0,
+                    verse_id: card.verse_id,
+                    kind: card.kind.into(),
+                    verse: VerseRenderWire::from(verse),
+                }
+            })
+            .collect()
+    }
+
+    /// Native-Rust shim for `all_card_renders`. Mirrors the
+    /// `card_count_by_club_for_test` pattern — body is infallible over
+    /// plain-data wires, so `unwrap` is honest.
+    pub fn all_card_renders_for_test(&self) -> String {
+        serde_json::to_string(&self.all_card_renders_inner()).unwrap()
     }
 
     /// Native-Rust shim for `replay_event` so integration tests can drive

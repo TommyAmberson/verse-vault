@@ -90,6 +90,11 @@ export const userMaterials = sqliteTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     materialId: text('material_id').notNull(),
     clubTier: integer('club_tier'), // 150 | 300 | null (full)
+    // Opt-in bulk-renders download. When true, the client has pre-fetched the
+    // deck's composed HTML to IDB and can study this material offline; the
+    // server uses it to gate `GET /materials/:id/renders` and to schedule
+    // background refresh of the 30-day api.bible cache TTL.
+    offlineMode: integer('offline_mode', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at').notNull(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),

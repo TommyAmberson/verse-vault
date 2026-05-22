@@ -175,6 +175,24 @@ function adaptElement(
  *  Phrase elements to the new range identity. Pass `materialJson` when
  *  the caller already has the snapshot in hand (e.g. `EngineStore.load`)
  *  to skip a redundant snapshot read; otherwise it's fetched here. */
+/** Verse ids the user has graduated for this material. Used both
+ *  inside EngineStore (to flip cards to Active after engine
+ *  construction) and by the sync /state handler (so the client can
+ *  re-apply graduations after a fresh build). */
+export function readGraduatedVerseIds(db: DB, key: EngineKey): number[] {
+  return db
+    .select({ verseId: schema.graduatedVerses.verseId })
+    .from(schema.graduatedVerses)
+    .where(
+      and(
+        eq(schema.graduatedVerses.userId, key.userId),
+        eq(schema.graduatedVerses.materialId, key.materialId),
+      ),
+    )
+    .all()
+    .map((r) => r.verseId);
+}
+
 export function readTestStateEntries(
   db: DB,
   key: EngineKey,
@@ -286,17 +304,7 @@ export class EngineStore {
 
     // Cards built from MaterialData start as `New`; apply every recorded
     // graduation so the in-memory engine matches the user's actual progress.
-    const graduated = this.db
-      .select({ verseId: schema.graduatedVerses.verseId })
-      .from(schema.graduatedVerses)
-      .where(
-        and(
-          eq(schema.graduatedVerses.userId, key.userId),
-          eq(schema.graduatedVerses.materialId, key.materialId),
-        ),
-      )
-      .all();
-    for (const { verseId } of graduated) {
+    for (const verseId of readGraduatedVerseIds(this.db, key)) {
       engine.graduate_verse(verseId);
     }
 
@@ -339,17 +347,7 @@ export class EngineStore {
     // after constructor init). `replay_event` itself is
     // lifecycle-agnostic — it works on New cards too — so ordering
     // matters for parity with the live-load path, not correctness.
-    const graduated = this.db
-      .select({ verseId: schema.graduatedVerses.verseId })
-      .from(schema.graduatedVerses)
-      .where(
-        and(
-          eq(schema.graduatedVerses.userId, key.userId),
-          eq(schema.graduatedVerses.materialId, key.materialId),
-        ),
-      )
-      .all();
-    for (const { verseId } of graduated) {
+    for (const verseId of readGraduatedVerseIds(this.db, key)) {
       engine.graduate_verse(verseId);
     }
 

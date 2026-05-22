@@ -122,6 +122,9 @@ export interface YearView {
   /** True when the user has a graph_snapshot + user_materials row for
    *  this year. Bumping any scope above Off and saving will auto-enroll. */
   enrolled: boolean
+  /** True when the user has opted into bulk-renders download for this
+   *  year. Server returns false for unenrolled years. */
+  offlineMode: boolean
   settings: YearSettings
   clubs: Record<ClubTier, ClubView>
   /** Total `New` cards in the engine — drives the "N to memorize" pill. */
@@ -146,6 +149,20 @@ export interface MemorizeSessionResponse {
   verses: MemorizeSessionVerse[]
 }
 
+export interface MaterialStatus {
+  materialId: string
+  clubTier: number | null
+  offlineMode: boolean
+  testCount: number
+}
+
+/** One row of the bulk `GET /materials/:id/renders` payload. Same
+ *  shape as the single-card `GET /api/cards/:cardId` endpoint (full
+ *  CardRender) plus a `fetchedAt` timestamp the client uses for the
+ *  30-day TTL. The matching shape lets the client cache rows as-is
+ *  in the same IDB `renders` store the lazy path writes to. */
+export type MaterialRender = CardRender & { fetchedAt: number }
+
 export interface ApiClient {
   enroll(materialId: string): Promise<{ snapshotId: string; version: number }>
   getNextReviewCard(materialId: string): Promise<{ cardId: number | null }>
@@ -163,13 +180,16 @@ export interface ApiClient {
    *  them, possibly triggering a full-log rebuild (`rebuilt: true`) or
    *  returning a `needsConfirm` envelope for stale-merge UX. */
   postSyncEvents(materialId: string, body: SyncEventsRequest): Promise<SyncEventsResponse>
+  setOfflineMode(materialId: string, offlineMode: boolean): Promise<{ offlineMode: boolean }>
+  /** Requires `offline_mode=true` on the server; returns 403 otherwise. */
+  getMaterialRenders(materialId: string): Promise<{ renders: MaterialRender[] }>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
  *  so the Better Auth session cookie flows through on every call. */
 export function createApiClient(apiUrl: string): ApiClient {
   async function request<T>(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PATCH',
     path: string,
     body?: unknown,
   ): Promise<T> {
@@ -213,6 +233,12 @@ export function createApiClient(apiUrl: string): ApiClient {
       request('GET', `/api/sync/${encodeURIComponent(materialId)}/state`),
     postSyncEvents: (materialId, body) =>
       request('POST', `/api/sync/${encodeURIComponent(materialId)}/events`, body),
+    setOfflineMode: (materialId, offlineMode) =>
+      request('PATCH', `/api/materials/${encodeURIComponent(materialId)}/offline-mode`, {
+        offlineMode,
+      }),
+    getMaterialRenders: (materialId) =>
+      request('GET', `/api/materials/${encodeURIComponent(materialId)}/renders`),
   }
 }
 

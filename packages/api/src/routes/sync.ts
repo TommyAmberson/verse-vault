@@ -8,6 +8,7 @@ import {
   NotEnrolledError,
   type TestStateEntry,
   getLatestSnapshot,
+  readGraduatedVerseIds,
   readTestStateEntries,
 } from '../lib/engine.js';
 import { type Grade, type ReviewEventInput, persistEngineState } from '../lib/review-log.js';
@@ -92,6 +93,11 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       },
       testStates: readTestStateEntries(deps.db, key),
       lastEventId: latestEventId(deps.db, user.id, materialId),
+      // Cards default to `New` when the client constructs the engine
+      // from materialData + testStates; ship the graduation log so the
+      // client can flip the right cards to `Active` after build,
+      // mirroring what `EngineStore.load` does server-side.
+      graduatedVerseIds: readGraduatedVerseIds(deps.db, key),
     });
   });
 

@@ -109,6 +109,13 @@ export interface SnapshotRow {
    *  don't re-parse on every read. */
   materialData: unknown
   fetchedAt: number
+  /** Verse ids the user has graduated. Persisted here (alongside the
+   *  snapshot rather than in a separate store) because they share a
+   *  lifecycle: same (user, material) key, same wipe semantics on
+   *  snapshot-version drift. Optional for backward-compat — rows
+   *  written before the field existed read back as undefined and are
+   *  treated as an empty list. */
+  graduatedVerseIds?: number[]
 }
 
 export async function getSnapshot(materialId: string): Promise<SnapshotRow | undefined> {
@@ -275,6 +282,37 @@ export async function putRender(row: RenderRow): Promise<void> {
   await promiseRequest(
     db.transaction(STORE.Renders, 'readwrite').objectStore(STORE.Renders).put(row),
   )
+}
+
+/** Replace every render for `materialId` with `rows` in one transaction.
+ *  Used by the opt-in bulk-download path: existing entries (possibly
+ *  partial from the lazy path) are dropped first so a stale subset
+ *  can't shadow the fresh batch. */
+export async function bulkPutRenders(
+  materialId: string,
+  rows: RenderRow[],
+): Promise<void> {
+  const db = await openDb()
+  const tx = db.transaction(STORE.Renders, 'readwrite')
+  const store = tx.objectStore(STORE.Renders)
+  const idx = store.index(BY_MATERIAL_ID_INDEX)
+  const existing = await promiseRequest<IDBValidKey[]>(idx.getAllKeys(materialId))
+  for (const k of existing) store.delete(k)
+  for (const row of rows) store.put(row)
+  await transactionComplete(tx)
+}
+
+/** Newest fetchedAt across all renders for the material, or 0 if none.
+ *  Drives the "Last refreshed N days ago" indicator + the background-
+ *  refresh check on app boot. */
+export async function newestRenderFetchedAt(materialId: string): Promise<number> {
+  const db = await openDb()
+  const tx = db.transaction(STORE.Renders, 'readonly')
+  const idx = tx.objectStore(STORE.Renders).index(BY_MATERIAL_ID_INDEX)
+  const rows = await promiseRequest<RenderRow[]>(idx.getAll(materialId))
+  let max = 0
+  for (const r of rows) if (r.fetchedAt > max) max = r.fetchedAt
+  return max
 }
 
 /** Clear all renders for a material. Used on snapshotVersion bump:

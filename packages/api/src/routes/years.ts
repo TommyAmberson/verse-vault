@@ -55,6 +55,10 @@ interface YearView {
    *  can show un-provisioned years too — bumping a scope above Off
    *  auto-provisions on save. */
   enrolled: boolean;
+  /** When true, the user has opted into the bulk-renders download for
+   *  this year. Sourced from the `offline_mode` column on the
+   *  `user_materials` row (false for unenrolled years). */
+  offlineMode: boolean;
   settings: YearSettings;
   clubs: Record<ClubTier, ClubView>;
   /** Count of cards still in `CardState::New` — drives the
@@ -186,14 +190,13 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
 
   app.get('/', async (c) => {
     const user = getUser(c);
-    const enrolledIds = new Set(
-      deps.db
-        .select()
-        .from(schema.userMaterials)
-        .where(eq(schema.userMaterials.userId, user.id))
-        .all()
-        .map((r) => r.materialId),
-    );
+    const enrolledRows = deps.db
+      .select()
+      .from(schema.userMaterials)
+      .where(eq(schema.userMaterials.userId, user.id))
+      .all();
+    const enrolledIds = new Set(enrolledRows.map((r) => r.materialId));
+    const offlineModeByMaterial = new Map(enrolledRows.map((r) => [r.materialId, r.offlineMode]));
 
     const out: YearView[] = [];
     for (const material of MATERIALS) {
@@ -246,6 +249,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         title: material.title,
         description: material.description,
         enrolled,
+        offlineMode: offlineModeByMaterial.get(material.id) ?? false,
         settings,
         clubs,
         newCardCount,

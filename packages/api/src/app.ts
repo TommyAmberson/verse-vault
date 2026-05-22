@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { compress } from 'hono/compress';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
@@ -41,6 +42,8 @@ export function createApp(deps: AppDeps) {
   const app = new Hono<{ Variables: SessionVariables }>();
 
   app.use('*', logger());
+  // Drops the bulk renders payload for `nkjv-cor` from ~5 MB to ~1 MB.
+  app.use('*', compress());
   const isProd = process.env.NODE_ENV === 'production';
   // Browser-sent Origin headers are scheme+host+port only. Strip any path
   // (e.g. `/vv` for subpath deployments) from the configured webOrigin so
@@ -94,7 +97,17 @@ export function createApp(deps: AppDeps) {
     }),
   );
   app.route('/api/sync', syncRoutes({ db: deps.db, engines, now: deps.now }));
-  app.route('/api/materials', materialsRoutes({ db: deps.db, now: deps.now }));
+  app.route(
+    '/api/materials',
+    materialsRoutes({
+      db: deps.db,
+      engines,
+      apibibleCache,
+      bibleId: deps.bibleId,
+      dialect: deps.dialect,
+      now: deps.now,
+    }),
+  );
   app.route('/api/years', yearsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/stats', statsRoutes({ db: deps.db }));
 

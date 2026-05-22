@@ -10,6 +10,23 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### Added
+
+* **Bulk renders endpoint.** `GET /api/materials/:materialId/renders` returns a JSON array of
+  `{ cardId, composed, fetchedAt }` for every card in the deck. Gated on the new
+  `user_materials.offline_mode` flag (403 when off — the MAUA bulk-extraction clause has wire-format
+  teeth here; this is the only path a client can legitimately fetch the whole deck at once). Uses
+  the new `WasmEngine.all_card_renders()` to compose every card in one engine call, grouped by
+  (book, chapter) so the apibible cache is hit once per chapter regardless of card count. Each
+  card's `fetchedAt` is the bulk-download timestamp; the client anchors its 30-day TTL there.
+* **Offline-mode toggle.** `PATCH /api/materials/:materialId/offline-mode` flips
+  `user_materials.offline_mode` (boolean body field `offlineMode`). Returns 404 for unenrolled, 400
+  for non-boolean bodies. `GET /api/materials/:materialId/status` and the `/api/years` payload both
+  now include the current value so the client can hydrate UI without an extra round-trip.
+* **Response compression.** Hono's built-in `compress` middleware on every route. Honours
+  `Accept-Encoding`, so the test harness (which doesn't send the header) keeps seeing raw JSON for
+  body assertions. Drops the bulk renders payload for `nkjv-cor` from ~5 MB to ~1 MB.
+
 ### Fixed
 
 * CI: `deploy-api.yml`'s "Tag release" step did `git rev-parse "$tag"` against the local clone to
@@ -18,6 +35,12 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
   remote rejected as duplicates, even though the deploy itself succeeded. Added
   `git fetch --tags --quiet origin` at the top of the step. Cosmetic in 0.1.9 (the deploy was fine;
   only the tag step went red); prevents the false-red on every future deploy.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged
+* `verse-vault-wasm@0.1.2` — adds `all_card_renders()`; tightens its invariant from silent-skip to
+  panic on missing verse render data
 
 ## [0.1.9] — 2026-05-21
 
