@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useAuth } from '@/composables/useAuth'
-import { countQueuedEvents } from '@/lib/engine/persistence'
+import { countAllQueuedEvents } from '@/lib/engine/persistence'
 
 const { syncState, activeProfile } = useAuth()
 const router = useRouter()
@@ -19,14 +19,7 @@ async function refresh() {
     return
   }
   try {
-    // Scoped to the current material — countQueuedEvents requires a
-    // materialId. A global "total queued across all materials" would
-    // need a full eventQueue scan per nav, which isn't worth it for a
-    // banner copy. Routes without a materialId param show 0.
-    const materialId = typeof route.params.materialId === 'string'
-      ? route.params.materialId
-      : null
-    pending.value = materialId ? await countQueuedEvents(materialId) : 0
+    pending.value = await countAllQueuedEvents()
   } catch {
     pending.value = 0
   }

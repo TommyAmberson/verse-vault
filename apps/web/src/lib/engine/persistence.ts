@@ -252,6 +252,16 @@ export async function countQueuedEvents(materialId: string): Promise<number> {
   return promiseRequest<number>(idx.count(IDBKeyRange.only(materialId)))
 }
 
+/** Total queued events across all materials for the active profile.
+ *  Used by the offline banner where the workspace doesn't know (or
+ *  doesn't surface) the active materialId. */
+export async function countAllQueuedEvents(): Promise<number> {
+  const db = await openDb()
+  return promiseRequest<number>(
+    db.transaction(STORE.EventQueue, 'readonly').objectStore(STORE.EventQueue).count(),
+  )
+}
+
 /** Delete acked events by clientEventId. Mid-flush additions to the
  *  queue survive because we delete by explicit key, not by clearing
  *  the whole store. */
