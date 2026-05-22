@@ -59,7 +59,7 @@ export function createApp(deps: AppDeps) {
       // in auth.ts for the per-webview-family rationale.
       origin: (origin) => {
         if (origin === webOrigin) return origin;
-        if (origin != null && TAURI_ORIGINS.includes(origin as (typeof TAURI_ORIGINS)[number])) {
+        if (TAURI_ORIGINS.includes(origin as (typeof TAURI_ORIGINS)[number])) {
           return origin;
         }
         if (
