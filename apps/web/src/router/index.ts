@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { authClient } from '@/composables/useAuth'
+import { authClient, loadActiveProfileFromRegistry, markOnline } from '@/composables/useAuth'
+import { getLastActiveProfileId } from '@/lib/engine/registry'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -36,17 +37,28 @@ const router = createRouter({
   ],
 })
 
-// Read the signed-in state directly from `getSession()`'s return value
-// rather than from `useSession()`'s reactive ref. The reactive ref runs
-// its own async fetch and lags behind both (a) the initial cookie that
-// a hard refresh re-presents and (b) the just-set cookie that signIn
-// produces — so a synchronous read against it would bounce a real user
-// to /signin. `getSession()` always reflects the canonical state at the
-// moment of the await; Better Auth caches it internally so per-nav
-// fetches are cheap.
+// Cache-first guard. The signed-in/out decision is driven by the
+// profile registry on disk, NOT by an awaited `getSession()` call —
+// that's the offline-boot fix. The registry tells us "this device
+// last used profile X"; we honour that immediately and render the
+// workspace from the per-profile IDB cache. The live `getSession()`
+// fires unawaited and flips the `isOnline` reactive flag when it
+// resolves; the offline banner picks that up.
+//
+// If the registry has no last-active profile (or the referenced DB
+// has been wiped), fall through to the sign-in form.
 router.beforeEach(async (to) => {
-  const result = await authClient.getSession()
-  const signedIn = !!result?.data?.user
+  await loadActiveProfileFromRegistry()
+  const lastActive = await getLastActiveProfileId()
+  const signedIn = lastActive != null
+
+  // Kick off the live session check in the background. We don't await
+  // it; it just feeds the online/offline indicator via the watcher.
+  void authClient
+    .getSession()
+    .then((result) => markOnline(!!result?.data?.user))
+    .catch(() => markOnline(false))
+
   if (to.meta.public) {
     if (signedIn && to.name === 'signin') {
       const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/review'
