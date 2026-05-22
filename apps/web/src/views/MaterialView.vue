@@ -181,15 +181,20 @@ async function onSave(card: YearCard) {
   card.saving = true
   try {
     const shouldInvalidate = affectsEngine(card.draft, card.view.settings)
+    // Capture before invalidate — its IDB clear happens before the
+    // refresh that would update card.view.offlineMode.
+    const wasOfflineMode = card.view.offlineMode
     await api.updateYearSettings(card.view.materialId, card.draft)
     if (shouldInvalidate) {
-      // invalidateSession drops the cached engine AND the render cache,
+      // invalidateSession drops the cached engine AND the render cache
       // so the next ReviewView/MemorizeView visit rebuilds with the new
-      // MaterialConfig (and re-fetches renders that may reflect new card
-      // visibility under the changed scope toggles). Skip when only
-      // session-size knobs (lessonBatchSize) changed — those don't move
-      // the engine state.
+      // MaterialConfig. When offline mode is on, the user has committed
+      // to "this deck works offline" — re-seed the bulk renders rather
+      // than leaving them in a checked-toggle/empty-IDB limbo.
       await invalidateSession(card.view.materialId)
+      if (wasOfflineMode) {
+        await seedOfflineRenders(card.view.materialId)
+      }
     }
     await refresh()
   } catch (err) {
@@ -205,12 +210,26 @@ function settingsAreDirty(card: YearCard): boolean {
 }
 
 function refreshedLabel(card: YearCard): string {
-  if (!card.view.offlineMode) return ''
   if (card.newestRenderAt === 0) return 'Not yet downloaded.'
   const days = Math.floor((Date.now() / 1000 - card.newestRenderAt) / SECS_PER_DAY)
   if (days <= 0) return 'Refreshed today.'
   if (days === 1) return 'Refreshed 1 day ago.'
   return `Refreshed ${days} days ago.`
+}
+
+/** Fetch the bulk renders payload and seed IDB with it. Drops any
+ *  composed=null rows the server emitted (chapter-fetch failures or
+ *  unset BIBLE_API_KEY) so we don't shadow recovery for 30 days — the
+ *  lazy `getRender` path applies the same filter and would refuse to
+ *  cache them on the single-card route. */
+async function seedOfflineRenders(materialId: string): Promise<void> {
+  const { renders } = await api.getMaterialRenders(materialId)
+  await bulkPutRenders(
+    materialId,
+    renders
+      .filter((r) => r.composed !== null)
+      .map((r) => ({ materialId, cardId: r.cardId, composed: r.composed, fetchedAt: r.fetchedAt })),
+  )
 }
 
 async function onToggleOffline(card: YearCard) {
@@ -221,28 +240,20 @@ async function onToggleOffline(card: YearCard) {
     if (next) {
       // Flip the flag first so a partial failure mid-download still
       // leaves the user's intent on record (they can retry the
-      // download from the toggle without re-flipping). Roll back if
-      // the server rejects the PATCH.
+      // download from the toggle without re-flipping).
       await api.setOfflineMode(card.view.materialId, true)
-      const { renders } = await api.getMaterialRenders(card.view.materialId)
-      await bulkPutRenders(
-        card.view.materialId,
-        renders.map((r) => ({
-          materialId: card.view.materialId,
-          cardId: r.cardId,
-          composed: r.composed,
-          fetchedAt: r.fetchedAt,
-        })),
-      )
+      await seedOfflineRenders(card.view.materialId)
     } else {
       await clearRenders(card.view.materialId)
       await api.setOfflineMode(card.view.materialId, false)
     }
-    await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {
     card.offlineBusy = false
+    // Always re-sync from the server, even on failure, so the toggle
+    // state reflects authoritative truth instead of stale local state.
+    await refresh()
   }
 }
 
