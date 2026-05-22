@@ -10,6 +10,15 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.11] — 2026-05-22
+
+0.1.10 was the intended version for the offline-mode work below; its deploy failed because
+`packages/api/CHANGELOG.md` still had the entries under `[Unreleased]` rather than promoted to a
+dated `[0.1.10]` section (the contract-version check requires the dated section to exist for the
+current `package.json` version). The code from that merge has been on master since `d2f58876` but
+never reached the VPS. 0.1.11 collapses everything into one shippable section alongside the new
+Tauri origin allowlist + the changelog-promotion fix; production goes straight from 0.1.9 → 0.1.11.
+
 ### Added
 
 * **Bulk renders endpoint.** `GET /api/materials/:materialId/renders` returns a JSON array of
@@ -29,8 +38,10 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 * **Tauri origin allowlist.** CORS allowlist and Better Auth `trustedOrigins` accept
   `tauri://localhost` (macOS / Linux WebKit) and `https://tauri.localhost` (Windows Edge WebView2 +
   `useHttpsScheme: true`). Lets the desktop shell hit the same API as the web app for email +
-  password sign-in and sync. Google OAuth in Tauri still needs additional design (Better Auth
-  1.6.5's `redirectURI` is a single string, not an array — the original plan didn't apply).
+  password sign-in and sync. Google OAuth follows qzr-sheet's working pattern (no special
+  `redirectURI` override needed — Better Auth's defaults handle the cross-origin cookie bounce
+  through the API's own callback URL); not end-to-end smoke-tested against verse-vault in this
+  release, will validate during real desktop usage.
 
 ### Fixed
 

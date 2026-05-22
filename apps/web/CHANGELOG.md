@@ -64,11 +64,14 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ### Known limitations
 
-* **Google OAuth not yet wired in the Tauri shell.** Better Auth 1.6.5's `redirectURI` is
-  `string | undefined`, not an array — the original plan's "swap to an array" approach doesn't
-  apply. Email + password sign-in works in the desktop window today via the new `trustedOrigins`
-  entries; Google sign-in needs either `tauri-plugin-deep-link` to intercept the callback or a
-  separate OAuth client with the Tauri redirect URI registered. Filed as a follow-up.
+* **Google OAuth in the Tauri shell is untested in this PR.** The server-side wiring matches
+  qzr-sheet's known-working pattern (CORS + Better Auth `trustedOrigins` for the Tauri origins; no
+  special `redirectURI` override — the default cross-origin cookie bounce through the API's own
+  callback URL handles it). `useHttpsScheme: true` is what makes the session cookie eligible to be
+  sent from the Tauri window (Secure cookies require an HTTPS-equivalent context). Real smoke-test
+  will land alongside the first user actually signing in via Google from the desktop app; if it
+  doesn't work, the follow-up is either `tauri-plugin-deep-link` or a separate Google OAuth client
+  with a Tauri callback URI registered. Email + password works today.
 * Code signing for macOS and Windows installers is unwired. Builds work; the installers trigger
   Gatekeeper / SmartScreen warnings until Developer ID / EV certs are added to CI secrets.
 
