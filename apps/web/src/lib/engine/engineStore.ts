@@ -472,9 +472,16 @@ export async function invalidateSession(materialId: string): Promise<void> {
   await idb.clearRenders(materialId)
 }
 
-/** Test/dev helper: clear all in-memory state. Does not touch IDB. */
+/** Reset all per-profile in-memory state. Frees every cached WASM
+ *  engine and drops the sessions / inflightFlushes / staleGate maps.
+ *  Called on profile switch + sign-out (`useAuth.signInComplete` and
+ *  `useAuth.signOut`) so the next profile starts fresh — without
+ *  clearing `staleGate`, a stale-merge gate from profile A would
+ *  silently no-op every flush in profile B (or the same user's next
+ *  session). Does not touch IDB. */
 export function clearAllSessions(): void {
   for (const session of sessions.values()) session.engine.free()
   sessions.clear()
   inflightFlushes.clear()
+  staleGate.clear()
 }
