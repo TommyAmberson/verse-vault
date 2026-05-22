@@ -164,16 +164,39 @@ export async function signOut(): Promise<void> {
 
 /** The Vue composable retained from qzr-sheet's pattern. Exposes the
  *  reactive session, profile state, online flag, conflict ref, plus
- *  the sign-in / sign-up action verbs. */
+ *  the sign-in / sign-up action verbs.
+ *
+ *  Email/password sign-in returns the user inline in the Better Auth
+ *  response; we wrap the factory's verbs to call `signInComplete`
+ *  with that user before resolving — saves the caller a separate
+ *  `getSession()` roundtrip that races the cookie-set anyway.
+ *  Social sign-in goes through an OAuth redirect, so the
+ *  registry-upsert path for that case runs from a watcher on the
+ *  reactive session below. */
 export function useAuth() {
   const factoryShape = useAuthFactory()
+
+  async function signInEmail(email: string, password: string) {
+    const result = await factoryShape.signInEmail(email, password)
+    const user = extractUser(result)
+    if (user) await signInComplete(user)
+    return result
+  }
+
+  async function signUpEmail(email: string, password: string) {
+    const result = await factoryShape.signUpEmail(email, password)
+    const user = extractUser(result)
+    if (user) await signInComplete(user)
+    return result
+  }
+
   return {
     // Better Auth reactive session (pending / data / error).
     session: factoryShape.session,
-    // Sign-in / sign-up verbs (unchanged).
+    // Sign-in / sign-up verbs — wrapped to run signInComplete.
     signInSocial: factoryShape.signInSocial,
-    signInEmail: factoryShape.signInEmail,
-    signUpEmail: factoryShape.signUpEmail,
+    signInEmail,
+    signUpEmail,
     // Profile-aware additions.
     activeProfile: computed(() => activeProfile.value),
     isOnline: computed(() => isOnline.value),
@@ -183,4 +206,17 @@ export function useAuth() {
     markOnline,
     clearConflict,
   }
+}
+
+interface UserPayload {
+  id: string
+  email: string
+  name?: string
+  image?: string | null
+}
+
+function extractUser(
+  result: { data?: { user?: UserPayload } | null } | undefined,
+): UserPayload | null {
+  return result?.data?.user ?? null
 }

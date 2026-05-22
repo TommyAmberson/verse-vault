@@ -2,25 +2,18 @@
 import { useRoute, useRouter } from 'vue-router'
 
 import SignInForm from '@/components/SignInForm.vue'
-import { authClient, signInComplete, useAuth } from '@/composables/useAuth'
+import { useAuth } from '@/composables/useAuth'
 
 const { signInSocial, signInEmail, signUpEmail } = useAuth()
 const router = useRouter()
 const route = useRoute()
 
-async function onSuccess() {
-  // The SignInForm emits 'success' once Better Auth has set the
-  // cookie. Pull the session so we can give signInComplete a typed
-  // user object — Better Auth's reactive ref lags this point by
-  // up to a tick, but `getSession()` reads the freshly-cached value
-  // synchronously. signInComplete handles registry upsert + legacy
-  // DB migration + setting the active profile.
-  const result = await authClient.getSession()
-  if (result?.data?.user) {
-    await signInComplete(result.data.user)
-  }
+function onSuccess() {
+  // useAuth's wrapped signInEmail/signUpEmail have already called
+  // signInComplete by the time this fires — registry is populated +
+  // the active profile DB is open. Just navigate.
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/review'
-  router.replace(redirect)
+  void router.replace(redirect)
 }
 </script>
 
