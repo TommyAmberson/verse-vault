@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { createAppAuthClient } from '@/lib/authClient'
 import { clearAllSessions } from '@/lib/engine/engineStore'
@@ -175,6 +175,26 @@ export async function signOut(): Promise<void> {
   activeProfileLoaded = false
   syncState.value = 'signed-out'
 }
+
+// Watcher: Better Auth's reactive session is the source of truth for
+// the OAuth (social) sign-in path. Email/password goes through the
+// wrapped `signInEmail` / `signUpEmail` verbs which call
+// `signInComplete` inline — but OAuth leaves the page for the IdP
+// redirect, so when the app re-mounts after the callback there's no
+// in-flight Promise to chain `signInComplete` onto. Instead we watch
+// the session ref: when a user appears that doesn't match the active
+// profile, run `signInComplete` to upsert the profile, swap the
+// per-profile DB, and migrate the legacy DB if needed. Idempotent —
+// no-ops if `activeProfile` already matches the session user.
+const sessionWatchRef = authClient.useSession()
+watch(
+  () => sessionWatchRef.value.data?.user,
+  (user) => {
+    if (!user) return
+    if (activeProfile.value?.profileId === user.id) return
+    void signInComplete(user)
+  },
+)
 
 // --- Composable surface -------------------------------------------------------
 
