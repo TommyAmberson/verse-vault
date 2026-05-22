@@ -58,25 +58,16 @@ const BY_MATERIAL_ID_INDEX = 'byMaterialId'
 let activeProfileId: string | null = null
 let dbPromise: Promise<IDBDatabase> | null = null
 
-class NoActiveProfileError extends Error {
-  constructor() {
-    super('No active profile — call setActiveProfile() before opening the DB.')
-    this.name = 'NoActiveProfileError'
-  }
-}
-
-function dbNameFor(profileId: string): string {
-  return `verse-vault-${profileId}`
-}
-
 /** Open the active profile's DB (or return the cached handle). Throws
  *  if no profile is active; the caller is responsible for ordering. */
 export function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise
   if (activeProfileId == null) {
-    return Promise.reject(new NoActiveProfileError())
+    return Promise.reject(
+      new Error('No active profile — call setActiveProfile() before opening the DB.'),
+    )
   }
-  const dbName = dbNameFor(activeProfileId)
+  const dbName = `verse-vault-${activeProfileId}`
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(dbName, DB_VERSION)
     req.onupgradeneeded = () => {
@@ -147,7 +138,7 @@ export function getActiveProfileId(): string | null {
 
 /** Drop the cached open-promise without changing the active profile.
  *  Used by tests that want to force a fresh handle on the next openDb
- *  call. Behaviour is identical to the historical `resetDbHandle`. */
+ *  call. */
 export function resetDbHandle(): void {
   dbPromise = null
 }

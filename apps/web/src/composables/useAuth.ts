@@ -207,13 +207,10 @@ export function useAuth() {
   }
 
   return {
-    // Better Auth reactive session (pending / data / error).
     session: factoryShape.session,
-    // Sign-in / sign-up verbs — wrapped to run signInComplete.
     signInSocial: factoryShape.signInSocial,
     signInEmail,
     signUpEmail,
-    // Profile-aware additions.
     activeProfile: computed(() => activeProfile.value),
     syncState: computed(() => syncState.value),
     isOnline: computed(() => syncState.value === 'online'),
