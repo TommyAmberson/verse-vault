@@ -277,6 +277,37 @@ export async function putRender(row: RenderRow): Promise<void> {
   )
 }
 
+/** Replace every render for `materialId` with `rows` in one transaction.
+ *  Used by the opt-in bulk-download path: existing entries (possibly
+ *  partial from the lazy path) are dropped first so a stale subset
+ *  can't shadow the fresh batch. */
+export async function bulkPutRenders(
+  materialId: string,
+  rows: RenderRow[],
+): Promise<void> {
+  const db = await openDb()
+  const tx = db.transaction(STORE.Renders, 'readwrite')
+  const store = tx.objectStore(STORE.Renders)
+  const idx = store.index(BY_MATERIAL_ID_INDEX)
+  const existing = await promiseRequest<IDBValidKey[]>(idx.getAllKeys(materialId))
+  for (const k of existing) store.delete(k)
+  for (const row of rows) store.put(row)
+  await transactionComplete(tx)
+}
+
+/** Newest fetchedAt across all renders for the material, or 0 if none.
+ *  Drives the "Last refreshed N days ago" indicator + the background-
+ *  refresh check on app boot. */
+export async function newestRenderFetchedAt(materialId: string): Promise<number> {
+  const db = await openDb()
+  const tx = db.transaction(STORE.Renders, 'readonly')
+  const idx = tx.objectStore(STORE.Renders).index(BY_MATERIAL_ID_INDEX)
+  const rows = await promiseRequest<RenderRow[]>(idx.getAll(materialId))
+  let max = 0
+  for (const r of rows) if (r.fetchedAt > max) max = r.fetchedAt
+  return max
+}
+
 /** Clear all renders for a material. Used on snapshotVersion bump:
  *  composed HTML is stale even if within TTL once the deck structure
  *  changes underneath. */
