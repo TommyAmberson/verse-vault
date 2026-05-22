@@ -28,6 +28,18 @@ The contract is documented in `docs/wasm-api.md`.
   Used by the API's bulk `GET /materials/:id/renders` endpoint to compose every card's HTML in one
   engine call. Additive; existing consumers ignore it.
 
+### Changed
+
+* `all_card_renders` panics (rather than silently skipping) on a card whose verse has no render
+  data. The builder invariant says every card has render data; the previous `filter_map` would have
+  delivered a partial deck to the offline-mode client with no signal if the invariant ever drifted.
+  PATCH-level: wire shape unchanged, behaviour only differs on a path that never fires under the
+  documented invariant.
+
+* Native `all_card_renders_for_test` shim now returns `String` instead of `Result<String, String>` —
+  matches the sibling `card_count_by_club_for_test`. The body has no fallible operations over
+  plain-data wires; `unwrap` is honest.
+
 ## [0.1.0] — 2026-05-20 (baseline)
 
 ### Added

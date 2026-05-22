@@ -537,31 +537,35 @@ impl WasmEngine {
         serde_json::to_string(&self.club_counts()).unwrap()
     }
 
-    /// Shared body of the bindgen `all_card_renders` and its native test
-    /// shim. Builder guarantees every card's verse has render data, so
-    /// `verse_render` is treated as infallible here.
+    /// Shared body of the bindgen `all_card_renders` and its native
+    /// test shim. The builder seeds render data for every card's verse,
+    /// so a missing entry is a real invariant break worth panicking on
+    /// — silently skipping would deliver a partial deck to the
+    /// offline-mode client with no signal.
     fn all_card_renders_inner(&self) -> Vec<CardRenderWire> {
         self.engine
             .cards
             .iter()
-            .filter_map(|card| {
-                self.engine
+            .map(|card| {
+                let verse = self
+                    .engine
                     .verse_render(card.verse_id)
-                    .map(|verse| CardRenderWire {
-                        card_id: card.id.0,
-                        verse_id: card.verse_id,
-                        kind: card.kind.into(),
-                        verse: VerseRenderWire::from(verse),
-                    })
+                    .expect("builder guarantees verse render for every card");
+                CardRenderWire {
+                    card_id: card.id.0,
+                    verse_id: card.verse_id,
+                    kind: card.kind.into(),
+                    verse: VerseRenderWire::from(verse),
+                }
             })
             .collect()
     }
 
-    /// Native-Rust shim for `all_card_renders`. Same JsError-on-native
-    /// caveat as `get_card_render_for_test`.
-    pub fn all_card_renders_for_test(&self) -> Result<String, String> {
-        serde_json::to_string(&self.all_card_renders_inner())
-            .map_err(|e| format!("serialise error: {e}"))
+    /// Native-Rust shim for `all_card_renders`. Mirrors the
+    /// `card_count_by_club_for_test` pattern — body is infallible over
+    /// plain-data wires, so `unwrap` is honest.
+    pub fn all_card_renders_for_test(&self) -> String {
+        serde_json::to_string(&self.all_card_renders_inner()).unwrap()
     }
 
     /// Native-Rust shim for `replay_event` so integration tests can drive

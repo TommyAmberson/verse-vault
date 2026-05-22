@@ -47,7 +47,7 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 ### Bundled algorithm contract
 
 * `verse-vault-core@0.1.0` — unchanged (no core changes)
-* `verse-vault-wasm@0.1.1` — adds `all_card_renders()` used by the API's bulk renders endpoint
+* `verse-vault-wasm@0.1.2` — adds `all_card_renders()` used by the API's bulk renders endpoint
 
 ## [0.1.7] — 2026-05-21
 

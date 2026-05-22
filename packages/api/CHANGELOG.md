@@ -39,7 +39,8 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 ### Bundled algorithm contract
 
 * `verse-vault-core@0.1.0` — unchanged
-* `verse-vault-wasm@0.1.1` — adds `all_card_renders()`
+* `verse-vault-wasm@0.1.2` — adds `all_card_renders()`; tightens its invariant from silent-skip to
+  panic on missing verse render data
 
 ## [0.1.9] — 2026-05-21
 
