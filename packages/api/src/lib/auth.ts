@@ -11,6 +11,15 @@ export interface AuthEnv {
   googleOAuth?: { clientId: string; clientSecret: string };
 }
 
+/** Origins served inside the Tauri desktop shell — one per webview
+ *  family. WebKit (macOS / Linux) loads the frontend at `tauri://`;
+ *  Edge WebView2 (Windows) loads it at `https://tauri.localhost`
+ *  because `useHttpsScheme: true` in `apps/web/src-tauri/tauri.conf.json`
+ *  is what makes Secure session cookies eligible to be sent. Both
+ *  values must be allowlisted on every server surface that gates by
+ *  origin (CORS, Better Auth `trustedOrigins`). */
+export const TAURI_ORIGINS = ['tauri://localhost', 'https://tauri.localhost'] as const;
+
 export function createAuth(db: DB, env: AuthEnv) {
   const isProd = process.env.NODE_ENV === 'production';
   // Browsers send Origin headers as scheme+host+port only — never a path.
@@ -23,13 +32,9 @@ export function createAuth(db: DB, env: AuthEnv) {
   // falls back through 5180/5181/… when ports collide). Production sticks
   // to the configured web origin plus the Tauri origins — the desktop
   // shell reuses the same API so the user-facing surface is identical.
-  // `useHttpsScheme: true` in tauri.conf.json means the in-app origin is
-  // `https://tauri.localhost` on Windows (Edge WebView2) and
-  // `tauri://localhost` on macOS/Linux (WebKit) — allowlist both.
-  const tauriOrigins = ['tauri://localhost', 'https://tauri.localhost'];
   const trustedOrigins = isProd
-    ? [webOrigin, ...tauriOrigins]
-    : [webOrigin, 'http://localhost:5173', 'http://localhost:5180', ...tauriOrigins];
+    ? [webOrigin, ...TAURI_ORIGINS]
+    : [webOrigin, 'http://localhost:5173', 'http://localhost:5180', ...TAURI_ORIGINS];
 
   // Better Auth derives its request-matching basePath from
   // `new URL(baseURL).pathname` — so any path component in env.baseUrl
@@ -59,15 +64,9 @@ export function createAuth(db: DB, env: AuthEnv) {
             // would hit the sibling qzr-api Worker, not vv-router → API.
             // Pin the redirect URI to a URL that goes through vv-router and
             // matches the value provision.sh tells the user to register in
-            // the Google OAuth client.
-            //
-            // Tauri-side OAuth is not yet wired: Better Auth 1.6.5's
-            // `redirectURI` is `string | undefined`, not an array, so the
-            // desktop shell can't initiate the Google flow without
-            // additional infrastructure (e.g. tauri-plugin-deep-link to
-            // intercept the callback, or a separate Google OAuth client
-            // for the desktop redirect URI). Email + password sign-in
-            // works from Tauri today via the trustedOrigins entries above.
+            // the Google OAuth client. The Tauri shell reuses this same URI
+            // — Google redirects back to the API, which sets the session
+            // cookie and bounces to the `callbackURL` the client supplied.
             redirectURI: `${env.baseUrl}/api/auth/callback/google`,
           },
         }

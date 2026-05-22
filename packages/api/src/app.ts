@@ -5,7 +5,7 @@ import { logger } from 'hono/logger';
 
 import type { DB } from './db/client.js';
 import { ApibibleCache } from './lib/apibible-cache.js';
-import { type AuthEnv, createAuth } from './lib/auth.js';
+import { TAURI_ORIGINS, type AuthEnv, createAuth } from './lib/auth.js';
 import { EngineStore } from './lib/engine.js';
 import { type Dialect } from './lib/spelling.js';
 import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
@@ -55,14 +55,11 @@ export function createApp(deps: AppDeps) {
       // Outside production, accept any http://localhost:PORT origin so the
       // thin client running on whatever port Vite picked can talk to the
       // API without a coordinated WEB_BASE_URL. In production only the
-      // configured webOrigin is allowed. The Tauri desktop shell's
-      // in-app origin is `https://tauri.localhost` (Windows / Edge
-      // WebView2 with useHttpsScheme: true) or `tauri://localhost`
-      // (macOS / Linux WebKit) — allow both regardless of NODE_ENV
-      // since the desktop bundle ships the same in dev and prod.
+      // configured webOrigin + Tauri origins are allowed. See TAURI_ORIGINS
+      // in auth.ts for the per-webview-family rationale.
       origin: (origin) => {
         if (origin === webOrigin) return origin;
-        if (origin === 'tauri://localhost' || origin === 'https://tauri.localhost') {
+        if (origin != null && TAURI_ORIGINS.includes(origin as (typeof TAURI_ORIGINS)[number])) {
           return origin;
         }
         if (
