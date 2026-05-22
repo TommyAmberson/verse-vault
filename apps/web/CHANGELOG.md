@@ -19,6 +19,18 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 * **MAUA attribution footer.** Site-wide footer in `App.vue` carrying the canonical NKJV citation
   and a `https://api.bible` link, visible on every route. Required by the API.Bible Starter-plan
   terms and previously only present in `NOTICE.md` (not surfaced to end users).
+* **Offline-mode toggle in MaterialView.** New "Offline study" section per year drives the
+  `PATCH /api/materials/:id/offline-mode` flag + the bulk-renders download into IDB. Flipping on
+  fetches `GET /api/materials/:id/renders` once and seeds the `renders` store via the new
+  `bulkPutRenders` helper; flipping off clears the store. UX surfaces "Refreshed N days ago" off
+  IDB's newest `fetchedAt`. Pre-existing lazy render cache (one entry per viewed card) keeps working
+  unchanged for users who don't opt in. Matches the architecture's MAUA-compliant split:
+  bulk-extraction only happens at explicit user request.
+* `setOfflineMode` + `getMaterialRenders` on the API client; `MaterialStatus` + `MaterialRender`
+  types exposing the new server payloads.
+* `bulkPutRenders` + `newestRenderFetchedAt` exports in `persistence.ts`. The bulk-put replaces
+  every existing entry for the material in one transaction so a partial lazy-cache subset can't
+  shadow the fresh batch.
 
 ### Refactored
 
@@ -31,6 +43,11 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 * `MaterialView.onSave` no longer invalidates the cached engine + render cache when only
   `lessonBatchSize` (a session-size knob the engine doesn't consume) changed. Previously every
   settings save wiped a full deck's lazy-cached renders.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged (no core changes)
+* `verse-vault-wasm@0.1.1` — adds `all_card_renders()` used by the API's bulk renders endpoint
 
 ## [0.1.7] — 2026-05-21
 
