@@ -137,13 +137,7 @@ export async function loadEngine(
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
   })
-
-  // Cards built from materialData default to `New`; flip each
-  // graduated verse to `Active` so the in-memory engine matches
-  // the persisted state. Mirrors `EngineStore.load` server-side.
-  for (const verseId of snapshot.graduatedVerseIds ?? []) {
-    engine.graduate_verse(verseId)
-  }
+  applyGraduations(engine, snapshot.graduatedVerseIds)
 
   const session: EngineSession = {
     materialId,
@@ -181,10 +175,16 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
   })
-  for (const verseId of fetched.graduatedVerseIds) {
-    session.engine.graduate_verse(verseId)
-  }
+  applyGraduations(session.engine, fetched.graduatedVerseIds)
   session.snapshotVersion = fetched.snapshot.version
+}
+
+/** Flip each graduated verse from `New` to `Active`. Cards default to
+ *  `New` when the engine is built from materialData + testStates, so
+ *  this call mirrors what `EngineStore.load` does server-side and
+ *  keeps the in-memory engine consistent across page reloads. */
+function applyGraduations(engine: WasmEngine, verseIds: number[] | undefined): void {
+  for (const id of verseIds ?? []) engine.graduate_verse(id)
 }
 
 /** Apply a review grade locally and queue the event for sync. Returns
@@ -258,8 +258,12 @@ export async function submitGraduation(
 }
 
 async function persistLocalGraduation(materialId: string, verseId: number): Promise<void> {
-  const snapshot = await idb.getSnapshot(materialId)
-  if (!snapshot) return
+  // Caller (`submitGraduation`) already validated a live session via
+  // `requireSession`, and sessions imply a snapshot row in IDB —
+  // `getSnapshot` is treated as infallible here. A missing row
+  // signals genuine IDB corruption and propagates as a thrown error
+  // through the surrounding fire-and-forget `.catch`.
+  const snapshot = (await idb.getSnapshot(materialId))!
   const ids = snapshot.graduatedVerseIds ?? []
   if (ids.includes(verseId)) return
   await idb.putSnapshot({ ...snapshot, graduatedVerseIds: [...ids, verseId] })

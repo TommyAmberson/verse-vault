@@ -8,6 +8,7 @@ import {
   NotEnrolledError,
   type TestStateEntry,
   getLatestSnapshot,
+  readGraduatedVerseIds,
   readTestStateEntries,
 } from '../lib/engine.js';
 import { type Grade, type ReviewEventInput, persistEngineState } from '../lib/review-log.js';
@@ -83,22 +84,6 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     const snapshot = getLatestSnapshot(deps.db, key);
     if (!snapshot) return c.json({ error: 'Not enrolled' }, 404);
 
-    // Cards default to `New` when the client constructs the engine
-    // from materialData + testStates; the client needs the graduation
-    // log so it can flip the right cards to `Active` after build
-    // (server-side `EngineStore.load` does the same — keep parity).
-    const graduatedVerseIds = deps.db
-      .select({ verseId: schema.graduatedVerses.verseId })
-      .from(schema.graduatedVerses)
-      .where(
-        and(
-          eq(schema.graduatedVerses.userId, user.id),
-          eq(schema.graduatedVerses.materialId, materialId),
-        ),
-      )
-      .all()
-      .map((r) => r.verseId);
-
     return c.json({
       snapshot: {
         version: snapshot.version,
@@ -108,7 +93,11 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       },
       testStates: readTestStateEntries(deps.db, key),
       lastEventId: latestEventId(deps.db, user.id, materialId),
-      graduatedVerseIds,
+      // Cards default to `New` when the client constructs the engine
+      // from materialData + testStates; ship the graduation log so the
+      // client can flip the right cards to `Active` after build,
+      // mirroring what `EngineStore.load` does server-side.
+      graduatedVerseIds: readGraduatedVerseIds(deps.db, key),
     });
   });
 
