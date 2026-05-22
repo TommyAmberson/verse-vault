@@ -1,0 +1,37 @@
+# Standalone Cargo project — see the comment block below for why.
+# An empty `[workspace]` here detaches the crate from the root
+# workspace at `Cargo.toml`, which would otherwise auto-claim any
+# nested `Cargo.toml`.
+[workspace]
+
+[package]
+name = "verse-vault-desktop"
+version = "0.1.0"
+authors = ["Tom Amberson"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/TommyAmberson/verse-vault"
+rust-version = "1.77.2"
+description = "Tauri desktop shell for the verse-vault Bible memorisation app"
+
+# verse-vault-desktop is intentionally NOT part of the root Cargo
+# workspace — Tauri's transitive deps (tauri, wry, webkit, etc.) are
+# huge and would slow every `cargo check` for the algorithm crates
+# (core, sim, wasm) that have no use for them. Standalone lockfile
+# under src-tauri/Cargo.lock keeps the surfaces independent. This
+# mirrors the qzr-sheet layout, where the Tauri crate is also a
+# standalone Cargo project alongside the workspace-less frontend.
+
+[lib]
+name = "verse_vault_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.4", features = [] }
+
+[dependencies]
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "2.10.0", features = [] }
+tauri-plugin-log = "2"
