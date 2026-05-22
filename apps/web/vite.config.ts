@@ -24,6 +24,10 @@ export default defineConfig({
     // WebAssembly streaming compilation already meets this anyway.
     target: 'es2022',
   },
+  // 5180 keeps verse-vault clear of qzr-sheet (which runs Vite on
+  // 5173 / 5174 without strictPort). Must match src-tauri/tauri.conf.json
+  // `devUrl`. strictPort: true so Vite errors loudly if the port is
+  // taken rather than drifting onto one Tauri can't find.
   server: { port: 5180, strictPort: true },
   resolve: {
     alias: {
