@@ -42,10 +42,7 @@ export function createApp(deps: AppDeps) {
   const app = new Hono<{ Variables: SessionVariables }>();
 
   app.use('*', logger());
-  // gzip every response that asks for it. Drops the bulk renders payload
-  // for `nkjv-cor` from ~5 MB to ~1 MB; cheap for the smaller routes.
-  // Honours `Accept-Encoding`, so test harnesses (which don't send the
-  // header) still get raw responses.
+  // Drops the bulk renders payload for `nkjv-cor` from ~5 MB to ~1 MB.
   app.use('*', compress());
   const isProd = process.env.NODE_ENV === 'production';
   // Browser-sent Origin headers are scheme+host+port only. Strip any path

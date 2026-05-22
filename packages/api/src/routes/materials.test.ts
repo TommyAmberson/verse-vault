@@ -214,12 +214,12 @@ describe('materials routes', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as RendersResponse;
     expect(body.renders.length).toBeGreaterThan(0);
-    // Test app skips wiring apibibleCache, so `composed` is null and the
-    // client would fall back to single-card fetches if it lived without
-    // the bulk path. Card-id ordering is the load-bearing contract.
     for (let i = 1; i < body.renders.length; i++) {
       expect(body.renders[i]!.cardId).toBeGreaterThan(body.renders[i - 1]!.cardId);
     }
+    // Test app doesn't wire apibibleCache; composed is null on that
+    // path. Card-id monotonicity (asserted above) is the load-bearing
+    // contract regardless.
     for (const r of body.renders) expect(r.composed).toBeNull();
   });
 

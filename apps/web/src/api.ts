@@ -179,11 +179,8 @@ export interface ApiClient {
    *  them, possibly triggering a full-log rebuild (`rebuilt: true`) or
    *  returning a `needsConfirm` envelope for stale-merge UX. */
   postSyncEvents(materialId: string, body: SyncEventsRequest): Promise<SyncEventsResponse>
-  /** Toggle the per-(user, material) `offline_mode` flag. Server gates
-   *  `getMaterialRenders` on this. */
   setOfflineMode(materialId: string, offlineMode: boolean): Promise<{ offlineMode: boolean }>
-  /** Bulk download every card's composed HTML for offline study.
-   *  Requires `offline_mode=true`; returns 403 otherwise. */
+  /** Requires `offline_mode=true` on the server; returns 403 otherwise. */
   getMaterialRenders(materialId: string): Promise<{ renders: MaterialRender[] }>
 }
 
