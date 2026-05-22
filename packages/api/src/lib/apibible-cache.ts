@@ -4,6 +4,10 @@ import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import patchesRaw from './apibible-patches.json' with { type: 'json' };
 
+/** Bible id of the NKJV on the developer's api.bible account. Override via
+ *  the NKJV_BIBLE_ID env var or by passing `bibleId` through route deps. */
+export const DEFAULT_NKJV_BIBLE_ID = '63097d2a0a2f7db3-01';
+
 interface Patch {
   find: string;
   replace: string;

@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { ApibibleCache } from '../lib/apibible-cache.js';
+import { ApibibleCache, DEFAULT_NKJV_BIBLE_ID, type Section } from '../lib/apibible-cache.js';
 import { bookCodeOf } from '../lib/book-codes.js';
 import { EngineStore, NotEnrolledError } from '../lib/engine.js';
 import {
@@ -27,11 +27,6 @@ export interface MaterialsRoutesDeps {
   dialect?: Dialect;
   now?: () => number;
 }
-
-/** Same id as cards.ts uses for the NKJV bible on api.bible. Duplicated
- *  here (rather than imported) to avoid pulling the cards module into
- *  the materials path; the value is environmental, not behavioural. */
-const DEFAULT_NKJV_BIBLE_ID = '63097d2a0a2f7db3-01';
 
 interface CardRenderWire {
   cardId: number;
@@ -168,45 +163,62 @@ export function materialsRoutes(deps: MaterialsRoutesDeps) {
     const dialect = deps.dialect ?? DEFAULT_DIALECT;
     const now = (deps.now ?? (() => Math.floor(Date.now() / 1000)))();
 
-    // Group cards by (book, chapter) so we hit the apibible cache once
-    // per chapter instead of once per card. ApibibleCache memoises a
-    // single get per process, so cards in the same chapter would
-    // coalesce anyway, but the explicit grouping makes the cost model
-    // obvious and lets us pull the per-book sections list once.
-    const cardsByChapter = new Map<string, CardRenderWire[]>();
+    // Bucket cards by passageId (USX book + chapter). One chapter html
+    // fetch per bucket; the inner compose loop walks the bucket's cards
+    // in card-id order (engine.cards is built monotonic by card id and
+    // we preserve that here), so the output array is monotonic without
+    // a final sort.
+    const cardsByChapter = new Map<string, { bookCode: string; cards: CardRenderWire[] }>();
+    const booksNeedingSections = new Set<string>();
     for (const w of wires) {
-      const key = `${w.verse.book}|${w.verse.chapter}`;
-      const list = cardsByChapter.get(key) ?? [];
-      list.push(w);
-      cardsByChapter.set(key, list);
+      const bookCode = bookCodeOf(w.verse.book);
+      const key = `${bookCode}.${w.verse.chapter}`;
+      const bucket = cardsByChapter.get(key) ?? { bookCode, cards: [] };
+      bucket.cards.push(w);
+      cardsByChapter.set(key, bucket);
+      if (w.verse.headings.length > 0) booksNeedingSections.add(bookCode);
     }
 
+    // Fan out chapter + sections fetches. ApibibleCache.readThrough has
+    // single-flight dedup so concurrent callers won't double-fetch the
+    // same key; on a cold cache this turns ~16 sequential round-trips
+    // into one burst. On a warm cache (sqlite-only path) the overhead
+    // is negligible.
+    const passageEntries = await Promise.all(
+      Array.from(cardsByChapter.keys()).map(async (passageId) => {
+        try {
+          return [passageId, await deps.apibibleCache!.getPassageHtml(bibleId, passageId)] as const;
+        } catch (err) {
+          console.warn(`apibible cache failure for ${passageId}: ${(err as Error).message}`);
+          return [passageId, null] as const;
+        }
+      }),
+    );
+    const chapterHtmlByPassage = new Map(passageEntries);
+
+    // Sections are per-book, not per-chapter — fetching once per book
+    // avoids redundant reads for multi-chapter books.
+    const sectionsByBook = new Map<string, Section[]>();
+    await Promise.all(
+      Array.from(booksNeedingSections).map(async (bookCode) => {
+        const sections = await deps.apibibleCache!.getSections(bibleId, bookCode).catch(() => []);
+        sectionsByBook.set(bookCode, sections);
+      }),
+    );
+
     const renders: Array<{ cardId: number; composed: ComposedRender | null; fetchedAt: number }> = [];
-    for (const [, cards] of cardsByChapter) {
-      const first = cards[0]!;
-      const bookCode = bookCodeOf(first.verse.book);
-      const passageId = `${bookCode}.${first.verse.chapter}`;
-      let chapterHtml: string;
-      try {
-        chapterHtml = await deps.apibibleCache.getPassageHtml(bibleId, passageId);
-      } catch (err) {
-        // One chapter failing isn't a fatal error for the bulk path —
-        // skip its cards (the client will fall back to the single-card
-        // path for any cardIds that come back missing) and keep going.
-        console.warn(`apibible cache failure for ${passageId}: ${(err as Error).message}`);
+    for (const [passageId, { bookCode, cards }] of cardsByChapter) {
+      const chapterHtml = chapterHtmlByPassage.get(passageId);
+      if (chapterHtml == null) {
         for (const card of cards) renders.push({ cardId: card.cardId, composed: null, fetchedAt: 0 });
         continue;
       }
-      const needsSections = cards.some((c) => c.verse.headings.length > 0);
-      const sections = needsSections
-        ? await deps.apibibleCache.getSections(bibleId, bookCode).catch(() => [])
-        : [];
+      const sections = sectionsByBook.get(bookCode) ?? [];
       for (const card of cards) {
         const composed = composeRender(card.verse, chapterHtml, sections, dialect);
         renders.push({ cardId: card.cardId, composed, fetchedAt: now });
       }
     }
-    renders.sort((a, b) => a.cardId - b.cardId);
     return c.json({ renders });
   });
 

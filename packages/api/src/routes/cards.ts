@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
 import { graduatedVerses } from '../db/schema.js';
-import { ApibibleCache } from '../lib/apibible-cache.js';
+import { ApibibleCache, DEFAULT_NKJV_BIBLE_ID } from '../lib/apibible-cache.js';
 import { EngineStore, NotEnrolledError, type TestStateEntry } from '../lib/engine.js';
 import { bookCodeOf } from '../lib/book-codes.js';
 import { type ComposedRender, composeRender } from '../lib/render.js';
@@ -28,10 +28,6 @@ export interface CardsRoutesDeps {
   dialect?: Dialect;
   now?: () => number;
 }
-
-/** NKJV id on the developer's api.bible account. Override via the
- *  NKJV_BIBLE_ID env var or by passing `bibleId` to cardsRoutes. */
-export const DEFAULT_NKJV_BIBLE_ID = '63097d2a0a2f7db3-01';
 
 interface ReviewBody {
   materialId: string;
