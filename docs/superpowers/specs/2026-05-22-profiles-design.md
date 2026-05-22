@@ -574,3 +574,6 @@ These are spelled out here so the implementation plan can pick them up explicitl
 * Account merging (two profiles representing the same server account, somehow drifted apart).
 * Sign-in with a deep-link from a different app/browser (OAuth bounce from a Tauri-external browser
   back into the Tauri window).
+* Anonymous (no account at all) card rendering. PR C grants device-token holders read-only refresh;
+  truly anonymous users still hit 401. If verse-vault ever wants a public-facing read-only Bible
+  reader, that's a separate product decision with its own MAUA review.
