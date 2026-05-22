@@ -62,11 +62,12 @@ export function createAuth(db: DB, env: AuthEnv) {
             // baseURL that resolves to https://<origin>/callback/google —
             // wrong on two fronts: it's missing `/api/auth/`, and the path
             // would hit the sibling qzr-api Worker, not vv-router → API.
-            // Pin the redirect URI to a URL that goes through vv-router and
-            // matches the value provision.sh tells the user to register in
-            // the Google OAuth client. The Tauri shell reuses this same URI
-            // — Google redirects back to the API, which sets the session
-            // cookie and bounces to the `callbackURL` the client supplied.
+            // This override is load-bearing for the web path; do not
+            // remove without first checking the qzr-api/vv-router routing
+            // story still holds. Tauri-shell OAuth is expected to reuse
+            // this same URI (the flow lands on the API, which bounces to
+            // the in-app `callbackURL`) but isn't smoke-tested yet — see
+            // the Known limitations entry in apps/web/CHANGELOG.md.
             redirectURI: `${env.baseUrl}/api/auth/callback/google`,
           },
         }
