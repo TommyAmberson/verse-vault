@@ -12,12 +12,10 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [0.1.11] — 2026-05-22
 
-0.1.10 was the intended version for the offline-mode work below; its deploy failed because
-`packages/api/CHANGELOG.md` still had the entries under `[Unreleased]` rather than promoted to a
-dated `[0.1.10]` section (the contract-version check requires the dated section to exist for the
-current `package.json` version). The code from that merge has been on master since `d2f58876` but
-never reached the VPS. 0.1.11 collapses everything into one shippable section alongside the new
-Tauri origin allowlist + the changelog-promotion fix; production goes straight from 0.1.9 → 0.1.11.
+0.1.10's deploy failed because the offline-mode entries stayed under `[Unreleased]` instead of being
+promoted to a dated section (the contract-version check requires the dated section to exist for the
+current `package.json` version). Code has been on master since `d2f58876`; production goes straight
+from 0.1.9 → 0.1.11, bundling the changelog-promotion fix with the Tauri origin allowlist.
 
 ### Added
 
