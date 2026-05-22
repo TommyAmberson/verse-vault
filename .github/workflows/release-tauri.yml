@@ -1,9 +1,15 @@
-name: Release desktop
+name: Release tauri
 
 # Decoupled from the web release workflow (which triggers off
 # apps/web/package.json) so a CSS patch doesn't re-cut a 3-platform
-# desktop bundle. Bump src-tauri/tauri.conf.json `version` when you
-# want a new desktop release.
+# bundle. Bump src-tauri/tauri.conf.json `version` when you want a
+# new release.
+#
+# Tag is `tauri@<v>` — covers any Tauri-built bundle. When Android
+# / iOS join they're additional matrix entries under the same tag,
+# not a separate workflow; tauri.conf.json's single `version` field
+# is the source of truth for every target, so per-platform cadence
+# isn't well supported by the tool anyway.
 #
 # `create-release` pre-creates a draft release so the matrix legs
 # upload by id rather than racing to create it; tauri-action flips
@@ -36,7 +42,7 @@ jobs:
           echo "version=$NEW" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "bumped=true" >> "$GITHUB_OUTPUT"
-            echo "Manual dispatch — releasing desktop@$NEW."
+            echo "Manual dispatch — releasing tauri@$NEW."
             exit 0
           fi
           OLD=$(git show HEAD~1:apps/web/src-tauri/tauri.conf.json 2>/dev/null | jq -r .version || echo "")
@@ -63,12 +69,12 @@ jobs:
         id: create
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: desktop@${{ needs.filter.outputs.version }}
-          name: verse-vault desktop ${{ needs.filter.outputs.version }}
+          tag_name: tauri@${{ needs.filter.outputs.version }}
+          name: verse-vault ${{ needs.filter.outputs.version }}
           draft: true
-          body: 'Tauri desktop bundles for verse-vault. See [apps/web/CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/apps/web/CHANGELOG.md) for the web app changelog the shell wraps.'
+          body: 'Tauri-built bundles for verse-vault. See [apps/web/CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/apps/web/CHANGELOG.md) for the web app changelog the shell wraps.'
 
-  desktop:
+  bundle:
     needs: [filter, create-release]
     if: needs.filter.outputs.bumped == 'true'
     permissions:
@@ -105,7 +111,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       # Cache ~/.cargo/registry + src-tauri/target keyed on lockfile +
-      # target. First desktop release per branch is still cold (~15min);
+      # target. First release per branch is still cold (~15min);
       # subsequent matrix runs drop to ~5min/leg because tauri's heavy
       # transitive deps (wry, webkit2gtk, tao, muda, …) no longer
       # recompile.

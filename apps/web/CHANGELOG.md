@@ -22,7 +22,7 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   allowlist and Better Auth `trustedOrigins` accept the two origins. No `fs`/`dialog` plugins — the
   app is fully self-contained in the webview (IndexedDB + fetch); default capabilities are
   core-only.
-* `.github/workflows/release-desktop.yml` builds matrix on linux/windows/macos when
+* `.github/workflows/release-tauri.yml` builds matrix on linux/windows/macos when
   `apps/web/src-tauri/tauri.conf.json` `version` field bumps; uploads installers to a draft GitHub
   release that flips to published after all three platforms upload cleanly. No code signing (Apple
   Developer ID and Windows EV cert are paperwork-blocked); unsigned builds work for

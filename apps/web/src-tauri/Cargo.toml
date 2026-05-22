@@ -7,17 +7,17 @@
 [workspace]
 
 [package]
-name = "verse-vault-desktop"
+name = "verse-vault-tauri"
 version = "0.1.0"
 authors = ["Tom Amberson"]
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/TommyAmberson/verse-vault"
 rust-version = "1.77.2"
-description = "Tauri desktop shell for the verse-vault Bible memorisation app"
+description = "Tauri shell (desktop + future mobile) for the verse-vault Bible memorisation app"
 
 [lib]
-name = "verse_vault_desktop_lib"
+name = "verse_vault_tauri_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
