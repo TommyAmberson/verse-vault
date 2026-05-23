@@ -9,6 +9,31 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Offline-first boot + profiles
+
+* **Profiles are now a first-class concept.** Each signed-in account on a device gets its own
+  IndexedDB database (`verse-vault-${userId}`). A shared `verse-vault-registry` DB tracks the list
+  of known profiles + a `lastActiveProfileId` pointer. The router boot reads the registry (a fast
+  local IDB read) instead of awaiting `authClient.getSession()` — workspace renders immediately on
+  launch, even when the API is unreachable. The previously-blank Tauri-shell boot path now works
+  offline.
+* **Online / offline state is profile-scoped.** A new offline banner ("Offline — sign in to sync N
+  grades") sits between the header and the router-view, visible only when the most recent sync
+  attempt failed. Clicking routes to /signin with the current path as `redirect`.
+* **Sign-out semantics now preserve the profile.** Sign-out clears the session cookie and the
+  `lastActiveProfileId` pointer, but the per-profile DB stays intact. Next sign-in as the same user
+  resumes their cached data; cross-account sign-in starts fresh.
+* **Migration:** the first sign-in after this lands copies the legacy un-namespaced `verse-vault` DB
+  into the newly-created profile DB, then deletes the legacy. One-shot; subsequent sign-ins find no
+  legacy DB and skip.
+* New: `apps/web/src/lib/engine/registry.ts`, `migrate-legacy.ts`, `components/OfflineBanner.vue`.
+* Modified: `useAuth.ts` exposes `activeProfile`, `isOnline`, `conflict`, `signInComplete`,
+  `markOnline`; `persistence.ts` is parameterised by the active profile; `router/index.ts` guard is
+  cache-first (no awaited network call); `App.vue` reads identity from `activeProfile`.
+
+The picker UI (multi-profile cards with sign-out and delete affordances) is deferred to a follow-up
+PR; this PR keeps the existing email/password form as the entry point for unauth'd users.
+
 ### Added
 
 * **Tauri v2 desktop shell.** New `apps/web/src-tauri/` Cargo project wraps the existing Vue + WASM

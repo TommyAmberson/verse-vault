@@ -3,13 +3,23 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { api } from '@/api'
+import OfflineBanner from '@/components/OfflineBanner.vue'
 import { useAuth } from '@/composables/useAuth'
 
-const { session, signOut } = useAuth()
+const { activeProfile, signOut } = useAuth()
 const router = useRouter()
 const route = useRoute()
 
-const user = computed(() => session.value?.data?.user ?? null)
+// Driven by the active profile (cached locally) rather than Better
+// Auth's reactive session. The profile is the durable identity;
+// session validity is a separate online/offline concern handled by
+// the offline banner. Reading from activeProfile lets the nav stay
+// rendered when the user is offline with a valid prior profile.
+const user = computed(() =>
+  activeProfile.value
+    ? { email: activeProfile.value.email, name: activeProfile.value.displayName }
+    : null,
+)
 const newToMemorize = ref<number>(0)
 
 async function refreshMemorizeCount() {
@@ -28,7 +38,7 @@ watch(user, refreshMemorizeCount, { immediate: true })
 watch(() => route.fullPath, refreshMemorizeCount)
 
 async function onSignOut() {
-  signOut()
+  await signOut()
   await router.push('/signin')
 }
 </script>
@@ -49,6 +59,7 @@ async function onSignOut() {
         <button type="button" class="sign-out" @click="onSignOut">Sign out</button>
       </nav>
     </header>
+    <OfflineBanner />
     <main class="site-main">
       <RouterView />
     </main>

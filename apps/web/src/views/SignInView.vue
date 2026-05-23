@@ -9,8 +9,11 @@ const router = useRouter()
 const route = useRoute()
 
 function onSuccess() {
-  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/session'
-  router.replace(redirect)
+  // useAuth's wrapped signInEmail/signUpEmail have already called
+  // signInComplete by the time this fires — registry is populated +
+  // the active profile DB is open. Just navigate.
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/review'
+  void router.replace(redirect)
 }
 </script>
 
