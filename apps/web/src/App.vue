@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import { api } from '@/api'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import { useAuth } from '@/composables/useAuth'
 
-const { activeProfile, signOut } = useAuth()
-const router = useRouter()
+const { activeProfile } = useAuth()
 const route = useRoute()
 
 // Driven by the active profile (cached locally) rather than Better
@@ -36,11 +35,6 @@ async function refreshMemorizeCount() {
 // material-picker writes both move this number.
 watch(user, refreshMemorizeCount, { immediate: true })
 watch(() => route.fullPath, refreshMemorizeCount)
-
-async function onSignOut() {
-  await signOut()
-  await router.push('/signin')
-}
 </script>
 
 <template>
@@ -56,7 +50,7 @@ async function onSignOut() {
         <RouterLink to="/material">Material</RouterLink>
         <RouterLink to="/stats">Stats</RouterLink>
         <span class="who">{{ user.email }}</span>
-        <button type="button" class="sign-out" @click="onSignOut">Sign out</button>
+        <RouterLink to="/profiles?force=1" class="switch-profile">Switch profile</RouterLink>
       </nav>
     </header>
     <OfflineBanner />
@@ -143,16 +137,17 @@ async function onSignOut() {
   font-size: 0.85rem;
 }
 
-.sign-out {
+.switch-profile {
   background: none;
   border: 1px solid var(--color-border);
   color: var(--color-muted);
   padding: 0.25rem 0.75rem;
   border-radius: 4px;
   font-size: 0.85rem;
+  text-decoration: none;
 }
 
-.sign-out:hover {
+.switch-profile:hover {
   color: var(--color-text);
 }
 
