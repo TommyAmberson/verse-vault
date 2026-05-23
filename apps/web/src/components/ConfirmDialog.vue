@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useId } from 'vue'
+
 withDefaults(
   defineProps<{
     title: string
@@ -21,6 +23,10 @@ const emit = defineEmits<{
   (e: 'confirm'): void
   (e: 'cancel'): void
 }>()
+
+// Per-instance id so two ConfirmDialogs on the same page don't share
+// an aria-labelledby target.
+const titleId = useId()
 </script>
 
 <template>
@@ -28,11 +34,11 @@ const emit = defineEmits<{
     class="overlay"
     role="dialog"
     aria-modal="true"
-    aria-labelledby="confirm-title"
+    :aria-labelledby="titleId"
     @click.self="emit('cancel')"
   >
     <div class="modal">
-      <h2 id="confirm-title">{{ title }}</h2>
+      <h2 :id="titleId">{{ title }}</h2>
       <div class="body">
         <slot />
       </div>

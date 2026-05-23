@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import type { ProfileRow } from '@/lib/engine/registry'
 
 const props = defineProps<{
   profile: ProfileRow
-  /** Whether this card represents the currently-active profile. The
-   *  kebab's "Sign out" item only renders when true (see component
-   *  doc comment for why). */
+  /** True when this card represents the currently-active profile.
+   *  Drives whether the kebab surfaces "Sign out" — non-active
+   *  profiles share the active profile's cookie in PR B, so signing
+   *  them out independently isn't meaningful until per-profile device
+   *  tokens land. */
   active: boolean
 }>()
 
@@ -33,7 +35,7 @@ function closeMenu() {
 function onWindowClick() {
   if (menuOpen.value) menuOpen.value = false
 }
-window.addEventListener('click', onWindowClick)
+onMounted(() => window.addEventListener('click', onWindowClick))
 onBeforeUnmount(() => window.removeEventListener('click', onWindowClick))
 
 const initials = computed(() => {
@@ -69,10 +71,27 @@ function onDeleteClick(ev: Event) {
   closeMenu()
   emit('delete')
 }
+
+// The card surface is a role="button" div rather than a native
+// <button>, so the kebab + menu items inside it remain valid
+// interactive descendants. Native button-in-button is invalid HTML
+// and confuses screen readers.
+function onCardKeydown(ev: KeyboardEvent) {
+  if (ev.key === 'Enter' || ev.key === ' ') {
+    ev.preventDefault()
+    emit('enter')
+  }
+}
 </script>
 
 <template>
-  <button type="button" class="card" @click="emit('enter')">
+  <div
+    class="card"
+    role="button"
+    tabindex="0"
+    @click="emit('enter')"
+    @keydown="onCardKeydown"
+  >
     <div class="avatar">
       <img v-if="profile.image" :src="profile.image" :alt="profile.displayName" />
       <span v-else class="initials">{{ initials }}</span>
@@ -112,7 +131,7 @@ function onDeleteClick(ev: Event) {
         </button>
       </div>
     </div>
-  </button>
+  </div>
 </template>
 
 <style scoped>

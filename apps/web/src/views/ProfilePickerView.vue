@@ -28,8 +28,6 @@ const deleteBusy = ref(false)
 
 async function refreshProfiles() {
   const rows = await listProfiles()
-  // Newest-used first — the most recently-touched profile is the most
-  // likely target.
   rows.sort((a, b) => b.lastUsedAt - a.lastUsedAt)
   profiles.value = rows
   mode.value = rows.length === 0 ? 'empty' : 'cards'
@@ -86,16 +84,15 @@ function cancelAdd() {
 }
 
 async function onSignInSuccess() {
-  // signInComplete has already populated the registry + opened the
-  // per-profile DB. Just navigate.
   await router.replace(redirectTarget())
 }
 </script>
 
 <template>
   <div class="picker">
-    <h2 v-if="mode !== 'add'">Profiles</h2>
-    <h2 v-else>Add a profile</h2>
+    <h2 v-if="mode === 'cards'">Profiles</h2>
+    <h2 v-else-if="mode === 'add'">Add a profile</h2>
+    <h2 v-else>Sign in</h2>
 
     <template v-if="mode === 'cards'">
       <div class="cards">
