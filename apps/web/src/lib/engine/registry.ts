@@ -10,7 +10,7 @@
  * we know which profile-DB to open.
  */
 
-import { promiseRequest, transactionComplete } from './persistence'
+import { profileDbName, promiseRequest, transactionComplete } from './persistence'
 
 const DB_NAME = 'verse-vault-registry'
 const DB_VERSION = 1
@@ -114,7 +114,7 @@ export async function profileDbExists(profileId: string): Promise<boolean> {
   // harmlessly if it doesn't.
   if (typeof indexedDB.databases !== 'function') return true
   const list = await indexedDB.databases()
-  return list.some((d) => d.name === `verse-vault-${profileId}`)
+  return list.some((d) => d.name === profileDbName(profileId))
 }
 
 /** Test/dev helper: drop the cached open-promise so the next call to
@@ -123,10 +123,17 @@ export function resetRegistryHandle(): void {
   dbPromise = null
 }
 
-/** Updates the profile's `lastUsedAt` timestamp. Cheap shorthand for
- *  the common pattern of "I just entered this profile." */
-export async function touchProfile(profileId: string, nowSecs: number): Promise<void> {
+/** Updates the profile's `lastUsedAt` timestamp and returns the
+ *  updated row (or null if the profile doesn't exist). Cheap shorthand
+ *  for the common pattern of "I just entered this profile, give me
+ *  back the touched row to render." */
+export async function touchProfile(
+  profileId: string,
+  nowSecs: number,
+): Promise<ProfileRow | null> {
   const existing = await getProfile(profileId)
-  if (!existing) return
-  await upsertProfile({ ...existing, lastUsedAt: nowSecs })
+  if (!existing) return null
+  const updated: ProfileRow = { ...existing, lastUsedAt: nowSecs }
+  await upsertProfile(updated)
+  return updated
 }

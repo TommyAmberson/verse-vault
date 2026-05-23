@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { createAppAuthClient } from '@/lib/authClient'
 import { clearAllSessions } from '@/lib/engine/engineStore'
 import { migrateLegacyDb } from '@/lib/engine/migrate-legacy'
-import { setActiveProfile } from '@/lib/engine/persistence'
+import { deleteIdb, profileDbName, setActiveProfile } from '@/lib/engine/persistence'
 import * as registry from '@/lib/engine/registry'
 
 // Better Auth's client auto-appends `/api/auth` to baseURL only when the
@@ -171,15 +171,11 @@ export async function signInComplete(user: {
  *  `lastUsedAt` + `lastActiveProfileId`. Does NOT navigate — the
  *  caller (ProfilePickerView) handles routing. */
 export async function enterProfile(profileId: string): Promise<void> {
-  const row = await registry.getProfile(profileId)
-  if (!row) throw new Error(`enterProfile: no registry row for ${profileId}`)
-
   clearAllSessions()
   await setActiveProfile(profileId)
 
-  const now = nowSecs()
-  const updated: registry.ProfileRow = { ...row, lastUsedAt: now }
-  await registry.upsertProfile(updated)
+  const updated = await registry.touchProfile(profileId, nowSecs())
+  if (!updated) throw new Error(`enterProfile: no registry row for ${profileId}`)
   await registry.setLastActiveProfileId(profileId)
 
   activeProfile.value = updated
@@ -206,16 +202,11 @@ export async function deleteProfile(profileId: string): Promise<void> {
 
   await registry.removeProfile(profileId)
 
-  // Drop the per-profile DB. `deleteDatabase` fires `onsuccess` once
-  // any open connections have closed; we've already closed ours via
-  // `setActiveProfile(null)` above when this is the active profile,
-  // and non-active profiles never had an open connection.
-  await new Promise<void>((resolve, reject) => {
-    const req = indexedDB.deleteDatabase(`verse-vault-${profileId}`)
-    req.onsuccess = () => resolve()
-    req.onerror = () => reject(req.error)
-    req.onblocked = () => resolve() // best-effort; nothing else should hold it
-  })
+  // Active profile's connection was closed via `setActiveProfile(null)`
+  // above; non-active profiles never had one open. `deleteIdb`
+  // resolves on `onblocked` rather than hanging — a holding tab is a
+  // "try again later" scenario, not a failure.
+  await deleteIdb(profileDbName(profileId))
 }
 
 /** Sign out the current profile. Best-effort API call to invalidate
