@@ -103,10 +103,12 @@ export function clearConflict(): void {
   conflict.value = null
 }
 
-/** Called by `SignInView` after a successful Better Auth sign-in. We
- *  upsert the profile in the registry, run the legacy-DB migration if
- *  this is the first profile we've ever created, and open the
- *  per-profile DB so the workspace can render. */
+/** Run after a successful Better Auth sign-in / sign-up. Upserts the
+ *  profile in the registry, runs the legacy-DB migration when this is
+ *  the device's first-ever profile, and opens the per-profile DB so
+ *  the workspace can render. Idempotent on re-entry with the same
+ *  user; surfaces `conflict` and returns early when the session user
+ *  doesn't match the currently-active profile. */
 export async function signInComplete(user: {
   id: string
   email: string
