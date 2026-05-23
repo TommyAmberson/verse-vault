@@ -163,10 +163,63 @@ export async function signInComplete(user: {
   syncState.value = 'online'
 }
 
+/** Switch the in-memory + persistence-layer active profile to
+ *  `profileId`. Assumes the profile already exists in the registry
+ *  (the picker only renders cards backed by `listProfiles()`). Updates
+ *  `lastUsedAt` + `lastActiveProfileId`. Does NOT navigate — the
+ *  caller (ProfilePickerView) handles routing. */
+export async function enterProfile(profileId: string): Promise<void> {
+  const row = await registry.getProfile(profileId)
+  if (!row) throw new Error(`enterProfile: no registry row for ${profileId}`)
+
+  clearAllSessions()
+  await setActiveProfile(profileId)
+
+  const now = nowSecs()
+  const updated: registry.ProfileRow = { ...row, lastUsedAt: now }
+  await registry.upsertProfile(updated)
+  await registry.setLastActiveProfileId(profileId)
+
+  activeProfile.value = updated
+  // Don't touch syncState here — entering a profile doesn't tell us
+  // anything about session validity. The router boot's background
+  // getSession() will flip it within the next tick.
+}
+
+/** Permanently remove a profile from this device: drop its registry
+ *  row AND its per-profile IDB DB. If the deleted profile is the
+ *  currently-active one, also clear in-memory engine state and the
+ *  `lastActiveProfileId` pointer (so the next render sees no active
+ *  profile — the picker stays put rather than auto-redirecting). */
+export async function deleteProfile(profileId: string): Promise<void> {
+  const wasActive = activeProfile.value?.profileId === profileId
+
+  if (wasActive) {
+    clearAllSessions()
+    await setActiveProfile(null)
+    await registry.setLastActiveProfileId(null)
+    activeProfile.value = null
+    activeProfileLoaded = false
+  }
+
+  await registry.removeProfile(profileId)
+
+  // Drop the per-profile DB. `deleteDatabase` fires `onsuccess` once
+  // any open connections have closed; we've already closed ours via
+  // `setActiveProfile(null)` above when this is the active profile,
+  // and non-active profiles never had an open connection.
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(`verse-vault-${profileId}`)
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+    req.onblocked = () => resolve() // best-effort; nothing else should hold it
+  })
+}
+
 /** Sign out the current profile. Best-effort API call to invalidate
  *  the server session; local state is cleared regardless. The profile
  *  + its IDB DB stay intact — sign-out is the "I'll be back" action.
- *  Permanent removal is `removeActiveProfile()` (future PR B). */
+ *  Permanent removal is `deleteProfile()`. */
 export async function signOut(): Promise<void> {
   try {
     await authClient.signOut()
@@ -245,6 +298,8 @@ export function useAuth() {
     conflict: computed(() => conflict.value),
     signOut,
     signInComplete,
+    enterProfile,
+    deleteProfile,
     markSyncState,
     clearConflict,
   }
