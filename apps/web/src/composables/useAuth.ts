@@ -144,6 +144,9 @@ export async function signInComplete(user: {
     image: user.image ?? null,
     createdAt: existing?.createdAt ?? now,
     lastUsedAt: now,
+    // Placeholder; populated by the session-token capture path that
+    // runs after the sign-in response or session-watcher resolves.
+    sessionToken: existing?.sessionToken ?? null,
   }
   await registry.upsertProfile(row)
   await registry.setLastActiveProfileId(user.id)

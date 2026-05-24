@@ -13,7 +13,7 @@
 import { profileDbName, promiseRequest, transactionComplete } from './persistence'
 
 const DB_NAME = 'verse-vault-registry'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 const STORE = {
   Profiles: 'profiles',
@@ -32,6 +32,11 @@ export interface ProfileRow {
   image: string | null
   createdAt: number
   lastUsedAt: number
+  /** Better Auth session token for this profile's multi-session cookie,
+   *  or null when the profile is signed-out on this device. The picker
+   *  uses this to drive the signed-in/out chip and to call
+   *  `multiSession.setActive` / `multiSession.revoke` by token. */
+  sessionToken: string | null
 }
 
 interface MetaRow {
@@ -45,13 +50,32 @@ export function openRegistry(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (ev) => {
       const db = req.result
       if (!db.objectStoreNames.contains(STORE.Profiles)) {
         db.createObjectStore(STORE.Profiles, { keyPath: 'profileId' })
       }
       if (!db.objectStoreNames.contains(STORE.Meta)) {
         db.createObjectStore(STORE.Meta, { keyPath: 'key' })
+      }
+      // v1 → v2: backfill `sessionToken: null` on every existing row so
+      // reads don't need to coerce `undefined`. New devices skip this
+      // (oldVersion === 0); v1-era users get one cursor-pass on first
+      // launch post-PR-C. Runs inside the upgrade transaction.
+      if (ev.oldVersion < 2) {
+        const tx = req.transaction
+        if (tx) {
+          const store = tx.objectStore(STORE.Profiles)
+          store.openCursor().onsuccess = (cursorEv) => {
+            const cursor = (cursorEv.target as IDBRequest<IDBCursorWithValue>).result
+            if (!cursor) return
+            const row = cursor.value as Partial<ProfileRow>
+            if (row.sessionToken === undefined) {
+              cursor.update({ ...row, sessionToken: null })
+            }
+            cursor.continue()
+          }
+        }
       }
     }
     req.onsuccess = () => resolve(req.result)
@@ -134,6 +158,21 @@ export async function touchProfile(
   const existing = await getProfile(profileId)
   if (!existing) return null
   const updated: ProfileRow = { ...existing, lastUsedAt: nowSecs }
+  await upsertProfile(updated)
+  return updated
+}
+
+/** Set or clear the Better Auth session token for a profile. Returns
+ *  the updated row, or null when the profile doesn't exist. Callers in
+ *  useAuth use this after sign-in (set), sign-out (null), and the boot
+ *  reconciliation pass (null on tokens the server no longer knows). */
+export async function updateProfileSessionToken(
+  profileId: string,
+  sessionToken: string | null,
+): Promise<ProfileRow | null> {
+  const existing = await getProfile(profileId)
+  if (!existing) return null
+  const updated: ProfileRow = { ...existing, sessionToken }
   await upsertProfile(updated)
   return updated
 }
