@@ -46,21 +46,21 @@ const activeProfile = ref<registry.ProfileRow | null>(null)
 export type SyncState = 'online' | 'signed-out' | 'offline'
 const syncState = ref<SyncState>('online')
 
+interface UserPayload {
+  id: string
+  email: string
+  name?: string
+  image?: string | null
+}
+
 /** Non-null when Better Auth returns a different user than the
- *  currently-active profile expected. The dialog surfaces this so
- *  the user can pick: switch to the new account (becomes the active
- *  profile; old one stays on the device as a signed-out card) or
- *  cancel (the new server-issued token is revoked, leaving the old
- *  profile active but stale until a real re-auth). */
+ *  currently-active profile expected. The user picks either Switch
+ *  (new account becomes active; old one stays on the device as a
+ *  signed-out card) or Stay (revoke the new server-issued token,
+ *  leaving the old profile active but stale until a real re-auth). */
 interface ConflictState {
   expectedEmail: string
-  actualEmail: string
-  pendingUser: {
-    id: string
-    email: string
-    name?: string
-    image?: string | null
-  }
+  pendingUser: UserPayload
   pendingSessionToken: string | null
 }
 const conflict = ref<ConflictState | null>(null)
@@ -117,40 +117,49 @@ export function clearConflict(): void {
   conflict.value = null
 }
 
-/** Conflict resolution: accept the new user the server returned.
- *  Replaces the active profile (the old one stays on the device as a
- *  signed-out card). Re-runs signInComplete with a snapshot of the
- *  active profile cleared so the conflict guard doesn't re-trigger. */
-export async function acceptPendingSignIn(): Promise<void> {
+function takePendingConflict(): ConflictState | null {
   const pending = conflict.value
-  if (!pending) return
   conflict.value = null
-  // Mark the old active profile as signed-out (its cookie was rotated
-  // by the new sign-in anyway; the stored token would be invalid).
+  return pending
+}
+
+/** Accept the new user: replace the active profile (old stays as a
+ *  signed-out card) and re-run signInComplete past the conflict guard. */
+export async function acceptPendingSignIn(): Promise<void> {
+  const pending = takePendingConflict()
+  if (!pending) return
   if (activeProfile.value) {
-    await registry.updateProfileSessionToken(activeProfile.value.profileId, null)
+    await setProfileToken(activeProfile.value.profileId, null)
   }
   activeProfile.value = null
   activeProfileLoaded = false
   await signInComplete(pending.pendingUser, pending.pendingSessionToken)
 }
 
-/** Conflict resolution: revoke the new session and keep the previous
- *  active profile. The previous profile's cookie may still be expired
- *  (that's what triggered the re-auth), so the workspace continues in
- *  offline/stale mode until the user explicitly re-authenticates. */
+/** Decline the new session: revoke its token, keep the previous active
+ *  profile (typically stale — that's what triggered the re-auth). */
 export async function cancelPendingSignIn(): Promise<void> {
-  const pending = conflict.value
-  if (!pending) return
-  conflict.value = null
-  if (pending.pendingSessionToken) {
-    try {
-      await authClient.multiSession.revoke({
-        sessionToken: pending.pendingSessionToken,
-      })
-    } catch {
-      // Best-effort; the token expires server-side eventually.
-    }
+  const pending = takePendingConflict()
+  if (!pending?.pendingSessionToken) return
+  try {
+    await authClient.multiSession.revoke({
+      sessionToken: pending.pendingSessionToken,
+    })
+  } catch {
+    // Best-effort; the token expires server-side eventually.
+  }
+}
+
+/** Wraps `registry.updateProfileSessionToken` and mirrors the change
+ *  into `activeProfile.value` when the target is the active profile,
+ *  so callers don't repeat the if-active-then-refresh dance. */
+async function setProfileToken(
+  profileId: string,
+  sessionToken: string | null,
+): Promise<void> {
+  const updated = await registry.updateProfileSessionToken(profileId, sessionToken)
+  if (updated && activeProfile.value?.profileId === profileId) {
+    activeProfile.value = updated
   }
 }
 
@@ -171,14 +180,11 @@ export async function signInComplete(
 ): Promise<void> {
   const existing = await registry.getProfile(user.id)
 
-  // Conflict: user re-authed but came back as someone else. Leave the
-  // active profile alone; the dialog reads `conflict` and prompts.
-  // Capture the pending payload so the resolver can re-run this with
-  // `force: true` without re-fetching from the server.
+  // Capture the pending payload so the resolver can re-enter without
+  // a second server round-trip.
   if (activeProfile.value && activeProfile.value.profileId !== user.id) {
     conflict.value = {
       expectedEmail: activeProfile.value.email,
-      actualEmail: user.email,
       pendingUser: user,
       pendingSessionToken: sessionToken,
     }
@@ -227,49 +233,39 @@ export async function signInComplete(
   syncState.value = 'online'
 }
 
-/** Outcome of an attempt to enter a profile. Callers branch on
- *  `ok: false` to route the user to re-auth instead of the workspace. */
-export type EnterResult =
-  | { ok: true }
-  | { ok: false; reason: 'no-token' | 'token-rejected' }
+export type EnterResult = { ok: boolean }
 
 /** Switch the in-memory + persistence-layer active profile to
  *  `profileId`. Calls `multiSession.setActive` first so Better Auth
- *  treats the stored token as the current session; if the row has no
- *  token (signed-out profile) or the server rejects it (revoked),
- *  returns `ok: false` and the caller routes to the sign-in form
- *  instead of the workspace. Does NOT navigate — the caller
- *  (ProfilePickerView) handles routing. */
+ *  treats the stored token as the current session. Returns `ok: false`
+ *  when the row has no token or the server rejects it, so the caller
+ *  can route to the sign-in form. Network errors during setActive
+ *  fall through — the IDB cache is offline-usable; sync resumes when
+ *  connectivity returns. Does NOT navigate. */
 export async function enterProfile(profileId: string): Promise<EnterResult> {
   const row = await registry.getProfile(profileId)
   if (!row) throw new Error(`enterProfile: no registry row for ${profileId}`)
-  if (!row.sessionToken) return { ok: false, reason: 'no-token' }
+  if (!row.sessionToken) return { ok: false }
 
   try {
     const result = await authClient.multiSession.setActive({
       sessionToken: row.sessionToken,
     })
     if (result?.error) {
-      await registry.updateProfileSessionToken(profileId, null)
-      return { ok: false, reason: 'token-rejected' }
+      await setProfileToken(profileId, null)
+      return { ok: false }
     }
   } catch {
-    // Network error / offline — fall through and enter the cached
-    // profile anyway. The IDB cache still works; sync resumes when
-    // the network returns.
+    // Offline — enter the cached profile anyway.
   }
 
   clearAllSessions()
   await setActiveProfile(profileId)
 
-  const updated = await registry.touchProfile(profileId, nowSecs())
-  if (!updated) throw new Error(`enterProfile: no registry row for ${profileId}`)
+  const touched: registry.ProfileRow = { ...row, lastUsedAt: nowSecs() }
+  await registry.upsertProfile(touched)
   await registry.setLastActiveProfileId(profileId)
-
-  activeProfile.value = updated
-  // Don't touch syncState here — entering a profile doesn't tell us
-  // anything about session validity. The router boot's background
-  // getSession() will flip it within the next tick.
+  activeProfile.value = touched
   return { ok: true }
 }
 
@@ -301,27 +297,23 @@ export async function deleteProfile(profileId: string): Promise<void> {
 /** Sign out a profile by revoking its server-side session and clearing
  *  its stored token. Defaults to the active profile when no id is
  *  given. Profile + IDB stay intact — sign-out is the "I'll be back"
- *  action; permanent removal is `deleteProfile()`.
- *
- *  When the target is the active profile, also clears the in-memory
- *  active state + lastActiveProfileId so the next render falls back
- *  to the picker. When the target is a non-active profile, just
- *  revokes its token and flips the chip — the active workspace is
- *  untouched. */
+ *  action; permanent removal is `deleteProfile()`. Active-target also
+ *  clears in-memory state so the picker takes over; non-active just
+ *  flips the chip. */
 export async function signOut(targetProfileId?: string): Promise<void> {
   const targetId = targetProfileId ?? activeProfile.value?.profileId ?? null
   if (!targetId) return
 
   const row = await registry.getProfile(targetId)
-  if (row?.sessionToken) {
+  if (!row) return
+  if (row.sessionToken) {
     try {
       await authClient.multiSession.revoke({ sessionToken: row.sessionToken })
     } catch {
-      // Offline / 401 / anything — fine. We still clear local state
-      // so the chip flips and the cookie won't be reused next boot.
+      // Cookie still flips locally; server token will expire on its own.
     }
   }
-  await registry.updateProfileSessionToken(targetId, null)
+  await registry.upsertProfile({ ...row, sessionToken: null })
 
   if (activeProfile.value?.profileId === targetId) {
     await registry.setLastActiveProfileId(null)
@@ -336,18 +328,11 @@ export async function signOut(targetProfileId?: string): Promise<void> {
   }
 }
 
-// Watcher: Better Auth's reactive session is the source of truth for
-// the OAuth (social) sign-in path. Email/password goes through the
-// wrapped `signInEmail` / `signUpEmail` verbs which call
-// `signInComplete` inline — but OAuth leaves the page for the IdP
-// redirect, so when the app re-mounts after the callback there's no
-// in-flight Promise to chain `signInComplete` onto. Instead we watch
-// the session ref: when a user appears that doesn't match the active
-// profile, run `signInComplete` to upsert the profile, swap the
-// per-profile DB, and migrate the legacy DB if needed. Idempotent —
-// no-ops if `activeProfile` already matches the session user. Also
-// keeps the stored sessionToken fresh for the active profile when the
-// server rotates it (cookie refresh, etc.).
+// OAuth leaves the page for the IdP redirect, so when the app
+// re-mounts after the callback there's no in-flight Promise to chain
+// `signInComplete` onto. Watch the reactive session instead and run
+// it on user-change; also keep the stored token fresh when the server
+// rotates a cookie under the existing user.
 const sessionWatchRef = authClient.useSession()
 watch(
   () => sessionWatchRef.value.data,
@@ -356,14 +341,8 @@ watch(
     if (!user) return
     const sessionToken = data?.session?.token ?? null
     if (activeProfile.value?.profileId === user.id) {
-      // Same user as the active profile; just refresh the stored
-      // token if it changed (no DB swap, no migration).
       if (sessionToken && activeProfile.value.sessionToken !== sessionToken) {
-        void registry
-          .updateProfileSessionToken(user.id, sessionToken)
-          .then((row) => {
-            if (row) activeProfile.value = row
-          })
+        void setProfileToken(user.id, sessionToken)
       }
       return
     }
@@ -371,12 +350,11 @@ watch(
   },
 )
 
-/** Background reconcile: ask the server which device sessions are
- *  still alive, then clear stored sessionTokens on any registry row
- *  whose token isn't in the response. Called from the router boot —
- *  fire-and-forget, never throws. The picker reads `listProfiles()`
- *  on mount so reconcile results show up the next time the user
- *  navigates to `/profiles`. */
+/** Ask the server which device sessions are still alive and clear
+ *  stored tokens on any registry row whose token isn't in the
+ *  response. Fire-and-forget from the router boot; the picker reads
+ *  `listProfiles()` on mount so reconcile results show up the next
+ *  time the user navigates to `/profiles`. */
 export async function reconcileDeviceSessions(): Promise<void> {
   try {
     const result = await authClient.multiSession.listDeviceSessions()
@@ -387,17 +365,12 @@ export async function reconcileDeviceSessions(): Promise<void> {
         .filter((t): t is string => typeof t === 'string'),
     )
     const profiles = await registry.listProfiles()
-    for (const p of profiles) {
-      if (p.sessionToken && !liveTokens.has(p.sessionToken)) {
-        const updated = await registry.updateProfileSessionToken(p.profileId, null)
-        if (updated && activeProfile.value?.profileId === p.profileId) {
-          activeProfile.value = updated
-        }
-      }
-    }
+    const stale = profiles.filter(
+      (p) => p.sessionToken && !liveTokens.has(p.sessionToken),
+    )
+    await Promise.all(stale.map((p) => setProfileToken(p.profileId, null)))
   } catch {
-    // Offline / 401 / anything — leave stored tokens alone. They'll
-    // be reconciled on the next successful boot.
+    // Offline — leave stored tokens alone; next boot will retry.
   }
 }
 
@@ -451,13 +424,6 @@ export function useAuth() {
   }
 }
 
-interface UserPayload {
-  id: string
-  email: string
-  name?: string
-  image?: string | null
-}
-
 interface SignInData {
   user?: UserPayload
   token?: string | null
@@ -468,10 +434,9 @@ function extractUser(result: unknown): UserPayload | null {
   return readData(result)?.user ?? null
 }
 
+// Better Auth surfaces the session token at `data.token` for email/
+// password; some plugin paths put it under `data.session.token`.
 function extractSessionToken(result: unknown): string | null {
-  // Better Auth's email/password response surfaces the session token
-  // at `data.token`; some plugin paths put it under `data.session.token`.
-  // Take whichever is present.
   const data = readData(result)
   return data?.token ?? data?.session?.token ?? null
 }
