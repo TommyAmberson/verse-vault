@@ -40,8 +40,15 @@ function redirectTarget(): string {
 }
 
 async function onCardEnter(profile: ProfileRow) {
-  await enterProfile(profile.profileId)
-  await router.replace(redirectTarget())
+  const result = await enterProfile(profile.profileId)
+  if (result.ok) {
+    await router.replace(redirectTarget())
+    return
+  }
+  // Token missing or rejected — drop the user into the sign-in form
+  // so they can re-auth. The card stays so they can also pick a
+  // different (still-signed-in) profile.
+  mode.value = 'add'
 }
 
 async function onCardSignOut(profile: ProfileRow) {

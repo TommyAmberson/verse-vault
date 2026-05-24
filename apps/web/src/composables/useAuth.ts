@@ -172,12 +172,38 @@ export async function signInComplete(
   syncState.value = 'online'
 }
 
+/** Outcome of an attempt to enter a profile. Callers branch on
+ *  `ok: false` to route the user to re-auth instead of the workspace. */
+export type EnterResult =
+  | { ok: true }
+  | { ok: false; reason: 'no-token' | 'token-rejected' }
+
 /** Switch the in-memory + persistence-layer active profile to
- *  `profileId`. Assumes the profile already exists in the registry
- *  (the picker only renders cards backed by `listProfiles()`). Updates
- *  `lastUsedAt` + `lastActiveProfileId`. Does NOT navigate — the
- *  caller (ProfilePickerView) handles routing. */
-export async function enterProfile(profileId: string): Promise<void> {
+ *  `profileId`. Calls `multiSession.setActive` first so Better Auth
+ *  treats the stored token as the current session; if the row has no
+ *  token (signed-out profile) or the server rejects it (revoked),
+ *  returns `ok: false` and the caller routes to the sign-in form
+ *  instead of the workspace. Does NOT navigate — the caller
+ *  (ProfilePickerView) handles routing. */
+export async function enterProfile(profileId: string): Promise<EnterResult> {
+  const row = await registry.getProfile(profileId)
+  if (!row) throw new Error(`enterProfile: no registry row for ${profileId}`)
+  if (!row.sessionToken) return { ok: false, reason: 'no-token' }
+
+  try {
+    const result = await authClient.multiSession.setActive({
+      sessionToken: row.sessionToken,
+    })
+    if (result?.error) {
+      await registry.updateProfileSessionToken(profileId, null)
+      return { ok: false, reason: 'token-rejected' }
+    }
+  } catch {
+    // Network error / offline — fall through and enter the cached
+    // profile anyway. The IDB cache still works; sync resumes when
+    // the network returns.
+  }
+
   clearAllSessions()
   await setActiveProfile(profileId)
 
@@ -189,6 +215,7 @@ export async function enterProfile(profileId: string): Promise<void> {
   // Don't touch syncState here — entering a profile doesn't tell us
   // anything about session validity. The router boot's background
   // getSession() will flip it within the next tick.
+  return { ok: true }
 }
 
 /** Permanently remove a profile from this device: drop its registry
