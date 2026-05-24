@@ -1,6 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { authClient, loadActiveProfileFromRegistry, markSyncState } from '@/composables/useAuth'
+import {
+  authClient,
+  loadActiveProfileFromRegistry,
+  markSyncState,
+  reconcileDeviceSessions,
+} from '@/composables/useAuth'
+
+let reconcileFired = false
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -60,6 +67,15 @@ router.beforeEach(async (to) => {
     .getSession()
     .then((result) => markSyncState(result?.data?.user ? 'online' : 'signed-out'))
     .catch(() => markSyncState('offline'))
+
+  // Reconcile stored multi-session tokens against the server once per
+  // app launch, not on every navigation — it's a network roundtrip
+  // plus per-stale-row IDB writes. First boot wins; subsequent
+  // navigations rely on the watcher to keep the active profile fresh.
+  if (!reconcileFired) {
+    reconcileFired = true
+    void reconcileDeviceSessions()
+  }
 
   if (to.meta.public) {
     if (signedIn && to.name === 'profiles' && to.query.force !== '1') {

@@ -109,12 +109,15 @@ export function clearConflict(): void {
  *  the workspace can render. Idempotent on re-entry with the same
  *  user; surfaces `conflict` and returns early when the session user
  *  doesn't match the currently-active profile. */
-export async function signInComplete(user: {
-  id: string
-  email: string
-  name?: string
-  image?: string | null
-}): Promise<void> {
+export async function signInComplete(
+  user: {
+    id: string
+    email: string
+    name?: string
+    image?: string | null
+  },
+  sessionToken: string | null = null,
+): Promise<void> {
   const existing = await registry.getProfile(user.id)
 
   // Conflict: user re-authed but came back as someone else. Leave the
@@ -144,9 +147,10 @@ export async function signInComplete(user: {
     image: user.image ?? null,
     createdAt: existing?.createdAt ?? now,
     lastUsedAt: now,
-    // Placeholder; populated by the session-token capture path that
-    // runs after the sign-in response or session-watcher resolves.
-    sessionToken: existing?.sessionToken ?? null,
+    // Prefer the freshly-issued token; fall back to whatever was on
+    // the existing row so a re-entry without a new token (e.g. an
+    // idempotent watcher fire) doesn't blow away a valid stored one.
+    sessionToken: sessionToken ?? existing?.sessionToken ?? null,
   }
   await registry.upsertProfile(row)
   await registry.setLastActiveProfileId(user.id)
@@ -242,16 +246,61 @@ export async function signOut(): Promise<void> {
 // the session ref: when a user appears that doesn't match the active
 // profile, run `signInComplete` to upsert the profile, swap the
 // per-profile DB, and migrate the legacy DB if needed. Idempotent —
-// no-ops if `activeProfile` already matches the session user.
+// no-ops if `activeProfile` already matches the session user. Also
+// keeps the stored sessionToken fresh for the active profile when the
+// server rotates it (cookie refresh, etc.).
 const sessionWatchRef = authClient.useSession()
 watch(
-  () => sessionWatchRef.value.data?.user,
-  (user) => {
+  () => sessionWatchRef.value.data,
+  (data) => {
+    const user = data?.user
     if (!user) return
-    if (activeProfile.value?.profileId === user.id) return
-    void signInComplete(user)
+    const sessionToken = data?.session?.token ?? null
+    if (activeProfile.value?.profileId === user.id) {
+      // Same user as the active profile; just refresh the stored
+      // token if it changed (no DB swap, no migration).
+      if (sessionToken && activeProfile.value.sessionToken !== sessionToken) {
+        void registry
+          .updateProfileSessionToken(user.id, sessionToken)
+          .then((row) => {
+            if (row) activeProfile.value = row
+          })
+      }
+      return
+    }
+    void signInComplete(user, sessionToken)
   },
 )
+
+/** Background reconcile: ask the server which device sessions are
+ *  still alive, then clear stored sessionTokens on any registry row
+ *  whose token isn't in the response. Called from the router boot —
+ *  fire-and-forget, never throws. The picker reads `listProfiles()`
+ *  on mount so reconcile results show up the next time the user
+ *  navigates to `/profiles`. */
+export async function reconcileDeviceSessions(): Promise<void> {
+  try {
+    const result = await authClient.multiSession.listDeviceSessions()
+    const sessions = result?.data ?? []
+    const liveTokens = new Set(
+      sessions
+        .map((entry: { session?: { token?: string } }) => entry.session?.token)
+        .filter((t): t is string => typeof t === 'string'),
+    )
+    const profiles = await registry.listProfiles()
+    for (const p of profiles) {
+      if (p.sessionToken && !liveTokens.has(p.sessionToken)) {
+        const updated = await registry.updateProfileSessionToken(p.profileId, null)
+        if (updated && activeProfile.value?.profileId === p.profileId) {
+          activeProfile.value = updated
+        }
+      }
+    }
+  } catch {
+    // Offline / 401 / anything — leave stored tokens alone. They'll
+    // be reconciled on the next successful boot.
+  }
+}
 
 // --- Composable surface -------------------------------------------------------
 
@@ -272,14 +321,14 @@ export function useAuth() {
   async function signInEmail(email: string, password: string) {
     const result = await factoryShape.signInEmail(email, password)
     const user = extractUser(result)
-    if (user) await signInComplete(user)
+    if (user) await signInComplete(user, extractSessionToken(result))
     return result
   }
 
   async function signUpEmail(email: string, password: string) {
     const result = await factoryShape.signUpEmail(email, password)
     const user = extractUser(result)
-    if (user) await signInComplete(user)
+    if (user) await signInComplete(user, extractSessionToken(result))
     return result
   }
 
@@ -308,8 +357,26 @@ interface UserPayload {
   image?: string | null
 }
 
-function extractUser(
-  result: { data?: { user?: UserPayload } | null } | undefined,
-): UserPayload | null {
-  return result?.data?.user ?? null
+interface SignInData {
+  user?: UserPayload
+  token?: string | null
+  session?: { token?: string | null } | null
+}
+
+function extractUser(result: unknown): UserPayload | null {
+  return readData(result)?.user ?? null
+}
+
+function extractSessionToken(result: unknown): string | null {
+  // Better Auth's email/password response surfaces the session token
+  // at `data.token`; some plugin paths put it under `data.session.token`.
+  // Take whichever is present.
+  const data = readData(result)
+  return data?.token ?? data?.session?.token ?? null
+}
+
+function readData(result: unknown): SignInData | null {
+  if (!result || typeof result !== 'object') return null
+  const data = (result as { data?: unknown }).data
+  return data && typeof data === 'object' ? (data as SignInData) : null
 }
