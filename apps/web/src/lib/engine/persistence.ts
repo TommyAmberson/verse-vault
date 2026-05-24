@@ -74,7 +74,7 @@ export function openDb(): Promise<IDBDatabase> {
       new Error('No active profile — call setActiveProfile() before opening the DB.'),
     )
   }
-  const dbName = `verse-vault-${activeProfileId}`
+  const dbName = profileDbName(activeProfileId)
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(dbName, DB_VERSION)
     req.onupgradeneeded = () => {
@@ -402,5 +402,26 @@ export function transactionComplete(tx: IDBTransaction): Promise<void> {
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
     tx.onabort = () => reject(tx.error)
+  })
+}
+
+/** Canonical name of the per-profile DB for `profileId`. Single source
+ *  of truth for the template; both `openDb()` here and `registry.ts`'s
+ *  existence check route through it. */
+export function profileDbName(profileId: string): string {
+  return `verse-vault-${profileId}`
+}
+
+/** Drop a named IDB database. Resolves on success; resolves (not
+ *  rejects) on `onblocked` — the caller has already done what it can
+ *  to release its own handle, so a holding connection from another
+ *  tab is a "best-effort, try again later" situation rather than a
+ *  hard failure. */
+export function deleteIdb(dbName: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(dbName)
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+    req.onblocked = () => resolve()
   })
 }

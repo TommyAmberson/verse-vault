@@ -7,10 +7,11 @@ const router = createRouter({
   routes: [
     { path: '/', redirect: '/review' },
     { path: '/session', redirect: '/review' },
+    { path: '/signin', redirect: '/profiles' },
     {
-      path: '/signin',
-      name: 'signin',
-      component: () => import('@/views/SignInView.vue'),
+      path: '/profiles',
+      name: 'profiles',
+      component: () => import('@/views/ProfilePickerView.vue'),
       meta: { public: true },
     },
     {
@@ -61,14 +62,14 @@ router.beforeEach(async (to) => {
     .catch(() => markSyncState('offline'))
 
   if (to.meta.public) {
-    if (signedIn && to.name === 'signin') {
+    if (signedIn && to.name === 'profiles' && to.query.force !== '1') {
       const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/review'
       return redirect
     }
     return true
   }
   if (signedIn) return true
-  return { name: 'signin', query: to.fullPath !== '/' ? { redirect: to.fullPath } : {} }
+  return { name: 'profiles', query: to.fullPath !== '/' ? { redirect: to.fullPath } : {} }
 })
 
 export default router

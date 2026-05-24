@@ -9,6 +9,30 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Profile picker UI
+
+* **`/profiles` is the new entry point.** Replaces the single-form `SignInView`; lists every profile
+  on the device as a card (avatar, name, email, last-used timestamp) and lets the user enter, sign
+  out, or delete any of them. Clicking "Add another profile" reveals the existing `SignInForm`
+  inline so a second account can be linked without leaving the route. The legacy `/signin` URL
+  redirects here so the offline banner's existing link keeps working.
+* **Workspace "Switch profile" entry.** The user-menu's Sign out button is replaced by a Switch
+  profile link to `/profiles?force=1` (the `force=1` defeats the guard's auto-redirect-to-`/review`
+  that fires when a signed-in user navigates to the picker by URL). Sign-out now happens from the
+  per-card kebab inside the picker; this keeps all profile-lifecycle actions in one place.
+* **Delete profile** path drops both the registry row and the per-profile `verse-vault-${id}` IDB
+  database. If the deleted profile was the active one, in-memory engine sessions are cleared and the
+  `lastActiveProfileId` pointer is unset so the picker stays put rather than auto-redirecting on
+  next render.
+* **Per-card "Sign out" only renders on the active card** in PR B — non-active profiles don't have a
+  separate session to clear yet. Per-profile device tokens (and per-card sign-out for non-active
+  profiles) arrive in a follow-up PR.
+* New: `apps/web/src/views/ProfilePickerView.vue`, `components/ProfileCard.vue`,
+  `components/ConfirmDialog.vue`.
+* Modified: `useAuth.ts` exposes `enterProfile` + `deleteProfile`; `router/index.ts` registers
+  `/profiles` (and redirects `/signin` → `/profiles`); `App.vue` swaps Sign out for Switch profile.
+* Deleted: `apps/web/src/views/SignInView.vue` (functionality absorbed into `ProfilePickerView`).
+
 ### Offline-first boot + profiles
 
 * **Profiles are now a first-class concept.** Each signed-in account on a device gets its own

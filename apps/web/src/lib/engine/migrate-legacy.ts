@@ -15,7 +15,12 @@
  * load).
  */
 
-import { promiseRequest, transactionComplete } from './persistence'
+import {
+  deleteIdb,
+  profileDbName,
+  promiseRequest,
+  transactionComplete,
+} from './persistence'
 
 const LEGACY_DB_NAME = 'verse-vault'
 const LEGACY_DB_VERSION = 1
@@ -45,7 +50,12 @@ export async function migrateLegacyDb(
     targetDb.close()
   }
 
-  await deleteLegacy()
+  // `onblocked` (another tab holding the legacy DB) resolves silently
+  // — the user's data has already been copied to the target by this
+  // point, so they keep their cards. The legacy DB sticks around
+  // taking up storage until the holding tab closes; the next
+  // first-ever sign-in (no profiles in registry) retries the cleanup.
+  await deleteIdb(LEGACY_DB_NAME)
   return { migrated: true }
 }
 
@@ -71,32 +81,12 @@ function openLegacyReadOnly(): Promise<IDBDatabase> {
 
 function openTargetReadWrite(profileId: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(`verse-vault-${profileId}`)
+    const req = indexedDB.open(profileDbName(profileId))
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
     // Target DB's upgrade handler is in persistence.ts. We rely on
     // setActiveProfile having already opened the target once before
     // this runs — so it already has all stores created.
-  })
-}
-
-function deleteLegacy(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.deleteDatabase(LEGACY_DB_NAME)
-    req.onsuccess = () => resolve()
-    req.onerror = () => reject(req.error)
-    req.onblocked = () => {
-      // Another tab holding a handle to the legacy DB — drop the
-      // wait and continue. The user's data has already been copied
-      // to the target by this point (delete is the final step), so
-      // they keep their cards. The legacy DB just sticks around
-      // taking up storage until the holding tab closes; the next
-      // first-ever sign-in (no profiles in registry) will see it
-      // and retry the cleanup. Subsequent sign-ins for the SAME
-      // user skip migration entirely (gate is per-device, not
-      // per-user) so we don't accidentally re-copy stale data.
-      resolve()
-    }
   })
 }
 

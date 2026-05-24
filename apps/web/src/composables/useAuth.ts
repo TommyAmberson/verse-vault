@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { createAppAuthClient } from '@/lib/authClient'
 import { clearAllSessions } from '@/lib/engine/engineStore'
 import { migrateLegacyDb } from '@/lib/engine/migrate-legacy'
-import { setActiveProfile } from '@/lib/engine/persistence'
+import { deleteIdb, profileDbName, setActiveProfile } from '@/lib/engine/persistence'
 import * as registry from '@/lib/engine/registry'
 
 // Better Auth's client auto-appends `/api/auth` to baseURL only when the
@@ -103,10 +103,12 @@ export function clearConflict(): void {
   conflict.value = null
 }
 
-/** Called by `SignInView` after a successful Better Auth sign-in. We
- *  upsert the profile in the registry, run the legacy-DB migration if
- *  this is the first profile we've ever created, and open the
- *  per-profile DB so the workspace can render. */
+/** Run after a successful Better Auth sign-in / sign-up. Upserts the
+ *  profile in the registry, runs the legacy-DB migration when this is
+ *  the device's first-ever profile, and opens the per-profile DB so
+ *  the workspace can render. Idempotent on re-entry with the same
+ *  user; surfaces `conflict` and returns early when the session user
+ *  doesn't match the currently-active profile. */
 export async function signInComplete(user: {
   id: string
   email: string
@@ -163,10 +165,54 @@ export async function signInComplete(user: {
   syncState.value = 'online'
 }
 
+/** Switch the in-memory + persistence-layer active profile to
+ *  `profileId`. Assumes the profile already exists in the registry
+ *  (the picker only renders cards backed by `listProfiles()`). Updates
+ *  `lastUsedAt` + `lastActiveProfileId`. Does NOT navigate — the
+ *  caller (ProfilePickerView) handles routing. */
+export async function enterProfile(profileId: string): Promise<void> {
+  clearAllSessions()
+  await setActiveProfile(profileId)
+
+  const updated = await registry.touchProfile(profileId, nowSecs())
+  if (!updated) throw new Error(`enterProfile: no registry row for ${profileId}`)
+  await registry.setLastActiveProfileId(profileId)
+
+  activeProfile.value = updated
+  // Don't touch syncState here — entering a profile doesn't tell us
+  // anything about session validity. The router boot's background
+  // getSession() will flip it within the next tick.
+}
+
+/** Permanently remove a profile from this device: drop its registry
+ *  row AND its per-profile IDB DB. If the deleted profile is the
+ *  currently-active one, also clear in-memory engine state and the
+ *  `lastActiveProfileId` pointer (so the next render sees no active
+ *  profile — the picker stays put rather than auto-redirecting). */
+export async function deleteProfile(profileId: string): Promise<void> {
+  const wasActive = activeProfile.value?.profileId === profileId
+
+  if (wasActive) {
+    clearAllSessions()
+    await setActiveProfile(null)
+    await registry.setLastActiveProfileId(null)
+    activeProfile.value = null
+    activeProfileLoaded = false
+  }
+
+  await registry.removeProfile(profileId)
+
+  // Active profile's connection was closed via `setActiveProfile(null)`
+  // above; non-active profiles never had one open. `deleteIdb`
+  // resolves on `onblocked` rather than hanging — a holding tab is a
+  // "try again later" scenario, not a failure.
+  await deleteIdb(profileDbName(profileId))
+}
+
 /** Sign out the current profile. Best-effort API call to invalidate
  *  the server session; local state is cleared regardless. The profile
  *  + its IDB DB stay intact — sign-out is the "I'll be back" action.
- *  Permanent removal is `removeActiveProfile()` (future PR B). */
+ *  Permanent removal is `deleteProfile()`. */
 export async function signOut(): Promise<void> {
   try {
     await authClient.signOut()
@@ -245,6 +291,8 @@ export function useAuth() {
     conflict: computed(() => conflict.value),
     signOut,
     signInComplete,
+    enterProfile,
+    deleteProfile,
     markSyncState,
     clearConflict,
   }
