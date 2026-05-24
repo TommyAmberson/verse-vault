@@ -243,25 +243,42 @@ export async function deleteProfile(profileId: string): Promise<void> {
   await deleteIdb(profileDbName(profileId))
 }
 
-/** Sign out the current profile. Best-effort API call to invalidate
- *  the server session; local state is cleared regardless. The profile
- *  + its IDB DB stay intact — sign-out is the "I'll be back" action.
- *  Permanent removal is `deleteProfile()`. */
-export async function signOut(): Promise<void> {
-  try {
-    await authClient.signOut()
-  } catch {
-    // Offline / 401 / anything — fine. We still clear local state.
+/** Sign out a profile by revoking its server-side session and clearing
+ *  its stored token. Defaults to the active profile when no id is
+ *  given. Profile + IDB stay intact — sign-out is the "I'll be back"
+ *  action; permanent removal is `deleteProfile()`.
+ *
+ *  When the target is the active profile, also clears the in-memory
+ *  active state + lastActiveProfileId so the next render falls back
+ *  to the picker. When the target is a non-active profile, just
+ *  revokes its token and flips the chip — the active workspace is
+ *  untouched. */
+export async function signOut(targetProfileId?: string): Promise<void> {
+  const targetId = targetProfileId ?? activeProfile.value?.profileId ?? null
+  if (!targetId) return
+
+  const row = await registry.getProfile(targetId)
+  if (row?.sessionToken) {
+    try {
+      await authClient.multiSession.revoke({ sessionToken: row.sessionToken })
+    } catch {
+      // Offline / 401 / anything — fine. We still clear local state
+      // so the chip flips and the cookie won't be reused next boot.
+    }
   }
-  await registry.setLastActiveProfileId(null)
-  await setActiveProfile(null)
-  clearAllSessions()
-  activeProfile.value = null
-  // Reset the load-once flag so the next sign-in re-reads the
-  // registry — keeps the "flag true ⟺ registry consulted this
-  // session for the current profile" invariant honest.
-  activeProfileLoaded = false
-  syncState.value = 'signed-out'
+  await registry.updateProfileSessionToken(targetId, null)
+
+  if (activeProfile.value?.profileId === targetId) {
+    await registry.setLastActiveProfileId(null)
+    await setActiveProfile(null)
+    clearAllSessions()
+    activeProfile.value = null
+    // Reset the load-once flag so the next sign-in re-reads the
+    // registry — keeps the "flag true ⟺ registry consulted this
+    // session for the current profile" invariant honest.
+    activeProfileLoaded = false
+    syncState.value = 'signed-out'
+  }
 }
 
 // Watcher: Better Auth's reactive session is the source of truth for
