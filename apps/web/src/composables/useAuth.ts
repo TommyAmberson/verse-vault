@@ -284,13 +284,23 @@ export async function enterProfile(profileId: string): Promise<EnterResult> {
   return { ok: true }
 }
 
-/** Permanently remove a profile from this device: drop its registry
- *  row AND its per-profile IDB DB. If the deleted profile is the
- *  currently-active one, also clear in-memory engine state and the
- *  `lastActiveProfileId` pointer (so the next render sees no active
- *  profile — the picker stays put rather than auto-redirecting). */
+/** Permanently remove a profile from this device: revoke its server
+ *  session, drop its registry row, drop its per-profile IDB DB. If
+ *  the deleted profile is the currently-active one, also clear
+ *  in-memory engine state and the `lastActiveProfileId` pointer (so
+ *  the next render sees no active profile — the picker stays put
+ *  rather than auto-redirecting). */
 export async function deleteProfile(profileId: string): Promise<void> {
   const wasActive = activeProfile.value?.profileId === profileId
+  const row = await registry.getProfile(profileId)
+
+  if (row?.sessionToken) {
+    try {
+      await authClient.multiSession.revoke({ sessionToken: row.sessionToken })
+    } catch {
+      // Best-effort; the token expires server-side eventually.
+    }
+  }
 
   if (wasActive) {
     clearAllSessions()
