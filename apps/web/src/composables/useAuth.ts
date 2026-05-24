@@ -140,13 +140,28 @@ export async function acceptPendingSignIn(): Promise<void> {
  *  profile (typically stale — that's what triggered the re-auth). */
 export async function cancelPendingSignIn(): Promise<void> {
   const pending = takePendingConflict()
-  if (!pending?.pendingSessionToken) return
-  try {
-    await authClient.multiSession.revoke({
-      sessionToken: pending.pendingSessionToken,
-    })
-  } catch {
-    // Best-effort; the token expires server-side eventually.
+  if (!pending) return
+  if (pending.pendingSessionToken) {
+    try {
+      await authClient.multiSession.revoke({
+        sessionToken: pending.pendingSessionToken,
+      })
+    } catch {
+      // Best-effort; the token expires server-side eventually.
+    }
+  }
+  // Re-pin the prior active profile as Better Auth's current session
+  // cookie. multiSession.revoke clears the server-side token but
+  // doesn't repoint the cookie, so without this getSession() would
+  // return null and the workspace would think the user is signed out.
+  if (activeProfile.value?.sessionToken) {
+    try {
+      await authClient.multiSession.setActive({
+        sessionToken: activeProfile.value.sessionToken,
+      })
+    } catch {
+      // If repinning fails the next getSession will mark us signed-out.
+    }
   }
 }
 
