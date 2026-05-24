@@ -1,6 +1,6 @@
 {
   "name": "@verse-vault/api",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "private": true,
   "type": "module",
   "scripts": {
@@ -22,7 +22,8 @@
     "hono": "^4.7.0",
     "node-html-parser": "^7.1.0",
     "varcon": "^1.0.1",
-    "verse-vault-wasm": "workspace:*"
+    "verse-vault-wasm": "workspace:*",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.0.0",
