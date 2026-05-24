@@ -5,16 +5,18 @@ import type { ProfileRow } from '@/lib/engine/registry'
 
 const props = defineProps<{
   profile: ProfileRow
-  /** True when this card represents the currently-active profile.
-   *  Drives whether the kebab surfaces "Sign out" — non-active
-   *  profiles share the active profile's cookie in PR B, so signing
-   *  them out independently isn't meaningful until per-profile device
-   *  tokens land. */
+  /** True when this card represents the currently-active profile. */
   active: boolean
+  /** Whether the profile has a live session on this device. Drives
+   *  the chip + whether card click means enter or re-auth. */
+  signedIn: boolean
 }>()
 
 const emit = defineEmits<{
+  /** Clicked a signed-in card — swap workspace to this profile. */
   (e: 'enter'): void
+  /** Clicked a signed-out card — re-auth required to use it. */
+  (e: 'reauth'): void
   (e: 'sign-out'): void
   (e: 'delete'): void
 }>()
@@ -76,10 +78,15 @@ function onDeleteClick(ev: Event) {
 // <button>, so the kebab + menu items inside it remain valid
 // interactive descendants. Native button-in-button is invalid HTML
 // and confuses screen readers.
+function onCardActivate() {
+  if (props.signedIn) emit('enter')
+  else emit('reauth')
+}
+
 function onCardKeydown(ev: KeyboardEvent) {
   if (ev.key === 'Enter' || ev.key === ' ') {
     ev.preventDefault()
-    emit('enter')
+    onCardActivate()
   }
 }
 </script>
@@ -87,9 +94,10 @@ function onCardKeydown(ev: KeyboardEvent) {
 <template>
   <div
     class="card"
+    :class="{ 'is-active': active, 'is-signed-out': !signedIn }"
     role="button"
     tabindex="0"
-    @click="emit('enter')"
+    @click="onCardActivate"
     @keydown="onCardKeydown"
   >
     <div class="avatar">
@@ -97,7 +105,12 @@ function onCardKeydown(ev: KeyboardEvent) {
       <span v-else class="initials">{{ initials }}</span>
     </div>
     <div class="meta">
-      <p class="name">{{ profile.displayName }}</p>
+      <p class="name">
+        {{ profile.displayName }}
+        <span class="chip" :class="{ 'chip-out': !signedIn }">
+          {{ signedIn ? 'Signed in' : 'Signed out' }}
+        </span>
+      </p>
       <p class="email">{{ profile.email }}</p>
       <p class="last-used">Last used {{ lastUsedLabel }}</p>
     </div>
@@ -113,7 +126,7 @@ function onCardKeydown(ev: KeyboardEvent) {
       </button>
       <div v-if="menuOpen" class="menu" role="menu">
         <button
-          v-if="active"
+          v-if="signedIn"
           type="button"
           class="menu-item"
           role="menuitem"
@@ -155,6 +168,18 @@ function onCardKeydown(ev: KeyboardEvent) {
   background: var(--color-bg);
 }
 
+.card.is-active {
+  border-color: var(--color-accent);
+}
+
+.card.is-signed-out {
+  opacity: 0.75;
+}
+
+.card.is-signed-out:hover {
+  opacity: 1;
+}
+
 .avatar {
   flex: 0 0 auto;
   width: 2.5rem;
@@ -194,6 +219,26 @@ function onCardKeydown(ev: KeyboardEvent) {
 .name {
   font-weight: 600;
   font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chip {
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.chip-out {
+  background: transparent;
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
 }
 
 .email {
