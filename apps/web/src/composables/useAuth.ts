@@ -47,9 +47,23 @@ export type SyncState = 'online' | 'signed-out' | 'offline'
 const syncState = ref<SyncState>('online')
 
 /** Non-null when Better Auth returns a different user than the
- *  currently-active profile expected. The workspace surfaces this so
- *  the user can pick: sign out, or add the new user as a profile. */
-const conflict = ref<{ expectedEmail: string; actualEmail: string } | null>(null)
+ *  currently-active profile expected. The dialog surfaces this so
+ *  the user can pick: switch to the new account (becomes the active
+ *  profile; old one stays on the device as a signed-out card) or
+ *  cancel (the new server-issued token is revoked, leaving the old
+ *  profile active but stale until a real re-auth). */
+interface ConflictState {
+  expectedEmail: string
+  actualEmail: string
+  pendingUser: {
+    id: string
+    email: string
+    name?: string
+    image?: string | null
+  }
+  pendingSessionToken: string | null
+}
+const conflict = ref<ConflictState | null>(null)
 
 let activeProfileLoaded = false
 
@@ -103,6 +117,43 @@ export function clearConflict(): void {
   conflict.value = null
 }
 
+/** Conflict resolution: accept the new user the server returned.
+ *  Replaces the active profile (the old one stays on the device as a
+ *  signed-out card). Re-runs signInComplete with a snapshot of the
+ *  active profile cleared so the conflict guard doesn't re-trigger. */
+export async function acceptPendingSignIn(): Promise<void> {
+  const pending = conflict.value
+  if (!pending) return
+  conflict.value = null
+  // Mark the old active profile as signed-out (its cookie was rotated
+  // by the new sign-in anyway; the stored token would be invalid).
+  if (activeProfile.value) {
+    await registry.updateProfileSessionToken(activeProfile.value.profileId, null)
+  }
+  activeProfile.value = null
+  activeProfileLoaded = false
+  await signInComplete(pending.pendingUser, pending.pendingSessionToken)
+}
+
+/** Conflict resolution: revoke the new session and keep the previous
+ *  active profile. The previous profile's cookie may still be expired
+ *  (that's what triggered the re-auth), so the workspace continues in
+ *  offline/stale mode until the user explicitly re-authenticates. */
+export async function cancelPendingSignIn(): Promise<void> {
+  const pending = conflict.value
+  if (!pending) return
+  conflict.value = null
+  if (pending.pendingSessionToken) {
+    try {
+      await authClient.multiSession.revoke({
+        sessionToken: pending.pendingSessionToken,
+      })
+    } catch {
+      // Best-effort; the token expires server-side eventually.
+    }
+  }
+}
+
 /** Run after a successful Better Auth sign-in / sign-up. Upserts the
  *  profile in the registry, runs the legacy-DB migration when this is
  *  the device's first-ever profile, and opens the per-profile DB so
@@ -121,11 +172,15 @@ export async function signInComplete(
   const existing = await registry.getProfile(user.id)
 
   // Conflict: user re-authed but came back as someone else. Leave the
-  // active profile alone; the UI reads `conflict` and prompts.
+  // active profile alone; the dialog reads `conflict` and prompts.
+  // Capture the pending payload so the resolver can re-run this with
+  // `force: true` without re-fetching from the server.
   if (activeProfile.value && activeProfile.value.profileId !== user.id) {
     conflict.value = {
       expectedEmail: activeProfile.value.email,
       actualEmail: user.email,
+      pendingUser: user,
+      pendingSessionToken: sessionToken,
     }
     return
   }
@@ -391,6 +446,8 @@ export function useAuth() {
     deleteProfile,
     markSyncState,
     clearConflict,
+    acceptPendingSignIn,
+    cancelPendingSignIn,
   }
 }
 

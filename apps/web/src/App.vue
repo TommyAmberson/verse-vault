@@ -3,10 +3,11 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import { api } from '@/api'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import { useAuth } from '@/composables/useAuth'
 
-const { activeProfile } = useAuth()
+const { activeProfile, conflict, acceptPendingSignIn, cancelPendingSignIn } = useAuth()
 const route = useRoute()
 
 // Driven by the active profile (cached locally) rather than Better
@@ -54,6 +55,23 @@ watch(() => route.fullPath, refreshMemorizeCount)
       </nav>
     </header>
     <OfflineBanner />
+    <ConfirmDialog
+      v-if="conflict"
+      title="Switch to a different account?"
+      :confirm-label="`Switch to ${conflict.pendingUser.email}`"
+      cancel-label="Stay signed in"
+      @confirm="acceptPendingSignIn"
+      @cancel="cancelPendingSignIn"
+    >
+      <p>
+        You were signed in as <strong>{{ conflict.expectedEmail }}</strong>,
+        but the sign-in just completed as
+        <strong>{{ conflict.pendingUser.email }}</strong>. Switching will make
+        the new account the active workspace and leave
+        {{ conflict.expectedEmail }} on this device as a signed-out
+        profile you can return to.
+      </p>
+    </ConfirmDialog>
     <main class="site-main">
       <RouterView />
     </main>
