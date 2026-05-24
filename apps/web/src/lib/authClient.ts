@@ -1,14 +1,22 @@
+import { multiSessionClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 
 /** Mirrors qzr-sheet's `createAppAuthClient` factory: a `createAuthClient`
  *  bound to a base URL plus a `useAuth` composable that exposes the
  *  reactive session and the action verbs the UI needs. Skipping GitHub
- *  for now — Google + email/password only. */
+ *  for now — Google + email/password only.
+ *
+ *  `multiSessionClient` mirrors the server-side `multiSession()` plugin
+ *  and surfaces `authClient.multiSession.{listDeviceSessions, setActive,
+ *  revoke}` for the picker. */
 
 export type SocialProvider = 'google'
 
 export function createAppAuthClient(baseURL: string) {
-  const authClient = createAuthClient({ baseURL })
+  const authClient = createAuthClient({
+    baseURL,
+    plugins: [multiSessionClient()],
+  })
 
   function useAuth() {
     const session = authClient.useSession()
