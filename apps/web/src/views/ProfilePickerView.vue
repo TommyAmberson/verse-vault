@@ -45,19 +45,24 @@ async function onCardEnter(profile: ProfileRow) {
     await router.replace(redirectTarget())
     return
   }
-  // Token missing or rejected — drop the user into the sign-in form
-  // so they can re-auth. The card stays so they can also pick a
-  // different (still-signed-in) profile.
+  // Token missing or rejected — drop into the sign-in form so the
+  // user can re-auth. Other (still-signed-in) cards remain pickable
+  // via the back-to-profiles link.
+  mode.value = 'add'
+}
+
+function onCardReauth() {
+  // Signed-out card — same UX as enter-with-rejected-token: pop the
+  // sign-in form. We don't pre-fill the email yet; ProfileCard's
+  // identity stays visible above the form via the picker layout.
   mode.value = 'add'
 }
 
 async function onCardSignOut(profile: ProfileRow) {
-  // Only the active card surfaces Sign out (see ProfileCard doc
-  // comment) so this implicitly targets the active profile. signOut()
-  // clears the cookie + lastActiveProfileId; the profile + its DB
-  // stay intact.
-  if (activeProfile.value?.profileId !== profile.profileId) return
-  await signOut()
+  // multiSession.revoke is per-token; the active and non-active
+  // cases differ only in whether useAuth.signOut also clears the
+  // in-memory active state — both branches handled inside signOut().
+  await signOut(profile.profileId)
   await refreshProfiles()
 }
 
@@ -108,7 +113,9 @@ async function onSignInSuccess() {
           :key="p.profileId"
           :profile="p"
           :active="activeProfile?.profileId === p.profileId"
+          :signed-in="p.sessionToken !== null"
           @enter="onCardEnter(p)"
+          @reauth="onCardReauth()"
           @sign-out="onCardSignOut(p)"
           @delete="requestDelete(p)"
         />
