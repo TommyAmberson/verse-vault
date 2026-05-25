@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import ScopeLevelSelector from '@/components/ScopeLevelSelector.vue'
+import StatusChip from '@/components/StatusChip.vue'
 import {
   type ChapterListScope,
   type ClubStatus,
@@ -28,6 +29,12 @@ const STATUS_LABELS: Record<ClubStatus, string> = {
   active: 'Active',
   maintenance: 'Maintenance',
   paused: 'Paused',
+}
+
+const STATUS_VARIANTS: Record<ClubStatus, 'accent' | 'warning' | 'muted'> = {
+  active: 'accent',
+  maintenance: 'warning',
+  paused: 'muted',
 }
 
 // All four scope tracks share the same 4-stop shape (chapter-list is
@@ -320,9 +327,9 @@ onMounted(refresh)
               <span v-if="isStudying(selected)" class="tier-pill-count">
                 {{ selected.view.clubs[tier].cardCount }}
               </span>
-              <span :class="`status-chip status-${selected.view.clubs[tier].status}`">
+              <StatusChip :variant="STATUS_VARIANTS[selected.view.clubs[tier].status]">
                 {{ STATUS_LABELS[selected.view.clubs[tier].status] }}
-              </span>
+              </StatusChip>
             </span>
           </div>
         </header>
@@ -611,30 +618,6 @@ h2 {
 .tier-pill-count {
   color: var(--color-muted);
   font-variant-numeric: tabular-nums;
-}
-
-.status-chip {
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-}
-
-.status-active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-
-.status-maintenance {
-  background: var(--color-grade-hard-bg);
-  color: var(--color-grade-hard);
-}
-
-.status-paused {
-  background: var(--color-bg-card);
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
 }
 
 .section-title {
