@@ -10,6 +10,21 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.14] — 2026-05-25
+
+### Changed
+
+* **Aligned `better-auth` with the web client** (`^1.2.0` → `^1.6.5`). The web has been on 1.6.5
+  since the offline-boot work; running mismatched majors on the wire surface was working only
+  because the multiSession plugin happens to be stable across 1.2 → 1.6. Bumping closes the drift
+  before the next plugin-affecting change hits a peer-dep surprise. No behaviour change expected;
+  full test suite green on the bumped version.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged
+* `verse-vault-wasm@0.1.2` — unchanged
+
 ## [0.1.13] — 2026-05-25
 
 0.1.12's deploy failed because the multi-session entry stayed under `[Unreleased]` instead of being
