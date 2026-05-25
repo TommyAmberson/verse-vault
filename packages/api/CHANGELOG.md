@@ -10,6 +10,14 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.13] — 2026-05-25
+
+0.1.12's deploy failed because the multi-session entry stayed under `[Unreleased]` instead of being
+promoted to a dated section (`tools/check-contract-versions.sh --ci` requires the dated section to
+exist for the current `package.json` version). Code has been on master since `1ea3265`; production
+goes straight from 0.1.11 → 0.1.13, bundling the changelog-promotion fix with the multi-session
+entry that was supposed to ship in 0.1.12.
+
 ### Added
 
 * **Better Auth `multiSession` plugin.** Lets one device hold cookies for several signed-in accounts
