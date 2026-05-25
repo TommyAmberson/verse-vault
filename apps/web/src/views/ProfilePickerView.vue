@@ -23,6 +23,7 @@ const route = useRoute()
 
 const profiles = ref<ProfileRow[]>([])
 const mode = ref<'empty' | 'cards' | 'add'>('cards')
+const prefillEmail = ref<string | undefined>(undefined)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)
 
@@ -45,16 +46,14 @@ async function onCardEnter(profile: ProfileRow) {
     await router.replace(redirectTarget())
     return
   }
-  // Token missing or rejected — drop into the sign-in form so the
-  // user can re-auth. Other (still-signed-in) cards remain pickable
-  // via the back-to-profiles link.
+  // Token missing or rejected — drop into the sign-in form prefilled
+  // with this profile's email so the user can re-auth in one step.
+  prefillEmail.value = profile.email
   mode.value = 'add'
 }
 
-function onCardReauth() {
-  // Signed-out card — same UX as enter-with-rejected-token: pop the
-  // sign-in form. We don't pre-fill the email yet; ProfileCard's
-  // identity stays visible above the form via the picker layout.
+function onCardReauth(profile: ProfileRow) {
+  prefillEmail.value = profile.email
   mode.value = 'add'
 }
 
@@ -88,10 +87,12 @@ async function confirmDelete() {
 }
 
 function startAdd() {
+  prefillEmail.value = undefined
   mode.value = 'add'
 }
 
 function cancelAdd() {
+  prefillEmail.value = undefined
   mode.value = profiles.value.length === 0 ? 'empty' : 'cards'
 }
 
@@ -115,7 +116,7 @@ async function onSignInSuccess() {
           :active="activeProfile?.profileId === p.profileId"
           :signed-in="p.sessionToken !== null"
           @enter="onCardEnter(p)"
-          @reauth="onCardReauth()"
+          @reauth="onCardReauth(p)"
           @sign-out="onCardSignOut(p)"
           @delete="requestDelete(p)"
         />
@@ -130,6 +131,7 @@ async function onSignInSuccess() {
         :sign-in-social="signInSocial"
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
+        :prefill-email="prefillEmail"
         @success="onSignInSuccess"
       />
       <button v-if="mode === 'add'" type="button" class="back-btn" @click="cancelAdd">
