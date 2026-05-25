@@ -30,10 +30,18 @@ const deleteBusy = ref(false)
 // Keep mode in sync with the shared profiles list (reconcile, sign-in
 // from another flow, etc.). Skip when the user is mid-add — don't
 // yank them out of the sign-in form just because a chip flipped.
-watch(profiles, (rows) => {
-  if (mode.value === 'add') return
-  mode.value = rows.length === 0 ? 'empty' : 'cards'
-})
+// `immediate: true` defends against any future router refactor where
+// `loadActiveProfileFromRegistry` isn't awaited before navigation:
+// the synchronous `mode` init at setup would otherwise read the
+// pre-populate value and never get a chance to flip.
+watch(
+  profiles,
+  (rows) => {
+    if (mode.value === 'add') return
+    mode.value = rows.length === 0 ? 'empty' : 'cards'
+  },
+  { immediate: true },
+)
 
 function redirectTarget(): string {
   return typeof route.query.redirect === 'string' ? route.query.redirect : '/review'
