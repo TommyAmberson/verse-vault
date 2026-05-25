@@ -9,6 +9,34 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Multi-session + reauth dialog
+
+* **Multiple accounts on one device.** Wires Better Auth's `multiSession` plugin (server) +
+  `multiSessionClient` (client). Each sign-in stacks a new session cookie alongside any existing
+  ones rather than replacing them; `enterProfile` calls `multiSession.setActive` before swapping
+  per-profile IDB so the API sees the right user for that profile's session. Tokens are stored on
+  the registry row (`ProfileRow.sessionToken`); the picker uses them to render a "Signed in" /
+  "Signed out" chip per card.
+* **Per-card sign-out.** Any signed-in card's kebab now exposes Sign out. Active-card sign-out
+  clears the in-memory active state and drops back to the picker; non-active sign-out just flips
+  that card's chip to "Signed out" — the workspace continues uninterrupted on the active profile.
+  Built on `multiSession.revoke` so other profiles' cookies stay intact.
+* **Click-to-reauth on signed-out cards.** Cards without a valid token emit `reauth` instead of
+  `enter`; the picker drops into the sign-in form so the user can refresh their session.
+* **Reauth dialog for conflicting sessions.** When the OAuth callback or a fresh email sign-in
+  returns a different user than the currently-active profile, the workspace surfaces a modal: Switch
+  to the new account (becomes active; old profile remains on the device as a signed-out card) or
+  Stay signed in (revoke the new token, keep the prior active profile — typically stale until the
+  user re-auths). Replaces the previously-orphaned `useAuth().conflict` ref that had no consumer.
+* **Boot reconciliation.** The router boot kicks off `multiSession.listDeviceSessions` and clears
+  stored tokens for any registry profile whose session no longer exists server-side, so the chip
+  reflects reality after expirations or remote revocations.
+* New: `ConfirmDialog` reused as the reauth modal in `App.vue`.
+* Modified: `lib/engine/registry.ts` (DB v1 → v2, backfills `sessionToken: null`); `useAuth.ts`
+  (token capture + reconcile + accept/cancel resolvers; `signOut(profileId?)`); `lib/authClient.ts`
+  (attaches `multiSessionClient`); `components/ProfileCard.vue` (chip + always-on Sign out + reauth
+  event); `views/ProfilePickerView.vue` (wires the new events).
+
 ### Profile picker UI
 
 * **`/profiles` is the new entry point.** Replaces the single-form `SignInView`; lists every profile

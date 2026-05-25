@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { multiSession } from 'better-auth/plugins';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
@@ -80,6 +81,13 @@ export function createAuth(db: DB, env: AuthEnv) {
         trustedProviders: ['google'],
       },
     },
+    // Multi-session lets the device hold cookies for several signed-in
+    // accounts at once. Each new sign-in is stacked alongside any
+    // existing session cookies rather than replacing them; the picker
+    // uses `multiSession.{listDeviceSessions,setActive,revoke}` to
+    // swap between accounts and to sign out a single profile without
+    // disturbing the others. Schema-compatible — no new tables.
+    plugins: [multiSession()],
   });
 }
 

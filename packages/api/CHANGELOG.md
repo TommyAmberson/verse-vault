@@ -10,6 +10,21 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### Added
+
+* **Better Auth `multiSession` plugin.** Lets one device hold cookies for several signed-in accounts
+  at once. Stacks a new session cookie on each sign-in rather than replacing the previous one;
+  exposes `/api/auth/multi-session/list-device-sessions`, `/api/auth/multi-session/set-active`, and
+  `/api/auth/multi-session/revoke` for the picker to enumerate, swap, and individually revoke
+  per-account sessions. No schema changes (existing `session` table already keyed by `token`). Older
+  clients that don't know about multi-session keep working — they just see whichever single session
+  the plugin reports as active.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.1.0` — unchanged
+* `verse-vault-wasm@0.1.2` — unchanged
+
 ## [0.1.11] — 2026-05-22
 
 0.1.10's deploy failed because the offline-mode entries stayed under `[Unreleased]` instead of being
