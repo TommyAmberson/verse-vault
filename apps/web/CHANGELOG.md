@@ -9,6 +9,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.12] — 2026-05-24
+
 ### Picker polish
 
 * **Reauth flow pre-fills the email.** Clicking a signed-out card (or a signed-in card whose server
@@ -25,6 +27,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   `ProfileCard` (signed-in/out) and `MaterialView` (per-deck active/maintenance/paused). Three
   variants (`accent` / `warning` / `muted`) cover both call sites; `xs` / `sm` size prop preserves
   existing visual hierarchy. Next chip needed gets it for free.
+
+## [0.1.11] — 2026-05-23
 
 ### Multi-session + reauth dialog
 
@@ -54,6 +58,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   (attaches `multiSessionClient`); `components/ProfileCard.vue` (chip + always-on Sign out + reauth
   event); `views/ProfilePickerView.vue` (wires the new events).
 
+## [0.1.10] — 2026-05-23
+
 ### Profile picker UI
 
 * **`/profiles` is the new entry point.** Replaces the single-form `SignInView`; lists every profile
@@ -77,6 +83,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 * Modified: `useAuth.ts` exposes `enterProfile` + `deleteProfile`; `router/index.ts` registers
   `/profiles` (and redirects `/signin` → `/profiles`); `App.vue` swaps Sign out for Switch profile.
 * Deleted: `apps/web/src/views/SignInView.vue` (functionality absorbed into `ProfilePickerView`).
+
+## [0.1.9] — 2026-05-22
 
 ### Offline-first boot + profiles
 
@@ -102,6 +110,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 The picker UI (multi-profile cards with sign-out and delete affordances) is deferred to a follow-up
 PR; this PR keeps the existing email/password form as the entry point for unauth'd users.
+
+## [0.1.8] — 2026-05-22
 
 ### Added
 
