@@ -400,9 +400,9 @@ watch(
 
 /** Ask the server which device sessions are still alive and clear
  *  stored tokens on any registry row whose token isn't in the
- *  response. Fire-and-forget from the router boot; the picker reads
- *  `listProfiles()` on mount so reconcile results show up the next
- *  time the user navigates to `/profiles`. */
+ *  response. Fire-and-forget from the router boot; results land on
+ *  the picker reactively via `setProfileToken` → `refreshProfilesList`,
+ *  no remount needed. */
 export async function reconcileDeviceSessions(): Promise<void> {
   try {
     const result = await authClient.multiSession.listDeviceSessions()
