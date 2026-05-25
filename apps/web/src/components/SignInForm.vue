@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import type { SocialProvider } from '@/lib/authClient'
 
@@ -9,15 +9,31 @@ const props = defineProps<{
   signInSocial: (provider: SocialProvider) => void
   signInEmail: (email: string, password: string) => Promise<SignInResult>
   signUpEmail: (email: string, password: string) => Promise<SignInResult>
+  /** When set, skip the provider picker and open the form in
+   *  email-signin mode with this address pre-populated. Used by the
+   *  picker's reauth flow so a click on a signed-out card lands the
+   *  user directly in the field for their existing email. */
+  prefillEmail?: string
 }>()
 
 const emit = defineEmits<{ (e: 'success'): void }>()
 
-const mode = ref<'pick' | 'signin' | 'signup'>('pick')
-const email = ref('')
+const mode = ref<'pick' | 'signin' | 'signup'>(props.prefillEmail ? 'signin' : 'pick')
+const email = ref(props.prefillEmail ?? '')
 const password = ref('')
 const error = ref('')
 const pending = ref(false)
+
+// Picker can change the prefill without remounting (user clicks a
+// different signed-out card mid-flow); keep the form in sync.
+watch(
+  () => props.prefillEmail,
+  (next) => {
+    if (!next) return
+    mode.value = 'signin'
+    email.value = next
+  },
+)
 
 async function submitEmail() {
   error.value = ''

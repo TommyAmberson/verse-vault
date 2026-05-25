@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProfileCard from '@/components/ProfileCard.vue'
 import SignInForm from '@/components/SignInForm.vue'
 import { useAuth } from '@/composables/useAuth'
-import { listProfiles, type ProfileRow } from '@/lib/engine/registry'
+import type { ProfileRow } from '@/lib/engine/registry'
 
 const {
   activeProfile,
+  profiles,
   signInSocial,
   signInEmail,
   signUpEmail,
@@ -21,19 +22,18 @@ const {
 const router = useRouter()
 const route = useRoute()
 
-const profiles = ref<ProfileRow[]>([])
-const mode = ref<'empty' | 'cards' | 'add'>('cards')
+const mode = ref<'empty' | 'cards' | 'add'>(profiles.value.length === 0 ? 'empty' : 'cards')
+const prefillEmail = ref<string | undefined>(undefined)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)
 
-async function refreshProfiles() {
-  const rows = await listProfiles()
-  rows.sort((a, b) => b.lastUsedAt - a.lastUsedAt)
-  profiles.value = rows
+// Keep mode in sync with the shared profiles list (reconcile, sign-in
+// from another flow, etc.). Skip when the user is mid-add — don't
+// yank them out of the sign-in form just because a chip flipped.
+watch(profiles, (rows) => {
+  if (mode.value === 'add') return
   mode.value = rows.length === 0 ? 'empty' : 'cards'
-}
-
-onMounted(refreshProfiles)
+})
 
 function redirectTarget(): string {
   return typeof route.query.redirect === 'string' ? route.query.redirect : '/review'
@@ -45,16 +45,14 @@ async function onCardEnter(profile: ProfileRow) {
     await router.replace(redirectTarget())
     return
   }
-  // Token missing or rejected — drop into the sign-in form so the
-  // user can re-auth. Other (still-signed-in) cards remain pickable
-  // via the back-to-profiles link.
+  // Token missing or rejected — drop into the sign-in form prefilled
+  // with this profile's email so the user can re-auth in one step.
+  prefillEmail.value = profile.email
   mode.value = 'add'
 }
 
-function onCardReauth() {
-  // Signed-out card — same UX as enter-with-rejected-token: pop the
-  // sign-in form. We don't pre-fill the email yet; ProfileCard's
-  // identity stays visible above the form via the picker layout.
+function onCardReauth(profile: ProfileRow) {
+  prefillEmail.value = profile.email
   mode.value = 'add'
 }
 
@@ -62,8 +60,8 @@ async function onCardSignOut(profile: ProfileRow) {
   // multiSession.revoke is per-token; the active and non-active
   // cases differ only in whether useAuth.signOut also clears the
   // in-memory active state — both branches handled inside signOut().
+  // The shared profiles list refreshes automatically.
   await signOut(profile.profileId)
-  await refreshProfiles()
 }
 
 function requestDelete(profile: ProfileRow) {
@@ -80,7 +78,6 @@ async function confirmDelete() {
   deleteBusy.value = true
   try {
     await deleteProfile(target.profileId)
-    await refreshProfiles()
   } finally {
     deleteBusy.value = false
     pendingDelete.value = null
@@ -88,10 +85,12 @@ async function confirmDelete() {
 }
 
 function startAdd() {
+  prefillEmail.value = undefined
   mode.value = 'add'
 }
 
 function cancelAdd() {
+  prefillEmail.value = undefined
   mode.value = profiles.value.length === 0 ? 'empty' : 'cards'
 }
 
@@ -115,7 +114,7 @@ async function onSignInSuccess() {
           :active="activeProfile?.profileId === p.profileId"
           :signed-in="p.sessionToken !== null"
           @enter="onCardEnter(p)"
-          @reauth="onCardReauth()"
+          @reauth="onCardReauth(p)"
           @sign-out="onCardSignOut(p)"
           @delete="requestDelete(p)"
         />
@@ -130,6 +129,7 @@ async function onSignInSuccess() {
         :sign-in-social="signInSocial"
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
+        :prefill-email="prefillEmail"
         @success="onSignInSuccess"
       />
       <button v-if="mode === 'add'" type="button" class="back-btn" @click="cancelAdd">

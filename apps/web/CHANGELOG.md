@@ -9,6 +9,23 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Picker polish
+
+* **Reauth flow pre-fills the email.** Clicking a signed-out card (or a signed-in card whose server
+  token was revoked) now drops the user into the sign-in form already populated with that profile's
+  address and opened directly to email-signin mode. Saves typing and signals "this is the account
+  you were already using." The Add-another-profile entry stays blank.
+* **Reactive profiles list.** The picker no longer fetches `listProfiles()` on mount only — the list
+  lives as a shared reactive ref in `useAuth`, refreshed by every mutation (sign in, sign out,
+  enter, delete, token rotation, boot reconcile). Chips reflect server-state changes without
+  remounting; deleting the last card flips the picker to its empty state without manual refresh.
+  `mode === 'add'` short-circuits the reactive flip so an in-flight sign-in form isn't yanked out
+  from under the user.
+* **Shared `StatusChip` component.** Extracted from the near-identical hand-rolled chip spans in
+  `ProfileCard` (signed-in/out) and `MaterialView` (per-deck active/maintenance/paused). Three
+  variants (`accent` / `warning` / `muted`) cover both call sites; `xs` / `sm` size prop preserves
+  existing visual hierarchy. Next chip needed gets it for free.
+
 ### Multi-session + reauth dialog
 
 * **Multiple accounts on one device.** Wires Better Auth's `multiSession` plugin (server) +

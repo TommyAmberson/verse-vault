@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
+import StatusChip from '@/components/StatusChip.vue'
 import type { ProfileRow } from '@/lib/engine/registry'
 
 const props = defineProps<{
@@ -107,9 +108,9 @@ function onCardKeydown(ev: KeyboardEvent) {
     <div class="meta">
       <p class="name">
         {{ profile.displayName }}
-        <span class="chip" :class="{ 'chip-out': !signedIn }">
+        <StatusChip :variant="signedIn ? 'accent' : 'muted'" size="xs">
           {{ signedIn ? 'Signed in' : 'Signed out' }}
-        </span>
+        </StatusChip>
       </p>
       <p class="email">{{ profile.email }}</p>
       <p class="last-used">Last used {{ lastUsedLabel }}</p>
@@ -222,23 +223,6 @@ function onCardKeydown(ev: KeyboardEvent) {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-}
-
-.chip {
-  font-size: 0.65rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-
-.chip-out {
-  background: transparent;
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
 }
 
 .email {

@@ -32,6 +32,21 @@ export { authClient }
  *  (boot before registry-read; sign-out; first-ever launch). */
 const activeProfile = ref<registry.ProfileRow | null>(null)
 
+/** Reactive copy of the registry's full profile list, sorted
+ *  newest-used first. Anything that mutates the registry (sign in,
+ *  sign out, enter, delete, token rotation, boot reconcile) calls
+ *  `refreshProfilesList` at the end so the picker reflects changes
+ *  without remounting. */
+const profilesList = ref<registry.ProfileRow[]>([])
+
+/** Repopulate `profilesList` from the registry. Cheap — the registry
+ *  is a single IDB scan over 1-10 rows. */
+export async function refreshProfilesList(): Promise<void> {
+  const rows = await registry.listProfiles()
+  rows.sort((a, b) => b.lastUsedAt - a.lastUsedAt)
+  profilesList.value = rows
+}
+
 /** Three-state sync status:
  *  - `online`     — most recent sync attempt succeeded with a live session.
  *  - `signed-out` — the server is reachable but rejected the request
@@ -81,6 +96,9 @@ function nowSecs(): number {
 export async function loadActiveProfileFromRegistry(): Promise<boolean> {
   if (activeProfileLoaded) return activeProfile.value != null
   activeProfileLoaded = true
+  // Populate the reactive list on the same boot pass so the picker
+  // doesn't need its own bootstrap fetch.
+  await refreshProfilesList()
   const id = await registry.getLastActiveProfileId()
   if (!id) {
     activeProfile.value = null
@@ -176,6 +194,7 @@ async function setProfileToken(
   if (updated && activeProfile.value?.profileId === profileId) {
     activeProfile.value = updated
   }
+  await refreshProfilesList()
 }
 
 /** Run after a successful Better Auth sign-in / sign-up. Upserts the
@@ -246,6 +265,7 @@ export async function signInComplete(
 
   activeProfile.value = row
   syncState.value = 'online'
+  await refreshProfilesList()
 }
 
 export type EnterResult = { ok: boolean }
@@ -281,6 +301,7 @@ export async function enterProfile(profileId: string): Promise<EnterResult> {
   await registry.upsertProfile(touched)
   await registry.setLastActiveProfileId(profileId)
   activeProfile.value = touched
+  await refreshProfilesList()
   return { ok: true }
 }
 
@@ -317,6 +338,7 @@ export async function deleteProfile(profileId: string): Promise<void> {
   // resolves on `onblocked` rather than hanging — a holding tab is a
   // "try again later" scenario, not a failure.
   await deleteIdb(profileDbName(profileId))
+  await refreshProfilesList()
 }
 
 /** Sign out a profile by revoking its server-side session and clearing
@@ -351,6 +373,7 @@ export async function signOut(targetProfileId?: string): Promise<void> {
     activeProfileLoaded = false
     syncState.value = 'signed-out'
   }
+  await refreshProfilesList()
 }
 
 // OAuth leaves the page for the IdP redirect, so when the app
@@ -377,9 +400,9 @@ watch(
 
 /** Ask the server which device sessions are still alive and clear
  *  stored tokens on any registry row whose token isn't in the
- *  response. Fire-and-forget from the router boot; the picker reads
- *  `listProfiles()` on mount so reconcile results show up the next
- *  time the user navigates to `/profiles`. */
+ *  response. Fire-and-forget from the router boot; results land on
+ *  the picker reactively via `setProfileToken` → `refreshProfilesList`,
+ *  no remount needed. */
 export async function reconcileDeviceSessions(): Promise<void> {
   try {
     const result = await authClient.multiSession.listDeviceSessions()
@@ -435,6 +458,7 @@ export function useAuth() {
     signInEmail,
     signUpEmail,
     activeProfile: computed(() => activeProfile.value),
+    profiles: computed(() => profilesList.value),
     syncState: computed(() => syncState.value),
     isOnline: computed(() => syncState.value === 'online'),
     conflict: computed(() => conflict.value),
