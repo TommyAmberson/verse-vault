@@ -317,12 +317,7 @@ onMounted(refresh)
           </div>
           <p class="year-description">{{ selected.view.description }}</p>
           <div class="tier-summary">
-            <span
-              v-for="tier in CLUB_TIERS"
-              :key="tier"
-              class="tier-pill"
-              :class="`tier-status-${selected.view.clubs[tier].status}`"
-            >
+            <span v-for="tier in CLUB_TIERS" :key="tier" class="tier-pill">
               <span class="tier-pill-name">{{ TIER_LABELS[tier] }}</span>
               <span v-if="isStudying(selected)" class="tier-pill-count">
                 {{ selected.view.clubs[tier].cardCount }}
