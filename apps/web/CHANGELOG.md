@@ -22,6 +22,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   now calls `multiSession.setActive(sessionToken)` after the upsert so the new session is the one
   attached to subsequent API requests.
 
+### Memorize "Already memorized" opt-out
+
+* **Skip drilling per verse.** During the opening read-through, each verse now gets a secondary
+  "Already memorized" button next to "Next verse / Start drilling". Clicking it graduates the verse
+  immediately and removes its cards from the drill queue — useful for seeding a deck with verses the
+  user already knows from elsewhere. The closing read-through skips already-graduated verses so the
+  user isn't asked to confirm twice; if every verse was opt-out'd in reading_start, the session
+  jumps straight to done.
+
 ### Review / Memorize keyboard shortcuts
 
 * **Enter is the primary action** on every screen: flips a graded card front-to-back; advances
