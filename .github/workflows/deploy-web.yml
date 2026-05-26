@@ -46,6 +46,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fail fast if the web CHANGELOG entry for the version being deployed
+      # doesn't exist as a dated section that references the current
+      # verse-vault-core / verse-vault-wasm contract crate versions. Mirrors
+      # the API deploy's same check — catches "bumped apps/web/package.json
+      # but left the entry under [Unreleased]" or "bumped the WASM contract
+      # crate but forgot to update web's Bundled algorithm contract list."
+      - name: Verify CHANGELOG entry for this release
+        run: tools/check-contract-versions.sh --ci web
+
       # WASM toolchain — the web bundle now embeds the verse-vault engine
       # via crates/wasm/pkg-web (bundler target). Built before pnpm install
       # so the `verse-vault-wasm-web` workspace package exists when pnpm

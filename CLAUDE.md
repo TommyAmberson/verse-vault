@@ -63,9 +63,10 @@ you're touching before making non-trivial changes.
 Hooks are wired via `simple-git-hooks` + `lint-staged` and installed by `pnpm install` (see the
 `postinstall` script in `package.json`). The `pre-commit` hook runs `lint-staged`,
 `cargo fmt --check`, `typos`, and `tools/check-contract-versions.sh` (blocks commits that touch
-`crates/{core,wasm}/src/` without a matching `Cargo.toml` version bump — bypass with `--no-verify`
-for refactors that don't change observable behaviour). `commit-msg` runs `commitlint` against the
-conventional-commits config.
+`crates/{core,wasm}/src/` without a matching `Cargo.toml` version bump, and commits that bump any
+package's version without a matching `## [X.Y.Z]` section in its `CHANGELOG.md` — bypass with
+`--no-verify` for refactors that don't change observable behaviour). `commit-msg` runs `commitlint`
+against the conventional-commits config.
 
 Manually run the slower checks before pushing:
 
@@ -167,12 +168,19 @@ Discipline when changing them:
 
 Enforcement:
 
-* **Pre-commit** (`tools/check-contract-versions.sh`): blocks commits where
-  `crates/<core|wasm>/src/` changed but the version didn't. Bypass with `git commit --no-verify` for
-  refactors with no observable effect.
-* **CI** (`.github/workflows/deploy-api.yml`, run on API deploys): blocks deploys when
-  `packages/api/CHANGELOG.md`'s entry for the version being deployed doesn't reference the current
-  contract crate versions. Catches "bumped core but forgot to update the API changelog."
+* **Pre-commit** (`tools/check-contract-versions.sh`): two checks.
+  * Blocks commits where `crates/<core|wasm>/src/` changed but the matching `Cargo.toml` `version`
+    didn't. Bypass with `git commit --no-verify` for refactors with no observable effect.
+  * Blocks commits that bump any package's version (`crates/<core|wasm>/Cargo.toml`,
+    `packages/api/package.json`, `apps/web/package.json`, `deploy/vv-router/package.json`) without a
+    matching `## [X.Y.Z]` (non-Unreleased) section in the same package's `CHANGELOG.md`. Promote
+    `[Unreleased]` to `[X.Y.Z] — YYYY-MM-DD` in the same commit.
+* **CI** (`tools/check-contract-versions.sh --ci <target>`, run by each consumer's deploy workflow).
+  Targets are `api` (`deploy-api.yml`), `web` (`deploy-web.yml`), and `vv-router`
+  (`deploy-vv-router.yml`). Each blocks the deploy when the consumer's CHANGELOG doesn't have a
+  dated section for the version being deployed; `api` and `web` additionally require that section to
+  reference the current `verse-vault-core` and `verse-vault-wasm` versions (catches "bumped the
+  contract crate but forgot to update the consumer's `Bundled algorithm contract` subsection").
 
 See top-level `CHANGELOG.md` for the contract model and per-package changelog index.
 

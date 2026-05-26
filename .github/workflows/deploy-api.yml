@@ -64,7 +64,7 @@ jobs:
       # contract crate versions. Catches "bumped core but forgot to update
       # the API changelog's Bundled algorithm contract subsection."
       - name: Verify contract crate references in CHANGELOG
-        run: tools/check-contract-versions.sh --ci
+        run: tools/check-contract-versions.sh --ci api
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
