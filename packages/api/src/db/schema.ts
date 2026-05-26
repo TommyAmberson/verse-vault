@@ -122,7 +122,8 @@ export const userYearSettings = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     materialId: text('material_id').notNull(),
-    headings: integer('headings', { mode: 'boolean' }).notNull(),
+    headingCard: integer('heading_card', { mode: 'boolean' }).notNull(),
+    headingPassageCard: integer('heading_passage_card', { mode: 'boolean' }).notNull(),
     ftv: integer('ftv', { mode: 'boolean' }).notNull(),
     newScope: text('new_scope').notNull(),
     reviewScope: text('review_scope').notNull(),

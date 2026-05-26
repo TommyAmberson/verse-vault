@@ -17,7 +17,8 @@ interface YearsResponse {
     description: string;
     enrolled: boolean;
     settings: {
-      headings: boolean;
+      headingCard: boolean;
+      headingPassageCard: boolean;
       ftv: boolean;
       newScope: TierScope;
       reviewScope: TierScope;
@@ -83,7 +84,8 @@ describe('years routes', () => {
     const body = (await res.json()) as YearsResponse;
     const year = body.years.find((y) => y.materialId === MATERIAL_ID)!;
     expect(year.settings).toEqual({
-      headings: true,
+      headingCard: false,
+      headingPassageCard: true,
       ftv: true,
       newScope: 'all',
       reviewScope: 'all',
@@ -147,7 +149,7 @@ describe('years routes', () => {
     const res = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ headings: false, lessonBatchSize: 5 }),
+      body: JSON.stringify({ headingCard: true, lessonBatchSize: 5 }),
     });
     expect(res.status).toBe(200);
 
@@ -161,7 +163,8 @@ describe('years routes', () => {
         ),
       )
       .get();
-    expect(row?.headings).toBe(false);
+    expect(row?.headingCard).toBe(true);
+    expect(row?.headingPassageCard).toBe(true);
     expect(row?.lessonBatchSize).toBe(5);
     // Other scopes preserved at their defaults.
     expect(row?.newScope).toBe('all');
@@ -199,7 +202,7 @@ describe('years routes', () => {
     const res = await test.app.request(`/api/years/not-a-material/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ headings: false }),
+      body: JSON.stringify({ headingCard: false }),
     });
     expect(res.status).toBe(404);
   });

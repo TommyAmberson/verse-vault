@@ -28,7 +28,8 @@ const MIN_LESSON_BATCH_SIZE = 1;
 const MAX_LESSON_BATCH_SIZE = 10;
 
 interface YearSettings {
-  headings: boolean;
+  headingCard: boolean;
+  headingPassageCard: boolean;
   ftv: boolean;
   newScope: TierScope;
   reviewScope: TierScope;
@@ -67,7 +68,8 @@ interface YearView {
 }
 
 interface SettingsBody {
-  headings?: boolean;
+  headingCard?: boolean;
+  headingPassageCard?: boolean;
   ftv?: boolean;
   newScope?: string;
   reviewScope?: string;
@@ -138,8 +140,13 @@ function effectiveStatus(settings: YearSettings, tier: ClubTier): ClubStatus {
 // per-tier chip doesn't lie ("Active" on a year the user hasn't
 // touched would be misleading). Either way, the user can opt in or
 // out from the picker.
+// VerseInHeading defaults off; HeadingPassage defaults on. Mirrors
+// `MaterialConfig::default()` after the heading config split (core
+// 0.2.0): the passage-cued card is the primary heading test and the
+// per-verse "which heading?" card is now opt-in.
 const ENROLLED_DEFAULTS: YearSettings = {
-  headings: true,
+  headingCard: false,
+  headingPassageCard: true,
   ftv: true,
   newScope: 'all',
   reviewScope: 'all',
@@ -172,7 +179,8 @@ function readYearSettings(
     .get();
   if (!row) return fallback;
   return {
-    headings: row.headings,
+    headingCard: row.headingCard,
+    headingPassageCard: row.headingPassageCard,
     ftv: row.ftv,
     newScope: row.newScope as TierScope,
     reviewScope: row.reviewScope as TierScope,
@@ -294,7 +302,10 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         body[field] === undefined ? existing[field] : validate(body[field]);
 
       next = {
-        headings: pick('headings', (v) => ensureBoolean(v, 'headings')),
+        headingCard: pick('headingCard', (v) => ensureBoolean(v, 'headingCard')),
+        headingPassageCard: pick('headingPassageCard', (v) =>
+          ensureBoolean(v, 'headingPassageCard'),
+        ),
         ftv: pick('ftv', (v) => ensureBoolean(v, 'ftv')),
         newScope: pick('newScope', (v) => ensureEnum(v, 'newScope', TIER_SCOPES)),
         reviewScope: pick('reviewScope', (v) => ensureEnum(v, 'reviewScope', TIER_SCOPES)),

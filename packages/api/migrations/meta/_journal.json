@@ -120,6 +120,13 @@
       "when": 1779000000000,
       "tag": "0016_user_materials_offline_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1779100000000,
+      "tag": "0017_heading_card_split",
+      "breakpoints": true
     }
   ]
 }
