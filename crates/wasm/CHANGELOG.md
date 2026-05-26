@@ -22,6 +22,11 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-26
+
+Bundles the previously-unreleased `all_card_renders` additions with the new `HeadingPassage` wire
+variant. Ships alongside `verse-vault-core@0.2.0`.
+
 ### Added
 
 * `CardKindWire::HeadingPassage { headingIdx }` — wire-format mirror of the new core

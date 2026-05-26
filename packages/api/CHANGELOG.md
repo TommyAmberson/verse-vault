@@ -10,6 +10,8 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.15] — 2026-05-26
+
 ### Added
 
 * **Heading config split + new `HeadingPassage` card kind.** The `user_year_settings.headings`

@@ -22,6 +22,12 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-26
+
+Card-audit pass: drops the redundant no-citation FTV variant and introduces a passage-cued heading
+prompt as the new primary heading test. The intermediate `0.1.1` bump (FTV-only) never shipped on
+its own; both changes land together as `0.2.0`.
+
 ### Added
 
 * `CardKind::HeadingPassage { heading_idx }` — composite card anchored to a pseudo verse_id whose

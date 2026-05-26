@@ -9,6 +9,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.13] — 2026-05-26
+
 ### Added
 
 * **Heading config split + `HeadingPassage` card render.** Settings now exposes two heading toggles:
