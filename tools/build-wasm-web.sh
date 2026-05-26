@@ -17,6 +17,23 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Skip the rebuild when pkg-web is newer than every watched input. Means
+# `pnpm dev`'s predev hook is ~instant on restart when no Rust changed,
+# without sacrificing the freshness guarantee on real edits. Set
+# `WASM_REBUILD=1` to force a rebuild anyway.
+STAMP="$ROOT/crates/wasm/pkg-web/verse_vault_wasm_bg.wasm"
+if [ "${WASM_REBUILD:-}" != "1" ] && [ -f "$STAMP" ]; then
+	if [ -z "$(find \
+		crates/core/src \
+		crates/wasm/src \
+		crates/core/Cargo.toml \
+		crates/wasm/Cargo.toml \
+		-newer "$STAMP" -print -quit 2>/dev/null)" ]; then
+		echo "pkg-web is fresh — skipping wasm-pack (set WASM_REBUILD=1 to force)."
+		exit 0
+	fi
+fi
+
 wasm-pack build crates/wasm --target bundler --out-dir pkg-web "$@"
 
 PKG_JSON="crates/wasm/pkg-web/package.json"

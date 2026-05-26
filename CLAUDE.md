@@ -63,9 +63,10 @@ you're touching before making non-trivial changes.
 Hooks are wired via `simple-git-hooks` + `lint-staged` and installed by `pnpm install` (see the
 `postinstall` script in `package.json`). The `pre-commit` hook runs `lint-staged`,
 `cargo fmt --check`, `typos`, and `tools/check-contract-versions.sh` (blocks commits that touch
-`crates/{core,wasm}/src/` without a matching `Cargo.toml` version bump — bypass with `--no-verify`
-for refactors that don't change observable behaviour). `commit-msg` runs `commitlint` against the
-conventional-commits config.
+`crates/{core,wasm}/src/` without a matching `Cargo.toml` version bump, and commits that bump any
+package's version without a matching `## [X.Y.Z]` section in its `CHANGELOG.md` — bypass with
+`--no-verify` for refactors that don't change observable behaviour). `commit-msg` runs `commitlint`
+against the conventional-commits config.
 
 Manually run the slower checks before pushing:
 
@@ -145,8 +146,10 @@ corresponds to a top-level workspace member or root-level directory (`crates/<sc
 `docs:` (no sub-scope) for doc-only edits — sub-scoping by doc-area (`docs(arch)`,
 `docs(server-api)`, etc.) sprawls fast and isn't enforced.
 
-Subject in lowercase, no trailing period, imperative mood ("add X", not "added X"), and **≤ 50
-characters** including the type/scope prefix. Body wrapped at ~72 cols, focuses on the why.
+Subject in lowercase, no trailing period, imperative mood, and **≤ 50 characters** including the
+type/scope prefix. Apply the "if applied, this commit will <subject>" test — `simplify cleanup pass`
+and `heading split + passage card render` fail it because they describe the commit or the change as
+a noun rather than the action. Body wrapped at ~72 cols, focuses on the why.
 
 ## Contract crate versioning
 
@@ -167,32 +170,45 @@ Discipline when changing them:
 
 Enforcement:
 
-* **Pre-commit** (`tools/check-contract-versions.sh`): blocks commits where
-  `crates/<core|wasm>/src/` changed but the version didn't. Bypass with `git commit --no-verify` for
-  refactors with no observable effect.
-* **CI** (`.github/workflows/deploy-api.yml`, run on API deploys): blocks deploys when
-  `packages/api/CHANGELOG.md`'s entry for the version being deployed doesn't reference the current
-  contract crate versions. Catches "bumped core but forgot to update the API changelog."
+* **Pre-commit** (`tools/check-contract-versions.sh`): two checks.
+  * Blocks commits where `crates/<core|wasm>/src/` changed but the matching `Cargo.toml` `version`
+    didn't. Bypass with `git commit --no-verify` for refactors with no observable effect.
+  * Blocks commits that bump any package's version (`crates/<core|wasm>/Cargo.toml`,
+    `packages/api/package.json`, `apps/web/package.json`, `deploy/vv-router/package.json`) without a
+    matching `## [X.Y.Z]` (non-Unreleased) section in the same package's `CHANGELOG.md`. Promote
+    `[Unreleased]` to `[X.Y.Z] — YYYY-MM-DD` in the same commit.
+* **CI** (`tools/check-contract-versions.sh --ci <target>`, run by each consumer's deploy workflow).
+  Targets are `api` (`deploy-api.yml`), `web` (`deploy-web.yml`), and `vv-router`
+  (`deploy-vv-router.yml`). Each blocks the deploy when the consumer's CHANGELOG doesn't have a
+  dated section for the version being deployed; `api` and `web` additionally require that section to
+  reference the current `verse-vault-core` and `verse-vault-wasm` versions (catches "bumped the
+  contract crate but forgot to update the consumer's `Bundled algorithm contract` subsection").
 
 See top-level `CHANGELOG.md` for the contract model and per-package changelog index.
 
 ## Other conventions
 
 * Slight preference for writing tests before features.
-* Redundant inline comments are not helpful. Comments that simply say "what" is happening when the
-  code is obvious should be brief or perhaps even omitted. Prefer comments that explain "why" or
-  clarify complex logic. Docstrings should be brief and focused on info that is not obvious from the
-  signature and would be useful to consumers. (but don't be too picky about removing comments)
+* Comments are part of the code: update them when surrounding code changes — stale comments are
+  bugs. Use correct grammar and spelling.
+* Comments explain **why**, sometimes **how at a high level**, never **how at a low level** (don't
+  restate what well-named code already says). Prefer line comments on the previous line over block
+  or trailing comments. Docstrings on functions — especially public APIs — stay brief and focus on
+  what isn't obvious from the signature.
 
 ## Gotchas
 
 Footguns and non-obvious wiring. Add to this list when you trip over something that wasn't obvious
 from the code or design docs.
 
-* **`crates/wasm/pkg/` is gitignored.** Regenerate with
-  `wasm-pack build crates/wasm --target nodejs --out-dir pkg` before running anything that imports
-  it (the API tests, `apps/web` in WASM mode). The deploy workflow rebuilds it from scratch on every
-  API deploy.
+* **`crates/wasm/pkg/` (nodejs target) and `crates/wasm/pkg-web/` (bundler target) are both
+  gitignored.** `pkg/` is consumed by `packages/api`; `pkg-web/` by `apps/web`. Regenerate the
+  nodejs build with `wasm-pack build crates/wasm --target nodejs --out-dir pkg`; the bundler build
+  runs automatically via `apps/web`'s `predev` hook (`tools/build-wasm-web.sh`, gated by a
+  stamp-file check against the watched src — set `WASM_REBUILD=1` to force). Deploy workflows
+  rebuild both from scratch. A stale `pkg-web/` surfaces as misleading downstream symptoms
+  (engine-init failures cascading into "no session for <materialId>"), so when Rust changes don't
+  appear in the web dev server, suspect this first.
 * **Better Auth `baseURL` rejects relative paths.** `createAuthClient({ baseURL: '/vv' })` throws
   `Invalid base URL: /vv` because Better Auth runs it through `new URL(...)`. Resolve against
   `window.location.origin` first. See the `apps/web/CHANGELOG.md` [0.1.5] entry for the original
@@ -209,5 +225,10 @@ from the code or design docs.
   files under the API workspace, so the deploy workflow has to copy `/data/*.json` into the bundle
   separately. `materials.ts` searches bundle-local first with a repo-root fallback so dev keeps
   working.
+* **Drizzle migrations need `--> statement-breakpoint` between statements.** better-sqlite3 only
+  accepts one statement per `prepare()`, so multi-statement `.sql` migrations fail at apply-time
+  with `The supplied SQL string contains more than one statement` unless each `;` is followed by
+  `--> statement-breakpoint` on its own line. See `migrations/0013_relearn_and_wipe.sql` for the
+  shape.
 * **Abandoned branches.** `django-vue*`, `laravel*`, `express-vue`, and similar are spike
   experiments that were superseded. Don't merge from them; treat as read-only history.

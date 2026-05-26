@@ -14,10 +14,14 @@ const VERSE_COLOUR_VARS = [
   '--verse-c1', '--verse-c2', '--verse-c3', '--verse-c4', '--verse-c5',
   '--verse-c6', '--verse-c7', '--verse-c8', '--verse-c9', '--verse-c10',
 ]
-const verseColour = computed(() => {
-  const idx = (props.card.verse.verse - 1) % VERSE_COLOUR_VARS.length
-  return `var(${VERSE_COLOUR_VARS[idx]})`
-})
+function verseColourVar(verse: number): string {
+  // Modulo math is always in-range for real verses (verse >= 1); the
+  // non-null assertion is needed because TS sees indexed access as
+  // possibly undefined. Pseudo cards (verse === 0) compute an undefined
+  // index but their result is never visually consumed.
+  return VERSE_COLOUR_VARS[(verse - 1) % VERSE_COLOUR_VARS.length]!
+}
+const verseColour = computed(() => `var(${verseColourVar(props.card.verse.verse)})`)
 
 /** Per-card visibility of each ref component. For "what chapter?" /
  *  "what book?" / "what verse?" / Citation, the asked-about parts stay
@@ -33,6 +37,11 @@ const refParts = computed(() => {
     case 'VerseAtVerseRef':
       return { showBook: true, showChapter: true, showVerse: reveal }
     case 'Citation':
+      return { showBook: reveal, showChapter: reveal, showVerse: reveal }
+    case 'Ftv':
+      // FTV's front has no ref. Hide the verse-colour pre-reveal so it
+      // can't mnemonic-leak the verse number; on reveal the citation
+      // and the stripe come back together.
       return { showBook: reveal, showChapter: reveal, showVerse: reveal }
     default:
       return { showBook: true, showChapter: true, showVerse: true }
@@ -89,6 +98,8 @@ const promptLabel = computed(() => {
       return 'What book?'
     case 'VerseInHeading':
       return 'What heading?'
+    case 'HeadingPassage':
+      return 'What heading is this passage under?'
     case 'VerseInClub':
       return 'What club?'
     case 'Recitation':
@@ -110,6 +121,30 @@ const ftvHtml = computed(() => props.card.composed?.ftvHtml ?? null)
 const headingTitle = computed(() => props.card.composed?.headings[0]?.title ?? null)
 const clubLabel = computed(() => props.card.tier ?? props.card.verse.clubs[0] ?? '')
 const composedMissing = computed(() => props.card.composed === null)
+
+/** Sentinel `verse === 0` marks a pseudo-verse card (ChapterClubList,
+ *  HeadingPassage) anchored to a heading or chapter rather than a
+ *  single verse. The verse-colour mnemonic doesn't apply — there's no
+ *  single verse number to encode — so the stripe is suppressed by
+ *  forcing `no-verse-accent` on `.card-box`. */
+const isPseudoVerse = computed(() => props.card.verse.verse === 0)
+
+/** "John 3:16-17" or "Romans 6:1-7:14" for a heading card. Each verse
+ *  number gets its own verse-colour via a per-span `--active-verse-colour`
+ *  override — the card-level stripe stays off (no single verse to anchor
+ *  it), but the individual verse-number mnemonics still apply. */
+const passageRangeHtml = computed(() => {
+  const h = props.card.verse.headings[0]
+  const book = escapeHtml(props.card.verse.book)
+  if (!h) return `${book} ${props.card.verse.chapter}`
+  const vNum = (n: number) =>
+    `<span class="verse-number" style="--active-verse-colour: var(${verseColourVar(n)})">${n}</span>`
+  const same = h.startChapter === h.endChapter
+  const range = same
+    ? `${h.startChapter}:${vNum(h.startVerse)}-${vNum(h.endVerse)}`
+    : `${h.startChapter}:${vNum(h.startVerse)}-${h.endChapter}:${vNum(h.endVerse)}`
+  return `${book} ${range}`
+})
 </script>
 
 <template>
@@ -122,7 +157,7 @@ const composedMissing = computed(() => props.card.composed === null)
        `--active-verse-colour` from this scope, so they always agree. -->
   <div
     class="card-box"
-    :class="{ 'no-verse-accent': !refParts.showVerse }"
+    :class="{ 'no-verse-accent': !refParts.showVerse || isPseudoVerse }"
     :style="{ '--active-verse-colour': verseColour }"
   >
     <div class="deck">{{ promptLabel }}</div>
@@ -206,14 +241,33 @@ const composedMissing = computed(() => props.card.composed === null)
         <div class="verse-text" v-html="verseHtml" />
       </div>
 
+      <!-- FTV: front shows the verse's first few words as a "continue…"
+           prompt; back reveals the citation and the full verse text. -->
       <div v-else-if="card.kind === 'Ftv'" class="centered">
-        <div v-if="revealed && card.withCitation" class="ref" v-html="refHtml" />
+        <div v-if="revealed" class="ref" v-html="refHtml" />
         <div class="verse-text ftv" v-html="`${ftvHtml ?? ''}…`" />
         <template v-if="revealed">
           <hr class="type" />
           <div class="verse-text" v-html="verseHtml" />
         </template>
         <div v-else class="placeholder">…continue the verse…</div>
+      </div>
+
+      <!-- Pseudo-verse card anchored to a heading: card-level verse-colour
+           stripe stays off (no single verse to anchor), but each verse
+           number in the range gets its own colour via a per-span
+           `--active-verse-colour` override. Front shows the range; back
+           reveals the heading title.
+           TODO: passage text needs server-side bulk composition. -->
+      <div v-else-if="card.kind === 'HeadingPassage'" class="centered">
+        <div class="ref" v-html="passageRangeHtml" />
+        <hr />
+        <template v-if="revealed">
+          <div class="verse-text" v-html="verseHtml" />
+          <hr class="type" />
+          <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
+        </template>
+        <div v-else class="placeholder">…what heading is this passage under?…</div>
       </div>
 
       <div v-else-if="card.kind === 'Reading'" class="centered">

@@ -22,8 +22,27 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-05-26
+
+Bundles the previously-unreleased `all_card_renders` additions with the new `HeadingPassage` wire
+variant. Ships alongside `verse-vault-core@0.2.0`.
+
 ### Added
 
+* `CardKindWire::HeadingPassage { headingIdx }` — wire-format mirror of the new core
+  `CardKind::HeadingPassage` variant. Composite passage card anchored to a pseudo verse whose atoms
+  list every real verse in the heading; grades each member's `VerseHeadingBinding`. Additive; old
+  consumers that match on `kind` will fall through their default branch on this variant (the API
+  forwards the wire shape unchanged so the web client can route it).
+* `next_memorize_card`'s pseudo-card placement is overhauled. `HeadingPassage` cards introduce when
+  at least one heading member is "started" (Active or being graduated this session) and attach to
+  the earliest such member; `ChapterClubList` cards introduce when every chapter+tier member is
+  started and attach to the latest. When the trigger conditions are met purely from prior Actives —
+  e.g. the user just enabled the per-passage card in settings after memorising the relevant verses —
+  the card is attached as a catch-up to a session-verse with capacity. Each session-verse caps at
+  one `HeadingPassage` and one `ChapterClubList` so a backlog spreads across `verse_order` instead
+  of piling on the first verse. Replaces the previous "last member is the current verse" trigger
+  which misfired when verses graduated out of order.
 * `all_card_renders()` — returns `CardRenderWire[]` for every card in the deck in card-id order.
   Used by the API's bulk `GET /materials/:id/renders` endpoint to compose every card's HTML in one
   engine call. Additive; existing consumers ignore it.

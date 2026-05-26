@@ -45,6 +45,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fail fast if the router CHANGELOG hasn't been promoted for the
+      # version being deployed. The router doesn't bundle the contract
+      # crates, so this is a section-existence check only — same shape
+      # as the api/web variants of the script.
+      - name: Verify CHANGELOG entry for this release
+        run: tools/check-contract-versions.sh --ci vv-router
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4

@@ -111,7 +111,8 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
   if (!settings) return '';
 
   return JSON.stringify({
-    headings: settings.headings,
+    heading_card: settings.headingCard,
+    heading_passage_card: settings.headingPassageCard,
     ftv: settings.ftv,
     new_scope: settings.newScope,
     review_scope: settings.reviewScope,

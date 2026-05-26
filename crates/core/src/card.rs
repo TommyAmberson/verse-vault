@@ -57,6 +57,18 @@ pub enum CardKind {
     ChapterClubList {
         tier: ClubTier,
     },
+    /// "What heading is this passage under?" Composite card that shows
+    /// every real verse in the heading's range and grades the
+    /// `VerseHeadingBinding` for each. Anchored to a pseudo verse_id
+    /// whose `VerseAtoms.heading_members` carries the member verse_ids.
+    /// Pairs with the atomic `VerseInHeading` ("which heading is *this*
+    /// verse in?") and serves as the passage-cued reverse: same binding
+    /// is graded, but the cue is the whole passage rather than one
+    /// verse — so the two cards share `TestState` on each member's
+    /// binding.
+    HeadingPassage {
+        heading_idx: u16,
+    },
     /// UX-only: progressive-reveal entry that shows the verse text to the
     /// learner. Carries no FSRS state and is never emitted by `builder::build`;
     /// it only appears in `Session::new_verse_progression`.
@@ -111,6 +123,13 @@ pub struct VerseAtoms {
     /// shares state with the per-verse `VerseInClub` cards rather
     /// than spawning parallel bindings. Empty for real verses.
     pub chapter_members: Vec<(u32, ClubTier)>,
+    /// For pseudo verses anchoring `HeadingPassage` cards: the
+    /// verse_ids of every real verse whose (book, chapter, verse)
+    /// falls inside the heading's range. Tests for the card grade
+    /// each member's `VerseHeadingBinding` for the card's heading,
+    /// so the passage card shares state with the per-verse
+    /// `VerseInHeading` cards. Empty for real verses.
+    pub heading_members: Vec<u32>,
 }
 
 impl VerseAtoms {
@@ -273,6 +292,17 @@ impl Card {
                     },
                 })
                 .collect(),
+            CardKind::HeadingPassage { heading_idx } => atoms
+                .heading_members
+                .iter()
+                .map(|&v| TestKey {
+                    kind: TestKind::VerseHeading,
+                    element: ElementId::VerseHeadingBinding {
+                        verse_id: v,
+                        heading_idx,
+                    },
+                })
+                .collect(),
             CardKind::Reading => Vec::new(),
         }
     }
@@ -295,6 +325,7 @@ mod tests {
             ftv_word_count: None,
             phrase_zero_word_count: 0,
             chapter_members: Vec::new(),
+            heading_members: Vec::new(),
         }
     }
 
@@ -339,6 +370,7 @@ mod tests {
             ftv_word_count: Some(2),
             phrase_zero_word_count: 4,
             chapter_members: Vec::new(),
+            heading_members: Vec::new(),
         };
         assert_eq!(atoms.phrase_positions(), vec![0u16, 1, 2]);
     }
@@ -444,6 +476,7 @@ mod tests {
             ftv_word_count: Some(2),
             phrase_zero_word_count: 6,
             chapter_members: Vec::new(),
+            heading_members: Vec::new(),
         };
         let c = atomic_card(
             0,
@@ -468,6 +501,7 @@ mod tests {
             ftv_word_count: Some(6),
             phrase_zero_word_count: 6,
             chapter_members: Vec::new(),
+            heading_members: Vec::new(),
         };
         let c = atomic_card(
             0,
@@ -491,6 +525,7 @@ mod tests {
             ftv_word_count: Some(2),
             phrase_zero_word_count: 6,
             chapter_members: Vec::new(),
+            heading_members: Vec::new(),
         };
         let c = atomic_card(
             0,
@@ -541,6 +576,48 @@ mod tests {
         let c = atomic_card(0, CardKind::Reading, 7);
         let tests = c.tests(&sample_atoms(7, 4));
         assert!(tests.is_empty());
+    }
+
+    #[test]
+    fn heading_passage_grades_member_bindings() {
+        // HeadingPassage anchored to a pseudo verse_id whose
+        // heading_members list spans three real verses. Card grades a
+        // VerseHeadingBinding per member, all tagged with the card's
+        // heading_idx — that's what couples its FSRS state to each
+        // member's per-verse VerseInHeading.
+        let atoms = VerseAtoms {
+            verse_id: 99,
+            phrase_count: 0,
+            phrase_ranges: vec![],
+            headings: vec![2],
+            clubs: vec![],
+            ftv_word_count: None,
+            phrase_zero_word_count: 0,
+            chapter_members: Vec::new(),
+            heading_members: vec![7, 8, 9],
+        };
+        let c = atomic_card(0, CardKind::HeadingPassage { heading_idx: 2 }, 99);
+        let tests = c.tests(&atoms);
+        assert_eq!(tests.len(), 3);
+        for (i, expected_verse) in [7, 8, 9].into_iter().enumerate() {
+            assert_eq!(
+                tests[i],
+                TestKey {
+                    kind: TestKind::VerseHeading,
+                    element: ElementId::VerseHeadingBinding {
+                        verse_id: expected_verse,
+                        heading_idx: 2,
+                    }
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn heading_passage_with_no_members_grades_no_tests() {
+        let atoms = sample_atoms(99, 0);
+        let c = atomic_card(0, CardKind::HeadingPassage { heading_idx: 0 }, 99);
+        assert!(c.tests(&atoms).is_empty());
     }
 
     #[test]

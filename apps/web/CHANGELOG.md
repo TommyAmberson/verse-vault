@@ -9,6 +9,31 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.13] — 2026-05-26
+
+### Added
+
+* **Heading config split + `HeadingPassage` card render.** Settings now exposes two heading toggles:
+  "Heading passage prompts" (the new per-heading `HeadingPassage` card, defaulting on) and
+  "Per-verse heading prompts" (the old `VerseInHeading` card, defaulting off). Both grade the same
+  `VerseHeadingBinding` test set, so the two cards share FSRS state per member; the passage card is
+  the higher-signal default and the per-verse card is now opt-in for users who specifically want it.
+  The API consumes the renamed `headingCard` / `headingPassageCard` fields and the web client
+  forwards them through `buildMaterialConfig` to the WASM engine.
+* `CardPrompt` renders the new card minimally: passage range as the ref, placeholder prompt on the
+  front, heading title on the back. Verse-colour stripe stays suppressed because the card is
+  anchored to a pseudo verse (`verse === 0` sentinel) — the colour mnemonic is per-verse-number and
+  doesn't apply here.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.2.0` — adds `CardKind::HeadingPassage`, splits the heading toggle on
+  `MaterialConfig`.
+* `verse-vault-wasm@0.2.0` — adds `CardKindWire::HeadingPassage`; reworks pseudo-card session
+  placement so `HeadingPassage` introduces when any heading member is started and `ChapterClubList`
+  when every chapter+tier member is started, with one-per-kind-per-verse capping and catch-up
+  attachment for backlog cards.
+
 ## [0.1.12] — 2026-05-24
 
 ### Picker polish

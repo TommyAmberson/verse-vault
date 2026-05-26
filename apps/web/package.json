@@ -1,11 +1,13 @@
 {
   "name": "@verse-vault/web",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm run build:wasm:dev",
     "dev": "vite",
     "build:wasm": "bash ../../tools/build-wasm-web.sh",
+    "build:wasm:dev": "bash ../../tools/build-wasm-web.sh --dev",
     "build": "pnpm run build:wasm && run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",

@@ -10,6 +10,34 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.15] — 2026-05-26
+
+### Added
+
+* **Heading config split + new `HeadingPassage` card kind.** The `user_year_settings.headings`
+  column is renamed to `heading_card` (controls the per-verse `VerseInHeading` "which heading is
+  this verse in?" prompt), and a new `heading_passage_card` column gates the new per-heading
+  `HeadingPassage` "what heading is this whole passage under?" card. Migration
+  `0017_heading_card_split` UPDATE-resets every existing row's `heading_card` to 0 — the per-verse
+  card is now opt-in, and the design intent is "everyone starts on the new defaults; re-enable
+  per-verse from settings if you specifically want it." `heading_passage_card` defaults to 1 (on) as
+  the primary heading test in the new design.
+* `POST /api/years/:materialId/settings` accepts the two new keys (`headingCard`,
+  `headingPassageCard`) on the request body; both default unchanged when omitted. The legacy
+  `headings` key is no longer accepted — clients must send the renamed field.
+* `engine.ts`'s `readMaterialConfigJson` serializes the two fields to the Rust core, which has
+  consumed the new shape since `verse-vault-core@0.2.0`.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.2.0` — new `CardKind::HeadingPassage` variant, split `headings` →
+  `heading_card` + `heading_passage_card` on `MaterialConfig`.
+* `verse-vault-wasm@0.2.0` — adds `CardKindWire::HeadingPassage`; reworks pseudo-card session
+  placement so `HeadingPassage` introduces when any heading member is started (earliest such member
+  as attach point) and `ChapterClubList` introduces when every chapter+tier member is started
+  (latest as attach point), with one-per-kind-per-verse capping and catch-up attachment for trigger
+  conditions met purely from prior Actives.
+
 ## [0.1.14] — 2026-05-25
 
 ### Changed

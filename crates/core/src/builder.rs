@@ -134,6 +134,7 @@ fn emit_chapter_club_list_cards(
                     ftv_word_count: None,
                     phrase_zero_word_count: 0,
                     chapter_members: members,
+                    heading_members: Vec::new(),
                 },
             );
             verse_render_by_id.insert(
@@ -157,6 +158,103 @@ fn emit_chapter_club_list_cards(
             });
             *next_card_id += 1;
         }
+    }
+}
+
+/// Allocate pseudo verse_ids and emit one `HeadingPassage` card per
+/// heading whose range covers at least one included real verse. The
+/// pseudo's `VerseAtoms.heading_members` carries the member verse_ids
+/// in ascending order so `Card::tests` can grade each member's
+/// `VerseHeadingBinding`. Same pseudo-id contract as
+/// `emit_chapter_club_list_cards`: ids start one past the current
+/// max so real-verse TestStates aren't disturbed.
+fn emit_heading_passage_cards(
+    cards: &mut Vec<Card>,
+    next_card_id: &mut u32,
+    verse_atoms_by_id: &mut HashMap<u32, VerseAtoms>,
+    verse_render_by_id: &mut HashMap<u32, VerseRender>,
+    headings_data: &[HeadingData],
+) {
+    let mut next_pseudo_verse_id: u32 =
+        verse_atoms_by_id.keys().copied().max().map_or(0, |m| m + 1);
+
+    for (h_idx, heading) in headings_data.iter().enumerate() {
+        let heading_idx = h_idx as u16;
+        let mut members: Vec<u32> = verse_render_by_id
+            .iter()
+            .filter_map(|(vid, render)| {
+                if render.book != heading.book {
+                    return None;
+                }
+                // Sentinel verse=0 marks a pseudo verse (heading-passage
+                // pseudos added by prior iterations of this loop, or
+                // chapter-list pseudos if call order ever changes). They
+                // aren't real verses; skip.
+                if render.verse == 0 {
+                    return None;
+                }
+                let in_range = if heading.start_chapter == heading.end_chapter {
+                    render.chapter == heading.start_chapter
+                        && render.verse >= heading.start_verse
+                        && render.verse <= heading.end_verse
+                } else if render.chapter == heading.start_chapter {
+                    render.verse >= heading.start_verse
+                } else if render.chapter == heading.end_chapter {
+                    render.verse <= heading.end_verse
+                } else {
+                    render.chapter > heading.start_chapter && render.chapter < heading.end_chapter
+                };
+                in_range.then_some(*vid)
+            })
+            .collect();
+        members.sort();
+        if members.is_empty() {
+            continue;
+        }
+
+        let pseudo_id = next_pseudo_verse_id;
+        next_pseudo_verse_id += 1;
+
+        verse_atoms_by_id.insert(
+            pseudo_id,
+            VerseAtoms {
+                verse_id: pseudo_id,
+                phrase_count: 0,
+                phrase_ranges: Vec::new(),
+                headings: vec![heading_idx],
+                clubs: Vec::new(),
+                ftv_word_count: None,
+                phrase_zero_word_count: 0,
+                chapter_members: Vec::new(),
+                heading_members: members,
+            },
+        );
+        verse_render_by_id.insert(
+            pseudo_id,
+            VerseRender {
+                book: heading.book.clone(),
+                chapter: heading.start_chapter,
+                verse: 0, // sentinel: heading-scoped, no specific verse
+                phrase_word_counts: Vec::new(),
+                annotations: Vec::new(),
+                ftv_word_count: None,
+                headings: vec![HeadingRender {
+                    heading_idx,
+                    start_chapter: heading.start_chapter,
+                    start_verse: heading.start_verse,
+                    end_chapter: heading.end_chapter,
+                    end_verse: heading.end_verse,
+                }],
+                clubs: Vec::new(),
+            },
+        );
+        cards.push(Card {
+            id: CardId(*next_card_id),
+            kind: CardKind::HeadingPassage { heading_idx },
+            verse_id: pseudo_id,
+            state: CardState::New,
+        });
+        *next_card_id += 1;
     }
 }
 
@@ -278,7 +376,7 @@ pub fn build_with_config(
         push_card(CardKind::VerseAtVerseRef, &mut cards, &mut next_card_id);
         push_card(CardKind::VerseInChapter, &mut cards, &mut next_card_id);
         push_card(CardKind::VerseInBook, &mut cards, &mut next_card_id);
-        if config.headings {
+        if config.heading_card {
             for &h_idx in &headings {
                 push_card(
                     CardKind::VerseInHeading { heading_idx: h_idx },
@@ -300,23 +398,19 @@ pub fn build_with_config(
         push_card(CardKind::Recitation, &mut cards, &mut next_card_id);
         push_card(CardKind::Citation, &mut cards, &mut next_card_id);
 
-        // Composite: Ftv (with and without citation). Eligibility:
-        // verse has phrases, FTV is short enough, FTV doesn't exceed
-        // phrase 0 length. derive_structure verified the prefix invariant
-        // when emitting ftv_word_count, so we trust it here.
+        // Composite: Ftv. Eligibility: verse has phrases, FTV is short
+        // enough, FTV doesn't exceed phrase 0 length. derive_structure
+        // verified the prefix invariant when emitting ftv_word_count,
+        // so we trust it here. The single FTV card always tests the
+        // citation triple on reveal — the no-citation variant was
+        // dropped because Recitation already covers the
+        // recall-without-ref case from the verse-text side.
         if config.ftv
             && let Some(ftv_words) = verse.ftv_word_count
             && phrase_count > 0
             && (ftv_words as usize) <= FTV_MAX_WORDS
             && ftv_words <= phrase_zero_word_count
         {
-            push_card(
-                CardKind::Ftv {
-                    with_citation: false,
-                },
-                &mut cards,
-                &mut next_card_id,
-            );
             push_card(
                 CardKind::Ftv {
                     with_citation: true,
@@ -364,7 +458,18 @@ pub fn build_with_config(
                 ftv_word_count: verse.ftv_word_count,
                 phrase_zero_word_count,
                 chapter_members: Vec::new(),
+                heading_members: Vec::new(),
             },
+        );
+    }
+
+    if config.heading_passage_card {
+        emit_heading_passage_cards(
+            &mut cards,
+            &mut next_card_id,
+            &mut verse_atoms_by_id,
+            &mut verse_render_by_id,
+            &data.headings,
         );
     }
 
@@ -488,8 +593,11 @@ mod tests {
         let m = material_one_verse_with_heading_and_club();
         // club_card_scope defaults to Off, so VerseInClub cards need an
         // explicit opt-in for this test to exercise their emission.
+        // heading_card likewise defaults off; flip it on so the
+        // VerseInHeading assertion below exercises a real emission.
         let cfg = MaterialConfig {
             club_card_scope: crate::material_config::TierScope::All,
+            heading_card: true,
             ..MaterialConfig::default()
         };
         let r = build_with_config(&m, &cfg, 0);
@@ -554,13 +662,19 @@ mod tests {
         );
         assert!(r.cards.iter().any(|c| matches!(c.kind, CardKind::Citation)));
         // FTV "For God" is a strict prefix of phrase zero "For God" (equal),
-        // so both Ftv variants are emitted.
-        let ftv_cards = r
+        // so one Ftv card emits — always with citation on the answer side.
+        let ftv_cards: Vec<&Card> = r
             .cards
             .iter()
             .filter(|c| matches!(c.kind, CardKind::Ftv { .. }))
-            .count();
-        assert_eq!(ftv_cards, 2);
+            .collect();
+        assert_eq!(ftv_cards.len(), 1);
+        assert!(matches!(
+            ftv_cards[0].kind,
+            CardKind::Ftv {
+                with_citation: true
+            }
+        ));
     }
 
     #[test]
@@ -709,15 +823,86 @@ mod tests {
     }
 
     #[test]
-    fn builder_headings_off_emits_no_heading_cards() {
+    fn builder_heading_card_off_emits_no_verse_in_heading_cards() {
+        // Default already has heading_card=false, so this verifies the
+        // default explicitly. The HeadingPassage card is the primary
+        // heading-binding test; VerseInHeading is opt-in.
+        let m = material_one_verse_with_heading_and_club();
+        let r = build_with_config(&m, &MaterialConfig::default(), 0);
+        assert!(
+            !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::VerseInHeading { .. }))
+        );
+    }
+
+    #[test]
+    fn builder_emits_one_heading_passage_card_per_heading() {
+        // Heading covers John 3:16–17. Both verses are included, so the
+        // pseudo HeadingPassage card lists both as members. Default
+        // config has heading_passage_card=true so this exercises the
+        // out-of-the-box path.
+        let json = r#"{
+            "year": 4,
+            "books": ["John"],
+            "chapters": [{"book": "John", "number": 3, "start_verse": 16, "end_verse": 17}],
+            "verses": [
+                {"book": "John", "chapter": 3, "verse": 16, "phraseWordCounts": [2, 2], "annotations": [], "clubs": []},
+                {"book": "John", "chapter": 3, "verse": 17, "phraseWordCounts": [2, 2], "annotations": [], "clubs": []}
+            ],
+            "headings": [{
+                "book": "John",
+                "startChapter": 3, "startVerse": 16,
+                "endChapter": 3, "endVerse": 17
+            }]
+        }"#;
+        let m: MaterialData = serde_json::from_str(json).unwrap();
+        let r = build(&m, 0);
+
+        let passage_cards: Vec<&Card> = r
+            .cards
+            .iter()
+            .filter(|c| matches!(c.kind, CardKind::HeadingPassage { .. }))
+            .collect();
+        assert_eq!(passage_cards.len(), 1);
+        let atoms = r.verse_atoms_data.get(&passage_cards[0].verse_id).unwrap();
+        assert_eq!(atoms.heading_members, vec![0, 1]);
+
+        // Member tests are seeded — verifies the propagation surface for
+        // grading the card.
+        for tk in passage_cards[0].tests(atoms) {
+            assert!(
+                r.tests.contains_key(&tk),
+                "missing seeded TestState for {tk:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn builder_heading_passage_off_emits_no_heading_passage_cards() {
         let m = material_one_verse_with_heading_and_club();
         let config = MaterialConfig {
-            headings: false,
+            heading_passage_card: false,
             ..MaterialConfig::default()
         };
         let r = build_with_config(&m, &config, 0);
         assert!(
             !r.cards
+                .iter()
+                .any(|c| matches!(c.kind, CardKind::HeadingPassage { .. }))
+        );
+    }
+
+    #[test]
+    fn builder_heading_card_on_emits_verse_in_heading_cards() {
+        let m = material_one_verse_with_heading_and_club();
+        let config = MaterialConfig {
+            heading_card: true,
+            ..MaterialConfig::default()
+        };
+        let r = build_with_config(&m, &config, 0);
+        assert!(
+            r.cards
                 .iter()
                 .any(|c| matches!(c.kind, CardKind::VerseInHeading { .. }))
         );
@@ -781,7 +966,7 @@ mod tests {
         // VerseInBook, Recitation, Citation.
         let m = material_one_verse_with_heading_and_club();
         let config = MaterialConfig {
-            headings: false,
+            heading_passage_card: false,
             ftv: false,
             ..config_with_club_cards_off()
         };
