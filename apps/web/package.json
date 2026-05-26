@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm run build:wasm",
     "dev": "vite",
     "build:wasm": "bash ../../tools/build-wasm-web.sh",
     "build": "pnpm run build:wasm && run-p type-check \"build-only {@}\" --",
