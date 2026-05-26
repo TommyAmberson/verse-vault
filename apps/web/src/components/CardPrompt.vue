@@ -97,6 +97,8 @@ const promptLabel = computed(() => {
       return 'What book?'
     case 'VerseInHeading':
       return 'What heading?'
+    case 'HeadingPassage':
+      return 'What heading is this passage under?'
     case 'VerseInClub':
       return 'What club?'
     case 'Recitation':
@@ -118,6 +120,25 @@ const ftvHtml = computed(() => props.card.composed?.ftvHtml ?? null)
 const headingTitle = computed(() => props.card.composed?.headings[0]?.title ?? null)
 const clubLabel = computed(() => props.card.tier ?? props.card.verse.clubs[0] ?? '')
 const composedMissing = computed(() => props.card.composed === null)
+
+/** Sentinel `verse === 0` marks a pseudo-verse card (ChapterClubList,
+ *  HeadingPassage) anchored to a heading or chapter rather than a
+ *  single verse. The verse-colour mnemonic doesn't apply — there's no
+ *  single verse number to encode — so the stripe is suppressed by
+ *  forcing `no-verse-accent` on `.card-box`. */
+const isPseudoVerse = computed(() => props.card.verse.verse === 0)
+
+/** "John 3:16-17" or "Romans 6:1-7:14" for a heading card. Drives the
+ *  HeadingPassage front-side ref. */
+const passageRange = computed(() => {
+  const h = props.card.verse.headings[0]
+  if (!h) return `${props.card.verse.book} ${props.card.verse.chapter}`
+  const same = h.startChapter === h.endChapter
+  const range = same
+    ? `${h.startChapter}:${h.startVerse}-${h.endVerse}`
+    : `${h.startChapter}:${h.startVerse}-${h.endChapter}:${h.endVerse}`
+  return `${props.card.verse.book} ${range}`
+})
 </script>
 
 <template>
@@ -130,7 +151,7 @@ const composedMissing = computed(() => props.card.composed === null)
        `--active-verse-colour` from this scope, so they always agree. -->
   <div
     class="card-box"
-    :class="{ 'no-verse-accent': !refParts.showVerse }"
+    :class="{ 'no-verse-accent': !refParts.showVerse || isPseudoVerse }"
     :style="{ '--active-verse-colour': verseColour }"
   >
     <div class="deck">{{ promptLabel }}</div>
@@ -222,6 +243,23 @@ const composedMissing = computed(() => props.card.composed === null)
           <div class="verse-text" v-html="verseHtml" />
         </template>
         <div v-else class="placeholder">…continue the verse…</div>
+      </div>
+
+      <div v-else-if="card.kind === 'HeadingPassage'" class="centered">
+        <!-- Pseudo-verse card anchored to a heading; verse number is 0
+             (sentinel) so the verse-colour stripe is suppressed via the
+             `pseudo-verse` class. Front shows the passage range as the
+             prompt; back reveals the heading title. Verse text rendering
+             for the passage is server-side composition (TODO: bulk-compose
+             on the API). -->
+        <div class="ref">{{ passageRange }}</div>
+        <hr />
+        <template v-if="revealed">
+          <div class="verse-text" v-html="verseHtml" />
+          <hr class="type" />
+          <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
+        </template>
+        <div v-else class="placeholder">…what heading is this passage under?…</div>
       </div>
 
       <div v-else-if="card.kind === 'Reading'" class="centered">

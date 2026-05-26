@@ -45,6 +45,7 @@ export type CardKind =
   | 'Citation'
   | 'Ftv'
   | 'ChapterClubList'
+  | 'HeadingPassage'
   | 'Reading'
 
 export interface VerseRender {
@@ -99,7 +100,8 @@ export type TierScope = 'off' | 'up150' | 'up300' | 'all'
 export type ChapterListScope = 'off' | 'up150' | 'up300'
 
 export interface YearSettings {
-  headings: boolean
+  headingCard: boolean
+  headingPassageCard: boolean
   ftv: boolean
   newScope: TierScope
   reviewScope: TierScope

@@ -172,7 +172,8 @@ function reviewBehindNew(s: YearSettings): boolean {
  *  knob the engine doesn't consume, so flipping it shouldn't wipe a
  *  full deck's render cache. */
 const ENGINE_AFFECTING_SETTINGS: ReadonlyArray<keyof YearSettings> = [
-  'headings',
+  'headingCard',
+  'headingPassageCard',
   'ftv',
   'newScope',
   'reviewScope',
@@ -366,11 +367,19 @@ onMounted(refresh)
           <div class="scope-stack">
             <label class="toggle">
               <input
-                v-model="selected.draft.headings"
+                v-model="selected.draft.headingPassageCard"
                 type="checkbox"
                 :disabled="selected.saving"
               />
-              <span>Headings</span>
+              <span>Heading passage prompts <span class="toggle-hint">— "what heading is this passage under?"</span></span>
+            </label>
+            <label class="toggle">
+              <input
+                v-model="selected.draft.headingCard"
+                type="checkbox"
+                :disabled="selected.saving"
+              />
+              <span>Per-verse heading prompts <span class="toggle-hint">— "which heading is this verse in?" (one card per verse)</span></span>
             </label>
             <label class="toggle">
               <input
@@ -647,6 +656,11 @@ h2 {
 
 .toggle input[type='checkbox'] {
   accent-color: var(--color-accent);
+}
+
+.toggle-hint {
+  color: var(--color-muted);
+  font-size: 0.85em;
 }
 
 .scope-row {
