@@ -127,6 +127,7 @@ impl ReviewEngine {
             ftv_word_count: None,
             phrase_zero_word_count: 0,
             chapter_members: Vec::new(),
+            heading_members: Vec::new(),
         }
     }
 

@@ -110,6 +110,10 @@ pub enum CardKindWire {
     ChapterClubList {
         tier: ClubTier,
     },
+    HeadingPassage {
+        #[serde(rename = "headingIdx")]
+        heading_idx: u16,
+    },
     Reading,
 }
 
@@ -128,6 +132,9 @@ impl From<CardKind> for CardKindWire {
             CardKind::Citation => CardKindWire::Citation,
             CardKind::Ftv { with_citation } => CardKindWire::Ftv { with_citation },
             CardKind::ChapterClubList { tier } => CardKindWire::ChapterClubList { tier },
+            CardKind::HeadingPassage { heading_idx } => {
+                CardKindWire::HeadingPassage { heading_idx }
+            }
             CardKind::Reading => CardKindWire::Reading,
         }
     }
@@ -347,13 +354,16 @@ impl WasmEngine {
     /// front, drill across them in any order, and walk back through them
     /// for graduation.
     ///
-    /// Same per-card filtering rules as `memorize_progression`, plus an
-    /// extra session-scoped dedupe: a `VerseInHeading` heading is only
-    /// drilled on the first verse that introduces it within this batch,
-    /// and a `ChapterClubList` card only attaches to the single verse
-    /// (per session) whose last-member rule fires.
+    /// Same per-card filtering rules as `memorize_progression`, plus
+    /// session-scoped pseudo-card placement: a `VerseInHeading` heading
+    /// is drilled on the first verse that introduces it within this
+    /// batch; `HeadingPassage` and `ChapterClubList` cards are attached
+    /// to a session-verse when their trigger conditions are met (any
+    /// heading member started for HP, all chapter+tier members started
+    /// for CCL), capped at one of each kind per verse so backlog cards
+    /// spread instead of piling on a single attach point.
     pub fn memorize_session(&self, limit: u32) -> Result<String, JsError> {
-        use std::collections::HashSet;
+        use std::collections::{HashMap, HashSet};
         use verse_vault_core::card::{CardKind, CardState};
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -383,15 +393,149 @@ impl WasmEngine {
             }
         }
 
+        // Pre-compute pseudo-card attachments before walking the verses.
+        // Two rules govern when a HeadingPassage / ChapterClubList card
+        // moves from `New` into the session:
+        //
+        //   * HeadingPassage: introduce when at least one heading member
+        //     is "started" (Active before this session or being graduated
+        //     in it). Attach to the earliest member in this session's
+        //     `verse_order` — or, when conditions are met purely from
+        //     prior Actives (orphan / catch-up after a settings flip),
+        //     attach to whichever session verse still has capacity.
+        //   * ChapterClubList: introduce when every chapter+tier member
+        //     is started by end-of-session. Attach to the latest member
+        //     in `verse_order`, or to remaining capacity as a catch-up.
+        //
+        // Cap at 1 of each kind per session-verse so a backlog of orphan
+        // cards doesn't pile onto the first verse — they spread across
+        // `verse_order` and the overflow defers to the next session.
+        let session_verses: HashSet<u32> = verse_order.iter().copied().collect();
+        let active_verses: HashSet<u32> = cards
+            .iter()
+            .filter(|c| matches!(c.state, CardState::Active))
+            .filter(|c| {
+                !matches!(
+                    c.kind,
+                    CardKind::ChapterClubList { .. } | CardKind::HeadingPassage { .. }
+                )
+            })
+            .map(|c| c.verse_id)
+            .collect();
+
+        enum AttachIntent {
+            Normal(u32),
+            Orphan,
+            None,
+        }
+
+        let mut hp_assigned: HashMap<u32, u32> = HashMap::new();
+        let mut ccl_assigned: HashMap<u32, u32> = HashMap::new();
+        let mut hp_pending: Vec<u32> = Vec::new();
+        let mut ccl_pending: Vec<u32> = Vec::new();
+
+        for card in cards.iter() {
+            if !matches!(card.state, CardState::New) {
+                continue;
+            }
+            let (is_hp, intent) = match card.kind {
+                CardKind::HeadingPassage { .. } => {
+                    let atoms = self.engine.atoms_for(card.verse_id);
+                    let in_session_min = atoms
+                        .heading_members
+                        .iter()
+                        .copied()
+                        .filter(|v| session_verses.contains(v))
+                        .min();
+                    let any_active = atoms
+                        .heading_members
+                        .iter()
+                        .any(|v| active_verses.contains(v));
+                    let intent = if let Some(v) = in_session_min {
+                        AttachIntent::Normal(v)
+                    } else if any_active {
+                        AttachIntent::Orphan
+                    } else {
+                        AttachIntent::None
+                    };
+                    (true, intent)
+                }
+                CardKind::ChapterClubList { .. } => {
+                    let atoms = self.engine.atoms_for(card.verse_id);
+                    let all_settled = atoms
+                        .chapter_members
+                        .iter()
+                        .all(|(v, _)| active_verses.contains(v) || session_verses.contains(v));
+                    let in_session_max = atoms
+                        .chapter_members
+                        .iter()
+                        .map(|(v, _)| *v)
+                        .filter(|v| session_verses.contains(v))
+                        .max();
+                    let intent = if !all_settled {
+                        AttachIntent::None
+                    } else if let Some(v) = in_session_max {
+                        AttachIntent::Normal(v)
+                    } else {
+                        AttachIntent::Orphan
+                    };
+                    (false, intent)
+                }
+                _ => continue,
+            };
+            let (assigned, pending) = if is_hp {
+                (&mut hp_assigned, &mut hp_pending)
+            } else {
+                (&mut ccl_assigned, &mut ccl_pending)
+            };
+            match intent {
+                AttachIntent::Normal(v) => match assigned.entry(v) {
+                    std::collections::hash_map::Entry::Vacant(e) => {
+                        e.insert(card.id.0);
+                    }
+                    // Clash: another card of the same kind already claimed
+                    // this verse. Defer to the pending pool; the second
+                    // pass places it on the next session-verse with
+                    // capacity.
+                    std::collections::hash_map::Entry::Occupied(_) => {
+                        pending.push(card.id.0);
+                    }
+                },
+                AttachIntent::Orphan => pending.push(card.id.0),
+                AttachIntent::None => {}
+            }
+        }
+
+        // Second pass: drain the pending pool into remaining capacity in
+        // `verse_order` order so catch-ups land at the start of the
+        // session.
+        let mut hp_idx = 0usize;
+        let mut ccl_idx = 0usize;
+        for &verse_id in &verse_order {
+            if hp_idx < hp_pending.len()
+                && let std::collections::hash_map::Entry::Vacant(e) = hp_assigned.entry(verse_id)
+            {
+                e.insert(hp_pending[hp_idx]);
+                hp_idx += 1;
+            }
+            if ccl_idx < ccl_pending.len()
+                && let std::collections::hash_map::Entry::Vacant(e) = ccl_assigned.entry(verse_id)
+            {
+                e.insert(ccl_pending[ccl_idx]);
+                ccl_idx += 1;
+            }
+        }
+
         let mut session_headings: HashSet<u16> = HashSet::new();
-        let mut session_chapter_lists: HashSet<u32> = HashSet::new();
         let mut entries: Vec<Entry> = Vec::with_capacity(verse_order.len());
 
         for verse_id in verse_order {
             let mut card_ids: Vec<u32> = Vec::new();
             for card in cards.iter().filter(|c| c.verse_id == verse_id) {
                 match card.kind {
-                    CardKind::ChapterClubList { .. } | CardKind::Reading => continue,
+                    CardKind::ChapterClubList { .. }
+                    | CardKind::HeadingPassage { .. }
+                    | CardKind::Reading => continue,
                     CardKind::VerseInHeading { heading_idx } => {
                         let already_introduced = cards.iter().any(|other| {
                             other.verse_id != verse_id
@@ -408,23 +552,11 @@ impl WasmEngine {
                     _ => card_ids.push(card.id.0),
                 }
             }
-            for card in cards.iter() {
-                let CardKind::ChapterClubList { .. } = card.kind else {
-                    continue;
-                };
-                if !matches!(card.state, CardState::New) {
-                    continue;
-                }
-                if !session_chapter_lists.insert(card.id.0) {
-                    continue;
-                }
-                let atoms = self.engine.atoms_for(card.verse_id);
-                if atoms.chapter_members.last().map(|(v, _)| *v) == Some(verse_id) {
-                    card_ids.push(card.id.0);
-                } else {
-                    // Not this verse — un-mark so a later verse can claim it.
-                    session_chapter_lists.remove(&card.id.0);
-                }
+            if let Some(&c) = hp_assigned.get(&verse_id) {
+                card_ids.push(c);
+            }
+            if let Some(&c) = ccl_assigned.get(&verse_id) {
+                card_ids.push(c);
             }
             let recitation_card_id = cards
                 .iter()

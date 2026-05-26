@@ -22,8 +22,26 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+### Added
+
+* `CardKind::HeadingPassage { heading_idx }` — composite card anchored to a pseudo verse_id whose
+  `VerseAtoms.heading_members` lists every real verse in the heading's range. Grades each member's
+  `VerseHeadingBinding` for the card's `heading_idx`, so the passage prompt shares FSRS state with
+  the per-verse `VerseInHeading` cards rather than spawning parallel bindings.
+* `VerseAtoms.heading_members: Vec<u32>` — the per-heading member list consumed by
+  `HeadingPassage::tests`. Empty for real verses.
+
 ### Changed
 
+* `MaterialConfig.headings: bool` is split into two independent toggles:
+  * `heading_card: bool` (default **false**) — gates the per-verse `VerseInHeading` card. Defaults
+    off because the passage-cued version is the primary heading test and the per-verse version is
+    high-volume / low-signal for most learners. Old JSON with the legacy `headings` key deserializes
+    into this field via a serde alias, so existing rows keep their preference.
+  * `heading_passage_card: bool` (default **true**) — gates the new `HeadingPassage` card.
+* Builder emits one `HeadingPassage` card per heading that covers at least one included real verse,
+  ordered after the main verse loop and before `emit_chapter_club_list_cards` (pseudo-id allocator
+  is shared and monotonic).
 * Builder emits one `Ftv` card per FTV-eligible verse (always `with_citation: true`) instead of two.
   The no-citation variant was near-identical to its sibling on the prompt side — only the reveal
   differed — and `Recitation` already covers the recall-without-ref shape from the verse-text side.

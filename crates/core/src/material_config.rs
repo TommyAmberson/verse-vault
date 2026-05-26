@@ -80,10 +80,24 @@ impl ChapterListScope {
 /// is introducing verses without re-surfacing them; still valid, just
 /// unusual.)
 ///
-/// `headings` and `ftv` are independent bool toggles.
+/// `heading_card`, `heading_passage_card`, and `ftv` are independent
+/// bool toggles. `heading_card` controls the per-verse
+/// `VerseInHeading` ("which heading is *this* verse in?") card;
+/// `heading_passage_card` controls the per-heading `HeadingPassage`
+/// ("what heading is this whole passage under?") card. Both grade the
+/// same `VerseHeadingBinding` test set, so the two cards share FSRS
+/// state on each member's binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MaterialConfig {
-    pub headings: bool,
+    /// Per-verse "which heading?" card. Defaults off: the passage-cued
+    /// version (`heading_passage_card`) is the primary heading test;
+    /// asking the same question per-verse is high-volume and low-signal
+    /// for most learners. Old JSON with the legacy `headings` key is
+    /// accepted via the serde alias.
+    #[serde(default, alias = "headings")]
+    pub heading_card: bool,
+    #[serde(default = "default_true")]
+    pub heading_passage_card: bool,
     pub ftv: bool,
     #[serde(default)]
     pub new_scope: TierScope,
@@ -102,10 +116,15 @@ fn default_club_card_scope() -> TierScope {
     TierScope::Off
 }
 
+fn default_true() -> bool {
+    true
+}
+
 impl Default for MaterialConfig {
     fn default() -> Self {
         Self {
-            headings: true,
+            heading_card: false,
+            heading_passage_card: true,
             ftv: true,
             new_scope: TierScope::All,
             review_scope: TierScope::All,
@@ -157,7 +176,11 @@ mod tests {
     #[test]
     fn default_is_everything_active() {
         let c = MaterialConfig::default();
-        assert!(c.headings);
+        // VerseInHeading defaults off; HeadingPassage defaults on. The
+        // passage-cued card is the primary heading test; the per-verse
+        // version is opt-in.
+        assert!(!c.heading_card);
+        assert!(c.heading_passage_card);
         assert!(c.ftv);
         assert_eq!(c.new_scope, TierScope::All);
         assert_eq!(c.review_scope, TierScope::All);
@@ -167,6 +190,17 @@ mod tests {
         for tier in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
             assert_eq!(c.effective_status(tier), ClubStatus::Active);
         }
+    }
+
+    #[test]
+    fn legacy_headings_key_aliases_to_heading_card() {
+        // Pre-split JSON had `headings: bool`. The serde alias keeps
+        // those rows readable so existing users don't lose their
+        // VerseInHeading preference on the bump.
+        let c: MaterialConfig = serde_json::from_str(r#"{"headings":true,"ftv":true}"#).unwrap();
+        assert!(c.heading_card);
+        // Missing field falls back to the new default (on).
+        assert!(c.heading_passage_card);
     }
 
     #[test]
