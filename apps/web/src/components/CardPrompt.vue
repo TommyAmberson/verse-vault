@@ -14,10 +14,14 @@ const VERSE_COLOUR_VARS = [
   '--verse-c1', '--verse-c2', '--verse-c3', '--verse-c4', '--verse-c5',
   '--verse-c6', '--verse-c7', '--verse-c8', '--verse-c9', '--verse-c10',
 ]
-const verseColour = computed(() => {
-  const idx = (props.card.verse.verse - 1) % VERSE_COLOUR_VARS.length
-  return `var(${VERSE_COLOUR_VARS[idx]})`
-})
+function verseColourVar(verse: number): string {
+  // Modulo math is always in-range for real verses (verse >= 1); the
+  // non-null assertion is needed because TS sees indexed access as
+  // possibly undefined. Pseudo cards (verse === 0) compute an undefined
+  // index but their result is never visually consumed.
+  return VERSE_COLOUR_VARS[(verse - 1) % VERSE_COLOUR_VARS.length]!
+}
+const verseColour = computed(() => `var(${verseColourVar(props.card.verse.verse)})`)
 
 /** Per-card visibility of each ref component. For "what chapter?" /
  *  "what book?" / "what verse?" / Citation, the asked-about parts stay
@@ -125,16 +129,21 @@ const composedMissing = computed(() => props.card.composed === null)
  *  forcing `no-verse-accent` on `.card-box`. */
 const isPseudoVerse = computed(() => props.card.verse.verse === 0)
 
-/** "John 3:16-17" or "Romans 6:1-7:14" for a heading card. Drives the
- *  HeadingPassage front-side ref. */
-const passageRange = computed(() => {
+/** "John 3:16-17" or "Romans 6:1-7:14" for a heading card. Each verse
+ *  number gets its own verse-colour via a per-span `--active-verse-colour`
+ *  override — the card-level stripe stays off (no single verse to anchor
+ *  it), but the individual verse-number mnemonics still apply. */
+const passageRangeHtml = computed(() => {
   const h = props.card.verse.headings[0]
-  if (!h) return `${props.card.verse.book} ${props.card.verse.chapter}`
+  const book = escapeHtml(props.card.verse.book)
+  if (!h) return `${book} ${props.card.verse.chapter}`
+  const vNum = (n: number) =>
+    `<span class="verse-number" style="--active-verse-colour: var(${verseColourVar(n)})">${n}</span>`
   const same = h.startChapter === h.endChapter
   const range = same
-    ? `${h.startChapter}:${h.startVerse}-${h.endVerse}`
-    : `${h.startChapter}:${h.startVerse}-${h.endChapter}:${h.endVerse}`
-  return `${props.card.verse.book} ${range}`
+    ? `${h.startChapter}:${vNum(h.startVerse)}-${vNum(h.endVerse)}`
+    : `${h.startChapter}:${vNum(h.startVerse)}-${h.endChapter}:${vNum(h.endVerse)}`
+  return `${book} ${range}`
 })
 </script>
 
@@ -244,12 +253,14 @@ const passageRange = computed(() => {
         <div v-else class="placeholder">…continue the verse…</div>
       </div>
 
-      <!-- Pseudo-verse card anchored to a heading: no single verse number
-           to mnemonic, so the verse-colour stripe stays off. Front shows
-           the passage range; back reveals the heading title.
+      <!-- Pseudo-verse card anchored to a heading: card-level verse-colour
+           stripe stays off (no single verse to anchor), but each verse
+           number in the range gets its own colour via a per-span
+           `--active-verse-colour` override. Front shows the range; back
+           reveals the heading title.
            TODO: passage text needs server-side bulk composition. -->
       <div v-else-if="card.kind === 'HeadingPassage'" class="centered">
-        <div class="ref">{{ passageRange }}</div>
+        <div class="ref" v-html="passageRangeHtml" />
         <hr />
         <template v-if="revealed">
           <div class="verse-text" v-html="verseHtml" />
