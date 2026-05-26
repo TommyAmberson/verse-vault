@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import type { CardRender } from '@/api'
 import { type DiffItem, wordDiff } from '@/lib/diff/wordDiff'
@@ -14,12 +14,20 @@ function stripHtmlToText(html: string): string {
 }
 
 const userInput = ref('')
+// Shared template ref across the Recitation + Ftv textareas — they're
+// in mutually-exclusive v-else-if branches so only one is ever
+// mounted; null on every other kind.
+const typeInput = ref<HTMLTextAreaElement | null>(null)
+
 // Wipe the typed answer when the parent swaps to a new card object.
 // Re-drills emit a fresh CardRender even when the cardId repeats, so
 // reference-equality is enough — no need to key on cardId. Ftv cards
 // pre-fill the textarea with the visible prefix so the user can keep
 // typing into it — keeping or deleting it both yield the same diff
-// (see `userInputForDiff`).
+// (see `userInputForDiff`). Finally auto-focus the textarea so the
+// user can start typing without clicking, and place the cursor at the
+// end so the Ftv prefill becomes a continuation point rather than
+// something to overwrite.
 watch(
   () => props.card,
   (card) => {
@@ -29,6 +37,12 @@ watch(
     } else {
       userInput.value = ''
     }
+    void nextTick(() => {
+      const el = typeInput.value
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+    })
   },
   { immediate: true },
 )
@@ -330,6 +344,7 @@ const diffHtml = computed(() => {
         <template v-if="!revealed">
           <hr />
           <textarea
+            ref="typeInput"
             v-model="userInput"
             class="type-input"
             rows="4"
@@ -367,6 +382,7 @@ const diffHtml = computed(() => {
         <template v-if="!revealed">
           <hr />
           <textarea
+            ref="typeInput"
             v-model="userInput"
             class="type-input"
             rows="3"
