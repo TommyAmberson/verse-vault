@@ -1,12 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import type { CardRender } from '@/api'
+import { type DiffItem, wordDiff } from '@/lib/diff/wordDiff'
 
 const props = defineProps<{
   card: CardRender
   revealed: boolean
 }>()
+
+const userInput = ref('')
+// Wipe the typed answer when the parent swaps to a new card object.
+// Re-drills emit a fresh CardRender even when the cardId repeats, so
+// reference-equality is enough — no need to key on cardId.
+watch(() => props.card, () => { userInput.value = '' })
 
 /** Verse-colour palette ported from the deck's _colours.js. The CSS vars
  *  themselves live in assets/colors.css; we pick by (verse - 1) % 10. */
@@ -145,6 +152,43 @@ const passageRangeHtml = computed(() => {
     : `${h.startChapter}:${vNum(h.startVerse)}-${h.endChapter}:${vNum(h.endVerse)}`
   return `${book} ${range}`
 })
+
+/** Plain-text canonical answer for the type-to-recite diff. Strips
+ *  the api.bible + keyword-annotation HTML to a flat string. For Ftv
+ *  the prefix shown on screen is dropped so the diff only checks the
+ *  continuation the user actually had to recall. */
+const expectedText = computed(() => {
+  const full = phraseHtml.value.join(' ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  if (props.card.kind === 'Ftv') {
+    const skip = props.card.verse.ftvWordCount ?? 0
+    if (skip > 0) {
+      const words = full.split(' ')
+      return words.slice(skip).join(' ')
+    }
+  }
+  return full
+})
+
+const hasTypedAnswer = computed(() => userInput.value.trim() !== '')
+
+const diffItems = computed<DiffItem[] | null>(() => {
+  if (!props.revealed || !hasTypedAnswer.value) return null
+  return wordDiff(expectedText.value, userInput.value)
+})
+
+const diffHtml = computed(() => {
+  const items = diffItems.value
+  if (!items) return ''
+  return items
+    .map((it) => {
+      const safe = escapeHtml(it.raw)
+      if (it.kind === 'match') return safe
+      if (it.kind === 'missing') return `<span class="diff-missing">${safe}</span>`
+      return `<span class="diff-extra">${safe}</span>`
+    })
+    .join(' ')
+})
+
 </script>
 
 <template>
@@ -227,11 +271,25 @@ const passageRangeHtml = computed(() => {
 
       <div v-else-if="card.kind === 'Recitation'" class="centered">
         <div class="ref" v-html="refHtml" />
-        <template v-if="revealed">
-          <hr class="type" />
-          <div class="verse-text" v-html="verseHtml" />
+        <template v-if="!revealed">
+          <hr />
+          <textarea
+            v-model="userInput"
+            class="type-input"
+            rows="4"
+            placeholder="Type to test yourself, or just recite aloud and skip"
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+          />
+          <div class="placeholder">…recite the whole verse…</div>
         </template>
-        <div v-else class="placeholder">…recite the whole verse…</div>
+        <template v-else>
+          <hr class="type" />
+          <div v-if="diffItems" class="verse-text diff" v-html="diffHtml" />
+          <div v-else class="verse-text" v-html="verseHtml" />
+        </template>
       </div>
 
       <div v-else-if="card.kind === 'Citation'" class="centered">
@@ -242,15 +300,33 @@ const passageRangeHtml = computed(() => {
       </div>
 
       <!-- FTV: front shows the verse's first few words as a "continue…"
-           prompt; back reveals the citation and the full verse text. -->
+           prompt; back reveals the citation and the full verse text.
+           The optional type-out compares the user's input against the
+           continuation only (the on-screen prefix is sliced off in
+           `expectedText`) so the diff doesn't punish them for not
+           re-typing what's already visible. -->
       <div v-else-if="card.kind === 'Ftv'" class="centered">
         <div v-if="revealed" class="ref" v-html="refHtml" />
         <div class="verse-text ftv" v-html="`${ftvHtml ?? ''}…`" />
-        <template v-if="revealed">
-          <hr class="type" />
-          <div class="verse-text" v-html="verseHtml" />
+        <template v-if="!revealed">
+          <hr />
+          <textarea
+            v-model="userInput"
+            class="type-input"
+            rows="3"
+            placeholder="Continue typing the verse, or just recite aloud and skip"
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+          />
+          <div class="placeholder">…continue the verse…</div>
         </template>
-        <div v-else class="placeholder">…continue the verse…</div>
+        <template v-else>
+          <hr class="type" />
+          <div v-if="diffItems" class="verse-text diff" v-html="diffHtml" />
+          <div v-else class="verse-text" v-html="verseHtml" />
+        </template>
       </div>
 
       <!-- Pseudo-verse card anchored to a heading: card-level verse-colour
@@ -459,6 +535,46 @@ const passageRangeHtml = computed(() => {
 .placeholder {
   color: var(--color-muted);
   font-style: italic;
+}
+
+/* Type-to-recite input. Sits below the prompt's solid hr pre-reveal;
+   on flip, the textarea is replaced by the diff. Browsers auto-fill
+   and auto-correct would both leak hints and rewrite the user's
+   answer, so they're disabled at the element level via the template.
+   `resize: vertical` lets long Recitation entries grow without
+   horizontally distorting the card. */
+.type-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-family: Arial, Helvetica, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.type-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Word-level diff markers on the reveal side. Missing = canonical word
+   the user didn't type (or got wrong); Extra = word the user typed
+   that wasn't in the canonical. Both use the same Again-grade red so
+   they read as "this is where you slipped" without competing with
+   the verse-colour accent. */
+.verse-text.diff :deep(.diff-missing) {
+  color: var(--color-grade-again);
+  text-decoration: underline;
+}
+
+.verse-text.diff :deep(.diff-extra) {
+  color: var(--color-grade-again);
+  text-decoration: line-through;
 }
 
 .answer {

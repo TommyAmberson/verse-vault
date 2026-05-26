@@ -9,6 +9,21 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Type-to-recite on Recitation + Ftv
+
+* **Optional type-out box** on the front of `Recitation` and `Ftv` cards. The user can type their
+  recall before flipping, or leave it blank and recite aloud — flipping with an empty box renders
+  the back exactly as before, so the "say it in my head" workflow stays the default.
+* **Word-level diff** replaces the canonical text on the back when the user typed something: matched
+  words read normally, missing canonical words are underlined in the Again-grade red, and extra
+  words the user typed get a strikethrough in the same red. Comparison is normalised — lowercased,
+  punctuation stripped, whitespace collapsed — so a missing comma or "Lord" vs "LORD" doesn't read
+  as an error. Fancier per-word fuzzy matching (spelling) is a follow-up.
+* For `Ftv`, the on-screen prefix is sliced out of the expected text before diffing, so the user
+  only gets graded on the continuation they actually had to recall.
+* Internals: new `apps/web/src/lib/diff/wordDiff.ts` (LCS-based word diff), `CardPrompt.vue` owns
+  the per-card `userInput` ref and resets it on card swap.
+
 ## [0.1.13] — 2026-05-26
 
 ### Added
