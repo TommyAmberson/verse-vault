@@ -22,6 +22,20 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   now calls `multiSession.setActive(sessionToken)` after the upsert so the new session is the one
   attached to subsequent API requests.
 
+### Review / Memorize keyboard shortcuts
+
+* **Enter is the primary action** on every screen: flips a graded card front-to-back; advances
+  Memorize's reading walkthroughs (Next verse, Graduate). Capture-phase listener so Enter inside the
+  type-to-recite textarea flips instead of inserting a newline. On the back of a graded card
+  (Review, Memorize drilling), Enter is a no-op — the user picks a grade explicitly so unintended
+  re-flips don't silently auto-grade.
+* **1 / 2 / 3 / 4 grade** the back as Again / Hard / Good / Easy in `/review`. Memorize only has two
+  grades per screen (drill: Again / Good; reading-end: Not yet / Graduate), so 1+2 both fire the
+  left button and 3+4 both fire the right one — left/right matches the Review row's split so muscle
+  memory carries over and no key sits inert.
+* Both placeholders now say "or just recite aloud and flip" instead of "skip", to match the
+  Reveal-button vocabulary now that Enter is wired up.
+
 ### Type-to-recite on Recitation + Ftv
 
 * **Optional type-out box** on the front of `Recitation` and `Ftv` cards. The user can type their

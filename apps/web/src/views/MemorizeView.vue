@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { type CardRender, type MemorizeSessionVerse, api } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
@@ -223,6 +223,54 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+/** Keyboard shortcuts mirroring the on-screen buttons:
+ *  - Enter advances whichever primary button is showing (Next/Start,
+ *    Reveal, Graduate). Capture phase so the type-to-recite textarea
+ *    flips to the back instead of inserting a newline.
+ *  - 1/2 = Again / Not yet (left); 3/4 = Good / Graduate (right).
+ *    Mirrors the Review keypad's left/right split — Memorize's two
+ *    buttons just claim two digits each so muscle memory carries
+ *    over and no key sits inert. */
+function onKeydown(e: KeyboardEvent) {
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+  if (engine.staleSummary.value || submitting.value) return
+
+  if (e.key === 'Enter') {
+    if (phase.value === 'reading_start' && currentReadingVerse.value?.anchor) {
+      e.preventDefault()
+      advanceReadingStart()
+    } else if (phase.value === 'drilling' && drillCard.value && !drillRevealed.value) {
+      e.preventDefault()
+      revealDrill()
+    } else if (phase.value === 'reading_end' && currentReadingVerse.value?.anchor) {
+      e.preventDefault()
+      void graduateCurrentReadingEnd()
+    }
+    return
+  }
+
+  if (phase.value === 'drilling' && drillRevealed.value) {
+    if (e.key === '1' || e.key === '2') {
+      e.preventDefault()
+      void gradeAgain()
+    } else if (e.key === '3' || e.key === '4') {
+      e.preventDefault()
+      void gradeGood()
+    }
+  } else if (phase.value === 'reading_end') {
+    if (e.key === '1' || e.key === '2') {
+      e.preventDefault()
+      skipCurrentReadingEnd()
+    } else if (e.key === '3' || e.key === '4') {
+      e.preventDefault()
+      void graduateCurrentReadingEnd()
+    }
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown, true))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
 </script>
 
 <template>

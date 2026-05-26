@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, shallowRef } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 
 import {
   type CardRender,
@@ -104,6 +104,36 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+/** Keyboard shortcuts: Enter to reveal the back, 1-4 to grade once
+ *  revealed. The capture-phase listener is intentional — it catches
+ *  Enter inside the type-to-recite textarea before the textarea would
+ *  insert a newline. The grade keys are unambiguous (the back has no
+ *  inputs) so they ride the regular bubble. The stale-merge modal
+ *  takes precedence: while it's open, the shortcuts no-op so the user
+ *  can use Enter/digits in any modal inputs without grading silently. */
+function onKeydown(e: KeyboardEvent) {
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+  if (!card.value || engine.staleSummary.value) return
+
+  if (e.key === 'Enter') {
+    if (!revealed.value && !submitting.value) {
+      e.preventDefault()
+      revealed.value = true
+    }
+    return
+  }
+
+  if (!revealed.value) return
+  const grade = ({ '1': 1, '2': 2, '3': 3, '4': 4 } as const)[e.key]
+  if (grade !== undefined) {
+    e.preventDefault()
+    void submit(grade)
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown, true))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
 </script>
 
 <template>
