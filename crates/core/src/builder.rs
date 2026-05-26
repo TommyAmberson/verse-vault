@@ -300,23 +300,19 @@ pub fn build_with_config(
         push_card(CardKind::Recitation, &mut cards, &mut next_card_id);
         push_card(CardKind::Citation, &mut cards, &mut next_card_id);
 
-        // Composite: Ftv (with and without citation). Eligibility:
-        // verse has phrases, FTV is short enough, FTV doesn't exceed
-        // phrase 0 length. derive_structure verified the prefix invariant
-        // when emitting ftv_word_count, so we trust it here.
+        // Composite: Ftv. Eligibility: verse has phrases, FTV is short
+        // enough, FTV doesn't exceed phrase 0 length. derive_structure
+        // verified the prefix invariant when emitting ftv_word_count,
+        // so we trust it here. The single FTV card always tests the
+        // citation triple on reveal — the no-citation variant was
+        // dropped because Recitation already covers the
+        // recall-without-ref case from the verse-text side.
         if config.ftv
             && let Some(ftv_words) = verse.ftv_word_count
             && phrase_count > 0
             && (ftv_words as usize) <= FTV_MAX_WORDS
             && ftv_words <= phrase_zero_word_count
         {
-            push_card(
-                CardKind::Ftv {
-                    with_citation: false,
-                },
-                &mut cards,
-                &mut next_card_id,
-            );
             push_card(
                 CardKind::Ftv {
                     with_citation: true,
@@ -554,13 +550,19 @@ mod tests {
         );
         assert!(r.cards.iter().any(|c| matches!(c.kind, CardKind::Citation)));
         // FTV "For God" is a strict prefix of phrase zero "For God" (equal),
-        // so both Ftv variants are emitted.
-        let ftv_cards = r
+        // so one Ftv card emits — always with citation on the answer side.
+        let ftv_cards: Vec<&Card> = r
             .cards
             .iter()
             .filter(|c| matches!(c.kind, CardKind::Ftv { .. }))
-            .count();
-        assert_eq!(ftv_cards, 2);
+            .collect();
+        assert_eq!(ftv_cards.len(), 1);
+        assert!(matches!(
+            ftv_cards[0].kind,
+            CardKind::Ftv {
+                with_citation: true
+            }
+        ));
     }
 
     #[test]

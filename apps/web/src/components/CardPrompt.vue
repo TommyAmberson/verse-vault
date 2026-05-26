@@ -34,6 +34,14 @@ const refParts = computed(() => {
       return { showBook: true, showChapter: true, showVerse: reveal }
     case 'Citation':
       return { showBook: reveal, showChapter: reveal, showVerse: reveal }
+    case 'Ftv':
+      // FTV's front is the first-words prompt with no ref. Hiding the
+      // verse-colour stripe pre-reveal keeps the verse-colour from
+      // mnemonic-leaking the verse number; on reveal the citation
+      // appears and the stripe lights up alongside it. `showVerse:
+      // reveal` is what `no-verse-accent` keys off, so mirroring the
+      // Citation pattern gets that for free.
+      return { showBook: reveal, showChapter: reveal, showVerse: reveal }
     default:
       return { showBook: true, showChapter: true, showVerse: true }
   }
@@ -207,7 +215,7 @@ const composedMissing = computed(() => props.card.composed === null)
       </div>
 
       <div v-else-if="card.kind === 'Ftv'" class="centered">
-        <div v-if="revealed && card.withCitation" class="ref" v-html="refHtml" />
+        <div v-if="revealed" class="ref" v-html="refHtml" />
         <div class="verse-text ftv" v-html="`${ftvHtml ?? ''}…`" />
         <template v-if="revealed">
           <hr class="type" />

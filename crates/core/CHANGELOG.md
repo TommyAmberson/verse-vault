@@ -22,6 +22,15 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+### Changed
+
+* Builder emits one `Ftv` card per FTV-eligible verse (always `with_citation: true`) instead of two.
+  The no-citation variant was near-identical to its sibling on the prompt side — only the reveal
+  differed — and `Recitation` already covers the recall-without-ref shape from the verse-text side.
+  The `CardKind::Ftv { with_citation }` enum variant keeps its field for wire-format compatibility;
+  existing `with_citation: false` cards in persisted state are unaffected but won't be re-emitted on
+  rebuild.
+
 ## [0.1.0] — 2026-05-20 (baseline)
 
 ### Added
