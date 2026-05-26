@@ -35,12 +35,9 @@ const refParts = computed(() => {
     case 'Citation':
       return { showBook: reveal, showChapter: reveal, showVerse: reveal }
     case 'Ftv':
-      // FTV's front is the first-words prompt with no ref. Hiding the
-      // verse-colour stripe pre-reveal keeps the verse-colour from
-      // mnemonic-leaking the verse number; on reveal the citation
-      // appears and the stripe lights up alongside it. `showVerse:
-      // reveal` is what `no-verse-accent` keys off, so mirroring the
-      // Citation pattern gets that for free.
+      // FTV's front has no ref. Hide the verse-colour pre-reveal so it
+      // can't mnemonic-leak the verse number; on reveal the citation
+      // and the stripe come back together.
       return { showBook: reveal, showChapter: reveal, showVerse: reveal }
     default:
       return { showBook: true, showChapter: true, showVerse: true }
@@ -235,6 +232,8 @@ const passageRange = computed(() => {
         <div class="verse-text" v-html="verseHtml" />
       </div>
 
+      <!-- FTV: front shows the verse's first few words as a "continue…"
+           prompt; back reveals the citation and the full verse text. -->
       <div v-else-if="card.kind === 'Ftv'" class="centered">
         <div v-if="revealed" class="ref" v-html="refHtml" />
         <div class="verse-text ftv" v-html="`${ftvHtml ?? ''}…`" />
@@ -245,13 +244,11 @@ const passageRange = computed(() => {
         <div v-else class="placeholder">…continue the verse…</div>
       </div>
 
+      <!-- Pseudo-verse card anchored to a heading: no single verse number
+           to mnemonic, so the verse-colour stripe stays off. Front shows
+           the passage range; back reveals the heading title.
+           TODO: passage text needs server-side bulk composition. -->
       <div v-else-if="card.kind === 'HeadingPassage'" class="centered">
-        <!-- Pseudo-verse card anchored to a heading; verse number is 0
-             (sentinel) so the verse-colour stripe is suppressed via the
-             `pseudo-verse` class. Front shows the passage range as the
-             prompt; back reveals the heading title. Verse text rendering
-             for the passage is server-side composition (TODO: bulk-compose
-             on the API). -->
         <div class="ref">{{ passageRange }}</div>
         <hr />
         <template v-if="revealed">

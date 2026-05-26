@@ -160,13 +160,10 @@ export function useEngine() {
       // material. Backgrounded — don't block the UI on it.
       void flushOne(id).catch(() => {})
     } catch (e) {
-      // Log alongside storing on `error.value` so the real exception is
-      // visible in the dev console even when no UI surface renders the
-      // ref. The historical failure mode was a stale wasm pkg-web whose
-      // MaterialConfig schema disagreed with the API's wire shape: init
-      // threw at the WASM constructor and the swallowed error cascaded
-      // into "no session for <materialId>" / spurious fetch failures
-      // downstream, which was the misleading symptom.
+      // Log alongside storing on `error.value`: not every caller renders
+      // the ref, and a swallowed init failure cascades into misleading
+      // downstream symptoms ("no session for <materialId>", spurious
+      // fetch errors). Keep the real exception visible in the dev console.
       console.error(`useEngine.init: failed for ${id}`, e)
       error.value = e
     }
