@@ -19,8 +19,10 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   words the user typed get a strikethrough in the same red. Comparison is normalised — lowercased,
   punctuation stripped, whitespace collapsed — so a missing comma or "Lord" vs "LORD" doesn't read
   as an error. Fancier per-word fuzzy matching (spelling) is a follow-up.
-* For `Ftv`, the on-screen prefix is sliced out of the expected text before diffing, so the user
-  only gets graded on the continuation they actually had to recall.
+* For `Ftv`, the textarea is pre-filled with the on-screen prefix so the user can keep typing into
+  it. The prefix is sliced out of both the expected text and (greedily) the user's input before
+  diffing, so keeping or deleting the prefill produces the same back-of-card — only the continuation
+  gets graded.
 * Internals: new `apps/web/src/lib/diff/wordDiff.ts` (LCS-based word diff), `CardPrompt.vue` owns
   the per-card `userInput` ref and resets it on card swap.
 

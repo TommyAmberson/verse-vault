@@ -9,11 +9,29 @@ const props = defineProps<{
   revealed: boolean
 }>()
 
+function stripHtmlToText(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+}
+
 const userInput = ref('')
 // Wipe the typed answer when the parent swaps to a new card object.
 // Re-drills emit a fresh CardRender even when the cardId repeats, so
-// reference-equality is enough — no need to key on cardId.
-watch(() => props.card, () => { userInput.value = '' })
+// reference-equality is enough — no need to key on cardId. Ftv cards
+// pre-fill the textarea with the visible prefix so the user can keep
+// typing into it — keeping or deleting it both yield the same diff
+// (see `userInputForDiff`).
+watch(
+  () => props.card,
+  (card) => {
+    if (card.kind === 'Ftv' && card.composed?.ftvHtml) {
+      const prefix = stripHtmlToText(card.composed.ftvHtml)
+      userInput.value = prefix ? `${prefix} ` : ''
+    } else {
+      userInput.value = ''
+    }
+  },
+  { immediate: true },
+)
 
 /** Verse-colour palette ported from the deck's _colours.js. The CSS vars
  *  themselves live in assets/colors.css; we pick by (verse - 1) % 10. */
@@ -158,7 +176,7 @@ const passageRangeHtml = computed(() => {
  *  the prefix shown on screen is dropped so the diff only checks the
  *  continuation the user actually had to recall. */
 const expectedText = computed(() => {
-  const full = phraseHtml.value.join(' ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  const full = stripHtmlToText(phraseHtml.value.join(' '))
   if (props.card.kind === 'Ftv') {
     const skip = props.card.verse.ftvWordCount ?? 0
     if (skip > 0) {
@@ -169,11 +187,49 @@ const expectedText = computed(() => {
   return full
 })
 
-const hasTypedAnswer = computed(() => userInput.value.trim() !== '')
+const NORMALIZE_NON_WORD = /[^\p{L}\p{N}']+/gu
+function normalizeToken(s: string): string {
+  return s.toLowerCase().replace(NORMALIZE_NON_WORD, '')
+}
+
+/** Greedily strips a leading normalised prefix from `input`, returning
+ *  the raw suffix. Used so the Ftv prefill (which we ourselves put in
+ *  the textarea) doesn't get diffed against the continuation as a
+ *  string of extra words. */
+function stripLeadingPrefix(input: string, prefix: string): string {
+  if (prefix === '') return input
+  const tokenRe = /\S+/g
+  type Pos = { norm: string; end: number }
+  const collect = (s: string): Pos[] => {
+    const out: Pos[] = []
+    tokenRe.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = tokenRe.exec(s)) !== null) {
+      const norm = normalizeToken(m[0])
+      if (norm === '') continue
+      out.push({ norm, end: m.index + m[0].length })
+    }
+    return out
+  }
+  const inTok = collect(input)
+  const prefTok = collect(prefix)
+  let i = 0
+  while (i < prefTok.length && i < inTok.length && prefTok[i]!.norm === inTok[i]!.norm) i++
+  if (i === 0) return input
+  return input.slice(inTok[i - 1]!.end).replace(/^\s+/, '')
+}
+
+const userInputForDiff = computed(() => {
+  if (props.card.kind !== 'Ftv') return userInput.value
+  const prefix = props.card.composed?.ftvHtml ? stripHtmlToText(props.card.composed.ftvHtml) : ''
+  return stripLeadingPrefix(userInput.value, prefix)
+})
+
+const hasTypedAnswer = computed(() => userInputForDiff.value.trim() !== '')
 
 const diffItems = computed<DiffItem[] | null>(() => {
   if (!props.revealed || !hasTypedAnswer.value) return null
-  return wordDiff(expectedText.value, userInput.value)
+  return wordDiff(expectedText.value, userInputForDiff.value)
 })
 
 const diffHtml = computed(() => {
