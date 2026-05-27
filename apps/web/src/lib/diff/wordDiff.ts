@@ -19,7 +19,11 @@ interface Token {
 
 const NON_WORD = /[^\p{L}\p{N}']+/gu
 
-function normalize(raw: string): string {
+/** Lowercase a single token and strip everything but letters, digits,
+ *  and apostrophes. Exported so callers that need the same notion of
+ *  "same word" outside the diff (e.g. greedy prefix matching) stay in
+ *  sync. */
+export function normalize(raw: string): string {
   return raw.toLowerCase().replace(NON_WORD, '')
 }
 
@@ -95,20 +99,3 @@ export function wordDiff(expected: string, actual: string): DiffItem[] {
   return out
 }
 
-/** Counts for a "you got X of Y words" summary. */
-export function diffStats(items: DiffItem[]): { matched: number; expected: number; extra: number } {
-  let matched = 0
-  let expected = 0
-  let extra = 0
-  for (const it of items) {
-    if (it.kind === 'match') {
-      matched++
-      expected++
-    } else if (it.kind === 'missing') {
-      expected++
-    } else {
-      extra++
-    }
-  }
-  return { matched, expected, extra }
-}

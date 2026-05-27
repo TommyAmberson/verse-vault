@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 
 import type { CardRender } from '@/api'
-import { type DiffItem, wordDiff } from '@/lib/diff/wordDiff'
+import { type DiffItem, normalize, wordDiff } from '@/lib/diff/wordDiff'
 
 const props = defineProps<{
   card: CardRender
@@ -201,11 +201,6 @@ const expectedText = computed(() => {
   return full
 })
 
-const NORMALIZE_NON_WORD = /[^\p{L}\p{N}']+/gu
-function normalizeToken(s: string): string {
-  return s.toLowerCase().replace(NORMALIZE_NON_WORD, '')
-}
-
 /** Greedily strips a leading normalised prefix from `input`, returning
  *  the raw suffix. Used so the Ftv prefill (which we ourselves put in
  *  the textarea) doesn't get diffed against the continuation as a
@@ -219,7 +214,7 @@ function stripLeadingPrefix(input: string, prefix: string): string {
     tokenRe.lastIndex = 0
     let m: RegExpExecArray | null
     while ((m = tokenRe.exec(s)) !== null) {
-      const norm = normalizeToken(m[0])
+      const norm = normalize(m[0])
       if (norm === '') continue
       out.push({ norm, end: m.index + m[0].length })
     }
