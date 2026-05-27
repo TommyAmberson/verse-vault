@@ -9,6 +9,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.14] — 2026-05-27
+
 ### Stale-row sign-in recovery
 
 * **Silent same-email recovery.** When `signInComplete` sees the new sign-in has a different
@@ -61,6 +63,11 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   gets graded.
 * Internals: new `apps/web/src/lib/diff/wordDiff.ts` (LCS-based word diff), `CardPrompt.vue` owns
   the per-card `userInput` ref and resets it on card swap.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.2.0` — unchanged.
+* `verse-vault-wasm@0.2.0` — unchanged.
 
 ## [0.1.13] — 2026-05-26
 
