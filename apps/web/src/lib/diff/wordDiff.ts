@@ -62,15 +62,11 @@ export function wordDiff(expected: string, actual: string): DiffItem[] {
   let j = m
   while (i > 0 && j > 0) {
     if (e[i - 1]!.norm === a[j - 1]!.norm) {
-      // Standard back-to-front LCS would match here unconditionally,
-      // which biases toward matching at the LATEST valid expected
-      // position (the "last 'was'" in the screenshot, even when the
-      // user clearly meant the first). When we can skip this expected
-      // token without shortening the LCS — i.e. the same actual word
-      // appears at an earlier expected position too — defer the match
-      // by treating the current token as missing. The next iteration
-      // of the loop will find the earlier occurrence and force the
-      // match there.
+      // Standard LCS would match here unconditionally, biasing toward
+      // the LATEST valid expected position. Defer the match when we
+      // can skip without shortening the LCS — the next iteration will
+      // land it at the earliest occurrence instead, which is what
+      // readers expect when typing only the first few words.
       if (dp[i - 1]![j]! === dp[i]![j]!) {
         out.push({ kind: 'missing', raw: e[i - 1]!.raw })
         i--

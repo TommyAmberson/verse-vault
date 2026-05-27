@@ -19,15 +19,10 @@ const userInput = ref('')
 // mounted; null on every other kind.
 const typeInput = ref<HTMLTextAreaElement | null>(null)
 
-// Wipe the typed answer when the parent swaps to a new card object.
-// Re-drills emit a fresh CardRender even when the cardId repeats, so
-// reference-equality is enough — no need to key on cardId. Ftv cards
-// pre-fill the textarea with the visible prefix so the user can keep
-// typing into it — keeping or deleting it both yield the same diff
-// (see `userInputForDiff`). Finally auto-focus the textarea so the
-// user can start typing without clicking, and place the cursor at the
-// end so the Ftv prefill becomes a continuation point rather than
-// something to overwrite.
+// Reset per card swap. Ftv cards pre-fill the textarea with the
+// visible prefix so it reads as a continuation point (cursor at the
+// end, prefix sliced from input before diffing in `userInputForDiff`).
+// Autofocus on every swap so the user can type immediately.
 watch(
   () => props.card,
   (card) => {
