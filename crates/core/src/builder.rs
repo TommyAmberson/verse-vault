@@ -123,6 +123,17 @@ fn emit_chapter_club_list_cards(
             let pseudo_id = next_pseudo_verse_id;
             next_pseudo_verse_id += 1;
 
+            // Resolve each member's verse_id to a human verse number so
+            // the client can render the back-of-card list without
+            // exposing internal ids. `members` is already sorted by
+            // verse_id (above) and verse numbers within a chapter
+            // increase monotonically with verse_id, so the mapped
+            // vec stays in ascending verse-number order.
+            let member_numbers: Vec<u16> = members
+                .iter()
+                .filter_map(|(vid, _)| verse_render_by_id.get(vid).map(|r| r.verse))
+                .collect();
+
             verse_atoms_by_id.insert(
                 pseudo_id,
                 VerseAtoms {
@@ -148,6 +159,7 @@ fn emit_chapter_club_list_cards(
                     ftv_word_count: None,
                     headings: Vec::new(),
                     clubs: vec![card_tier],
+                    chapter_members: member_numbers,
                 },
             );
             cards.push(Card {
@@ -246,6 +258,7 @@ fn emit_heading_passage_cards(
                     end_verse: heading.end_verse,
                 }],
                 clubs: Vec::new(),
+                chapter_members: Vec::new(),
             },
         );
         cards.push(Card {
@@ -444,6 +457,7 @@ pub fn build_with_config(
                 ftv_word_count: verse.ftv_word_count,
                 headings: heading_renders,
                 clubs: clubs.clone(),
+                chapter_members: Vec::new(),
             },
         );
 

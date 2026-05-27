@@ -195,6 +195,10 @@ pub struct VerseRenderWire {
     pub ftv_word_count: Option<u16>,
     pub headings: Vec<HeadingRenderWire>,
     pub clubs: Vec<ClubTier>,
+    /// Populated on `ChapterClubList` pseudo-verses with the verse
+    /// numbers in the chapter that match the card's tier; empty
+    /// everywhere else.
+    pub chapter_members: Vec<u16>,
 }
 
 impl From<&VerseRender> for VerseRenderWire {
@@ -213,6 +217,7 @@ impl From<&VerseRender> for VerseRenderWire {
             ftv_word_count: v.ftv_word_count,
             headings: v.headings.iter().map(HeadingRenderWire::from).collect(),
             clubs: v.clubs.clone(),
+            chapter_members: v.chapter_members.clone(),
         }
     }
 }

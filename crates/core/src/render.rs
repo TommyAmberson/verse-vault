@@ -33,4 +33,11 @@ pub struct VerseRender {
     pub ftv_word_count: Option<u16>,
     pub headings: Vec<HeadingRender>,
     pub clubs: Vec<ClubTier>,
+    /// Verse numbers in this chapter that belong to the pseudo's tier,
+    /// populated only for `ChapterClubList` pseudo-verses so the client
+    /// can render the back-of-card answer without a follow-up lookup.
+    /// Empty for real verses and other pseudos. Defaults to empty on
+    /// deserialise so older snapshot data still loads.
+    #[serde(default)]
+    pub chapter_members: Vec<u16>,
 }

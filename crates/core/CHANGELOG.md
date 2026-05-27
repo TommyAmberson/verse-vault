@@ -22,6 +22,14 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-05-27
+
+* `VerseRender.chapter_members: Vec<u16>` — additive field carrying the verse numbers a
+  `ChapterClubList` pseudo-card asks about. Empty for real verses and other pseudos; the
+  `emit_chapter_club_list_cards` builder populates it from the matching-tier members so consumers
+  can render the back-of-card answer without a separate lookup. `#[serde(default)]` so older
+  snapshot data still loads.
+
 ## [0.2.0] — 2026-05-26
 
 Card-audit pass: drops the redundant no-citation FTV variant and introduces a passage-cued heading

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 
-import type { CardRender } from '@/api'
+import { type CardRender, formatCardTier } from '@/api'
 import { type DiffItem, normalize, wordDiff } from '@/lib/diff/wordDiff'
 
 const props = defineProps<{
@@ -56,6 +56,14 @@ function verseColourVar(verse: number): string {
   return VERSE_COLOUR_VARS[(verse - 1) % VERSE_COLOUR_VARS.length]!
 }
 const verseColour = computed(() => `var(${verseColourVar(props.card.verse.verse)})`)
+
+/** Verse-number chip rendered inside refs and answer lists. The CSS
+ *  custom property is set inline so each span gets its own colour,
+ *  letting a chapter or passage range render multiple verse-coloured
+ *  numbers within one parent that doesn't pick a single colour. */
+function verseNumberSpan(n: number): string {
+  return `<span class="verse-number" style="--active-verse-colour: var(${verseColourVar(n)})">${n}</span>`
+}
 
 /** Per-card visibility of each ref component. For "what chapter?" /
  *  "what book?" / "what verse?" / Citation, the asked-about parts stay
@@ -134,6 +142,8 @@ const promptLabel = computed(() => {
       return 'What heading?'
     case 'HeadingPassage':
       return 'What heading is this passage under?'
+    case 'ChapterClubList':
+      return 'Which verses are in this club?'
     case 'VerseInClub':
       return 'What club?'
     case 'Recitation':
@@ -153,7 +163,9 @@ const phraseHtml = computed(() => props.card.composed?.phraseHtml ?? [])
 const verseHtml = computed(() => phraseHtml.value.join(' '))
 const ftvHtml = computed(() => props.card.composed?.ftvHtml ?? null)
 const headingTitle = computed(() => props.card.composed?.headings[0]?.title ?? null)
-const clubLabel = computed(() => props.card.tier ?? props.card.verse.clubs[0] ?? '')
+const clubLabel = computed(() =>
+  formatCardTier(props.card.tier ?? props.card.verse.clubs[0]),
+)
 const composedMissing = computed(() => props.card.composed === null)
 
 /** Sentinel `verse === 0` marks a pseudo-verse card (ChapterClubList,
@@ -171,13 +183,22 @@ const passageRangeHtml = computed(() => {
   const h = props.card.verse.headings[0]
   const book = escapeHtml(props.card.verse.book)
   if (!h) return `${book} ${props.card.verse.chapter}`
-  const vNum = (n: number) =>
-    `<span class="verse-number" style="--active-verse-colour: var(${verseColourVar(n)})">${n}</span>`
   const same = h.startChapter === h.endChapter
   const range = same
-    ? `${h.startChapter}:${vNum(h.startVerse)}-${vNum(h.endVerse)}`
-    : `${h.startChapter}:${vNum(h.startVerse)}-${h.endChapter}:${vNum(h.endVerse)}`
+    ? `${h.startChapter}:${verseNumberSpan(h.startVerse)}-${verseNumberSpan(h.endVerse)}`
+    : `${h.startChapter}:${verseNumberSpan(h.startVerse)}-${h.endChapter}:${verseNumberSpan(h.endVerse)}`
   return `${book} ${range}`
+})
+
+const chapterClubRefHtml = computed(() => {
+  const book = escapeHtml(props.card.verse.book)
+  return `${book} ${props.card.verse.chapter} · ${formatCardTier(props.card.tier)}`
+})
+
+const chapterMembersHtml = computed(() => {
+  const members = props.card.verse.chapterMembers ?? []
+  if (members.length === 0) return '—'
+  return members.map(verseNumberSpan).join(', ')
 })
 
 /** Plain-text canonical answer for the type-to-recite diff. Strips
@@ -406,6 +427,23 @@ const diffHtml = computed(() => {
           <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
         </template>
         <div v-else class="placeholder">…what heading is this passage under?…</div>
+      </div>
+
+      <!-- Pseudo-verse card anchored to a chapter+tier; the verse=0
+           sentinel keeps the card-level stripe off while each verse
+           number in the answer list still gets its own colour. -->
+      <div v-else-if="card.kind === 'ChapterClubList'" class="centered">
+        <div class="ref" v-html="chapterClubRefHtml" />
+        <hr v-if="revealed" class="type" />
+        <hr v-else />
+        <div
+          v-if="revealed"
+          class="verse-text"
+          v-html="chapterMembersHtml"
+        />
+        <div v-else class="placeholder">
+          …recite the {{ formatCardTier(card.tier) }} verses in this chapter…
+        </div>
       </div>
 
       <div v-else-if="card.kind === 'Reading'" class="centered">
