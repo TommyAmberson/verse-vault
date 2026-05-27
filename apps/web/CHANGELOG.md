@@ -9,6 +9,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.15] — 2026-05-27
+
 ### ChapterClubList card rendering
 
 * **Render the card properly.** `ChapterClubList` (the engine's pseudo-card asking "which verses in
@@ -18,6 +20,12 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   per-verse-colour answer list driven by the new `VerseRender.chapterMembers` wire field.
 * Internals: `clubTierLabel('Club150') = 'Club 150'`; the back reads the verse numbers off
   `card.verse.chapterMembers` (sourced from `verse-vault-wasm@0.2.1` / `verse-vault-core@0.2.1`).
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.2.1` — adds `VerseRender.chapter_members` carrying the verse numbers a
+  `ChapterClubList` pseudo asks about.
+* `verse-vault-wasm@0.2.1` — forwards the new field on `VerseRenderWire`.
 
 ## [0.1.14] — 2026-05-27
 
