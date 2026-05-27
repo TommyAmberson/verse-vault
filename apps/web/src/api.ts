@@ -13,13 +13,26 @@ import type {
 
 export type Grade = 1 | 2 | 3 | 4
 
+/** Wire-format tier string on a `CardRender` (`Club150` / `Club300`).
+ *  Distinct from `ClubTier` in settings, which uses the bare numeric
+ *  form (`'150'` / `'300'`). */
+export type CardTier = 'Club150' | 'Club300'
+
+/** User-facing label for a card's tier — used by every render site
+ *  that shows a tier to avoid drift across components. */
+export function formatCardTier(tier: CardTier | undefined): string {
+  if (tier === 'Club150') return 'Club 150'
+  if (tier === 'Club300') return 'Club 300'
+  return ''
+}
+
 export interface CardRender {
   cardId: number
   verseId: number
   kind: CardKind
   position?: number
   headingIdx?: number
-  tier?: 'Club150' | 'Club300'
+  tier?: CardTier
   withCitation?: boolean
   verse: VerseRender
   /** Server-composed HTML from the api.bible cache layered with user
@@ -62,7 +75,7 @@ export interface VerseRender {
     endChapter: number
     endVerse: number
   }[]
-  clubs: ('Club150' | 'Club300')[]
+  clubs: CardTier[]
   /** Verse numbers on a `ChapterClubList` pseudo-verse — the chapter's
    *  tier members the card asks about. Empty elsewhere. */
   chapterMembers: number[]
