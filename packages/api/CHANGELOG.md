@@ -10,6 +10,16 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.16] — 2026-05-27
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.2.1` — adds `VerseRender.chapter_members` carrying the verse numbers a
+  `ChapterClubList` pseudo-card asks about. Required server-side so the API actually sends the field
+  on the wire; without redeploying the API, the web 0.1.15 ChapterClubList back-of-card list would
+  render as an em-dash.
+* `verse-vault-wasm@0.2.1` — forwards the new field on `VerseRenderWire`.
+
 ## [0.1.15] — 2026-05-26
 
 ### Added
