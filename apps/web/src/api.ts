@@ -63,6 +63,9 @@ export interface VerseRender {
     endVerse: number
   }[]
   clubs: ('Club150' | 'Club300')[]
+  /** Verse numbers on a `ChapterClubList` pseudo-verse — the chapter's
+   *  tier members the card asks about. Empty elsewhere. */
+  chapterMembers: number[]
 }
 
 export interface TestUpdate {

@@ -134,6 +134,8 @@ const promptLabel = computed(() => {
       return 'What heading?'
     case 'HeadingPassage':
       return 'What heading is this passage under?'
+    case 'ChapterClubList':
+      return 'Which verses are in this club?'
     case 'VerseInClub':
       return 'What club?'
     case 'Recitation':
@@ -178,6 +180,35 @@ const passageRangeHtml = computed(() => {
     ? `${h.startChapter}:${vNum(h.startVerse)}-${vNum(h.endVerse)}`
     : `${h.startChapter}:${vNum(h.startVerse)}-${h.endChapter}:${vNum(h.endVerse)}`
   return `${book} ${range}`
+})
+
+function clubTierLabel(tier: string | undefined): string {
+  if (tier === 'Club150') return 'Club 150'
+  if (tier === 'Club300') return 'Club 300'
+  return ''
+}
+
+/** "John 3 · Club 150" — the ref shown on a ChapterClubList card. No
+ *  verse-colour on the chapter number since the card asks about a list
+ *  of verses, not one. */
+const chapterClubRefHtml = computed(() => {
+  const book = escapeHtml(props.card.verse.book)
+  const tier = clubTierLabel(props.card.tier)
+  return `${book} ${props.card.verse.chapter} · ${tier}`
+})
+
+/** Comma-separated verse-number list for the ChapterClubList back.
+ *  Each number gets its own verse-colour via the same per-span override
+ *  used in passageRangeHtml. */
+const chapterMembersHtml = computed(() => {
+  const members = props.card.verse.chapterMembers ?? []
+  if (members.length === 0) return '—'
+  return members
+    .map(
+      (n) =>
+        `<span class="verse-number" style="--active-verse-colour: var(${verseColourVar(n)})">${n}</span>`,
+    )
+    .join(', ')
 })
 
 /** Plain-text canonical answer for the type-to-recite diff. Strips
@@ -406,6 +437,26 @@ const diffHtml = computed(() => {
           <div class="answer">Heading: {{ headingTitle ?? '(none)' }}</div>
         </template>
         <div v-else class="placeholder">…what heading is this passage under?…</div>
+      </div>
+
+      <!-- Pseudo-verse card anchored to a chapter+tier. Front asks
+           which verses are in this chapter's tier (e.g. John 3 · Club
+           150); back reveals the verse-number list. The pseudo's
+           verse=0 sentinel keeps the card-level stripe off; each
+           verse number in the answer gets its own colour via a
+           per-span override. -->
+      <div v-else-if="card.kind === 'ChapterClubList'" class="centered">
+        <div class="ref" v-html="chapterClubRefHtml" />
+        <hr v-if="revealed" class="type" />
+        <hr v-else />
+        <div
+          v-if="revealed"
+          class="verse-text"
+          v-html="chapterMembersHtml"
+        />
+        <div v-else class="placeholder">
+          …recite the {{ clubTierLabel(card.tier) }} verses in this chapter…
+        </div>
       </div>
 
       <div v-else-if="card.kind === 'Reading'" class="centered">
