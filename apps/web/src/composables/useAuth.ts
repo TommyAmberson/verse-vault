@@ -212,7 +212,20 @@ export async function signInComplete(
   },
   sessionToken: string | null = null,
 ): Promise<void> {
-  const existing = await registry.getProfile(user.id)
+  // A different-id but same-email sign-in is the "I deleted my account
+  // and just made a new one" path (common after dev-DB wipes). The
+  // local registry row for the old ID is stale — the server doesn't
+  // know that user any more — so the conflict dialog would prompt the
+  // user to choose between two visually-identical emails. Silently
+  // adopt the new ID instead by deleting the stale profile and falling
+  // through to the normal sign-in path.
+  if (
+    activeProfile.value
+    && activeProfile.value.profileId !== user.id
+    && activeProfile.value.email === user.email
+  ) {
+    await deleteProfile(activeProfile.value.profileId)
+  }
 
   // Capture the pending payload so the resolver can re-enter without
   // a second server round-trip.
@@ -224,6 +237,8 @@ export async function signInComplete(
     }
     return
   }
+
+  const existing = await registry.getProfile(user.id)
 
   // Read this BEFORE the upsert so the migration gate sees the
   // pre-state (no profiles yet = this is the device's first-ever
@@ -249,6 +264,20 @@ export async function signInComplete(
   }
   await registry.upsertProfile(row)
   await registry.setLastActiveProfileId(user.id)
+
+  // Pin the new session as Better Auth's active device session.
+  // multi-session stacks cookies rather than replacing them, so the
+  // active pointer can stay on a now-stale (or freshly-deleted) prior
+  // session unless we explicitly switch — that's what causes
+  // /api/years etc. to 401 after a fresh sign-up.
+  if (sessionToken) {
+    try {
+      await authClient.multiSession.setActive({ sessionToken })
+    } catch {
+      // Network error — the sign-in cookie itself is set; sync resumes
+      // when connectivity returns.
+    }
+  }
 
   // Switch the persistence layer to the new profile's DB before any
   // migration so the eager open creates all stores.

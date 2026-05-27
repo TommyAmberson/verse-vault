@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { type CardRender, type MemorizeSessionVerse, api } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
@@ -128,6 +128,12 @@ async function buildSession() {
 }
 
 async function startDrilling() {
+  // If every verse was already-memorized'd in the read-through, there's
+  // nothing to drill and nothing to re-confirm — skip straight to done.
+  if (drillQueue.value.length === 0) {
+    phase.value = 'done'
+    return
+  }
   phase.value = 'drilling'
   drillRevealed.value = false
   await loadDrillCard()
@@ -162,11 +168,24 @@ async function gradeGood() {
   if (submitting.value) return
   drillQueue.value.shift()
   if (drillQueue.value.length === 0) {
-    phase.value = 'reading_end'
-    readingIndex.value = 0
+    enterReadingEnd()
     return
   }
   await loadDrillCard()
+}
+
+/** Position the reading_end cursor at the first verse that still needs
+ *  a closing read — already-memorized verses got their graduation up
+ *  front in reading_start and don't need re-confirmation. If everything
+ *  was front-loaded, jump straight to done. */
+function enterReadingEnd() {
+  const first = verses.value.findIndex((v) => !v.graduated)
+  if (first === -1) {
+    phase.value = 'done'
+    return
+  }
+  phase.value = 'reading_end'
+  readingIndex.value = first
 }
 
 function advanceReadingStart() {
@@ -177,6 +196,30 @@ function advanceReadingStart() {
   readingIndex.value += 1
 }
 
+/** Reading-start opt-out: the user already knows this verse, so
+ *  graduate it immediately, drop its cards from the drill queue, and
+ *  advance. Equivalent to running through drilling + reading_end's
+ *  Graduate without actually doing them. */
+async function alreadyMemorizedCurrentReadingStart() {
+  const v = currentReadingVerse.value
+  if (!v || submitting.value) return
+  submitting.value = true
+  error.value = null
+  try {
+    await engine.submitGraduation(v.materialId, v.verseId)
+    v.graduated = true
+    drillQueue.value = drillQueue.value.filter(
+      (e) => !(e.materialId === v.materialId && e.verseId === v.verseId),
+    )
+    totalDrillCards.value = drillQueue.value.length
+    advanceReadingStart()
+  } catch (err) {
+    error.value = formatError(err)
+  } finally {
+    submitting.value = false
+  }
+}
+
 async function graduateCurrentReadingEnd() {
   const v = currentReadingVerse.value
   if (!v || submitting.value) return
@@ -185,11 +228,7 @@ async function graduateCurrentReadingEnd() {
   try {
     await engine.submitGraduation(v.materialId, v.verseId)
     v.graduated = true
-    if (onLastReading.value) {
-      phase.value = 'done'
-      return
-    }
-    readingIndex.value += 1
+    advanceReadingEnd()
   } catch (err) {
     error.value = formatError(err)
   } finally {
@@ -198,11 +237,20 @@ async function graduateCurrentReadingEnd() {
 }
 
 function skipCurrentReadingEnd() {
-  if (onLastReading.value) {
-    phase.value = 'done'
-    return
+  advanceReadingEnd()
+}
+
+/** Step to the next non-graduated verse, or done if none remain. Skips
+ *  over verses already-memorized in reading_start so the user isn't
+ *  asked twice. */
+function advanceReadingEnd() {
+  for (let i = readingIndex.value + 1; i < verses.value.length; i++) {
+    if (!verses.value[i]!.graduated) {
+      readingIndex.value = i
+      return
+    }
   }
-  readingIndex.value += 1
+  phase.value = 'done'
 }
 
 const graduatedCount = computed(() => verses.value.filter((v) => v.graduated).length)
@@ -223,6 +271,54 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+/** Keyboard shortcuts mirroring the on-screen buttons:
+ *  - Enter advances whichever primary button is showing (Next/Start,
+ *    Reveal, Graduate). Capture phase so the type-to-recite textarea
+ *    flips to the back instead of inserting a newline.
+ *  - 1/2 = Again / Not yet (left); 3/4 = Good / Graduate (right).
+ *    Mirrors the Review keypad's left/right split — Memorize's two
+ *    buttons just claim two digits each so muscle memory carries
+ *    over and no key sits inert. */
+function onKeydown(e: KeyboardEvent) {
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+  if (engine.staleSummary.value || submitting.value) return
+
+  if (e.key === 'Enter') {
+    if (phase.value === 'reading_start' && currentReadingVerse.value?.anchor) {
+      e.preventDefault()
+      advanceReadingStart()
+    } else if (phase.value === 'drilling' && drillCard.value && !drillRevealed.value) {
+      e.preventDefault()
+      revealDrill()
+    } else if (phase.value === 'reading_end' && currentReadingVerse.value?.anchor) {
+      e.preventDefault()
+      void graduateCurrentReadingEnd()
+    }
+    return
+  }
+
+  if (phase.value === 'drilling' && drillRevealed.value) {
+    if (e.key === '1' || e.key === '2') {
+      e.preventDefault()
+      void gradeAgain()
+    } else if (e.key === '3' || e.key === '4') {
+      e.preventDefault()
+      void gradeGood()
+    }
+  } else if (phase.value === 'reading_end') {
+    if (e.key === '1' || e.key === '2') {
+      e.preventDefault()
+      skipCurrentReadingEnd()
+    } else if (e.key === '3' || e.key === '4') {
+      e.preventDefault()
+      void graduateCurrentReadingEnd()
+    }
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown, true))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
 </script>
 
 <template>
@@ -255,9 +351,18 @@ onMounted(async () => {
       </div>
       <CardPrompt :card="currentReadingVerse.anchor" :revealed="true" />
       <div class="actions">
-        <button class="primary" :disabled="submitting" @click="advanceReadingStart">
-          {{ onLastReading ? 'Start drilling' : 'Next verse' }}
-        </button>
+        <div class="read-actions">
+          <button
+            class="secondary"
+            :disabled="submitting"
+            @click="alreadyMemorizedCurrentReadingStart"
+          >
+            Already memorized
+          </button>
+          <button class="primary" :disabled="submitting" @click="advanceReadingStart">
+            {{ onLastReading ? 'Start drilling' : 'Next verse' }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -403,6 +508,31 @@ onMounted(async () => {
 
 .primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
+}
+
+/* Side-by-side action row for reading_start: a muted "Already
+   memorized" escape hatch sits next to the primary "Next verse /
+   Start drilling" action so users can skip drilling verses they
+   already know without it being the dominant click target. */
+.read-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.secondary {
+  padding: 0.75rem 1rem;
+  background: transparent;
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.secondary:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-text);
 }
 
 .grades {

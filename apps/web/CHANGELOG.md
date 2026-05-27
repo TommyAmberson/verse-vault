@@ -9,6 +9,59 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Stale-row sign-in recovery
+
+* **Silent same-email recovery.** When `signInComplete` sees the new sign-in has a different
+  `user.id` but the same email as the active profile, treat it as a stale-row scenario (the
+  server-side account got deleted — typical after a dev-DB wipe + fresh signup) instead of surfacing
+  the conflict dialog. The stale registry row + per-profile IDB are dropped, the new ID's profile is
+  upserted, and the workspace continues. Different-email conflicts still raise the dialog.
+* **Pin the new session as active.** Better Auth's `multiSession` stacks cookies rather than
+  replacing them, so the active device-session pointer can stay on a deleted user's token after a
+  fresh sign-up — `/api/years` and friends then 401 even though sign-up was 200. `signInComplete`
+  now calls `multiSession.setActive(sessionToken)` after the upsert so the new session is the one
+  attached to subsequent API requests.
+
+### Memorize "Already memorized" opt-out
+
+* **Skip drilling per verse.** During the opening read-through, each verse now gets a secondary
+  "Already memorized" button next to "Next verse / Start drilling". Clicking it graduates the verse
+  immediately and removes its cards from the drill queue — useful for seeding a deck with verses the
+  user already knows from elsewhere. The closing read-through skips already-graduated verses so the
+  user isn't asked to confirm twice; if every verse was opt-out'd in reading_start, the session
+  jumps straight to done.
+
+### Review / Memorize keyboard shortcuts
+
+* **Enter is the primary action** on every screen: flips a graded card front-to-back; advances
+  Memorize's reading walkthroughs (Next verse, Graduate). Capture-phase listener so Enter inside the
+  type-to-recite textarea flips instead of inserting a newline. On the back of a graded card
+  (Review, Memorize drilling), Enter is a no-op — the user picks a grade explicitly so unintended
+  re-flips don't silently auto-grade.
+* **1 / 2 / 3 / 4 grade** the back as Again / Hard / Good / Easy in `/review`. Memorize only has two
+  grades per screen (drill: Again / Good; reading-end: Not yet / Graduate), so 1+2 both fire the
+  left button and 3+4 both fire the right one — left/right matches the Review row's split so muscle
+  memory carries over and no key sits inert.
+* Both placeholders now say "or just recite aloud and flip" instead of "skip", to match the
+  Reveal-button vocabulary now that Enter is wired up.
+
+### Type-to-recite on Recitation + Ftv
+
+* **Optional type-out box** on the front of `Recitation` and `Ftv` cards. The user can type their
+  recall before flipping, or leave it blank and recite aloud — flipping with an empty box renders
+  the back exactly as before, so the "say it in my head" workflow stays the default.
+* **Word-level diff** replaces the canonical text on the back when the user typed something: matched
+  words read normally, missing canonical words are underlined in the Again-grade red, and extra
+  words the user typed get a strikethrough in the same red. Comparison is normalised — lowercased,
+  punctuation stripped, whitespace collapsed — so a missing comma or "Lord" vs "LORD" doesn't read
+  as an error. Fancier per-word fuzzy matching (spelling) is a follow-up.
+* For `Ftv`, the textarea is pre-filled with the on-screen prefix so the user can keep typing into
+  it. The prefix is sliced out of both the expected text and (greedily) the user's input before
+  diffing, so keeping or deleting the prefill produces the same back-of-card — only the continuation
+  gets graded.
+* Internals: new `apps/web/src/lib/diff/wordDiff.ts` (LCS-based word diff), `CardPrompt.vue` owns
+  the per-card `userInput` ref and resets it on card swap.
+
 ## [0.1.13] — 2026-05-26
 
 ### Added
