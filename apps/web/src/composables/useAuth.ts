@@ -212,7 +212,27 @@ export async function signInComplete(
   },
   sessionToken: string | null = null,
 ): Promise<void> {
-  const existing = await registry.getProfile(user.id)
+  // A different-id but same-email sign-in is the "I deleted my account
+  // and just made a new one" path (common after dev-DB wipes). The
+  // local registry row for the old ID is stale — the server doesn't
+  // know that user any more — so the conflict dialog would prompt the
+  // user to choose between two visually-identical emails. Silently
+  // adopt the new ID instead: drop the stale row + its IDB, and fall
+  // through to the normal sign-in path below.
+  if (
+    activeProfile.value
+    && activeProfile.value.profileId !== user.id
+    && activeProfile.value.email === user.email
+  ) {
+    const staleId = activeProfile.value.profileId
+    activeProfile.value = null
+    activeProfileLoaded = false
+    await registry.setLastActiveProfileId(null)
+    await setActiveProfile(null)
+    clearAllSessions()
+    await registry.removeProfile(staleId)
+    await deleteIdb(profileDbName(staleId))
+  }
 
   // Capture the pending payload so the resolver can re-enter without
   // a second server round-trip.
@@ -224,6 +244,8 @@ export async function signInComplete(
     }
     return
   }
+
+  const existing = await registry.getProfile(user.id)
 
   // Read this BEFORE the upsert so the migration gate sees the
   // pre-state (no profiles yet = this is the device's first-ever

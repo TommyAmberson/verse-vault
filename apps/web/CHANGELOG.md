@@ -9,6 +9,14 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Stale-row sign-in recovery
+
+* **Silent same-email recovery.** When `signInComplete` sees the new sign-in has a different
+  `user.id` but the same email as the active profile, treat it as a stale-row scenario (the
+  server-side account got deleted — typical after a dev-DB wipe + fresh signup) instead of surfacing
+  the conflict dialog. The stale registry row + per-profile IDB are dropped, the new ID's profile is
+  upserted, and the workspace continues. Different-email conflicts still raise the dialog.
+
 ### Type-to-recite on Recitation + Ftv
 
 * **Optional type-out box** on the front of `Recitation` and `Ftv` cards. The user can type their
