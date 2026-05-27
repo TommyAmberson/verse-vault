@@ -22,6 +22,13 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-05-27
+
+* `VerseRenderWire.chapterMembers: number[]` — additive wire field forwarding
+  `VerseRender.chapter_members` from `verse-vault-core@0.2.1`. Populated on `ChapterClubList`
+  pseudo-verses so JS clients can render the back-of-card list without a follow-up lookup; empty
+  everywhere else.
+
 ## [0.2.0] — 2026-05-26
 
 Bundles the previously-unreleased `all_card_renders` additions with the new `HeadingPassage` wire
