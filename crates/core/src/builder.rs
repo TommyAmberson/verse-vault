@@ -125,14 +125,14 @@ fn emit_chapter_club_list_cards(
 
             // Resolve each member's verse_id to a human verse number so
             // the client can render the back-of-card list without
-            // exposing internal ids. `members` only contains real
-            // verse_ids (it's built from `chapter_verses`, which iterates
-            // real verses), so every lookup hits a real VerseRender.
-            let mut member_numbers: Vec<u16> = members
+            // exposing internal ids. `members` is already sorted by
+            // verse_id (above) and verse numbers within a chapter
+            // increase monotonically with verse_id, so the mapped
+            // vec stays in ascending verse-number order.
+            let member_numbers: Vec<u16> = members
                 .iter()
                 .filter_map(|(vid, _)| verse_render_by_id.get(vid).map(|r| r.verse))
                 .collect();
-            member_numbers.sort();
 
             verse_atoms_by_id.insert(
                 pseudo_id,
