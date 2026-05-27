@@ -272,6 +272,20 @@ export async function signInComplete(
   await registry.upsertProfile(row)
   await registry.setLastActiveProfileId(user.id)
 
+  // Pin the new session as Better Auth's active device session.
+  // multi-session stacks cookies rather than replacing them, so the
+  // active pointer can stay on a now-stale (or freshly-deleted) prior
+  // session unless we explicitly switch — that's what causes
+  // /api/years etc. to 401 after a fresh sign-up.
+  if (sessionToken) {
+    try {
+      await authClient.multiSession.setActive({ sessionToken })
+    } catch {
+      // Network error — the sign-in cookie itself is set; sync resumes
+      // when connectivity returns.
+    }
+  }
+
   // Switch the persistence layer to the new profile's DB before any
   // migration so the eager open creates all stores.
   clearAllSessions()

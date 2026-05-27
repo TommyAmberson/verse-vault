@@ -16,6 +16,11 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   server-side account got deleted — typical after a dev-DB wipe + fresh signup) instead of surfacing
   the conflict dialog. The stale registry row + per-profile IDB are dropped, the new ID's profile is
   upserted, and the workspace continues. Different-email conflicts still raise the dialog.
+* **Pin the new session as active.** Better Auth's `multiSession` stacks cookies rather than
+  replacing them, so the active device-session pointer can stay on a deleted user's token after a
+  fresh sign-up — `/api/years` and friends then 401 even though sign-up was 200. `signInComplete`
+  now calls `multiSession.setActive(sessionToken)` after the upsert so the new session is the one
+  attached to subsequent API requests.
 
 ### Type-to-recite on Recitation + Ftv
 
