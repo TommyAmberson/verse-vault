@@ -217,21 +217,14 @@ export async function signInComplete(
   // local registry row for the old ID is stale — the server doesn't
   // know that user any more — so the conflict dialog would prompt the
   // user to choose between two visually-identical emails. Silently
-  // adopt the new ID instead: drop the stale row + its IDB, and fall
-  // through to the normal sign-in path below.
+  // adopt the new ID instead by deleting the stale profile and falling
+  // through to the normal sign-in path.
   if (
     activeProfile.value
     && activeProfile.value.profileId !== user.id
     && activeProfile.value.email === user.email
   ) {
-    const staleId = activeProfile.value.profileId
-    activeProfile.value = null
-    activeProfileLoaded = false
-    await registry.setLastActiveProfileId(null)
-    await setActiveProfile(null)
-    clearAllSessions()
-    await registry.removeProfile(staleId)
-    await deleteIdb(profileDbName(staleId))
+    await deleteProfile(activeProfile.value.profileId)
   }
 
   // Capture the pending payload so the resolver can re-enter without
