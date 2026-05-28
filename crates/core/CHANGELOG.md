@@ -22,6 +22,35 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-05-28
+
+`graduate_verse` narrows to the unconditional verse-bound set. Conditional kinds (`Ftv`,
+`VerseInHeading`, `VerseInClub`) and the multi-verse pseudos (`HeadingPassage`, `ChapterClubList`)
+are no longer flipped by a verse's graduation — they need explicit `graduate_card` events. This lets
+the memorize flow surface each of them as a standalone session item the learner reads, drills, and
+graduates independently of the verse they anchor to. A settings flip after the host verse was first
+graduated then produces a visible orphan instead of a silently transitively-Active card the user
+never engaged with. MAJOR per the state-semantics rubric — replay of an existing `graduate_verse`
+log produces a different end state (previously transitively-graduated Ftv / VerseInHeading /
+VerseInClub / HP / CCL stay `New` until an explicit `graduate_card` is replayed).
+
+### Added
+
+* `ReviewEngine::graduate_card(card_id) -> bool` — flips a single `New` card to `Active`, returning
+  whether a transition happened. Idempotent. Used by the memorize flow to graduate every kind that
+  `graduate_verse` no longer touches.
+
+### Changed
+
+* `ReviewEngine::graduate_verse` flips only the unconditional verse-bound kinds: `PhraseFill`,
+  `Recitation`, `Citation`, `VerseAtVerseRef`, `VerseInChapter`, `VerseInBook`. These always exist
+  for any verse with content and reliably represent "the user memorized this verse." The conditional
+  kinds (`Ftv`, `VerseInHeading`, `VerseInClub`) and the multi-verse pseudos (`HeadingPassage`,
+  `ChapterClubList`) are deliberately skipped — their emission depends on the per-year settings
+  (`ftv`, `heading_card`, `club_card_scope`, `heading_passage_card`, `chapter_list_scope`), and
+  flipping one on after the host verse was first graduated would otherwise silently
+  transitively-Active the newly emitted card.
+
 ## [0.4.0] — 2026-05-28
 
 Tier status (`Active` / `Maintenance` / `Paused`) becomes a **runtime filter** instead of a

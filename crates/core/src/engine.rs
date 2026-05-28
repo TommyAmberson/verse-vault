@@ -1,7 +1,23 @@
 use std::collections::HashMap;
 
 use crate::builder::BuildResult;
-use crate::card::{Card, CardState, VerseAtoms};
+use crate::card::{Card, CardKind, CardState, VerseAtoms};
+
+/// Card kinds flipped to `Active` in bulk by `graduate_verse` — the
+/// unconditional verse-bound set. Conditional kinds (Ftv,
+/// VerseInHeading, VerseInClub) and multi-verse pseudos
+/// (HeadingPassage, ChapterClubList) need `graduate_card`.
+pub fn is_bulk_graduable(kind: &CardKind) -> bool {
+    matches!(
+        kind,
+        CardKind::PhraseFill { .. }
+            | CardKind::Recitation
+            | CardKind::Citation
+            | CardKind::VerseAtVerseRef
+            | CardKind::VerseInChapter
+            | CardKind::VerseInBook
+    )
+}
 use crate::fsrs_bridge::FsrsBridge;
 use crate::material_config::{ClubStatus, MaterialConfig};
 use crate::render::VerseRender;
@@ -155,19 +171,52 @@ impl ReviewEngine {
         }
     }
 
-    /// Flip every `New` card whose `verse_id` matches to `Active`. Returns
-    /// the number of cards that transitioned. Idempotent: a second call on
-    /// the same verse_id returns 0. The memorize-session graduation step
-    /// uses this to "introduce" every card the verse owns in one go.
+    /// Flip every `New` unconditional verse-bound card whose `verse_id`
+    /// matches to `Active`. Returns the number of cards that transitioned.
+    /// Idempotent: a second call on the same verse_id returns 0.
+    ///
+    /// Unconditional kinds: `PhraseFill`, `Recitation`, `Citation`,
+    /// `VerseAtVerseRef`, `VerseInChapter`, `VerseInBook`. These always
+    /// exist for any verse with content and reliably represent "the user
+    /// memorized this verse."
+    ///
+    /// Conditional kinds (`Ftv`, `VerseInHeading`, `VerseInClub`) and
+    /// the multi-verse pseudos (`HeadingPassage`, `ChapterClubList`) are
+    /// deliberately skipped. Their emission depends on settings
+    /// (`ftv`, `heading_card`, `club_card_scope`, `heading_passage_card`,
+    /// `chapter_list_scope`), so flipping a setting on after a verse was
+    /// first graduated would otherwise silently transitively-Active the
+    /// newly emitted card without the user ever engaging with it. The
+    /// memorize flow surfaces these as standalone session items and
+    /// graduates them via `graduate_card`.
     pub fn graduate_verse(&mut self, verse_id: u32) -> usize {
         let mut count = 0;
         for card in self.cards.iter_mut().filter(|c| c.verse_id == verse_id) {
+            if !is_bulk_graduable(&card.kind) {
+                continue;
+            }
             if matches!(card.state, CardState::New) {
                 card.state = CardState::Active;
                 count += 1;
             }
         }
         count
+    }
+
+    /// Flip a single `New` card to `Active`. Returns true on transition,
+    /// false when the card is unknown or already non-`New` (idempotent).
+    /// Used by the memorize flow to graduate `HeadingPassage` and
+    /// `ChapterClubList` cards independently of their attach verse.
+    pub fn graduate_card(&mut self, card_id: crate::types::CardId) -> bool {
+        let Some(card) = self.cards.iter_mut().find(|c| c.id == card_id) else {
+            return false;
+        };
+        if matches!(card.state, CardState::New) {
+            card.state = CardState::Active;
+            true
+        } else {
+            false
+        }
     }
 
     /// Flip every card in the deck to `Active`. Convenience for tests and
