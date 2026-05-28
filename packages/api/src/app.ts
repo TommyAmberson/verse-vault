@@ -11,6 +11,7 @@ import { type Dialect } from './lib/spelling.js';
 import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
 import { cardsRoutes } from './routes/cards.js';
 import { materialsRoutes } from './routes/materials.js';
+import { activityRoutes } from './routes/activity.js';
 import { statsRoutes } from './routes/stats.js';
 import { syncRoutes } from './routes/sync.js';
 import { yearsRoutes } from './routes/years.js';
@@ -114,6 +115,7 @@ export function createApp(deps: AppDeps) {
   );
   app.route('/api/years', yearsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/stats', statsRoutes({ db: deps.db, engines, now: deps.now }));
+  app.route('/api/activity', activityRoutes({ db: deps.db, now: deps.now }));
 
   return app;
 }
