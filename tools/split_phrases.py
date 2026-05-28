@@ -177,7 +177,15 @@ def _signals_for_ref(
 def cmd_print_prompt(args: argparse.Namespace) -> None:
     with open(args.deck, encoding="utf-8") as f:
         deck = json.load(f)
-    refs, report_data = _collect_refs(args.refs, args.from_report, args.top)
+    if args.all_verses:
+        if args.refs or args.from_report or args.top is not None:
+            raise SystemExit("--all-verses is exclusive with --refs / --from-report / --top")
+        refs = [
+            f"{v['book']} {v['chapter']}:{v['verse']}" for v in deck.get("verses", [])
+        ]
+        report_data = None
+    else:
+        refs, report_data = _collect_refs(args.refs, args.from_report, args.top)
     by_ref = _verse_by_ref(deck)
 
     report_by_ref: Optional[Dict[str, Dict[str, Any]]] = None
@@ -216,12 +224,55 @@ def cmd_print_prompt(args: argparse.Namespace) -> None:
             prompts.append({
                 "ref": ref,
                 "prompt": format_split_prompt(text, current_split, signals_block),
+                "n_words": len(tokens),
+                "text": text,
             })
     finally:
         conn.close()
 
+    if args.outdir:
+        if args.batch_size < 1:
+            raise SystemExit("--batch-size must be a positive integer")
+        os.makedirs(args.outdir, exist_ok=True)
+        # Clear stale batch + index files from a prior run so a smaller
+        # second pass doesn't leave orphan batches that look like results.
+        for stale in os.listdir(args.outdir):
+            if stale == "manifest.json" or stale == "verse_text.json" or (
+                stale.startswith("batch_") and stale.endswith(".json")
+            ):
+                os.remove(os.path.join(args.outdir, stale))
+        manifest = []
+        bs = args.batch_size
+        for i in range(0, len(prompts), bs):
+            batch = prompts[i : i + bs]
+            idx = i // bs
+            path = os.path.join(args.outdir, f"batch_{idx:02d}.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(
+                    [
+                        {"ref": e["ref"], "prompt": e["prompt"], "n_words": e["n_words"]}
+                        for e in batch
+                    ],
+                    f, ensure_ascii=False, indent=2,
+                )
+                f.write("\n")
+            manifest.append(
+                {"batch": idx, "path": path, "refs": [e["ref"] for e in batch]}
+            )
+        with open(os.path.join(args.outdir, "manifest.json"), "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        with open(os.path.join(args.outdir, "verse_text.json"), "w", encoding="utf-8") as f:
+            json.dump({e["ref"]: e["text"] for e in prompts}, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        sys.stderr.write(f"wrote {len(manifest)} batches → {args.outdir}/\n")
+        return
+
     if args.json:
-        json.dump(prompts, sys.stdout, indent=2, ensure_ascii=False)
+        json.dump(
+            [{"ref": e["ref"], "prompt": e["prompt"]} for e in prompts],
+            sys.stdout, indent=2, ensure_ascii=False,
+        )
         sys.stdout.write("\n")
     else:
         divider = "\n" + "=" * 72 + "\n"
@@ -233,6 +284,40 @@ def cmd_print_prompt(args: argparse.Namespace) -> None:
 
 def _word_count(s: str) -> int:
     return len(s.split())
+
+
+# When the LLM has copied from canonical text byte-for-byte, the rejoin
+# matches. When it has rendered an ASCII ``'`` / ``"`` in place of the
+# canonical curly form, this fallback restores the canonical bytes while
+# keeping the splitter's phrase boundaries. Anything beyond a quote-only
+# mismatch (paraphrase, dropped punctuation, etc.) returns None and the
+# apply step fails the ref.
+_QUOTE_EQUIV = {"'": "‘’", '"': "“”"}
+
+
+def _splice_smart_quotes(phrases: List[str], canonical_text: str) -> Optional[List[str]]:
+    rejoin = " ".join(phrases)
+    if len(rejoin) != len(canonical_text):
+        return None
+    patched_chars: List[str] = []
+    for r, t in zip(rejoin, canonical_text):
+        if r == t:
+            patched_chars.append(r)
+        elif r in _QUOTE_EQUIV and t in _QUOTE_EQUIV[r]:
+            patched_chars.append(t)
+        else:
+            return None
+    patched = "".join(patched_chars)
+    out: List[str] = []
+    pos = 0
+    for i, p in enumerate(phrases):
+        out.append(patched[pos : pos + len(p)])
+        pos += len(p)
+        if i + 1 < len(phrases):
+            if patched[pos] != " ":
+                return None
+            pos += 1
+    return out
 
 
 def cmd_judge_pairs(args: argparse.Namespace) -> None:
@@ -401,6 +486,19 @@ def cmd_apply(args: argparse.Namespace) -> None:
             if errs:
                 failures.append({"ref": ref, "errors": errs})
                 continue
+            # Byte-exact rejoin check: " ".join(phrases) must equal the
+            # canonical text. Fall back to a smart-quote splice when the
+            # only divergence is ASCII vs curly quotes (a Sonnet quirk on
+            # force-fresh translations).
+            canonical_text = " ".join(tokens)
+            if " ".join(phrases) != canonical_text:
+                patched = _splice_smart_quotes(phrases, canonical_text)
+                if patched is None:
+                    failures.append(
+                        {"ref": ref, "errors": ["phrases don't rejoin to canonical text"]}
+                    )
+                    continue
+                phrases = patched
             new_pwc = [_word_count(p) for p in phrases]
             if verse.get("phraseWordCounts") == new_pwc:
                 skipped += 1
@@ -445,6 +543,12 @@ def main() -> None:
     pp = sub.add_parser("print-prompt", help="Emit LLM prompts for the given refs")
     pp.add_argument("--refs", help="Comma-separated refs")
     pp.add_argument("--from-report", help="Read refs from an evaluator report JSON")
+    pp.add_argument(
+        "--all-verses",
+        action="store_true",
+        help="Emit one prompt per verse in the deck (force-fresh pass against a "
+        "side-deck whose phraseWordCounts are placeholders)",
+    )
     pp.add_argument("--top", type=int, help="With --from-report, only the top N refs")
     pp.add_argument(
         "--json",
@@ -460,6 +564,18 @@ def main() -> None:
         "--no-signals",
         action="store_true",
         help="Omit the Signals block (use when iterating on prompt wording)",
+    )
+    pp.add_argument(
+        "--outdir",
+        help="Write batched prompt files to this directory: batch_NN.json + "
+        "manifest.json + verse_text.json (consumed by parallel splitter subagents). "
+        "Implies --json.",
+    )
+    pp.add_argument(
+        "--batch-size",
+        type=int,
+        default=15,
+        help="Refs per batch when --outdir is set (default 15).",
     )
     pp.set_defaults(func=cmd_print_prompt)
 
