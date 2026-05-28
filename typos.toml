@@ -2,6 +2,7 @@
 extend-exclude = [
     "crates/wasm/pkg/",
     "data/",
+    "docs/decks.md", # commit-SHA tables trigger false positives (e.g. `ba` inside `64a4ba6`)
 ]
 
 [default]
