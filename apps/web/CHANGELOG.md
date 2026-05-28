@@ -9,6 +9,26 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Dashboard activity heatmap
+
+* **GitHub-contributions-style calendar grid** of past activity, inspired by the Anki "Review
+  Heatmap" addon and the WaniKani Heatmap userscript (Kumirei's #377336). Lives between the
+  stability tiles and the "by year →" link.
+* **Two series, toggleable.** A pill switches between **reviews** (grade events from
+  `review_events`, green palette) and **memorize** (verse graduations from `graduated_verses`, blue
+  palette) — the verse-vault analogue of WK's reviews/lessons split.
+* **September-anchored academic year picker.** `‹ 2025–26 ›` walks back through prior academic years
+  (Sep 1 → Aug 31). Disabled at the edges (no earlier data / current year).
+* **Stats caption** mirrors the Anki + WK panels: current streak, best streak in the visible year,
+  peak day, total events, active days.
+* **Forecast** of upcoming reviews (both reference implementations include this) is deferred —
+  tracked in #69.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.4.0` — unchanged.
+* `verse-vault-wasm@0.4.0` — unchanged.
+
 ## [0.1.16] — 2026-05-28
 
 ### Dashboard

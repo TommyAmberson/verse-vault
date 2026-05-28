@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { type StatsResponse, api } from '@/api'
+import { type ActivityDay, type ActivityResponse, type StatsResponse, api } from '@/api'
+import ActivityHeatmap from '@/components/ActivityHeatmap.vue'
 
 interface YearAgg {
   materialId: string
@@ -15,6 +16,8 @@ const partialFailed = ref(0)
 const error = ref<string | null>(null)
 const loading = ref(true)
 const mounted = ref(false)
+const activityReviews = ref<ActivityDay[]>([])
+const activityMemorize = ref<ActivityDay[]>([])
 
 function sumOver(pick: (y: YearAgg) => number) {
   return computed(() => years.value.reduce((sum, y) => sum + pick(y), 0))
@@ -82,7 +85,13 @@ function pct(value: number | null): string {
 
 onMounted(async () => {
   try {
-    const yearsRes = await api.getYears()
+    const emptyActivity: ActivityResponse = { reviews: [], memorize: [], requestedDays: 1825 }
+    const [yearsRes, activityRes] = await Promise.all([
+      api.getYears(),
+      api.getActivity(1825).catch(() => emptyActivity),
+    ])
+    activityReviews.value = activityRes.reviews
+    activityMemorize.value = activityRes.memorize
     const enrolled = yearsRes.years.filter((y) => y.enrolled)
 
     const settled = await Promise.allSettled(
@@ -219,6 +228,14 @@ onMounted(async () => {
             </p>
           </li>
         </ol>
+      </section>
+
+      <section
+        v-if="activityReviews.length > 0 || activityMemorize.length > 0"
+        class="activity-section"
+      >
+        <h2 class="rule-heading"><span>activity</span></h2>
+        <ActivityHeatmap :reviews="activityReviews" :memorize="activityMemorize" />
       </section>
 
       <RouterLink class="rule-heading rule-heading-link" to="/stats">
