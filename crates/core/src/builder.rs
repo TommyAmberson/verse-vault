@@ -32,6 +32,11 @@ pub struct BuildResult {
     /// frontends can render any card without re-parsing the source
     /// `MaterialData`.
     pub verse_render_data: HashMap<u32, VerseRender>,
+    /// The `MaterialConfig` the cards were built under. Retained on the
+    /// `ReviewEngine` so the scheduler queue helpers can consult
+    /// per-tier `new_scope` / `review_scope` at request time without
+    /// requiring callers to thread it through every call.
+    pub material_config: MaterialConfig,
 }
 
 /// Parse a raw tier list (as written in `VerseData.clubs`) into the
@@ -348,10 +353,9 @@ pub fn build_with_config(
 
         let clubs = parse_tiers(&verse.clubs);
 
-        // Per-user club statuses: verses in a `Paused` club are excluded
-        // entirely from the build. TestStates persisted from prior sessions
-        // still live in the DB and are restored verbatim when the club
-        // becomes Active/Maintenance again.
+        // Paused verses are skipped entirely; their test_states stay
+        // in the DB and reconnect when the tier becomes Active or
+        // Maintenance again.
         if config.verse_is_paused(&clubs) {
             continue;
         }
@@ -516,6 +520,7 @@ pub fn build_with_config(
         tests,
         verse_atoms_data: verse_atoms_by_id,
         verse_render_data: verse_render_by_id,
+        material_config: *config,
     }
 }
 

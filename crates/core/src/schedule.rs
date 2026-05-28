@@ -162,6 +162,12 @@ pub fn new_verse_count(engine: &ReviewEngine) -> u32 {
         if !is_verse_content_card(&card.kind) {
             continue;
         }
+        if seen.contains(&card.verse_id) {
+            continue;
+        }
+        if !engine.verse_active_for_memorize(card.verse_id) {
+            continue;
+        }
         seen.insert(card.verse_id);
     }
     seen.len() as u32
@@ -270,8 +276,20 @@ pub fn next_memorize_card(engine: &ReviewEngine, _now_secs: i64) -> Option<CardI
     engine
         .cards
         .iter()
-        .find(|c| matches!(c.state, CardState::New))
+        .find(|c| matches!(c.state, CardState::New) && engine.verse_active_for_memorize(c.verse_id))
         .map(|c| c.id)
+}
+
+/// Count of `New` cards eligible for the memorize queue — every
+/// `New` card whose verse's tier is currently `Active`. Drives the
+/// "N to memorize" nudge in the web UI nav and the dashboard.
+pub fn new_card_count(engine: &ReviewEngine) -> u32 {
+    engine
+        .cards
+        .iter()
+        .filter(|c| matches!(c.state, CardState::New))
+        .filter(|c| engine.verse_active_for_memorize(c.verse_id))
+        .count() as u32
 }
 
 /// Pick a card from the relearning priority lane: any `Active` card that has
@@ -364,6 +382,111 @@ mod tests {
             }"#,
         )
         .unwrap()
+    }
+
+    fn sample_material_mixed_tiers() -> MaterialData {
+        // Verse 16 → Club150; verse 17 → Club300. Lets a config with
+        // 150 Active + 300 Maintenance carve the memorize queue cleanly
+        // along verse_id.
+        serde_json::from_str(
+            r#"{
+                "year": 3,
+                "books": ["John"],
+                "chapters": [
+                    {"book": "John", "number": 3, "start_verse": 16, "end_verse": 17}
+                ],
+                "verses": [
+                    {
+                        "book": "John", "chapter": 3, "verse": 16,
+                        "phraseWordCounts": [2, 2], "annotations": [],
+                        "ftvWordCount": null, "clubs": [150]
+                    },
+                    {
+                        "book": "John", "chapter": 3, "verse": 17,
+                        "phraseWordCounts": [2, 3], "annotations": [],
+                        "ftvWordCount": null, "clubs": [300]
+                    }
+                ],
+                "headings": []
+            }"#,
+        )
+        .unwrap()
+    }
+
+    fn config_150_active_300_maintenance() -> crate::material_config::MaterialConfig {
+        crate::material_config::MaterialConfig {
+            new_scope: crate::material_config::TierScope::Up150,
+            review_scope: crate::material_config::TierScope::Up300,
+            ..crate::material_config::MaterialConfig::default()
+        }
+    }
+
+    #[test]
+    fn next_memorize_card_skips_maintenance_tier_verses() {
+        // Verse 17 (Club300) is Maintenance; the helper must hand
+        // back a card anchored to verse 16 (Club150 → Active).
+        let m = sample_material_mixed_tiers();
+        let r = crate::builder::build_with_config(&m, &config_150_active_300_maintenance(), 0);
+        let engine = ReviewEngine::new(r, 0.9);
+        let card_id = next_memorize_card(&engine, 0).expect("a card should be due");
+        assert_eq!(engine.card(card_id).unwrap().verse_id, 0);
+    }
+
+    #[test]
+    fn new_card_count_excludes_maintenance_tier_verses() {
+        let m = sample_material_mixed_tiers();
+        let r_all_active = crate::builder::build_with_config(
+            &m,
+            &crate::material_config::MaterialConfig::default(),
+            0,
+        );
+        let engine_all = ReviewEngine::new(r_all_active, 0.9);
+        let total_when_all_active = new_card_count(&engine_all);
+
+        let r_mixed =
+            crate::builder::build_with_config(&m, &config_150_active_300_maintenance(), 0);
+        let engine_mixed = ReviewEngine::new(r_mixed, 0.9);
+        let count_with_300_maintenance = new_card_count(&engine_mixed);
+
+        assert!(
+            count_with_300_maintenance < total_when_all_active,
+            "expected fewer memorize cards when Club300 is in Maintenance: \
+             all-active={total_when_all_active}, mixed={count_with_300_maintenance}",
+        );
+        for c in &engine_mixed.cards {
+            if !matches!(c.state, CardState::New) {
+                continue;
+            }
+            if !engine_mixed.verse_active_for_memorize(c.verse_id) {
+                continue;
+            }
+            let elements = engine_mixed.verse_index.elements_of(c.verse_id);
+            let tier = elements.and_then(|e| e.clubs.first().copied());
+            assert!(
+                tier.is_none() || tier == Some(crate::element::ClubTier::Club150),
+                "card {c:?} should be Club150 or pseudo, got tier {tier:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn new_verse_count_excludes_maintenance_tier_verses() {
+        let m = sample_material_mixed_tiers();
+        let r = crate::builder::build_with_config(&m, &config_150_active_300_maintenance(), 0);
+        let engine = ReviewEngine::new(r, 0.9);
+        // Two verses exist; only Club150 (verse_id 0) should count.
+        assert_eq!(new_verse_count(&engine), 1);
+    }
+
+    #[test]
+    fn card_stability_histogram_stays_unfiltered_across_tiers() {
+        let m = sample_material_mixed_tiers();
+        let r = crate::builder::build_with_config(&m, &config_150_active_300_maintenance(), 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        engine.graduate_all();
+        let h = card_stability_histogram(&engine);
+        let total = h.weak + h.learning + h.familiar + h.strong + h.mastered;
+        assert_eq!(total as usize, engine.cards.len());
     }
 
     #[test]

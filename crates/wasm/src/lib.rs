@@ -16,7 +16,7 @@ use verse_vault_core::render::{HeadingRender, VerseRender};
 use verse_vault_core::schedule::{
     card_stability_histogram as schedule_card_stability_histogram,
     due_review_count as schedule_due_review_count, due_verse_count as schedule_due_verse_count,
-    learned_verse_count as schedule_learned_verse_count,
+    learned_verse_count as schedule_learned_verse_count, new_card_count as schedule_new_card_count,
     new_verse_count as schedule_new_verse_count, next_card,
     next_memorize_card as schedule_next_memorize_card, next_relearn_card,
     verse_stability_histogram as schedule_verse_stability_histogram,
@@ -640,14 +640,10 @@ impl WasmEngine {
         self.engine.graduate_verse(verse_id) as u32
     }
 
-    /// Count of `New` cards still awaiting memorize. Drives the
-    /// "N to memorize" nudge in the web UI nav.
+    /// Count of `New` cards eligible for the memorize queue. Drives
+    /// the "N to memorize" nudge in the web UI nav.
     pub fn new_card_count(&self) -> u32 {
-        self.engine
-            .cards
-            .iter()
-            .filter(|c| matches!(c.state, verse_vault_core::card::CardState::New))
-            .count() as u32
+        schedule_new_card_count(&self.engine)
     }
 
     /// Render data for a card: kind, verse_id, plus the verse's render data

@@ -22,6 +22,12 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-28
+
+Lockstep bump for `verse-vault-core@0.4.0`. `WasmEngine.new_card_count` now delegates to the core
+helper (same signature, tighter behaviour — filters out Maintenance-tier verses). No new exposed
+methods on `WasmEngine`; wire shapes unchanged.
+
 ## [0.3.0] — 2026-05-28
 
 Wrappers for the new `verse-vault-core@0.3.0` dashboard stats helpers. MINOR per this changelog's
