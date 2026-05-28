@@ -1,0 +1,10793 @@
+{
+  "year": 1,
+  "books": [
+    "Galatians",
+    "Ephesians",
+    "Philippians",
+    "Colossians"
+  ],
+  "chapters": [
+    {
+      "book": "Colossians",
+      "number": 1,
+      "start_verse": 1,
+      "end_verse": 29
+    },
+    {
+      "book": "Colossians",
+      "number": 2,
+      "start_verse": 1,
+      "end_verse": 23
+    },
+    {
+      "book": "Colossians",
+      "number": 3,
+      "start_verse": 1,
+      "end_verse": 25
+    },
+    {
+      "book": "Colossians",
+      "number": 4,
+      "start_verse": 1,
+      "end_verse": 18
+    },
+    {
+      "book": "Ephesians",
+      "number": 1,
+      "start_verse": 1,
+      "end_verse": 23
+    },
+    {
+      "book": "Ephesians",
+      "number": 2,
+      "start_verse": 1,
+      "end_verse": 22
+    },
+    {
+      "book": "Ephesians",
+      "number": 3,
+      "start_verse": 1,
+      "end_verse": 21
+    },
+    {
+      "book": "Ephesians",
+      "number": 4,
+      "start_verse": 1,
+      "end_verse": 32
+    },
+    {
+      "book": "Ephesians",
+      "number": 5,
+      "start_verse": 1,
+      "end_verse": 33
+    },
+    {
+      "book": "Ephesians",
+      "number": 6,
+      "start_verse": 1,
+      "end_verse": 24
+    },
+    {
+      "book": "Galatians",
+      "number": 1,
+      "start_verse": 1,
+      "end_verse": 24
+    },
+    {
+      "book": "Galatians",
+      "number": 2,
+      "start_verse": 1,
+      "end_verse": 21
+    },
+    {
+      "book": "Galatians",
+      "number": 3,
+      "start_verse": 1,
+      "end_verse": 29
+    },
+    {
+      "book": "Galatians",
+      "number": 4,
+      "start_verse": 1,
+      "end_verse": 31
+    },
+    {
+      "book": "Galatians",
+      "number": 5,
+      "start_verse": 1,
+      "end_verse": 26
+    },
+    {
+      "book": "Galatians",
+      "number": 6,
+      "start_verse": 1,
+      "end_verse": 18
+    },
+    {
+      "book": "Philippians",
+      "number": 1,
+      "start_verse": 1,
+      "end_verse": 30
+    },
+    {
+      "book": "Philippians",
+      "number": 2,
+      "start_verse": 1,
+      "end_verse": 30
+    },
+    {
+      "book": "Philippians",
+      "number": 3,
+      "start_verse": 1,
+      "end_verse": 21
+    },
+    {
+      "book": "Philippians",
+      "number": 4,
+      "start_verse": 1,
+      "end_verse": 23
+    }
+  ],
+  "verses": [
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 12,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 2,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 3,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 35,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 36,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 23,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 20,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 21,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 22,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 23,
+      "phraseWordCounts": [
+        47
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 32,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 35,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 24,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 25,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 26,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 27,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 28,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 1,
+      "verse": 29,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 1,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 6,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 2,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 35,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 18,
+      "phraseWordCounts": [
+        40
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 31,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 34,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 35,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 38,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 27,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 22,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 2,
+      "verse": 23,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 31,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 6,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 5,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 20,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 6,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 21,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 22,
+      "phraseWordCounts": [
+        33
+      ],
+      "annotations": [
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 6,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 23,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 24,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 3,
+      "verse": 25,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 3,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 5,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 6,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 7,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 8,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 8,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 9,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 10,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 11,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 12,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 36,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 13,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 14,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 15,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 16,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 17,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Colossians",
+      "chapter": 4,
+      "verse": 18,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 12,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 2,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": null,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 3,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 20,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 21,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 22,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 1,
+      "verse": 23,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 1,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 2,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 21,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 18,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 2,
+      "verse": 22,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 5,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 20,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 3,
+      "verse": 21,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 3,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 5,
+      "phraseWordCounts": [
+        6
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 6,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 7,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 8,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 9,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 10,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 11,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 12,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 13,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 14,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 35,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 15,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 16,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 17,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 18,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 19,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 20,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 21,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 22,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 23,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 24,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 25,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 26,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 27,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 28,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 29,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 30,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 31,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 4,
+      "verse": 32,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 1,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 2,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 3,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 4,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 5,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 6,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 7,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 8,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 9,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 10,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 11,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 12,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 13,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 14,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 15,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 16,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 17,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 5,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 18,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 19,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 20,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 21,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 22,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 6,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 23,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 24,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 25,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 5,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 26,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 27,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 28,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 29,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 30,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 31,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 32,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 5,
+      "verse": 33,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 1,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 6,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 2,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 3,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 4,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 5,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 6,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 6,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 7,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 8,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 9,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 10,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 11,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 12,
+      "phraseWordCounts": [
+        34
+      ],
+      "annotations": [
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 13,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 14,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 15,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 16,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 17,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 18,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 19,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 20,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 21,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 22,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 8,
+      "clubs": []
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 23,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Ephesians",
+      "chapter": 6,
+      "verse": 24,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 2,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 3,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": null,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 6,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 20,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 21,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 22,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 23,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 1,
+      "verse": 24,
+      "phraseWordCounts": [
+        7
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 1,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 2,
+      "phraseWordCounts": [
+        45
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        39
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 32,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 40,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        52
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 46,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 50,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 51,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        58
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 18,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 34,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 20,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 21,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 22,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 23,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 24,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 25,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 26,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 27,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 28,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 3,
+      "verse": 29,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 3,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 5,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 6,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 7,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 8,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 9,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 31,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 10,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 11,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 12,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 13,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 14,
+      "phraseWordCounts": [
+        38
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 15,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 16,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 17,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 18,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 19,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 20,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 21,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 22,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [],
+      "ftvWordCount": 5,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 23,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 24,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 25,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 26,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 27,
+      "phraseWordCounts": [
+        42
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 28,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 29,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 30,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 4,
+      "verse": 31,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 1,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 2,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 3,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 4,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 5,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 6,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 7,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 8,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 9,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 10,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 28,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 11,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 12,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 13,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 14,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 15,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 16,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 17,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 18,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 19,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 20,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 21,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 22,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 23,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 24,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 25,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 5,
+      "verse": 26,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 1,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 2,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 3,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 4,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 5,
+      "phraseWordCounts": [
+        8
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 6,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 7,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 8,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 9,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 10,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 11,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 12,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 13,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 14,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 15,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 16,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 17,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Galatians",
+      "chapter": 6,
+      "verse": 18,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 1,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 2,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [],
+      "ftvWordCount": null,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 3,
+      "phraseWordCounts": [
+        9
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 4,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 5,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 6,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 7,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 8,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 9,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 10,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 11,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 12,
+      "phraseWordCounts": [
+        22
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 13,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 14,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 15,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 16,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 17,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 18,
+      "phraseWordCounts": [
+        35
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 19,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 20,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 21,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 22,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 23,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 24,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 25,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 26,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 27,
+      "phraseWordCounts": [
+        49
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 39,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 28,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 29,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 1,
+      "verse": 30,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 1,
+      "phraseWordCounts": [
+        29
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 2,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 3,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 4,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 5,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 6,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 19,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 7,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 8,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 9,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 10,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 11,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 12,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 13,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 14,
+      "phraseWordCounts": [
+        6
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 15,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 5,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 16,
+      "phraseWordCounts": [
+        31
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 17,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 18,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 19,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 11,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 20,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 21,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 22,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 23,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 24,
+      "phraseWordCounts": [
+        13
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 25,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 22,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 26,
+      "phraseWordCounts": [
+        16
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 27,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 5,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 28,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 29,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 2,
+      "verse": 30,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 2,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 1,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 2,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 3,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 4,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 5,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 6,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 7,
+      "phraseWordCounts": [
+        15
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 8,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 30,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 9,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 10,
+      "phraseWordCounts": [
+        24
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 11,
+      "phraseWordCounts": [
+        10
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 12,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 13,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 23,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 29,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 14,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 15,
+      "phraseWordCounts": [
+        30
+      ],
+      "annotations": [
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 16,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 17,
+      "phraseWordCounts": [
+        28
+      ],
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 18,
+      "phraseWordCounts": [
+        25
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 19,
+      "phraseWordCounts": [
+        23
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 20,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 3,
+      "verse": 21,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 5,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 16,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 1,
+      "phraseWordCounts": [
+        26
+      ],
+      "annotations": [
+        {
+          "wordIndex": 15,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 2,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 3,
+      "phraseWordCounts": [
+        41
+      ],
+      "annotations": [
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 14,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 26,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 34,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 4,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 1,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 5,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 6,
+      "phraseWordCounts": [
+        21
+      ],
+      "annotations": [
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 4,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 7,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 8,
+      "phraseWordCounts": [
+        32
+      ],
+      "annotations": [
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 21,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 27,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 9,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 10,
+      "phraseWordCounts": [
+        27
+      ],
+      "annotations": [
+        {
+          "wordIndex": 1,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 2,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 8,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 18,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 11,
+      "phraseWordCounts": [
+        20
+      ],
+      "annotations": [
+        {
+          "wordIndex": 16,
+          "kind": "boldItalic"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 12,
+      "phraseWordCounts": [
+        43
+      ],
+      "annotations": [
+        {
+          "wordIndex": 17,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 25,
+          "kind": "boldItalic"
+        },
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 35,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 39,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 13,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 14,
+      "phraseWordCounts": [
+        11
+      ],
+      "annotations": [
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 15,
+      "phraseWordCounts": [
+        37
+      ],
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 3,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 7,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 11,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 20,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 24,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 16,
+      "phraseWordCounts": [
+        19
+      ],
+      "annotations": [
+        {
+          "wordIndex": 6,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 10,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 17,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 18,
+      "phraseWordCounts": [
+        36
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 9,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 13,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 31,
+          "kind": "bold"
+        },
+        {
+          "wordIndex": 33,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 3,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 19,
+      "phraseWordCounts": [
+        18
+      ],
+      "annotations": [
+        {
+          "wordIndex": 4,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": [
+        150
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 20,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 2,
+      "clubs": [
+        300
+      ]
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 21,
+      "phraseWordCounts": [
+        17
+      ],
+      "annotations": [
+        {
+          "wordIndex": 0,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 1,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 22,
+      "phraseWordCounts": [
+        14
+      ],
+      "annotations": [
+        {
+          "wordIndex": 12,
+          "kind": "bold"
+        }
+      ],
+      "ftvWordCount": 2,
+      "clubs": []
+    },
+    {
+      "book": "Philippians",
+      "chapter": 4,
+      "verse": 23,
+      "phraseWordCounts": [
+        12
+      ],
+      "annotations": [],
+      "ftvWordCount": 4,
+      "clubs": []
+    }
+  ],
+  "headings": [
+    {
+      "book": "Colossians",
+      "startChapter": 1,
+      "startVerse": 1,
+      "endChapter": 1,
+      "endVerse": 2
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 1,
+      "startVerse": 3,
+      "endChapter": 1,
+      "endVerse": 8
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 1,
+      "startVerse": 9,
+      "endChapter": 1,
+      "endVerse": 18
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 1,
+      "startVerse": 19,
+      "endChapter": 1,
+      "endVerse": 23
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 1,
+      "startVerse": 24,
+      "endChapter": 1,
+      "endVerse": 29
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 2,
+      "startVerse": 1,
+      "endChapter": 2,
+      "endVerse": 10
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 2,
+      "startVerse": 11,
+      "endChapter": 2,
+      "endVerse": 23
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 3,
+      "startVerse": 1,
+      "endChapter": 3,
+      "endVerse": 11
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 3,
+      "startVerse": 12,
+      "endChapter": 3,
+      "endVerse": 17
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 3,
+      "startVerse": 18,
+      "endChapter": 4,
+      "endVerse": 1
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 4,
+      "startVerse": 2,
+      "endChapter": 4,
+      "endVerse": 6
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 4,
+      "startVerse": 7,
+      "endChapter": 4,
+      "endVerse": 15
+    },
+    {
+      "book": "Colossians",
+      "startChapter": 4,
+      "startVerse": 16,
+      "endChapter": 4,
+      "endVerse": 18
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 1,
+      "startVerse": 1,
+      "endChapter": 1,
+      "endVerse": 2
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 1,
+      "startVerse": 3,
+      "endChapter": 1,
+      "endVerse": 14
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 1,
+      "startVerse": 15,
+      "endChapter": 1,
+      "endVerse": 23
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 2,
+      "startVerse": 1,
+      "endChapter": 2,
+      "endVerse": 10
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 2,
+      "startVerse": 11,
+      "endChapter": 2,
+      "endVerse": 13
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 2,
+      "startVerse": 14,
+      "endChapter": 2,
+      "endVerse": 18
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 2,
+      "startVerse": 19,
+      "endChapter": 2,
+      "endVerse": 22
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 3,
+      "startVerse": 1,
+      "endChapter": 3,
+      "endVerse": 7
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 3,
+      "startVerse": 8,
+      "endChapter": 3,
+      "endVerse": 13
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 3,
+      "startVerse": 14,
+      "endChapter": 3,
+      "endVerse": 21
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 4,
+      "startVerse": 1,
+      "endChapter": 4,
+      "endVerse": 6
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 4,
+      "startVerse": 7,
+      "endChapter": 4,
+      "endVerse": 16
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 4,
+      "startVerse": 17,
+      "endChapter": 4,
+      "endVerse": 24
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 4,
+      "startVerse": 25,
+      "endChapter": 4,
+      "endVerse": 32
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 5,
+      "startVerse": 1,
+      "endChapter": 5,
+      "endVerse": 7
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 5,
+      "startVerse": 8,
+      "endChapter": 5,
+      "endVerse": 14
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 5,
+      "startVerse": 15,
+      "endChapter": 5,
+      "endVerse": 21
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 5,
+      "startVerse": 22,
+      "endChapter": 5,
+      "endVerse": 33
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 6,
+      "startVerse": 1,
+      "endChapter": 6,
+      "endVerse": 4
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 6,
+      "startVerse": 5,
+      "endChapter": 6,
+      "endVerse": 9
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 6,
+      "startVerse": 10,
+      "endChapter": 6,
+      "endVerse": 20
+    },
+    {
+      "book": "Ephesians",
+      "startChapter": 6,
+      "startVerse": 21,
+      "endChapter": 6,
+      "endVerse": 24
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 1,
+      "startVerse": 1,
+      "endChapter": 1,
+      "endVerse": 5
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 1,
+      "startVerse": 6,
+      "endChapter": 1,
+      "endVerse": 10
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 1,
+      "startVerse": 11,
+      "endChapter": 1,
+      "endVerse": 17
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 1,
+      "startVerse": 18,
+      "endChapter": 1,
+      "endVerse": 24
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 2,
+      "startVerse": 1,
+      "endChapter": 2,
+      "endVerse": 10
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 2,
+      "startVerse": 11,
+      "endChapter": 2,
+      "endVerse": 21
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 3,
+      "startVerse": 1,
+      "endChapter": 3,
+      "endVerse": 9
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 3,
+      "startVerse": 10,
+      "endChapter": 3,
+      "endVerse": 14
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 3,
+      "startVerse": 15,
+      "endChapter": 3,
+      "endVerse": 18
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 3,
+      "startVerse": 19,
+      "endChapter": 3,
+      "endVerse": 25
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 3,
+      "startVerse": 26,
+      "endChapter": 4,
+      "endVerse": 7
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 4,
+      "startVerse": 8,
+      "endChapter": 4,
+      "endVerse": 20
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 4,
+      "startVerse": 21,
+      "endChapter": 4,
+      "endVerse": 31
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 5,
+      "startVerse": 1,
+      "endChapter": 5,
+      "endVerse": 6
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 5,
+      "startVerse": 7,
+      "endChapter": 5,
+      "endVerse": 15
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 5,
+      "startVerse": 16,
+      "endChapter": 5,
+      "endVerse": 26
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 6,
+      "startVerse": 1,
+      "endChapter": 6,
+      "endVerse": 5
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 6,
+      "startVerse": 6,
+      "endChapter": 6,
+      "endVerse": 10
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 6,
+      "startVerse": 11,
+      "endChapter": 6,
+      "endVerse": 15
+    },
+    {
+      "book": "Galatians",
+      "startChapter": 6,
+      "startVerse": 16,
+      "endChapter": 6,
+      "endVerse": 18
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 1,
+      "startVerse": 1,
+      "endChapter": 1,
+      "endVerse": 2
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 1,
+      "startVerse": 3,
+      "endChapter": 1,
+      "endVerse": 11
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 1,
+      "startVerse": 12,
+      "endChapter": 1,
+      "endVerse": 18
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 1,
+      "startVerse": 19,
+      "endChapter": 1,
+      "endVerse": 26
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 1,
+      "startVerse": 27,
+      "endChapter": 1,
+      "endVerse": 30
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 2,
+      "startVerse": 1,
+      "endChapter": 2,
+      "endVerse": 4
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 2,
+      "startVerse": 5,
+      "endChapter": 2,
+      "endVerse": 11
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 2,
+      "startVerse": 12,
+      "endChapter": 2,
+      "endVerse": 18
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 2,
+      "startVerse": 19,
+      "endChapter": 2,
+      "endVerse": 24
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 2,
+      "startVerse": 25,
+      "endChapter": 2,
+      "endVerse": 30
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 3,
+      "startVerse": 1,
+      "endChapter": 3,
+      "endVerse": 11
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 3,
+      "startVerse": 12,
+      "endChapter": 3,
+      "endVerse": 16
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 3,
+      "startVerse": 17,
+      "endChapter": 4,
+      "endVerse": 1
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 4,
+      "startVerse": 2,
+      "endChapter": 4,
+      "endVerse": 7
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 4,
+      "startVerse": 8,
+      "endChapter": 4,
+      "endVerse": 9
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 4,
+      "startVerse": 10,
+      "endChapter": 4,
+      "endVerse": 20
+    },
+    {
+      "book": "Philippians",
+      "startChapter": 4,
+      "startVerse": 21,
+      "endChapter": 4,
+      "endVerse": 23
+    }
+  ]
+}
