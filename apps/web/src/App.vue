@@ -43,6 +43,7 @@ watch(() => route.fullPath, refreshMemorizeCount)
     <header class="site-header">
       <RouterLink to="/" class="brand">verse-vault</RouterLink>
       <nav v-if="user" class="nav">
+        <RouterLink to="/dashboard">Dashboard</RouterLink>
         <RouterLink to="/review">Review</RouterLink>
         <RouterLink to="/memorize" class="memorize-link">
           Memorize

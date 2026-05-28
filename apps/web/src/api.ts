@@ -102,12 +102,33 @@ export interface ReviewResponse {
   nextCardId: number | null
 }
 
+export type StabilityBucket = 'weak' | 'learning' | 'familiar' | 'strong' | 'mastered'
+export type StabilityHistogram = Record<StabilityBucket, number>
+
 export interface StatsResponse {
   materialId: string
   versesLearned: number
   retentionRate: number | null
   totalGrades: number
-  testDistribution: Record<'weak' | 'learning' | 'familiar' | 'strong' | 'mastered', number>
+  /** Per active card, bucketed by its weakest test's stability —
+   *  matches the engine's own due-ness aggregation. Engine-derived
+   *  via `WasmEngine.card_stability_histogram`. */
+  cardDistribution: StabilityHistogram
+  /** Per graduated verse, bucketed by the verse's weakest test's
+   *  stability (`MIN(stability) GROUP BY verse_id`). Same boundaries
+   *  as `cardDistribution`. */
+  verseDistribution: StabilityHistogram
+  /** Count of active cards whose retrievability is below the engine's
+   *  target — the "reviews waiting" queue size. Server-computed from
+   *  the engine. */
+  reviewsDueCount: number
+  /** Count of distinct verses with at least one `New` card —
+   *  pairs with the memorize-queue card count. Pseudo verses
+   *  anchoring multi-verse cards are excluded. */
+  newVerseCount: number
+  /** Count of distinct verses with at least one due card — pairs
+   *  with `reviewsDueCount`. Pseudo verses excluded. */
+  versesDueCount: number
 }
 
 export type ClubStatus = 'active' | 'maintenance' | 'paused'
