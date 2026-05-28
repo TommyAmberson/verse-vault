@@ -228,6 +228,157 @@ fn material_config_json_parses_and_filters_emission() {
     );
 }
 
+// Two-verse Club150 chapter with a heading covering both: builder emits
+// one HeadingPassage card and one ChapterClubList card alongside the
+// per-verse content cards.
+const MATERIAL_HP_CCL_JSON: &str = r#"{
+    "year": 3,
+    "books": ["John"],
+    "chapters": [{"book": "John", "number": 3, "start_verse": 16, "end_verse": 17}],
+    "verses": [
+        {"book": "John", "chapter": 3, "verse": 16, "phraseWordCounts": [2, 2], "annotations": [], "clubs": [150]},
+        {"book": "John", "chapter": 3, "verse": 17, "phraseWordCounts": [2, 3], "annotations": [], "clubs": [150]}
+    ],
+    "headings": [{
+        "book": "John",
+        "startChapter": 3, "startVerse": 16,
+        "endChapter": 3, "endVerse": 17
+    }]
+}"#;
+
+#[test]
+fn memorize_session_surfaces_hp_and_ccl_as_standalone_slots() {
+    let engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, "", "", 0.9, 0).unwrap();
+    let json = engine.memorize_session(10).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let entries = session["verses"].as_array().unwrap();
+    let any_hp = entries
+        .iter()
+        .filter_map(|e| e.get("hpCardId").and_then(|v| v.as_u64()))
+        .next();
+    let any_ccl = entries
+        .iter()
+        .filter_map(|e| e.get("cclCardId").and_then(|v| v.as_u64()))
+        .next();
+    assert!(any_hp.is_some(), "expected an hpCardId slot in {json}");
+    assert!(any_ccl.is_some(), "expected a cclCardId slot in {json}");
+    // The HP/CCL ids must not also appear inside any verse's cardIds —
+    // they're surfaced as their own session items now.
+    let all_card_ids: Vec<u64> = entries
+        .iter()
+        .flat_map(|e| e["cardIds"].as_array().unwrap().iter())
+        .map(|v| v.as_u64().unwrap())
+        .collect();
+    assert!(
+        !all_card_ids.contains(&any_hp.unwrap()),
+        "hp card surfaced inside cardIds"
+    );
+    assert!(
+        !all_card_ids.contains(&any_ccl.unwrap()),
+        "ccl card surfaced inside cardIds"
+    );
+}
+
+#[test]
+fn memorize_session_surfaces_orphan_conditional_cards() {
+    // Turn on club_card_scope so VerseInClub cards exist on the Club150
+    // verses. Graduate verse 0 — only its unconditional cards flip,
+    // leaving its VerseInClub `New`. memorize_session must then
+    // surface that orphan as a standalone item on verse 1's entry;
+    // verse 0 no longer anchors a session-verse since it has no fresh
+    // unconditional content.
+    let config_json = r#"{
+        "heading_card": false,
+        "heading_passage_card": true,
+        "ftv": true,
+        "new_scope": "all",
+        "review_scope": "all",
+        "club_card_scope": "all",
+        "chapter_list_scope": "up150",
+        "clubs": {"Club150": "Active"}
+    }"#;
+    let mut engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, config_json, "", 0.9, 0).unwrap();
+    engine.graduate_verse(0);
+    let json = engine.memorize_session(10).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let entries = session["verses"].as_array().unwrap();
+    assert_eq!(
+        entries.len(),
+        1,
+        "only verse 1 should anchor a session-verse: {json}"
+    );
+    assert_eq!(entries[0]["verseId"], 1);
+    let orphans = session["orphans"]
+        .as_array()
+        .expect("top-level orphans array should be present");
+    assert!(
+        !orphans.is_empty(),
+        "expected verse 0's orphan VerseInClub to surface: {json}"
+    );
+}
+
+#[test]
+fn memorize_session_surfaces_orphans_when_no_fresh_verses() {
+    // Graduate BOTH verses, then enable VerseInClub via the config so
+    // their VerseInClub cards exist as orphans on already-Active
+    // verses. With no fresh verses left, the session has no
+    // verse-anchored entries — orphans must still surface so the user
+    // can engage with them up to the configured per-session cap.
+    let config_json = r#"{
+        "heading_card": false,
+        "heading_passage_card": true,
+        "ftv": true,
+        "new_scope": "all",
+        "review_scope": "all",
+        "club_card_scope": "all",
+        "chapter_list_scope": "up150",
+        "clubs": {"Club150": "Active"}
+    }"#;
+    let mut engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, config_json, "", 0.9, 0).unwrap();
+    engine.graduate_verse(0);
+    engine.graduate_verse(1);
+    let json = engine.memorize_session(3).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let entries = session["verses"].as_array().unwrap();
+    assert!(
+        entries.is_empty(),
+        "no fresh verses should be anchored: {json}"
+    );
+    let orphans = session["orphans"]
+        .as_array()
+        .expect("top-level orphans should be present when verse_order is empty");
+    assert!(
+        !orphans.is_empty(),
+        "expected orphans to surface even without fresh verses: {json}"
+    );
+}
+
+#[test]
+fn graduate_card_flips_one_card_and_is_idempotent() {
+    let mut engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, "", "", 0.9, 0).unwrap();
+    let json = engine.memorize_session(10).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let entries = session["verses"].as_array().unwrap();
+    let hp_id = entries
+        .iter()
+        .filter_map(|e| e.get("hpCardId").and_then(|v| v.as_u64()))
+        .next()
+        .map(|x| x as u32)
+        .expect("hpCardId slot");
+    assert!(engine.graduate_card(hp_id));
+    assert!(!engine.graduate_card(hp_id));
+    // graduate_verse on either verse must NOT flip the HP card —
+    // it stays Active from the explicit graduate_card above. We can't
+    // re-check the HP state through the wire shape here, but a second
+    // graduate_card returns false (already Active), and a fresh engine
+    // confirms graduate_verse alone leaves the HP New.
+    let mut engine2 = WasmEngine::new(MATERIAL_HP_CCL_JSON, "", "", 0.9, 0).unwrap();
+    engine2.graduate_verse(0);
+    engine2.graduate_verse(1);
+    // HP is still New, so graduate_card returns true.
+    assert!(engine2.graduate_card(hp_id));
+}
+
 #[test]
 fn card_count_by_club_returns_buckets_for_full_tier_material() {
     let engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();

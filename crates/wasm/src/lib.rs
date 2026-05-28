@@ -414,34 +414,74 @@ impl WasmEngine {
     /// for graduation.
     ///
     /// Same per-card filtering rules as `memorize_progression`, plus
-    /// session-scoped pseudo-card placement: a `VerseInHeading` heading
-    /// is drilled on the first verse that introduces it within this
-    /// batch; `HeadingPassage` and `ChapterClubList` cards are attached
-    /// to a session-verse when their trigger conditions are met (any
-    /// heading member started for HP, all chapter+tier members started
-    /// for CCL), capped at one of each kind per verse so backlog cards
-    /// spread instead of piling on a single attach point.
+    /// session-scoped placement of standalone meta cards:
+    ///
+    /// * `HeadingPassage` placed via the per-entry `hp_card_id` slot —
+    ///   HP attaches to its heading's first session-verse, or to any
+    ///   session-verse with capacity (orphan / catch-up).
+    /// * `ChapterClubList` via `ccl_card_id` — CCL attaches to the
+    ///   chapter+tier's last in-session member (or capacity).
+    /// * Conditional verse-bound kinds (`Ftv`, `VerseInHeading`,
+    ///   `VerseInClub`) New on a verse whose unconditional content is
+    ///   already Active surface as orphans in `orphan_card_ids`
+    ///   (deduped by heading_idx / club tier so one per kind per
+    ///   session, round-robined across session-verses).
+    ///
+    /// The web client treats all of those slots as their own reading
+    /// / drill / graduation steps. Graduation goes through
+    /// `graduate_card`, not the host verse's `graduate_verse`.
     pub fn memorize_session(&self, limit: u32) -> Result<String, JsError> {
         use std::collections::{HashMap, HashSet};
         use verse_vault_core::card::{CardKind, CardState};
+        use verse_vault_core::element::ClubTier;
+        use verse_vault_core::engine::is_bulk_graduable;
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
         struct Entry {
             verse_id: u32,
+            /// Verse-bound cards drilled with this verse.
             card_ids: Vec<u32>,
-            /// Card id of the verse's Recitation, when emitted. The web
-            /// client uses this to render the whole verse as a plain
-            /// reading prompt during the session's opening + closing
-            /// walkthroughs, avoiding the phrase-0 highlight that a
-            /// PhraseFill render would impose.
+            /// Subset of `card_ids` that need an explicit `graduate_card`
+            /// on step-3 verse graduation. `graduate_verse` already flips
+            /// the rest. Empty when the verse has no conditional kinds
+            /// emitted (Ftv/VerseInHeading/VerseInClub).
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            conditional_card_ids: Vec<u32>,
+            /// Card id of the verse's Recitation, when emitted. The
+            /// reading walkthrough uses this to render the verse text
+            /// without a PhraseFill's phrase-0 highlight.
             recitation_card_id: Option<u32>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            hp_card_id: Option<u32>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            ccl_card_id: Option<u32>,
+        }
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Session {
+            verses: Vec<Entry>,
+            /// Standalone cards that don't anchor to a session-verse:
+            /// HP/CCL whose attach point overflowed `verse_order` plus
+            /// conditional verse-bound orphans (Ftv/VerseInHeading/
+            /// VerseInClub New on Active verses). Per-kind cap = `limit`.
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            orphans: Vec<u32>,
         }
         let cards = &self.engine.cards;
 
+        // "Fresh" verses — those with at least one New unconditional
+        // verse-bound card (the set `graduate_verse` flips). Orphan-only
+        // verses (where every New card is a conditional kind on a verse
+        // whose content was already graduated) deliberately don't anchor
+        // a session-verse; their conditional cards distribute into the
+        // orphan slot below.
         let mut seen_verses: HashSet<u32> = HashSet::new();
         let mut verse_order: Vec<u32> = Vec::new();
         for card in cards.iter() {
             if !matches!(card.state, CardState::New) {
+                continue;
+            }
+            if !is_bulk_graduable(&card.kind) {
                 continue;
             }
             if seen_verses.insert(card.verse_id) {
@@ -588,8 +628,9 @@ impl WasmEngine {
         let mut session_headings: HashSet<u16> = HashSet::new();
         let mut entries: Vec<Entry> = Vec::with_capacity(verse_order.len());
 
-        for verse_id in verse_order {
+        for &verse_id in &verse_order {
             let mut card_ids: Vec<u32> = Vec::new();
+            let mut conditional_card_ids: Vec<u32> = Vec::new();
             for card in cards.iter().filter(|c| c.verse_id == verse_id) {
                 match card.kind {
                     CardKind::ChapterClubList { .. }
@@ -606,17 +647,18 @@ impl WasmEngine {
                         });
                         if !already_introduced && session_headings.insert(heading_idx) {
                             card_ids.push(card.id.0);
+                            conditional_card_ids.push(card.id.0);
                         }
+                    }
+                    CardKind::Ftv { .. } | CardKind::VerseInClub { .. } => {
+                        card_ids.push(card.id.0);
+                        conditional_card_ids.push(card.id.0);
                     }
                     _ => card_ids.push(card.id.0),
                 }
             }
-            if let Some(&c) = hp_assigned.get(&verse_id) {
-                card_ids.push(c);
-            }
-            if let Some(&c) = ccl_assigned.get(&verse_id) {
-                card_ids.push(c);
-            }
+            let hp_card_id = hp_assigned.get(&verse_id).copied();
+            let ccl_card_id = ccl_assigned.get(&verse_id).copied();
             let recitation_card_id = cards
                 .iter()
                 .find(|c| c.verse_id == verse_id && matches!(c.kind, CardKind::Recitation))
@@ -624,20 +666,121 @@ impl WasmEngine {
             entries.push(Entry {
                 verse_id,
                 card_ids,
+                conditional_card_ids,
                 recitation_card_id,
+                hp_card_id,
+                ccl_card_id,
             });
         }
 
-        serde_json::to_string(&entries)
-            .map_err(|e| JsError::new(&format!("session serialise error: {e}")))
+        // Build the top-level orphan pool. Five sources, each capped
+        // at `limit` so the session honours the configured max even
+        // when there are no fresh verses to anchor against:
+        //
+        //   * HP overflow (`hp_pending` minus what fit in `verse_order`).
+        //   * CCL overflow (same).
+        //   * Conditional verse-bound kinds (Ftv / VerseInHeading /
+        //     VerseInClub) New on a verse that isn't a session-verse —
+        //     deduped by `heading_idx` / `tier` so multiple orphans of
+        //     the same heading/tier collapse to one.
+        let cap = limit as usize;
+        let mut orphans: Vec<u32> = Vec::new();
+        // HP overflow: ids in `hp_pending` that didn't end up in
+        // `hp_assigned` after the second pass. Budget caps total HP
+        // (placed + overflow) at `limit` per session.
+        let hp_placed_ids: HashSet<u32> = hp_assigned.values().copied().collect();
+        let hp_budget = cap.saturating_sub(hp_placed_ids.len());
+        for &id in hp_pending
+            .iter()
+            .filter(|id| !hp_placed_ids.contains(id))
+            .take(hp_budget)
+        {
+            orphans.push(id);
+        }
+        // CCL overflow, same shape.
+        let ccl_placed_ids: HashSet<u32> = ccl_assigned.values().copied().collect();
+        let ccl_budget = cap.saturating_sub(ccl_placed_ids.len());
+        for &id in ccl_pending
+            .iter()
+            .filter(|id| !ccl_placed_ids.contains(id))
+            .take(ccl_budget)
+        {
+            orphans.push(id);
+        }
+        // Conditional orphans. Each kind capped at `limit`; dedup by
+        // heading_idx / tier so we don't burn the cap on multiple
+        // orphans for the same heading or club.
+        let mut ftv_count = 0usize;
+        let mut vih_count = 0usize;
+        let mut vic_count = 0usize;
+        let mut seen_orphan_headings: HashSet<u16> = HashSet::new();
+        let mut seen_orphan_tiers: HashSet<ClubTier> = HashSet::new();
+        for card in cards.iter() {
+            if !matches!(card.state, CardState::New) {
+                continue;
+            }
+            if session_verses.contains(&card.verse_id) {
+                continue;
+            }
+            match card.kind {
+                CardKind::Ftv { .. } if ftv_count < cap => {
+                    orphans.push(card.id.0);
+                    ftv_count += 1;
+                }
+                CardKind::VerseInHeading { heading_idx }
+                    if seen_orphan_headings.insert(heading_idx) && vih_count < cap =>
+                {
+                    orphans.push(card.id.0);
+                    vih_count += 1;
+                }
+                CardKind::VerseInClub { tier }
+                    if seen_orphan_tiers.insert(tier) && vic_count < cap =>
+                {
+                    orphans.push(card.id.0);
+                    vic_count += 1;
+                }
+                _ => {}
+            }
+        }
+
+        serde_json::to_string(&Session {
+            verses: entries,
+            orphans,
+        })
+        .map_err(|e| JsError::new(&format!("session serialise error: {e}")))
     }
 
-    /// Flip every `New` card belonging to `verse_id` to `Active`. Returns
-    /// the number of cards transitioned. Idempotent. Called by the
-    /// `/memorize` flow after the learner walks the per-verse progression
-    /// and confirms.
+    /// Flip every `New` verse-bound card belonging to `verse_id` to
+    /// `Active`. Returns the number of cards transitioned. Idempotent.
+    /// Called by the `/memorize` flow after the learner walks the
+    /// per-verse progression and confirms.
+    ///
+    /// HeadingPassage and ChapterClubList cards anchored to the same
+    /// verse_id are deliberately skipped — they surface as standalone
+    /// session items in the `memorize_session` shape and graduate via
+    /// `graduate_card`. See `verse-vault-core@0.5.0` for the state
+    /// semantics.
     pub fn graduate_verse(&mut self, verse_id: u32) -> u32 {
         self.engine.graduate_verse(verse_id) as u32
+    }
+
+    /// Flip a single `New` card to `Active` and return whether the
+    /// transition happened (false on unknown card id or already
+    /// non-`New`). Idempotent. Used by the `/memorize` flow to
+    /// graduate HeadingPassage / ChapterClubList cards independently
+    /// of their attach verse.
+    pub fn graduate_card(&mut self, card_id: u32) -> bool {
+        self.engine
+            .graduate_card(verse_vault_core::types::CardId(card_id))
+    }
+
+    /// True when `card_id` belongs to this material's deck. Cheap
+    /// existence probe — the API uses it to distinguish 404 from
+    /// "already graduated" on the per-card graduation endpoint.
+    pub fn has_card(&self, card_id: u32) -> bool {
+        self.engine
+            .card(verse_vault_core::types::CardId(card_id))
+            .is_some()
     }
 
     /// Count of `New` cards eligible for the memorize queue. Drives
