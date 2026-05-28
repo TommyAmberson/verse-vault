@@ -9,6 +9,44 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Dashboard
+
+* **New `/dashboard` view, now the app index.** Aggregates `getYears` + per-year `getStats`
+  client-side into a single editorial "codex" view. `/` and the post-sign-in default both redirect
+  here (was `/review`); the brand link in the header lands here too. `/stats` stays as the per-year
+  drill-down.
+* **Two clickable hero tiles — Memorize and Review.** Inspired by WaniKani's lessons/reviews pattern
+  but rendered in the parchment + Fraunces palette rather than the WK-style colour-block cards. Each
+  tile is a `RouterLink` wrapping the whole card with the card queue count as the centrepiece:
+  cards-to-memorize on the left, cards-due-now on the right (sourced from
+  `getStats().reviewsDueCount` — server-computed via the engine, since FSRS retrievability doesn't
+  live in the test_states SQL). The sub-line pairs each card count with its verse footprint — "fresh
+  cards from X verses across Y years" / "cards due now from X verses across Y years" — so both units
+  the user thinks in are visible at a glance. Both tiles end with a "memorize →" / "review →" arrow
+  that nudges right on hover.
+* **Five SRS-stage tiles** (weak / learning / familiar / strong / mastered) replace the original
+  single horizontal ribbon. Each tile shows two units side by side so the codex reads in both
+  granularities the user actually thinks in: **cards** (prominent — per active card, bucketed by its
+  weakest test's stability) and **verses** (secondary — per single-verse-card verse, same
+  min-aggregation projected up). Multi-verse cards (`HeadingPassage`, `ChapterClubList`) count in
+  the cards column but their pseudo verses don't contribute to the verses column, so "X cards from Y
+  verses" reads honestly. A thin coloured top stripe and the existing 1d / 7d / 30d / 90d boundaries
+  match the per-year stats. Empty buckets stay in the layout dimmed so the five-stage skyline never
+  collapses.
+* **Per-year cards** (numbered in Roman) sit below with retention oversized and a per-year stability
+  sparkline; a small italic "N reviews logged across the codex" closes the page like a colophon.
+* **Aesthetic.** Fraunces variable serif handles all display work (masthead, oversized numerals,
+  section rules, stage counts) — loaded once via `index.html`. Body copy still inherits the system
+  stack so the rest of the app is untouched.
+* **Nav.** Adds a `Dashboard` link as the first nav entry.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.3.0` — adds the dashboard stats helpers (`due_review_count`,
+  `card_stability_histogram`, `verse_stability_histogram`, `new_verse_count`, `due_verse_count`,
+  `learned_verse_count`, `StabilityHistogram`).
+* `verse-vault-wasm@0.3.0` — exposes the matching `WasmEngine` wrappers.
+
 ## [0.1.15] — 2026-05-27
 
 ### ChapterClubList card rendering

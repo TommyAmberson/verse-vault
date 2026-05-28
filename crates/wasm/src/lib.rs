@@ -14,7 +14,12 @@ use verse_vault_core::engine::{ReviewEngine, TestUpdate, UpdateKind};
 use verse_vault_core::material_config::MaterialConfig;
 use verse_vault_core::render::{HeadingRender, VerseRender};
 use verse_vault_core::schedule::{
-    next_card, next_memorize_card as schedule_next_memorize_card, next_relearn_card,
+    card_stability_histogram as schedule_card_stability_histogram,
+    due_review_count as schedule_due_review_count, due_verse_count as schedule_due_verse_count,
+    learned_verse_count as schedule_learned_verse_count,
+    new_verse_count as schedule_new_verse_count, next_card,
+    next_memorize_card as schedule_next_memorize_card, next_relearn_card,
+    verse_stability_histogram as schedule_verse_stability_histogram,
 };
 use verse_vault_core::test_kind::{TestKey, TestKind};
 use verse_vault_core::test_state::TestState;
@@ -344,6 +349,55 @@ impl WasmEngine {
             return Some(id.0);
         }
         next_card(&self.engine, now_secs).map(|c| c.0)
+    }
+
+    /// Count of active cards whose retrievability is below target at
+    /// `now_secs`. Mirrors `next_review_card`'s eligibility minus the
+    /// session-only cooldown filter — see `core::schedule::due_review_count`
+    /// for why. Dashboard surfaces this as the "reviews waiting" number.
+    pub fn due_review_count(&self, now_secs: i64) -> u32 {
+        schedule_due_review_count(&self.engine, now_secs)
+    }
+
+    /// JSON-serialised `StabilityHistogram` of active cards bucketed by
+    /// weakest-test stability — drives the dashboard's per-card stage
+    /// tiles. JSON over the boundary matches the existing pattern for
+    /// structured returns (`export_test_states`, `memorize_session`).
+    pub fn card_stability_histogram(&self) -> Result<String, JsError> {
+        let h = schedule_card_stability_histogram(&self.engine);
+        serde_json::to_string(&h).map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// JSON-serialised `StabilityHistogram` of distinct verses bucketed
+    /// by their weakest verse-content card's test stability. Meta-location
+    /// cards (`VerseInChapter` / `VerseInBook` / `VerseInHeading` /
+    /// `VerseInClub`), the multi-verse pseudos (`HeadingPassage`,
+    /// `ChapterClubList`), and `Reading` don't contribute — see
+    /// `core::schedule::is_verse_content_card` for the filter.
+    pub fn verse_stability_histogram(&self) -> Result<String, JsError> {
+        let h = schedule_verse_stability_histogram(&self.engine);
+        serde_json::to_string(&h).map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// Count of distinct verses with at least one `New` card — the
+    /// memorize queue's verse footprint. Pseudo verses excluded.
+    pub fn new_verse_count(&self) -> u32 {
+        schedule_new_verse_count(&self.engine)
+    }
+
+    /// Count of distinct verses with at least one due card at
+    /// `now_secs` — the review queue's verse footprint. Pseudo
+    /// verses excluded.
+    pub fn due_verse_count(&self, now_secs: i64) -> u32 {
+        schedule_due_verse_count(&self.engine, now_secs)
+    }
+
+    /// Count of distinct verses whose weakest test's stability is at
+    /// or above `threshold_days`. Pseudo verses excluded. The API
+    /// passes its `STABILITY_FAMILIAR_DAYS` so the threshold stays
+    /// defined in one place.
+    pub fn learned_verse_count(&self, threshold_days: f32) -> u32 {
+        schedule_learned_verse_count(&self.engine, threshold_days)
     }
 
     /// Pick the next New card for the memorize queue. The caller walks the

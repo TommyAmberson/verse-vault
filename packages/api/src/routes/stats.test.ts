@@ -6,12 +6,18 @@ import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-cor';
 
+type StabilityHistogram = Record<'weak' | 'learning' | 'familiar' | 'strong' | 'mastered', number>;
+
 interface StatsResponse {
   materialId: string;
   versesLearned: number;
   retentionRate: number | null;
   totalGrades: number;
-  testDistribution: Record<'weak' | 'learning' | 'familiar' | 'strong' | 'mastered', number>;
+  cardDistribution: StabilityHistogram;
+  verseDistribution: StabilityHistogram;
+  reviewsDueCount: number;
+  newVerseCount: number;
+  versesDueCount: number;
 }
 
 interface UploadEvent {
@@ -75,12 +81,17 @@ describe('stats routes', () => {
     expect(body.materialId).toBe(MATERIAL_ID);
     expect(body.retentionRate).toBeNull();
     expect(body.totalGrades).toBe(0);
-    // versesLearned counts verses with at least one familiar+ test; freshly
-    // seeded states sit at the engine's default initial stability, which
-    // lands in the "weak" bucket — versesLearned should be 0.
+    // Before any verse is graduated, the user hasn't started learning
+    // anything — `versesLearned` is 0 and both stability histograms
+    // (cards and verses) must be empty. Counting seeded test_states
+    // for ungraduated cards would inflate "weak"/"learning" with
+    // cards the user hasn't engaged with; the dashboard would read
+    // that as "1000s of items still learning" on a brand-new account.
     expect(body.versesLearned).toBe(0);
-    const total = Object.values(body.testDistribution).reduce((a, b) => a + b, 0);
-    expect(total).toBeGreaterThan(0);
+    const cardTotal = Object.values(body.cardDistribution).reduce((a, b) => a + b, 0);
+    const verseTotal = Object.values(body.verseDistribution).reduce((a, b) => a + b, 0);
+    expect(cardTotal).toBe(0);
+    expect(verseTotal).toBe(0);
   });
 
   it('counts Hard (grade 2) as a pass, matching the core scheduler', async () => {

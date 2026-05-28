@@ -12,7 +12,7 @@ let reconcileFired = false
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', redirect: '/review' },
+    { path: '/', redirect: '/dashboard' },
     { path: '/session', redirect: '/review' },
     { path: '/signin', redirect: '/profiles' },
     {
@@ -20,6 +20,11 @@ const router = createRouter({
       name: 'profiles',
       component: () => import('@/views/ProfilePickerView.vue'),
       meta: { public: true },
+    },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('@/views/DashboardView.vue'),
     },
     {
       path: '/review',
@@ -79,7 +84,7 @@ router.beforeEach(async (to) => {
 
   if (to.meta.public) {
     if (signedIn && to.name === 'profiles' && to.query.force !== '1') {
-      const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/review'
+      const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/dashboard'
       return redirect
     }
     return true

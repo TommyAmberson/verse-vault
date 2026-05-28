@@ -17,7 +17,7 @@ const loading = ref(true)
 const DIST_LABELS = ['weak', 'learning', 'familiar', 'strong', 'mastered'] as const
 
 function bucketsFor(stats: StatsResponse) {
-  const dist = stats.testDistribution
+  const dist = stats.cardDistribution
   const total = Object.values(dist).reduce((a, b) => a + b, 0)
   if (total === 0) return []
   return DIST_LABELS.map((label) => ({
@@ -98,7 +98,7 @@ onMounted(async () => {
         </div>
 
         <div v-if="bucketsFor(y.stats).length > 0" class="histogram">
-          <div class="histogram-title">Test stability</div>
+          <div class="histogram-title">Card stability</div>
           <div v-for="b in bucketsFor(y.stats)" :key="b.label" class="bar-row">
             <div class="bar-label">{{ b.label }}</div>
             <div class="bar-track">

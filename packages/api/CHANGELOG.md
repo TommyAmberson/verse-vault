@@ -10,6 +10,34 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### `/api/stats/:materialId` payload reshaped for the dashboard
+
+* **`testDistribution` → `cardDistribution` + `verseDistribution`.** The old field counted raw
+  test_states — an engine-internal unit users don't think in. The new pair counts cards (per active
+  card, bucketed by weakest-test stability) and verses (per single-verse-card verse, same
+  min-aggregation).
+* **`reviewsDueCount`, `newVerseCount`, `versesDueCount` added.** Card-side and verse-side
+  footprints of the review and memorize queues — drives the dashboard's "X cards from Y verses"
+  pairing in both heroes.
+* **`versesLearned` semantics tighten.** Engine-derived too; only verses whose weakest verse-content
+  card test is at familiar+ stability count. Meta-location cards and the multi-verse pseudos no
+  longer contribute.
+
+### Engine instead of SQL for every per-verse number
+
+The route now loads the per-material engine and asks it for every per-verse aggregate
+(`learned_verse_count`, `verse_stability_histogram`, `new_verse_count`, `due_verse_count`) and both
+card-side histograms (`card_stability_histogram`, `due_review_count`). The previous SQL queries
+couldn't tell a real verse from a `HeadingPassage` / `ChapterClubList` pseudo (whose `verse_id` is
+shared across multiple real verses), so a deck with passage cards inflated every verse count by one
+per pseudo. Engine-side, `CardKind` discriminates. `EngineStore.load` is cached per (user, material)
+so subsequent dashboard renders pay the load cost once.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.3.0` — adds the dashboard stats helpers.
+* `verse-vault-wasm@0.3.0` — exposes the matching wrappers.
+
 ## [0.1.16] — 2026-05-27
 
 ### Bundled algorithm contract

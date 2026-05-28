@@ -22,6 +22,28 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-28
+
+Wrappers for the new `verse-vault-core@0.3.0` dashboard stats helpers. MINOR per this changelog's
+own rubric ("additive field or new exposed function") — six new exposed `WasmEngine` methods. Older
+consumers ignore the new methods safely.
+
+### Added
+
+* `WasmEngine.due_review_count(now_secs) -> u32` — count of active cards whose retrievability is
+  below the scheduler's target. Drives the dashboard's "reviews waiting" number.
+* `WasmEngine.card_stability_histogram() -> string` — JSON-serialised
+  `{ weak, learning, familiar, strong, mastered }` count of active cards bucketed by weakest-test
+  stability.
+* `WasmEngine.verse_stability_histogram() -> string` — same shape, bucketed by the worst
+  verse-content-card test stability per verse.
+* `WasmEngine.new_verse_count() -> u32` / `WasmEngine.due_verse_count(now_secs) -> u32` /
+  `WasmEngine.learned_verse_count(threshold_days) -> u32` — verse-footprint counts.
+
+JSON-string returns for the histograms follow the existing pattern for structured values
+(`export_test_states`, `memorize_session`). Verse-side methods exclude meta-location and multi-verse
+pseudo cards per `verse-vault-core@0.3.0`'s `is_verse_content_card` filter.
+
 ## [0.2.1] — 2026-05-27
 
 * `VerseRenderWire.chapterMembers: number[]` — additive wire field forwarding

@@ -162,3 +162,6 @@ __pycache__/
 /packages/api/data/
 /packages/api/.env
 /packages/api/.env.local
+
+# Local git worktrees
+/.worktrees/

@@ -22,6 +22,45 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-28
+
+Dashboard stats helpers: a bundle of pure-read scheduler queries that drive the new `/dashboard`
+view, plus a new `StabilityHistogram` wire type. All additive; existing event replay produces
+identical state. MINOR per this changelog's own rubric ("additive feature — new test kind, new card
+kind, new scheduler knob") — six new public scheduler helpers count as the additive case.
+
+### Added
+
+* `schedule::StabilityHistogram { weak, learning, familiar, strong, mastered }` — five-bucket
+  stability count, days-based (`< 1` / `< 7` / `< 30` / `< 90` / `>= 90`). Shared return type for
+  the histogram helpers below.
+* `schedule::due_review_count(engine, now_secs)` — count of active cards whose minimum-test
+  retrievability is below `target_retention` at `now_secs`. Mirrors `next_card`'s eligibility but
+  drops the sibling-cooldown filter, since the dashboard surfaces this between sessions and
+  shouldn't wobble in the seconds after a review.
+* `schedule::card_stability_histogram(engine)` — buckets every active card by its weakest test's
+  stability. Skips New cards (they belong to the memorize queue, not the review distribution).
+* `schedule::new_verse_count(engine)` / `schedule::due_verse_count(engine, now_secs)` —
+  verse-footprint counterparts to the existing `new_card_count` and `due_review_count`.
+* `schedule::verse_stability_histogram(engine)` — buckets distinct verses by the minimum stability
+  across their verse-content cards' tests. Each verse lives in exactly one bucket, so the sum of
+  `weak..mastered` equals the total memorised-verse count.
+* `schedule::learned_verse_count(engine, threshold_days)` — count of distinct verses whose weakest
+  verse-content card test is at or above `threshold_days` (the API passes its
+  `STABILITY_FAMILIAR_DAYS` so the cutoff stays defined in one place).
+
+### Semantics
+
+* Verse-side helpers (`new_verse_count`, `due_verse_count`, `verse_stability_histogram`,
+  `learned_verse_count`) only consider **verse-content cards** — `PhraseFill`, `VerseAtVerseRef`,
+  `Recitation`, `Citation`, `Ftv`. Meta-location cards (`VerseInChapter` / `VerseInBook` /
+  `VerseInHeading` / `VerseInClub`), the multi-verse pseudos (`HeadingPassage`, `ChapterClubList`),
+  and `Reading` don't contribute. Net effect: a verse's stability tracks the worst of its
+  content-card tests, and meta-card stability drifting around can't bounce a verse between dashboard
+  stability buckets.
+* Card-side helpers (`card_stability_histogram`, `due_review_count`) still count every card the user
+  reviews — meta cards are real review work, just not signals of verse content recall.
+
 ## [0.2.1] — 2026-05-27
 
 * `VerseRender.chapter_members: Vec<u16>` — additive field carrying the verse numbers a
