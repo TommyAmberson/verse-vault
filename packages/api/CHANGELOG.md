@@ -10,12 +10,15 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.18] — 2026-05-28
+
 ### `GET /api/activity` — daily review + memorize counts
 
 New endpoint returning per-day UTC aggregates of `review_events` (the "reviews" series) and
 `graduated_verses` (the "memorize" series), capped at 1825 days (~5 academic years). Drives the
 dashboard's new activity heatmap. Both series are sparse (no-activity days omitted); the client
-zero-fills the calendar grid. Authenticated users only.
+zero-fills the calendar grid. Authenticated users only. Bundled algorithm contract unchanged
+(`verse-vault-core@0.4.0`, `verse-vault-wasm@0.4.0`).
 
 ## [0.1.17] — 2026-05-28
 
