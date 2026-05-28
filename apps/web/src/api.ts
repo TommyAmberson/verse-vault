@@ -105,6 +105,21 @@ export interface ReviewResponse {
 export type StabilityBucket = 'weak' | 'learning' | 'familiar' | 'strong' | 'mastered'
 export type StabilityHistogram = Record<StabilityBucket, number>
 
+export interface ActivityDay {
+  /** `YYYY-MM-DD` in UTC. */
+  date: string
+  count: number
+}
+
+export interface ActivityResponse {
+  /** Per-day review grade events. Sparse. */
+  reviews: ActivityDay[]
+  /** Per-day verse graduations — the "memorize" series. Sparse. */
+  memorize: ActivityDay[]
+  /** Echoed; server clamps to `[1, 1825]`. */
+  requestedDays: number
+}
+
 export interface StatsResponse {
   materialId: string
   versesLearned: number
@@ -210,6 +225,7 @@ export interface ApiClient {
   getCardRender(materialId: string, cardId: number): Promise<CardRender>
   submitReview(materialId: string, cardId: number, grade: Grade): Promise<ReviewResponse>
   getStats(materialId: string): Promise<StatsResponse>
+  getActivity(days?: number): Promise<ActivityResponse>
   getYears(): Promise<YearsResponse>
   updateYearSettings(materialId: string, settings: Partial<YearSettings>): Promise<{ settings: YearSettings }>
   /** Fat-client sync: snapshot + materialised test states + last
@@ -265,6 +281,8 @@ export function createApiClient(apiUrl: string): ApiClient {
       request('POST', '/api/cards/review', { materialId, cardId, grade }),
     getStats: (materialId) =>
       request('GET', `/api/stats/${encodeURIComponent(materialId)}`),
+    getActivity: (days = 365) =>
+      request('GET', `/api/activity?days=${days}`),
     getYears: () => request('GET', '/api/years'),
     updateYearSettings: (materialId, settings) =>
       request('POST', `/api/years/${encodeURIComponent(materialId)}/settings`, settings),
