@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { graduatedVerses, reviewEvents, testStates } from '../db/schema.js';
+import { graduatedCards, graduatedVerses, reviewEvents, testStates } from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { type TestApp, createTestApp, signUpTestUser } from '../test-utils.js';
 
@@ -24,6 +24,7 @@ interface StateResponse {
   testStates: TestStateWire[];
   lastEventId: string | null;
   graduatedVerseIds: number[];
+  graduatedCardIds: number[];
 }
 
 interface UploadResponse {
@@ -324,6 +325,58 @@ describe('sync routes', () => {
     });
     const stateBody = (await stateRes.json()) as StateResponse;
     expect(stateBody.graduatedVerseIds).toEqual([0]);
+  });
+
+  it('accepts a graduateCard event and writes graduatedCards', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie, userId } = await enroll(test, 'alice@example.com');
+
+    // card_id 0 belongs to the first verse's first card; for the wire
+    // protocol test the kind doesn't matter — graduate_card flips any
+    // New card to Active.
+    const grad = {
+      kind: 'graduateCard' as const,
+      clientEventId: randomUUID(),
+      timestampSecs: 1_700_000_000,
+      snapshotVersion: 1,
+      cardId: 0,
+    };
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [grad] }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as UploadResponse;
+    expect(body.accepted).toBe(1);
+    expect(body.duplicates).toBe(0);
+
+    const rows = test.db.select().from(graduatedCards).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].userId).toBe(userId);
+    expect(rows[0].cardId).toBe(0);
+
+    // Re-applying the graduation is a no-op (graduate_card returns
+    // false once the card is Active). Same accounting as graduate.
+    const grad2 = { ...grad, clientEventId: randomUUID() };
+    const res2 = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [grad2] }),
+    });
+    expect(res2.status).toBe(200);
+    const body2 = (await res2.json()) as UploadResponse;
+    expect(body2.accepted).toBe(0);
+    expect(body2.duplicates).toBe(1);
+
+    // /state surfaces graduatedCardIds alongside graduatedVerseIds so
+    // a fresh client engine can re-apply both paths.
+    const stateRes = await test.app.request(`/api/sync/${MATERIAL_ID}/state`, {
+      headers: { cookie },
+    });
+    const stateBody = (await stateRes.json()) as StateResponse;
+    expect(stateBody.graduatedCardIds).toEqual([0]);
   });
 
   it('triggers a rebuild when an older event arrives after a newer one', async () => {

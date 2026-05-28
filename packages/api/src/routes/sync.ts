@@ -8,6 +8,7 @@ import {
   NotEnrolledError,
   type TestStateEntry,
   getLatestSnapshot,
+  readGraduatedCardIds,
   readGraduatedVerseIds,
   readTestStateEntries,
 } from '../lib/engine.js';
@@ -46,7 +47,12 @@ interface GraduateEventUpload extends BaseEventUpload {
   verseId: number;
 }
 
-type SyncEventUpload = ReviewEventUpload | GraduateEventUpload;
+interface GraduateCardEventUpload extends BaseEventUpload {
+  kind: 'graduateCard';
+  cardId: number;
+}
+
+type SyncEventUpload = ReviewEventUpload | GraduateEventUpload | GraduateCardEventUpload;
 
 interface UploadBody {
   events: SyncEventUpload[];
@@ -66,7 +72,7 @@ interface TestUpdateWire {
   kind: 'Root' | 'Sub';
 }
 
-function eventKind(e: SyncEventUpload): 'review' | 'graduate' {
+function eventKind(e: SyncEventUpload): 'review' | 'graduate' | 'graduateCard' {
   return e.kind ?? 'review';
 }
 
@@ -94,10 +100,13 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       testStates: readTestStateEntries(deps.db, key),
       lastEventId: latestEventId(deps.db, user.id, materialId),
       // Cards default to `New` when the client constructs the engine
-      // from materialData + testStates; ship the graduation log so the
+      // from materialData + testStates; ship the graduation logs so the
       // client can flip the right cards to `Active` after build,
-      // mirroring what `EngineStore.load` does server-side.
+      // mirroring what `EngineStore.load` does server-side. Two paths:
+      // `graduate_verse` for the unconditional verse-bound kinds, and
+      // `graduate_card` for HP / CCL / conditional kinds.
       graduatedVerseIds: readGraduatedVerseIds(deps.db, key),
+      graduatedCardIds: readGraduatedCardIds(deps.db, key),
     });
   });
 
@@ -261,14 +270,16 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       const touchedKeys = new Set<string>();
       const reviewEventInputs: ReviewEventInput[] = [];
       const graduations: { verseId: number; timestampSecs: number }[] = [];
+      const cardGraduations: { cardId: number; timestampSecs: number }[] = [];
       // Graduate events whose `engine.graduate_verse` returned 0 (verse was
       // already Active before this batch) are counted alongside
       // clientEventId duplicates: they're no-ops the client should not
-      // expect to flip any cards.
+      // expect to flip any cards. Same accounting for graduateCard.
       let graduateNoops = 0;
 
       for (const e of fresh) {
-        if (eventKind(e) === 'graduate') {
+        const kind = eventKind(e);
+        if (kind === 'graduate') {
           const ge = e as GraduateEventUpload;
           // On the in-order path we apply to the cached engine for the
           // no-op count. On the rebuild path the cached engine is about
@@ -277,6 +288,11 @@ export function syncRoutes(deps: SyncRoutesDeps) {
           const count = loaded.engine.graduate_verse(ge.verseId);
           if (count === 0) graduateNoops += 1;
           graduations.push({ verseId: ge.verseId, timestampSecs: ge.timestampSecs });
+        } else if (kind === 'graduateCard') {
+          const gc = e as GraduateCardEventUpload;
+          const flipped = loaded.engine.graduate_card(gc.cardId);
+          if (!flipped) graduateNoops += 1;
+          cardGraduations.push({ cardId: gc.cardId, timestampSecs: gc.timestampSecs });
         } else {
           const re = e as ReviewEventUpload;
           if (!outOfOrder) {
@@ -324,6 +340,17 @@ export function syncRoutes(deps: SyncRoutesDeps) {
                 userId: user.id,
                 materialId,
                 verseId: g.verseId,
+                graduatedAtSecs: g.timestampSecs,
+              })
+              .onConflictDoNothing()
+              .run();
+          }
+          for (const g of cardGraduations) {
+            tx.insert(schema.graduatedCards)
+              .values({
+                userId: user.id,
+                materialId,
+                cardId: g.cardId,
                 graduatedAtSecs: g.timestampSecs,
               })
               .onConflictDoNothing()
@@ -423,6 +450,11 @@ function validateUpload(e: SyncEventUpload, nowSecs: number): string | null {
     const ge = e as GraduateEventUpload;
     if (!Number.isInteger(ge.verseId) || ge.verseId < 0) {
       return 'verseId must be a non-negative integer';
+    }
+  } else if (kind === 'graduateCard') {
+    const gc = e as GraduateCardEventUpload;
+    if (!Number.isInteger(gc.cardId) || gc.cardId < 0) {
+      return 'cardId must be a non-negative integer';
     }
   } else {
     return `unknown event kind: ${String((e as { kind: unknown }).kind)}`;
