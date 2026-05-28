@@ -9,43 +9,45 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.16] — 2026-05-28
+
 ### Dashboard
 
 * **New `/dashboard` view, now the app index.** Aggregates `getYears` + per-year `getStats`
-  client-side into a single editorial "codex" view. `/` and the post-sign-in default both redirect
-  here (was `/review`); the brand link in the header lands here too. `/stats` stays as the per-year
-  drill-down.
-* **Two clickable hero tiles — Memorize and Review.** Inspired by WaniKani's lessons/reviews pattern
-  but rendered in the parchment + Fraunces palette rather than the WK-style colour-block cards. Each
-  tile is a `RouterLink` wrapping the whole card with the card queue count as the centrepiece:
-  cards-to-memorize on the left, cards-due-now on the right (sourced from
-  `getStats().reviewsDueCount` — server-computed via the engine, since FSRS retrievability doesn't
-  live in the test_states SQL). The sub-line pairs each card count with its verse footprint — "fresh
-  cards from X verses across Y years" / "cards due now from X verses across Y years" — so both units
-  the user thinks in are visible at a glance. Both tiles end with a "memorize →" / "review →" arrow
-  that nudges right on hover.
-* **Five SRS-stage tiles** (weak / learning / familiar / strong / mastered) replace the original
-  single horizontal ribbon. Each tile shows two units side by side so the codex reads in both
-  granularities the user actually thinks in: **cards** (prominent — per active card, bucketed by its
-  weakest test's stability) and **verses** (secondary — per single-verse-card verse, same
-  min-aggregation projected up). Multi-verse cards (`HeadingPassage`, `ChapterClubList`) count in
-  the cards column but their pseudo verses don't contribute to the verses column, so "X cards from Y
-  verses" reads honestly. A thin coloured top stripe and the existing 1d / 7d / 30d / 90d boundaries
-  match the per-year stats. Empty buckets stay in the layout dimmed so the five-stage skyline never
-  collapses.
-* **Per-year cards** (numbered in Roman) sit below with retention oversized and a per-year stability
-  sparkline; a small italic "N reviews logged across the codex" closes the page like a colophon.
-* **Aesthetic.** Fraunces variable serif handles all display work (masthead, oversized numerals,
-  section rules, stage counts) — loaded once via `index.html`. Body copy still inherits the system
-  stack so the rest of the app is untouched.
+  client-side. `/`, the post-sign-in default, and the brand link all land here. `/stats` keeps the
+  per-year drill-down (reached via the dashboard's "by year →" link).
+* **Two clickable hero tiles — Memorize and Review.** Each tile is a `RouterLink` wrapping the whole
+  card with the queue count as the centrepiece: cards-to-memorize on the left, cards-due-now on the
+  right (sourced from `getStats().reviewsDueCount` — server-computed via the engine, since FSRS
+  retrievability doesn't live in the test_states SQL). The sub-line pairs each card count with its
+  verse footprint — "fresh cards from X verses" / "cards due now from X verses" — so both units the
+  user thinks in are visible at a glance.
+* **Five SRS-stage tiles** (weak / learning / familiar / strong / mastered) showing cards
+  (prominent) + verses (secondary) per bucket. Multi-verse cards (`HeadingPassage`,
+  `ChapterClubList`) count in the cards column but their pseudo verses don't contribute to the
+  verses column, so "X cards from Y verses" reads honestly. Idle (zero-count) tiles dim + extend
+  vertically with centred content so the five-stage skyline holds shape.
+* **"by year →" link** to `/stats` plus a small italic colophon with aggregate retention / reviews
+  logged / verses held. The per-year card grid lives at `/stats` rather than the dashboard.
+* **Aesthetic.** Fraunces variable serif handles display work (headings, oversized numerals, section
+  rules) — loaded once via `index.html`. Body copy inherits the system stack.
 * **Nav.** Adds a `Dashboard` link as the first nav entry.
+
+### Memorize queue honours per-tier `new_scope`
+
+Verses in a tier the user has set to `Maintenance` (e.g. "150 Active, 300 Maintenance") no longer
+surface as new cards in `/memorize` or in the dashboard's "to memorize" hero. Already-graduated
+cards in those tiers stay reviewable as before — only the never-graduated siblings stop being
+introduced. Powered by `verse-vault-core@0.4.0`'s runtime tier filter.
 
 ### Bundled algorithm contract
 
-* `verse-vault-core@0.3.0` — adds the dashboard stats helpers (`due_review_count`,
+* `verse-vault-core@0.4.0` — adds the dashboard stats helpers (`due_review_count`,
   `card_stability_histogram`, `verse_stability_histogram`, `new_verse_count`, `due_verse_count`,
-  `learned_verse_count`, `StabilityHistogram`).
-* `verse-vault-wasm@0.3.0` — exposes the matching `WasmEngine` wrappers.
+  `learned_verse_count`, `StabilityHistogram`) and routes per-tier scopes through `ReviewEngine` at
+  request time.
+* `verse-vault-wasm@0.4.0` — exposes the matching `WasmEngine` wrappers; `new_card_count` now
+  filters Maintenance-tier verses via the core helper.
 
 ## [0.1.15] — 2026-05-27
 
