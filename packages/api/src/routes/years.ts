@@ -27,6 +27,11 @@ const DEFAULT_LESSON_BATCH_SIZE = 3;
 const MIN_LESSON_BATCH_SIZE = 1;
 const MAX_LESSON_BATCH_SIZE = 10;
 
+// FSRS-author recommended bounds: below 0.7 lets too much fade between
+// reviews; above 0.97 explodes review count for marginal recall gains.
+const MIN_DESIRED_RETENTION = 0.7;
+const MAX_DESIRED_RETENTION = 0.97;
+
 interface YearSettings {
   headingCard: boolean;
   headingPassageCard: boolean;
@@ -36,6 +41,7 @@ interface YearSettings {
   clubCardScope: TierScope;
   chapterListScope: ChapterListScope;
   lessonBatchSize: number;
+  desiredRetention: number;
 }
 
 interface ClubView {
@@ -76,6 +82,7 @@ interface SettingsBody {
   clubCardScope?: string;
   chapterListScope?: string;
   lessonBatchSize?: number;
+  desiredRetention?: number;
 }
 
 interface ClubCounts {
@@ -105,6 +112,18 @@ function ensureBatchSize(value: unknown): number {
   if (value < MIN_LESSON_BATCH_SIZE || value > MAX_LESSON_BATCH_SIZE) {
     throw new ValidationError(
       `lessonBatchSize must be between ${MIN_LESSON_BATCH_SIZE} and ${MAX_LESSON_BATCH_SIZE}`,
+    );
+  }
+  return value;
+}
+
+function ensureRetention(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new ValidationError('desiredRetention must be a number');
+  }
+  if (value < MIN_DESIRED_RETENTION || value > MAX_DESIRED_RETENTION) {
+    throw new ValidationError(
+      `desiredRetention must be between ${MIN_DESIRED_RETENTION} and ${MAX_DESIRED_RETENTION}`,
     );
   }
   return value;
@@ -153,6 +172,7 @@ const ENROLLED_DEFAULTS: YearSettings = {
   clubCardScope: 'off',
   chapterListScope: 'up150',
   lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
+  desiredRetention: 0.9,
 };
 
 const UNENROLLED_DEFAULTS: YearSettings = {
@@ -187,6 +207,7 @@ function readYearSettings(
     clubCardScope: row.clubCardScope as TierScope,
     chapterListScope: row.chapterListScope as ChapterListScope,
     lessonBatchSize: row.lessonBatchSize,
+    desiredRetention: row.desiredRetention,
   };
 }
 
@@ -316,6 +337,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
           ensureEnum(v, 'chapterListScope', CHAPTER_LIST_SCOPES),
         ),
         lessonBatchSize: pick('lessonBatchSize', ensureBatchSize),
+        desiredRetention: pick('desiredRetention', ensureRetention),
       };
     } catch (err) {
       if (err instanceof ValidationError) return c.json({ error: err.message }, 400);

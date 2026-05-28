@@ -10,6 +10,16 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### Per-(user, material) target retention
+
+`user_year_settings` gains a `desired_retention` REAL NOT NULL DEFAULT 0.9 column (migration
+`0018_user_year_desired_retention`). `EngineStore.load` reads the per-row value and passes it to
+`new WasmEngine(..., retention, ...)` instead of the previously hardcoded
+`DEFAULT_DESIRED_RETENTION` 0.9. `GET /api/years` returns the value in `settings.desiredRetention`;
+`POST /api/years/:materialId/settings` accepts it (bounded [0.7, 0.97] — FSRS-author recommended
+range, above 0.97 explodes review count, below 0.7 lets too much fade). The settings endpoint
+already invalidates the cached engine on save, so saved changes take effect on the next request.
+
 ## [0.1.18] — 2026-05-28
 
 ### `GET /api/activity` — daily review + memorize counts

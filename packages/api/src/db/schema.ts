@@ -115,6 +115,10 @@ export const userMaterials = sqliteTable(
 // Per-tier effective status is derived: a tier covered by active_scope
 // is Active; covered only by maintenance_scope is Maintenance; covered
 // by neither is Paused.
+//
+// `desired_retention` is read alongside `MaterialConfig` and threaded
+// as a separate ctor arg to `new WasmEngine(...)`, not part of the
+// MaterialConfig JSON.
 export const userYearSettings = sqliteTable(
   'user_year_settings',
   {
@@ -130,6 +134,7 @@ export const userYearSettings = sqliteTable(
     clubCardScope: text('club_card_scope').notNull(),
     chapterListScope: text('chapter_list_scope').notNull(),
     lessonBatchSize: integer('lesson_batch_size').notNull(),
+    desiredRetention: real('desired_retention').notNull().default(0.9),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
