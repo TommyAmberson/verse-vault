@@ -194,16 +194,31 @@ export interface YearsResponse {
 
 export interface MemorizeSessionVerse {
   verseId: number
-  /** Every per-verse card to drill, in builder order. */
+  /** Verse-bound cards drilled with this verse, in builder order.
+   *  HP / CCL surface separately via the slots below; orphans live
+   *  at the top level of `MemorizeSessionResponse`. */
   cardIds: number[]
-  /** Card id of the verse's Recitation, when emitted. Used as the
-   *  anchor render for the session-opening + closing walkthroughs so
-   *  the verse displays without a PhraseFill's phrase-0 highlight. */
+  /** Subset of `cardIds` that need an explicit `graduate_card` on
+   *  step-3 verse graduation. `graduate_verse` already flips the
+   *  rest. Omitted (treat as []) when the verse has no conditional
+   *  kinds emitted. */
+  conditionalCardIds?: number[]
+  /** Recitation render — verse text without a PhraseFill's
+   *  phrase-0 highlight. Null when the deck doesn't emit one. */
   recitationCardId: number | null
+  /** HeadingPassage placed after this verse in the reading walkthrough. */
+  hpCardId?: number
+  /** ChapterClubList placed after this verse. */
+  cclCardId?: number
 }
 
 export interface MemorizeSessionResponse {
   verses: MemorizeSessionVerse[]
+  /** Standalone meta cards that don't anchor to a session-verse:
+   *  HP/CCL overflow plus conditional verse-bound cards
+   *  (Ftv / VerseInHeading / VerseInClub) on already-Active verses.
+   *  Capped per kind at the year's `lessonBatchSize`. */
+  orphans: number[]
 }
 
 export interface MaterialStatus {
@@ -225,6 +240,7 @@ export interface ApiClient {
   getNextReviewCard(materialId: string): Promise<{ cardId: number | null }>
   getMemorizeSession(materialId: string, max: number): Promise<MemorizeSessionResponse>
   graduateVerse(materialId: string, verseId: number): Promise<{ graduated: number }>
+  graduateCard(materialId: string, cardId: number): Promise<{ graduated: boolean }>
   getCardRender(materialId: string, cardId: number): Promise<CardRender>
   submitReview(materialId: string, cardId: number, grade: Grade): Promise<ReviewResponse>
   getStats(materialId: string): Promise<StatsResponse>
@@ -278,6 +294,8 @@ export function createApiClient(apiUrl: string): ApiClient {
       ),
     graduateVerse: (materialId, verseId) =>
       request('POST', '/api/cards/memorize/graduate', { materialId, verseId }),
+    graduateCard: (materialId, cardId) =>
+      request('POST', '/api/cards/memorize/graduate-card', { materialId, cardId }),
     getCardRender: (materialId, cardId) =>
       request('GET', `/api/cards/${cardId}?materialId=${encodeURIComponent(materialId)}`),
     submitReview: (materialId, cardId, grade) =>

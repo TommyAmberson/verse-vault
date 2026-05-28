@@ -13,28 +13,46 @@ import { buildMaterialConfig } from '@/lib/engine/types'
 // action methods routes work to the right engine.
 const engine = useEngine()
 
-// One session walks three phases: read every verse first, drill every
-// card (shuffled by verse), then walk the verses again and graduate
-// each one. None of this is FSRS-graded — memorize stays pure-intro.
+// One session walks three phases: read every item first, drill every
+// card in random order, then walk the items again and graduate each
+// one. None of this is FSRS-graded — memorize stays pure-intro.
 type Phase = 'reading_start' | 'drilling' | 'reading_end' | 'done'
 
-interface SessionVerse extends MemorizeSessionVerse {
+interface VerseItem {
+  kind: 'verse'
   materialId: string
-  /** Anchor render used during reading_start and reading_end: the
-   *  verse's Recitation when available, falling back to the first
-   *  drill card. Recitation avoids the phrase-0 highlight a PhraseFill
-   *  would impose. */
+  verseId: number
+  cardIds: number[]
+  /** Subset of `cardIds` that need an explicit graduate_card on
+   *  step-3 graduation; graduate_verse handles the rest. */
+  conditionalCardIds: number[]
+  /** Card id used to fetch the reading-walkthrough anchor render
+   *  (Recitation when emitted, else the first drill card). */
+  anchorCardId: number | null
   anchor: CardRender | null
   graduated: boolean
 }
 
-interface DrillEntry {
+interface StandaloneItem {
+  kind: 'standalone'
   materialId: string
-  verseId: number
   cardId: number
+  slot: 'hp' | 'ccl' | 'orphan'
+  anchor: CardRender | null
+  graduated: boolean
 }
 
-const verses = ref<SessionVerse[]>([])
+type ReadingItem = VerseItem | StandaloneItem
+
+interface DrillEntry {
+  materialId: string
+  cardId: number
+  /** Index into `items` so a step-1 "Already memorized" on an item
+   *  can drop every drill entry sourced from that item in one filter. */
+  itemIdx: number
+}
+
+const items = ref<ReadingItem[]>([])
 const phase = ref<Phase>('reading_start')
 const readingIndex = ref(0)
 const drillQueue = ref<DrillEntry[]>([])
@@ -45,26 +63,25 @@ const error = ref<string | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
 
-const empty = computed(() => phase.value !== 'done' && verses.value.length === 0)
-const totalVerses = computed(() => verses.value.length)
+const empty = computed(() => phase.value !== 'done' && items.value.length === 0)
+const totalItems = computed(() => items.value.length)
 const remainingDrillCards = computed(() => drillQueue.value.length)
 
-const currentReadingVerse = computed<SessionVerse | null>(() =>
-  verses.value[readingIndex.value] ?? null,
+const currentReadingItem = computed<ReadingItem | null>(() =>
+  items.value[readingIndex.value] ?? null,
 )
-const onLastReading = computed(() => readingIndex.value === verses.value.length - 1)
+const onLastReading = computed(() => readingIndex.value === items.value.length - 1)
 const currentDrill = computed<DrillEntry | null>(() => drillQueue.value[0] ?? null)
+const graduatedCount = computed(
+  () => items.value.filter((i) => i.kind === 'verse' && i.graduated).length,
+)
 
-/** Interleave per-verse card lists so verses appear in random order
- *  while each verse's cards stay in builder order. */
-function interleaveByVerse(byVerse: DrillEntry[][]): DrillEntry[] {
-  const pools: DrillEntry[][] = byVerse.map((c) => [...c]).filter((c) => c.length > 0)
-  const out: DrillEntry[] = []
-  while (pools.length > 0) {
-    const i = Math.floor(Math.random() * pools.length)
-    const next = pools[i]!.shift()!
-    out.push(next)
-    if (pools[i]!.length === 0) pools.splice(i, 1)
+/** Fisher–Yates shuffle, non-mutating. */
+function shuffle<T>(arr: T[]): T[] {
+  const out = arr.slice()
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i]!, out[j]!] = [out[j]!, out[i]!]
   }
   return out
 }
@@ -72,7 +89,7 @@ function interleaveByVerse(byVerse: DrillEntry[][]): DrillEntry[] {
 async function buildSession() {
   // Each enrolled year contributes up to its lessonBatchSize verses.
   // Reading walkthroughs stay in collection order so opening + closing
-  // reads expose verses in the same shape.
+  // reads expose items in the same shape.
   const yearsRes = await api.getYears()
   const eligibleYears = yearsRes.years.filter(
     (y) => y.enrolled && y.settings.newScope !== 'off' && y.newCardCount > 0,
@@ -83,52 +100,97 @@ async function buildSession() {
   await Promise.all(
     eligibleYears.map((y) => engine.init(y.materialId, buildMaterialConfig(y.settings))),
   )
-  const sessions: { materialId: string; verses: MemorizeSessionVerse[] }[] = eligibleYears.map(
-    (y) => ({
-      materialId: y.materialId,
-      verses: engine.memorizeSession(y.materialId, y.settings.lessonBatchSize).verses,
-    }),
-  )
-  const collected: SessionVerse[] = []
-  for (const { materialId, verses: ys } of sessions) {
+  const sessions: {
+    materialId: string
+    verses: MemorizeSessionVerse[]
+    orphans: number[]
+  }[] = eligibleYears.map((y) => {
+    const s = engine.memorizeSession(y.materialId, y.settings.lessonBatchSize)
+    return { materialId: y.materialId, verses: s.verses, orphans: s.orphans }
+  })
+  // Flatten the session into reading items: each verse anchors its
+  // own item with HP / CCL items appended after it; top-level orphan
+  // cards (the verse-less standalone overflow) follow at the end of
+  // the year's chunk. The drill queue is a flat shuffle across every
+  // card the user will encounter.
+  const collected: ReadingItem[] = []
+  const drillPool: DrillEntry[] = []
+  for (const { materialId, verses: ys, orphans } of sessions) {
     for (const v of ys) {
-      if (v.cardIds.length === 0) continue
+      if (v.cardIds.length === 0 && v.hpCardId === undefined && v.cclCardId === undefined) {
+        continue
+      }
+      const verseIdx = collected.length
       collected.push({
+        kind: 'verse',
         materialId,
         verseId: v.verseId,
         cardIds: v.cardIds,
-        recitationCardId: v.recitationCardId,
+        conditionalCardIds: v.conditionalCardIds ?? [],
+        anchorCardId: v.recitationCardId ?? v.cardIds[0] ?? null,
         anchor: null,
         graduated: false,
       })
+      for (const cardId of v.cardIds) {
+        drillPool.push({ materialId, cardId, itemIdx: verseIdx })
+      }
+      if (v.hpCardId !== undefined) {
+        const idx = collected.length
+        collected.push({
+          kind: 'standalone',
+          materialId,
+          cardId: v.hpCardId,
+          slot: 'hp',
+          anchor: null,
+          graduated: false,
+        })
+        drillPool.push({ materialId, cardId: v.hpCardId, itemIdx: idx })
+      }
+      if (v.cclCardId !== undefined) {
+        const idx = collected.length
+        collected.push({
+          kind: 'standalone',
+          materialId,
+          cardId: v.cclCardId,
+          slot: 'ccl',
+          anchor: null,
+          graduated: false,
+        })
+        drillPool.push({ materialId, cardId: v.cclCardId, itemIdx: idx })
+      }
+    }
+    for (const orphanId of orphans) {
+      const idx = collected.length
+      collected.push({
+        kind: 'standalone',
+        materialId,
+        cardId: orphanId,
+        slot: 'orphan',
+        anchor: null,
+        graduated: false,
+      })
+      drillPool.push({ materialId, cardId: orphanId, itemIdx: idx })
     }
   }
-  verses.value = collected
+  items.value = collected
 
-  // Pre-fetch anchor renders so the reading walkthroughs don't pause
-  // for a round trip per verse. Prefer Recitation to avoid the phrase-0
-  // highlight a PhraseFill render would impose. Renders come from the
-  // engine's IDB-cached + lazy network path.
+  // Pre-fetch every reading anchor in parallel via the engine's
+  // IDB-cached + lazy network path.
   await Promise.all(
-    collected.map(async (v) => {
-      const anchorId = v.recitationCardId ?? v.cardIds[0]
-      if (anchorId === undefined || anchorId === null) return
-      v.anchor = await engine.getCardRender(v.materialId, anchorId)
+    collected.map(async (item) => {
+      const anchorId = item.kind === 'verse' ? item.anchorCardId : item.cardId
+      if (anchorId === null) return
+      item.anchor = await engine.getCardRender(item.materialId, anchorId)
     }),
   )
 
-  // Verses interleave; cards within a verse keep builder order on the
-  // initial pass so the user doesn't see card 2 before card 1.
-  const byVerse: DrillEntry[][] = collected.map((v) =>
-    v.cardIds.map((cardId) => ({ materialId: v.materialId, verseId: v.verseId, cardId })),
-  )
-  const drill = interleaveByVerse(byVerse)
+  const drill = shuffle(drillPool)
   drillQueue.value = drill
   totalDrillCards.value = drill.length
 }
 
 async function startDrilling() {
-  // If every verse was already-memorized'd in the read-through, there's
+  // If every item was already-memorized'd in the read-through, there's
   // nothing to drill and nothing to re-confirm — skip straight to done.
   if (drillQueue.value.length === 0) {
     phase.value = 'done'
@@ -174,12 +236,28 @@ async function gradeGood() {
   await loadDrillCard()
 }
 
-/** Position the reading_end cursor at the first verse that still needs
- *  a closing read — already-memorized verses got their graduation up
- *  front in reading_start and don't need re-confirmation. If everything
- *  was front-loaded, jump straight to done. */
+/** Graduate one reading item and drop its drill entries. */
+async function graduateItem(item: ReadingItem, itemIdx: number): Promise<void> {
+  if (item.kind === 'verse') {
+    await Promise.all([
+      engine.submitGraduation(item.materialId, item.verseId),
+      ...item.conditionalCardIds.map((id) => engine.submitCardGraduation(item.materialId, id)),
+    ])
+  } else {
+    await engine.submitCardGraduation(item.materialId, item.cardId)
+  }
+  item.graduated = true
+  drillQueue.value = drillQueue.value.filter((e) => e.itemIdx !== itemIdx)
+  totalDrillCards.value = drillQueue.value.length
+}
+
+/** Position the reading_end cursor at the first item that still
+ *  needs a closing read — already-memorized items got their
+ *  graduation up front in reading_start and don't need
+ *  re-confirmation. If everything was front-loaded, jump straight
+ *  to done. */
 function enterReadingEnd() {
-  const first = verses.value.findIndex((v) => !v.graduated)
+  const first = items.value.findIndex((i) => !i.graduated)
   if (first === -1) {
     phase.value = 'done'
     return
@@ -196,22 +274,15 @@ function advanceReadingStart() {
   readingIndex.value += 1
 }
 
-/** Reading-start opt-out: the user already knows this verse, so
- *  graduate it immediately, drop its cards from the drill queue, and
- *  advance. Equivalent to running through drilling + reading_end's
- *  Graduate without actually doing them. */
+/** Reading-start opt-out: the user already knows this item, so
+ *  graduate it immediately, drop its drill entries, and advance. */
 async function alreadyMemorizedCurrentReadingStart() {
-  const v = currentReadingVerse.value
-  if (!v || submitting.value) return
+  const item = currentReadingItem.value
+  if (!item || submitting.value) return
   submitting.value = true
   error.value = null
   try {
-    await engine.submitGraduation(v.materialId, v.verseId)
-    v.graduated = true
-    drillQueue.value = drillQueue.value.filter(
-      (e) => !(e.materialId === v.materialId && e.verseId === v.verseId),
-    )
-    totalDrillCards.value = drillQueue.value.length
+    await graduateItem(item, readingIndex.value)
     advanceReadingStart()
   } catch (err) {
     error.value = formatError(err)
@@ -221,13 +292,12 @@ async function alreadyMemorizedCurrentReadingStart() {
 }
 
 async function graduateCurrentReadingEnd() {
-  const v = currentReadingVerse.value
-  if (!v || submitting.value) return
+  const item = currentReadingItem.value
+  if (!item || submitting.value) return
   submitting.value = true
   error.value = null
   try {
-    await engine.submitGraduation(v.materialId, v.verseId)
-    v.graduated = true
+    await graduateItem(item, readingIndex.value)
     advanceReadingEnd()
   } catch (err) {
     error.value = formatError(err)
@@ -240,12 +310,12 @@ function skipCurrentReadingEnd() {
   advanceReadingEnd()
 }
 
-/** Step to the next non-graduated verse, or done if none remain. Skips
- *  over verses already-memorized in reading_start so the user isn't
- *  asked twice. */
+/** Step to the next non-graduated item, or done if none remain.
+ *  Skips items already-memorized in reading_start so the user
+ *  isn't asked twice. */
 function advanceReadingEnd() {
-  for (let i = readingIndex.value + 1; i < verses.value.length; i++) {
-    if (!verses.value[i]!.graduated) {
+  for (let i = readingIndex.value + 1; i < items.value.length; i++) {
+    if (!items.value[i]!.graduated) {
       readingIndex.value = i
       return
     }
@@ -253,7 +323,12 @@ function advanceReadingEnd() {
   phase.value = 'done'
 }
 
-const graduatedCount = computed(() => verses.value.filter((v) => v.graduated).length)
+function readingLabel(item: ReadingItem): string {
+  if (item.kind === 'verse') return 'Verse'
+  if (item.slot === 'hp') return 'Heading passage'
+  if (item.slot === 'ccl') return 'Chapter list'
+  return 'Extra card'
+}
 
 function formatError(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -264,7 +339,7 @@ onMounted(async () => {
   try {
     loading.value = true
     await buildSession()
-    if (verses.value.length === 0) return
+    if (items.value.length === 0) return
   } catch (err) {
     error.value = formatError(err)
   } finally {
@@ -285,13 +360,13 @@ function onKeydown(e: KeyboardEvent) {
   if (engine.staleSummary.value || submitting.value) return
 
   if (e.key === 'Enter') {
-    if (phase.value === 'reading_start' && currentReadingVerse.value?.anchor) {
+    if (phase.value === 'reading_start' && currentReadingItem.value?.anchor) {
       e.preventDefault()
       advanceReadingStart()
     } else if (phase.value === 'drilling' && drillCard.value && !drillRevealed.value) {
       e.preventDefault()
       revealDrill()
-    } else if (phase.value === 'reading_end' && currentReadingVerse.value?.anchor) {
+    } else if (phase.value === 'reading_end' && currentReadingItem.value?.anchor) {
       e.preventDefault()
       void graduateCurrentReadingEnd()
     }
@@ -325,7 +400,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
   <div class="memorize">
     <div v-if="error" class="banner banner-error">{{ error }}</div>
 
-    <div v-if="loading && verses.length === 0" class="status">Loading…</div>
+    <div v-if="loading && items.length === 0" class="status">Loading…</div>
 
     <div v-else-if="phase === 'done'" class="done">
       <h2>Memorized {{ graduatedCount }} verse{{ graduatedCount === 1 ? '' : 's' }}</h2>
@@ -343,13 +418,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
 
     <!-- Reading walkthrough (used at both ends of the session). -->
     <div
-      v-else-if="phase === 'reading_start' && currentReadingVerse?.anchor"
+      v-else-if="phase === 'reading_start' && currentReadingItem?.anchor"
       class="card"
     >
       <div class="meta">
-        Read it through · Verse {{ readingIndex + 1 }} of {{ totalVerses }}
+        Read it through · {{ readingLabel(currentReadingItem) }} {{ readingIndex + 1 }} of
+        {{ totalItems }}
       </div>
-      <CardPrompt :card="currentReadingVerse.anchor" :revealed="true" />
+      <CardPrompt :card="currentReadingItem.anchor" :revealed="true" />
       <div class="actions">
         <div class="read-actions">
           <button
@@ -360,7 +436,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
             Already memorized
           </button>
           <button class="primary" :disabled="submitting" @click="advanceReadingStart">
-            {{ onLastReading ? 'Start drilling' : 'Next verse' }}
+            {{ onLastReading ? 'Start drilling' : 'Next' }}
           </button>
         </div>
       </div>
@@ -393,13 +469,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
     </div>
 
     <div
-      v-else-if="phase === 'reading_end' && currentReadingVerse?.anchor"
+      v-else-if="phase === 'reading_end' && currentReadingItem?.anchor"
       class="card"
     >
       <div class="meta">
-        Read it once more · Verse {{ readingIndex + 1 }} of {{ totalVerses }}
+        Read it once more · {{ readingLabel(currentReadingItem) }} {{ readingIndex + 1 }} of
+        {{ totalItems }}
       </div>
-      <CardPrompt :card="currentReadingVerse.anchor" :revealed="true" />
+      <CardPrompt :card="currentReadingItem.anchor" :revealed="true" />
       <div class="actions">
         <div class="grades">
           <button
@@ -511,8 +588,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
 }
 
 /* Side-by-side action row for reading_start: a muted "Already
-   memorized" escape hatch sits next to the primary "Next verse /
-   Start drilling" action so users can skip drilling verses they
+   memorized" escape hatch sits next to the primary "Next /
+   Start drilling" action so users can skip drilling items they
    already know without it being the dominant click target. */
 .read-actions {
   display: grid;

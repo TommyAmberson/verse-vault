@@ -87,6 +87,10 @@ export interface SyncStateResponse {
    *  build so the in-memory engine matches the user's actual progress
    *  across page reloads. */
   graduatedVerseIds: number[]
+  /** Card ids the user has graduated individually — HP, CCL, and the
+   *  conditional verse-bound kinds. Applied via `engine.graduate_card`
+   *  alongside the verse-bulk replay. */
+  graduatedCardIds: number[]
 }
 
 /** One queued event in `POST /api/sync/:materialId/events`. Mirrors the
@@ -106,6 +110,13 @@ export type SyncEventUpload =
       timestampSecs: number
       snapshotVersion: number
       verseId: number
+    }
+  | {
+      kind: 'graduateCard'
+      clientEventId: string
+      timestampSecs: number
+      snapshotVersion: number
+      cardId: number
     }
 
 /** POST /api/sync/:materialId/events body. */

@@ -9,6 +9,35 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.18] — 2026-05-28
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — `graduate_verse` narrows to the unconditional verse-bound kinds; new
+  `graduate_card` flips a single card. HP, CCL, and conditional verse-bound kinds graduate per-card
+  now.
+* `verse-vault-wasm@0.5.0` — `memorize_session` returns `{ verses, orphans }`; HP/CCL ids surface
+  via `hpCardId` / `cclCardId` on each verse-entry; orphan conditional cards live in the top-level
+  `orphans` list (per-kind cap = the year's `lessonBatchSize`). New `WasmEngine.graduate_card`
+  export.
+
+### Standalone HP / CCL / orphan in /memorize
+
+`MemorizeView` walks each session item as its own reading / drill / graduation step. Verses remain
+verse-oriented; `HeadingPassage` (after the heading's first verse), `ChapterClubList` (after the
+chapter's last verse), and conditional verse-bound cards on already-Active verses (distributed
+round-robin) each get their own step-1 "Already memorized / Next" choice, drill slot in step 2 (flat
+shuffle now, not per-verse interleave), and step-3 "Graduate / Not yet" prompt. Verse graduation
+emits `graduate_verse` plus a `graduate_card` per conditional card it drilled; standalone
+graduations go straight to `graduate_card`.
+
+### Per-card graduation persistence
+
+`engineStore.submitCardGraduation` queues a `graduateCard` sync event and writes the card id into
+the local snapshot's new `graduatedCardIds` field. Engine boot replays both `graduatedVerseIds`
+(`graduate_verse`) and `graduatedCardIds` (`graduate_card`) so the cached in-memory engine matches
+what the server's `EngineStore.load` would produce.
+
 ### Target retention slider in /material settings
 
 The "Session" panel in the year settings (`/material`) gains a **Target retention** range slider
