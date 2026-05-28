@@ -25,6 +25,7 @@ interface YearsResponse {
       clubCardScope: TierScope;
       chapterListScope: ChapterListScope;
       lessonBatchSize: number;
+      desiredRetention: number;
     };
     clubs: Record<'150' | '300' | 'full', { status: ClubStatus; cardCount: number }>;
   }>;
@@ -92,6 +93,7 @@ describe('years routes', () => {
       clubCardScope: 'off',
       chapterListScope: 'up150',
       lessonBatchSize: 3,
+      desiredRetention: 0.9,
     });
     for (const tier of ['150', '300', 'full'] as const) {
       expect(year.clubs[tier].status).toBe('active');

@@ -86,6 +86,25 @@ export interface TestStateEntry {
   pending_relearn: boolean;
 }
 
+/** Per-(user, material) target retention. Falls back to the
+ *  `EngineStore` default when the user has no `user_year_settings`
+ *  row yet (the pre-enrollment picker case). The settings endpoint
+ *  invalidates the cached engine on save, so a saved change takes
+ *  effect on the next `load()`. */
+function readDesiredRetention(db: DB, key: EngineKey, fallback: number): number {
+  const row = db
+    .select({ desiredRetention: schema.userYearSettings.desiredRetention })
+    .from(schema.userYearSettings)
+    .where(
+      and(
+        eq(schema.userYearSettings.userId, key.userId),
+        eq(schema.userYearSettings.materialId, key.materialId),
+      ),
+    )
+    .get();
+  return row?.desiredRetention ?? fallback;
+}
+
 /**
  * Build a JSON-encoded `MaterialConfig` for this user × material from
  * the picker table. No row means defaults (the WASM constructor uses
@@ -299,7 +318,7 @@ export class EngineStore {
       materialJson,
       configJson,
       JSON.stringify(testStates),
-      this.desiredRetention,
+      readDesiredRetention(this.db, key, this.desiredRetention),
       BigInt(this.now()),
     );
 
@@ -338,7 +357,7 @@ export class EngineStore {
       configJson,
       // Empty persisted states — we'll replay the full log on top.
       '[]',
-      this.desiredRetention,
+      readDesiredRetention(this.db, key, this.desiredRetention),
       BigInt(this.now()),
     );
 
