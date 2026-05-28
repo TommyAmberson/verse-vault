@@ -113,7 +113,7 @@ export function createApp(deps: AppDeps) {
     }),
   );
   app.route('/api/years', yearsRoutes({ db: deps.db, engines, now: deps.now }));
-  app.route('/api/stats', statsRoutes({ db: deps.db }));
+  app.route('/api/stats', statsRoutes({ db: deps.db, engines, now: deps.now }));
 
   return app;
 }
