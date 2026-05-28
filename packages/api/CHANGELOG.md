@@ -10,6 +10,8 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.17] — 2026-05-28
+
 ### `/api/stats/:materialId` payload reshaped for the dashboard
 
 * **`testDistribution` → `cardDistribution` + `verseDistribution`.** The old field counted raw
@@ -33,10 +35,19 @@ shared across multiple real verses), so a deck with passage cards inflated every
 per pseudo. Engine-side, `CardKind` discriminates. `EngineStore.load` is cached per (user, material)
 so subsequent dashboard renders pay the load cost once.
 
+### Memorize queue honours per-tier `new_scope`
+
+The engine now filters `Maintenance`-tier verses out of `new_card_count`, `next_memorize_card`, and
+`new_verse_count` (which the api forwards via `getYears().newCardCount` and `/api/stats`'s
+`newVerseCount`). Already-graduated cards in Maintenance tiers stay reviewable; only their
+never-graduated siblings stop being introduced. No api-side code change — the behaviour follows from
+bundling `verse-vault-core@0.4.0`.
+
 ### Bundled algorithm contract
 
-* `verse-vault-core@0.3.0` — adds the dashboard stats helpers.
-* `verse-vault-wasm@0.3.0` — exposes the matching wrappers.
+* `verse-vault-core@0.4.0` — adds the dashboard stats helpers and the runtime per-tier scope filter
+  (`ReviewEngine.material_config` + `verse_status` + `verse_active_for_memorize`).
+* `verse-vault-wasm@0.4.0` — exposes the matching `WasmEngine` wrappers.
 
 ## [0.1.16] — 2026-05-27
 
