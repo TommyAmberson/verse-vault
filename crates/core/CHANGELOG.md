@@ -22,6 +22,35 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-05-28
+
+Tier status (`Active` / `Maintenance` / `Paused`) becomes a **runtime filter** instead of a
+build-time mutation: flipping a tier in settings only changes what surfaces in the memorize and
+review queues, never card state or FSRS state. Existing `Active` cards in a tier the user just moved
+to `Maintenance` keep their review schedule; only their never-graduated siblings stop appearing in
+`/memorize`. MINOR per the additive-feature rubric — adds new public surface on `ReviewEngine` and a
+new `schedule::new_card_count` helper.
+
+### Added
+
+* `ReviewEngine.material_config: MaterialConfig` — retained from the build so queue helpers can
+  consult per-tier scopes at request time without callers threading it through.
+* `ReviewEngine.verse_status(verse_id)` — effective `ClubStatus` (Active / Maintenance / Paused) for
+  a verse, derived from its most-specific tier and the current `material_config`.
+* `schedule::new_card_count(engine)` — count of `New` cards eligible for the memorize queue. Was
+  previously a wasm-only inline filter; the move to core keeps the tier-status filter colocated with
+  `next_memorize_card` and `new_verse_count`.
+
+### Changed
+
+* `next_memorize_card`, `new_card_count`, `new_verse_count` — now skip cards whose verse's tier is
+  in `Maintenance` status (the user opted that tier out of new-card introduction but kept it in the
+  review scope). Paused-tier verses were already excluded at build time and stay that way; their
+  `test_states` persist in the database and reconnect when the tier flips back.
+* Stats helpers (`card_stability_histogram`, `verse_stability_histogram`, `due_review_count`,
+  `due_verse_count`, `learned_verse_count`) deliberately stay unfiltered — they reflect what's in
+  the engine, not what's queued.
+
 ## [0.3.0] — 2026-05-28
 
 Dashboard stats helpers: a bundle of pure-read scheduler queries that drive the new `/dashboard`

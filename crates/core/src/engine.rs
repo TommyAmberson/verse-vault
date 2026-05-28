@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::builder::BuildResult;
 use crate::card::{Card, CardState, VerseAtoms};
 use crate::fsrs_bridge::FsrsBridge;
+use crate::material_config::{ClubStatus, MaterialConfig};
 use crate::render::VerseRender;
 use crate::test_kind::TestKey;
 use crate::test_state::TestState;
@@ -68,6 +69,10 @@ pub struct ReviewEngine {
     /// FTV word count, heading ranges, club tiers. Verse text is composed
     /// server-side from api.bible chapter HTML at request time.
     pub verse_render_data: HashMap<u32, VerseRender>,
+    /// Retained so scheduler queue helpers can honour per-tier
+    /// `new_scope` / `review_scope` at request time without callers
+    /// re-threading the config.
+    pub material_config: MaterialConfig,
 }
 
 impl ReviewEngine {
@@ -83,7 +88,26 @@ impl ReviewEngine {
             },
             verse_atoms_data: b.verse_atoms_data,
             verse_render_data: b.verse_render_data,
+            material_config: b.material_config,
         }
+    }
+
+    /// Effective club status for a verse's most-specific tier under
+    /// the current `material_config`. `None` for pseudo-verses with
+    /// no tier list. Paused verses never get cards built in the
+    /// first place, so this returns `Active` or `Maintenance` in
+    /// practice.
+    pub fn verse_status(&self, verse_id: u32) -> Option<ClubStatus> {
+        let elements = self.verse_index.elements_of(verse_id)?;
+        let tier = *elements.clubs.first()?;
+        Some(self.material_config.effective_status(tier))
+    }
+
+    /// True when the verse may surface in the memorize queue —
+    /// every tier status except `Maintenance`. Pseudo-verses (no
+    /// tier) pass through.
+    pub fn verse_active_for_memorize(&self, verse_id: u32) -> bool {
+        !matches!(self.verse_status(verse_id), Some(ClubStatus::Maintenance))
     }
 
     /// Borrow the per-verse render data for a verse, or `None` if the verse
