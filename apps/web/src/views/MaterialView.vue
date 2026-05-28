@@ -166,11 +166,10 @@ function reviewBehindNew(s: YearSettings): boolean {
   return TIER_SCOPE_RANK[s.reviewScope] < TIER_SCOPE_RANK[s.newScope]
 }
 
-/** Settings that drive the WASM engine's MaterialConfig — change to
- *  any of these means the engine + render cache must be rebuilt.
- *  `lessonBatchSize` is intentionally excluded: it's a session-size
- *  knob the engine doesn't consume, so flipping it shouldn't wipe a
- *  full deck's render cache. */
+/** Settings that affect engine construction — flipping any of these
+ *  means the cached WasmEngine + render cache must be rebuilt so the
+ *  next session uses the new value. `lessonBatchSize` is intentionally
+ *  excluded; it's a session-size knob the engine doesn't consume. */
 const ENGINE_AFFECTING_SETTINGS: ReadonlyArray<keyof YearSettings> = [
   'headingCard',
   'headingPassageCard',
@@ -179,6 +178,7 @@ const ENGINE_AFFECTING_SETTINGS: ReadonlyArray<keyof YearSettings> = [
   'reviewScope',
   'clubCardScope',
   'chapterListScope',
+  'desiredRetention',
 ]
 
 function affectsEngine(draft: YearSettings, current: YearSettings): boolean {
@@ -208,6 +208,13 @@ async function onSave(card: YearCard) {
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
     card.saving = false
+  }
+}
+
+function onRetentionInput(card: YearCard, event: Event) {
+  const pct = Number((event.target as HTMLInputElement).value)
+  if (Number.isFinite(pct)) {
+    card.draft.desiredRetention = pct / 100
   }
 }
 
@@ -447,6 +454,26 @@ onMounted(refresh)
               :disabled="selected.saving"
             />
           </label>
+
+          <label class="range-row">
+            <span class="range-label">
+              Target retention
+              <span class="range-value">{{ Math.round(selected.draft.desiredRetention * 100) }}%</span>
+            </span>
+            <input
+              :value="Math.round(selected.draft.desiredRetention * 100)"
+              type="range"
+              min="70"
+              max="97"
+              step="1"
+              :disabled="selected.saving"
+              @input="onRetentionInput(selected, $event)"
+            />
+          </label>
+          <p class="scope-fineprint">
+            Higher target → more reviews + stronger recall. Lower → fewer reviews + more lapses.
+            FSRS recommends 80–95%.
+          </p>
 
           <button
             type="button"
@@ -708,6 +735,30 @@ h2 {
   font-size: 0.9rem;
   width: 4rem;
   font-variant-numeric: tabular-nums;
+}
+
+.range-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.range-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.range-value {
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.range-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--color-accent);
 }
 
 .save-button {

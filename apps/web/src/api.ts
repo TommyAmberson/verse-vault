@@ -160,6 +160,9 @@ export interface YearSettings {
   clubCardScope: TierScope
   chapterListScope: ChapterListScope
   lessonBatchSize: number
+  /** FSRS target retention in `[0.7, 0.97]`. Higher = more reviews +
+   *  better recall; lower = fewer reviews + more lapses. */
+  desiredRetention: number
 }
 
 export interface ClubView {

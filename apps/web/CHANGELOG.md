@@ -9,6 +9,14 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Target retention slider in /material settings
+
+The "Session" panel in the year settings (`/material`) gains a **Target retention** range slider
+(70–97%, default 90%). Higher values train more reviews + tighter recall; lower values mean fewer
+reviews + more lapses. The knob writes to `YearSettings.desiredRetention` (new) and triggers a
+cached-engine + render-cache invalidate on save so subsequent sessions schedule under the new
+target. Carries `engine`-affecting status alongside the scope toggles.
+
 ## [0.1.17] — 2026-05-28
 
 ### Dashboard activity heatmap
