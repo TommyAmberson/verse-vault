@@ -10,6 +10,47 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.22] — 2026-05-29
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — unchanged.
+* `verse-vault-wasm@0.5.0` — unchanged.
+
+### Drop duplicated `material_data` BLOB from `graph_snapshots` (closes #16)
+
+`graph_snapshots.material_data` stored a per-user copy of the bundled JSON the engine builds against
+— for a deck like `nkjv-cor` (~150 KB per row), every enrolled user duplicated the same blob in
+SQLite. At ~10 KB users × ~3 enrollments × 150 KB ≈ 4 GB of duplicated rows once we're at year-2
+scale.
+
+Replaces the column with a `content_sha` TEXT carrying the SHA-256 hex digest of the bundled JSON
+the snapshot was created against. The actual materialData lives on disk (`data/<materialId>.json`)
+and is loaded fresh on every `EngineStore.load` via the existing `getMaterialJson(materialId)`. The
+DB only tracks which content version each user is on; the disk file is the single source of truth.
+
+* **Migration 0020** (`0020_drop_snapshot_material_data`) creates a new `graph_snapshots` table
+  without the BLOB column, copies existing rows over with
+  `content_sha = 'pre-content-sha-migration'` as a placeholder (SQLite has no native SHA-256, so we
+  backfill in code on first load), then swaps and rebuilds the indexes.
+* **First-load bump-on-load** populates the real SHA for every pre-migration row. The next request
+  for each enrolled (user, material) detects the placeholder mismatch, inserts a new
+  `graph_snapshots` row with `version+1` and the real `content_sha`, and the user proceeds normally.
+  Engine state (test_states, graduations) is untouched.
+* **`/state` response shape unchanged** — `materialData` is still ferried to clients, just now
+  loaded from disk in the route handler rather than from the DB row.
+* **`EngineStore.rebuildFromEvents`** now sources its materialJson from disk too, which means it
+  inherently replays against current content. `adaptElement` still handles known structural
+  transforms (legacy positional `Phrase` → word-range).
+* **No wire-format break.** Clients see no change.
+
+### What's still deferred from #16
+
+* **Background full-event-log replay** for the case where `adaptElement` can't map an old element to
+  a new one. In practice the phrase splitter's edits are range-based and already migrate cleanly;
+  heading-boundary or club-tier edits would lose state on affected verses (user re-grades). Not
+  worth building until that case actually surfaces.
+
 ## [0.1.21] — 2026-05-29
 
 ### Bundled algorithm contract

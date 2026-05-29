@@ -13,6 +13,37 @@ function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex');
 }
 
+/** Returns the bundled JSON for `materialId` if it can be loaded, else
+ *  `undefined`. Used by readers (e.g. `readTestStateEntries`) that may
+ *  run for materials whose disk file is missing or has been renamed —
+ *  rather than crashing the whole request, fall back to whatever state
+ *  the DB can produce without the materialData.
+ *
+ *  `EngineStore.rebuildFromEvents` deliberately does NOT use this helper —
+ *  without materialJson it can't construct a WasmEngine at all, so
+ *  failing loudly is correct there. */
+function safeLoadMaterialJson(materialId: string): string | undefined {
+  try {
+    return getMaterialJson(materialId);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Detect the per-(user, material, version) UNIQUE constraint violation
+ *  that fires when two concurrent `EngineStore.load` calls race the
+ *  bump-on-load insert. better-sqlite3 surfaces the failure as an
+ *  Error whose `code` is `SQLITE_CONSTRAINT_UNIQUE` and whose message
+ *  names the offending index. */
+function isVersionUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; message?: string };
+  return (
+    e.code === 'SQLITE_CONSTRAINT_UNIQUE' &&
+    typeof e.message === 'string' &&
+    e.message.includes('uniq_graph_snapshots_user_material_version')
+  );
+}
+
 /** Memoise SHA over JSON content. Keyed by the string itself, so a
  *  different blob gets a different entry (the materialId-keyed variant
  *  would be wrong under any test or hot-reload that swaps content for
@@ -20,7 +51,11 @@ function sha256(s: string): string {
  *  per process — small. */
 const sha256Cache = new Map<string, string>();
 
-function sha256Memo(json: string): string {
+/** SHA-256 hex digest with a process-wide memo. Exported so the
+ *  enrollment path can share the cache: a freshly-enrolled user's
+ *  first `EngineStore.load` will hit the memo from the enrollment-
+ *  time hash rather than re-hashing the same bytes. */
+export function sha256Memo(json: string): string {
   let h = sha256Cache.get(json);
   if (!h) {
     h = sha256(json);
@@ -348,7 +383,13 @@ export function readTestStateEntries(
   key: EngineKey,
   materialJson?: string,
 ): TestStateEntry[] {
-  const json = materialJson ?? getLatestSnapshot(db, key)?.materialData.toString('utf8');
+  // materialJson is provided by every production caller (`EngineStore.load`
+  // builds it from disk before this runs). The disk fallback covers tests
+  // that call `readTestStateEntries` directly without going through the
+  // engine. Falls back to enrollment for unknown materialIds — `null` for
+  // genuinely unrecognised ones, which means the phrase-range map is empty
+  // and adaptElement drops any legacy positional rows.
+  const json = materialJson ?? safeLoadMaterialJson(key.materialId);
   const phraseRangesByVerse = json
     ? computePhraseRangesByVerse(json)
     : new Map<number, [number, number][]>();
@@ -461,37 +502,51 @@ export class EngineStore {
    *     loaded.engine.next_review_card(...);
    */
   async load(key: EngineKey): Promise<LoadedEngine> {
-    // Detect content updates before consulting the cache: bundled
-    // materialData changes need to bump the user's snapshot and drop
-    // any stale in-memory engine. Otherwise existing users would never
-    // see edits to data/<year>.json after their first enrollment.
+    // Detect content updates before consulting the cache: a changed
+    // disk JSON needs to bump the user's snapshot and drop any stale
+    // in-memory engine. Otherwise existing users would never see edits
+    // to data/<year>.json after their first enrollment.
     let snapshot = getLatestSnapshot(this.db, key);
     if (!snapshot) throw new NotEnrolledError(key);
 
     const bundledJson = this.loadBundledJson(key.materialId);
-    if (sha256Memo(bundledJson) !== sha256Memo(snapshot.materialData.toString('utf8'))) {
+    const bundledSha = sha256Memo(bundledJson);
+    if (bundledSha !== snapshot.contentSha) {
       const newId = randomUUID();
       const newVersion = snapshot.version + 1;
       const createdAt = this.now();
-      this.db
-        .insert(schema.graphSnapshots)
-        .values({
+      try {
+        this.db
+          .insert(schema.graphSnapshots)
+          .values({
+            id: newId,
+            userId: key.userId,
+            materialId: key.materialId,
+            version: newVersion,
+            contentSha: bundledSha,
+            createdAt,
+          })
+          .run();
+        this.invalidate(key);
+        snapshot = {
+          ...snapshot,
           id: newId,
-          userId: key.userId,
-          materialId: key.materialId,
           version: newVersion,
-          materialData: Buffer.from(bundledJson, 'utf8'),
+          contentSha: bundledSha,
           createdAt,
-        })
-        .run();
-      this.invalidate(key);
-      snapshot = {
-        ...snapshot,
-        id: newId,
-        version: newVersion,
-        materialData: Buffer.from(bundledJson, 'utf8'),
-        createdAt,
-      };
+        };
+      } catch (err) {
+        // Concurrent loads on the same (user, material) at bump time
+        // race the `uniq_graph_snapshots_user_material_version` insert.
+        // The winner already wrote the row we'd have written; re-fetch
+        // and continue with that row. Anything other than a UNIQUE
+        // violation propagates.
+        if (!isVersionUniqueViolation(err)) throw err;
+        const latest = getLatestSnapshot(this.db, key);
+        if (!latest) throw err;
+        this.invalidate(key);
+        snapshot = latest;
+      }
     }
 
     const k = userMaterialKey(key);
@@ -501,7 +556,7 @@ export class EngineStore {
       return this.acquire(cached);
     }
 
-    const materialJson = snapshot.materialData.toString('utf8');
+    const materialJson = bundledJson;
     const testStates = readTestStateEntries(this.db, key, materialJson);
     const configJson = readMaterialConfigJson(this.db, key);
     const engine = new WasmEngine(
@@ -563,7 +618,10 @@ export class EngineStore {
     const snapshot = getLatestSnapshot(this.db, key);
     if (!snapshot) throw new NotEnrolledError(key);
 
-    const materialJson = snapshot.materialData.toString('utf8');
+    // Use the current disk content; if it has drifted from snapshot.contentSha
+    // since the last load, replay against the new content. adaptElement
+    // inside readTestStateEntries handles known structural transforms.
+    const materialJson = this.loadBundledJson(key.materialId);
     const configJson = readMaterialConfigJson(this.db, key);
     const engine = new WasmEngine(
       materialJson,
