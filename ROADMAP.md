@@ -98,30 +98,42 @@ once the subdomain cutover happens) will need a Better Auth cookie strategy deci
 `SameSite=None` cookies vs bearer tokens. The natural moment to decide is when the subdomain cutover
 happens (see `docs/deployment.md` "Future: cutting over to subdomains").
 
-## Known tech debt
+## Phase 3 tech debt ✅
 
-Deferred items from Phase 3 — none block Phase 4 on day one, but each should land before real users
-exist.
+All six items deferred from Phase 3 have shipped. Listed for context — none are open.
 
 * [#13 EngineStore eviction (TTL/LRU + engine.free())](https://github.com/TommyAmberson/verse-vault/issues/13)
+  — shipped in api 0.1.20.
 * [#14 SessionStore eviction (idle reaper)](https://github.com/TommyAmberson/verse-vault/issues/14)
+  — closed as stale; `SessionStore` was absorbed into `EngineStore` + per-request `withLock`.
 * [#15 WASM delta export for edge/card state](https://github.com/TommyAmberson/verse-vault/issues/15)
+  — shipped in api 0.1.21. Turned out to be a pure TS-side fix: `replay_event`'s wire already
+  carried the data; the route handlers just weren't reading it.
 * [#16 Snapshot versioning + invalidation flow](https://github.com/TommyAmberson/verse-vault/issues/16)
+  — shipped in api 0.1.22. Auto-bumps via SHA comparison; `material_data` BLOB dropped from
+  `graph_snapshots` (loaded from disk on every engine build).
 * [#17 Retention tuning knob (per-user desiredRetention)](https://github.com/TommyAmberson/verse-vault/issues/17)
+  — shipped in api 0.1.19.
 * [#18 Engine mutation before DB transaction in sync POST](https://github.com/TommyAmberson/verse-vault/issues/18)
+  — shipped.
 
 ## Before public launch
 
-Near-term operational work that should land before real users exist. Not filed as issues yet —
-promote to issues when a phase picks them up.
+Near-term operational work for the run-up to real users. Not filed as issues — promote when a phase
+picks them up.
 
-* Content pipeline integration — wire the `tools/` Python scripts (Anki parsing, verse chunking)
-  into material enrollment so a new material produces a `graph_snapshots` row end-to-end
-* Observability — structured logging, request tracing, metrics (review throughput, engine load time,
-  cache hit rate)
-* Rate limiting + abuse controls — per-user/IP limits on review endpoints
-* Database backups + migration testing — file-based SQLite on a VPS needs a backup story
-  (litestream? periodic snapshots?) and a migration rehearsal process
+* ✅ **Observability** — structured JSON request log + `X-Request-Id` correlation. Shipped in api
+  0.1.24.
+* ✅ **Rate limiting + abuse controls** — per-IP token-bucket with two tiers (120 req/min general,
+  10 req/min for `/api/auth/*`). Shipped in api 0.1.24.
+* ✅ **Database backups + migration testing** — Litestream → Backblaze B2 (provisioned via
+  `deploy/provision.sh` phase 7). `deploy/restore-drill.sh` proves the chain restores end-to-end
+  with `PRAGMA integrity_check` + row-count diff vs live; `deploy/litestream-health.sh` reports
+  daemon liveness + last successful WAL ship. Migration rehearsal is implicit — every drill
+  exercises the same SQL the next deploy will run, against real-shape production data.
+* ⏸ **Content pipeline integration** — wire the `tools/` Python scripts (Anki parsing, verse
+  chunking) into material enrollment so a new material produces a `graph_snapshots` row end-to-end.
+  Currently `data/<materialId>.json` is hand-edited; we want a reproducible build.
 
 ## Future
 
