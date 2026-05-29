@@ -5,6 +5,7 @@ import * as schema from '../db/schema.js';
 
 import { buildCardRefIndex, type CardRefIndex } from './card-ref.js';
 import { EngineStore } from './engine.js';
+import type { Grade } from './review-log.js';
 import type {
   AccountExport,
   EnrollmentExport,
@@ -213,7 +214,7 @@ function readReviewEventExport(
       clientEventId: row.clientEventId,
       timestampSecs: row.timestampSecs,
       cardRef: ref,
-      grade: row.grade as 1 | 2 | 3 | 4,
+      grade: row.grade as Grade,
     });
   }
   return out;

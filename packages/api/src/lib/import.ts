@@ -21,6 +21,7 @@ import type {
   ImportSummary,
   MaterialExport,
 } from './export-format.js';
+import type { Grade } from './review-log.js';
 
 const SUPPORTED_EXPORT_VERSION = 1;
 const DEDUP_BATCH_SIZE = 500;
@@ -250,7 +251,7 @@ function applyReviewEvents(
     clientEventId: string;
     timestampSecs: number;
     cardId: number;
-    grade: 1 | 2 | 3 | 4;
+    grade: Grade;
   };
   const resolved: Resolved[] = [];
   let unresolved = 0;

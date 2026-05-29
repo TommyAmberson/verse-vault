@@ -38,7 +38,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from audit_colpkg import extract_collection, parse_clubs  # noqa: E402
+from audit_colpkg import ANKI_FIELD_SEP, extract_collection, parse_clubs  # noqa: E402
 from phrase_splitter.helpers import parse_reference  # noqa: E402
 
 EXPORT_VERSION = 1
@@ -119,8 +119,6 @@ def build_heading_index(
 
 
 # --- field parsers ------------------------------------------------------------
-
-ANKI_FIELD_SEP = "\x1f"
 
 # Heading-note Sort field looks like "2-01-001-018,001-025": that's
 # year-book-chapter-startVerse,endChapter-endVerse. We only need the
@@ -340,12 +338,7 @@ def build_export(
     nid_any_graduated: Dict[int, bool] = {}
     for nid, cid, queue, ord_, _mid, notetype, flds in cur:
         nid_to_meta[nid] = (notetype, flds)
-        cards_by_id[cid] = {
-            "nid": nid,
-            "queue": queue,
-            "ord": ord_,
-            "notetype": notetype,
-        }
+        cards_by_id[cid] = {"nid": nid, "ord": ord_}
         if queue in GRADUATED_QUEUES:
             nid_any_graduated[nid] = True
         else:
