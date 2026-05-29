@@ -131,9 +131,13 @@ picks them up.
   with `PRAGMA integrity_check` + row-count diff vs live; `deploy/litestream-health.sh` reports
   daemon liveness + last successful WAL ship. Migration rehearsal is implicit — every drill
   exercises the same SQL the next deploy will run, against real-shape production data.
-* ⏸ **Content pipeline integration** — wire the `tools/` Python scripts (Anki parsing, verse
-  chunking) into material enrollment so a new material produces a `graph_snapshots` row end-to-end.
-  Currently `data/<materialId>.json` is hand-edited; we want a reproducible build.
+* **Content pipeline integration** — moot in the form originally framed; no external source to
+  import. Anki `.colpkg` was a one-time bootstrap to reuse hand-typed work for the year-1–8 catalog;
+  canonical verse text (NKJV + NIV) comes from api.bible at runtime. Phrase boundaries and
+  annotations are editorial judgments without a canonical source — the `tools/*.py` scripts (phrase
+  splitter + judge, FTV finder, keyword auditor) help maintain them but don't replace human review.
+  The eight year decks in `data/` ARE the canonical store. Ongoing quality work on phrase splits and
+  multi-translation accuracy happens via PR on those files; nothing in enrollment depends on it.
 
 ## Future
 
