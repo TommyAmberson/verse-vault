@@ -1,0 +1,17 @@
+-- Backfill physical storage for `user_year_settings.desired_retention`.
+--
+-- Migration 0018 added the column as `REAL DEFAULT 0.9 NOT NULL`. SQLite's
+-- ALTER TABLE ADD COLUMN doesn't physically write the DEFAULT into rows
+-- that pre-existed the migration — the default is applied at SELECT time.
+-- `PRAGMA integrity_check` (which inspects raw storage) flags these rows
+-- as NOT NULL violations even though every SELECT against them returns
+-- 0.9, and `UPDATE ... WHERE desired_retention IS NULL` matches nothing
+-- (the WHERE clause evaluates against the read-time value).
+--
+-- Discovered when `deploy/restore-drill.sh` (PR #79) ran integrity_check
+-- against a fresh restore from B2. Live prod had the same condition.
+--
+-- COALESCE through the write path is the documented fix: even though the
+-- read-side value is 0.9 (from the DEFAULT), the write rewrites the row
+-- with a literal 0.9 in storage.
+UPDATE `user_year_settings` SET `desired_retention` = COALESCE(`desired_retention`, 0.9);
