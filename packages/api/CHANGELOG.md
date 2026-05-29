@@ -38,11 +38,15 @@ years of memorization history into verse-vault from their existing `.colpkg` bac
   the now-augmented event log — no engine-state copying. Body capped at 50 MB via hono's
   `body-limit`.
 * **Settings merge policy**: per-row `max(updatedAt)` wins. Locally-tuned settings aren't blown away
-  by an older imported row, and re-import of the same payload is a no-op.
+  by an older imported row, and re-import of the same payload is a no-op. Imported settings run
+  through the same bound/enum validation as the `PUT /api/years/:id/settings` route (extracted to
+  `lib/year-settings.ts`); an out-of-range value is rejected with a 400 rather than written
+  verbatim.
 * **`tools/anki_to_export.py`** — reads a `.colpkg`, maps the 3 Verse template ords to Citation /
   Recitation / Ftv, Heading notes to HeadingPassage, Key Verse List to ChapterClubList. Graduation
   rule (per spec): any Verse note with ANY of its 3 cards in Anki queue ≥ 2 graduates the verse;
-  same rule for HP / CCL goes through `graduatedCards`. `clientEventId` is
+  same rule for HP / CCL goes through `graduatedCards`, and the graduation timestamp is the earliest
+  _passing_ review (not the first time the card was seen). `clientEventId` is
   `anki:<col-mod>:<revlog-id>` so re-running the converter is idempotent on import. Output uploads
   directly to `/api/import`.
 
