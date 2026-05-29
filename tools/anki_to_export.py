@@ -38,7 +38,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from audit_colpkg import ANKI_FIELD_SEP, extract_collection, parse_clubs  # noqa: E402
+from audit_colpkg import (  # noqa: E402
+    ANKI_FIELD_SEP,
+    extract_collection,
+    open_collection_db,
+    parse_clubs,
+)
 from phrase_splitter.helpers import parse_reference  # noqa: E402
 
 EXPORT_VERSION = 1
@@ -194,18 +199,33 @@ def tier_name(n: int) -> str:
     return ""
 
 
+# Running graduation-timestamp state for a single card: (ts, passed).
+# `ts` is the chosen graduation timestamp so far; `passed` records
+# whether it came from a passing (grade≥3) row, which locks it in.
+GradState = Tuple[Optional[int], bool]
+
+
+def fold_graduation_ts(state: GradState, ts: int, grade: int) -> GradState:
+    """Fold one revlog row into a card's graduation-timestamp state,
+    given rows arrive in ascending-time order.
+
+    Rule: the graduation moment is the *earliest passing* review
+    (grade≥3) — that's when the card left learning for review rotation.
+    Until a pass is seen, track the latest row so a card that reached
+    queue≥2 without any recorded pass still falls back to its most
+    recent activity rather than its first.
+    """
+    current, passed = state
+    if passed:
+        # Earliest pass already locked in; nothing later can improve it.
+        return current, True
+    if grade >= 3:
+        return ts, True
+    # No pass yet — keep advancing the fallback to the latest row.
+    return ts, False
+
+
 # --- main conversion ----------------------------------------------------------
-
-
-def open_collection(db_path: str) -> sqlite3.Connection:
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    # The Anki collation; even read-only queries need it registered
-    # because sqlite re-parses indexed columns lazily.
-    con.create_collation(
-        "unicase",
-        lambda a, b: (a.casefold() > b.casefold()) - (a.casefold() < b.casefold()),
-    )
-    return con
 
 
 def read_col_mod(con: sqlite3.Connection) -> int:
@@ -295,16 +315,16 @@ def build_export(
     verse_indexes = {mid: build_verse_index(d) for mid, d in decks.items()}
     heading_indexes = {mid: build_heading_index(d) for mid, d in decks.items()}
 
-    con = open_collection(db_path)
+    con = open_collection_db(db_path)
     col_mod = read_col_mod(con)
 
     # nid → (materialId, CardRef) once resolved; cache so we don't
     # re-resolve per revlog row.
     note_resolution: Dict[int, Optional[Tuple[str, Dict[str, Any]]]] = {}
-    # (materialId, JSON-of-cardRef) → graduatedAtSecs (earliest ts
-    # where ease ∈ {3,4} for any card under that note). Falls back to
-    # the latest revlog row when no Good/Easy row exists but queue≥2.
-    graduations_per_material: Dict[str, Dict[str, int]] = {mid: {} for mid in materials}
+    # (materialId, JSON-of-cardRef) → GradState. Folded per revlog row
+    # via `fold_graduation_ts`: earliest passing (grade≥3) review wins,
+    # else the latest row. Reduced to a bare ts in the promote step.
+    graduations_per_material: Dict[str, Dict[str, GradState]] = {mid: {} for mid in materials}
     # (materialId, verseId) → graduatedAtSecs
     verse_graduations: Dict[str, Dict[int, int]] = {mid: {} for mid in materials}
     # materialId → list of {clientEventId, timestampSecs, cardRef, grade}
@@ -390,24 +410,22 @@ def build_export(
         )
         counters["events_emitted"] += 1
 
-        # First Good/Easy (or sufficient queue) wins as graduation ts.
-        # The rule: if any card under this Anki note is in queue≥2, we
-        # graduate it; ts is the earliest revlog row with ease≥3, or
-        # the max revlog row if no ease≥3 exists.
+        # If any card under this Anki note reached queue≥2, the note
+        # graduated; fold this row into the card's running graduation-ts
+        # state (earliest pass wins — see `fold_graduation_ts`).
         if nid_any_graduated.get(nid):
             ref_key = json.dumps(card_ref, sort_keys=True)
-            existing = graduations_per_material[material_id].get(ref_key)
-            if grade >= 3 and (existing is None or timestamp_secs < existing):
-                graduations_per_material[material_id][ref_key] = timestamp_secs
-            elif existing is None:
-                graduations_per_material[material_id][ref_key] = timestamp_secs
+            by_ref = graduations_per_material[material_id]
+            by_ref[ref_key] = fold_graduation_ts(
+                by_ref.get(ref_key, (None, False)), timestamp_secs, grade
+            )
 
     # Promote verse-bound graduated cards to a single graduatedVerses
     # entry per (material, verseId), per the user's rule: graduate the
     # whole verse if ANY of Reference/Quote/FTV reached queue≥2 in Anki.
     graduated_cards_per_material: Dict[str, List[Dict[str, Any]]] = {mid: [] for mid in materials}
     for material_id, by_ref in graduations_per_material.items():
-        for ref_key, ts in by_ref.items():
+        for ref_key, (ts, _passed) in by_ref.items():
             card_ref = json.loads(ref_key)
             kind = card_ref["kind"]
             if kind in ("Citation", "Recitation", "Ftv"):

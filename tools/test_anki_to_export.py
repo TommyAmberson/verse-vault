@@ -17,12 +17,22 @@ from anki_to_export import (  # noqa: E402
     VERSE_ORD_TO_KIND,
     build_heading_index,
     build_verse_index,
+    fold_graduation_ts,
     parse_heading_fields,
     parse_kvl_fields,
     parse_verse_fields,
     resolve_note,
     tier_name,
 )
+
+
+def fold_rows(rows):
+    """Fold a list of (ts, grade) rows (ascending) and return the chosen
+    graduation timestamp — mirrors how build_export reduces the state."""
+    state = (None, False)
+    for ts, grade in rows:
+        state = fold_graduation_ts(state, ts, grade)
+    return state[0]
 
 
 def f(*parts: str) -> str:
@@ -169,6 +179,25 @@ class ResolveNoteTests(unittest.TestCase):
             "Books", 0, "any\x1ffields", self.verse_indexes, self.heading_indexes
         )
         self.assertIsNone(out)
+
+
+class GraduationTimestampTests(unittest.TestCase):
+    def test_earliest_passing_review_wins(self):
+        # Learning failures first, then a Good — graduation ts is the
+        # first pass (300), not the first row (100).
+        self.assertEqual(fold_rows([(100, 1), (200, 2), (300, 3), (400, 3)]), 300)
+
+    def test_later_failures_do_not_override_earliest_pass(self):
+        # A lapse after graduating doesn't move the graduation moment.
+        self.assertEqual(fold_rows([(100, 3), (200, 1), (300, 3)]), 100)
+
+    def test_falls_back_to_latest_row_when_never_passed(self):
+        # queue≥2 but no recorded ease≥3 — fall back to the most recent
+        # activity, not the first.
+        self.assertEqual(fold_rows([(100, 1), (200, 2), (300, 1)]), 300)
+
+    def test_first_row_passing_is_kept(self):
+        self.assertEqual(fold_rows([(500, 4)]), 500)
 
 
 class ConstantTests(unittest.TestCase):
