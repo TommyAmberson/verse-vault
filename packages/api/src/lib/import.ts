@@ -1,6 +1,4 @@
-import { randomUUID } from 'node:crypto';
-
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
@@ -21,10 +19,13 @@ import type {
   ImportSummary,
   MaterialExport,
 } from './export-format.js';
-import type { Grade } from './review-log.js';
+import {
+  existingEventIds,
+  type ReviewEventInput,
+  writeReviewEvents,
+} from './review-log.js';
 
 const SUPPORTED_EXPORT_VERSION = 1;
-const DEDUP_BATCH_SIZE = 500;
 
 /** drizzle's `db.transaction` callback receives this narrower type;
  *  it shares the table-API surface (insert/update/select/delete) so
@@ -102,7 +103,7 @@ export async function applyAccountImport(
       const gradResult = applyGraduations(tx, key, material, index);
       summary.graduationsApplied += gradResult.applied;
       summary.unresolvedCardRefs += gradResult.unresolved;
-      const eventResult = applyReviewEvents(tx, key, material, index, snapshotVersion, nowSecs);
+      const eventResult = applyReviewEvents(tx, key, material, index, snapshotVersion);
       summary.eventsInserted += eventResult.inserted;
       summary.eventsSkipped += eventResult.skipped;
       summary.unresolvedCardRefs += eventResult.unresolved;
@@ -243,17 +244,10 @@ function applyReviewEvents(
   material: MaterialExport,
   index: CardRefIndex,
   snapshotVersion: number,
-  nowSecs: number,
 ): { inserted: number; skipped: number; unresolved: number } {
-  // Resolve all cardRefs up front so we can chunk the dedup query by
-  // clientEventId without re-walking the input list.
-  type Resolved = {
-    clientEventId: string;
-    timestampSecs: number;
-    cardId: number;
-    grade: Grade;
-  };
-  const resolved: Resolved[] = [];
+  // Resolve cardRefs to live cardIds, dropping any that don't exist in
+  // the importing snapshot, and shape each into a ReviewEventInput.
+  const resolved: ReviewEventInput[] = [];
   let unresolved = 0;
   for (const e of material.reviewEvents) {
     const cardId = resolveCardRef(index, e.cardRef);
@@ -262,61 +256,25 @@ function applyReviewEvents(
       continue;
     }
     resolved.push({
-      clientEventId: e.clientEventId,
+      userId: key.userId,
+      materialId: key.materialId,
+      snapshotVersion,
       timestampSecs: e.timestampSecs,
       cardId,
       grade: e.grade,
+      clientEventId: e.clientEventId,
     });
   }
 
-  // Dedup pre-existing clientEventIds in chunks of `DEDUP_BATCH_SIZE`
-  // to stay under SQLite's 999-param limit (same pattern as sync.ts).
-  const seen = new Set<string>();
-  for (let i = 0; i < resolved.length; i += DEDUP_BATCH_SIZE) {
-    const chunk = resolved.slice(i, i + DEDUP_BATCH_SIZE);
-    const rows = tx
-      .select({ clientEventId: schema.reviewEvents.clientEventId })
-      .from(schema.reviewEvents)
-      .where(
-        and(
-          eq(schema.reviewEvents.userId, key.userId),
-          eq(schema.reviewEvents.materialId, key.materialId),
-          inArray(
-            schema.reviewEvents.clientEventId,
-            chunk.map((r) => r.clientEventId),
-          ),
-        ),
-      )
-      .all();
-    for (const r of rows) seen.add(r.clientEventId);
-  }
-
+  const seen = existingEventIds(
+    tx,
+    key.userId,
+    key.materialId,
+    resolved.map((r) => r.clientEventId),
+  );
   const fresh = resolved.filter((r) => !seen.has(r.clientEventId));
-  const skipped = resolved.length - fresh.length;
 
-  // Bulk insert. drizzle's .values([]) accepts arrays; better-sqlite3
-  // handles a few hundred rows per multi-VALUES insert comfortably.
-  if (fresh.length > 0) {
-    const INSERT_BATCH = 200;
-    for (let i = 0; i < fresh.length; i += INSERT_BATCH) {
-      const chunk = fresh.slice(i, i + INSERT_BATCH);
-      tx.insert(schema.reviewEvents)
-        .values(
-          chunk.map((r) => ({
-            id: randomUUID(),
-            userId: key.userId,
-            materialId: key.materialId,
-            snapshotVersion,
-            timestampSecs: r.timestampSecs,
-            cardId: r.cardId,
-            grade: r.grade,
-            clientEventId: r.clientEventId,
-            createdAt: nowSecs,
-          })),
-        )
-        .run();
-    }
-  }
+  writeReviewEvents(tx, fresh);
 
-  return { inserted: fresh.length, skipped, unresolved };
+  return { inserted: fresh.length, skipped: resolved.length - fresh.length, unresolved };
 }
