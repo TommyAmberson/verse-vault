@@ -12,7 +12,20 @@ export interface SessionVariables {
   user: SessionUser | null;
 }
 
-export function sessionMiddleware(auth: Auth): MiddlewareHandler<{ Variables: SessionVariables }> {
+/** Superset of `SessionVariables` used by `app.ts` itself — the
+ *  observability middleware adds `requestId` for cross-handler
+ *  correlation. Route files keep using `SessionVariables` so the
+ *  observability addition stays a non-breaking type change. */
+export interface AppVariables extends SessionVariables {
+  requestId: string;
+}
+
+/** Generic over any Variables shape that contains `user`. Lets `app.ts`
+ *  use the wider `AppVariables` (adds `requestId`) without losing
+ *  assignability when passing the Context through. */
+export function sessionMiddleware<
+  E extends { Variables: SessionVariables },
+>(auth: Auth): MiddlewareHandler<E> {
   return async (c, next) => {
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     if (session?.user) {
@@ -28,7 +41,9 @@ export function sessionMiddleware(auth: Auth): MiddlewareHandler<{ Variables: Se
   };
 }
 
-export function requireAuth(): MiddlewareHandler<{ Variables: SessionVariables }> {
+export function requireAuth<
+  E extends { Variables: SessionVariables },
+>(): MiddlewareHandler<E> {
   return async (c, next) => {
     if (!c.get('user')) {
       return c.json({ error: 'Authentication required' }, 401);

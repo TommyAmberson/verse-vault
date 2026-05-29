@@ -392,6 +392,53 @@ Stability buckets (days): `weak < 1`, `learning [1, 7)`, `familiar [7, 30)`, `st
 | 404    | material id unknown, or caller not enrolled in the requested material, or card id unknown            |
 | 409    | sync batch uses a stale `snapshotVersion`, or already-enrolled on `/enroll`                          |
 | 413    | sync batch exceeds the 500-event cap                                                                 |
+| 429    | rate limit exceeded; `Retry-After` header carries integer seconds until next allowed request         |
 | 500    | engine threw on `replay_event` / `get_card_render` (unknown card id, malformed state) — caller's bug |
 
 All error bodies follow `{ "error": "..." }`.
+
+## Rate limiting
+
+The API runs an in-memory token-bucket per client IP. Defaults:
+
+| tier                 | limit       | applies to                                        |
+| -------------------- | ----------- | ------------------------------------------------- |
+| authed               | 120 req/min | every route except `/health` and the two below    |
+| unauthed (auth-flow) | 10 req/min  | `/api/auth/*` — defangs credential-stuffing loops |
+| exempt               | —           | `/health` (no bucket, no 429)                     |
+
+Bucket key is the client IP (`CF-Connecting-IP` in production behind the Cloudflare Tunnel,
+`X-Forwarded-For` first hop in dev, `unknown` if neither is present). Per-user keying is a follow-up
+if NAT'd users start tripping limits — siblings sharing a NAT currently share a bucket.
+
+Failed Better Auth attempts (e.g. 401 from `/api/auth/sign-in/email` with a bad password) still
+consume a token. That's intentional brute-force protection.
+
+Tuneable via env vars at boot:
+
+* `RATE_LIMIT_AUTHED_PER_MIN` — default 120.
+* `RATE_LIMIT_UNAUTHED_PER_MIN` — default 10.
+
+Garbage values (non-integer, non-positive) fall back to the defaults. Limits are per single API
+instance with no distributed coordination; a horizontal scale-out will need a shared store.
+
+## Request logging
+
+Every non-`OPTIONS` request emits one JSON-line log to stdout (captured into journald via the
+systemd unit). Shape:
+
+```json
+{
+  "requestId": "uuid-v4",
+  "userId": "user-id or null",
+  "ip": "1.2.3.4 or 'unknown'",
+  "method": "GET",
+  "path": "/api/cards/...",
+  "status": 200,
+  "durationMs": 47
+}
+```
+
+Additional fields when present: `rateLimited: true` on a 429, `error: "<message>"` when a handler
+threw. The `requestId` is also returned on every response in the `X-Request-Id` header so clients
+can quote it in support requests. `OPTIONS` preflights are intentionally not logged.

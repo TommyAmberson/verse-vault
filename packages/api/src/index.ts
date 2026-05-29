@@ -12,6 +12,14 @@ function requireEnv(name: string): string {
   return value;
 }
 
+/** Parse a per-minute rate-limit knob from an env var. Falls back to
+ *  the default if unset, non-numeric, or non-positive — bad input
+ *  should be safe, not crash boot. */
+function rateLimitPerMin(envVar: string, defaultPerMin: number): number {
+  const parsed = Number.parseInt(process.env[envVar] ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultPerMin;
+}
+
 // Validate env before touching the filesystem — if secrets are missing we
 // don't want to have already opened a DB / run a migration.
 const authEnv = {
@@ -30,6 +38,12 @@ const authEnv = {
 const dbPath = process.env.DATABASE_PATH ?? resolve(import.meta.dirname, '../data/verse-vault.db');
 runMigrations(dbPath);
 
+// Rate-limit knobs read once each — derives both capacity and refillPerSec
+// from the same per-minute number so they can't drift apart on a future
+// edit.
+const authedPerMin = rateLimitPerMin('RATE_LIMIT_AUTHED_PER_MIN', 120);
+const unauthedPerMin = rateLimitPerMin('RATE_LIMIT_UNAUTHED_PER_MIN', 10);
+
 const { app, engines } = createApp({
   db: createDb(dbPath),
   authEnv,
@@ -44,6 +58,12 @@ const { app, engines } = createApp({
   dialect: ['american', 'british', 'canadian'].includes(process.env.RENDER_DIALECT ?? '')
     ? (process.env.RENDER_DIALECT as 'american' | 'british' | 'canadian')
     : 'canadian',
+  // Rate-limit tuneables. Defaults from middleware/observability.ts:
+  // 120 req/min for general traffic, 10 req/min for /api/auth/*.
+  observability: {
+    authedTier: { capacity: authedPerMin, refillPerSec: authedPerMin / 60 },
+    unauthedAuthTier: { capacity: unauthedPerMin, refillPerSec: unauthedPerMin / 60 },
+  },
 });
 
 // Start the EngineStore idle reaper here, not in createApp — tests
