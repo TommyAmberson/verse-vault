@@ -6,6 +6,19 @@ import * as schema from '../db/schema.js';
 import type { EngineStore } from '../lib/engine.js';
 import { AlreadyEnrolledError, enrollUser, isEnrolled } from '../lib/enrollment.js';
 import { MATERIALS } from '../lib/materials.js';
+import {
+  CHAPTER_LIST_SCOPES,
+  type ChapterListScope,
+  DEFAULT_LESSON_BATCH_SIZE,
+  ensureBatchSize,
+  ensureBoolean,
+  ensureEnum,
+  ensureRetention,
+  TIER_SCOPES,
+  type TierScope,
+  ValidationError,
+  type YearSettings,
+} from '../lib/year-settings.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface YearsRoutesDeps {
@@ -15,34 +28,9 @@ export interface YearsRoutesDeps {
 }
 
 export type ClubStatus = 'active' | 'maintenance' | 'paused';
-export type TierScope = 'off' | 'up150' | 'up300' | 'all';
-export type ChapterListScope = 'off' | 'up150' | 'up300';
 type ClubTier = '150' | '300' | 'full';
 
-const TIER_SCOPES: readonly TierScope[] = ['off', 'up150', 'up300', 'all'];
-const CHAPTER_LIST_SCOPES: readonly ChapterListScope[] = ['off', 'up150', 'up300'];
 const CLUB_TIERS: readonly ClubTier[] = ['150', '300', 'full'];
-
-const DEFAULT_LESSON_BATCH_SIZE = 3;
-const MIN_LESSON_BATCH_SIZE = 1;
-const MAX_LESSON_BATCH_SIZE = 10;
-
-// FSRS-author recommended bounds: below 0.7 lets too much fade between
-// reviews; above 0.97 explodes review count for marginal recall gains.
-const MIN_DESIRED_RETENTION = 0.7;
-const MAX_DESIRED_RETENTION = 0.97;
-
-interface YearSettings {
-  headingCard: boolean;
-  headingPassageCard: boolean;
-  ftv: boolean;
-  newScope: TierScope;
-  reviewScope: TierScope;
-  clubCardScope: TierScope;
-  chapterListScope: ChapterListScope;
-  lessonBatchSize: number;
-  desiredRetention: number;
-}
 
 interface ClubView {
   /** Effective per-tier status derived from active_scope and
@@ -89,55 +77,6 @@ interface ClubCounts {
   Club150?: number;
   Club300?: number;
   Full?: number;
-}
-
-class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
-
-function ensureBoolean(value: unknown, field: string): boolean {
-  if (typeof value !== 'boolean') {
-    throw new ValidationError(`${field} must be a boolean`);
-  }
-  return value;
-}
-
-function ensureBatchSize(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isInteger(value)) {
-    throw new ValidationError('lessonBatchSize must be an integer');
-  }
-  if (value < MIN_LESSON_BATCH_SIZE || value > MAX_LESSON_BATCH_SIZE) {
-    throw new ValidationError(
-      `lessonBatchSize must be between ${MIN_LESSON_BATCH_SIZE} and ${MAX_LESSON_BATCH_SIZE}`,
-    );
-  }
-  return value;
-}
-
-function ensureRetention(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new ValidationError('desiredRetention must be a number');
-  }
-  if (value < MIN_DESIRED_RETENTION || value > MAX_DESIRED_RETENTION) {
-    throw new ValidationError(
-      `desiredRetention must be between ${MIN_DESIRED_RETENTION} and ${MAX_DESIRED_RETENTION}`,
-    );
-  }
-  return value;
-}
-
-function ensureEnum<T extends string>(
-  value: unknown,
-  field: string,
-  allowed: readonly T[],
-): T {
-  if (typeof value !== 'string' || !allowed.includes(value as T)) {
-    throw new ValidationError(`${field} must be one of: ${allowed.join(', ')}`);
-  }
-  return value as T;
 }
 
 function tierScopeIncludes(scope: TierScope, tier: ClubTier): boolean {

@@ -330,4 +330,51 @@ describe('applyAccountImport', () => {
       engines.clear();
     }
   });
+
+  it('rejects an import whose settings violate the year-settings bounds', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: MATERIAL_ID });
+
+    const payload: AccountExport = {
+      exportVersion: 1,
+      exportedAt: NOW,
+      user: { email: 'u1@example.com', name: 'u1' },
+      materials: [
+        {
+          materialId: MATERIAL_ID,
+          enrollment: { clubTier: null, offlineMode: false, createdAt: NOW },
+          settings: {
+            headingCard: false,
+            headingPassageCard: false,
+            ftv: false,
+            newScope: 'off',
+            reviewScope: 'off',
+            clubCardScope: 'off',
+            chapterListScope: 'off',
+            lessonBatchSize: 1,
+            // Out of the FSRS-author bounds [0.7, 0.97] — must be rejected,
+            // not written verbatim.
+            desiredRetention: 5,
+            updatedAt: NOW,
+          },
+          snapshot: { version: 1, contentSha: '' },
+          graduatedVerses: [],
+          graduatedCards: [],
+          reviewEvents: [],
+        },
+      ],
+    };
+
+    const engines = new EngineStore(test.db);
+    try {
+      await expect(applyAccountImport(test.db, engines, 'u1', payload, NOW)).rejects.toThrow(
+        ImportValidationError,
+      );
+      // Nothing should have been written for the bad row.
+      expect(test.db.select().from(schema.userYearSettings).all()).toHaveLength(0);
+    } finally {
+      engines.clear();
+    }
+  });
 });

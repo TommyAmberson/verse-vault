@@ -24,6 +24,11 @@ import {
   type ReviewEventInput,
   writeReviewEvents,
 } from './review-log.js';
+import {
+  ValidationError,
+  validateYearSettings,
+  type YearSettings,
+} from './year-settings.js';
 
 const SUPPORTED_EXPORT_VERSION = 1;
 
@@ -161,18 +166,23 @@ function applySettings(
   // user has tuned settings since the export was taken, leave them be.
   if (existing && existing.updatedAt >= material.settings.updatedAt) return;
 
+  // Validate the uploaded settings with the same rules the year-settings
+  // route enforces — an import payload is no more trusted than a request
+  // body. A bad enum/bound surfaces as a 400, not a corrupt row.
+  let validated: YearSettings;
+  try {
+    validated = validateYearSettings(material.settings);
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      throw new ImportValidationError(`settings for ${key.materialId}: ${err.message}`);
+    }
+    throw err;
+  }
+
   const row = {
     userId: key.userId,
     materialId: key.materialId,
-    headingCard: material.settings.headingCard,
-    headingPassageCard: material.settings.headingPassageCard,
-    ftv: material.settings.ftv,
-    newScope: material.settings.newScope,
-    reviewScope: material.settings.reviewScope,
-    clubCardScope: material.settings.clubCardScope,
-    chapterListScope: material.settings.chapterListScope,
-    lessonBatchSize: material.settings.lessonBatchSize,
-    desiredRetention: material.settings.desiredRetention,
+    ...validated,
     // Use the export-recorded `updatedAt` verbatim. It's the next-merge
     // anchor: a later re-import with the same anchor is a no-op, and
     // any local tweak after this row goes in stamps a newer ts via the
