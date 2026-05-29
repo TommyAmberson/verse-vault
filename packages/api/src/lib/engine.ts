@@ -213,6 +213,26 @@ export function readGraduatedVerseIds(db: DB, key: EngineKey): number[] {
     .map((r) => r.verseId);
 }
 
+/** Card ids the user has graduated individually for this material —
+ *  HeadingPassage, ChapterClubList, and the conditional verse-bound
+ *  kinds that don't ride along with `graduate_verse`. Replayed by
+ *  `EngineStore.load` + `rebuildFromEvents` alongside the verse
+ *  graduations, and surfaced on the sync /state response so fat
+ *  clients can replay the same way after a fresh build. */
+export function readGraduatedCardIds(db: DB, key: EngineKey): number[] {
+  return db
+    .select({ cardId: schema.graduatedCards.cardId })
+    .from(schema.graduatedCards)
+    .where(
+      and(
+        eq(schema.graduatedCards.userId, key.userId),
+        eq(schema.graduatedCards.materialId, key.materialId),
+      ),
+    )
+    .all()
+    .map((r) => r.cardId);
+}
+
 export function readTestStateEntries(
   db: DB,
   key: EngineKey,
@@ -324,8 +344,14 @@ export class EngineStore {
 
     // Cards built from MaterialData start as `New`; apply every recorded
     // graduation so the in-memory engine matches the user's actual progress.
+    // Verse-bulk first, then per-card — order doesn't matter for state
+    // (graduate_card is a single-card no-op once Active) but it mirrors
+    // the persistence ordering.
     for (const verseId of readGraduatedVerseIds(this.db, key)) {
       engine.graduate_verse(verseId);
+    }
+    for (const cardId of readGraduatedCardIds(this.db, key)) {
+      engine.graduate_card(cardId);
     }
 
     const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
@@ -369,6 +395,9 @@ export class EngineStore {
     // matters for parity with the live-load path, not correctness.
     for (const verseId of readGraduatedVerseIds(this.db, key)) {
       engine.graduate_verse(verseId);
+    }
+    for (const cardId of readGraduatedCardIds(this.db, key)) {
+      engine.graduate_card(cardId);
     }
 
     // Chronological replay. Tiebreak on clientEventId so two events with

@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
-import { graduatedVerses } from '../db/schema.js';
+import { graduatedCards, graduatedVerses } from '../db/schema.js';
 import { ApibibleCache, DEFAULT_NKJV_BIBLE_ID } from '../lib/apibible-cache.js';
 import { EngineStore, NotEnrolledError, type TestStateEntry } from '../lib/engine.js';
 import { bookCodeOf } from '../lib/book-codes.js';
@@ -109,11 +109,11 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
       if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
       throw err;
     }
-    const verses = JSON.parse(loaded.engine.memorize_session(max)) as {
-      verseId: number;
-      cardIds: number[];
-    }[];
-    return c.json({ verses });
+    const session = JSON.parse(loaded.engine.memorize_session(max)) as {
+      verses: { verseId: number; cardIds: number[] }[];
+      orphans?: number[];
+    };
+    return c.json({ verses: session.verses, orphans: session.orphans ?? [] });
   });
 
   app.get('/:cardId{[0-9]+}', async (c) => {
@@ -286,6 +286,66 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
         .onConflictDoNothing()
         .run();
       return c.json({ graduated: count });
+    });
+  });
+
+  app.post('/memorize/graduate-card', async (c) => {
+    let body: { materialId?: string; cardId?: number };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'invalid JSON body' }, 400);
+    }
+    if (typeof body.materialId !== 'string') {
+      return c.json({ error: 'materialId required' }, 400);
+    }
+    if (typeof body.cardId !== 'number' || !Number.isInteger(body.cardId)) {
+      return c.json({ error: 'cardId required (integer)' }, 400);
+    }
+    const user = getUser(c);
+    const materialId = body.materialId;
+    const cardId = body.cardId;
+    const key = { userId: user.id, materialId };
+    let loaded;
+    try {
+      loaded = await deps.engines.load(key);
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
+      throw err;
+    }
+
+    const nowSecs = now();
+    return deps.engines.withLock(key, async () => {
+      const flipped = loaded.engine.graduate_card(cardId);
+      if (!flipped) {
+        // Distinguish "already graduated" (idempotent, row exists) from
+        // "unknown card" (404). `graduated_cards` plus the verse-bulk
+        // path together cover every graduated card; check both.
+        const existingCard = deps.db
+          .select({ cardId: graduatedCards.cardId })
+          .from(graduatedCards)
+          .where(
+            and(
+              eq(graduatedCards.userId, user.id),
+              eq(graduatedCards.materialId, materialId),
+              eq(graduatedCards.cardId, cardId),
+            ),
+          )
+          .get();
+        if (existingCard) return c.json({ graduated: false });
+        // Not in graduated_cards. Either the card_id doesn't exist or
+        // its verse was bulk-graduated via graduate_verse (no-op here).
+        if (!loaded.engine.has_card(cardId)) {
+          return c.json({ error: 'Unknown card' }, 404);
+        }
+        return c.json({ graduated: false });
+      }
+      deps.db
+        .insert(graduatedCards)
+        .values({ userId: user.id, materialId, cardId, graduatedAtSecs: nowSecs })
+        .onConflictDoNothing()
+        .run();
+      return c.json({ graduated: true });
     });
   });
 

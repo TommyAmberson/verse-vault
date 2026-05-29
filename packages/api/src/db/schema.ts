@@ -235,9 +235,13 @@ export const testStates = sqliteTable(
 );
 
 // Per-user verse-graduation log. Drives the engine's `CardState::Active`
-// flip after a user walks the memorize progression for a verse. Cards
-// rebuilt from MaterialData start as `New`; on engine load we apply
-// `graduate_verse(verseId)` for every row in this table.
+// flip for the unconditional verse-bound kinds after a user walks the
+// memorize progression for a verse. Cards rebuilt from MaterialData
+// start as `New`; on engine load we apply `graduate_verse(verseId)`
+// for every row in this table. Conditional and multi-verse kinds
+// (Ftv, VerseInHeading, VerseInClub, HeadingPassage, ChapterClubList)
+// graduate via the per-card path in `graduated_cards` instead — see
+// `verse-vault-core@0.5.0` for why.
 export const graduatedVerses = sqliteTable(
   'graduated_verses',
   {
@@ -250,6 +254,25 @@ export const graduatedVerses = sqliteTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.materialId, t.verseId] }),
+  }),
+);
+
+// Per-card graduation log. Backs the per-card path for HeadingPassage,
+// ChapterClubList, and the conditional verse-bound kinds. On engine
+// load we apply `graduate_card(cardId)` for every row alongside the
+// `graduate_verse` replay from `graduated_verses`.
+export const graduatedCards = sqliteTable(
+  'graduated_cards',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    cardId: integer('card_id').notNull(),
+    graduatedAtSecs: integer('graduated_at_secs').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.materialId, t.cardId] }),
   }),
 );
 

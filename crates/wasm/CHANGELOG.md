@@ -22,6 +22,39 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-05-28
+
+Lockstep bump for `verse-vault-core@0.5.0` (per-card graduations). `WasmEngine.memorize_session`
+reshapes to surface `HeadingPassage`, `ChapterClubList`, and orphan conditional cards as standalone
+session items the web client walks through steps 1 / 2 / 3 of the memorize flow.
+`WasmEngine.graduate_card` is exposed so those cards graduate independently of any `graduate_verse`
+call. MAJOR per this changelog's rubric — `memorize_session`'s top-level shape changes from
+`Entry[]` to `{ verses: Entry[], orphans: number[] }`, and HP/CCL ids no longer fold into
+`Entry.cardIds`.
+
+### Added
+
+* `WasmEngine.graduate_card(card_id) -> bool` — exposes `ReviewEngine::graduate_card`. Returns
+  whether the card transitioned `New → Active`. Idempotent.
+* `memorize_session` `Entry.hpCardId` / `Entry.cclCardId: number | undefined` — the `HeadingPassage`
+  / `ChapterClubList` card placed immediately after this verse in the reading walkthrough. Omitted
+  (not `null`) when no card attaches here.
+* `memorize_session` top-level `orphans: number[]` — standalone cards that don't anchor to a
+  session-verse: HP/CCL overflow plus conditional verse-bound kinds (`Ftv`, `VerseInHeading`,
+  `VerseInClub`) `New` on already-Active verses (deduped by `heading_idx` / `tier`). Each kind is
+  capped at the call's `limit`, so a session with no fresh verses still honours the configured
+  session max via orphans alone. Omitted when empty.
+
+### Changed
+
+* `memorize_session` returns `{ verses, orphans }` instead of a bare array.
+* `memorize_session` `Entry.cardIds` no longer includes `HeadingPassage` or `ChapterClubList` ids;
+  those live in `hpCardId` / `cclCardId`. Verse-bound conditional kinds on fresh session-verses
+  still appear here (drilled alongside the verse), but graduate independently via `graduate_card`.
+* `memorize_session` `verse_order` now only includes verses with at least one `New` unconditional
+  verse-bound card. A verse whose only `New` cards are conditional orphans (post-settings-flip)
+  doesn't anchor a session-verse; its cards distribute through the top-level `orphans` list.
+
 ## [0.4.0] — 2026-05-28
 
 Lockstep bump for `verse-vault-core@0.4.0`. `WasmEngine.new_card_count` now delegates to the core

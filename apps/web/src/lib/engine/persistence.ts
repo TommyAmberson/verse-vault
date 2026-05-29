@@ -166,6 +166,10 @@ export interface SnapshotRow {
    *  written before the field existed read back as undefined and are
    *  treated as an empty list. */
   graduatedVerseIds?: number[]
+  /** Card ids graduated individually — HP, CCL, and the conditional
+   *  verse-bound kinds since `verse-vault-core@0.5.0`. Same lifecycle
+   *  + back-compat treatment as `graduatedVerseIds`. */
+  graduatedCardIds?: number[]
 }
 
 export async function getSnapshot(materialId: string): Promise<SnapshotRow | undefined> {

@@ -124,6 +124,7 @@ export async function loadEngine(
       materialData: fetched.snapshot.materialData,
       fetchedAt: nowSecs,
       graduatedVerseIds: fetched.graduatedVerseIds,
+      graduatedCardIds: fetched.graduatedCardIds,
     }
     testStates = fetched.testStates
     await idb.putSnapshot(snapshot)
@@ -137,7 +138,7 @@ export async function loadEngine(
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
   })
-  applyGraduations(engine, snapshot.graduatedVerseIds)
+  applyGraduations(engine, snapshot.graduatedVerseIds, snapshot.graduatedCardIds)
 
   const session: EngineSession = {
     materialId,
@@ -160,6 +161,7 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
     materialData: fetched.snapshot.materialData,
     fetchedAt: nowSecs,
     graduatedVerseIds: fetched.graduatedVerseIds,
+    graduatedCardIds: fetched.graduatedCardIds,
   })
   await idb.replaceAllTestStates(session.materialId, fetched.testStates)
   // Snapshot version moved — invalidate the render cache wholesale; the
@@ -175,16 +177,19 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
     desiredRetention: DEFAULT_DESIRED_RETENTION,
     nowSecs,
   })
-  applyGraduations(session.engine, fetched.graduatedVerseIds)
+  applyGraduations(session.engine, fetched.graduatedVerseIds, fetched.graduatedCardIds)
   session.snapshotVersion = fetched.snapshot.version
 }
 
-/** Flip each graduated verse from `New` to `Active`. Cards default to
- *  `New` when the engine is built from materialData + testStates, so
- *  this call mirrors what `EngineStore.load` does server-side and
- *  keeps the in-memory engine consistent across page reloads. */
-function applyGraduations(engine: WasmEngine, verseIds: number[] | undefined): void {
+/** Replay the user's graduation log onto a freshly-built engine so its
+ *  card state matches what `EngineStore.load` produces server-side. */
+function applyGraduations(
+  engine: WasmEngine,
+  verseIds: number[] | undefined,
+  cardIds: number[] | undefined,
+): void {
   for (const id of verseIds ?? []) engine.graduate_verse(id)
+  for (const id of cardIds ?? []) engine.graduate_card(id)
 }
 
 /** Apply a review grade locally and queue the event for sync. Returns
@@ -269,6 +274,44 @@ async function persistLocalGraduation(materialId: string, verseId: number): Prom
   await idb.putSnapshot({ ...snapshot, graduatedVerseIds: [...ids, verseId] })
 }
 
+/** Apply a single-card graduation locally and queue the event for
+ *  sync. Returns whether the card transitioned `New → Active` (false
+ *  on already-Active or unknown card). */
+export async function submitCardGraduation(
+  materialId: string,
+  cardId: number,
+  nowSecs: number,
+): Promise<boolean> {
+  const session = requireSession(materialId, 'submitCardGraduation')
+  const flipped = session.engine.graduate_card(cardId)
+
+  void idb
+    .appendQueuedEvent({
+      materialId,
+      kind: 'graduateCard',
+      clientEventId: crypto.randomUUID(),
+      timestampSecs: nowSecs,
+      snapshotVersion: session.snapshotVersion,
+      cardId,
+    })
+    .catch((e) => {
+      console.warn('engineStore.submitCardGraduation: queue append failed', e)
+    })
+
+  void persistLocalCardGraduation(materialId, cardId).catch((e) => {
+    console.warn('engineStore.submitCardGraduation: snapshot update failed', e)
+  })
+
+  return flipped
+}
+
+async function persistLocalCardGraduation(materialId: string, cardId: number): Promise<void> {
+  const snapshot = (await idb.getSnapshot(materialId))!
+  const ids = snapshot.graduatedCardIds ?? []
+  if (ids.includes(cardId)) return
+  await idb.putSnapshot({ ...snapshot, graduatedCardIds: [...ids, cardId] })
+}
+
 /** Look up the next due review card. */
 export function nextReviewCard(materialId: string, nowSecs: number): number | null {
   const session = requireSession(materialId, 'nextReviewCard')
@@ -279,19 +322,25 @@ export function nextReviewCard(materialId: string, nowSecs: number): number | nu
 interface MemorizeSessionEntry {
   verseId: number
   cardIds: number[]
+  conditionalCardIds?: number[]
   recitationCardId: number | null
+  hpCardId?: number
+  cclCardId?: number
 }
 
-/** Build a memorize session payload locally. The WASM engine returns
- *  a raw JSON array of `{ verseId, cardIds, recitationCardId }`; wrap
- *  it as `{ verses: [...] }` so the shape matches what the server's
- *  `/api/cards/memorize/session` route returns. */
+/** Build a memorize session payload locally. Mirrors the server's
+ *  `/api/cards/memorize/session` route. See `MemorizeSessionResponse`
+ *  in `@/api` for field semantics. */
 export function memorizeSession(
   materialId: string,
   limit: number,
-): { verses: MemorizeSessionEntry[] } {
+): { verses: MemorizeSessionEntry[]; orphans: number[] } {
   const session = requireSession(materialId, 'memorizeSession')
-  return { verses: JSON.parse(session.engine.memorize_session(limit)) }
+  const parsed = JSON.parse(session.engine.memorize_session(limit)) as {
+    verses: MemorizeSessionEntry[]
+    orphans?: number[]
+  }
+  return { verses: parsed.verses, orphans: parsed.orphans ?? [] }
 }
 
 export function newCardCount(materialId: string): number {
@@ -391,6 +440,15 @@ async function doFlush(
         timestampSecs: q.timestampSecs,
         snapshotVersion: q.snapshotVersion,
         verseId: q.verseId,
+      }
+    }
+    if (q.kind === 'graduateCard') {
+      return {
+        kind: 'graduateCard',
+        clientEventId: q.clientEventId,
+        timestampSecs: q.timestampSecs,
+        snapshotVersion: q.snapshotVersion,
+        cardId: q.cardId,
       }
     }
     return {

@@ -530,10 +530,102 @@ mod tests {
         assert!(count > 0);
         // Idempotent.
         assert_eq!(engine.graduate_verse(0), 0);
-        // After graduation /memorize empties for that verse and /review
-        // sees the cards.
+        // graduate_verse flips the unconditional set. Conditional kinds
+        // (here: Ftv) still need explicit graduate_card. Once everything
+        // is flipped /memorize empties and /review sees the cards.
+        let conditional_ids: Vec<crate::types::CardId> = engine
+            .cards
+            .iter()
+            .filter(|c| matches!(c.state, CardState::New))
+            .map(|c| c.id)
+            .collect();
+        for id in conditional_ids {
+            engine.graduate_card(id);
+        }
         assert!(next_memorize_card(&engine, 0).is_none());
         assert!(next_card(&engine, 86400 * 400).is_some());
+    }
+
+    #[test]
+    fn graduate_verse_skips_conditional_kinds_and_pseudos() {
+        // Two-verse Club150 chapter with a heading covering both, plus
+        // FTVs and the conditional meta-location toggles enabled. The
+        // builder emits Ftv, VerseInHeading, VerseInClub, plus the
+        // multi-verse pseudos HeadingPassage and ChapterClubList.
+        // graduate_verse must leave every conditional / pseudo card
+        // `New` — they're standalone session items now.
+        let m: MaterialData = serde_json::from_str(
+            r#"{
+                "year": 3,
+                "books": ["John"],
+                "chapters": [
+                    {"book": "John", "number": 3, "start_verse": 16, "end_verse": 17}
+                ],
+                "verses": [
+                    {"book": "John", "chapter": 3, "verse": 16, "phraseWordCounts": [2, 2], "annotations": [], "ftvWordCount": 2, "clubs": [150]},
+                    {"book": "John", "chapter": 3, "verse": 17, "phraseWordCounts": [2, 3], "annotations": [], "ftvWordCount": 2, "clubs": [150]}
+                ],
+                "headings": [{
+                    "book": "John",
+                    "startChapter": 3, "startVerse": 16,
+                    "endChapter": 3, "endVerse": 17
+                }]
+            }"#,
+        )
+        .unwrap();
+        let config = crate::material_config::MaterialConfig {
+            heading_card: true,
+            club_card_scope: crate::material_config::TierScope::All,
+            ..crate::material_config::MaterialConfig::default()
+        };
+        let r = crate::builder::build_with_config(&m, &config, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+
+        let conditional_ids: Vec<(crate::types::CardId, CardKind)> = engine
+            .cards
+            .iter()
+            .filter(|c| {
+                matches!(
+                    c.kind,
+                    CardKind::Ftv { .. }
+                        | CardKind::VerseInHeading { .. }
+                        | CardKind::VerseInClub { .. }
+                        | CardKind::HeadingPassage { .. }
+                        | CardKind::ChapterClubList { .. }
+                )
+            })
+            .map(|c| (c.id, c.kind))
+            .collect();
+        assert!(
+            !conditional_ids.is_empty(),
+            "expected at least one conditional/pseudo card in this fixture"
+        );
+
+        // Graduate both real verses; every conditional / pseudo card
+        // stays `New`.
+        engine.graduate_verse(0);
+        engine.graduate_verse(1);
+        for (id, kind) in &conditional_ids {
+            assert!(
+                matches!(engine.card(*id).unwrap().state, CardState::New),
+                "{kind:?} ({id:?}) should still be New after graduate_verse"
+            );
+        }
+
+        // graduate_card flips each one. Idempotent on a second call.
+        for (id, _) in &conditional_ids {
+            assert!(engine.graduate_card(*id));
+            assert!(!engine.graduate_card(*id));
+            assert!(matches!(engine.card(*id).unwrap().state, CardState::Active));
+        }
+    }
+
+    #[test]
+    fn graduate_card_returns_false_for_unknown_id() {
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        assert!(!engine.graduate_card(crate::types::CardId(u32::MAX)));
     }
 
     #[test]

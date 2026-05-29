@@ -194,6 +194,13 @@ export function useEngine() {
     return count
   }
 
+  async function submitCardGraduation(materialId: string, cardId: number) {
+    const flipped = await engineStore.submitCardGraduation(materialId, cardId, nowSecs())
+    await refreshCounts()
+    scheduleFlush()
+    return flipped
+  }
+
   function nextReviewCard(materialId: string): number | null {
     return engineStore.nextReviewCard(materialId, nowSecs())
   }
@@ -269,6 +276,7 @@ export function useEngine() {
     invalidate,
     submitGrade,
     submitGraduation,
+    submitCardGraduation,
     nextReviewCard,
     memorizeSession,
     newCardCount,

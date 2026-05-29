@@ -10,6 +10,39 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.19] — 2026-05-28
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — `graduate_verse` narrows to the unconditional verse-bound kinds; new
+  `graduate_card` flips a single card. HP, CCL, and conditional verse-bound kinds graduate per-card
+  now. Existing event replay produces a different end state for previously transitively-graduated
+  cards (they revert to New and re-surface in the next memorize session).
+* `verse-vault-wasm@0.5.0` — `memorize_session` returns `{ verses, orphans }`; HP/CCL ids surface
+  via `hpCardId` / `cclCardId` on each verse-entry instead of `cardIds`; orphan conditional cards
+  live in the top-level `orphans` list (per-kind cap = `limit`). New `WasmEngine.graduate_card`
+  export.
+
+### Per-card graduations
+
+New `graduated_cards` table (migration `0019_graduated_cards`) backs the per-card graduation path.
+`graduate_verse` flips only the unconditional verse-bound kinds (per `verse-vault-core@0.5.0`); HP,
+CCL, and the conditional verse-bound kinds (Ftv, VerseInHeading, VerseInClub) graduate via the new
+path.
+
+* **Engine load + rebuild** replay both tables: `graduate_verse` from `graduated_verses` then
+  `graduate_card` from `graduated_cards`. Existing data with conditional kinds previously flipped
+  transitively reverts on load — those cards surface as orphans in the next memorize session and
+  graduate explicitly.
+* **`POST /api/sync/:materialId/events`** accepts a new event kind:
+  `{ kind: 'graduateCard', cardId }`. Same client-event-id dedup, same `accepted` / `duplicates`
+  accounting as `graduate`.
+* **`GET /api/sync/:materialId/state`** gains `graduatedCardIds: number[]` alongside the existing
+  `graduatedVerseIds`, so fat clients can replay both paths after a fresh build.
+* **`POST /api/cards/memorize/graduate-card`** — single-card-graduation endpoint for the web
+  client's standalone HP / CCL / orphan items. Mirrors `/memorize/graduate`'s response shape
+  (`{ graduated: boolean }`).
+
 ### Per-(user, material) target retention
 
 `user_year_settings` gains a `desired_retention` REAL NOT NULL DEFAULT 0.9 column (migration
