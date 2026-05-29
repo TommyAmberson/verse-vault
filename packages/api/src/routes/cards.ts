@@ -6,7 +6,7 @@ import { Hono } from 'hono';
 import type { DB } from '../db/client.js';
 import { graduatedCards, graduatedVerses } from '../db/schema.js';
 import { ApibibleCache, DEFAULT_NKJV_BIBLE_ID } from '../lib/apibible-cache.js';
-import { EngineStore, NotEnrolledError, type TestStateEntry } from '../lib/engine.js';
+import { EngineStore, type TestStateEntry } from '../lib/engine.js';
 import { bookCodeOf } from '../lib/book-codes.js';
 import { type ComposedRender, composeRender } from '../lib/render.js';
 import { type Grade, persistEngineState } from '../lib/review-log.js';
@@ -85,13 +85,9 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     const materialId = c.req.query('materialId');
     if (!materialId) return c.json({ error: 'materialId required' }, 400);
     const user = getUser(c);
-    let loaded;
-    try {
-      loaded = await deps.engines.load({ userId: user.id, materialId });
-    } catch (err) {
-      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
-      throw err;
-    }
+    const raw = await deps.engines.tryLoad({ userId: user.id, materialId });
+    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    using loaded = raw;
     const cardId = loaded.engine.next_review_card(BigInt(now()));
     return c.json({ cardId: cardId ?? null });
   });
@@ -102,13 +98,9 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     const maxRaw = Number(c.req.query('max') ?? '1');
     const max = Number.isFinite(maxRaw) ? Math.max(1, Math.min(50, Math.floor(maxRaw))) : 1;
     const user = getUser(c);
-    let loaded;
-    try {
-      loaded = await deps.engines.load({ userId: user.id, materialId });
-    } catch (err) {
-      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
-      throw err;
-    }
+    const raw = await deps.engines.tryLoad({ userId: user.id, materialId });
+    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    using loaded = raw;
     const session = JSON.parse(loaded.engine.memorize_session(max)) as {
       verses: { verseId: number; cardIds: number[] }[];
       orphans?: number[];
@@ -121,13 +113,9 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     if (!materialId) return c.json({ error: 'materialId required' }, 400);
     const cardId = Number(c.req.param('cardId'));
     const user = getUser(c);
-    let loaded;
-    try {
-      loaded = await deps.engines.load({ userId: user.id, materialId });
-    } catch (err) {
-      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
-      throw err;
-    }
+    const raw = await deps.engines.tryLoad({ userId: user.id, materialId });
+    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    using loaded = raw;
     let renderWire: CardRenderWire;
     try {
       renderWire = JSON.parse(loaded.engine.get_card_render(cardId)) as CardRenderWire;
@@ -177,16 +165,15 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     }
     const user = getUser(c);
     const key = { userId: user.id, materialId: body.materialId };
-    let loaded;
-    try {
-      loaded = await deps.engines.load(key);
-    } catch (err) {
-      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
-      throw err;
-    }
+    const raw = await deps.engines.tryLoad(key);
+    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    using loaded = raw;
 
     const nowSecs = now();
-    return deps.engines.withLock(key, async () => {
+    // `return await` so the `using` dispose fires after the withLock
+    // callback resolves, not when the outer function returns the
+    // pending promise (which would drop refcount mid-callback).
+    return await deps.engines.withLock(key, async () => {
       let updates: TestUpdateWire[];
       try {
         updates = JSON.parse(
@@ -249,16 +236,12 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     const materialId = body.materialId;
     const verseId = body.verseId;
     const key = { userId: user.id, materialId };
-    let loaded;
-    try {
-      loaded = await deps.engines.load(key);
-    } catch (err) {
-      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
-      throw err;
-    }
+    const raw = await deps.engines.tryLoad(key);
+    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    using loaded = raw;
 
     const nowSecs = now();
-    return deps.engines.withLock(key, async () => {
+    return await deps.engines.withLock(key, async () => {
       const count = loaded.engine.graduate_verse(verseId);
       if (count === 0) {
         // Two cases collapse to a zero count: (a) already-graduated
@@ -306,16 +289,12 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     const materialId = body.materialId;
     const cardId = body.cardId;
     const key = { userId: user.id, materialId };
-    let loaded;
-    try {
-      loaded = await deps.engines.load(key);
-    } catch (err) {
-      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
-      throw err;
-    }
+    const raw = await deps.engines.tryLoad(key);
+    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    using loaded = raw;
 
     const nowSecs = now();
-    return deps.engines.withLock(key, async () => {
+    return await deps.engines.withLock(key, async () => {
       const flipped = loaded.engine.graduate_card(cardId);
       if (!flipped) {
         // Distinguish "already graduated" (idempotent, row exists) from

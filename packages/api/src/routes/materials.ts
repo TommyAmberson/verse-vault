@@ -143,13 +143,9 @@ export function materialsRoutes(deps: MaterialsRoutesDeps) {
       return c.json({ error: 'offlineMode not enabled for this material' }, 403);
     }
 
-    let loaded;
-    try {
-      loaded = await deps.engines.load({ userId: user.id, materialId });
-    } catch (err) {
-      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
-      throw err;
-    }
+    const raw = await deps.engines.tryLoad({ userId: user.id, materialId });
+    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    using loaded = raw;
     const wires = JSON.parse(loaded.engine.all_card_renders()) as CardRenderWire[];
 
     // No cache → degrade to the bare wire entries so test deps that
