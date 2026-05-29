@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { DB } from '../db/client.js';
 import { graphSnapshots, testStates as testStatesTable } from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { createTestDb, createTestUser } from '../test-utils.js';
@@ -304,5 +305,228 @@ describe('EngineStore', () => {
     await Promise.all([first, second]);
     expect(order).toEqual([1, 2, 3, 4]);
     store.clear();
+  });
+});
+
+describe('EngineStore eviction', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  function seed(db: DB, userId: string, materialId = 'nkjv-cor') {
+    seedUserWithFixture({ db, userId, materialId });
+  }
+
+  it('LRU evicts the least-recently-used entry when over the cap', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seed(test.db, 'u1');
+    seed(test.db, 'u2');
+    seed(test.db, 'u3');
+
+    let clock = 100;
+    const store = new EngineStore(test.db, 0.9, () => clock, undefined, { maxEntries: 2 });
+
+    clock = 100;
+    const u1Orig = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    clock = 200;
+    const u2Orig = await store.load({ userId: 'u2', materialId: 'nkjv-cor' });
+    clock = 300;
+    await store.load({ userId: 'u3', materialId: 'nkjv-cor' });
+
+    // Inserting u3 with the cache full at maxEntries=2 should evict u1
+    // (oldest lastUsedAt=100). u2 was used at 200 so it survives.
+    clock = 400;
+    const u1Reload = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    expect(u1Reload.engine).not.toBe(u1Orig.engine);
+    // The reload of u1 also evicts the LRU at this point (u2@200 since
+    // u3@300 is newer), so testing u2 here would also see a fresh engine.
+    // The u1 != u1Orig check above is enough to confirm LRU eviction
+    // happened on the first u3 insert. u2Orig kept just to anchor the
+    // setup ordering.
+    void u2Orig;
+    store.clear();
+  });
+
+  it('cache hit bumps lastUsedAt so the recently-used entry survives eviction', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seed(test.db, 'u1');
+    seed(test.db, 'u2');
+    seed(test.db, 'u3');
+
+    let clock = 100;
+    const store = new EngineStore(test.db, 0.9, () => clock, undefined, { maxEntries: 2 });
+
+    clock = 100;
+    const u1Orig = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    clock = 200;
+    await store.load({ userId: 'u2', materialId: 'nkjv-cor' });
+    clock = 300;
+    // Cache hit on u1 should bump its lastUsedAt to 300, making u2 the LRU.
+    await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    clock = 400;
+    await store.load({ userId: 'u3', materialId: 'nkjv-cor' });
+
+    // u2 was the LRU (lastUsed=200) so it should have been evicted, not u1.
+    clock = 500;
+    const u1AfterPressure = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    expect(u1AfterPressure.engine).toBe(u1Orig.engine);
+    store.clear();
+  });
+
+  it('reap() evicts entries idle past idleTtlSecs', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seed(test.db, 'u1');
+
+    let clock = 100;
+    const store = new EngineStore(test.db, 0.9, () => clock, undefined, {
+      idleTtlSecs: 50,
+    });
+
+    clock = 100;
+    const u1Orig = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+
+    // Within TTL — reap is a no-op.
+    clock = 140;
+    store.reap();
+    const u1Within = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    expect(u1Within.engine).toBe(u1Orig.engine);
+
+    // Past TTL — reap evicts.
+    clock = 300;
+    store.reap();
+    clock = 400;
+    const u1Past = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    expect(u1Past.engine).not.toBe(u1Orig.engine);
+    store.clear();
+  });
+
+  it('evicted engines defer free() until the grace period elapses', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seed(test.db, 'u1');
+
+    let clock = 100;
+    const store = new EngineStore(test.db, 0.9, () => clock, undefined, {
+      idleTtlSecs: 50,
+    });
+
+    clock = 100;
+    const handle = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    // Dispose synchronously so refcount drops to 0; the test exercises
+    // the grace-period gate, not the refcount-pin path.
+    handle[Symbol.dispose]();
+
+    // Past TTL → evicts to pending. Grace period (30s) hasn't elapsed.
+    clock = 200;
+    store.reap();
+    expect((store as unknown as { pendingFree: unknown[] }).pendingFree.length).toBe(1);
+
+    // Still within grace at +29s after eviction. Another reap doesn't drain.
+    clock = 229;
+    store.reap();
+    expect((store as unknown as { pendingFree: unknown[] }).pendingFree.length).toBe(1);
+
+    // Past grace at +31s. Reap drains the pending entry.
+    clock = 231;
+    store.reap();
+    expect((store as unknown as { pendingFree: unknown[] }).pendingFree.length).toBe(0);
+
+    store.clear();
+  });
+
+  it('invalidate() defers free() via pendingFree', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seed(test.db, 'u1');
+
+    let clock = 100;
+    const store = new EngineStore(test.db, 0.9, () => clock);
+
+    const handle = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    handle[Symbol.dispose]();
+
+    store.invalidate({ userId: 'u1', materialId: 'nkjv-cor' });
+    // Cache entry gone; engine sits in pendingFree, not freed yet.
+    const internal = store as unknown as {
+      cache: Map<string, unknown>;
+      pendingFree: unknown[];
+    };
+    expect(internal.cache.size).toBe(0);
+    expect(internal.pendingFree.length).toBe(1);
+
+    // Past grace → next reap drains it.
+    clock = 200;
+    store.reap();
+    expect(internal.pendingFree.length).toBe(0);
+
+    store.clear();
+  });
+
+  it('live LoadedEngine handle pins entry against free even past grace', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seed(test.db, 'u1');
+
+    let clock = 100;
+    const store = new EngineStore(test.db, 0.9, () => clock, undefined, {
+      idleTtlSecs: 50,
+    });
+
+    clock = 100;
+    const held = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    const internal = store as unknown as { pendingFree: unknown[] };
+
+    // Evict at clock=200 (past TTL). evictedAt is recorded as 200.
+    clock = 200;
+    store.reap();
+    expect(internal.pendingFree.length).toBe(1);
+
+    // Advance well past grace. Drain still skips because refcount > 0.
+    clock = 1000;
+    store.reap();
+    expect(internal.pendingFree.length).toBe(1);
+
+    // Underlying engine is still callable through the pinned handle.
+    expect(() => held.engine.new_card_count()).not.toThrow();
+
+    // Disposing the handle drops refcount → opportunistic drain fires
+    // inside the release path. At clock=1000, evictedAt=200 is past
+    // grace (cutoff=970), and refcount is now 0, so the entry frees.
+    held[Symbol.dispose]();
+    expect(internal.pendingFree.length).toBe(0);
+
+    store.clear();
+  });
+
+  it('start() and stop() are idempotent; clear() stops the reaper', () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+
+    // Pick a long interval so the timer never actually fires under the test.
+    const store = new EngineStore(test.db, 0.9, () => 0, undefined, {
+      reaperIntervalSecs: 3600,
+    });
+
+    const internal = store as unknown as { reaperHandle: NodeJS.Timeout | null };
+    expect(internal.reaperHandle).toBeNull();
+
+    store.start();
+    expect(internal.reaperHandle).not.toBeNull();
+    store.start();
+    expect(internal.reaperHandle).not.toBeNull();
+
+    store.stop();
+    expect(internal.reaperHandle).toBeNull();
+    store.stop();
+    expect(internal.reaperHandle).toBeNull();
+
+    store.start();
+    store.clear();
+    expect(internal.reaperHandle).toBeNull();
   });
 });

@@ -5,7 +5,6 @@ import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import {
   EngineStore,
-  NotEnrolledError,
   type TestStateEntry,
   getLatestSnapshot,
   readGraduatedCardIds,
@@ -136,13 +135,9 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       return c.json(unchangedResponse(deps.db, key, 0, 0));
     }
 
-    let loaded;
-    try {
-      loaded = await deps.engines.load(key);
-    } catch (err) {
-      if (err instanceof NotEnrolledError) return c.json({ error: 'Not enrolled' }, 404);
-      throw err;
-    }
+    const raw = await deps.engines.tryLoad(key);
+    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    using loaded = raw;
     for (const e of events) {
       if (e.snapshotVersion !== loaded.snapshotVersion) {
         return c.json({ error: 'Snapshot version mismatch — re-fetch state before syncing' }, 409);
@@ -266,7 +261,10 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       }
     }
 
-    return deps.engines.withLock(key, async () => {
+    // `return await` so the outer `using loaded` disposes after the
+    // lock callback resolves, not when the function returns the
+    // pending promise.
+    return await deps.engines.withLock(key, async () => {
       const touchedKeys = new Set<string>();
       const reviewEventInputs: ReviewEventInput[] = [];
       const graduations: { verseId: number; timestampSecs: number }[] = [];
@@ -373,7 +371,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         // Rebuild from the full log. testStates table is wiped and
         // re-written inside rebuildFromEvents; the in-memory engine is
         // replaced too. Use the new engine to source the response.
-        const rebuilt = deps.engines.rebuildFromEvents(key);
+        using rebuilt = deps.engines.rebuildFromEvents(key);
         resultStates = JSON.parse(rebuilt.engine.export_test_states()) as TestStateEntry[];
       } else {
         resultStates = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];

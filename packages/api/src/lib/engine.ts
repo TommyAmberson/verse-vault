@@ -52,9 +52,29 @@ const DEFAULT_DESIRED_RETENTION = 0.9;
 
 export type EngineKey = UserMaterial;
 
-export interface LoadedEngine {
+/** Reference-counted handle returned by `EngineStore.load`. Implements
+ *  `Symbol.dispose` so callers use `using` to bind it:
+ *
+ *      using loaded = await engines.load(key);
+ *      loaded.engine.next_review_card(...);
+ *
+ *  The cache entry's refcount tracks live handles; eviction queues the
+ *  entry but `engine.free()` doesn't fire until both the grace period
+ *  elapses AND refcount reaches zero. Holding a handle across a slow
+ *  `await` is safe — the WASM heap is pinned until dispose. */
+export interface LoadedEngine extends Disposable {
+  readonly engine: WasmEngine;
+  readonly snapshotVersion: number;
+}
+
+/** Internal cache entry. The refcount tracks outstanding `LoadedEngine`
+ *  handles returned from `load`; eviction can move an entry to
+ *  `pendingFree`, but `drainPendingFree` won't call `engine.free()` until
+ *  refcount drops to zero. */
+interface CacheEntry {
   engine: WasmEngine;
   snapshotVersion: number;
+  refcount: number;
 }
 
 /** Thrown by `EngineStore.load` when the caller isn't enrolled in the material. */
@@ -267,11 +287,40 @@ export function readTestStateEntries(
     });
 }
 
+export interface EvictionOptions {
+  /** Hard cap on cached engines. The least-recently-used entry is
+   *  evicted to make room when a `load()` would otherwise exceed this.
+   *  Sized as a safety net for unexpected concurrent peaks; the idle
+   *  TTL does the day-to-day cleanup. */
+  maxEntries?: number;
+  /** Cached engines whose last use is older than this many seconds are
+   *  evicted on the next reaper tick. Should comfortably exceed a
+   *  typical visit duration (so we don't churn mid-session) while
+   *  staying well below the inter-visit gap (so dormant users don't
+   *  pile up in RAM). */
+  idleTtlSecs?: number;
+  /** How often the reaper walks the cache. */
+  reaperIntervalSecs?: number;
+}
+
+const DEFAULT_MAX_ENTRIES = 128;
+const DEFAULT_IDLE_TTL_SECS = 7200;
+const DEFAULT_REAPER_INTERVAL_SECS = 60;
+
+/** Evicted engines wait this long before `engine.free()` is called on
+ *  them. Bridges in-flight requests that captured a `LoadedEngine`
+ *  reference before eviction so their next `engine.method()` call
+ *  doesn't hit a freed WASM handle. The longest realistic request path
+ *  (api.bible cache fetch + DB transaction) comfortably fits in 30 s. */
+const PENDING_FREE_GRACE_SECS = 30;
+
 /**
  * Per-(user, material) engine cache + serialisation.
  *
  * Cache: WasmEngine instances live across requests so we don't re-parse the
- * MaterialData blob on every call.
+ * MaterialData blob on every call. Bounded by an LRU cap + idle TTL —
+ * see `EvictionOptions`. The reaper has to be started explicitly via
+ * `start()` so tests can drive eviction synchronously via `reap()`.
  *
  * Serialisation: `WasmEngine.replay_event` is `&mut self` at the WASM
  * boundary. Two concurrent reviews for the same (user, material) — e.g.
@@ -281,8 +330,20 @@ export function readTestStateEntries(
  * enough for single-tab usage.
  */
 export class EngineStore {
-  private readonly cache = new Map<string, LoadedEngine>();
+  private readonly cache = new Map<string, CacheEntry>();
+  private readonly lastUsedAt = new Map<string, number>();
   private readonly tails = new Map<string, Promise<unknown>>();
+  /** Entries that have left the cache but whose `engine.free()` is
+   *  deferred until **both** the grace period elapses **and** their
+   *  refcount drops to zero. Two safety mechanisms in one queue:
+   *  refcount tracks live `LoadedEngine` handles (request-scoped), the
+   *  grace period catches handles that escape — e.g. a future code
+   *  change that stashes a `LoadedEngine` somewhere it shouldn't. */
+  private readonly pendingFree: { entry: CacheEntry; evictedAt: number }[] = [];
+  private reaperHandle: NodeJS.Timeout | null = null;
+  private readonly maxEntries: number;
+  private readonly idleTtlSecs: number;
+  private readonly reaperIntervalSecs: number;
 
   constructor(
     private readonly db: DB,
@@ -292,8 +353,23 @@ export class EngineStore {
      *  inject a stub to drive snapshot-bump scenarios; production
      *  defaults to the on-disk loader. */
     private readonly loadBundledJson: (id: string) => string = getMaterialJson,
-  ) {}
+    options: EvictionOptions = {},
+  ) {
+    this.maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES;
+    this.idleTtlSecs = options.idleTtlSecs ?? DEFAULT_IDLE_TTL_SECS;
+    this.reaperIntervalSecs = options.reaperIntervalSecs ?? DEFAULT_REAPER_INTERVAL_SECS;
+  }
 
+  /**
+   * Resolve the cached engine for `(user, material)`, building it from
+   * disk on a cold miss. Returns a `LoadedEngine` handle that pins the
+   * underlying `WasmEngine` against deferred-free for as long as the
+   * handle is alive — callers MUST bind it with `using` so dispose
+   * fires at scope exit:
+   *
+   *     using loaded = await engines.load(key);
+   *     loaded.engine.next_review_card(...);
+   */
   async load(key: EngineKey): Promise<LoadedEngine> {
     // Detect content updates before consulting the cache: bundled
     // materialData changes need to bump the user's snapshot and drop
@@ -328,8 +404,12 @@ export class EngineStore {
       };
     }
 
-    const cached = this.cache.get(userMaterialKey(key));
-    if (cached) return cached;
+    const k = userMaterialKey(key);
+    const cached = this.cache.get(k);
+    if (cached) {
+      this.lastUsedAt.set(k, this.now());
+      return this.acquire(cached);
+    }
 
     const materialJson = snapshot.materialData.toString('utf8');
     const testStates = readTestStateEntries(this.db, key, materialJson);
@@ -354,9 +434,26 @@ export class EngineStore {
       engine.graduate_card(cardId);
     }
 
-    const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
-    this.cache.set(userMaterialKey(key), loaded);
-    return loaded;
+    return this.cacheInsert(k, { engine, snapshotVersion: snapshot.version, refcount: 0 });
+  }
+
+  /** Convenience wrapper that returns `null` instead of throwing
+   *  `NotEnrolledError`. Lets route handlers handle the not-enrolled
+   *  case with a guard + early-return before binding the result to a
+   *  `using` declaration:
+   *
+   *      const raw = await engines.tryLoad(key);
+   *      if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+   *      using loaded = raw;
+   *      loaded.engine.next_review_card(...);
+   */
+  async tryLoad(key: EngineKey): Promise<LoadedEngine | null> {
+    try {
+      return await this.load(key);
+    } catch (err) {
+      if (err instanceof NotEnrolledError) return null;
+      throw err;
+    }
   }
 
   /**
@@ -436,25 +533,30 @@ export class EngineStore {
       writeTestStates(tx, key.userId, key.materialId, rebuiltStates, { onConflict: false });
     });
 
-    // Replace the cached engine. invalidate() frees the old one if any.
+    // Replace the cached engine. invalidate() defers free on the old one if any.
     this.invalidate(key);
-    const loaded: LoadedEngine = { engine, snapshotVersion: snapshot.version };
-    this.cache.set(userMaterialKey(key), loaded);
-    return loaded;
+    return this.cacheInsert(userMaterialKey(key), {
+      engine,
+      snapshotVersion: snapshot.version,
+      refcount: 0,
+    });
   }
 
   /**
    * Drop the cached engine for this key. The next `load` rebuilds from
    * fresh DB state — used after material-picker writes change either the
    * per-year toggles or the per-club paused set.
+   *
+   * Routes through `evictToPending` so the old engine sits in the
+   * deferred-free queue rather than being released synchronously.
+   * Matches the LRU + TTL eviction paths and removes a load-bearing
+   * "every caller holds withLock" convention from the contract — a
+   * future request handler that holds a `LoadedEngine` reference
+   * across an await won't crash on the next `engine.method()` call if
+   * a settings change invalidates the entry in the meantime.
    */
   invalidate(key: EngineKey): void {
-    const k = userMaterialKey(key);
-    const cached = this.cache.get(k);
-    if (cached) {
-      cached.engine.free();
-      this.cache.delete(k);
-    }
+    this.evictToPending(userMaterialKey(key));
   }
 
   /**
@@ -474,9 +576,143 @@ export class EngineStore {
     return next;
   }
 
+  /** Start the background idle reaper. Idempotent. Production calls
+   *  this from `src/index.ts` (after `createApp` returns); tests
+   *  prefer driving `reap()` directly so eviction is deterministic. */
+  start(): void {
+    if (this.reaperHandle !== null) return;
+    const handle = setInterval(() => this.reap(), this.reaperIntervalSecs * 1000);
+    // unref so the timer doesn't keep the process alive on its own —
+    // SIGTERM exits cleanly even if `stop()` is never called.
+    handle.unref();
+    this.reaperHandle = handle;
+  }
+
+  /** Stop the background idle reaper. Idempotent. */
+  stop(): void {
+    if (this.reaperHandle === null) return;
+    clearInterval(this.reaperHandle);
+    this.reaperHandle = null;
+  }
+
+  /** Walk the cache, evict entries idle past the TTL, then free any
+   *  previously-evicted engines whose grace period has elapsed.
+   *  Exposed (not private) so tests can drive eviction deterministically
+   *  with an injected clock. */
+  reap(): void {
+    const cutoff = this.now() - this.idleTtlSecs;
+    const idleKeys: string[] = [];
+    for (const [k, t] of this.lastUsedAt) {
+      // Strict `<` matches the "older than" wording of `idleTtlSecs`:
+      // an entry used at exactly `cutoff` is at TTL, not past it.
+      if (t < cutoff) idleKeys.push(k);
+    }
+    for (const k of idleKeys) this.evictToPending(k);
+    this.drainPendingFree();
+  }
+
+  /** Insert into the cache. Single call site for `cache.set` +
+   *  `lastUsedAt.set` so the two maps can't drift, and the LRU
+   *  eviction trigger lives next to the insertion that triggers it.
+   *  Bumps refcount via `acquire` so the caller's returned handle
+   *  pins the freshly-built entry against eviction-then-free races. */
+  private cacheInsert(k: string, entry: CacheEntry): LoadedEngine {
+    this.evictLruIfFull();
+    this.cache.set(k, entry);
+    this.lastUsedAt.set(k, this.now());
+    return this.acquire(entry);
+  }
+
+  /** Bump refcount and wrap as a `Disposable` `LoadedEngine`. `Symbol.dispose`
+   *  decrements; when refcount hits zero we opportunistically drain
+   *  `pendingFree` so an entry whose grace already elapsed gets freed
+   *  the moment its last reference goes away. */
+  private acquire(entry: CacheEntry): LoadedEngine {
+    entry.refcount += 1;
+    const release = () => {
+      entry.refcount -= 1;
+      if (entry.refcount === 0) this.drainPendingFree();
+    };
+    return {
+      get engine() {
+        return entry.engine;
+      },
+      get snapshotVersion() {
+        return entry.snapshotVersion;
+      },
+      [Symbol.dispose]: release,
+    };
+  }
+
+  /** Evict the least-recently-used entry until the cache is under the
+   *  cap. Called from each cache insertion path. Opportunistically
+   *  drains `pendingFree` first so a burst of LRU evictions doesn't let
+   *  the deferred-free queue accumulate between reaper ticks.
+   *
+   *  Iterates `cache.keys()` rather than `lastUsedAt` so the loop can
+   *  only see authoritative entries — a `lastUsedAt` entry without a
+   *  matching `cache` entry (shouldn't happen, but a future code change
+   *  could introduce a window) wouldn't make this spin. A `cache`
+   *  entry missing its `lastUsedAt` row is treated as oldest. */
+  private evictLruIfFull(): void {
+    this.drainPendingFree();
+    while (this.cache.size >= this.maxEntries) {
+      let oldestKey: string | null = null;
+      let oldestTime = Infinity;
+      for (const k of this.cache.keys()) {
+        const t = this.lastUsedAt.get(k) ?? -Infinity;
+        if (t < oldestTime) {
+          oldestTime = t;
+          oldestKey = k;
+        }
+      }
+      if (oldestKey === null) break;
+      this.evictToPending(oldestKey);
+    }
+  }
+
+  /** Move a cached entry to the pending-free queue without freeing.
+   *  An in-flight request may still hold the `LoadedEngine` reference;
+   *  `drainPendingFree` calls `free()` only when both the grace
+   *  period has elapsed AND refcount is zero. */
+  private evictToPending(k: string): void {
+    const entry = this.cache.get(k);
+    if (!entry) return;
+    this.pendingFree.push({ entry, evictedAt: this.now() });
+    this.cache.delete(k);
+    this.lastUsedAt.delete(k);
+  }
+
+  /** Free entries whose grace period has elapsed AND have refcount 0.
+   *  Held entries (refcount > 0) stay queued until the last `LoadedEngine`
+   *  handle disposes — `acquire`'s dispose calls back here so freeing
+   *  happens promptly once the last reference goes. Walks the full
+   *  queue (no early-exit) since refcount can stall the head. */
+  private drainPendingFree(): void {
+    const cutoff = this.now() - PENDING_FREE_GRACE_SECS;
+    const kept: typeof this.pendingFree = [];
+    for (const item of this.pendingFree) {
+      if (item.evictedAt > cutoff || item.entry.refcount > 0) {
+        kept.push(item);
+      } else {
+        item.entry.engine.free();
+      }
+    }
+    this.pendingFree.length = 0;
+    this.pendingFree.push(...kept);
+  }
+
+  /** Tear everything down. Force-frees every WASM handle regardless of
+   *  refcount — only safe when no in-flight request still holds a
+   *  `LoadedEngine`. Production never calls this; tests do at end of
+   *  each case to drop the WASM heap. */
   clear(): void {
-    for (const loaded of this.cache.values()) loaded.engine.free();
+    this.stop();
+    for (const entry of this.cache.values()) entry.engine.free();
     this.cache.clear();
+    this.lastUsedAt.clear();
     this.tails.clear();
+    for (const item of this.pendingFree) item.entry.engine.free();
+    this.pendingFree.length = 0;
   }
 }

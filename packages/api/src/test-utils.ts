@@ -39,8 +39,11 @@ export function createTestDb(): TestDb {
 
 export function createTestApp() {
   const test = createTestDb();
-  const app = createApp({ db: test.db, authEnv: TEST_AUTH_ENV });
-  return { app, ...test };
+  // Pull `engines` so tests can clear() / inspect it if they want.
+  // We deliberately don't call `engines.start()` here — tests run in
+  // milliseconds and have no use for the 60 s idle reaper.
+  const { app, engines } = createApp({ db: test.db, authEnv: TEST_AUTH_ENV });
+  return { app, engines, ...test };
 }
 
 export type TestApp = ReturnType<typeof createTestApp>;

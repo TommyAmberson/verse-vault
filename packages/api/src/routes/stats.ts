@@ -74,7 +74,7 @@ export function statsRoutes(deps: StatsRoutesDeps) {
     let cardDistribution: StabilityHistogram = EMPTY_HISTOGRAM;
     let verseDistribution: StabilityHistogram = EMPTY_HISTOGRAM;
     try {
-      const loaded = await deps.engines.load({ userId: user.id, materialId });
+      using loaded = await deps.engines.load({ userId: user.id, materialId });
       const nowSecs = BigInt(now());
       reviewsDueCount = loaded.engine.due_review_count(nowSecs);
       newVerseCount = loaded.engine.new_verse_count();

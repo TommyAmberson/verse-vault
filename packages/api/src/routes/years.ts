@@ -244,7 +244,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
       let newCardCount = 0;
       if (enrolled) {
         try {
-          const loaded = await deps.engines.load({ userId: user.id, materialId: material.id });
+          using loaded = await deps.engines.load({ userId: user.id, materialId: material.id });
           counts = JSON.parse(loaded.engine.card_count_by_club()) as ClubCounts;
           newCardCount = loaded.engine.new_card_count();
         } catch (err) {

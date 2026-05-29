@@ -36,6 +36,12 @@ export interface AppDeps {
 
 export function createApp(deps: AppDeps) {
   const auth = createAuth(deps.db, deps.authEnv);
+  // EngineStore's idle reaper is intentionally NOT started here.
+  // `createApp` constructs the wiring; lifecycle hooks (start the
+  // reaper, listen on a port) live in the production entry point
+  // (`src/index.ts`). Tests reach in via `createTestApp` and
+  // construct their own short-lived processes, so they neither need
+  // nor want a 60 s setInterval per `createApp` call.
   const engines = new EngineStore(deps.db, undefined, deps.now);
   const apibibleCache = deps.bibleApiKey
     ? new ApibibleCache(deps.db, deps.bibleApiKey, deps.now)
@@ -117,5 +123,5 @@ export function createApp(deps: AppDeps) {
   app.route('/api/stats', statsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/activity', activityRoutes({ db: deps.db, now: deps.now }));
 
-  return app;
+  return { app, engines };
 }

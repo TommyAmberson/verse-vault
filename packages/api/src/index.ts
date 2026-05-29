@@ -30,7 +30,7 @@ const authEnv = {
 const dbPath = process.env.DATABASE_PATH ?? resolve(import.meta.dirname, '../data/verse-vault.db');
 runMigrations(dbPath);
 
-const app = createApp({
+const { app, engines } = createApp({
   db: createDb(dbPath),
   authEnv,
   // BIBLE_API_KEY (or API_BIBLE_KEY) gates the api.bible cache. Without
@@ -45,6 +45,11 @@ const app = createApp({
     ? (process.env.RENDER_DIALECT as 'american' | 'british' | 'canadian')
     : 'canadian',
 });
+
+// Start the EngineStore idle reaper here, not in createApp — tests
+// spin up many short-lived apps via createTestApp and don't want a
+// 60 s setInterval accumulating per call.
+engines.start();
 
 const port = Number(process.env.PORT ?? 3000);
 serve({ fetch: app.fetch, port }, (info) => {
