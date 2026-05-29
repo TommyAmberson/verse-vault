@@ -106,6 +106,96 @@ export interface TestStateEntry {
   pending_relearn: boolean;
 }
 
+/** State payload embedded in `TestUpdateWire.before` / `.after`. Same
+ *  fields as `TestStateEntry` minus the `element` + `test_kind` key
+ *  (which live on `TestUpdateWire.key`). Wire shape mirrors the Rust
+ *  `verse-vault-core::TestState`. `pending_relearn` is always emitted
+ *  because no field carries `#[serde(skip_serializing_if)]`
+ *  (`#[serde(default)]` on the Rust side governs the *deserialization*
+ *  direction only — it doesn't suppress emission). If a future
+ *  contributor adds `skip_serializing_if` to trim wire size, this
+ *  type and `changedStatesFromUpdates` will silently drop the field
+ *  on the persist path — guard with a test, not a comment.
+ *
+ *  Defined as a `Pick` so a future core field added to `TestState`
+ *  shows up structurally on both sides without manual sync. */
+export type TestUpdateState = Pick<
+  TestStateEntry,
+  | 'stability'
+  | 'difficulty'
+  | 'last_seen_secs'
+  | 'last_base_secs'
+  | 'last_root_secs'
+  | 'pending_relearn'
+>;
+
+/** Wire-format mirror of `verse-vault-core::TestUpdate`. Emitted by
+ *  `WasmEngine.replay_event(...)`. `kind` is the update flavour
+ *  (`Root` for atomic-card full FSRS step, `Sub` for composite-card
+ *  Bayesian-share sub-update). `key` identifies which test was touched
+ *  and round-trips through the database opaquely. */
+export interface TestUpdateWire {
+  key: { kind: string; element: unknown };
+  kind: 'Root' | 'Sub';
+  before: TestUpdateState;
+  after: TestUpdateState;
+}
+
+/** Convert one-or-more `replay_event` returns into the
+ *  `TestStateEntry[]` shape that `writeTestStates` consumes. Reads
+ *  each touched test's post-update state straight from `update.after`,
+ *  bypassing the prior full-catalog `export_test_states()` + filter.
+ *
+ *  Within a single `replay_event` call the core never emits duplicate
+ *  keys — atomic cards return 1 update for 1 key, composite cards
+ *  return N updates for N distinct contained tests (Bayesian
+ *  decomposition; see `crates/core/src/engine.rs`). Duplicates only
+ *  arise when sync.ts replays several events touching the same test
+ *  in one batch; those events were sorted by
+ *  `(timestampSecs, clientEventId)` before replay, so the
+ *  chronologically last update is the most recent. Map-based
+ *  last-write-wins preserves that order and matches the final cached
+ *  engine state byte-for-byte.
+ *
+ *  Element-key dedup is order-insensitive: `canonicalizeKey` sorts
+ *  fields recursively before serialising, so two `ElementId` objects
+ *  carrying the same fields in different insertion order collapse to
+ *  one map entry. Today's only producer is Rust serde (stable field
+ *  order), but the helper is exported as a public surface and a
+ *  future TS caller could feed in elements built field-by-field. */
+export function changedStatesFromUpdates(updates: TestUpdateWire[]): TestStateEntry[] {
+  const byKey = new Map<string, TestStateEntry>();
+  for (const u of updates) {
+    const k = `${u.key.kind}|${canonicalizeKey(u.key.element)}`;
+    byKey.set(k, {
+      element: u.key.element,
+      test_kind: u.key.kind,
+      stability: u.after.stability,
+      difficulty: u.after.difficulty,
+      last_seen_secs: u.after.last_seen_secs,
+      last_base_secs: u.after.last_base_secs,
+      last_root_secs: u.after.last_root_secs,
+      pending_relearn: u.after.pending_relearn,
+    });
+  }
+  return Array.from(byKey.values());
+}
+
+/** Order-insensitive serialisation for use as a dedup key. Sorts object
+ *  fields recursively so `{a, b}` and `{b, a}` hash to the same string.
+ *  Arrays preserve order (positional semantics). Scalars passthrough.
+ *  Not for cryptographic use; not safe against cyclic structures (none
+ *  reach here — `ElementId` is an enum of finite-depth POD variants). */
+function canonicalizeKey(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalizeKey).join(',')}]`;
+  const obj = value as Record<string, unknown>;
+  const parts = Object.keys(obj)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${canonicalizeKey(obj[k])}`);
+  return `{${parts.join(',')}}`;
+}
+
 /** Per-(user, material) target retention. Falls back to the
  *  `EngineStore` default when the user has no `user_year_settings`
  *  row yet (the pre-enrollment picker case). The settings endpoint

@@ -6,7 +6,11 @@ import { Hono } from 'hono';
 import type { DB } from '../db/client.js';
 import { graduatedCards, graduatedVerses } from '../db/schema.js';
 import { ApibibleCache, DEFAULT_NKJV_BIBLE_ID } from '../lib/apibible-cache.js';
-import { EngineStore, type TestStateEntry } from '../lib/engine.js';
+import {
+  EngineStore,
+  changedStatesFromUpdates,
+  type TestUpdateWire,
+} from '../lib/engine.js';
 import { bookCodeOf } from '../lib/book-codes.js';
 import { type ComposedRender, composeRender } from '../lib/render.js';
 import { type Grade, persistEngineState } from '../lib/review-log.js';
@@ -33,21 +37,6 @@ interface ReviewBody {
   materialId: string;
   cardId: number;
   grade: Grade;
-}
-
-interface TestUpdateWire {
-  key: { kind: string; element: unknown };
-  kind: 'Root' | 'Sub';
-  before: TestStateInner;
-  after: TestStateInner;
-}
-
-interface TestStateInner {
-  stability: number;
-  difficulty: number;
-  last_seen_secs: number;
-  last_base_secs: number;
-  last_root_secs: number;
 }
 
 interface CardRenderWire {
@@ -183,13 +172,10 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
         return c.json({ error: (err as Error).message }, 400);
       }
 
-      const touchedKeys = new Set(
-        updates.map((u) => `${u.key.kind}|${JSON.stringify(u.key.element)}`),
-      );
-      const allStates = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
-      const changed = allStates.filter((s) =>
-        touchedKeys.has(`${s.test_kind}|${JSON.stringify(s.element)}`),
-      );
+      // `replay_event`'s wire format already carries the post-update
+      // state for each touched test; no need to serialize + parse +
+      // filter the full catalog. See `changedStatesFromUpdates`.
+      const changed = changedStatesFromUpdates(updates);
 
       const eventId = randomUUID();
       deps.db.transaction((tx) => {

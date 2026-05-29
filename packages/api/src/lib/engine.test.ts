@@ -6,7 +6,13 @@ import { graphSnapshots, testStates as testStatesTable } from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import { enrollUser } from './enrollment.js';
-import { EngineStore, NotEnrolledError, type TestStateEntry } from './engine.js';
+import {
+  EngineStore,
+  NotEnrolledError,
+  changedStatesFromUpdates,
+  type TestStateEntry,
+  type TestUpdateWire,
+} from './engine.js';
 
 function fixtureMaterial(phraseWordCounts: number[]): string {
   return JSON.stringify({
@@ -528,5 +534,102 @@ describe('EngineStore eviction', () => {
     store.start();
     store.clear();
     expect(internal.reaperHandle).toBeNull();
+  });
+});
+
+describe('changedStatesFromUpdates', () => {
+  function mkUpdate(testKind: string, position: number, pendingRelearn: boolean): TestUpdateWire {
+    return {
+      key: { kind: testKind, element: { kind: 'Phrase', verse_id: 0, position } },
+      kind: 'Root',
+      before: {
+        stability: 1,
+        difficulty: 5,
+        last_seen_secs: 0,
+        last_base_secs: 0,
+        last_root_secs: 0,
+        pending_relearn: false,
+      },
+      after: {
+        stability: 2.5,
+        difficulty: 4.8,
+        last_seen_secs: 86400,
+        last_base_secs: 86400,
+        last_root_secs: 86400,
+        pending_relearn: pendingRelearn,
+      },
+    };
+  }
+
+  it('maps each update to a TestStateEntry carrying the post-update state', () => {
+    const updates = [mkUpdate('PhraseFromContext', 0, false), mkUpdate('VerseChapter', 1, true)];
+    const changed = changedStatesFromUpdates(updates);
+    expect(changed).toHaveLength(2);
+    expect(changed[0]).toEqual({
+      element: { kind: 'Phrase', verse_id: 0, position: 0 },
+      test_kind: 'PhraseFromContext',
+      stability: 2.5,
+      difficulty: 4.8,
+      last_seen_secs: 86400,
+      last_base_secs: 86400,
+      last_root_secs: 86400,
+      pending_relearn: false,
+    });
+    expect(changed[1].pending_relearn).toBe(true);
+  });
+
+  it('collapses duplicate test keys to the last update (last-write-wins)', () => {
+    // Same key, different `after` values — only the last should land in
+    // the result. Mirrors what the prior export-then-filter approach
+    // would have produced (DB row = final cached engine state).
+    const first = mkUpdate('PhraseFromContext', 0, true);
+    const second = mkUpdate('PhraseFromContext', 0, false);
+    second.after.stability = 99;
+
+    const changed = changedStatesFromUpdates([first, second]);
+    expect(changed).toHaveLength(1);
+    expect(changed[0].stability).toBe(99);
+    expect(changed[0].pending_relearn).toBe(false);
+  });
+
+  it('returns an empty array for an empty updates list', () => {
+    expect(changedStatesFromUpdates([])).toEqual([]);
+  });
+
+  it('dedups elements regardless of object-field insertion order', () => {
+    // Two semantically-equal ElementIds with different field orders —
+    // could happen if a future TS caller constructs them field-by-field
+    // (Rust serde is stable-order today, but the helper is a public
+    // export with no compile-time guarantee on caller layout).
+    const updateA: TestUpdateWire = {
+      key: { kind: 'PhraseFromContext', element: { kind: 'Phrase', verse_id: 0, position: 1 } },
+      kind: 'Root',
+      before: {
+        stability: 1,
+        difficulty: 5,
+        last_seen_secs: 0,
+        last_base_secs: 0,
+        last_root_secs: 0,
+        pending_relearn: false,
+      },
+      after: {
+        stability: 1.5,
+        difficulty: 5,
+        last_seen_secs: 100,
+        last_base_secs: 100,
+        last_root_secs: 100,
+        pending_relearn: false,
+      },
+    };
+    const updateB: TestUpdateWire = {
+      key: { kind: 'PhraseFromContext', element: { position: 1, verse_id: 0, kind: 'Phrase' } },
+      kind: 'Root',
+      before: updateA.before,
+      after: { ...updateA.after, stability: 9.9 },
+    };
+
+    const changed = changedStatesFromUpdates([updateA, updateB]);
+    expect(changed).toHaveLength(1);
+    expect(changed[0].stability).toBe(9.9);
   });
 });
