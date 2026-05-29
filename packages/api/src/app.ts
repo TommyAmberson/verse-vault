@@ -18,6 +18,7 @@ import {
   requireAuth,
   sessionMiddleware,
 } from './middleware/session.js';
+import { accountRoutes } from './routes/account.js';
 import { cardsRoutes } from './routes/cards.js';
 import { materialsRoutes } from './routes/materials.js';
 import { activityRoutes } from './routes/activity.js';
@@ -147,6 +148,7 @@ export function createApp(deps: AppDeps) {
   app.route('/api/years', yearsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/stats', statsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/activity', activityRoutes({ db: deps.db, now: deps.now }));
+  app.route('/api', accountRoutes({ db: deps.db, engines, now: deps.now }));
 
   return { app, engines };
 }
