@@ -218,6 +218,98 @@ describe('EngineStore', () => {
     store.clear();
   });
 
+  it('bumps from the migration-placeholder content_sha on first load', async () => {
+    // Migration 0020 backfills pre-existing snapshot rows with the literal
+    // 'pre-content-sha-migration' string. The first EngineStore.load
+    // against such a row must detect the mismatch against the real disk
+    // SHA and bump the user, populating content_sha for future requests.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    createTestUser(test.db, 'u1');
+    const fixture = fixtureMaterial([2, 2, 2, 3]);
+    enrollUser({
+      db: test.db,
+      userId: 'u1',
+      materialId: 'nkjv-cor',
+      materialJson: fixture,
+      now: () => 0,
+    });
+
+    // Simulate the post-migration state by overwriting the enrolled row's
+    // content_sha with the placeholder.
+    test.db
+      .update(graphSnapshots)
+      .set({ contentSha: 'pre-content-sha-migration' })
+      .where(
+        and(eq(graphSnapshots.userId, 'u1'), eq(graphSnapshots.materialId, 'nkjv-cor')),
+      )
+      .run();
+
+    const store = new EngineStore(test.db, 0.9, () => 1, () => fixture);
+    const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    expect(loaded.snapshotVersion).toBe(2);
+
+    const latest = test.db
+      .select()
+      .from(graphSnapshots)
+      .where(
+        and(eq(graphSnapshots.userId, 'u1'), eq(graphSnapshots.materialId, 'nkjv-cor')),
+      )
+      .orderBy(graphSnapshots.version)
+      .all();
+    expect(latest).toHaveLength(2);
+    // v1 still holds the placeholder; v2 has the real sha of the fixture.
+    expect(latest[0].contentSha).toBe('pre-content-sha-migration');
+    expect(latest[1].contentSha).toMatch(/^[a-f0-9]{64}$/);
+    store.clear();
+  });
+
+  it('concurrent loads on a placeholder row both succeed via unique-constraint recovery', async () => {
+    // Two simultaneous loads at bump-time would both try to insert
+    // version=2; the uniq_graph_snapshots_user_material_version index
+    // makes one INSERT throw. Both callers must still return a usable
+    // engine — the loser catches the constraint error and re-fetches
+    // the row the winner wrote.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    createTestUser(test.db, 'u1');
+    const fixture = fixtureMaterial([2, 2, 2, 3]);
+    enrollUser({
+      db: test.db,
+      userId: 'u1',
+      materialId: 'nkjv-cor',
+      materialJson: fixture,
+      now: () => 0,
+    });
+    test.db
+      .update(graphSnapshots)
+      .set({ contentSha: 'pre-content-sha-migration' })
+      .where(
+        and(eq(graphSnapshots.userId, 'u1'), eq(graphSnapshots.materialId, 'nkjv-cor')),
+      )
+      .run();
+
+    const store = new EngineStore(test.db, 0.9, () => 1, () => fixture);
+    const [a, b] = await Promise.all([
+      store.load({ userId: 'u1', materialId: 'nkjv-cor' }),
+      store.load({ userId: 'u1', materialId: 'nkjv-cor' }),
+    ]);
+    expect(a.snapshotVersion).toBe(2);
+    expect(b.snapshotVersion).toBe(2);
+
+    // Exactly one new row should have been written (version 2). Both
+    // callers see the same row's SHA.
+    const rows = test.db
+      .select()
+      .from(graphSnapshots)
+      .where(
+        and(eq(graphSnapshots.userId, 'u1'), eq(graphSnapshots.materialId, 'nkjv-cor')),
+      )
+      .all();
+    expect(rows.length).toBe(2);
+    store.clear();
+  });
+
   it('preserves FSRS state across split changes when the word range survives', async () => {
     const test = createTestDb();
     cleanup = test.cleanup;

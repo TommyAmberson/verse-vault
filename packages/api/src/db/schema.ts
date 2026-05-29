@@ -1,5 +1,4 @@
 import {
-  blob,
   index,
   integer,
   primaryKey,
@@ -140,9 +139,12 @@ export const userYearSettings = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
 );
 
-// The bundled MaterialData blob the engine builds from. Rebuilt when content
-// changes; versioned so existing events can be replayed against a known
-// snapshot.
+// Tracks which version of a material's bundled JSON (stored on disk under
+// `data/<materialId>.json`) each user is currently on. `content_sha` is
+// compared against the disk file's SHA on every `EngineStore.load`; a
+// mismatch bumps the user to a fresh `version` and the engine rebuilds
+// from the disk JSON. Materials themselves are not stored in the DB —
+// the disk file is the single source of truth.
 export const graphSnapshots = sqliteTable(
   'graph_snapshots',
   {
@@ -152,7 +154,15 @@ export const graphSnapshots = sqliteTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     materialId: text('material_id').notNull(),
     version: integer('version').notNull(),
-    materialData: blob('material_data', { mode: 'buffer' }).notNull(),
+    /** SHA-256 hex digest of the bundled materialData this snapshot row
+     *  was created against. The actual materialData lives on disk
+     *  (`data/<materialId>.json`); the SHA is stored here purely so the
+     *  next `EngineStore.load` can detect a disk-vs-snapshot drift and
+     *  bump the user to a fresh version. Migration 0020 backfills
+     *  pre-existing rows with the placeholder `pre-content-sha-migration`,
+     *  which never matches a real SHA, so every user gets bumped on
+     *  their next request. */
+    contentSha: text('content_sha').notNull(),
     createdAt: integer('created_at').notNull(),
   },
   (t) => ({

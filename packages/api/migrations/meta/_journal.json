@@ -141,6 +141,13 @@
       "when": 1779300000000,
       "tag": "0019_graduated_cards",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1779386400000,
+      "tag": "0020_drop_snapshot_material_data",
+      "breakpoints": true
     }
   ]
 }

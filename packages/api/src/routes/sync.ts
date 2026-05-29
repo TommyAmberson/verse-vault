@@ -13,6 +13,7 @@ import {
   readGraduatedVerseIds,
   readTestStateEntries,
 } from '../lib/engine.js';
+import { getMaterialJson } from '../lib/materials.js';
 import { type Grade, type ReviewEventInput, persistEngineState } from '../lib/review-log.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
@@ -86,12 +87,28 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     const snapshot = getLatestSnapshot(deps.db, key);
     if (!snapshot) return c.json({ error: 'Not enrolled' }, 404);
 
+    // Material content lives on disk (`data/<materialId>.json`); the DB
+    // only tracks which version (by content_sha) each user is on. A
+    // throw here means the deck file was removed without dropping
+    // enrollments — operator-side data inconsistency. Return 500 with
+    // a meaningful message instead of letting Hono convert to a bare
+    // 500 with stack trace.
+    let materialJson: string;
+    try {
+      materialJson = getMaterialJson(materialId);
+    } catch (err) {
+      console.error(`sync /state: cannot load disk JSON for ${materialId}:`, err);
+      return c.json(
+        { error: `Material content unavailable for ${materialId}` },
+        500,
+      );
+    }
     return c.json({
       snapshot: {
         version: snapshot.version,
-        // The MaterialData blob is stored as utf8 JSON; round-trip it as a
-        // structured object for clients that don't want to re-parse strings.
-        materialData: JSON.parse(snapshot.materialData.toString('utf8')) as unknown,
+        // Round-trip as a structured object for clients that don't want
+        // to re-parse strings.
+        materialData: JSON.parse(materialJson) as unknown,
       },
       testStates: readTestStateEntries(deps.db, key),
       lastEventId: latestEventId(deps.db, user.id, materialId),

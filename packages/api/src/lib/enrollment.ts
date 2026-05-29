@@ -5,7 +5,7 @@ import { WasmEngine } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { NotEnrolledError, type TestStateEntry } from './engine.js';
+import { NotEnrolledError, sha256Memo, type TestStateEntry } from './engine.js';
 import type { UserMaterial } from './keys.js';
 import { getMaterial, getMaterialJson } from './materials.js';
 import { writeTestStates } from './review-log.js';
@@ -133,7 +133,7 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
           userId,
           materialId,
           version: 1,
-          materialData: Buffer.from(materialJson, 'utf8'),
+          contentSha: sha256Memo(materialJson),
           createdAt,
         })
         .run();
