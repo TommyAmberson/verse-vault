@@ -10,6 +10,46 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.24] — 2026-05-29
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — unchanged.
+* `verse-vault-wasm@0.5.0` — unchanged.
+
+### Structured request logging + in-memory rate limits
+
+The API now ships an observability + rate-limit middleware. One unit handles both because they share
+the same per-request context (who, what route, status, duration). About 150 lines of focused
+middleware code instead of two separate ones.
+
+* **Structured per-request log**: replaces Hono's built-in `logger()`. Emits one JSON line per
+  non-OPTIONS request to stdout (captured into journald via the systemd unit). Shape:
+  `{requestId, userId, ip, method, path, status, durationMs}` plus `error` on handler throws and
+  `rateLimited: true` on 429s. See `docs/server-api.md` → "Request logging".
+* **`X-Request-Id` on every response**: clients can quote it in support requests; handlers can read
+  it from `c.get('requestId')` for cross-handler correlation.
+* **Token-bucket rate limit** with two tiers:
+  * Authed: 120 req/min for every route except the two below (env `RATE_LIMIT_AUTHED_PER_MIN`).
+  * Unauthed `/api/auth/*`: 10 req/min (env `RATE_LIMIT_UNAUTHED_PER_MIN`). Defangs
+    credential-stuffing loops without affecting normal review traffic.
+  * `/health` exempt entirely.
+  * Bucket key is the client IP (`CF-Connecting-IP` in production behind Cloudflare Tunnel).
+* **`429` responses** carry `Retry-After: <ceil(secs)>` and the standard
+  `{ "error": "Rate limit exceeded" }` body. The response flows back through `cors()` so browsers
+  see a real 429, not a network error. CORS `exposeHeaders` now lists `Retry-After` and
+  `X-Request-Id` so browser JS can read them.
+* **Failed `/api/auth/sign-in/email` attempts still consume a token** — intentional brute-force
+  protection.
+
+In-memory state lives in a new `TokenBucketStore` (`packages/api/src/lib/rate-limit.ts`) bounded at
+10 000 buckets with LRU eviction on insert. No periodic timer — sidesteps the `createApp`/test-leak
+trap the `EngineStore.start()` follow-up fixed. No new npm dependencies. Single-instance only;
+horizontal scale-out will need a shared store. NAT'd users currently share a bucket; per-user keying
+is a follow-up.
+
+Bundled algorithm contract unchanged. No wire-format break.
+
 ## [0.1.23] — 2026-05-29
 
 ### Bundled algorithm contract
