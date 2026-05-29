@@ -5,7 +5,9 @@ import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import {
   EngineStore,
+  changedStatesFromUpdates,
   type TestStateEntry,
+  type TestUpdateWire,
   getLatestSnapshot,
   readGraduatedCardIds,
   readGraduatedVerseIds,
@@ -65,11 +67,6 @@ interface UploadBody {
  *  a `needsConfirm` response so the user can choose Sync / Discard /
  *  Cancel before the merge actually runs. */
 const STALE_MERGE_THRESHOLD = 10;
-
-interface TestUpdateWire {
-  key: { kind: string; element: unknown };
-  kind: 'Root' | 'Sub';
-}
 
 function eventKind(e: SyncEventUpload): 'review' | 'graduate' | 'graduateCard' {
   return e.kind ?? 'review';
@@ -265,7 +262,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     // lock callback resolves, not when the function returns the
     // pending promise.
     return await deps.engines.withLock(key, async () => {
-      const touchedKeys = new Set<string>();
+      const allUpdates: TestUpdateWire[] = [];
       const reviewEventInputs: ReviewEventInput[] = [];
       const graduations: { verseId: number; timestampSecs: number }[] = [];
       const cardGraduations: { cardId: number; timestampSecs: number }[] = [];
@@ -297,9 +294,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
             const updates = JSON.parse(
               loaded.engine.replay_event(re.cardId, re.grade, BigInt(re.timestampSecs)),
             ) as TestUpdateWire[];
-            for (const u of updates) {
-              touchedKeys.add(`${u.key.kind}|${JSON.stringify(u.key.element)}`);
-            }
+            allUpdates.push(...updates);
           }
           reviewEventInputs.push({
             userId: user.id,
@@ -313,16 +308,14 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         }
       }
 
-      // Persist events first so rebuildFromEvents (if triggered) sees the
-      // new rows when it reads the log. On the in-order path the changed
-      // test states are filtered from the cached engine's export.
-      let changed: TestStateEntry[] = [];
-      if (!outOfOrder) {
-        const allStates = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
-        changed = allStates.filter((s) =>
-          touchedKeys.has(`${s.test_kind}|${JSON.stringify(s.element)}`),
-        );
-      }
+      // In-order path: `replay_event`'s wire format already carries the
+      // post-update state for each touched test, so we skip the full-
+      // catalog `export_test_states` + filter that the old code did
+      // here. `changedStatesFromUpdates` handles the "same test touched
+      // by multiple events in this batch" case via last-write-wins.
+      const changed: TestStateEntry[] = outOfOrder
+        ? []
+        : changedStatesFromUpdates(allUpdates);
 
       try {
         deps.db.transaction((tx) => {
@@ -374,6 +367,11 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         using rebuilt = deps.engines.rebuildFromEvents(key);
         resultStates = JSON.parse(rebuilt.engine.export_test_states()) as TestStateEntry[];
       } else {
+        // The response carries the full catalog because thin clients
+        // wholesale-replace their cache. Eliminating this export
+        // requires a wire-shape change (response carries only the
+        // delta + the client merges) — out of scope here; the
+        // DB-write path's full export is already gone above.
         resultStates = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
       }
 
