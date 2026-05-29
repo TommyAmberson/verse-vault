@@ -1,14 +1,23 @@
 import { Hono } from 'hono';
 import { compress } from 'hono/compress';
 import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
 
 import type { DB } from './db/client.js';
 import { ApibibleCache } from './lib/apibible-cache.js';
 import { TAURI_ORIGINS, type AuthEnv, createAuth } from './lib/auth.js';
 import { EngineStore } from './lib/engine.js';
 import { type Dialect } from './lib/spelling.js';
-import { type SessionVariables, getUser, requireAuth, sessionMiddleware } from './middleware/session.js';
+import {
+  type ObservabilityOptions,
+  observabilityMiddleware,
+  resolveObservabilityOptions,
+} from './middleware/observability.js';
+import {
+  type AppVariables,
+  getUser,
+  requireAuth,
+  sessionMiddleware,
+} from './middleware/session.js';
 import { cardsRoutes } from './routes/cards.js';
 import { materialsRoutes } from './routes/materials.js';
 import { activityRoutes } from './routes/activity.js';
@@ -32,6 +41,10 @@ export interface AppDeps {
    *  env var at boot; will move to a per-user setting later. */
   dialect?: Dialect;
   now?: () => number;
+  /** Override observability middleware defaults. Tests inject a low
+   *  cap + captured log callback; production uses the env-var-driven
+   *  shape from `src/index.ts`. */
+  observability?: Partial<ObservabilityOptions>;
 }
 
 export function createApp(deps: AppDeps) {
@@ -46,9 +59,17 @@ export function createApp(deps: AppDeps) {
   const apibibleCache = deps.bibleApiKey
     ? new ApibibleCache(deps.db, deps.bibleApiKey, deps.now)
     : undefined;
-  const app = new Hono<{ Variables: SessionVariables }>();
+  const app = new Hono<{ Variables: AppVariables }>();
 
-  app.use('*', logger());
+  // Observability + rate-limit middleware replaces Hono's default
+  // logger(). Mounts first so durationMs covers the full handler path
+  // and the 429 response flows back through cors() with the right
+  // headers. See middleware/observability.ts.
+  const observabilityOpts = resolveObservabilityOptions({
+    now: deps.now,
+    ...deps.observability,
+  });
+  app.use('*', observabilityMiddleware(observabilityOpts));
   // Drops the bulk renders payload for `nkjv-cor` from ~5 MB to ~1 MB.
   app.use('*', compress());
   const isProd = process.env.NODE_ENV === 'production';
@@ -79,6 +100,9 @@ export function createApp(deps: AppDeps) {
         return null;
       },
       credentials: true,
+      // Expose 429-related + correlation headers so browser JS can
+      // read them (defaults to a fixed safelist that omits these).
+      exposeHeaders: ['Retry-After', 'X-Request-Id'],
     }),
   );
 
@@ -87,9 +111,10 @@ export function createApp(deps: AppDeps) {
   // Session middleware runs on everything except Better Auth's own routes
   // (Better Auth does its own session handling internally) and /health
   // (no auth needed — skips a DB round-trip per healthcheck).
+  const session = sessionMiddleware<{ Variables: AppVariables }>(auth);
   app.use('/api/*', async (c, next) => {
     if (c.req.path.startsWith('/api/auth/')) return next();
-    return sessionMiddleware(auth)(c, next);
+    return session(c, next);
   });
 
   app.get('/health', (c) => c.json({ status: 'ok' }));

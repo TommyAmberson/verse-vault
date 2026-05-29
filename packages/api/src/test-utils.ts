@@ -8,6 +8,7 @@ import { createApp } from './app.js';
 import { type DB, createDb } from './db/client.js';
 import { user } from './db/schema.js';
 import { runMigrations } from './db/migrate.js';
+import type { ObservabilityOptions } from './middleware/observability.js';
 
 export const TEST_AUTH_ENV = {
   baseUrl: 'http://localhost:3000',
@@ -37,12 +38,31 @@ export function createTestDb(): TestDb {
   };
 }
 
-export function createTestApp() {
+export interface CreateTestAppOptions {
+  /** Override observability middleware defaults. Useful for tests that
+   *  need tight rate-limit tiers or want to capture logged JSON lines. */
+  observability?: Partial<ObservabilityOptions>;
+}
+
+/** Permissive rate-limit defaults so existing route tests (which fire
+ *  many requests on the same `unknown` IP) don't accidentally hit
+ *  production-scale caps. Tests that specifically exercise rate
+ *  limiting pass `observability: { authedTier, ... }` to override. */
+const TEST_DEFAULT_OBSERVABILITY = {
+  authedTier: { capacity: 100_000, refillPerSec: 100_000 / 60 },
+  unauthedAuthTier: { capacity: 100_000, refillPerSec: 100_000 / 60 },
+};
+
+export function createTestApp(opts: CreateTestAppOptions = {}) {
   const test = createTestDb();
   // Pull `engines` so tests can clear() / inspect it if they want.
   // We deliberately don't call `engines.start()` here — tests run in
   // milliseconds and have no use for the 60 s idle reaper.
-  const { app, engines } = createApp({ db: test.db, authEnv: TEST_AUTH_ENV });
+  const { app, engines } = createApp({
+    db: test.db,
+    authEnv: TEST_AUTH_ENV,
+    observability: { ...TEST_DEFAULT_OBSERVABILITY, ...opts.observability },
+  });
   return { app, engines, ...test };
 }
 
