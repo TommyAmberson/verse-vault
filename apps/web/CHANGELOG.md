@@ -9,6 +9,19 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.19] — 2026-05-29
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — unchanged.
+* `verse-vault-wasm@0.5.0` — unchanged.
+
+### Internal refactor
+
+`persistLocalGraduation` and `persistLocalCardGraduation` in `lib/engine/engineStore.ts` were
+near-identical 5-line helpers differing only in the snapshot field they wrote to. Folded into one
+parameterised helper. No behaviour change.
+
 ## [0.1.18] — 2026-05-28
 
 ### Bundled algorithm contract

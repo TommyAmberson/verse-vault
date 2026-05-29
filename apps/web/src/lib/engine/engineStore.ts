@@ -255,23 +255,27 @@ export async function submitGraduation(
   // Persist the graduation locally too so a page reload before the
   // event flushes (or after it flushes but before /state is re-fetched)
   // still resurrects the verse as Active.
-  void persistLocalGraduation(materialId, verseId).catch((e) => {
+  void persistLocalGraduation(materialId, 'graduatedVerseIds', verseId).catch((e) => {
     console.warn('engineStore.submitGraduation: snapshot update failed', e)
   })
 
   return count
 }
 
-async function persistLocalGraduation(materialId: string, verseId: number): Promise<void> {
-  // Caller (`submitGraduation`) already validated a live session via
-  // `requireSession`, and sessions imply a snapshot row in IDB —
-  // `getSnapshot` is treated as infallible here. A missing row
-  // signals genuine IDB corruption and propagates as a thrown error
-  // through the surrounding fire-and-forget `.catch`.
+// Caller (`submitGraduation` / `submitCardGraduation`) already validated
+// a live session via `requireSession`, and sessions imply a snapshot row
+// in IDB — `getSnapshot` is treated as infallible here. A missing row
+// signals genuine IDB corruption and propagates as a thrown error
+// through the surrounding fire-and-forget `.catch`.
+async function persistLocalGraduation(
+  materialId: string,
+  field: 'graduatedVerseIds' | 'graduatedCardIds',
+  id: number,
+): Promise<void> {
   const snapshot = (await idb.getSnapshot(materialId))!
-  const ids = snapshot.graduatedVerseIds ?? []
-  if (ids.includes(verseId)) return
-  await idb.putSnapshot({ ...snapshot, graduatedVerseIds: [...ids, verseId] })
+  const ids = snapshot[field] ?? []
+  if (ids.includes(id)) return
+  await idb.putSnapshot({ ...snapshot, [field]: [...ids, id] })
 }
 
 /** Apply a single-card graduation locally and queue the event for
@@ -298,18 +302,11 @@ export async function submitCardGraduation(
       console.warn('engineStore.submitCardGraduation: queue append failed', e)
     })
 
-  void persistLocalCardGraduation(materialId, cardId).catch((e) => {
+  void persistLocalGraduation(materialId, 'graduatedCardIds', cardId).catch((e) => {
     console.warn('engineStore.submitCardGraduation: snapshot update failed', e)
   })
 
   return flipped
-}
-
-async function persistLocalCardGraduation(materialId: string, cardId: number): Promise<void> {
-  const snapshot = (await idb.getSnapshot(materialId))!
-  const ids = snapshot.graduatedCardIds ?? []
-  if (ids.includes(cardId)) return
-  await idb.putSnapshot({ ...snapshot, graduatedCardIds: [...ids, cardId] })
 }
 
 /** Look up the next due review card. */
