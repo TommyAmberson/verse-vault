@@ -212,6 +212,36 @@ sudo -u verse-vault litestream restore -o /var/lib/verse-vault/verse-vault.db \
   s3://<bucket>/verse-vault.db
 ```
 
+#### Verification
+
+A backup chain that's never been restored isn't a backup — it's a hope. Two helper scripts in
+`deploy/` exercise this.
+
+**`restore-drill.sh`** — proves the B2 chain restores cleanly. Downloads the latest snapshot to a
+temp file, runs `PRAGMA integrity_check`, and diffs row counts on the load-bearing tables (`user`,
+`user_materials`, `graph_snapshots`, `review_events`, `test_states`) against the live DB. The
+restored DB should be within `ROW_COUNT_TOLERANCE` (default 50) of live — the gap reflects writes
+landing locally between the most recent WAL ship and `now`. Run once after Litestream setup, and
+re-run after B2 credential rotations, big migrations, or whenever you want fresh confirmation:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/restore-drill.sh \
+  | sudo bash
+```
+
+**`litestream-health.sh`** — quick liveness check. `systemctl is-active`, time since the last
+successful WAL ship (parsed from journalctl), and the most recent B2 snapshot inventory. Operator-
+runnable; cron-able later. Fails non-zero if the daemon is down, no WAL has shipped in the last
+`MAX_WAL_AGE_SECS` (default 3600), or B2 listing errors:
+
+```bash
+sudo bash deploy/litestream-health.sh
+```
+
+Neither script writes to B2 or mutates the live DB — both read-only against the live system. They
+ship in the repo so re-pulling on a fresh box gives you the verification surface alongside the
+service itself.
+
 ### 6. SSH deploy key for CI
 
 The `.github/workflows/deploy-api.yml` workflow SSHes in as `verse-vault` and runs `rsync` plus a
