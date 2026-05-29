@@ -10,6 +10,41 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.21] — 2026-05-29
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — unchanged.
+* `verse-vault-wasm@0.5.0` — unchanged.
+
+### Drop full-catalog `export_test_states` on the review-write path (closes #15)
+
+`POST /api/cards/review` and the in-order branch of `POST /api/sync/:materialId/events` previously
+called `engine.export_test_states()` after each `replay_event`, parsed the full per-(user, material)
+test-state catalog, then filtered to the handful of tests actually touched — just to decide which
+rows to upsert. For a real deck (~6 000 test_states on `nkjv-cor`) that's ~6 000 entries serialised
+on the WASM side, ferried across the bindgen boundary, and re-parsed in JS — every single review,
+for ~5 rows of actual change.
+
+`WasmEngine.replay_event` already returns the post-update state for each touched test on the wire
+(`TestUpdateWire.after` includes `pending_relearn`, courtesy of `wasm-bindgen`'s serde derive). Read
+it directly:
+
+* New `changedStatesFromUpdates(updates: TestUpdateWire[]): TestStateEntry[]` helper in
+  `lib/engine.ts` maps the updates straight to `TestStateEntry[]` for `writeTestStates`.
+  Last-write-wins on duplicate test keys (matters for `sync.ts` which can replay several events
+  hitting the same test in one lock callback) — same result the prior export-then-filter would have
+  produced.
+* `cards.ts` POST `/review` and `sync.ts` POST `/events` (in-order path) use the new helper.
+* `sync.ts` still serialises the full catalog **once** per in-order request for the response payload
+  (thin clients wholesale-replace their cache); cutting that requires a wire-shape change and is out
+  of scope here. cards.ts has no equivalent response export, so its hot path is now fully free of
+  the full-catalog serialise. Sync goes from two full exports per in-order request to one.
+* The rebuild path in `sync.ts` and `engine.ts` still calls `export_test_states` — it's
+  reconstructing state from the full event log, so a full export is correct there.
+
+Bundled algorithm contract unchanged. No wire-format break (the field was already there).
+
 ## [0.1.20] — 2026-05-29
 
 ### Bundled algorithm contract
