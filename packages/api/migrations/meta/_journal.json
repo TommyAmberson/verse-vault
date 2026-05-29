@@ -148,6 +148,13 @@
       "when": 1779386400000,
       "tag": "0020_drop_snapshot_material_data",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1779472800000,
+      "tag": "0021_backfill_desired_retention_storage",
+      "breakpoints": true
     }
   ]
 }

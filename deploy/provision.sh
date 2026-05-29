@@ -68,8 +68,11 @@ echo "     System time: $(date -u +%FT%TZ)"
 
 echo "  -> apt update + base packages"
 apt-get update
+# `sqlite3` CLI is for operator scripts (deploy/restore-drill.sh,
+# litestream-health.sh); the API uses better-sqlite3 which statically
+# links its own SQLite and doesn't need the CLI.
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
-	curl ca-certificates git ufw unattended-upgrades jq
+	curl ca-certificates git ufw unattended-upgrades jq sqlite3
 
 echo "  -> Enabling unattended security upgrades"
 dpkg-reconfigure -f noninteractive unattended-upgrades

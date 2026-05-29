@@ -10,6 +10,35 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.23] — 2026-05-29
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — unchanged.
+* `verse-vault-wasm@0.5.0` — unchanged.
+
+### Backfill `user_year_settings.desired_retention` storage
+
+Migration 0018 added `desired_retention REAL DEFAULT 0.9 NOT NULL` to `user_year_settings`. SQLite's
+`ALTER TABLE ADD COLUMN` doesn't physically write the DEFAULT into rows that pre-existed the
+migration — the default is applied at SELECT time. `PRAGMA integrity_check` flags those rows as NOT
+NULL violations even though every SELECT returns 0.9, and
+`UPDATE ... WHERE desired_retention IS NULL` matches nothing (the WHERE clause evaluates against the
+read-time value).
+
+Discovered by the freshly-added `deploy/restore-drill.sh` (PR #79) running `integrity_check` against
+a B2 restore. Live prod had four such rows. The restore chain itself was fine — the bug was in
+physical storage all along, and the drill surfaced it.
+
+* **Migration 0021** (`0021_backfill_desired_retention_storage`):
+  `UPDATE user_year_settings SET desired_retention = COALESCE(desired_retention, 0.9)`. The COALESCE
+  goes through the write path, rewriting storage with a literal 0.9 even though the read-side
+  already returned 0.9 from the DEFAULT.
+* No code change. The schema-side `NOT NULL DEFAULT 0.9` was already correct; the data just needed
+  to catch up.
+
+Bundled algorithm contract unchanged. No wire-format break.
+
 ## [0.1.22] — 2026-05-29
 
 ### Bundled algorithm contract
