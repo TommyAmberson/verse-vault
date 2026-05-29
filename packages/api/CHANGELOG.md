@@ -10,6 +10,43 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.20] — 2026-05-29
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — unchanged.
+* `verse-vault-wasm@0.5.0` — unchanged.
+
+### EngineStore eviction (closes #13)
+
+`EngineStore.cache` was an unbounded `Map` — every (user, material) pair ever loaded stayed resident
+until process restart, holding a Rust-side `WasmEngine` whose heap the JS GC can't reclaim. Fine at
+single-dev scale, monotone RAM growth at multi-user scale.
+
+* **LRU cap** (default 128 entries). On cache insert with the cap reached, the entry with the oldest
+  `lastUsedAt` is evicted to make room. Cache hits bump `lastUsedAt` so the recently-used set
+  survives pressure.
+* **Idle TTL** (default 7200 s = 2 h). A background reaper walks the cache every
+  `reaperIntervalSecs` (default 60 s) and evicts entries idle past the TTL. 2 h is long enough to
+  bridge a within-visit pause (lunch break between memorize and review) and short enough to clean up
+  between typical inter-visit gaps (~12 h for once-a-day users).
+* **Refcounted handles + deferred `free()`.** `EngineStore.load()` returns a `Disposable`
+  `LoadedEngine`; route handlers bind it with `using` so dispose fires at scope exit and the cache
+  entry's refcount drops. `drainPendingFree` only calls `engine.free()` when refcount is zero AND
+  the 30 s grace period has elapsed — the refcount pin guarantees correctness even if a handler
+  stashes a handle across a slow `await` (api.bible fetch), and the grace period catches any code
+  path that escapes the `using` contract by mistake. New `tryLoad(key)` returns `null` instead of
+  throwing `NotEnrolledError`, which composes with `using` more naturally than the prior try/catch
+  pattern.
+* **Reaper lifecycle**: `EngineStore.start()` is called from `src/index.ts` (production entry
+  point), not `createApp`, so tests using `createTestApp` don't accumulate one `setInterval` per app
+  instance. `createApp` returns `{ app, engines }` so the entry point can reach the store.
+  `.unref()` on the timer keeps SIGTERM exits clean even without an explicit `stop()`.
+
+User-visible effect: none. An evicted user's next request rebuilds the engine from disk state via
+the existing cold-load path (~50 ms). At launch scale this prevents the "server lasts a day before
+needing a restart" failure mode; at single-dev scale it's invisible.
+
 ## [0.1.19] — 2026-05-28
 
 ### Bundled algorithm contract
