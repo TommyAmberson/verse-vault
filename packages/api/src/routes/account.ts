@@ -9,6 +9,7 @@ import {
   ImportValidationError,
   applyAccountImport,
 } from '../lib/import.js';
+import { deleteAccountProgress } from '../lib/reset.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface AccountRoutesDeps {
@@ -62,6 +63,12 @@ export function accountRoutes(deps: AccountRoutesDeps) {
       }
     },
   );
+
+  app.delete('/account/progress', async (c) => {
+    const user = getUser(c);
+    const summary = await deleteAccountProgress(deps.db, deps.engines, user.id);
+    return c.json(summary);
+  });
 
   return app;
 }
