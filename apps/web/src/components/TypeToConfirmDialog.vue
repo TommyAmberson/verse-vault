@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, useId } from 'vue'
+import { computed, ref, useId } from 'vue'
+
+import BaseModal from '@/components/BaseModal.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -23,86 +25,46 @@ const emit = defineEmits<{
 }>()
 
 const typed = ref('')
-const titleId = useId()
 const inputId = useId()
 
-const matched = () => typed.value.trim() === props.matchText
+const matched = computed(() => typed.value.trim() === props.matchText)
 </script>
 
 <template>
-  <div
-    class="overlay"
-    role="dialog"
-    aria-modal="true"
-    :aria-labelledby="titleId"
-    @click.self="emit('cancel')"
-  >
-    <div class="modal">
-      <h2 :id="titleId">{{ title }}</h2>
-      <div class="body">
-        <slot />
-        <label :for="inputId" class="match-label">
-          Type <code>{{ matchText }}</code> to confirm
-        </label>
-        <input
-          :id="inputId"
-          v-model="typed"
-          type="text"
-          autocomplete="off"
-          autocapitalize="off"
-          spellcheck="false"
-          class="match-input"
-        />
-      </div>
-      <div class="actions">
-        <button type="button" class="btn cancel" :disabled="busy" @click="emit('cancel')">
-          {{ cancelLabel }}
-        </button>
-        <button
-          type="button"
-          class="btn confirm destructive"
-          :disabled="busy || !matched()"
-          @click="emit('confirm')"
-        >
-          {{ confirmLabel }}
-        </button>
-      </div>
+  <BaseModal :title="title" @dismiss="emit('cancel')">
+    <div class="ttc-body">
+      <slot />
+      <label :for="inputId" class="match-label">
+        Type <code>{{ matchText }}</code> to confirm
+      </label>
+      <input
+        :id="inputId"
+        v-model="typed"
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        class="match-input"
+      />
     </div>
-  </div>
+    <template #actions>
+      <button type="button" class="btn cancel" :disabled="busy" @click="emit('cancel')">
+        {{ cancelLabel }}
+      </button>
+      <button
+        type="button"
+        class="btn confirm destructive"
+        :disabled="busy || !matched"
+        @click="emit('confirm')"
+      >
+        {{ confirmLabel }}
+      </button>
+    </template>
+  </BaseModal>
 </template>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 1rem;
-}
-
-.modal {
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  max-width: 440px;
-  width: 100%;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.modal h2 {
-  font-size: 1.1rem;
-  margin: 0;
-}
-
-.body {
-  color: var(--color-muted);
-  line-height: 1.5;
+.ttc-body {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -126,37 +88,5 @@ const matched = () => typed.value.trim() === props.matchText
   color: var(--color-text);
   font-family: inherit;
   font-size: 0.9rem;
-}
-
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-weight: 500;
-  font-size: 0.95rem;
-  border: 1px solid transparent;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.cancel {
-  background: transparent;
-  border-color: var(--color-border);
-  color: var(--color-muted);
-}
-
-.confirm.destructive {
-  background: var(--color-grade-again-bg);
-  color: var(--color-grade-again);
 }
 </style>

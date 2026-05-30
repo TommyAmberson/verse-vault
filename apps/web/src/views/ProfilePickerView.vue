@@ -34,9 +34,16 @@ const deleteBusy = ref(false)
 const banner = ref<string | null>(null)
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const pendingImport = ref<{ profile: ProfileRow; payload: unknown } | null>(null)
+// The parsed payload awaiting the import confirm. `switchTo` has already
+// made the target the active profile by the time this is set, so the
+// confirm dialog reads the account from `activeProfile`, not from here.
+const pendingImportPayload = ref<unknown | null>(null)
 const importBusy = ref(false)
-const importResult = ref<{ summary: ImportSummary | null; error: string | null } | null>(null)
+// Mutually exclusive: a summary on success, a message on failure. Both
+// null while no result dialog is showing.
+const importSummary = ref<ImportSummary | null>(null)
+const importError = ref<string | null>(null)
+const showImportResult = ref(false)
 
 const pendingDeleteProgress = ref<ProfileRow | null>(null)
 const deleteProgressBusy = ref(false)
@@ -106,6 +113,15 @@ async function switchTo(profile: ProfileRow): Promise<boolean> {
   return false
 }
 
+/** Clear the banner, switch to `profile`, then run `fn` against the
+ *  now-active account. Skips `fn` if the switch needed reauth. The
+ *  shared preamble for every per-card account action. */
+async function withActiveProfile(profile: ProfileRow, fn: () => Promise<void>) {
+  banner.value = null
+  if (!(await switchTo(profile))) return
+  await fn()
+}
+
 /** Download the active account's full export. Shared by the kebab
  *  Export item and the backup button inside the delete dialog. */
 async function exportActiveAccount() {
@@ -115,14 +131,14 @@ async function exportActiveAccount() {
   downloadJson(exportFilename(email, isoDate), data)
 }
 
-async function onCardExport(profile: ProfileRow) {
-  banner.value = null
-  if (!(await switchTo(profile))) return
-  try {
-    await exportActiveAccount()
-  } catch (err) {
-    banner.value = err instanceof ApiError ? err.message : 'Export failed.'
-  }
+function onCardExport(profile: ProfileRow) {
+  return withActiveProfile(profile, async () => {
+    try {
+      await exportActiveAccount()
+    } catch (err) {
+      banner.value = err instanceof ApiError ? err.message : 'Export failed.'
+    }
+  })
 }
 
 async function onBackupClick() {
@@ -134,65 +150,61 @@ async function onBackupClick() {
   }
 }
 
-async function onCardImport(profile: ProfileRow) {
-  banner.value = null
-  if (!(await switchTo(profile))) return
-  // Stash the target so the file-input change handler knows which
-  // account it's importing into, then open the OS file picker.
-  pendingImport.value = { profile, payload: null }
-  fileInput.value?.click()
+function onCardImport(profile: ProfileRow) {
+  return withActiveProfile(profile, async () => {
+    // The active profile is now the import target; open the OS file
+    // picker and let `onFilePicked` carry on from the change event.
+    fileInput.value?.click()
+  })
 }
 
 async function onFilePicked(ev: Event) {
   const input = ev.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = '' // allow re-picking the same file later
-  if (!file || !pendingImport.value) return
+  if (!file) return
   try {
-    const payload = await readJsonFile(file)
-    pendingImport.value = { ...pendingImport.value, payload }
+    pendingImportPayload.value = await readJsonFile(file)
   } catch {
-    pendingImport.value = null
-    importResult.value = { summary: null, error: 'That file isn’t valid JSON.' }
+    pendingImportPayload.value = null
+    importSummary.value = null
+    importError.value = 'That file isn’t valid JSON.'
+    showImportResult.value = true
   }
 }
 
 function cancelImport() {
-  pendingImport.value = null
+  pendingImportPayload.value = null
 }
 
 async function confirmImport() {
-  const target = pendingImport.value
-  if (!target || target.payload === null) return
+  if (pendingImportPayload.value === null) return
   importBusy.value = true
   try {
-    const summary = await api.importAccount(target.payload)
-    importResult.value = { summary, error: null }
+    importSummary.value = await api.importAccount(pendingImportPayload.value)
+    importError.value = null
   } catch (err) {
-    const message = err instanceof ApiError ? err.message : 'Import failed.'
-    importResult.value = { summary: null, error: message }
+    importSummary.value = null
+    importError.value = err instanceof ApiError ? err.message : 'Import failed.'
   } finally {
     importBusy.value = false
-    pendingImport.value = null
+    pendingImportPayload.value = null
+    showImportResult.value = true
   }
 }
 
 function closeImportResult() {
-  importResult.value = null
-}
-
-function requestDeleteProgress(profile: ProfileRow) {
-  pendingDeleteProgress.value = profile
+  showImportResult.value = false
 }
 
 function cancelDeleteProgress() {
   pendingDeleteProgress.value = null
 }
 
-async function onCardDeleteProgress(profile: ProfileRow) {
-  banner.value = null
-  if (!(await switchTo(profile))) return
-  requestDeleteProgress(profile)
+function onCardDeleteProgress(profile: ProfileRow) {
+  return withActiveProfile(profile, async () => {
+    pendingDeleteProgress.value = profile
+  })
 }
 
 async function confirmDeleteProgress() {
@@ -313,7 +325,7 @@ async function onSignInSuccess() {
     />
 
     <ConfirmDialog
-      v-if="pendingImport && pendingImport.payload !== null"
+      v-if="pendingImportPayload !== null"
       title="Import data?"
       confirm-label="Import"
       :busy="importBusy"
@@ -321,16 +333,16 @@ async function onSignInSuccess() {
       @cancel="cancelImport"
     >
       <p>
-        Import data into <strong>{{ pendingImport.profile.email }}</strong>?
+        Import data into <strong>{{ activeProfile?.email }}</strong>?
         This adds review history and graduations from the file. Existing
         data is kept, and re-importing the same file is safe.
       </p>
     </ConfirmDialog>
 
     <ImportResultDialog
-      v-if="importResult"
-      :summary="importResult.summary"
-      :error="importResult.error"
+      v-if="showImportResult"
+      :summary="importSummary"
+      :error="importError"
       @close="closeImportResult"
     />
 
