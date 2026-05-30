@@ -2,10 +2,14 @@
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { api, ApiError, type ImportSummary } from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import ImportResultDialog from '@/components/ImportResultDialog.vue'
 import ProfileCard from '@/components/ProfileCard.vue'
 import SignInForm from '@/components/SignInForm.vue'
+import TypeToConfirmDialog from '@/components/TypeToConfirmDialog.vue'
 import { useAuth } from '@/composables/useAuth'
+import { downloadJson, exportFilename, readJsonFile } from '@/lib/account-file'
 import type { ProfileRow } from '@/lib/engine/registry'
 
 const {
@@ -26,6 +30,16 @@ const mode = ref<'empty' | 'cards' | 'add'>(profiles.value.length === 0 ? 'empty
 const prefillEmail = ref<string | undefined>(undefined)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)
+
+const banner = ref<string | null>(null)
+
+const fileInput = ref<HTMLInputElement | null>(null)
+const pendingImport = ref<{ profile: ProfileRow; payload: unknown } | null>(null)
+const importBusy = ref(false)
+const importResult = ref<{ summary: ImportSummary | null; error: string | null } | null>(null)
+
+const pendingDeleteProgress = ref<ProfileRow | null>(null)
+const deleteProgressBusy = ref(false)
 
 // Keep mode in sync with the shared profiles list (reconcile, sign-in
 // from another flow, etc.). Skip when the user is mid-add — don't
@@ -72,6 +86,121 @@ async function onCardSignOut(profile: ProfileRow) {
   await signOut(profile.profileId)
 }
 
+/** Make `profile`'s session active (no-op if it already is). Returns
+ *  false and routes to the reauth form when the token is dead. */
+async function switchTo(profile: ProfileRow): Promise<boolean> {
+  if (activeProfile.value?.profileId === profile.profileId) return true
+  const result = await enterProfile(profile.profileId)
+  if (result.ok) return true
+  prefillEmail.value = profile.email
+  mode.value = 'add'
+  return false
+}
+
+/** Download the active account's full export. Shared by the kebab
+ *  Export item and the backup button inside the delete dialog. */
+async function exportActiveAccount() {
+  const email = activeProfile.value?.email ?? 'account'
+  const data = await api.exportAccount()
+  const isoDate = new Date().toISOString().slice(0, 10)
+  downloadJson(exportFilename(email, isoDate), data)
+}
+
+async function onCardExport(profile: ProfileRow) {
+  banner.value = null
+  if (!(await switchTo(profile))) return
+  try {
+    await exportActiveAccount()
+  } catch (err) {
+    banner.value = err instanceof ApiError ? err.message : 'Export failed.'
+  }
+}
+
+async function onBackupClick() {
+  banner.value = null
+  try {
+    await exportActiveAccount()
+  } catch (err) {
+    banner.value = err instanceof ApiError ? err.message : 'Backup download failed.'
+  }
+}
+
+async function onCardImport(profile: ProfileRow) {
+  banner.value = null
+  if (!(await switchTo(profile))) return
+  // Stash the target so the file-input change handler knows which
+  // account it's importing into, then open the OS file picker.
+  pendingImport.value = { profile, payload: null }
+  fileInput.value?.click()
+}
+
+async function onFilePicked(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = '' // allow re-picking the same file later
+  if (!file || !pendingImport.value) return
+  try {
+    const payload = await readJsonFile(file)
+    pendingImport.value = { ...pendingImport.value, payload }
+  } catch {
+    pendingImport.value = null
+    importResult.value = { summary: null, error: 'That file isn’t valid JSON.' }
+  }
+}
+
+function cancelImport() {
+  pendingImport.value = null
+}
+
+async function confirmImport() {
+  const target = pendingImport.value
+  if (!target || target.payload === null) return
+  importBusy.value = true
+  try {
+    const summary = await api.importAccount(target.payload)
+    importResult.value = { summary, error: null }
+  } catch (err) {
+    const message = err instanceof ApiError ? err.message : 'Import failed.'
+    importResult.value = { summary: null, error: message }
+  } finally {
+    importBusy.value = false
+    pendingImport.value = null
+  }
+}
+
+function closeImportResult() {
+  importResult.value = null
+}
+
+function requestDeleteProgress(profile: ProfileRow) {
+  pendingDeleteProgress.value = profile
+}
+
+function cancelDeleteProgress() {
+  pendingDeleteProgress.value = null
+}
+
+async function onCardDeleteProgress(profile: ProfileRow) {
+  banner.value = null
+  if (!(await switchTo(profile))) return
+  requestDeleteProgress(profile)
+}
+
+async function confirmDeleteProgress() {
+  const target = pendingDeleteProgress.value
+  if (!target) return
+  deleteProgressBusy.value = true
+  try {
+    const summary = await api.deleteAllProgress()
+    banner.value = `Reset ${summary.materialsReset} deck(s): removed ${summary.eventsDeleted} reviews and ${summary.graduationsDeleted} graduations.`
+  } catch (err) {
+    banner.value = err instanceof ApiError ? err.message : 'Delete failed.'
+  } finally {
+    deleteProgressBusy.value = false
+    pendingDeleteProgress.value = null
+  }
+}
+
 function requestDelete(profile: ProfileRow) {
   pendingDelete.value = profile
 }
@@ -113,6 +242,8 @@ async function onSignInSuccess() {
     <h2 v-else-if="mode === 'add'">Add a profile</h2>
     <h2 v-else>Sign in</h2>
 
+    <p v-if="banner" class="banner">{{ banner }}</p>
+
     <template v-if="mode === 'cards'">
       <div class="cards">
         <ProfileCard
@@ -125,6 +256,9 @@ async function onSignInSuccess() {
           @reauth="onCardReauth(p)"
           @sign-out="onCardSignOut(p)"
           @delete="requestDelete(p)"
+          @export="onCardExport(p)"
+          @import="onCardImport(p)"
+          @delete-progress="onCardDeleteProgress(p)"
         />
       </div>
       <button type="button" class="add-btn" @click="startAdd">
@@ -160,6 +294,55 @@ async function onSignInSuccess() {
         can sign in again later to start fresh.
       </p>
     </ConfirmDialog>
+
+    <input
+      ref="fileInput"
+      type="file"
+      accept="application/json"
+      class="hidden-file"
+      @change="onFilePicked"
+    />
+
+    <ConfirmDialog
+      v-if="pendingImport && pendingImport.payload !== null"
+      title="Import data?"
+      confirm-label="Import"
+      :busy="importBusy"
+      @confirm="confirmImport"
+      @cancel="cancelImport"
+    >
+      <p>
+        Import data into <strong>{{ pendingImport.profile.email }}</strong>?
+        This adds review history and graduations from the file. Existing
+        data is kept, and re-importing the same file is safe.
+      </p>
+    </ConfirmDialog>
+
+    <ImportResultDialog
+      v-if="importResult"
+      :summary="importResult.summary"
+      :error="importResult.error"
+      @close="closeImportResult"
+    />
+
+    <TypeToConfirmDialog
+      v-if="pendingDeleteProgress"
+      title="Delete all progress?"
+      confirm-label="Delete all progress"
+      :match-text="pendingDeleteProgress.email"
+      :busy="deleteProgressBusy"
+      @confirm="confirmDeleteProgress"
+      @cancel="cancelDeleteProgress"
+    >
+      <p>
+        This permanently deletes <strong>all review history, graduations,
+        and progress</strong> for <strong>{{ pendingDeleteProgress.email }}</strong>
+        across every deck. Your decks and settings stay. This cannot be undone.
+      </p>
+      <button type="button" class="backup-btn" @click="onBackupClick">
+        ⬇ Download a backup (.json)
+      </button>
+    </TypeToConfirmDialog>
   </div>
 </template>
 
@@ -215,5 +398,35 @@ h2 {
 
 .back-btn:hover {
   color: var(--color-text);
+}
+
+.banner {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.hidden-file {
+  display: none;
+}
+
+.backup-btn {
+  align-self: flex-start;
+  padding: 0.45rem 0.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.backup-btn:hover {
+  border-color: var(--color-accent);
 }
 </style>
