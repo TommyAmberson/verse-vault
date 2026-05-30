@@ -19,6 +19,9 @@ const emit = defineEmits<{
   /** Clicked a signed-out card — re-auth required to use it. */
   (e: 'reauth'): void
   (e: 'sign-out'): void
+  (e: 'export'): void
+  (e: 'import'): void
+  (e: 'delete-progress'): void
   (e: 'delete'): void
 }>()
 
@@ -67,6 +70,24 @@ function onSignOutClick(ev: Event) {
   ev.stopPropagation()
   closeMenu()
   emit('sign-out')
+}
+
+function onExportClick(ev: Event) {
+  ev.stopPropagation()
+  closeMenu()
+  emit('export')
+}
+
+function onImportClick(ev: Event) {
+  ev.stopPropagation()
+  closeMenu()
+  emit('import')
+}
+
+function onDeleteProgressClick(ev: Event) {
+  ev.stopPropagation()
+  closeMenu()
+  emit('delete-progress')
 }
 
 function onDeleteClick(ev: Event) {
@@ -131,9 +152,36 @@ function onCardKeydown(ev: KeyboardEvent) {
           type="button"
           class="menu-item"
           role="menuitem"
+          @click="onExportClick"
+        >
+          Export my data
+        </button>
+        <button
+          v-if="signedIn"
+          type="button"
+          class="menu-item"
+          role="menuitem"
+          @click="onImportClick"
+        >
+          Import data
+        </button>
+        <button
+          v-if="signedIn"
+          type="button"
+          class="menu-item"
+          role="menuitem"
           @click="onSignOutClick"
         >
           Sign out
+        </button>
+        <button
+          v-if="signedIn"
+          type="button"
+          class="menu-item destructive"
+          role="menuitem"
+          @click="onDeleteProgressClick"
+        >
+          Delete all progress
         </button>
         <button
           type="button"
