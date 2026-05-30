@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
@@ -36,9 +36,78 @@ export interface PersistArgs {
 
 type Tx = Parameters<Parameters<DB['transaction']>[0]>[0];
 
+/** A read/write executor: either the root `DB` or a transaction handle.
+ *  The dedup read runs pre-transaction in sync but inside the import
+ *  transaction, so the shared helper accepts both. */
+type Executor = DB | Tx;
+
 /** SQLite caps bind parameters at 999; test_states has 9 columns, so 100
  *  rows leaves headroom. Sync replays and seeding both can hit thousands. */
 const TEST_STATES_BATCH = 100;
+
+/** `review_events` has 9 columns, so 100 rows/insert stays under the 999
+ *  bind-parameter cap. An import can carry tens of thousands of events. */
+const REVIEW_EVENTS_BATCH = 100;
+
+/** clientEventIds are one bind parameter each; 500/query is well under the
+ *  cap and matches the sync upload ceiling. */
+const EVENT_ID_DEDUP_BATCH = 500;
+
+/** Of `clientEventIds`, return the subset already stored for this
+ *  (user, material) — the dedup hits. Chunked so a large import stays
+ *  under SQLite's bind-parameter cap; sync passes a bounded batch and
+ *  benefits from the same chunking for free. Both callers want the
+ *  "already seen" set to filter their fresh events. */
+export function existingEventIds(
+  exec: Executor,
+  userId: string,
+  materialId: string,
+  clientEventIds: string[],
+): Set<string> {
+  const seen = new Set<string>();
+  for (let i = 0; i < clientEventIds.length; i += EVENT_ID_DEDUP_BATCH) {
+    const chunk = clientEventIds.slice(i, i + EVENT_ID_DEDUP_BATCH);
+    const rows = exec
+      .select({ clientEventId: schema.reviewEvents.clientEventId })
+      .from(schema.reviewEvents)
+      .where(
+        and(
+          eq(schema.reviewEvents.userId, userId),
+          eq(schema.reviewEvents.materialId, materialId),
+          inArray(schema.reviewEvents.clientEventId, chunk),
+        ),
+      )
+      .all();
+    for (const r of rows) seen.add(r.clientEventId);
+  }
+  return seen;
+}
+
+/** Chunked append of `review_events`. The row `id` is the
+ *  `clientEventId` (stable + unique), and `createdAt` is the event's own
+ *  timestamp — same convention across the online, sync, and import write
+ *  paths. Callers are responsible for dedup (see `existingEventIds`). */
+export function writeReviewEvents(tx: Tx, events: ReviewEventInput[]): void {
+  for (let i = 0; i < events.length; i += REVIEW_EVENTS_BATCH) {
+    const slice = events.slice(i, i + REVIEW_EVENTS_BATCH);
+    if (slice.length === 0) continue;
+    tx.insert(schema.reviewEvents)
+      .values(
+        slice.map((e) => ({
+          id: e.clientEventId,
+          userId: e.userId,
+          materialId: e.materialId,
+          snapshotVersion: e.snapshotVersion,
+          timestampSecs: e.timestampSecs,
+          cardId: e.cardId,
+          grade: e.grade,
+          clientEventId: e.clientEventId,
+          createdAt: e.timestampSecs,
+        })),
+      )
+      .run();
+  }
+}
 
 interface UpsertOpts {
   /** When false, plain insert (used for fresh seeding where keys are unique). */
@@ -104,23 +173,6 @@ export function writeTestStates(
 export function persistEngineState(tx: Tx, args: PersistArgs): void {
   const { events, testStateUpdates, userId, materialId } = args;
 
-  if (events.length > 0) {
-    tx.insert(schema.reviewEvents)
-      .values(
-        events.map((e) => ({
-          id: e.clientEventId,
-          userId: e.userId,
-          materialId: e.materialId,
-          snapshotVersion: e.snapshotVersion,
-          timestampSecs: e.timestampSecs,
-          cardId: e.cardId,
-          grade: e.grade,
-          clientEventId: e.clientEventId,
-          createdAt: e.timestampSecs,
-        })),
-      )
-      .run();
-  }
-
+  writeReviewEvents(tx, events);
   writeTestStates(tx, userId, materialId, testStateUpdates, { onConflict: true });
 }

@@ -10,6 +10,48 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.25] — 2026-05-29
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — unchanged.
+* `verse-vault-wasm@0.5.0` — unchanged.
+
+### Account export / import + Anki bootstrap
+
+Adds a versioned account portability format and an Anki bootstrap converter, so a new user can seed
+years of memorization history into verse-vault from their existing `.colpkg` backup.
+
+* **`AccountExport` v1** (`packages/api/src/lib/export-format.ts`) — single JSON payload covering
+  the user row, every enrolled material, per-year settings, graduations, and the full review-event
+  log. Cards key on `CardRef` (`kind` + verseId + params), not `cardId`, so an export from an older
+  snapshot version can be replayed against the current one as long as the referenced verses still
+  exist. HP / CCL use natural keys (`headingIdx`, `(book, chapter, tier)`) so external converters
+  don't need to know the builder's synthetic pseudo-verse ids.
+* **`GET /api/export`** — full account dump as `verse-vault-export-YYYY-MM-DD.json`. Walks every
+  enrolled material, loads the engine to build the cardId↔CardRef index, then translates DB rows
+  into the wire format.
+* **`POST /api/import`** — accepts an `AccountExport`, returns an `ImportSummary` (events inserted /
+  skipped via `clientEventId` dedup, graduations applied, unresolved cardRefs). Per-material
+  transaction: a bad cardRef in one material doesn't poison another's writes. After each material's
+  writes land, calls `EngineStore.rebuildFromEvents(key)` for that material (under the engine's
+  per-key lock) so `test_states` regenerates from the now-augmented event log — no engine-state
+  copying. Body capped at 50 MB via hono's `body-limit`.
+* **Settings merge policy**: per-row `max(updatedAt)` wins. Locally-tuned settings aren't blown away
+  by an older imported row, and re-import of the same payload is a no-op. Imported settings run
+  through the same bound/enum validation as the `PUT /api/years/:id/settings` route (extracted to
+  `lib/year-settings.ts`); an out-of-range value is rejected with a 400 rather than written
+  verbatim.
+* **`tools/anki_to_export.py`** — reads a `.colpkg`, maps the 3 Verse template ords to Citation /
+  Recitation / Ftv, Heading notes to HeadingPassage, Key Verse List to ChapterClubList. Graduation
+  rule (per spec): any Verse note with ANY of its 3 cards in Anki queue ≥ 2 graduates the verse;
+  same rule for HP / CCL goes through `graduatedCards`, and the graduation timestamp is the earliest
+  _passing_ review (not the first time the card was seen). `clientEventId` is
+  `anki:<col-mod>:<revlog-id>` so re-running the converter is idempotent on import. Output uploads
+  directly to `/api/import`.
+
+Bundled algorithm contract unchanged. No wire-format break.
+
 ## [0.1.24] — 2026-05-29
 
 ### Bundled algorithm contract

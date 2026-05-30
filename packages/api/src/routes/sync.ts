@@ -14,7 +14,12 @@ import {
   readTestStateEntries,
 } from '../lib/engine.js';
 import { getMaterialJson } from '../lib/materials.js';
-import { type Grade, type ReviewEventInput, persistEngineState } from '../lib/review-log.js';
+import {
+  existingEventIds,
+  type Grade,
+  type ReviewEventInput,
+  persistEngineState,
+} from '../lib/review-log.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface SyncRoutesDeps {
@@ -23,7 +28,8 @@ export interface SyncRoutesDeps {
   now?: () => number;
 }
 
-/** Caps each upload so the `inArray` dedup stays under SQLite's 999-param limit. */
+/** Caps each upload to bound per-request work; the dedup query chunks
+ *  internally (see `existingEventIds`) so it isn't tied to this value. */
 const MAX_BATCH_SIZE = 500;
 
 /** Events with `timestampSecs` more than this far in the future are rejected.
@@ -158,21 +164,12 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       }
     }
 
-    const existing = deps.db
-      .select({ clientEventId: schema.reviewEvents.clientEventId })
-      .from(schema.reviewEvents)
-      .where(
-        and(
-          eq(schema.reviewEvents.userId, user.id),
-          eq(schema.reviewEvents.materialId, materialId),
-          inArray(
-            schema.reviewEvents.clientEventId,
-            events.map((e) => e.clientEventId),
-          ),
-        ),
-      )
-      .all();
-    const seen = new Set(existing.map((r) => r.clientEventId));
+    const seen = existingEventIds(
+      deps.db,
+      user.id,
+      materialId,
+      events.map((e) => e.clientEventId),
+    );
 
     const fresh = events
       .filter((e) => !seen.has(e.clientEventId))

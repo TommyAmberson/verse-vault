@@ -120,6 +120,19 @@ def parse_clubs(club_str: str) -> List[int]:
     return sorted(set(out))
 
 
+def open_collection_db(db_path: str) -> sqlite3.Connection:
+    """Open an extracted Anki collection read-only with the ``unicase``
+    collation registered. Anki's indexes reference this collation, so
+    even read-only queries fail to prepare without it. Shared by every
+    tool that reads a colpkg's SQLite (audit, import, export)."""
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con.create_collation(
+        "unicase",
+        lambda a, b: (a.casefold() > b.casefold()) - (a.casefold() < b.casefold()),
+    )
+    return con
+
+
 def query_verse_notes(
     db_path: str, year_prefix: str
 ) -> Iterable[Tuple[str, int, int, str, str, List[int]]]:
@@ -127,11 +140,7 @@ def query_verse_notes(
     Anki ``Verse`` note in decks whose name contains ``year_prefix``.
     Text and FTV are returned with markup intact so the auditor can
     parse keyword positions and FTV word boundaries."""
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    con.create_collation(
-        "unicase",
-        lambda a, b: (a.casefold() > b.casefold()) - (a.casefold() < b.casefold()),
-    )
+    con = open_collection_db(db_path)
     try:
         cur = con.execute(
             """
