@@ -188,10 +188,10 @@ def parse_verse_fields(flds: str) -> Optional[Tuple[str, int, int]]:
 
 
 def tier_name(n: int) -> str:
-    """Map an Anki club number to the CardRef ``tier`` string. Full is
-    the unscoped "always-in" tier; everything else takes the literal
-    ``Club<N>`` form. Returns None for tier numbers the wire format
-    doesn't recognise; callers drop those events."""
+    """Map an Anki club number to the CardRef ``tier`` string
+    (``Club150`` / ``Club300``). Returns an empty string for club
+    numbers the wire format doesn't recognise; the caller treats that
+    as falsy and drops the event."""
     if n == 150:
         return "Club150"
     if n == 300:
@@ -318,9 +318,12 @@ def build_export(
     con = open_collection_db(db_path)
     col_mod = read_col_mod(con)
 
-    # nid → (materialId, CardRef) once resolved; cache so we don't
-    # re-resolve per revlog row.
-    note_resolution: Dict[int, Optional[Tuple[str, Dict[str, Any]]]] = {}
+    # cid → (materialId, CardRef) once resolved; cache so we don't
+    # re-resolve per revlog row. Keyed by *card* id, not note id: a
+    # Verse note fans out to three cards (ord 0/1/2 → Citation /
+    # Recitation / Ftv) that share one nid but resolve to distinct
+    # CardRefs, so caching per-nid would mislabel two of the three.
+    card_resolution: Dict[int, Optional[Tuple[str, Dict[str, Any]]]] = {}
     # (materialId, JSON-of-cardRef) → GradState. Folded per revlog row
     # via `fold_graduation_ts`: earliest passing (grade≥3) review wins,
     # else the latest row. Reduced to a bare ts in the promote step.
@@ -388,12 +391,12 @@ def build_export(
             counters["revlog_skipped_unmapped"] += 1
             continue
         nid = card["nid"]
-        if nid not in note_resolution:
+        if cid not in card_resolution:
             notetype, flds = nid_to_meta[nid]
-            note_resolution[nid] = resolve_note(
+            card_resolution[cid] = resolve_note(
                 notetype, card["ord"], flds, verse_indexes, heading_indexes
             )
-        resolved = note_resolution[nid]
+        resolved = card_resolution[cid]
         if resolved is None:
             counters["revlog_skipped_unmapped"] += 1
             continue
