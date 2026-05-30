@@ -33,10 +33,10 @@ years of memorization history into verse-vault from their existing `.colpkg` bac
   into the wire format.
 * **`POST /api/import`** — accepts an `AccountExport`, returns an `ImportSummary` (events inserted /
   skipped via `clientEventId` dedup, graduations applied, unresolved cardRefs). Per-material
-  transaction: a bad cardRef in one material doesn't poison another's writes. After all DB writes
-  land, calls `EngineStore.rebuildFromEvents(key)` per material so `test_states` regenerates from
-  the now-augmented event log — no engine-state copying. Body capped at 50 MB via hono's
-  `body-limit`.
+  transaction: a bad cardRef in one material doesn't poison another's writes. After each material's
+  writes land, calls `EngineStore.rebuildFromEvents(key)` for that material (under the engine's
+  per-key lock) so `test_states` regenerates from the now-augmented event log — no engine-state
+  copying. Body capped at 50 MB via hono's `body-limit`.
 * **Settings merge policy**: per-row `max(updatedAt)` wins. Locally-tuned settings aren't blown away
   by an older imported row, and re-import of the same payload is a no-op. Imported settings run
   through the same bound/enum validation as the `PUT /api/years/:id/settings` route (extracted to

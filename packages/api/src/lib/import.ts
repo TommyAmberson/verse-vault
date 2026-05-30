@@ -49,11 +49,12 @@ export class ImportValidationError extends Error {
  *  merge via per-row `max(updatedAt)`: an older imported settings row
  *  doesn't blow away the user's tuned current settings. Each material
  *  is wrapped in its own transaction so a bad cardRef in one doesn't
- *  poison the others. After all materials are written we call
- *  `engines.rebuildFromEvents(key)` per material; that regenerates
+ *  poison the others. After each material's writes land we call
+ *  `engines.rebuildFromEvents(key)` for that material; that regenerates
  *  `test_states` from the full event log (now including the imported
  *  events) and is the entire reason we don't need to write FSRS
- *  state directly. */
+ *  state directly. The whole per-material pass runs under the engine's
+ *  per-key lock so the rebuild can't race a concurrent review. */
 export async function applyAccountImport(
   db: DB,
   engines: EngineStore,
@@ -98,26 +99,34 @@ export async function applyAccountImport(
     }
 
     const key = { userId, materialId: material.materialId };
-    using loaded = await engines.load(key);
-    const index = buildCardRefIndex(loaded.engine);
-    const snapshotVersion = loaded.snapshotVersion;
+    // Hold the per-key lock across load + writes + rebuild: the
+    // `rebuildFromEvents` delete-then-insert of test_states must not
+    // race a concurrent review POST for the same (user, material).
+    // Mirrors sync.ts, which wraps its own rebuild in withLock.
+    await engines.withLock(key, async () => {
+      using loaded = await engines.load(key);
+      const index = buildCardRefIndex(loaded.engine);
+      const snapshotVersion = loaded.snapshotVersion;
 
-    db.transaction((tx) => {
-      applyEnrollmentExtras(tx, key, material);
-      applySettings(tx, key, material);
-      const gradResult = applyGraduations(tx, key, material, index);
-      summary.graduationsApplied += gradResult.applied;
-      summary.unresolvedCardRefs += gradResult.unresolved;
-      const eventResult = applyReviewEvents(tx, key, material, index, snapshotVersion);
-      summary.eventsInserted += eventResult.inserted;
-      summary.eventsSkipped += eventResult.skipped;
-      summary.unresolvedCardRefs += eventResult.unresolved;
+      db.transaction((tx) => {
+        applyEnrollmentExtras(tx, key, material);
+        applySettings(tx, key, material);
+        const gradResult = applyGraduations(tx, key, material, index);
+        summary.graduationsApplied += gradResult.applied;
+        summary.unresolvedCardRefs += gradResult.unresolved;
+        const eventResult = applyReviewEvents(tx, key, material, index, snapshotVersion);
+        summary.eventsInserted += eventResult.inserted;
+        summary.eventsSkipped += eventResult.skipped;
+        summary.unresolvedCardRefs += eventResult.unresolved;
+      });
+
+      // Replay the (now-augmented) event log into a fresh engine. This
+      // wipes test_states for the material and re-derives it from the
+      // committed reviewEvents — including everything we just inserted.
+      // Bind the returned handle with `using` so its refcount (bumped by
+      // rebuildFromEvents) is released at scope exit.
+      using _rebuilt = engines.rebuildFromEvents(key);
     });
-
-    // Replay the (now-augmented) event log into a fresh engine. This
-    // wipes test_states for the material and re-derives it from the
-    // committed reviewEvents — including everything we just inserted.
-    engines.rebuildFromEvents(key);
     summary.materialsApplied += 1;
   }
 
@@ -215,7 +224,8 @@ function applyGraduations(
   let unresolved = 0;
 
   for (const g of material.graduatedVerses) {
-    tx.insert(schema.graduatedVerses)
+    const res = tx
+      .insert(schema.graduatedVerses)
       .values({
         userId: key.userId,
         materialId: key.materialId,
@@ -224,7 +234,9 @@ function applyGraduations(
       })
       .onConflictDoNothing()
       .run();
-    applied += 1;
+    // Count only rows actually written, so a re-import (where every row
+    // hits onConflictDoNothing) honestly reports 0 graduations applied.
+    if (res.changes > 0) applied += 1;
   }
 
   for (const g of material.graduatedCards) {
@@ -233,7 +245,8 @@ function applyGraduations(
       unresolved += 1;
       continue;
     }
-    tx.insert(schema.graduatedCards)
+    const res = tx
+      .insert(schema.graduatedCards)
       .values({
         userId: key.userId,
         materialId: key.materialId,
@@ -242,7 +255,7 @@ function applyGraduations(
       })
       .onConflictDoNothing()
       .run();
-    applied += 1;
+    if (res.changes > 0) applied += 1;
   }
 
   return { applied, unresolved };
