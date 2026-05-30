@@ -90,7 +90,16 @@ async function onCardSignOut(profile: ProfileRow) {
  *  false and routes to the reauth form when the token is dead. */
 async function switchTo(profile: ProfileRow): Promise<boolean> {
   if (activeProfile.value?.profileId === profile.profileId) return true
-  const result = await enterProfile(profile.profileId)
+  let result: { ok: boolean }
+  try {
+    result = await enterProfile(profile.profileId)
+  } catch {
+    // enterProfile normally resolves { ok: false } for a dead token, but
+    // a network error during the multiSession switch can reject — surface
+    // it as a banner rather than an unhandled rejection.
+    banner.value = 'Could not switch to that profile. Please try again.'
+    return false
+  }
   if (result.ok) return true
   prefillEmail.value = profile.email
   mode.value = 'add'
