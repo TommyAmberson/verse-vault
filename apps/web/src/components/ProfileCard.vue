@@ -15,11 +15,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   /** Clicked a signed-in card — swap workspace to this profile. */
-  (e: 'enter'): void
+  enter: []
   /** Clicked a signed-out card — re-auth required to use it. */
-  (e: 'reauth'): void
-  (e: 'sign-out'): void
-  (e: 'delete'): void
+  reauth: []
+  'sign-out': []
+  export: []
+  import: []
+  'delete-progress': []
+  delete: []
 }>()
 
 const menuOpen = ref(false)
@@ -63,16 +66,20 @@ const lastUsedLabel = computed(() => {
   })
 })
 
-function onSignOutClick(ev: Event) {
+// Every kebab item does the same three things — stop the card's click
+// handler firing, close the menu, then emit. One helper keeps the
+// handler list from growing 1:1 with the menu.
+function menuAction(
+  ev: Event,
+  action: 'export' | 'import' | 'sign-out' | 'delete-progress' | 'delete',
+) {
   ev.stopPropagation()
   closeMenu()
-  emit('sign-out')
-}
-
-function onDeleteClick(ev: Event) {
-  ev.stopPropagation()
-  closeMenu()
-  emit('delete')
+  // `defineEmits` types `emit` as an overload set — one signature per
+  // declared event — and TS can't match a union argument against
+  // overloads. `action` is always one of the declared events, so
+  // narrowing to a single name is sound.
+  emit(action as 'export')
 }
 
 // The card surface is a role="button" div rather than a native
@@ -131,15 +138,42 @@ function onCardKeydown(ev: KeyboardEvent) {
           type="button"
           class="menu-item"
           role="menuitem"
-          @click="onSignOutClick"
+          @click="menuAction($event, 'export')"
+        >
+          Export my data
+        </button>
+        <button
+          v-if="signedIn"
+          type="button"
+          class="menu-item"
+          role="menuitem"
+          @click="menuAction($event, 'import')"
+        >
+          Import data
+        </button>
+        <button
+          v-if="signedIn"
+          type="button"
+          class="menu-item"
+          role="menuitem"
+          @click="menuAction($event, 'sign-out')"
         >
           Sign out
+        </button>
+        <button
+          v-if="signedIn"
+          type="button"
+          class="menu-item destructive"
+          role="menuitem"
+          @click="menuAction($event, 'delete-progress')"
+        >
+          Delete all progress
         </button>
         <button
           type="button"
           class="menu-item destructive"
           role="menuitem"
-          @click="onDeleteClick"
+          @click="menuAction($event, 'delete')"
         >
           Delete profile
         </button>

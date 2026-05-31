@@ -10,6 +10,23 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.26] — 2026-05-30
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — unchanged.
+* `verse-vault-wasm@0.5.0` — unchanged.
+
+### Account progress reset endpoint
+
+* **`DELETE /api/account/progress`** — wipes the caller's review events, graduations, and derived
+  test states across every enrolled material, under the engine's per-key lock; keeps enrollments +
+  per-year settings + the content snapshot. Idempotent; returns
+  `{ materialsReset, eventsDeleted, graduationsDeleted }`. Backs the web "Delete all progress"
+  action. Logic in `lib/reset.ts`, route in `routes/account.ts`.
+
+Bundled algorithm contract unchanged. No wire-format break.
+
 ## [0.1.25] — 2026-05-29
 
 ### Bundled algorithm contract

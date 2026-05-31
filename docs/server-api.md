@@ -383,6 +383,40 @@ over `test_states`:
 Stability buckets (days): `weak < 1`, `learning [1, 7)`, `familiar [7, 30)`, `strong [30, 90)`,
 `mastered >= 90`.
 
+## Account data — `/api/export`, `/api/import`, `/api/account/progress`
+
+Account-level data portability + reset. All require the session cookie.
+
+### `GET /api/export`
+
+Full account dump — every enrolled material with its settings, graduations, and review events — as a
+downloadable `AccountExport` JSON
+(`Content-Disposition: attachment; filename="verse-vault-export-YYYY-MM-DD.json"`). Cards key on
+`CardRef` (`kind` + verseId + params), not `cardId`, so the payload survives snapshot bumps.
+
+### `POST /api/import`
+
+Apply an `AccountExport` to the caller's account. Additive and idempotent: review events dedup on
+`clientEventId`, graduations `onConflictDoNothing`, settings merge by `max(updatedAt)`. Returns an
+`ImportSummary`:
+
+```json
+{ "materialsApplied": 8, "eventsInserted": 41608, "eventsSkipped": 0, "graduationsApplied": 631, "unresolvedCardRefs": 329 }
+```
+
+400 on an unsupported `exportVersion`, unknown `materialId`, or out-of-bounds settings; 413 if the
+body exceeds the 50 MB cap.
+
+### `DELETE /api/account/progress`
+
+Wipe the caller's review events, graduations, and derived `test_states` across every enrolled
+material (each under `engines.withLock`). Keeps enrollments, per-year settings, and the content
+snapshot — decks stay, reset to all-new. Idempotent. Returns:
+
+```json
+{ "materialsReset": 8, "eventsDeleted": 41608, "graduationsDeleted": 631 }
+```
+
 ## Status codes
 
 | status | when                                                                                                 |

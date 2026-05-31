@@ -370,6 +370,28 @@ export async function deleteProfile(profileId: string): Promise<void> {
   await refreshProfilesList()
 }
 
+/** Drop a profile's locally cached study data — in-memory wasm engines
+ *  plus the IDB snapshot / test-states / event queue / renders — without
+ *  signing out or removing the registry row. Call after a server-side
+ *  mutation the fat client can't detect via a snapshot-version bump
+ *  (account import / delete-all-progress): the next deck open then
+ *  cold-loads fresh `/state` from the server instead of warm-starting a
+ *  stale cached engine — or re-flushing queued events that no longer
+ *  exist server-side.
+ *
+ *  Wiping IDB needs the profile's DB handle closed first, so we toggle
+ *  the active profile off and back on around `deleteIdb` — the same
+ *  close-then-delete dance `deleteProfile` uses, minus the revoke +
+ *  registry removal. The reactive `activeProfile` ref is untouched
+ *  (this only swaps the persistence-layer handle), so the caller stays
+ *  on the same profile. */
+async function resetProfileLocalData(profileId: string): Promise<void> {
+  clearAllSessions()
+  await setActiveProfile(null)
+  await deleteIdb(profileDbName(profileId))
+  await setActiveProfile(profileId)
+}
+
 /** Sign out a profile by revoking its server-side session and clearing
  *  its stored token. Defaults to the active profile when no id is
  *  given. Profile + IDB stay intact — sign-out is the "I'll be back"
@@ -495,6 +517,7 @@ export function useAuth() {
     signInComplete,
     enterProfile,
     deleteProfile,
+    resetProfileLocalData,
     markSyncState,
     clearConflict,
     acceptPendingSignIn,

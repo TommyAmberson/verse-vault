@@ -122,4 +122,37 @@ describe('account routes', () => {
     });
     expect(res.status).toBe(413);
   });
+
+  it('DELETE /api/account/progress requires auth', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const res = await test.app.request('/api/account/progress', { method: 'DELETE' });
+    expect(res.status).toBe(401);
+  });
+
+  it('wipes progress but keeps the enrolled material', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'reset@example.com');
+
+    const res = await test.app.request('/api/account/progress', {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(res.status).toBe(200);
+    const summary = (await res.json()) as {
+      materialsReset: number;
+      eventsDeleted: number;
+      graduationsDeleted: number;
+    };
+    expect(summary.materialsReset).toBeGreaterThanOrEqual(0);
+
+    // The deck is still enrolled after a reset.
+    const exportRes = await test.app.request('/api/export', { headers: { cookie } });
+    const payload = (await exportRes.json()) as {
+      materials: { materialId: string; reviewEvents: unknown[] }[];
+    };
+    expect(payload.materials).toHaveLength(1);
+    expect(payload.materials[0]!.reviewEvents).toHaveLength(0);
+  });
 });

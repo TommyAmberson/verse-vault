@@ -9,6 +9,27 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.1.20] — 2026-05-30
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.0` — unchanged.
+* `verse-vault-wasm@0.5.0` — unchanged.
+
+### Account data management on the profile card
+
+* The profile card kebab menu gains **Export my data**, **Import data**, and **Delete all progress**
+  (all gated on a signed-in card). Each switches the active session to that profile first
+  (`enterProfile`).
+* **Export** downloads the account as `verse-vault-export-<email>-<date>.json`.
+* **Import** picks a JSON file, confirms (neutral — import is additive and idempotent), and shows
+  the server's summary (events inserted/skipped, graduations, unresolved cards).
+* **Delete all progress** is gated behind a type-the-email confirmation and offers a one-click
+  backup download inside the dialog. It wipes review history and graduations across all decks but
+  keeps the decks + settings.
+* New: `lib/account-file.ts` (download/read helpers), `ImportResultDialog.vue`,
+  `TypeToConfirmDialog.vue`; `api.ts` gains `exportAccount` / `importAccount` / `deleteAllProgress`.
+
 ## [0.1.19] — 2026-05-29
 
 ### Bundled algorithm contract

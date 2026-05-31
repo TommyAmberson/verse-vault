@@ -192,6 +192,26 @@ export interface YearsResponse {
   years: YearView[]
 }
 
+/** Full account export payload. Opaque to the web — it's downloaded and
+ *  re-uploaded verbatim; the server owns the shape + validation. */
+export type AccountExport = Record<string, unknown>
+
+/** Result of POST /api/import — mirrors the server's ImportSummary. */
+export interface ImportSummary {
+  materialsApplied: number
+  eventsInserted: number
+  eventsSkipped: number
+  graduationsApplied: number
+  unresolvedCardRefs: number
+}
+
+/** Result of DELETE /api/account/progress. */
+export interface ProgressDeletionSummary {
+  materialsReset: number
+  eventsDeleted: number
+  graduationsDeleted: number
+}
+
 export interface MemorizeSessionVerse {
   verseId: number
   /** Verse-bound cards drilled with this verse, in builder order.
@@ -257,13 +277,20 @@ export interface ApiClient {
   setOfflineMode(materialId: string, offlineMode: boolean): Promise<{ offlineMode: boolean }>
   /** Requires `offline_mode=true` on the server; returns 403 otherwise. */
   getMaterialRenders(materialId: string): Promise<{ renders: MaterialRender[] }>
+  /** Full account data dump for download (GET /api/export). */
+  exportAccount(): Promise<AccountExport>
+  /** Layer an export payload onto the account (POST /api/import). */
+  importAccount(payload: unknown): Promise<ImportSummary>
+  /** Wipe all review history / graduations across decks; keeps
+   *  enrollments + settings (DELETE /api/account/progress). */
+  deleteAllProgress(): Promise<ProgressDeletionSummary>
 }
 
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
  *  so the Better Auth session cookie flows through on every call. */
 export function createApiClient(apiUrl: string): ApiClient {
   async function request<T>(
-    method: 'GET' | 'POST' | 'PATCH',
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
     body?: unknown,
   ): Promise<T> {
@@ -317,6 +344,9 @@ export function createApiClient(apiUrl: string): ApiClient {
       }),
     getMaterialRenders: (materialId) =>
       request('GET', `/api/materials/${encodeURIComponent(materialId)}/renders`),
+    exportAccount: () => request('GET', '/api/export'),
+    importAccount: (payload) => request('POST', '/api/import', payload),
+    deleteAllProgress: () => request('DELETE', '/api/account/progress'),
   }
 }
 
