@@ -21,6 +21,7 @@ const {
   signOut,
   enterProfile,
   deleteProfile,
+  resetProfileLocalData,
 } = useAuth()
 
 const router = useRouter()
@@ -183,6 +184,10 @@ async function confirmImport() {
   try {
     importSummary.value = await api.importAccount(pendingImportPayload.value)
     importError.value = null
+    // The import mutated this account server-side but didn't bump the
+    // snapshot version, so the local fat-client cache won't notice. Drop
+    // it so the next deck open cold-loads the imported state.
+    if (activeProfile.value) await resetProfileLocalData(activeProfile.value.profileId)
   } catch (err) {
     importSummary.value = null
     importError.value = err instanceof ApiError ? err.message : 'Import failed.'
@@ -214,6 +219,10 @@ async function confirmDeleteProgress() {
   try {
     const summary = await api.deleteAllProgress()
     banner.value = `Reset ${summary.materialsReset} deck(s): removed ${summary.eventsDeleted} reviews and ${summary.graduationsDeleted} graduations.`
+    // The wipe didn't bump the snapshot version; without dropping the
+    // local cache the engine would keep serving (and could re-sync) the
+    // now-deleted progress.
+    if (activeProfile.value) await resetProfileLocalData(activeProfile.value.profileId)
   } catch (err) {
     banner.value = err instanceof ApiError ? err.message : 'Delete failed.'
   } finally {
