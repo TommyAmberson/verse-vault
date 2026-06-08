@@ -128,11 +128,6 @@ watch(() => route.fullPath, refreshMemorizeCount)
   justify-self: center;
 }
 
-/* AppAvatar's `.avatar-wrap` outer is the third grid track. Pin it right. */
-.site-header :deep(.avatar-wrap) {
-  justify-self: end;
-}
-
 .nav :deep(a) {
   color: var(--color-muted);
   text-decoration: none;
@@ -210,7 +205,7 @@ watch(() => route.fullPath, refreshMemorizeCount)
   }
 
   .site {
-    padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--mobile-tab-bar-h) + env(safe-area-inset-bottom));
   }
 }
 </style>

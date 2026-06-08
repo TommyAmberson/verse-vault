@@ -67,7 +67,7 @@ puts each in its own slot.
    * Desktop: same top bar as the action layer.
 
 3. **Identity layer** — who you are and how you administer this account.
-   * Members: signed-in email, **Switch profile**, future **Sign out**, future **Account →** link
+   * Members: signed-in email, **Switch profile**, **Sign out**, and a future **Account →** link
      (deep-link into the Account section of `/settings`).
    * Mobile and desktop: avatar/initials button top-right, opens a popover menu.
 
@@ -127,23 +127,22 @@ Single feature branch (`feat/web-nav-redesign`), one commit per logical step. Th
 Each step ships independently with no behaviour regression. Step 1 is mechanical; step 2 is the
 biggest visual change; step 3 is additive.
 
-## Open questions
+## Decisions
 
-* **Bottom-bar breakpoint.** 720 px is the existing `max-width: 720px` value `.settings` uses for
-  its centered column. Could also key off `pointer: coarse` to handle desktop windows narrowed to
-  phone width. Default: width-based; revisit if it misbehaves on landscape phones.
-* **Icon set.** No icons in the codebase today. Lightweight options: inline SVGs in
-  `components/icons/`, or pull a single icon font (Lucide, Tabler). Default: inline SVGs to avoid a
-  runtime dep.
+* **Bottom-bar breakpoint.** Width-based at 720 px, matching the existing `max-width: 720px` that
+  `.settings` uses for its centered column. Revisit if it misbehaves on landscape phones.
+* **Icon set.** Inline Lucide-style SVGs declared directly in `MobileTabBar.vue`. No runtime icon
+  dep; if a second consumer wants the same glyphs later, extract to `components/icons/` then.
 
 ## Backlog
 
 Tracked here so the spec stays the canonical record; promote to GitHub issues as work picks up.
 
-* **Account sub-page under `/settings`.** Migrate export / import / delete-all-progress out of
-  `ProfilePickerView`'s profile-card kebabs into a real `/settings` → Account section. The profile
-  switcher links into it; the kebabs go away. Lets `/profiles` go back to being purely sign-in +
-  multi-profile switching, which is its original job.
+* **Account sub-page under `/settings`**
+  ([#92](https://github.com/TommyAmberson/verse-vault/issues/92)). Migrate export / import /
+  delete-all-progress out of `ProfilePickerView`'s profile-card kebabs into a real `/settings` →
+  Account section. The profile switcher links into it; the kebabs go away. Lets `/profiles` go back
+  to being purely sign-in + multi-profile switching, which is its original job.
 * **Search route.** First reference-layer addition; no design exists yet.
 * **Theme / appearance.** Once a global preference exists, slot under `/settings` → Appearance.
 * **About / attribution surface.** Currently the API.Bible + NKJV copyright lines in the footer;

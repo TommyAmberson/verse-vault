@@ -110,6 +110,10 @@ defineProps<{
     right: 0;
     bottom: 0;
     z-index: 5;
+    /* The padded height of the bar drives the `.site` padding-bottom
+       in App.vue — keep `--mobile-tab-bar-h` in sync with the natural
+       height the contents produce here. */
+    min-height: var(--mobile-tab-bar-h);
     background: var(--color-bg-card);
     border-top: 1px solid var(--color-border);
     justify-content: space-around;

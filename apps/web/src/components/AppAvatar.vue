@@ -3,25 +3,16 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuth } from '@/composables/useAuth'
+import { profileInitials } from '@/lib/profile'
 
 const { activeProfile, signOut } = useAuth()
 const router = useRouter()
 
 const open = ref(false)
 
-// Mirrors ProfileCard's derivation: two initials from a display name's
-// first + last word, or the first two characters when the source is a
-// single token (e.g. an email local-part).
-const initials = computed(() => {
-  const profile = activeProfile.value
-  if (!profile) return ''
-  const source = profile.displayName || profile.email
-  const parts = source.trim().split(/\s+/)
-  const letters = parts.length >= 2
-    ? parts[0]![0]! + parts[parts.length - 1]![0]!
-    : source.slice(0, 2)
-  return letters.toUpperCase()
-})
+const initials = computed(() =>
+  activeProfile.value ? profileInitials(activeProfile.value) : '',
+)
 
 function toggle(ev: Event) {
   ev.stopPropagation()
@@ -103,6 +94,10 @@ async function onSignOut() {
 .avatar-wrap {
   position: relative;
   flex: 0 0 auto;
+  /* The site header is a `1fr auto 1fr` grid; the wrap is the third
+     track. Pin it right so the avatar trails the nav rather than
+     centering in its track. */
+  justify-self: end;
 }
 
 .avatar-btn {
