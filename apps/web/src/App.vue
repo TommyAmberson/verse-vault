@@ -5,6 +5,7 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { api } from '@/api'
 import AppAvatar from '@/components/AppAvatar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import MobileTabBar from '@/components/MobileTabBar.vue'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import { useAuth } from '@/composables/useAuth'
 
@@ -91,6 +92,7 @@ watch(() => route.fullPath, refreshMemorizeCount)
         <a href="https://api.bible" target="_blank" rel="noopener">API.Bible</a>.
       </p>
     </footer>
+    <MobileTabBar v-if="user" :new-to-memorize="newToMemorize" />
   </div>
 </template>
 
@@ -190,5 +192,19 @@ watch(() => route.fullPath, refreshMemorizeCount)
 
 .site-footer a:hover {
   color: var(--color-text);
+}
+
+/* Hand the nav off to the fixed bottom tab bar at mobile widths.
+   Padding-bottom on `.site` reserves the bar's height so the footer
+   and any scroll content can sit above it instead of being overlapped
+   by the fixed bar. Breakpoint must match MobileTabBar.vue. */
+@media (max-width: 720px) {
+  .nav {
+    display: none;
+  }
+
+  .site {
+    padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
+  }
 }
 </style>

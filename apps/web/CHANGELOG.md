@@ -9,6 +9,16 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Bottom tab bar at mobile widths
+
+* New `MobileTabBar.vue` renders a fixed-bottom 5-tab bar (**Home · Review · Memorize · Settings ·
+  Stats**) at viewports ≤720 px, with inline Lucide-style SVG icons and the Memorize-new pill in its
+  existing spot. The inline top-bar nav hides at the same breakpoint.
+* Bar respects `env(safe-area-inset-bottom)` so it sits above the iOS home indicator and Android
+  gesture bar.
+* `.site` reserves `calc(3.75rem + env(safe-area-inset-bottom))` of padding at the mobile breakpoint
+  so the footer and any scroll content sit above the fixed bar rather than under it.
+
 ### Identity popover replaces email + switch-profile in the nav
 
 * New `AppAvatar.vue` renders a circular avatar button (display-name initials, or the profile image
