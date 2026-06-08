@@ -9,6 +9,13 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### `/dashboard` renamed to `/home`
+
+* The route, nav label, view file (`DashboardView.vue` → `HomeView.vue`), and post-sign-in default
+  redirect all rename to **Home**. The page is a landing-glance, not a widgets dashboard, and the
+  new name reads truer in the nav row.
+* `/dashboard` redirects to `/home`, mirroring the `/material` → `/settings` shim.
+
 ### `/material` renamed to `/settings`
 
 * The route, nav label, view file (`MaterialView.vue` → `SettingsView.vue`), and page heading all

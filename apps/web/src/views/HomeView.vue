@@ -501,7 +501,7 @@ onMounted(async () => {
 }
 
 /* Idle (zero-count) tiles dim so the lit ones lead the eye.
-   Modifier is `stage-idle`, not `empty`, because the dashboard's
+   Modifier is `stage-idle`, not `empty`, because this view's
    no-enrollments `.empty` rule below would otherwise cascade onto
    these tiles by accident. */
 .codex.revealed .stage-idle {

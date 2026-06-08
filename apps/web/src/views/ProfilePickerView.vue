@@ -66,7 +66,7 @@ watch(
 )
 
 function redirectTarget(): string {
-  return typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
+  return typeof route.query.redirect === 'string' ? route.query.redirect : '/home'
 }
 
 async function onCardEnter(profile: ProfileRow) {
