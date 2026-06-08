@@ -38,8 +38,17 @@ function close() {
 function onWindowClick() {
   if (open.value) open.value = false
 }
-onMounted(() => window.addEventListener('click', onWindowClick))
-onBeforeUnmount(() => window.removeEventListener('click', onWindowClick))
+function onWindowKeydown(ev: KeyboardEvent) {
+  if (ev.key === 'Escape' && open.value) close()
+}
+onMounted(() => {
+  window.addEventListener('click', onWindowClick)
+  window.addEventListener('keydown', onWindowKeydown)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('click', onWindowClick)
+  window.removeEventListener('keydown', onWindowKeydown)
+})
 
 function goSwitchProfile() {
   close()
@@ -119,6 +128,11 @@ async function onSignOut() {
   color: var(--color-on-accent);
 }
 
+.avatar-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .avatar-btn img {
   width: 100%;
   height: 100%;
@@ -183,6 +197,12 @@ async function onSignOut() {
 }
 
 .menu-item:hover {
+  background: var(--color-bg);
+}
+
+.menu-item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
   background: var(--color-bg);
 }
 </style>

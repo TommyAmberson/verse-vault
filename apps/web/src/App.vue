@@ -145,6 +145,12 @@ watch(() => route.fullPath, refreshMemorizeCount)
   background: var(--color-accent-soft);
 }
 
+.nav :deep(a:focus-visible),
+.brand:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .memorize-link {
   display: inline-flex;
   align-items: center;

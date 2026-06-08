@@ -138,6 +138,11 @@ defineProps<{
   color: var(--color-accent);
 }
 
+.tab:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
 .icon {
   width: 1.35rem;
   height: 1.35rem;

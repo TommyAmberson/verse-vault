@@ -9,6 +9,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Keyboard + focus polish for the nav redesign
+
+* Escape closes the identity popover (window-level `keydown` listener, paired with the existing
+  click-outside dismissal).
+* `:focus-visible` rings on the avatar button, popover menu items, brand link, top-bar nav links,
+  and bottom tab bar tabs. Uses the existing 2 px `--color-accent` outline convention from
+  `ScopeLevelSelector` and `CardPrompt`. Active-route `aria-current="page"` comes for free from Vue
+  Router 4's `RouterLink`.
+
 ### Bottom tab bar at mobile widths
 
 * New `MobileTabBar.vue` renders a fixed-bottom 5-tab bar (**Home · Review · Memorize · Settings ·
