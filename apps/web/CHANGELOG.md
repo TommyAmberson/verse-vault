@@ -9,6 +9,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### `/material` renamed to `/settings`
+
+* The route, nav label, view file (`MaterialView.vue` → `SettingsView.vue`), and page heading all
+  rename to **Settings**. The page still contains only per-year settings today; the new name leaves
+  obvious room to grow (Account, Appearance, Shortcuts) without restructuring nav.
+* `/material` redirects to `/settings` so existing bookmarks and deep links keep working.
+* In-app links from Dashboard's empty-CTA, MemorizeView's empty-state, and StatsView's empty-state
+  all point to `/settings`.
+
 ### Distinguish `rate-limited` from `offline` in the sync indicator
 
 * `SyncState` gains a `rate-limited` variant. The router's background `getSession()` handler now

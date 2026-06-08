@@ -411,7 +411,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
     <div v-else-if="empty" class="done">
       <h2>Nothing to memorize</h2>
       <p>
-        Activate a club in <RouterLink to="/material">/material</RouterLink> to introduce new
+        Activate a club in <RouterLink to="/settings">/settings</RouterLink> to introduce new
         verses.
       </p>
     </div>

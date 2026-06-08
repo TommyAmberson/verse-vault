@@ -49,7 +49,7 @@ watch(() => route.fullPath, refreshMemorizeCount)
           Memorize
           <span v-if="newToMemorize > 0" class="pill">{{ newToMemorize }}</span>
         </RouterLink>
-        <RouterLink to="/material">Material</RouterLink>
+        <RouterLink to="/settings">Settings</RouterLink>
         <RouterLink to="/stats">Stats</RouterLink>
         <span class="who">{{ user.email }}</span>
         <RouterLink to="/profiles?force=1" class="switch-profile">Switch profile</RouterLink>

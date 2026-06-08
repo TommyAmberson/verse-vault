@@ -15,6 +15,7 @@ const router = createRouter({
     { path: '/', redirect: '/dashboard' },
     { path: '/session', redirect: '/review' },
     { path: '/signin', redirect: '/profiles' },
+    { path: '/material', redirect: '/settings' },
     {
       path: '/profiles',
       name: 'profiles',
@@ -42,9 +43,9 @@ const router = createRouter({
       component: () => import('@/views/StatsView.vue'),
     },
     {
-      path: '/material',
-      name: 'material',
-      component: () => import('@/views/MaterialView.vue'),
+      path: '/settings',
+      name: 'settings',
+      component: () => import('@/views/SettingsView.vue'),
     },
   ],
 })

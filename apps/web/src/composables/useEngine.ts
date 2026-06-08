@@ -23,7 +23,7 @@
  * envelope, the composable stores it on `staleSummary` with the
  * material id. The view shows the modal and calls `confirmMerge()` or
  * `discardStale()` based on the user's choice. (Modal UI lands with the
- * MaterialView attribution work; the composable surface is in place now
+ * SettingsView attribution work; the composable surface is in place now
  * so the wiring is clean.)
  */
 
@@ -149,7 +149,7 @@ export function useEngine() {
    *  Pass `config` to apply the user's year-settings (scope toggles,
    *  headings/ftv) when constructing the engine. Without it the engine
    *  uses `MaterialConfig::default()` — fine on a brand-new account,
-   *  but surfaces the wrong card set after /material is touched. */
+   *  but surfaces the wrong card set after /settings is touched. */
   async function init(id: string, config?: WireMaterialConfig) {
     try {
       await engineStore.loadEngine(id, nowSecs(), config)

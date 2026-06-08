@@ -134,7 +134,7 @@ onMounted(async () => {
     <template v-else-if="empty">
       <section class="empty">
         <p class="empty-line"><em>This codex is empty.</em></p>
-        <RouterLink to="/material" class="empty-cta">
+        <RouterLink to="/settings" class="empty-cta">
           Choose your first year
           <span aria-hidden="true">↗</span>
         </RouterLink>
