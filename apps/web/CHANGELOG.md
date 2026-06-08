@@ -9,6 +9,16 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Identity popover replaces email + switch-profile in the nav
+
+* New `AppAvatar.vue` renders a circular avatar button (display-name initials, or the profile image
+  when present) at the end of the nav. Clicking opens a popover with the display name + email,
+  **Switch profile**, and **Sign out**.
+* Sign-out is now reachable from the top nav for the first time: calls `useAuth().signOut()` against
+  the active profile, revokes its server session, and routes to `/profiles`.
+* Removes the always-visible email text and the **Switch profile** button-styled link from the nav
+  row, freeing horizontal space for the upcoming responsive layout work.
+
 ### `/dashboard` renamed to `/home`
 
 * The route, nav label, view file (`DashboardView.vue` → `HomeView.vue`), and post-sign-in default

@@ -97,9 +97,9 @@ we ever need to demote a destination to a "More" sheet, reference items go first
 
 Opened by tapping the avatar in either layout. Contents (top to bottom):
 
-1. Signed-in email (read-only header).
+1. Display name + signed-in email (read-only header).
 2. **Switch profile** (existing `/profiles?force=1` link).
-3. **Sign out** (future — currently no sign-out affordance exists in the nav).
+3. **Sign out** (calls `useAuth().signOut()` against the active profile, then pushes `/profiles`).
 4. **Account →** (backlog — deep-link to `/settings#account` once that section ships).
 
 Keep the popover light on chrome — small surface, plenty of padding, no nested submenus.

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import { api } from '@/api'
+import AppAvatar from '@/components/AppAvatar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import { useAuth } from '@/composables/useAuth'
@@ -51,8 +52,7 @@ watch(() => route.fullPath, refreshMemorizeCount)
         </RouterLink>
         <RouterLink to="/settings">Settings</RouterLink>
         <RouterLink to="/stats">Stats</RouterLink>
-        <span class="who">{{ user.email }}</span>
-        <RouterLink to="/profiles?force=1" class="switch-profile">Switch profile</RouterLink>
+        <AppAvatar />
       </nav>
     </header>
     <OfflineBanner />
@@ -149,25 +149,6 @@ watch(() => route.fullPath, refreshMemorizeCount)
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
   line-height: 1.4;
-}
-
-.who {
-  color: var(--color-muted);
-  font-size: 0.85rem;
-}
-
-.switch-profile {
-  background: none;
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  text-decoration: none;
-}
-
-.switch-profile:hover {
-  color: var(--color-text);
 }
 
 .site-main {
