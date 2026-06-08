@@ -52,8 +52,8 @@ watch(() => route.fullPath, refreshMemorizeCount)
         </RouterLink>
         <RouterLink to="/settings">Settings</RouterLink>
         <RouterLink to="/stats">Stats</RouterLink>
-        <AppAvatar />
       </nav>
+      <AppAvatar />
     </header>
     <OfflineBanner />
     <ConfirmDialog
@@ -102,9 +102,10 @@ watch(() => route.fullPath, refreshMemorizeCount)
 }
 
 .site-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  gap: 1rem;
   padding: 0.75rem 1.5rem;
   background: var(--color-bg-card);
   border-bottom: 1px solid var(--color-border);
@@ -115,12 +116,19 @@ watch(() => route.fullPath, refreshMemorizeCount)
   color: var(--color-text);
   text-decoration: none;
   font-size: 1.1rem;
+  justify-self: start;
 }
 
 .nav {
   display: flex;
   align-items: center;
   gap: 1rem;
+  justify-self: center;
+}
+
+/* AppAvatar's `.avatar-wrap` outer is the third grid track. Pin it right. */
+.site-header :deep(.avatar-wrap) {
+  justify-self: end;
 }
 
 .nav :deep(a) {

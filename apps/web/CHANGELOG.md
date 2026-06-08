@@ -18,6 +18,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   the active profile, revokes its server session, and routes to `/profiles`.
 * Removes the always-visible email text and the **Switch profile** button-styled link from the nav
   row, freeing horizontal space for the upcoming responsive layout work.
+* Header now uses a `1fr auto 1fr` grid: brand pinned left, nav links centered, avatar pinned right.
+  Replaces the previous single-flex-row composition.
 
 ### `/dashboard` renamed to `/home`
 
