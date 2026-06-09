@@ -49,6 +49,18 @@ export interface ObservabilityOptions {
   now?: () => number;
   /** Request-id generator. Defaults to `crypto.randomUUID`. */
   randomId?: () => string;
+  /** Whether to rate-limit requests that resolve to `ip:unknown` (no
+   *  `CF-Connecting-IP` and no `X-Forwarded-For`). Defaults to `true`
+   *  in production (NODE_ENV=production) and `false` elsewhere.
+   *
+   *  Local dev needs `false`: localhost requests carry neither header,
+   *  so every unauthenticated request collapses into one shared
+   *  bucket and a couple of page refreshes exhaust the `unauthedAuth`
+   *  tier. In production the Cloudflare Tunnel always injects
+   *  `CF-Connecting-IP`, so a request landing as `ip:unknown` is
+   *  either a misconfig or a bypass attempt and gets limited as a
+   *  defense-in-depth measure. */
+  rateLimitUnknownIp?: boolean;
 }
 
 export interface ResolvedObservabilityOptions {
@@ -58,6 +70,7 @@ export interface ResolvedObservabilityOptions {
   log: (line: string) => void;
   now: () => number;
   randomId: () => string;
+  rateLimitUnknownIp: boolean;
 }
 
 export const DEFAULT_AUTHED_TIER: RateLimitTier = { capacity: 120, refillPerSec: 2 };
@@ -77,6 +90,8 @@ export function resolveObservabilityOptions(
     log: opts.log ?? ((line) => console.log(line)),
     now,
     randomId: opts.randomId ?? randomUUID,
+    rateLimitUnknownIp:
+      opts.rateLimitUnknownIp ?? process.env.NODE_ENV === 'production',
   };
 }
 
@@ -118,8 +133,13 @@ export function observabilityMiddleware(
     // probes need to see the same correlation fields as real traffic.
     const isHealth = path === '/health';
     const isAuth = path.startsWith('/api/auth/');
+    // In local dev nothing injects CF-Connecting-IP / X-Forwarded-For,
+    // so every unauthenticated request shares the `ip:unknown` bucket
+    // and a couple of page refreshes exhaust it. See
+    // `rateLimitUnknownIp` on ObservabilityOptions.
+    const skipForUnknownIp = ip === 'unknown' && !opts.rateLimitUnknownIp;
 
-    if (!isHealth) {
+    if (!isHealth && !skipForUnknownIp) {
       const tier = isAuth ? opts.unauthedAuthTier : opts.authedTier;
       const key = `ip:${ip}`;
       const result = opts.buckets.consume(key, tier);

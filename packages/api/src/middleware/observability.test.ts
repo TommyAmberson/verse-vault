@@ -231,6 +231,77 @@ describe('observability middleware', () => {
     }
   });
 
+  it('skips the bucket for ip:unknown when rateLimitUnknownIp is false', async () => {
+    const { log, parsed } = makeLogger();
+    const { app, cleanup } = createTestApp({
+      observability: {
+        authedTier: TIGHT_AUTHED,
+        unauthedAuthTier: TIGHT_UNAUTHED,
+        rateLimitUnknownIp: false,
+        log,
+      },
+    });
+    try {
+      // Far more requests than either tier's capacity. None of these
+      // carry CF-Connecting-IP, so they all resolve to ip:unknown.
+      for (let i = 0; i < TIGHT_AUTHED.capacity + 20; i++) {
+        const res = await app.request('/api/sync/nkjv-cor/state');
+        expect(res.status).not.toBe(429);
+      }
+      const rl = parsed().filter((e) => e.status === 429);
+      expect(rl).toHaveLength(0);
+      // A request that DOES carry a CF-Connecting-IP still gets bucketed
+      // — the skip only applies to ip:unknown.
+      for (let i = 0; i < TIGHT_AUTHED.capacity; i++) {
+        await app.request('/api/sync/nkjv-cor/state', {
+          headers: { 'CF-Connecting-IP': '9.9.9.9' },
+        });
+      }
+      const over = await app.request('/api/sync/nkjv-cor/state', {
+        headers: { 'CF-Connecting-IP': '9.9.9.9' },
+      });
+      expect(over.status).toBe(429);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('returns CORS headers on 429 responses so the browser can read them', async () => {
+    const { log } = makeLogger();
+    const { app, cleanup } = createTestApp({
+      observability: {
+        authedTier: TIGHT_AUTHED,
+        // Force the bucket to engage even though tests resolve to ip:unknown.
+        rateLimitUnknownIp: true,
+        log,
+      },
+    });
+    try {
+      // Drain the bucket, then send one over-quota request from a
+      // browser-style Origin to exercise the CORS layer's response.
+      for (let i = 0; i < TIGHT_AUTHED.capacity; i++) {
+        await app.request('/api/sync/nkjv-cor/state', {
+          headers: { Origin: 'http://localhost:5173' },
+        });
+      }
+      const res = await app.request('/api/sync/nkjv-cor/state', {
+        headers: { Origin: 'http://localhost:5173' },
+      });
+      expect(res.status).toBe(429);
+      // Without this header the browser blocks the response as a CORS
+      // error and the client sees "NetworkError" instead of a 429 +
+      // Retry-After. cors() must run outside observability so its
+      // before-phase sets Allow-Origin on the response observability
+      // produces directly.
+      expect(res.headers.get('Access-Control-Allow-Origin')).toBe(
+        'http://localhost:5173',
+      );
+      expect(res.headers.get('Retry-After')).toBeTruthy();
+    } finally {
+      cleanup();
+    }
+  });
+
   it('logs status=500 and rethrows when a handler throws', async () => {
     const { log, parsed } = makeLogger();
     const { app, cleanup } = createTestApp({

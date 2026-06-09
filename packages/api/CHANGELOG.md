@@ -10,6 +10,23 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### Rate-limit / CORS fixes that broke local dev usability
+
+* **CORS headers now attach to 429 responses.** `cors()` was mounted _after_
+  `observabilityMiddleware`, so when observability returned a 429 directly (skipping `next()`), the
+  cors layer never ran — browsers saw a response with no `Access-Control-Allow-Origin` and surfaced
+  it as a generic `NetworkError` instead of the real 429 + `Retry-After`. Reorder cors() outermost
+  so its before-phase sets `Allow-Origin` on whatever response observability produces.
+* **`ip:unknown` skips the bucket in dev.** Localhost requests carry neither `CF-Connecting-IP` nor
+  `X-Forwarded-For`, so every unauthenticated request collapsed into one shared `ip:unknown` bucket
+  — a single page refresh fired enough auth-public calls (router boot's `get-session`,
+  `reconcileDeviceSessions` → `list-device-sessions`, the offline-banner's count fetch) to exhaust
+  the tier and 429 everything that followed. New `rateLimitUnknownIp` option on
+  `ObservabilityOptions` defaults to `process.env.NODE_ENV === 'production'`: prod still limits (a
+  real request landing as `ip:unknown` is a misconfig or bypass attempt and gets defense-in- depth),
+  dev passes the request through. Tests pin `rateLimitUnknownIp: true` in
+  `TEST_DEFAULT_OBSERVABILITY` so existing rate-limit assertions keep firing.
+
 ## [0.1.26] — 2026-05-30
 
 ### Bundled algorithm contract

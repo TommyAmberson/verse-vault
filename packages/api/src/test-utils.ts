@@ -47,10 +47,19 @@ export interface CreateTestAppOptions {
 /** Permissive rate-limit defaults so existing route tests (which fire
  *  many requests on the same `unknown` IP) don't accidentally hit
  *  production-scale caps. Tests that specifically exercise rate
- *  limiting pass `observability: { authedTier, ... }` to override. */
+ *  limiting pass `observability: { authedTier, ... }` to override.
+ *
+ *  `rateLimitUnknownIp: true` keeps the test-time bucketing behaviour
+ *  pinned: tests rely on every request landing under `ip:unknown` so
+ *  the limiter applies as a single bucket across the test. Production
+ *  uses the same default (Cloudflare Tunnel injects CF-Connecting-IP,
+ *  so a real request landing as `ip:unknown` is a misconfig). Only
+ *  local-dev resolves to `false`, which is the regression we are
+ *  fixing. */
 const TEST_DEFAULT_OBSERVABILITY = {
   authedTier: { capacity: 100_000, refillPerSec: 100_000 / 60 },
   unauthedAuthTier: { capacity: 100_000, refillPerSec: 100_000 / 60 },
+  rateLimitUnknownIp: true,
 };
 
 export function createTestApp(opts: CreateTestAppOptions = {}) {
