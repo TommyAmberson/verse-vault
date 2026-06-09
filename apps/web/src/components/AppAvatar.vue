@@ -94,10 +94,6 @@ async function onSignOut() {
 .avatar-wrap {
   position: relative;
   flex: 0 0 auto;
-  /* The site header is a `1fr auto 1fr` grid; the wrap is the third
-     track. Pin it right so the avatar trails the nav rather than
-     centering in its track. */
-  justify-self: end;
 }
 
 .avatar-btn {

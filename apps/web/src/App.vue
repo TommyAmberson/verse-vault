@@ -128,6 +128,17 @@ watch(() => route.fullPath, refreshMemorizeCount)
   justify-self: center;
 }
 
+/* AppAvatar's `.avatar-wrap` is the third grid track. Pin both column
+   AND justify-self explicitly — at mobile widths `.nav` is `display:
+   none`, which removes it from grid auto-placement entirely; without
+   `grid-column: 3` the avatar would auto-flow into the middle (`auto`)
+   track and `justify-self: end` would only align it inside that
+   shrunken track instead of the header's right edge. */
+.site-header :deep(.avatar-wrap) {
+  grid-column: 3;
+  justify-self: end;
+}
+
 .nav :deep(a) {
   color: var(--color-muted);
   text-decoration: none;
