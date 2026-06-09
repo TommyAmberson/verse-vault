@@ -117,6 +117,46 @@ describe('observability middleware', () => {
     }
   });
 
+  it('routes /api/auth/get-session through the loose authedTier, not unauthedAuthTier', async () => {
+    const { log, parsed } = makeLogger();
+    const { app, cleanup } = createTestApp({
+      observability: {
+        // Looser-than-default authed tier so the test can hammer the
+        // session-state endpoint without hitting that tier's cap.
+        authedTier: { capacity: 1_000, refillPerSec: 0 },
+        // Tight unauthedAuth tier: if get-session were routed here, it
+        // would 429 after `TIGHT_UNAUTHED.capacity` requests.
+        unauthedAuthTier: TIGHT_UNAUTHED,
+        rateLimitUnknownIp: true,
+        log,
+      },
+    });
+    try {
+      // Hammer get-session well past the tight tier's capacity.
+      for (let i = 0; i < TIGHT_UNAUTHED.capacity + 20; i++) {
+        const res = await app.request('/api/auth/get-session', {
+          headers: { Origin: 'http://localhost:5173' },
+        });
+        expect(res.status).not.toBe(429);
+      }
+      expect(parsed().filter((e) => e.status === 429)).toHaveLength(0);
+      // But sign-in/email -- a real credential surface -- still gets
+      // the tight tier from the same bucket.
+      let lastStatus = 0;
+      for (let i = 0; i < TIGHT_UNAUTHED.capacity + 1; i++) {
+        const res = await app.request('/api/auth/sign-in/email', {
+          method: 'POST',
+          body: JSON.stringify({}),
+          headers: { Origin: 'http://localhost:5173' },
+        });
+        lastStatus = res.status;
+      }
+      expect(lastStatus).toBe(429);
+    } finally {
+      cleanup();
+    }
+  });
+
   it('skips OPTIONS preflights from both bucket and log', async () => {
     const { log, lines } = makeLogger();
     const { app, cleanup } = createTestApp({

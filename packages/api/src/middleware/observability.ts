@@ -11,11 +11,16 @@ import type { AppVariables } from './session.js';
  *
  * Per request:
  *  1. Generate a `requestId`, capture `startedAtMs`.
- *  2. Decide whether to skip rate limiting (`OPTIONS` preflights and
- *     `/health` are exempt).
- *  3. Otherwise consume a token from the appropriate tier (unauthed-auth
- *     for `/api/auth/*`, the generic authed tier for everything else).
- *     Over-quota → return `429` with `Retry-After`.
+ *  2. Decide whether to skip rate limiting. Exempt: `OPTIONS` preflights,
+ *     `/health`, and requests resolving to `ip:unknown` when the
+ *     `rateLimitUnknownIp` option is false (local-dev escape hatch).
+ *  3. Otherwise consume a token from the appropriate tier. Credential
+ *     surfaces under `/api/auth/*` (sign-in, sign-up, password reset,
+ *     OAuth callbacks, sign-out, multi-session state changes) hit the
+ *     tight `unauthedAuthTier`; cheap session-state reads on the same
+ *     prefix (see `AUTH_LOOSE_PATHS`) and everything outside `/api/auth/*`
+ *     hit the looser `authedTier`. Over-quota → return `429` with
+ *     `Retry-After`.
  *  4. Call `next()` in try/finally so the log line emits even if a
  *     handler throws. Re-throw so Hono's default error handler still
  *     runs.
@@ -95,6 +100,21 @@ export function resolveObservabilityOptions(
   };
 }
 
+/** Paths under `/api/auth/*` that route to the looser `authedTier`
+ *  instead of the credential-stuffing tier. These are the cheap,
+ *  high-frequency session-state reads the web client hits on every
+ *  app boot and every route navigation — they are not credential
+ *  surfaces, and treating them as such drowns normal browsing in
+ *  429s long before any attack-shaped traffic would.
+ *
+ *  Everything ELSE under `/api/auth/*` (sign-in/email, sign-up/email,
+ *  forget-password, reset-password, callbacks, sign-out, multi-session
+ *  state-change ops) keeps the tight `unauthedAuthTier`. */
+const AUTH_LOOSE_PATHS = new Set<string>([
+  '/api/auth/get-session',
+  '/api/auth/multi-session/list-device-sessions',
+]);
+
 /** IP source: Cloudflare Tunnel → standard proxy header → fallback.
  *  In tests the harness doesn't synthesise a socket; injecting
  *  `CF-Connecting-IP` per request keeps test buckets isolated. */
@@ -132,7 +152,12 @@ export function observabilityMiddleware(
     // /health is exempt from rate limiting but still logged — uptime
     // probes need to see the same correlation fields as real traffic.
     const isHealth = path === '/health';
-    const isAuth = path.startsWith('/api/auth/');
+    // The tighter `unauthedAuthTier` covers credential surfaces under
+    // /api/auth/* — sign-in, sign-up, password reset, OAuth callbacks,
+    // sign-out, multi-session state-change ops. Frequent session-state
+    // reads (see AUTH_LOOSE_PATHS) fall back to the looser `authedTier`
+    // so a refresher isn't rate-limited like an attacker.
+    const isAuthTight = path.startsWith('/api/auth/') && !AUTH_LOOSE_PATHS.has(path);
     // In local dev nothing injects CF-Connecting-IP / X-Forwarded-For,
     // so every unauthenticated request shares the `ip:unknown` bucket
     // and a couple of page refreshes exhaust it. See
@@ -140,7 +165,7 @@ export function observabilityMiddleware(
     const skipForUnknownIp = ip === 'unknown' && !opts.rateLimitUnknownIp;
 
     if (!isHealth && !skipForUnknownIp) {
-      const tier = isAuth ? opts.unauthedAuthTier : opts.authedTier;
+      const tier = isAuthTight ? opts.unauthedAuthTier : opts.authedTier;
       const key = `ip:${ip}`;
       const result = opts.buckets.consume(key, tier);
       if (!result.allowed) {
