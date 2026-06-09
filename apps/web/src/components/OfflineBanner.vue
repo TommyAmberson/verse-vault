@@ -37,11 +37,24 @@ const message = computed(() => {
       ? 'Offline — changes will sync when you reconnect.'
       : `Offline — ${pluralised} queued for next sync.`
   }
+  if (syncState.value === 'rate-limited') {
+    // No retry-after surfaced from the auth client today; the next
+    // navigation will re-issue getSession() and flip the state if the
+    // bucket has refilled. Tell the user to give it a beat rather
+    // than poke at it like a sign-in problem.
+    return n === 0
+      ? 'Rate limited — give it a moment, then try again.'
+      : `Rate limited — ${pluralised} queued; the next request will retry.`
+  }
   // signed-out: server reachable, just no session.
   return n === 0 ? 'Sign in to sync.' : `Sign in to sync ${pluralised}.`
 })
 
 function onClick() {
+  // Rate-limited isn't a sign-in problem; clicking should not bounce
+  // the user to the picker. The banner stays as a passive indicator
+  // until a future navigation flips syncState back to 'online'.
+  if (syncState.value === 'rate-limited') return
   void router.push({ name: 'signin', query: { redirect: route.fullPath } })
 }
 </script>
@@ -51,7 +64,11 @@ function onClick() {
     v-if="visible"
     type="button"
     class="offline-banner"
-    :class="{ 'is-offline': syncState === 'offline' }"
+    :class="{
+      'is-offline': syncState === 'offline',
+      'is-passive': syncState === 'rate-limited',
+    }"
+    :disabled="syncState === 'rate-limited'"
     aria-live="polite"
     @click="onClick"
   >
@@ -79,6 +96,15 @@ function onClick() {
 
 .offline-banner:hover {
   filter: brightness(1.05);
+}
+
+.offline-banner.is-passive {
+  cursor: default;
+  opacity: 1;
+}
+
+.offline-banner.is-passive:hover {
+  filter: none;
 }
 
 .dot {

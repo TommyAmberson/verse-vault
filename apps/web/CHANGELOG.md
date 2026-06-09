@@ -9,6 +9,18 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Distinguish `rate-limited` from `offline` in the sync indicator
+
+* `SyncState` gains a `rate-limited` variant. The router's background `getSession()` handler now
+  inspects the resolved result: a 429 error flips to `rate-limited` instead of the catch-all
+  `offline`. Catches still mean a real network failure.
+* `OfflineBanner.vue` renders distinct copy for the new state ("Rate limited — give it a moment,
+  then try again.") and disables itself so clicking doesn't bounce the user to the sign-in picker —
+  that's the right affordance for offline/signed-out, but not for being throttled. The banner flips
+  back to `online` automatically on the next navigation if the bucket has refilled.
+* Pairs with the api-side fixes that made 429 responses readable (CORS) and stopped drowning cheap
+  session-state reads in the credential-stuffing bucket — those landed in the same branch.
+
 ## [0.1.20] — 2026-05-30
 
 ### Bundled algorithm contract
