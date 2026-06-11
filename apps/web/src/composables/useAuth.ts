@@ -47,18 +47,25 @@ export async function refreshProfilesList(): Promise<void> {
   profilesList.value = rows
 }
 
-/** Three-state sync status:
- *  - `online`     — most recent sync attempt succeeded with a live session.
- *  - `signed-out` — the server is reachable but rejected the request
- *                   (no cookie / cookie expired). Sign-in will work.
- *  - `offline`    — the network call itself failed; can't sign in until
- *                   connectivity is restored.
+/** Four-state sync status:
+ *  - `online`       — most recent sync attempt succeeded with a live session.
+ *  - `signed-out`   — the server is reachable but the session is missing or
+ *                     expired (`getSession` resolved with `data.user === null`
+ *                     and no error). Sign-in will work.
+ *  - `offline`      — the network call itself failed (fetch rejected) or the
+ *                     server returned a non-429 error. Can't sign in until
+ *                     connectivity is restored.
+ *  - `rate-limited` — the server is reachable and returned 429. The client is
+ *                     being throttled, not unauthenticated. The next nav re-
+ *                     issues `getSession` and clears the state if the bucket
+ *                     has refilled.
  *
  *  Defaults to `online` so the banner doesn't flash on cold boot before
- *  the first attempt resolves. Distinguishing signed-out from offline
- *  drives the banner copy (and lets us NOT misleadingly tell an offline
- *  user to "sign in" as if that would help). */
-export type SyncState = 'online' | 'signed-out' | 'offline'
+ *  the first attempt resolves. Distinguishing the four cases drives the
+ *  banner copy: an offline user shouldn't be told to "sign in", and a
+ *  rate-limited user shouldn't be either — there's nothing for them to
+ *  do but wait. */
+export type SyncState = 'online' | 'signed-out' | 'offline' | 'rate-limited'
 const syncState = ref<SyncState>('online')
 
 interface UserPayload {

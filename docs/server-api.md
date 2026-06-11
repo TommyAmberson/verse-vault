@@ -435,15 +435,27 @@ All error bodies follow `{ "error": "..." }`.
 
 The API runs an in-memory token-bucket per client IP. Defaults:
 
-| tier                 | limit       | applies to                                        |
-| -------------------- | ----------- | ------------------------------------------------- |
-| authed               | 120 req/min | every route except `/health` and the two below    |
-| unauthed (auth-flow) | 10 req/min  | `/api/auth/*` — defangs credential-stuffing loops |
-| exempt               | —           | `/health` (no bucket, no 429)                     |
+| tier                 | limit       | applies to                                                                                                        |
+| -------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| authed               | 120 req/min | every route except `/health` and the credential surfaces below — includes cheap `/api/auth/*` session-state reads |
+| unauthed (auth-flow) | 10 req/min  | credential surfaces under `/api/auth/*` (sign-in, sign-up, password reset, OAuth callbacks, sign-out, etc.)       |
+| exempt               | —           | `/health` (no bucket, no 429)                                                                                     |
+
+Cheap session-state reads (`GET /api/auth/get-session`,
+`GET /api/auth/multi-session/list-device-sessions`) are explicitly allowlisted onto the looser
+`authed` tier — the web client hits them on every app boot and every route navigation, and dumping
+that volume into the credential-stuffing bucket 429'd normal nav long before any attack-shaped
+traffic. Add new paths to `AUTH_LOOSE_PATHS` in `packages/api/src/middleware/observability.ts` when
+a future Better Auth route lands in the same shape.
 
 Bucket key is the client IP (`CF-Connecting-IP` in production behind the Cloudflare Tunnel,
-`X-Forwarded-For` first hop in dev, `unknown` if neither is present). Per-user keying is a follow-up
-if NAT'd users start tripping limits — siblings sharing a NAT currently share a bucket.
+`X-Forwarded-For` first hop in dev, `unknown` if neither is present). In local dev, `ip:unknown`
+skips the bucket entirely — localhost requests carry no proxy header, so without the skip every
+unauthenticated request shares one bucket and a couple of refreshes exhaust it. Toggle the skip via
+`rateLimitUnknownIp` (defaults to `NODE_ENV === 'production'`); prod still limits unknown IPs as a
+defense-in-depth measure since a real `ip:unknown` request behind the Tunnel is a misconfig or a
+header-spoof bypass attempt. Per-user keying is a follow-up if NAT'd users start tripping limits —
+siblings sharing a NAT currently share a bucket.
 
 Failed Better Auth attempts (e.g. 401 from `/api/auth/sign-in/email` with a bad password) still
 consume a token. That's intentional brute-force protection.

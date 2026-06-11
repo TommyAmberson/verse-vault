@@ -62,22 +62,22 @@ export function createApp(deps: AppDeps) {
     : undefined;
   const app = new Hono<{ Variables: AppVariables }>();
 
-  // Observability + rate-limit middleware replaces Hono's default
-  // logger(). Mounts first so durationMs covers the full handler path
-  // and the 429 response flows back through cors() with the right
-  // headers. See middleware/observability.ts.
   const observabilityOpts = resolveObservabilityOptions({
     now: deps.now,
     ...deps.observability,
   });
-  app.use('*', observabilityMiddleware(observabilityOpts));
-  // Drops the bulk renders payload for `nkjv-cor` from ~5 MB to ~1 MB.
-  app.use('*', compress());
   const isProd = process.env.NODE_ENV === 'production';
   // Browser-sent Origin headers are scheme+host+port only. Strip any path
   // (e.g. `/vv` for subpath deployments) from the configured webOrigin so
   // the equality check works.
   const webOrigin = new URL(deps.authEnv.webOrigin).origin;
+  // CORS runs OUTERMOST. Hono's cors() sets `Access-Control-Allow-Origin`
+  // on `c.res.headers` in its before-phase, which sticks to the final
+  // response regardless of which downstream middleware produces it —
+  // including the 429 that observability returns directly when a bucket
+  // is exhausted. Mounting observability outside cors leaves rate-limit
+  // responses without CORS headers, which the browser surfaces as a
+  // generic "NetworkError" instead of the real 429 + Retry-After.
   app.use(
     '*',
     cors({
@@ -106,6 +106,11 @@ export function createApp(deps: AppDeps) {
       exposeHeaders: ['Retry-After', 'X-Request-Id'],
     }),
   );
+  // Observability + rate-limit middleware replaces Hono's default
+  // logger(). See middleware/observability.ts.
+  app.use('*', observabilityMiddleware(observabilityOpts));
+  // Drops the bulk renders payload for `nkjv-cor` from ~5 MB to ~1 MB.
+  app.use('*', compress());
 
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
