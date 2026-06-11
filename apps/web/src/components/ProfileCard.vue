@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import StatusChip from '@/components/StatusChip.vue'
 import type { ProfileRow } from '@/lib/engine/registry'
+import { profileInitials } from '@/lib/profile'
 
 const props = defineProps<{
   profile: ProfileRow
@@ -44,14 +45,7 @@ function onWindowClick() {
 onMounted(() => window.addEventListener('click', onWindowClick))
 onBeforeUnmount(() => window.removeEventListener('click', onWindowClick))
 
-const initials = computed(() => {
-  const source = props.profile.displayName || props.profile.email
-  const parts = source.trim().split(/\s+/)
-  const letters = parts.length >= 2
-    ? parts[0]![0]! + parts[parts.length - 1]![0]!
-    : source.slice(0, 2)
-  return letters.toUpperCase()
-})
+const initials = computed(() => profileInitials(props.profile))
 
 const lastUsedLabel = computed(() => {
   const deltaSecs = Math.max(0, Math.floor(Date.now() / 1000) - props.profile.lastUsedAt)

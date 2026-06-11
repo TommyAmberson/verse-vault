@@ -9,6 +9,83 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### `/code-review` pass on the nav redesign
+
+* **Open-redirect via `?redirect=`.** `router/index.ts`'s `beforeEach` guard and
+  `ProfilePickerView.vue`'s `redirectTarget()` were returning the raw `redirect` query parameter to
+  Vue Router. A signed-in user clicking `/profiles?redirect=https://evil.com` (or a sign-in link
+  with the same shape) would be navigated off-origin. New `safeRedirect()` helper rejects anything
+  not starting with a single `/`; both call sites route through it.
+* **Avatar popover swallows grade keys.** `ReviewView` and `MemorizeView` register their `keydown`
+  listeners with `{capture: true}` and treat 1–4 / Enter / Space as grade input. The avatar
+  popover's keydown listener was bubble-phase, so pressing "1" to dismiss the menu would also grade
+  the current card. AppAvatar's listener moves to the capture phase and `stopImmediatePropagation`s
+  the grade keys while the popover is open.
+* **`onSignOut` strands the user on throw.** If `useAuth().signOut()` rejected, the explicit
+  `router.push('/profiles')` never ran and the user was stuck on a half-signed-out workspace. The
+  push moves into a `finally` so the user always reaches the picker.
+* **Cold-boot grid collapse.** AppAvatar's outer `.avatar-wrap` was `v-if="activeProfile"`, so
+  during the pre-boot window the 3-column header grid lost its right anchor and the brand + nav
+  drifted right. The wrap renders unconditionally now; only the button + popover are gated.
+* **Phantom mobile padding on signed-out routes.** `.site` reserved `--mobile-tab-bar-h` of bottom
+  padding at ≤720 px unconditionally, even though `<MobileTabBar v-if="user">` only mounts when
+  signed in. The signed-out picker / sign-in page got a dead gap at the bottom on mobile. Gated via
+  a `has-user` class on `.site`.
+* **Missing `env(...)` fallback inside `calc(...)`.** Browsers without `safe-area-inset-bottom`
+  support drop the entire `calc()` value, collapsing the bottom padding to zero. Both call sites use
+  `env(safe-area-inset-bottom, 0px)` now.
+* **`profileInitials` blank fallback.** A profile with both `displayName` and `email` empty returned
+  `''`, rendering a visually-blank avatar circle. Falls back to `'?'`.
+* **Stale "rendered unconditionally" comment in `MobileTabBar.vue`** updated — the component is in
+  fact gated by `v-if="user"` in `App.vue`.
+
+### Keyboard + focus polish for the nav redesign
+
+* Escape closes the identity popover (window-level `keydown` listener, paired with the existing
+  click-outside dismissal).
+* `:focus-visible` rings on the avatar button, popover menu items, brand link, top-bar nav links,
+  and bottom tab bar tabs. Uses the existing 2 px `--color-accent` outline convention from
+  `ScopeLevelSelector` and `CardPrompt`. Active-route `aria-current="page"` comes for free from Vue
+  Router 4's `RouterLink`.
+
+### Bottom tab bar at mobile widths
+
+* New `MobileTabBar.vue` renders a fixed-bottom 5-tab bar (**Home · Review · Memorize · Settings ·
+  Stats**) at viewports ≤720 px, with inline Lucide-style SVG icons and the Memorize-new pill in its
+  existing spot. The inline top-bar nav hides at the same breakpoint.
+* Bar respects `env(safe-area-inset-bottom)` so it sits above the iOS home indicator and Android
+  gesture bar.
+* `.site` reserves `calc(3.75rem + env(safe-area-inset-bottom))` of padding at the mobile breakpoint
+  so the footer and any scroll content sit above the fixed bar rather than under it.
+
+### Identity popover replaces email + switch-profile in the nav
+
+* New `AppAvatar.vue` renders a circular avatar button (display-name initials, or the profile image
+  when present) at the end of the nav. Clicking opens a popover with the display name + email,
+  **Switch profile**, and **Sign out**.
+* Sign-out is now reachable from the top nav for the first time: calls `useAuth().signOut()` against
+  the active profile, revokes its server session, and routes to `/profiles`.
+* Removes the always-visible email text and the **Switch profile** button-styled link from the nav
+  row, freeing horizontal space for the upcoming responsive layout work.
+* Header now uses a `1fr auto 1fr` grid: brand pinned left, nav links centered, avatar pinned right.
+  Replaces the previous single-flex-row composition.
+
+### `/dashboard` renamed to `/home`
+
+* The route, nav label, view file (`DashboardView.vue` → `HomeView.vue`), and post-sign-in default
+  redirect all rename to **Home**. The page is a landing-glance, not a widgets dashboard, and the
+  new name reads truer in the nav row.
+* `/dashboard` redirects to `/home`, mirroring the `/material` → `/settings` shim.
+
+### `/material` renamed to `/settings`
+
+* The route, nav label, view file (`MaterialView.vue` → `SettingsView.vue`), and page heading all
+  rename to **Settings**. The page still contains only per-year settings today; the new name leaves
+  obvious room to grow (Account, Appearance, Shortcuts) without restructuring nav.
+* `/material` redirects to `/settings` so existing bookmarks and deep links keep working.
+* In-app links from Dashboard's empty-CTA, MemorizeView's empty-state, and StatsView's empty-state
+  all point to `/settings`.
+
 ### Distinguish `rate-limited` from `offline` in the sync indicator
 
 * `SyncState` gains a `rate-limited` variant. The router's background `getSession()` handler now

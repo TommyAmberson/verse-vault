@@ -72,7 +72,7 @@ onMounted(async () => {
     <div v-else-if="loading" class="status">Loading…</div>
     <div v-else-if="empty" class="status">
       No enrolled years yet. Pick one in
-      <RouterLink to="/material">/material</RouterLink> to start.
+      <RouterLink to="/settings">/settings</RouterLink> to start.
     </div>
     <div v-else class="content">
       <h2>Stats</h2>

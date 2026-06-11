@@ -5,7 +5,7 @@ withDefaults(
      *  for in-progress/attention states, `muted` for inactive states. */
     variant: 'accent' | 'warning' | 'muted'
     /** Visual density. `sm` matches the per-deck status pill in
-     *  MaterialView; `xs` matches the tighter pill on ProfileCard. */
+     *  SettingsView; `xs` matches the tighter pill on ProfileCard. */
     size?: 'sm' | 'xs'
   }>(),
   { size: 'sm' },

@@ -3,7 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import { api } from '@/api'
+import AppAvatar from '@/components/AppAvatar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import MobileTabBar from '@/components/MobileTabBar.vue'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import { useAuth } from '@/composables/useAuth'
 
@@ -39,21 +41,20 @@ watch(() => route.fullPath, refreshMemorizeCount)
 </script>
 
 <template>
-  <div class="site">
+  <div class="site" :class="{ 'has-user': !!user }">
     <header class="site-header">
       <RouterLink to="/" class="brand">verse-vault</RouterLink>
       <nav v-if="user" class="nav">
-        <RouterLink to="/dashboard">Dashboard</RouterLink>
+        <RouterLink to="/home">Home</RouterLink>
         <RouterLink to="/review">Review</RouterLink>
         <RouterLink to="/memorize" class="memorize-link">
           Memorize
           <span v-if="newToMemorize > 0" class="pill">{{ newToMemorize }}</span>
         </RouterLink>
-        <RouterLink to="/material">Material</RouterLink>
+        <RouterLink to="/settings">Settings</RouterLink>
         <RouterLink to="/stats">Stats</RouterLink>
-        <span class="who">{{ user.email }}</span>
-        <RouterLink to="/profiles?force=1" class="switch-profile">Switch profile</RouterLink>
       </nav>
+      <AppAvatar />
     </header>
     <OfflineBanner />
     <ConfirmDialog
@@ -91,6 +92,7 @@ watch(() => route.fullPath, refreshMemorizeCount)
         <a href="https://api.bible" target="_blank" rel="noopener">API.Bible</a>.
       </p>
     </footer>
+    <MobileTabBar v-if="user" :new-to-memorize="newToMemorize" />
   </div>
 </template>
 
@@ -102,9 +104,10 @@ watch(() => route.fullPath, refreshMemorizeCount)
 }
 
 .site-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  gap: 1rem;
   padding: 0.75rem 1.5rem;
   background: var(--color-bg-card);
   border-bottom: 1px solid var(--color-border);
@@ -115,12 +118,25 @@ watch(() => route.fullPath, refreshMemorizeCount)
   color: var(--color-text);
   text-decoration: none;
   font-size: 1.1rem;
+  justify-self: start;
 }
 
 .nav {
   display: flex;
   align-items: center;
   gap: 1rem;
+  justify-self: center;
+}
+
+/* AppAvatar's `.avatar-wrap` is the third grid track. Pin both column
+   AND justify-self explicitly — at mobile widths `.nav` is `display:
+   none`, which removes it from grid auto-placement entirely; without
+   `grid-column: 3` the avatar would auto-flow into the middle (`auto`)
+   track and `justify-self: end` would only align it inside that
+   shrunken track instead of the header's right edge. */
+.site-header :deep(.avatar-wrap) {
+  grid-column: 3;
+  justify-self: end;
 }
 
 .nav :deep(a) {
@@ -133,6 +149,12 @@ watch(() => route.fullPath, refreshMemorizeCount)
 .nav :deep(a.router-link-active) {
   color: var(--color-accent);
   background: var(--color-accent-soft);
+}
+
+.nav :deep(a:focus-visible),
+.brand:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .memorize-link {
@@ -149,25 +171,6 @@ watch(() => route.fullPath, refreshMemorizeCount)
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
   line-height: 1.4;
-}
-
-.who {
-  color: var(--color-muted);
-  font-size: 0.85rem;
-}
-
-.switch-profile {
-  background: none;
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  text-decoration: none;
-}
-
-.switch-profile:hover {
-  color: var(--color-text);
 }
 
 .site-main {
@@ -201,5 +204,23 @@ watch(() => route.fullPath, refreshMemorizeCount)
 
 .site-footer a:hover {
   color: var(--color-text);
+}
+
+/* Hand the nav off to the fixed bottom tab bar at mobile widths.
+   Padding-bottom on `.site.has-user` reserves the bar's height so the
+   footer and any scroll content can sit above it instead of being
+   overlapped by the fixed bar. The `.has-user` gate matches
+   `<MobileTabBar v-if="user">` in the template so signed-out routes
+   (/profiles, sign-in form) don't reserve a phantom gap where no bar
+   exists. The `env(...)` fallback covers browsers without
+   safe-area-inset support. Breakpoint must match MobileTabBar.vue. */
+@media (max-width: 720px) {
+  .nav {
+    display: none;
+  }
+
+  .site.has-user {
+    padding-bottom: calc(var(--mobile-tab-bar-h) + env(safe-area-inset-bottom, 0px));
+  }
 }
 </style>

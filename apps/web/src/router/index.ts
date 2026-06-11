@@ -9,12 +9,26 @@ import {
 
 let reconcileFired = false
 
+/** A `?redirect=` query parameter is attacker-controllable — guard against
+ *  external URLs and protocol-relative `//evil.com` paths. Only
+ *  same-origin SPA paths (starting with a single `/`) are honoured;
+ *  anything else falls back to the default landing route. */
+function safeRedirect(raw: unknown): string {
+  if (typeof raw !== 'string') return '/home'
+  if (!raw.startsWith('/') || raw.startsWith('//')) return '/home'
+  return raw
+}
+
+export { safeRedirect }
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', redirect: '/dashboard' },
+    { path: '/', redirect: '/home' },
     { path: '/session', redirect: '/review' },
     { path: '/signin', redirect: '/profiles' },
+    { path: '/material', redirect: '/settings' },
+    { path: '/dashboard', redirect: '/home' },
     {
       path: '/profiles',
       name: 'profiles',
@@ -22,9 +36,9 @@ const router = createRouter({
       meta: { public: true },
     },
     {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: () => import('@/views/DashboardView.vue'),
+      path: '/home',
+      name: 'home',
+      component: () => import('@/views/HomeView.vue'),
     },
     {
       path: '/review',
@@ -42,9 +56,9 @@ const router = createRouter({
       component: () => import('@/views/StatsView.vue'),
     },
     {
-      path: '/material',
-      name: 'material',
-      component: () => import('@/views/MaterialView.vue'),
+      path: '/settings',
+      name: 'settings',
+      component: () => import('@/views/SettingsView.vue'),
     },
   ],
 })
@@ -95,8 +109,7 @@ router.beforeEach(async (to) => {
 
   if (to.meta.public) {
     if (signedIn && to.name === 'profiles' && to.query.force !== '1') {
-      const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/dashboard'
-      return redirect
+      return safeRedirect(to.query.redirect)
     }
     return true
   }

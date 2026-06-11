@@ -134,7 +134,7 @@ onMounted(async () => {
     <template v-else-if="empty">
       <section class="empty">
         <p class="empty-line"><em>This codex is empty.</em></p>
-        <RouterLink to="/material" class="empty-cta">
+        <RouterLink to="/settings" class="empty-cta">
           Choose your first year
           <span aria-hidden="true">↗</span>
         </RouterLink>
@@ -501,7 +501,7 @@ onMounted(async () => {
 }
 
 /* Idle (zero-count) tiles dim so the lit ones lead the eye.
-   Modifier is `stage-idle`, not `empty`, because the dashboard's
+   Modifier is `stage-idle`, not `empty`, because this view's
    no-enrollments `.empty` rule below would otherwise cascade onto
    these tiles by accident. */
 .codex.revealed .stage-idle {

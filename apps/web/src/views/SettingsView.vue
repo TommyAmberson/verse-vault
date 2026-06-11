@@ -279,8 +279,8 @@ onMounted(refresh)
 </script>
 
 <template>
-  <div class="material">
-    <h2>Material</h2>
+  <div class="settings">
+    <h2>Settings</h2>
     <div v-if="error" class="banner banner-error">{{ error }}</div>
     <div v-if="loading" class="status">Loading…</div>
     <div v-else-if="cards.length === 0" class="status">
@@ -490,7 +490,7 @@ onMounted(refresh)
 </template>
 
 <style scoped>
-.material {
+.settings {
   width: 100%;
   max-width: 720px;
   display: flex;

@@ -10,6 +10,7 @@ import SignInForm from '@/components/SignInForm.vue'
 import TypeToConfirmDialog from '@/components/TypeToConfirmDialog.vue'
 import { useAuth } from '@/composables/useAuth'
 import { downloadJson, exportFilename, readJsonFile } from '@/lib/account-file'
+import { safeRedirect } from '@/router'
 import type { ProfileRow } from '@/lib/engine/registry'
 
 const {
@@ -66,7 +67,7 @@ watch(
 )
 
 function redirectTarget(): string {
-  return typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
+  return safeRedirect(route.query.redirect)
 }
 
 async function onCardEnter(profile: ProfileRow) {

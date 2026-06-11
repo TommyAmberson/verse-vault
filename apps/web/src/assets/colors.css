@@ -36,6 +36,10 @@
   --verse-c8: oklch(50% 0.18 263.47); /* dark blue */
   --verse-c9: oklch(58% 0.18 293.9); /* blue violet */
   --verse-c10: oklch(50% 0.19 333.28); /* dark magenta */
+
+  /* Layout dimensions. Kept here rather than in App.vue so multiple
+     components can reference the same source of truth. */
+  --mobile-tab-bar-h: 3.75rem;
 }
 
 /* Dark theme picks up automatically on OS preference. Background is a
