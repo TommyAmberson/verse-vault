@@ -9,6 +9,36 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### `/code-review` pass on the nav redesign
+
+* **Open-redirect via `?redirect=`.** `router/index.ts`'s `beforeEach` guard and
+  `ProfilePickerView.vue`'s `redirectTarget()` were returning the raw `redirect` query parameter to
+  Vue Router. A signed-in user clicking `/profiles?redirect=https://evil.com` (or a sign-in link
+  with the same shape) would be navigated off-origin. New `safeRedirect()` helper rejects anything
+  not starting with a single `/`; both call sites route through it.
+* **Avatar popover swallows grade keys.** `ReviewView` and `MemorizeView` register their `keydown`
+  listeners with `{capture: true}` and treat 1–4 / Enter / Space as grade input. The avatar
+  popover's keydown listener was bubble-phase, so pressing "1" to dismiss the menu would also grade
+  the current card. AppAvatar's listener moves to the capture phase and `stopImmediatePropagation`s
+  the grade keys while the popover is open.
+* **`onSignOut` strands the user on throw.** If `useAuth().signOut()` rejected, the explicit
+  `router.push('/profiles')` never ran and the user was stuck on a half-signed-out workspace. The
+  push moves into a `finally` so the user always reaches the picker.
+* **Cold-boot grid collapse.** AppAvatar's outer `.avatar-wrap` was `v-if="activeProfile"`, so
+  during the pre-boot window the 3-column header grid lost its right anchor and the brand + nav
+  drifted right. The wrap renders unconditionally now; only the button + popover are gated.
+* **Phantom mobile padding on signed-out routes.** `.site` reserved `--mobile-tab-bar-h` of bottom
+  padding at ≤720 px unconditionally, even though `<MobileTabBar v-if="user">` only mounts when
+  signed in. The signed-out picker / sign-in page got a dead gap at the bottom on mobile. Gated via
+  a `has-user` class on `.site`.
+* **Missing `env(...)` fallback inside `calc(...)`.** Browsers without `safe-area-inset-bottom`
+  support drop the entire `calc()` value, collapsing the bottom padding to zero. Both call sites use
+  `env(safe-area-inset-bottom, 0px)` now.
+* **`profileInitials` blank fallback.** A profile with both `displayName` and `email` empty returned
+  `''`, rendering a visually-blank avatar circle. Falls back to `'?'`.
+* **Stale "rendered unconditionally" comment in `MobileTabBar.vue`** updated — the component is in
+  fact gated by `v-if="user"` in `App.vue`.
+
 ### Keyboard + focus polish for the nav redesign
 
 * Escape closes the identity popover (window-level `keydown` listener, paired with the existing

@@ -29,16 +29,34 @@ function close() {
 function onWindowClick() {
   if (open.value) open.value = false
 }
+// Keydown listener runs on the CAPTURE phase so it sees keys before the
+// active route's own capture-phase handlers do — ReviewView and
+// MemorizeView each register `keydown` with `{capture: true}` and treat
+// 1-4 / Enter / Space as grade input. While the popover is open, swallow
+// those keys before they reach the underlying view; otherwise a user
+// typing "1" to dismiss the menu would accidentally grade the current
+// card. Escape closes the menu and is also swallowed so it doesn't
+// trigger any escape-handlers in the underlying view.
+const GRADE_KEYS = new Set(['1', '2', '3', '4', 'Enter', ' '])
 function onWindowKeydown(ev: KeyboardEvent) {
-  if (ev.key === 'Escape' && open.value) close()
+  if (!open.value) return
+  if (ev.key === 'Escape') {
+    ev.stopImmediatePropagation()
+    close()
+    return
+  }
+  if (GRADE_KEYS.has(ev.key)) {
+    ev.stopImmediatePropagation()
+    ev.preventDefault()
+  }
 }
 onMounted(() => {
   window.addEventListener('click', onWindowClick)
-  window.addEventListener('keydown', onWindowKeydown)
+  window.addEventListener('keydown', onWindowKeydown, true)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('click', onWindowClick)
-  window.removeEventListener('keydown', onWindowKeydown)
+  window.removeEventListener('keydown', onWindowKeydown, true)
 })
 
 function goSwitchProfile() {
@@ -53,40 +71,58 @@ async function onSignOut() {
   // then falls through to /profiles on the next navigation. We push
   // explicitly so the user sees the picker immediately rather than
   // staying on a now-signed-out view.
-  await signOut()
-  await router.push('/profiles')
+  //
+  // The push runs in a finally so an IDB or revoke failure inside
+  // signOut() still routes the user to the picker. Landing on the
+  // picker (where they can retry or see their profile listed) is
+  // always better than being stranded on a workspace view whose
+  // sign-out attempt half-succeeded.
+  try {
+    await signOut()
+  } finally {
+    void router.push('/profiles')
+  }
 }
 </script>
 
 <template>
-  <div v-if="activeProfile" class="avatar-wrap" @click.stop>
-    <button
-      type="button"
-      class="avatar-btn"
-      :aria-expanded="open"
-      aria-haspopup="menu"
-      aria-label="Account menu"
-      @click="toggle"
-    >
-      <img
-        v-if="activeProfile.image"
-        :src="activeProfile.image"
-        :alt="activeProfile.displayName"
-      />
-      <span v-else class="initials">{{ initials }}</span>
-    </button>
-    <div v-if="open" class="menu" role="menu">
-      <div class="menu-header">
-        <p class="name">{{ activeProfile.displayName }}</p>
-        <p class="email">{{ activeProfile.email }}</p>
+  <!-- The wrap renders unconditionally so the parent grid's third
+       column always has an anchor. Without it, a brief window during
+       cold boot (before activeProfile resolves from IDB) collapses the
+       1fr/auto/1fr header grid to 1fr/auto and the brand + nav drift
+       right. The avatar button + popover are still gated on
+       activeProfile so signed-out / pre-boot states render no visible
+       chrome here. -->
+  <div class="avatar-wrap" @click.stop>
+    <template v-if="activeProfile">
+      <button
+        type="button"
+        class="avatar-btn"
+        :aria-expanded="open"
+        aria-haspopup="menu"
+        aria-label="Account menu"
+        @click="toggle"
+      >
+        <img
+          v-if="activeProfile.image"
+          :src="activeProfile.image"
+          :alt="activeProfile.displayName"
+        />
+        <span v-else class="initials">{{ initials }}</span>
+      </button>
+      <div v-if="open" class="menu" role="menu">
+        <div class="menu-header">
+          <p class="name">{{ activeProfile.displayName }}</p>
+          <p class="email">{{ activeProfile.email }}</p>
+        </div>
+        <button type="button" class="menu-item" role="menuitem" @click="goSwitchProfile">
+          Switch profile
+        </button>
+        <button type="button" class="menu-item" role="menuitem" @click="onSignOut">
+          Sign out
+        </button>
       </div>
-      <button type="button" class="menu-item" role="menuitem" @click="goSwitchProfile">
-        Switch profile
-      </button>
-      <button type="button" class="menu-item" role="menuitem" @click="onSignOut">
-        Sign out
-      </button>
-    </div>
+    </template>
   </div>
 </template>
 

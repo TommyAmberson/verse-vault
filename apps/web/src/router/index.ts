@@ -9,6 +9,18 @@ import {
 
 let reconcileFired = false
 
+/** A `?redirect=` query parameter is attacker-controllable — guard against
+ *  external URLs and protocol-relative `//evil.com` paths. Only
+ *  same-origin SPA paths (starting with a single `/`) are honoured;
+ *  anything else falls back to the default landing route. */
+function safeRedirect(raw: unknown): string {
+  if (typeof raw !== 'string') return '/home'
+  if (!raw.startsWith('/') || raw.startsWith('//')) return '/home'
+  return raw
+}
+
+export { safeRedirect }
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -97,8 +109,7 @@ router.beforeEach(async (to) => {
 
   if (to.meta.public) {
     if (signedIn && to.name === 'profiles' && to.query.force !== '1') {
-      const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : '/home'
-      return redirect
+      return safeRedirect(to.query.redirect)
     }
     return true
   }

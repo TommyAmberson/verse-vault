@@ -95,9 +95,10 @@ defineProps<{
 </template>
 
 <style scoped>
-/* Component is rendered unconditionally; the media query keeps it
-   hidden at desktop widths. Matches the spec's "no JS branch" stance
-   so SSR-like static analysis sees the same tree at every width. */
+/* Mounted only when a user is signed in (App.vue gates `<MobileTabBar
+   v-if="user">`); the media query then keeps it hidden at desktop
+   widths via a CSS-only branch. Same shape across viewports — no
+   JS-driven mount/unmount on resize. See docs/web-nav.md §Decisions. */
 .mobile-tab-bar {
   display: none;
 }
@@ -112,12 +113,15 @@ defineProps<{
     z-index: 5;
     /* The padded height of the bar drives the `.site` padding-bottom
        in App.vue — keep `--mobile-tab-bar-h` in sync with the natural
-       height the contents produce here. */
+       height the contents produce here. The `env(...)` fallback covers
+       browsers without safe-area-inset support; without it, an
+       unresolved env() would void the entire `calc()` and collapse
+       padding to zero. */
     min-height: var(--mobile-tab-bar-h);
     background: var(--color-bg-card);
     border-top: 1px solid var(--color-border);
     justify-content: space-around;
-    padding: 0.4rem 0.25rem calc(0.4rem + env(safe-area-inset-bottom));
+    padding: 0.4rem 0.25rem calc(0.4rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

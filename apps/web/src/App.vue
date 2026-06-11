@@ -41,7 +41,7 @@ watch(() => route.fullPath, refreshMemorizeCount)
 </script>
 
 <template>
-  <div class="site">
+  <div class="site" :class="{ 'has-user': !!user }">
     <header class="site-header">
       <RouterLink to="/" class="brand">verse-vault</RouterLink>
       <nav v-if="user" class="nav">
@@ -207,16 +207,20 @@ watch(() => route.fullPath, refreshMemorizeCount)
 }
 
 /* Hand the nav off to the fixed bottom tab bar at mobile widths.
-   Padding-bottom on `.site` reserves the bar's height so the footer
-   and any scroll content can sit above it instead of being overlapped
-   by the fixed bar. Breakpoint must match MobileTabBar.vue. */
+   Padding-bottom on `.site.has-user` reserves the bar's height so the
+   footer and any scroll content can sit above it instead of being
+   overlapped by the fixed bar. The `.has-user` gate matches
+   `<MobileTabBar v-if="user">` in the template so signed-out routes
+   (/profiles, sign-in form) don't reserve a phantom gap where no bar
+   exists. The `env(...)` fallback covers browsers without
+   safe-area-inset support. Breakpoint must match MobileTabBar.vue. */
 @media (max-width: 720px) {
   .nav {
     display: none;
   }
 
-  .site {
-    padding-bottom: calc(var(--mobile-tab-bar-h) + env(safe-area-inset-bottom));
+  .site.has-user {
+    padding-bottom: calc(var(--mobile-tab-bar-h) + env(safe-area-inset-bottom, 0px));
   }
 }
 </style>
