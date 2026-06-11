@@ -9,6 +9,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Fix dead OfflineBanner click
+
+* `OfflineBanner.vue`'s click handler was pushing `{ name: 'signin', ... }`, but the `/signin` route
+  in `router/index.ts` is a bare `{ path, redirect }` shim with no `name:` field. Vue Router
+  silently returned a navigation failure, so a signed-out user clicking the "Sign in to sync."
+  banner stayed put — the banner did nothing. Push to `{ name: 'profiles', ... }` (which is a real
+  named route) so the click actually reaches the picker. Pre-existing bug surfaced by the
+  nav-redesign code review.
+
 ### `/code-review` pass on the nav redesign
 
 * **Open-redirect via `?redirect=`.** `router/index.ts`'s `beforeEach` guard and
