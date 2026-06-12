@@ -186,11 +186,21 @@ impl FsrsBridge {
                 pending_relearn: state.pending_relearn,
             };
         }
-        let elapsed = state.elapsed_days(now_secs).max(0.0);
+        // Floor elapsed BEFORE computing the forward retrievabilities so
+        // r_now / r_direct / invert_r all see the same value. Without
+        // the shared floor, a same-instant sub-update (elapsed = 0)
+        // produced r_now = r_direct = 1.0 → r_blend = 1.0, then
+        // invert_r(1.0, 0.001, ...) hit its denom<1e-9 branch and
+        // returned S_MAX — a single same-instant review collapsed
+        // stability to the ~365-day ceiling regardless of prior state.
+        // 0.001 day ≈ 86 s is below the resolution of any real review
+        // timestamp, so flooring the forward branch doesn't change
+        // observable behaviour at human-scale intervals.
+        let elapsed = state.elapsed_days(now_secs).max(0.001);
         let r_now = power_forgetting_curve(elapsed, state.stability, FSRS6_DEFAULT_DECAY);
         let r_direct = power_forgetting_curve(elapsed, direct.stability, FSRS6_DEFAULT_DECAY);
         let r_blend = (1.0 - w) * r_now + w * r_direct;
-        let s_blend = invert_r(r_blend, elapsed.max(0.001), FSRS6_DEFAULT_DECAY);
+        let s_blend = invert_r(r_blend, elapsed, FSRS6_DEFAULT_DECAY);
         let d_blend = (1.0 - w) * state.difficulty + w * direct.difficulty;
         let base_blend_f =
             (1.0 - w as f64) * state.last_base_secs as f64 + w as f64 * now_secs as f64;
