@@ -9,6 +9,21 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-06-12
+
+MINOR bump for the nav redesign (identity popover, mobile bottom tab bar, route renames). Also packs
+the pass-1 + pass-2 correctness sweeps from the same train: engine-store IDB write races,
+retention-slider plumb-through, discardStale resets to server view, the rate-limited vs offline
+distinction, and the OfflineBanner click that finally reaches the picker.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.1` — `ftv_words > 0` floor on FTV emission + retrievability-blend `elapsed`
+  floor that stops same-instant sub-updates from collapsing stability.
+* `verse-vault-wasm@0.5.1` — `memorize_session` gates all three loops (verse-anchor, HP/CCL,
+  conditional orphan) against the same `memorize_active_verses` HashSet, so Maintenance-tier verses
+  no longer leak into the queue via any path.
+
 ### Correctness sweep on engine-store + memorize input
 
 Four real bugs surfaced by an exhaustive review pass. Each was independently confirmed by tracing
