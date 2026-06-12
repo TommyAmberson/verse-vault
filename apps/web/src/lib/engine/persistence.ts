@@ -273,6 +273,30 @@ export async function countAllQueuedEvents(): Promise<number> {
   )
 }
 
+/** Re-stamp every queued event for `materialId` with a new
+ *  `snapshotVersion`. Used after a 409 + `refetchSyncState`: the
+ *  events themselves are still valid (cardId / verseId mappings are
+ *  stable across snapshot bumps for the same material) but the
+ *  server's per-event snapshot-version check rejects anything
+ *  carrying the old value, so without rewriting the queue every
+ *  subsequent flush would 409 against the same stale rows forever. */
+export async function rewriteQueuedSnapshotVersion(
+  materialId: string,
+  snapshotVersion: number,
+): Promise<void> {
+  const db = await openDb()
+  const tx = db.transaction(STORE.EventQueue, 'readwrite')
+  const store = tx.objectStore(STORE.EventQueue)
+  const idx = store.index(BY_MATERIAL_ID_INDEX)
+  const rows = await promiseRequest<QueuedEvent[]>(idx.getAll(materialId))
+  for (const row of rows) {
+    if (row.snapshotVersion !== snapshotVersion) {
+      store.put({ ...row, snapshotVersion })
+    }
+  }
+  await transactionComplete(tx)
+}
+
 /** Delete acked events by clientEventId. Mid-flush additions to the
  *  queue survive because we delete by explicit key, not by clearing
  *  the whole store. */

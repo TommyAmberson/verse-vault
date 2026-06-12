@@ -287,8 +287,12 @@ export async function signInComplete(
   }
 
   // Switch the persistence layer to the new profile's DB before any
-  // migration so the eager open creates all stores.
-  clearAllSessions()
+  // migration so the eager open creates all stores. clearAllSessions
+  // is awaited so any in-flight flush or persistLocalGraduation
+  // settles against the OLD profile's IDB before the swap — otherwise
+  // its response handler writes the old profile's testStates into
+  // the new profile's IDB after the swap.
+  await clearAllSessions()
   await setActiveProfile(user.id)
 
   if (isFirstEverProfile) {
@@ -330,7 +334,7 @@ export async function enterProfile(profileId: string): Promise<EnterResult> {
     // Offline — enter the cached profile anyway.
   }
 
-  clearAllSessions()
+  await clearAllSessions()
   await setActiveProfile(profileId)
 
   const touched: registry.ProfileRow = { ...row, lastUsedAt: nowSecs() }
@@ -360,7 +364,7 @@ export async function deleteProfile(profileId: string): Promise<void> {
   }
 
   if (wasActive) {
-    clearAllSessions()
+    await clearAllSessions()
     await setActiveProfile(null)
     await registry.setLastActiveProfileId(null)
     activeProfile.value = null
@@ -393,7 +397,7 @@ export async function deleteProfile(profileId: string): Promise<void> {
  *  (this only swaps the persistence-layer handle), so the caller stays
  *  on the same profile. */
 async function resetProfileLocalData(profileId: string): Promise<void> {
-  clearAllSessions()
+  await clearAllSessions()
   await setActiveProfile(null)
   await deleteIdb(profileDbName(profileId))
   await setActiveProfile(profileId)
@@ -423,7 +427,7 @@ export async function signOut(targetProfileId?: string): Promise<void> {
   if (activeProfile.value?.profileId === targetId) {
     await registry.setLastActiveProfileId(null)
     await setActiveProfile(null)
-    clearAllSessions()
+    await clearAllSessions()
     activeProfile.value = null
     // Reset the load-once flag so the next sign-in re-reads the
     // registry — keeps the "flag true ⟺ registry consulted this
