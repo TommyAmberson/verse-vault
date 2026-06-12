@@ -46,6 +46,13 @@ interface EngineSession {
   /** Cached so refetch + rebuild paths can re-pass it to `createEngine`
    *  without the caller having to reload year settings every time. */
   materialConfig: WireMaterialConfig | undefined
+  /** FSRS target retention the engine was constructed with. Same
+   *  motivation as `materialConfig`: refetch + rebuild paths re-pass
+   *  it, and the server-side scheduler uses the same per-user value
+   *  (packages/api/src/lib/enrollment.ts), so the local engine has to
+   *  honour the user's `/settings` slider rather than falling back to
+   *  the constant default. */
+  desiredRetention: number
 }
 
 function requireSession(materialId: string, caller: string): EngineSession {
@@ -56,6 +63,13 @@ function requireSession(materialId: string, caller: string): EngineSession {
 
 const sessions = new Map<string, EngineSession>()
 const inflightFlushes = new Map<string, Promise<FlushResult>>()
+/** Per-(materialId) serialisation chain for `persistLocalGraduation`. The
+ *  snapshot read-modify-write window in `persistLocalGraduation` runs as
+ *  two separate IDB operations, so concurrent fire-and-forget calls (e.g.
+ *  `MemorizeView`'s `Promise.all([submitGraduation, ...submitCardGraduation])`)
+ *  would each see the same pre-mutation snapshot and overwrite each
+ *  other's ids. Chaining onto the previous promise serialises them. */
+const persistGraduationChains = new Map<string, Promise<void>>()
 /** Materials the server has flagged with a stale-merge `needsConfirm`.
  *  Flush calls for these no-op until either `confirmMerge: true` is
  *  passed (which bypasses the gate and clears it on success) or
@@ -107,6 +121,7 @@ export async function loadEngine(
   materialId: string,
   nowSecs: number,
   materialConfig?: WireMaterialConfig,
+  desiredRetention: number = DEFAULT_DESIRED_RETENTION,
 ): Promise<EngineSession> {
   const existing = sessions.get(materialId)
   if (existing) return existing
@@ -135,7 +150,7 @@ export async function loadEngine(
     materialData: snapshot.materialData,
     materialConfig: materialConfig ?? '',
     testStates,
-    desiredRetention: DEFAULT_DESIRED_RETENTION,
+    desiredRetention,
     nowSecs,
   })
   applyGraduations(engine, snapshot.graduatedVerseIds, snapshot.graduatedCardIds)
@@ -145,6 +160,7 @@ export async function loadEngine(
     engine,
     snapshotVersion: snapshot.version,
     materialConfig,
+    desiredRetention,
   }
   sessions.set(materialId, session)
   return session
@@ -169,14 +185,22 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
   if (fetched.snapshot.version !== session.snapshotVersion) {
     await idb.clearRenders(session.materialId)
   }
-  session.engine.free()
-  session.engine = createEngine({
+  // Build the replacement engine BEFORE freeing the old one — a
+  // free-then-create order leaves `session.engine` pointing at a
+  // dead Rust struct if `WasmEngine::new` throws (mismatched
+  // contract version, malformed materialData, etc.), and the next
+  // requireSession-driven call would trap dereferencing it. Build
+  // first → swap atomically → free the old engine only on success.
+  const replacement = createEngine({
     materialData: fetched.snapshot.materialData,
     materialConfig: session.materialConfig ?? '',
     testStates: fetched.testStates,
-    desiredRetention: DEFAULT_DESIRED_RETENTION,
+    desiredRetention: session.desiredRetention,
     nowSecs,
   })
+  const previous = session.engine
+  session.engine = replacement
+  previous.free()
   applyGraduations(session.engine, fetched.graduatedVerseIds, fetched.graduatedCardIds)
   session.snapshotVersion = fetched.snapshot.version
 }
@@ -267,15 +291,35 @@ export async function submitGraduation(
 // in IDB — `getSnapshot` is treated as infallible here. A missing row
 // signals genuine IDB corruption and propagates as a thrown error
 // through the surrounding fire-and-forget `.catch`.
+//
+// Concurrent calls are serialised via `persistGraduationChains` so the
+// read-modify-write of `graduatedVerseIds` / `graduatedCardIds` is
+// race-free. Without serialisation, MemorizeView's
+// `Promise.all([submitGraduation, ...conditionalCardIds.map(submitCardGraduation)])`
+// would have every call read the same pre-mutation snapshot and
+// overwrite each other's ids — silently dropping graduations that
+// then revert to `New` on the next page load.
 async function persistLocalGraduation(
   materialId: string,
   field: 'graduatedVerseIds' | 'graduatedCardIds',
   id: number,
 ): Promise<void> {
-  const snapshot = (await idb.getSnapshot(materialId))!
-  const ids = snapshot[field] ?? []
-  if (ids.includes(id)) return
-  await idb.putSnapshot({ ...snapshot, [field]: [...ids, id] })
+  const prev = persistGraduationChains.get(materialId) ?? Promise.resolve()
+  const next = prev.then(async () => {
+    const snapshot = (await idb.getSnapshot(materialId))!
+    const ids = snapshot[field] ?? []
+    if (ids.includes(id)) return
+    await idb.putSnapshot({ ...snapshot, [field]: [...ids, id] })
+  })
+  // Swallow the chained promise's rejection so a single failed write
+  // doesn't poison every subsequent write on the same material — the
+  // failure still surfaces through the returned `next` to the original
+  // caller's `.catch`.
+  persistGraduationChains.set(
+    materialId,
+    next.catch(() => {}),
+  )
+  return next
 }
 
 /** Apply a single-card graduation locally and queue the event for
@@ -463,12 +507,16 @@ async function doFlush(
     response = await api.postSyncEvents(materialId, { events, confirmMerge })
   } catch (err) {
     // 409 from snapshot mismatch is the one we can recover from
-    // without user input: refetch /state, rebuild the engine, and
-    // leave the events queued for the next flush to retry with the
-    // upgraded snapshotVersion. Any other error propagates.
+    // without user input: refetch /state, rebuild the engine, then
+    // re-stamp every queued event with the new snapshot version so
+    // the next flush passes the server's per-event check. Without
+    // the re-stamp the queued rows keep their original snapshot
+    // version, every retry 409s on the same rows, and the queue
+    // wedges forever. Any other error propagates.
     const status = (err as { status?: number }).status
     if (status === 409) {
       await refetchSyncState(session, nowSecs)
+      await idb.rewriteQueuedSnapshotVersion(materialId, session.snapshotVersion)
       return { accepted: 0, duplicates: 0, rebuilt: false }
     }
     throw err
@@ -494,14 +542,28 @@ async function doFlush(
   if (response.rebuilt) {
     const snapshot = await idb.getSnapshot(materialId)
     if (snapshot) {
-      session.engine.free()
-      session.engine = createEngine({
+      // Build → swap → free, same as refetchSyncState. createEngine
+      // throwing (e.g. mismatched contract version after a server-
+      // bumped snapshot) must not leave session.engine pointing at
+      // a freed Rust struct.
+      const replacement = createEngine({
         materialData: snapshot.materialData,
         materialConfig: session.materialConfig ?? '',
         testStates: response.testStates,
-        desiredRetention: DEFAULT_DESIRED_RETENTION,
+        desiredRetention: session.desiredRetention,
         nowSecs,
       })
+      const previous = session.engine
+      session.engine = replacement
+      previous.free()
+      // The fresh engine has no graduation history — without re-
+      // applying the locally-persisted graduated{Verse,Card}Ids,
+      // graduated verses leak back into the New pool, memorize_session
+      // re-introduces them, and next-card selection ignores prior
+      // graduations until a full page reload re-enters `loadEngine`.
+      // `loadEngine` and `refetchSyncState` both apply graduations
+      // after `createEngine`; this path was missing the same step.
+      applyGraduations(session.engine, snapshot.graduatedVerseIds, snapshot.graduatedCardIds)
     }
   }
 
@@ -528,15 +590,38 @@ export async function invalidateSession(materialId: string): Promise<void> {
 }
 
 /** Reset all per-profile in-memory state. Frees every cached WASM
- *  engine and drops the sessions / inflightFlushes / staleGate maps.
- *  Called on profile switch + sign-out (`useAuth.signInComplete` and
- *  `useAuth.signOut`) so the next profile starts fresh — without
- *  clearing `staleGate`, a stale-merge gate from profile A would
- *  silently no-op every flush in profile B (or the same user's next
- *  session). Does not touch IDB. */
-export function clearAllSessions(): void {
+ *  engine and drops the sessions / inflightFlushes / staleGate /
+ *  persistGraduationChains maps. Called on profile switch + sign-out
+ *  (`useAuth.signInComplete`, `useAuth.enterProfile`, `useAuth.signOut`)
+ *  so the next profile starts fresh — without clearing `staleGate`, a
+ *  stale-merge gate from profile A would silently no-op every flush
+ *  in profile B (or the same user's next session). Does not touch IDB.
+ *
+ *  **Asynchronous and must be awaited.** Any in-flight flush or
+ *  graduation persist runs `await idb.<op>(materialId, ...)` against
+ *  `openDb()`, which reads the global active profile id. If the
+ *  caller swaps the active profile (`setActiveProfile(B)`) before
+ *  awaiting these promises, the response handler resolves AFTER the
+ *  swap and writes profile A's testStates / graduations into profile
+ *  B's IDB — a concrete cross-profile data leak. The wait drains
+ *  outstanding writes against the still-current profile A's IDB
+ *  before clearing the maps. */
+export async function clearAllSessions(): Promise<void> {
+  // Snapshot the promises before clearing the maps so the awaited
+  // settle() doesn't race with new entries appearing in either map.
+  const pending: Promise<unknown>[] = [
+    ...inflightFlushes.values(),
+    ...persistGraduationChains.values(),
+  ]
+  // Drain — allSettled because a single failure shouldn't block the
+  // others or throw out of clearAllSessions. Callers expect this to
+  // succeed even when one of the in-flight ops rejects.
+  if (pending.length > 0) {
+    await Promise.allSettled(pending)
+  }
   for (const session of sessions.values()) session.engine.free()
   sessions.clear()
   inflightFlushes.clear()
   staleGate.clear()
+  persistGraduationChains.clear()
 }

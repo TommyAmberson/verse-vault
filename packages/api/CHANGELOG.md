@@ -10,6 +10,17 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### Reject out-of-range grades on `/api/import`
+
+* `applyReviewEvents` (in `lib/import.ts`) wrote every imported event's `grade` straight into
+  `reviewEvents` without bounds checking — `sync.ts`'s `validateUpload` and `cards.ts`'s review
+  handler both gate grades to `{1, 2, 3, 4}`, but the import path didn't. An untrusted payload with
+  e.g. `grade: 99` committed the poisoned row inside the import transaction, then crashed
+  `engines.rebuildFromEvents` (which calls `engine.replay_event`, which returns a `JsError` on
+  unknown grades). The import surfaced as a 500 and the bad row stayed in the database, wedging
+  every subsequent sync or rebuild on the same `(user, material)` until manual DB intervention
+  removed it. The import path now drops grades outside `1..=4` into `unresolved` instead.
+
 ### Tier cheap `/api/auth/*` reads onto the loose `authedTier`
 
 * `GET /api/auth/get-session` and `GET /api/auth/multi-session/list-device-sessions` now route

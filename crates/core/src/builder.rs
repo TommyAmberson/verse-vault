@@ -415,15 +415,39 @@ pub fn build_with_config(
         push_card(CardKind::Recitation, &mut cards, &mut next_card_id);
         push_card(CardKind::Citation, &mut cards, &mut next_card_id);
 
-        // Composite: Ftv. Eligibility: verse has phrases, FTV is short
-        // enough, FTV doesn't exceed phrase 0 length. derive_structure
-        // verified the prefix invariant when emitting ftv_word_count,
-        // so we trust it here. The single FTV card always tests the
-        // citation triple on reveal — the no-citation variant was
-        // dropped because Recitation already covers the
-        // recall-without-ref case from the verse-text side.
+        // Composite: Ftv. Eligibility: verse has phrases, the FTV
+        // prompt is at least one word long, short enough overall, and
+        // doesn't exceed phrase 0 length. `derive_structure` verified
+        // the prefix invariant when emitting `ftv_word_count`, so we
+        // trust it here. The single FTV card always tests the citation
+        // triple on reveal — the no-citation variant was dropped
+        // because Recitation already covers the recall-without-ref
+        // case from the verse-text side.
+        //
+        // The two None-equivalent inputs:
+        //   - `verse.ftv_word_count == None` (the JSON had `null` or
+        //     omitted the key). The schema's "no Ftv card emitted"
+        //     sentinel, covering both "pending audit" (init_deck /
+        //     expand_deck just seeded the row; find_ftvs +
+        //     apply_audit haven't run yet) and "ambiguous"
+        //     (find_ftvs ran and found no unique opening prefix —
+        //     apply_audit deliberately leaves the row at `null`,
+        //     tools/apply_audit.py:154-156). The two states are
+        //     indistinguishable at rest in the JSON; both correctly
+        //     resolve to "no Ftv card" here.
+        //   - `ftv_words == 0`. Should be impossible given the
+        //     sentinel rule, but some shipped decks carry an explicit
+        //     `"ftvWordCount": 0` (data/1-gepc.json's Ephesians 1:2 /
+        //     Philippians 1:2 are the known offenders). Without the
+        //     `> 0` floor, the builder emits a zero-word FTV card
+        //     that schedules a prompt with no visible cue — same end
+        //     state as `null` semantically, but the scheduler treats
+        //     it as a real card. Reject. (The tools-side companion
+        //     fix on this PR stops new `0` rows from being seeded;
+        //     the existing offenders still need a data fix.)
         if config.ftv
             && let Some(ftv_words) = verse.ftv_word_count
+            && ftv_words > 0
             && phrase_count > 0
             && (ftv_words as usize) <= FTV_MAX_WORDS
             && ftv_words <= phrase_zero_word_count

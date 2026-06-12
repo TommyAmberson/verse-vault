@@ -9,6 +9,50 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Correctness sweep on engine-store + memorize input
+
+Four real bugs surfaced by an exhaustive review pass. Each was independently confirmed by tracing
+the IDB write path or the keyboard-input path under the relevant trigger.
+
+* **Concurrent graduations dropped ids.** `persistLocalGraduation` was doing `await getSnapshot()` →
+  mutate → `await putSnapshot()` with no serialisation. `MemorizeView`'s
+  `Promise.all([submitGraduation(...), ...conditionalCardIds.map(submitCardGraduation)])` fired
+  multiple concurrent calls; every one read the same pre-mutation snapshot, each appended only its
+  own id, the last `putSnapshot` overwrote the others. The next page-load `loadEngine` then
+  graduated only the surviving id; every other graduation silently regressed to `New` and reappeared
+  in the memorize queue. Per-`materialId` `persistGraduationChains` map now serialises the reads +
+  writes.
+* **409 retry wedged on stale `snapshotVersion`.** Queued events bake the local `snapshotVersion` in
+  at queue time. On a 409 the catch arm refetched the live snapshot but didn't rewrite the queue, so
+  the next flush re-sent the same rows with the stale version and the server 409'd again. New
+  `idb.rewriteQueuedSnapshotVersion(materialId, ...)` runs after `refetchSyncState`, so the queued
+  events carry the upgraded version on the next attempt.
+* **Server-side rebuild dropped graduation state.** When `flush` got back `rebuilt: true`, the
+  client `.free()`'d the engine and rebuilt it from `snapshot.materialData + response.testStates`
+  but skipped `applyGraduations(...)`. Graduated verses leaked back into the New pool and next-card
+  selection ignored prior graduations until a full page reload re-entered `loadEngine`. `loadEngine`
+  and `refetchSyncState` both apply graduations after `createEngine`; this path now matches.
+* **Profile switch leaked cross-profile writes.** `clearAllSessions` was synchronous and just
+  cleared its maps. An in-flight `doFlush` for profile A kept running and its response handler ran
+  `await idb.replaceAllTestStates(...)` AFTER `enterProfile(B)` had swapped the active IDB — writing
+  profile A's testStates into profile B's IDB. `clearAllSessions` is now async and awaits every
+  in-flight flush + every per-`materialId` persistGraduation chain (settled, not resolved, so a
+  single rejection doesn't block cleanup). Every caller in `useAuth.ts` now awaits it.
+* **`MemorizeView` grade keys silently skipped drill cards.** `gradeAgain` / `gradeGood` checked
+  `if (submitting.value) return` but never set `submitting.value = true`. A user pressing "1" or "3"
+  twice in quick succession (key auto-repeat included) executed `drillQueue.value.shift()` twice
+  before the first `loadDrillCard` finished — the second card was popped off the queue without ever
+  being displayed or graded. Both handlers now set `submitting` in a `try/finally`.
+
+### Fix dead OfflineBanner click
+
+* `OfflineBanner.vue`'s click handler was pushing `{ name: 'signin', ... }`, but the `/signin` route
+  in `router/index.ts` is a bare `{ path, redirect }` shim with no `name:` field. Vue Router
+  silently returned a navigation failure, so a signed-out user clicking the "Sign in to sync."
+  banner stayed put — the banner did nothing. Push to `{ name: 'profiles', ... }` (which is a real
+  named route) so the click actually reaches the picker. Pre-existing bug surfaced by the
+  nav-redesign code review.
+
 ### `/code-review` pass on the nav redesign
 
 * **Open-redirect via `?redirect=`.** `router/index.ts`'s `beforeEach` guard and

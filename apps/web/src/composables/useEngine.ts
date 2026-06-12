@@ -149,10 +149,16 @@ export function useEngine() {
    *  Pass `config` to apply the user's year-settings (scope toggles,
    *  headings/ftv) when constructing the engine. Without it the engine
    *  uses `MaterialConfig::default()` — fine on a brand-new account,
-   *  but surfaces the wrong card set after /settings is touched. */
-  async function init(id: string, config?: WireMaterialConfig) {
+   *  but surfaces the wrong card set after /settings is touched.
+   *
+   *  Pass `desiredRetention` to honour the user's `/settings` target-
+   *  retention slider in the local-first hot path. Omitting it falls
+   *  back to the engine's default (0.9), which silently disagrees with
+   *  the server scheduler whenever the user has set a non-default
+   *  value. */
+  async function init(id: string, config?: WireMaterialConfig, desiredRetention?: number) {
     try {
-      await engineStore.loadEngine(id, nowSecs(), config)
+      await engineStore.loadEngine(id, nowSecs(), config, desiredRetention)
       active.add(id)
       await refreshCounts()
       ready.value = true
@@ -250,7 +256,27 @@ export function useEngine() {
   }
 
   /** Drop the queued events the server flagged stale on the affected
-   *  material. The user explicitly chose to throw them away. */
+   *  material. The user explicitly chose to throw them away.
+   *
+   *  This must also drop the cached engine + snapshot, NOT just the
+   *  event queue. Reasons:
+   *    1. The cached in-memory engine still has `replay_event` mutations
+   *       from every grade in the discarded batch, so its next-card
+   *       picker would keep showing the post-grade view even though
+   *       those grades are gone.
+   *    2. Worse, `submitGraduation` / `submitCardGraduation` write to
+   *       `snapshot.graduatedVerseIds` / `graduatedCardIds` via
+   *       `persistLocalGraduation` *separately* from queuing the
+   *       event. Discarding the queue rows leaves those lists with
+   *       entries the server never received — and on the next page
+   *       reload `loadEngine` re-applies them via `applyGraduations`,
+   *       diverging the local engine from the server permanently.
+   *
+   *  `invalidateSession` drops the cached engine + render cache;
+   *  `deleteSnapshot` drops the IDB snapshot so the next loadEngine
+   *  cold-paths through `GET /state` and rebuilds from the server's
+   *  authoritative view.
+   */
   async function discardStale() {
     const stale = staleSummary.value
     if (!stale) return
@@ -260,6 +286,8 @@ export function useEngine() {
     // response; without clearing it here, subsequent flushes would
     // continue to no-op even though there's nothing to confirm.
     engineStore.clearStaleGate(stale.materialId)
+    await engineStore.invalidateSession(stale.materialId)
+    await idb.deleteSnapshot(stale.materialId)
     staleSummary.value = null
     await refreshCounts()
     await engineStore.loadEngine(stale.materialId, nowSecs())

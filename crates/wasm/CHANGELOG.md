@@ -22,6 +22,25 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-06-11
+
+### Fix `memorize_session` ignoring tier-scope
+
+* `WasmEngine.memorize_session` was iterating the engine's card list and queuing any verse with at
+  least one `New` unconditional card, regardless of whether the verse's tier was in `new_scope`. A
+  verse in `Maintenance` status (its tier is in `review_scope` but not `new_scope` — e.g. Club 300
+  when the user set "Memorize new verses" to **150**) keeps its cards built so already-memorized
+  cards can still be reviewed, but its New cards must not enter the memorize queue. All three loops
+  in `memorize_session` now share a precomputed `memorize_active_verses` HashSet:
+  * The verse-anchor loop (originally surfacing John 1:6 in the reproduction).
+  * The HP / CCL pseudo-card assignment loop — a CCL pseudo whose tier is in `review_scope` but not
+    `new_scope` was leaking into `orphans` via the pending-pool overflow.
+  * The conditional-orphan loop — Ftv / VerseInHeading / VerseInClub cards on a Maintenance verse
+    (e.g. John 1:6's Ftv card) were the dominant residual leak even after the verse-anchor loop was
+    gated. Matches what `schedule::next_memorize_card` and `schedule::new_card_count` have been
+    doing per card all along.
+* No wire-format change. Patch bump.
+
 ## [0.5.0] — 2026-05-28
 
 Lockstep bump for `verse-vault-core@0.5.0` (per-card graduations). `WasmEngine.memorize_session`

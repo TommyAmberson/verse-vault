@@ -98,7 +98,9 @@ async function buildSession() {
   // each year's session payload locally. Settings pass through so the
   // engine respects per-year scope toggles (e.g. chapter_list_scope).
   await Promise.all(
-    eligibleYears.map((y) => engine.init(y.materialId, buildMaterialConfig(y.settings))),
+    eligibleYears.map((y) =>
+      engine.init(y.materialId, buildMaterialConfig(y.settings), y.settings.desiredRetention),
+    ),
   )
   const sessions: {
     materialId: string
@@ -221,19 +223,34 @@ function revealDrill() {
 
 async function gradeAgain() {
   if (submitting.value) return
-  const entry = drillQueue.value.shift()
-  if (entry) drillQueue.value.push(entry)
-  await loadDrillCard()
+  // Set `submitting` BEFORE the queue mutation so a key-repeat or
+  // double-click on the Again button (or '1' key) can't fire twice
+  // before `loadDrillCard` finishes — the grade handlers were
+  // previously gated on `submitting` but never set it, so rapid
+  // input rotated the drill queue twice and silently skipped a card.
+  submitting.value = true
+  try {
+    const entry = drillQueue.value.shift()
+    if (entry) drillQueue.value.push(entry)
+    await loadDrillCard()
+  } finally {
+    submitting.value = false
+  }
 }
 
 async function gradeGood() {
   if (submitting.value) return
-  drillQueue.value.shift()
-  if (drillQueue.value.length === 0) {
-    enterReadingEnd()
-    return
+  submitting.value = true
+  try {
+    drillQueue.value.shift()
+    if (drillQueue.value.length === 0) {
+      enterReadingEnd()
+      return
+    }
+    await loadDrillCard()
+  } finally {
+    submitting.value = false
   }
-  await loadDrillCard()
 }
 
 /** Graduate one reading item and drop its drill entries. */

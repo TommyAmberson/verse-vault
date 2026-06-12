@@ -22,6 +22,35 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-06-11
+
+Two correctness fixes surfaced by an exhaustive review pass. Both are pure implementation fixes with
+no event-replay semantic change for well-formed historical state: replaying a healthy event log
+under 0.5.1 produces the same `TestState` for every test that wasn't hitting the bug. Replay of a
+log that previously hit one of the bugs (same-instant sub-updates inflating stability, or a
+zero-word Ftv card emitted into the schedule) ends up in the corrected state, which is the intended
+direction. PATCH per this changelog's rubric.
+
+### Floor `elapsed` consistently across the retrievability-blend in `FsrsBridge::update`
+
+* The `weight<1` blend in `FsrsBridge::update` computed `r_now` and `r_direct` with raw `elapsed`
+  but inverted via `invert_r(elapsed.max(0.001), ...)`. A same-instant sub-update (`elapsed == 0`)
+  produced `r_now = r_direct = 1.0`, then `invert_r(1.0, 0.001, ...)` hit its `denom < 1e-9`
+  short-circuit and returned `S_MAX` — a single same-instant review collapsed stability to the
+  ~365-day ceiling regardless of prior state. The forward and inverse now share the same
+  `max(0.001)` floor on `elapsed`, so they agree numerically and the same-instant case correctly
+  resolves to the unchanged stability. 0.001 day (~86 s) is well below the resolution of any real
+  review timestamp, so human-scale intervals are unaffected.
+
+### Don't emit `Ftv` cards for verses with `ftvWordCount = 0`
+
+* `builder.rs`'s FTV eligibility check accepted `ftv_words == 0`: it required
+  `(ftv_words as usize) <= FTV_MAX_WORDS` and `ftv_words <= phrase_zero_word_count`, both of which
+  pass on zero. The doc on `Verse::ftv_word_count` says `None` means no FTV — `derive_structure` is
+  the gatekeeper — but shipped data (e.g. Ephesians 1:2, Philippians 1:2 in `data/1-gepc.json`)
+  carries an explicit `"ftvWordCount": 0`. The builder was emitting a zero-word FTV card for those
+  verses with no visible cue. Adds an `ftv_words > 0` floor to the eligibility check.
+
 ## [0.5.0] — 2026-05-28
 
 `graduate_verse` narrows to the unconditional verse-bound set. Conditional kinds (`Ftv`,

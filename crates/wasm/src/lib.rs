@@ -469,6 +469,32 @@ impl WasmEngine {
         }
         let cards = &self.engine.cards;
 
+        // Tier-scope gate, computed once and reused across every loop
+        // below. A verse in `Maintenance` status (its tier is in
+        // `review_scope` but not in `new_scope`) keeps its cards built
+        // so already-memorized work can still be reviewed, but New
+        // cards on those verses must NOT enter the memorize queue —
+        // the user explicitly opted out of introducing new verses from
+        // that tier. `schedule::next_memorize_card` and
+        // `schedule::new_card_count` already apply this gate per-card
+        // for the next-card picker and the dashboard count; this path
+        // was independently picking the memorize batch and orphans and
+        // missed the same gate (the verse-anchor loop initially, and —
+        // discovered next — the HP/CCL assignment + conditional orphan
+        // loops). The HashSet collects verse_ids that have at least
+        // one `New` card AND pass `verse_active_for_memorize`, so
+        // every downstream loop can short-circuit with a single
+        // contains() check. Pseudo-verses (HP, CCL) carry their own
+        // `clubs` shape — HP has `Vec::new()` (no tier, gate passes),
+        // CCL has `vec![card_tier]` (gate fires on Maintenance, which
+        // is the correct exclusion).
+        let memorize_active_verses: HashSet<u32> = cards
+            .iter()
+            .filter(|c| matches!(c.state, CardState::New))
+            .filter(|c| self.engine.verse_active_for_memorize(c.verse_id))
+            .map(|c| c.verse_id)
+            .collect();
+
         // "Fresh" verses — those with at least one New unconditional
         // verse-bound card (the set `graduate_verse` flips). Orphan-only
         // verses (where every New card is a conditional kind on a verse
@@ -482,6 +508,9 @@ impl WasmEngine {
                 continue;
             }
             if !is_bulk_graduable(&card.kind) {
+                continue;
+            }
+            if !memorize_active_verses.contains(&card.verse_id) {
                 continue;
             }
             if seen_verses.insert(card.verse_id) {
@@ -535,6 +564,14 @@ impl WasmEngine {
 
         for card in cards.iter() {
             if !matches!(card.state, CardState::New) {
+                continue;
+            }
+            // Same tier-scope gate as the verse-anchor loop. Excludes
+            // CCL pseudos whose tier is in Maintenance; HP pseudos
+            // pass through unconditionally because their `clubs` list
+            // is empty and `verse_active_for_memorize` returns true
+            // for None status.
+            if !memorize_active_verses.contains(&card.verse_id) {
                 continue;
             }
             let (is_hp, intent) = match card.kind {
@@ -717,6 +754,18 @@ impl WasmEngine {
         let mut seen_orphan_tiers: HashSet<ClubTier> = HashSet::new();
         for card in cards.iter() {
             if !matches!(card.state, CardState::New) {
+                continue;
+            }
+            // Same tier-scope gate. Without this, a verse in
+            // Maintenance status (its tier in `review_scope` but not
+            // `new_scope`) still leaks Ftv / VerseInHeading /
+            // VerseInClub orphans into the session even though the
+            // verse-anchor loop excluded it — concrete reported repro:
+            // John 1:6 (Club300, Maintenance under new=Up150 /
+            // review=Up300) has `ftvWordCount=5` so the builder emits a
+            // `Ftv` card in New state, which without this gate lands
+            // in `orphans[]`.
+            if !memorize_active_verses.contains(&card.verse_id) {
                 continue;
             }
             if session_verses.contains(&card.verse_id) {

@@ -55,7 +55,23 @@ function onClick() {
   // the user to the picker. The banner stays as a passive indicator
   // until a future navigation flips syncState back to 'online'.
   if (syncState.value === 'rate-limited') return
-  void router.push({ name: 'signin', query: { redirect: route.fullPath } })
+  // Push to the `profiles` named route directly. Two corrections on
+  // top of the original `name: 'signin'` push (which targeted a route
+  // shim with no `name:` field and silently no-op'd):
+  //   1. Use the `profiles` named route, which actually exists.
+  //   2. Pass `force: '1'` so the router's `beforeEach` guard
+  //      doesn't immediately bounce us back. The guard treats a
+  //      registry-pinned activeProfile as `signedIn = true` and
+  //      redirects any /profiles navigation back to `redirect=` unless
+  //      `force` is set — but the OfflineBanner only renders when
+  //      `syncState !== 'online'`, which is exactly the
+  //      registry-pinned-but-server-says-no-session case the user
+  //      needs to escape via the picker. AppAvatar.vue:64 uses the
+  //      same `force=1` pattern for the same reason.
+  void router.push({
+    name: 'profiles',
+    query: { redirect: route.fullPath, force: '1' },
+  })
 }
 </script>
 
