@@ -98,7 +98,9 @@ async function buildSession() {
   // each year's session payload locally. Settings pass through so the
   // engine respects per-year scope toggles (e.g. chapter_list_scope).
   await Promise.all(
-    eligibleYears.map((y) => engine.init(y.materialId, buildMaterialConfig(y.settings))),
+    eligibleYears.map((y) =>
+      engine.init(y.materialId, buildMaterialConfig(y.settings), y.settings.desiredRetention),
+    ),
   )
   const sessions: {
     materialId: string

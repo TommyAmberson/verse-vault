@@ -46,6 +46,13 @@ interface EngineSession {
   /** Cached so refetch + rebuild paths can re-pass it to `createEngine`
    *  without the caller having to reload year settings every time. */
   materialConfig: WireMaterialConfig | undefined
+  /** FSRS target retention the engine was constructed with. Same
+   *  motivation as `materialConfig`: refetch + rebuild paths re-pass
+   *  it, and the server-side scheduler uses the same per-user value
+   *  (packages/api/src/lib/enrollment.ts), so the local engine has to
+   *  honour the user's `/settings` slider rather than falling back to
+   *  the constant default. */
+  desiredRetention: number
 }
 
 function requireSession(materialId: string, caller: string): EngineSession {
@@ -114,6 +121,7 @@ export async function loadEngine(
   materialId: string,
   nowSecs: number,
   materialConfig?: WireMaterialConfig,
+  desiredRetention: number = DEFAULT_DESIRED_RETENTION,
 ): Promise<EngineSession> {
   const existing = sessions.get(materialId)
   if (existing) return existing
@@ -142,7 +150,7 @@ export async function loadEngine(
     materialData: snapshot.materialData,
     materialConfig: materialConfig ?? '',
     testStates,
-    desiredRetention: DEFAULT_DESIRED_RETENTION,
+    desiredRetention,
     nowSecs,
   })
   applyGraduations(engine, snapshot.graduatedVerseIds, snapshot.graduatedCardIds)
@@ -152,6 +160,7 @@ export async function loadEngine(
     engine,
     snapshotVersion: snapshot.version,
     materialConfig,
+    desiredRetention,
   }
   sessions.set(materialId, session)
   return session
@@ -186,7 +195,7 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
     materialData: fetched.snapshot.materialData,
     materialConfig: session.materialConfig ?? '',
     testStates: fetched.testStates,
-    desiredRetention: DEFAULT_DESIRED_RETENTION,
+    desiredRetention: session.desiredRetention,
     nowSecs,
   })
   const previous = session.engine
@@ -541,7 +550,7 @@ async function doFlush(
         materialData: snapshot.materialData,
         materialConfig: session.materialConfig ?? '',
         testStates: response.testStates,
-        desiredRetention: DEFAULT_DESIRED_RETENTION,
+        desiredRetention: session.desiredRetention,
         nowSecs,
       })
       const previous = session.engine

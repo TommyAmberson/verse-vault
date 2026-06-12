@@ -186,6 +186,18 @@ export async function putSnapshot(row: SnapshotRow): Promise<void> {
   )
 }
 
+/** Drop the cached snapshot row for `materialId`. Forces the next
+ *  `loadEngine` call to cold-path through `GET /api/sync/:id/state`
+ *  and rebuild from the server's authoritative view — used by
+ *  discard-stale where the local snapshot's `graduated{Verse,Card}Ids`
+ *  may have entries the server never received. */
+export async function deleteSnapshot(materialId: string): Promise<void> {
+  const db = await openDb()
+  await promiseRequest(
+    db.transaction(STORE.Snapshots, 'readwrite').objectStore(STORE.Snapshots).delete(materialId),
+  )
+}
+
 // --- Test-states store ---
 
 function testStateCompositeKey(entry: TestStateEntry): string {
