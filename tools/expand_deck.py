@@ -287,7 +287,20 @@ def main() -> None:
             "verse": v,
             "phraseWordCounts": [len(tokens)],
             "annotations": [],
-            "ftvWordCount": 0,
+            # `null`, not 0. Newly seeded rows are always pre-audit —
+            # `null` is the schema's "no Ftv card emitted" sentinel,
+            # covering both "pending audit" (the state we're in
+            # immediately after this script writes) and "no unique
+            # prefix exists" (the state ambiguous verses land in after
+            # `find_ftvs.py --audit` + `apply_audit.py` run and the
+            # ambiguous-skip branch leaves the value alone). The Rust
+            # core's `builder.rs` short-circuits the Ftv card emission
+            # while the row is `null`, so the card never appears in
+            # /memorize until an integer is written. Zero would
+            # violate the deck invariant `evaluate_phrases.py:117`
+            # enforces (`ftv < 1` is BLOCK) and would make every
+            # seeded verse a blocker on the next audit pass.
+            "ftvWordCount": None,
             "clubs": clubs,
         }
         if clubs:

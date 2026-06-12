@@ -204,7 +204,28 @@ def build_verses(
             "verse": v,
             "phraseWordCounts": [word_count] if word_count else [],
             "annotations": annotations,
-            "ftvWordCount": ftv_word_count(ftv_html) if ftv_html else 0,
+            # `None` (JSON `null`), not 0, when the Anki note has no
+            # FTV HTML. `null` is the schema's single "no Ftv card
+            # emitted" sentinel — it covers two distinct lifecycle
+            # states the JSON can't tell apart at rest:
+            #   (a) Pending: this verse hasn't been audited yet.
+            #       `find_ftvs.py --audit` will compute the shortest
+            #       unique prefix and `apply_audit.py` will rewrite
+            #       the row with an integer.
+            #   (b) Ambiguous: no unique opening prefix exists anywhere
+            #       in the material (find_ftvs reports the verse
+            #       under "Ambiguous — needs disambiguation").
+            #       `apply_audit.py` skips it (lines 154-156); the row
+            #       stays `null` permanently.
+            # In both states the Rust core's `Verse::ftv_word_count`
+            # deserialises to `None` and `builder.rs` short-circuits
+            # the Ftv card emission, so the card never appears in
+            # /memorize or /review until the row holds an integer.
+            # Zero would violate the deck invariant `evaluate_phrases
+            # .py:117` enforces (treats `ftv < 1` as BLOCK) and would
+            # make every uninitialised verse a blocker on the very
+            # next audit pass — that's the bug this fix closes.
+            "ftvWordCount": ftv_word_count(ftv_html) if ftv_html else None,
             "clubs": clubs,
         }
     return [seen[k] for k in sorted(seen)], warnings
