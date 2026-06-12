@@ -270,11 +270,43 @@ function applyReviewEvents(
 ): { inserted: number; skipped: number; unresolved: number } {
   // Resolve cardRefs to live cardIds, dropping any that don't exist in
   // the importing snapshot, and shape each into a ReviewEventInput.
+  //
+  // Every scalar field on the imported event is validated here. Sync's
+  // validateUpload (routes/sync.ts:439) gates the same fields and
+  // returns 400 on the same conditions; import drops bad rows into
+  // `unresolved` instead so a single malformed row doesn't reject an
+  // otherwise-good 50 MB import. The validators must match sync's
+  // shape exactly because the same poison-and-wedge class applies to
+  // every field that flows into `rebuildFromEvents`:
+  //   - `grade`: `engine.replay_event` (wasm/src/lib.rs) returns a
+  //     JsError on values outside 1..=4. Pre-fix, `grade: 99` committed
+  //     and then wedged every subsequent sync/rebuild on the same
+  //     (user, material).
+  //   - `timestampSecs`: `EngineStore.rebuildFromEvents` (lib/engine.ts)
+  //     calls `BigInt(row.timestampSecs)`, which throws synchronously
+  //     on NaN / Infinity / non-integer. Same wedge class: bad row
+  //     commits, every subsequent rebuild 500s.
+  //   - `clientEventId`: column is NOT NULL with a unique index on
+  //     (user, material, clientEventId). Empty string or null aborts
+  //     the whole tx on insert (500, no commit — so no wedge — but
+  //     still a sharp edge sync rejects with 400).
   const resolved: ReviewEventInput[] = [];
   let unresolved = 0;
   for (const e of material.reviewEvents) {
     const cardId = resolveCardRef(index, e.cardRef);
     if (cardId === undefined) {
+      unresolved += 1;
+      continue;
+    }
+    if (!Number.isInteger(e.grade) || e.grade < 1 || e.grade > 4) {
+      unresolved += 1;
+      continue;
+    }
+    if (!Number.isInteger(e.timestampSecs) || e.timestampSecs < 0) {
+      unresolved += 1;
+      continue;
+    }
+    if (typeof e.clientEventId !== 'string' || e.clientEventId.length === 0) {
       unresolved += 1;
       continue;
     }
