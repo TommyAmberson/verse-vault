@@ -10,6 +10,30 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.27] — 2026-06-12
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.5.1` — adds the `ftv_words > 0` floor on FTV card emission (no zero-word
+  prompts) and floors `elapsed` consistently across `FsrsBridge::update`'s retrievability blend so
+  same-instant sub-updates no longer collapse stability to the ~365-day ceiling. PATCH-equivalent.
+* `verse-vault-wasm@0.5.1` — `memorize_session` precomputes a `memorize_active_verses` HashSet and
+  gates all three loops (verse-anchor, HP/CCL pseudo-card assignment, conditional orphan) against
+  it, so Maintenance-tier verses no longer leak into the memorize queue via any path. No wire-
+  format change.
+
+### Apply imported settings before resolving cardRefs
+
+* `applyAccountImport` (`lib/import.ts`) was building the cardRef index against the engine that
+  `engines.load` returned BEFORE the imported settings were applied — the engine reflected the
+  user's current `MaterialConfig`, while `applySettings` then wrote the imported settings inside the
+  same transaction. The cardId universe is config-dependent (`builder.rs` gates Ftv / HeadingPassage
+  / VerseInClub / etc. emission on `MaterialConfig` flags), so when the import flipped any of those
+  flags, cardRefs either dropped to `unresolved` (FSRS history lost) or silently misrouted onto the
+  wrong card. Split the transaction so settings + enrollment commit first, the engine cache
+  invalidates, then a fresh `engines.load` builds the index against post- import settings before
+  applying graduations + events.
+
 ### Reject out-of-range grades on `/api/import`
 
 * `applyReviewEvents` (in `lib/import.ts`) wrote every imported event's `grade` straight into
