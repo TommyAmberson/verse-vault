@@ -104,13 +104,42 @@ export async function applyAccountImport(
     // race a concurrent review POST for the same (user, material).
     // Mirrors sync.ts, which wraps its own rebuild in withLock.
     await engines.withLock(key, async () => {
+      // STEP 1: apply enrollment + settings BEFORE building the card-
+      // ref index. The cardId universe is config-dependent (builder.rs
+      // gates Ftv / HeadingPassage / VerseInClub / etc. emission on
+      // MaterialConfig flags), and the imported settings may turn
+      // those flags on or off. Resolving cardRefs against the engine
+      // built with the user's OLD settings drops cardRefs that should
+      // be resolvable post-import (and silently misroutes ones whose
+      // cardId number happens to overlap between configs). Apply
+      // settings first, then invalidate the engine cache, then load
+      // a fresh engine that reads the new config.
+      //
+      // Tradeoff vs. the previous all-in-one transaction: if step 3
+      // (graduations + events) fails, the settings + enrollment from
+      // step 1 stay committed. For an import the user can re-run the
+      // operation — the import is idempotent on review events
+      // (clientEventId dedup) and on graduations (existing-row check
+      // in applyGraduations), so a second run picks up where the
+      // first left off without duplicates. Atomicity across all three
+      // would require a multi-stage compensating-write design we
+      // don't need for the import use case.
+      db.transaction((tx) => {
+        applyEnrollmentExtras(tx, key, material);
+        applySettings(tx, key, material);
+      });
+      engines.invalidate(key);
+
+      // STEP 2: load the engine with the just-applied settings and
+      // build the cardRef index. Subsequent applyGraduations /
+      // applyReviewEvents now resolve against the correct card
+      // universe.
       using loaded = await engines.load(key);
       const index = buildCardRefIndex(loaded.engine);
       const snapshotVersion = loaded.snapshotVersion;
 
+      // STEP 3: graduations + events in their own transaction.
       db.transaction((tx) => {
-        applyEnrollmentExtras(tx, key, material);
-        applySettings(tx, key, material);
         const gradResult = applyGraduations(tx, key, material, index);
         summary.graduationsApplied += gradResult.applied;
         summary.unresolvedCardRefs += gradResult.unresolved;
