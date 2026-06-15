@@ -18,11 +18,15 @@ const route = useRoute()
 
 // Match either by route name (set on the child routes) or by path prefix,
 // so the rail highlights even when a future child route nests deeper
-// (e.g. /settings/materials/<materialId>).
+// (e.g. /settings/materials/<materialId>). The path branch requires an
+// exact match OR a `/`-anchored prefix so a future sibling like
+// `/settings/materials-archive` won't incorrectly highlight Materials.
 const activeSection = computed<string>(() => {
   const byName = SECTIONS.find((s) => s.name === route.name)
   if (byName) return byName.name
-  const byPath = SECTIONS.find((s) => route.path.startsWith(s.path))
+  const byPath = SECTIONS.find(
+    (s) => route.path === s.path || route.path.startsWith(s.path + '/'),
+  )
   return byPath?.name ?? SECTIONS[0].name
 })
 

@@ -43,6 +43,12 @@ const CLUB_TO_TIER: Record<Club, ClubTier> = {
   full: 'full',
 }
 
+const TIER_TO_CLUB: Record<ClubTier, Club> = {
+  '150': 'club150',
+  '300': 'club300',
+  full: 'full',
+}
+
 const STATUS_LABELS: Record<ClubStatus, string> = {
   active: 'Active',
   maintenance: 'Maintenance',
@@ -226,6 +232,20 @@ function onRetentionInput(card: YearCard, club: Club, event: Event) {
   card.draft.review[club].desiredRetention = pct / 100
 }
 
+/** Clamp `lessonBatchSize` to a valid integer on every input change.
+ *  `v-model.number` would happily yield `NaN` when the user clears the
+ *  field or types a non-numeric character, and `JSON.stringify(NaN)` is
+ *  `null` — which the API rejects with a 400. Holding the prior valid
+ *  value while the input is in a transient invalid state keeps the
+ *  Save button reliable. Out-of-range values clamp to `[1, 10]` to
+ *  match the validator on the server. */
+function onLessonBatchSizeInput(card: YearCard, event: Event) {
+  const raw = Number((event.target as HTMLInputElement).value)
+  if (!Number.isFinite(raw)) return
+  const clamped = Math.max(1, Math.min(10, Math.round(raw)))
+  card.draft.lessonBatchSize = clamped
+}
+
 /** Memorized-verse progress per club, sourced from the engine-loaded
  *  card counts. The chain UI shows this next to each club's enable
  *  checkbox so the user can see how far along they are. */
@@ -233,10 +253,12 @@ function memorizedFor(card: YearCard, club: Club): number {
   return card.view.clubs[CLUB_TO_TIER[club]].cardCount
 }
 
-/** Status chip variant for the per-club card. The legacy "status" enum
- *  collapsed memorize+review intent into Active/Maintenance/Paused;
- *  with per-club shapes that's now derivable: memorize+review enabled
- *  → Active, review only → Maintenance, neither → Paused. */
+/** Status chip variant for the per-club card. Memorize-on (with or
+ *  without review) reads as Active — the club is actively introducing
+ *  verses, and the `memorizeBehindReview` warning calls out the
+ *  memorize-without-review oversight separately so the status chip
+ *  doesn't need a fourth state. Review-only reads as Maintenance,
+ *  matching the legacy semantics. Neither enabled reads as Paused. */
 function clubStatusFor(
   memorize: ClubMemorizeConfig,
   review: ClubReviewConfig,
@@ -351,8 +373,21 @@ onMounted(refresh)
               <span v-if="isStudying(selected)" class="tier-pill-count">
                 {{ selected.view.clubs[tier].cardCount }}
               </span>
-              <StatusChip :variant="STATUS_VARIANTS[selected.view.clubs[tier].status]">
-                {{ STATUS_LABELS[selected.view.clubs[tier].status] }}
+              <!-- Derived from view.perClub, not view.clubs[tier].status:
+                   the latter goes through the lossy perClubToLegacy
+                   collapse on the API side, so a non-monotonic config
+                   (e.g. Club 300 enabled but Club 150 off) would show
+                   the wrong pill. Per-club is the source of truth. -->
+              <StatusChip
+                :variant="STATUS_VARIANTS[clubStatusFor(
+                  selected.view.perClub.memorize[TIER_TO_CLUB[tier]],
+                  selected.view.perClub.review[TIER_TO_CLUB[tier]],
+                )]"
+              >
+                {{ STATUS_LABELS[clubStatusFor(
+                  selected.view.perClub.memorize[TIER_TO_CLUB[tier]],
+                  selected.view.perClub.review[TIER_TO_CLUB[tier]],
+                )] }}
               </StatusChip>
             </span>
           </div>
@@ -563,11 +598,12 @@ onMounted(refresh)
           <label class="number-row">
             <span>Verses per memorize session</span>
             <input
-              v-model.number="selected.draft.lessonBatchSize"
+              :value="selected.draft.lessonBatchSize"
               type="number"
               min="1"
               max="10"
               :disabled="selected.saving"
+              @input="onLessonBatchSizeInput(selected, $event)"
             />
           </label>
 

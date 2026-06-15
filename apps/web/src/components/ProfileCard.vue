@@ -65,9 +65,10 @@ function menuAction(ev: Event, action: 'sign-out' | 'delete') {
   closeMenu()
   // `defineEmits` types `emit` as an overload set — one signature per
   // declared event — and TS can't match a union argument against
-  // overloads. `action` is always one of the declared events, so
-  // narrowing to a single name is sound.
-  emit(action as 'sign-out')
+  // overloads. Branch on the narrow type so each call site hits the
+  // correct overload at compile time.
+  if (action === 'sign-out') emit('sign-out')
+  else emit('delete')
 }
 
 // The card surface is a role="button" div rather than a native
