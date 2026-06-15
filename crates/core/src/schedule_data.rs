@@ -142,6 +142,129 @@ impl ClubVerseLists {
     }
 }
 
+/// Verse reference triple `(book, chapter, verse)` used to bridge the
+/// schedule's per-row verse numbers with the engine's `(verse_id, book,
+/// chapter, verse)` render data. Owned strings — schedule rows are few,
+/// the cost is negligible, and lifetime-free returns simplify call sites.
+pub type VerseRef = (String, u16, u16);
+
+impl Schedule {
+    /// Resolve the verse numbers a given `tier` introduces in `week_idx`
+    /// into `(book, chapter, verse)` refs. Returns an empty vector for
+    /// Review weeks, for out-of-range indices, and for weeks with no
+    /// `passage`. `Full`-tier refs are derived as `passage`'s verse range
+    /// minus the explicitly-listed `club150 ∪ club300` numbers.
+    ///
+    /// Does **not** consult the engine — pure schedule-level resolution.
+    /// Callers map the refs to `verse_id`s via a lookup built from the
+    /// engine's `verse_render_data`.
+    pub fn week_verse_refs(&self, week_idx: usize, tier: ClubTier) -> Vec<VerseRef> {
+        let Some(week) = self.weeks.get(week_idx) else {
+            return Vec::new();
+        };
+        let Some(passage) = &week.passage else {
+            return Vec::new();
+        };
+        let numbers = self.verse_numbers_for_tier(week, tier);
+        numbers
+            .into_iter()
+            .map(|n| (passage.book.clone(), passage.chapter, n))
+            .collect()
+    }
+
+    /// All verse refs cumulatively introduced for `tier` across weeks
+    /// `0..=through_week_idx`. `through_week_idx` is clamped to
+    /// `weeks.len() - 1`. Refs preserve schedule (earliest-week-first)
+    /// order.
+    pub fn cumulative_verse_refs_through_week(
+        &self,
+        through_week_idx: usize,
+        tier: ClubTier,
+    ) -> Vec<VerseRef> {
+        if self.weeks.is_empty() {
+            return Vec::new();
+        }
+        let cap = through_week_idx.min(self.weeks.len() - 1);
+        let mut out: Vec<VerseRef> = Vec::new();
+        for idx in 0..=cap {
+            out.extend(self.week_verse_refs(idx, tier));
+        }
+        out
+    }
+
+    /// Total count of unique verses scheduled for `tier` from week 0
+    /// through the schedule's current-week index. `0` when the season
+    /// hasn't started yet. Used by the memorize-tab badge math and the
+    /// `AfterMinorCheckpoint` gate.
+    pub fn cumulative_count_through_current_week(&self, tier: ClubTier, now_secs: i64) -> usize {
+        let Some(idx) = self.current_week_index(now_secs) else {
+            return 0;
+        };
+        self.cumulative_verse_refs_through_week(idx, tier).len()
+    }
+
+    /// Cumulative count for `tier` through the schedule's most-recent
+    /// past meet's `start_date`. `0` when no meet has passed yet — which
+    /// makes the `AfterMajorCheckpoint` gate impossible to satisfy at
+    /// that point (intentional per the spec).
+    pub fn cumulative_count_through_last_meet(&self, tier: ClubTier, now_secs: i64) -> usize {
+        let Some(meet) = self.most_recent_past_meet(now_secs) else {
+            return 0;
+        };
+        let Some(meet_day) = parse_iso_date(&meet.start_date) else {
+            return 0;
+        };
+        let mut count = 0;
+        for (i, w) in self.weeks.iter().enumerate() {
+            let Some(d) = parse_iso_date(&w.date) else {
+                continue;
+            };
+            if d > meet_day {
+                break;
+            }
+            count += self.week_verse_refs(i, tier).len();
+        }
+        count
+    }
+
+    /// Cumulative count for `tier` through the most-recent week strictly
+    /// **before** the schedule's current week. `0` at season start (no
+    /// previous week exists). Used by the `CaughtUp` gate, which opens
+    /// when the user's position ≥ this value.
+    pub fn cumulative_count_through_previous_week(&self, tier: ClubTier, now_secs: i64) -> usize {
+        let Some(idx) = self.current_week_index(now_secs) else {
+            return 0;
+        };
+        if idx == 0 {
+            return 0;
+        }
+        self.cumulative_verse_refs_through_week(idx - 1, tier).len()
+    }
+
+    /// Internal: verse numbers for `tier` in this single row. `Full` is
+    /// derived from `passage` minus `club150 ∪ club300`.
+    fn verse_numbers_for_tier(&self, week: &ScheduleWeek, tier: ClubTier) -> Vec<u16> {
+        let Some(passage) = &week.passage else {
+            return Vec::new();
+        };
+        let Some(verses) = &week.verses else {
+            return Vec::new();
+        };
+        match tier {
+            ClubTier::Club150 => verses.club150.clone(),
+            ClubTier::Club300 => verses.club300.clone(),
+            ClubTier::Full => {
+                let mut excluded: std::collections::HashSet<u16> = std::collections::HashSet::new();
+                excluded.extend(verses.club150.iter().copied());
+                excluded.extend(verses.club300.iter().copied());
+                (passage.start_verse..=passage.end_verse)
+                    .filter(|n| !excluded.contains(n))
+                    .collect()
+            }
+        }
+    }
+}
+
 /// Parse a `YYYY-MM-DD` date string into days since the Unix epoch
 /// (1970-01-01). Implements Howard Hinnant's `days_from_civil` —
 /// well-known proleptic-Gregorian conversion with no dependency footprint.
@@ -363,6 +486,82 @@ mod tests {
         );
         assert!(back.weeks[2].is_review);
         assert!(back.weeks[2].passage.is_none());
+    }
+
+    #[test]
+    fn week_verse_refs_resolves_per_tier() {
+        let s = schedule_fixture();
+        let club150 = s.week_verse_refs(0, ClubTier::Club150);
+        assert_eq!(club150.len(), 7);
+        assert_eq!(club150[0], ("1 Corinthians".to_string(), 1, 5));
+        let club300 = s.week_verse_refs(0, ClubTier::Club300);
+        assert_eq!(club300.len(), 7);
+        assert_eq!(club300[0], ("1 Corinthians".to_string(), 1, 1));
+    }
+
+    #[test]
+    fn week_verse_refs_full_tier_derives_from_passage_minus_others() {
+        let s = schedule_fixture();
+        let full = s.week_verse_refs(0, ClubTier::Full);
+        // Passage 1 Cor 1:1-31 = 31 verses. Club150 has 7, Club300 has 7
+        // (all distinct), so Full has 31 - 14 = 17.
+        assert_eq!(full.len(), 17);
+        // Verse 3 is in neither 150 nor 300, so it's Full.
+        assert!(full.contains(&("1 Corinthians".to_string(), 1, 3)));
+        // Verse 5 is in 150; must NOT be in Full.
+        assert!(!full.contains(&("1 Corinthians".to_string(), 1, 5)));
+        // Verse 31 is in neither; must be in Full.
+        assert!(full.contains(&("1 Corinthians".to_string(), 1, 31)));
+    }
+
+    #[test]
+    fn week_verse_refs_returns_empty_for_review_or_oob() {
+        let s = schedule_fixture();
+        // Review week (idx 2) has no passage/verses.
+        assert!(s.week_verse_refs(2, ClubTier::Club150).is_empty());
+        // Out-of-range index.
+        assert!(s.week_verse_refs(99, ClubTier::Club150).is_empty());
+    }
+
+    #[test]
+    fn cumulative_through_week_aggregates_across_weeks() {
+        let s = schedule_fixture();
+        let c0 = s.cumulative_verse_refs_through_week(0, ClubTier::Club150);
+        assert_eq!(c0.len(), 7);
+        let c1 = s.cumulative_verse_refs_through_week(1, ClubTier::Club150);
+        // Week 1 adds 5 more Club150 verses.
+        assert_eq!(c1.len(), 12);
+    }
+
+    #[test]
+    fn cumulative_count_helpers_handle_edges() {
+        let s = schedule_fixture();
+        // Pre-season → 0.
+        assert_eq!(
+            s.cumulative_count_through_current_week(ClubTier::Club150, ts("2025-09-01")),
+            0
+        );
+        // On week 0's day → just that week.
+        assert_eq!(
+            s.cumulative_count_through_current_week(ClubTier::Club150, ts("2025-09-08")),
+            7
+        );
+        // Previous week from week 0 → 0 (no prior week).
+        assert_eq!(
+            s.cumulative_count_through_previous_week(ClubTier::Club150, ts("2025-09-08")),
+            0
+        );
+        // Through the first meet (Nov 21): all Club150 from weeks before
+        // the meet — covers weeks 0 and 1 (and review week 2 contributes 0).
+        assert_eq!(
+            s.cumulative_count_through_last_meet(ClubTier::Club150, ts("2025-12-01")),
+            12
+        );
+        // Before any meet → 0.
+        assert_eq!(
+            s.cumulative_count_through_last_meet(ClubTier::Club150, ts("2025-09-08")),
+            0
+        );
     }
 
     #[test]
