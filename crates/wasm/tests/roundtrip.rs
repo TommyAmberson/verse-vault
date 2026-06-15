@@ -208,9 +208,11 @@ fn material_config_json_parses_and_filters_emission() {
     // off to demonstrate that config JSON crosses the wasm boundary.
     let off_engine = WasmEngine::new(
         MATERIAL_JSON,
+        // Legacy-shape JSON; new_scope/review_scope=all keeps the Full
+        // verse out of Paused via the legacy → per-club migrator.
         r#"{"headings":false,"ftv":false,
-            "club_card_scope":"off","chapter_list_scope":"off",
-            "clubs":{"Full":"Active"}}"#,
+            "new_scope":"all","review_scope":"all",
+            "club_card_scope":"off","chapter_list_scope":"off"}"#,
         "",
         0.9,
         0,

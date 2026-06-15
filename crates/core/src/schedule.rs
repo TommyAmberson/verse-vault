@@ -414,11 +414,10 @@ mod tests {
     }
 
     fn config_150_active_300_maintenance() -> crate::material_config::MaterialConfig {
-        crate::material_config::MaterialConfig {
-            new_scope: crate::material_config::TierScope::Up150,
-            review_scope: crate::material_config::TierScope::Up300,
-            ..crate::material_config::MaterialConfig::default()
-        }
+        crate::material_config::MaterialConfig::from_scopes(
+            crate::material_config::TierScope::Up150,
+            crate::material_config::TierScope::Up300,
+        )
     }
 
     #[test]
@@ -437,7 +436,11 @@ mod tests {
         let m = sample_material_mixed_tiers();
         let r_all_active = crate::builder::build_with_config(
             &m,
-            &crate::material_config::MaterialConfig::default(),
+            // Use the test-friendly all-clubs-enabled config so the
+            // baseline really is "everything Active" — the new-user
+            // default is Club 150 only, which would silently match the
+            // Club300-Maintenance count below.
+            &crate::material_config::MaterialConfig::all_clubs_enabled(0.9),
             0,
         );
         let engine_all = ReviewEngine::new(r_all_active, 0.9);

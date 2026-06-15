@@ -282,7 +282,9 @@ impl WasmEngine {
     /// same Unix-seconds value the rest of the system uses (browser callers
     /// can do `BigInt(Math.floor(Date.now() / 1000))`).
     /// `persisted_states_json` may be `""` or `"[]"` to start fresh.
-    /// `material_config_json` may be `""` to use `MaterialConfig::default()`
+    /// `material_config_json` may be `""` to use the legacy "everything on"
+    /// fallback config (transitional — Phase 1's API path always supplies
+    /// a real per-club JSON for production users; see `parse_material_config`)
     /// (everything-on); otherwise it's a JSON `MaterialConfig` carrying the
     /// per-year toggles (headings / ftv / citation).
     #[wasm_bindgen(constructor)]
@@ -885,7 +887,19 @@ impl WasmEngine {
 fn parse_material_config(json: &str) -> Result<MaterialConfig, serde_json::Error> {
     let trimmed = json.trim();
     if trimmed.is_empty() {
-        Ok(MaterialConfig::default())
+        // Empty config_json from the API means "no user settings stored yet."
+        // Pre-Phase-1, that fell through to MaterialConfig::default() which
+        // historically meant "every club Active at 0.9 retention." The new
+        // MaterialConfig::default() is the spec's Club-150-only new-user
+        // shape, so a verbatim swap would silently pause Club 300 / Full
+        // verses for any user without a settings row — including the wasm
+        // test fixtures that use clubs: [] (parse_tiers → Full).
+        //
+        // Preserve the historical contract by mapping "" to all-clubs-
+        // enabled at the legacy 0.9 default. The TS engine.ts path (commit 8
+        // in this train) writes the real per-club JSON before calling wasm,
+        // so production never relies on this branch for real users.
+        Ok(MaterialConfig::all_clubs_enabled(0.9))
     } else {
         serde_json::from_str(trimmed)
     }
