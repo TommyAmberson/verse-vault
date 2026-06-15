@@ -227,6 +227,7 @@ For existing users, derive the new per-club shape from the existing flat fields:
 | `lesson_batch_size`                 | Preserved as-is.                                                                                       |
 | `move_to_next`                      | Set to `CaughtUp` for all pairs (matches the new default).                                             |
 | `catch_up` per club                 | Set to `Sequential` for all clubs (matches the new default; existing users had no equivalent setting). |
+| `enrolled` flag                     | Dropped. "Enrolled" is derived: any club enabled (memorize or review) on this material = enrolled.     |
 
 The migration is a one-shot DB transformation at first read after the upgrade. Old wire format still
 accepted via serde aliases for one release.
@@ -341,15 +342,26 @@ them — a Review week with no carry-over reads 0; with backlog, reads the backl
 
 ### Memorize-ahead
 
-A "Memorize ahead…" link on the preflight (visible whenever a single-verse default would otherwise
-auto-start) opens a multi-verse picker. The user can:
+No preflight, no separate "memorize ahead" UI. The user just presses Memorize again — the algorithm
+naturally serves the next `lesson_batch_size` eligible verses. Press Memorize as many times in a day
+or week as you want; each press advances through the same pipeline.
 
-* Increase the count for this session only (e.g. "memorize 7 verses today").
-* Pick specific verses from any enabled club (visualised by week / by tier).
-* Override the per-club mode for this session ("treat Club 150 as Sequential for today even though
-  my setting is CalendarCascade").
+When you finish this week's planned verses (badge = 0), the next press starts pulling lookahead
+verses (next week's primary if any club is `CalendarCascade`; next sequence-pointer verse if
+`Sequential`). The mechanism is identical — only the badge changes color/state to celebrate the
+"caught up to plan" milestone.
 
-Per-session overrides do not persist.
+### Empty state
+
+When no eligible un-memorized verses remain across all enabled clubs (e.g. every Club 150 verse in
+the deck is graduated and Club 300/Full are off, or the user is at season-end), Memorize shows a
+congratulations screen instead of attempting to load a verse. v1 keeps the screen minimal — "You've
+memorized everything in this material" — with a link back to /settings if the user wants to enable
+another club or pick a different material to study.
+
+The "caught up to this week" state (badge = 0 but lookahead still available) is **not** an empty
+state; the user can keep pressing Memorize to work ahead. Visual differentiation lives on the badge
+/ page header, not as a different screen.
 
 ## Review algorithm changes
 
@@ -538,9 +550,6 @@ Each phase is a separate implementation plan and a separate PR train. Phase 1 un
   source-of-truth bundled file.
 * **"Add week" passage picker.** Adding a week requires picking a passage range. UI for that is
   deferred; might be a simple text input ("1 Cor 5:1-13") with a parse + validation pass.
-* **Memorize-ahead persistence.** Per-session overrides don't persist (locked above). But should
-  there be a "save these settings to my default" shortcut on the preflight? Probably not for v1 —
-  keep the model clean.
 * **`club_card_scope` and `chapter_list_scope` consistency.** These still use the old TierScope
   ladder (Off / Up150 / Up300 / All). They could be reshaped to per-club booleans for consistency
   with the new model — leaning toward "do it during Phase 1 since we're already touching
@@ -566,8 +575,10 @@ For future-me reference. All confirmed during the 2026-06-14 brainstorm session.
 * Strict "Fully memorized" gate drains the higher club entirely (because lower club stays
   ineligible). ✓
 * Memorize tab badge: total un-memorized through end of current week, summed across enabled clubs. ✓
-* Single-click memorize: next N verses, drill, done. ✓
-* "Memorize ahead" preflight for multi-verse / power-user sessions. ✓
+* No preflight, no separate Memorize-ahead UI — user just presses Memorize repeatedly; the algorithm
+  serves the next eligible verses (including lookahead when caught up). ✓
+* Empty state = congrats screen, only when no eligible verses remain across all enabled clubs. ✓
+* No separate `enrolled` flag — "enrolled" is derived from any-club-enabled. ✓
 * Inter-club gate UI only visible when both flanking clubs are enabled. ✓
 * Review per-club: enabled + desired retention. ✓
 * Retention range: 50-90%, default 80%. ✓
