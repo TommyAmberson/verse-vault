@@ -38,6 +38,24 @@ import type { Club, YearView } from '@/api'
 
 const CLUBS: readonly Club[] = ['club150', 'club300', 'full'] as const
 
+/** Module-level cache for the schedule fetches `memorizeBadgeCount`
+ *  fires on every navigation. Schedules are essentially static within
+ *  a tab session — they only change via PUT/DELETE
+ *  `/api/materials/:id/schedule` (Phase 3 UI; not yet wired). Without
+ *  this cache, every nav re-fetches one schedule per enrolled year,
+ *  multiplying the per-route badge cost N+1 times.
+ *
+ *  Caches the in-flight promise so concurrent calls (e.g. two
+ *  fast back-to-back nav events) share one round-trip rather than
+ *  racing two. Exported so future schedule-write paths can invalidate
+ *  it explicitly when the editor lands. */
+const scheduleCache = new Map<string, Promise<unknown | null>>()
+
+export function invalidateScheduleCache(materialId?: string): void {
+  if (materialId === undefined) scheduleCache.clear()
+  else scheduleCache.delete(materialId)
+}
+
 interface ScheduleWeek {
   date: string
   verses: Partial<Record<Club, number[]>> | null
@@ -117,12 +135,19 @@ export async function memorizeBadgeCount(
   const contributions = await Promise.all(
     years.map(async (year) => {
       if (!CLUBS.some((c) => year.perClub.memorize[c].enabled)) return 0
+      let pending = scheduleCache.get(year.materialId)
+      if (pending === undefined) {
+        pending = getSchedule(year.materialId)
+        scheduleCache.set(year.materialId, pending)
+      }
       let schedule: Schedule | null = null
       try {
-        schedule = ((await getSchedule(year.materialId)) as Schedule | null) ?? null
+        schedule = ((await pending) as Schedule | null) ?? null
       } catch {
-        // Treat as schedule-absent — badgeContribution falls back to
-        // newCardCount for this year.
+        // Drop the cache so a transient failure doesn't pin a rejected
+        // promise for the rest of the session. The retry hits the
+        // network next nav; until then, fall back to newCardCount.
+        scheduleCache.delete(year.materialId)
       }
       return badgeContribution(year, schedule, todayIso)
     }),

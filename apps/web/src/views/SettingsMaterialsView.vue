@@ -43,22 +43,13 @@ const CLUB_TO_TIER: Record<Club, ClubTier> = {
   full: 'full',
 }
 
-const TIER_TO_CLUB: Record<ClubTier, Club> = {
-  '150': 'club150',
-  '300': 'club300',
-  full: 'full',
-}
-
-const STATUS_LABELS: Record<ClubStatus, string> = {
-  active: 'Active',
-  maintenance: 'Maintenance',
-  paused: 'Paused',
-}
-
-const STATUS_VARIANTS: Record<ClubStatus, 'accent' | 'warning' | 'muted'> = {
-  active: 'accent',
-  maintenance: 'warning',
-  paused: 'muted',
+const STATUS_CHIP: Record<
+  ClubStatus,
+  { label: string; variant: 'accent' | 'warning' | 'muted' }
+> = {
+  active: { label: 'Active', variant: 'accent' },
+  maintenance: { label: 'Maintenance', variant: 'warning' },
+  paused: { label: 'Paused', variant: 'muted' },
 }
 
 const CHAPTER_LIST_LEVELS: { value: ChapterListScope; label: string }[] = [
@@ -99,6 +90,12 @@ const GATE_OPTIONS: { value: MoveToNextGate; label: string }[] = [
   { value: 'caughtUp', label: 'Caught up to last week' },
   { value: 'always', label: 'Always (no gate)' },
 ]
+
+/** Maps the gate position (between clubs[idx] and clubs[idx+1]) to the
+ *  `moveToNext` field name. One entry per inter-club gap so the
+ *  template can bind via `selected.draft.moveToNext[GATE_FIELDS[idx]]`
+ *  instead of branching on `club === 'club150'`. */
+const GATE_FIELDS = ['p150To300', 'p300ToFull'] as const
 
 // Per-club retention range from the spec. Tighter than the legacy
 // material-wide [0.7, 0.97] band so the slider exposes the meaningful
@@ -141,12 +138,13 @@ function isStudying(c: YearCard): boolean {
   return CLUBS.some((k) => c.view.perClub.memorize[k].enabled || c.view.perClub.review[k].enabled)
 }
 
-/** Clone a per-club settings object for the editable draft. JSON
- *  round-trip is safe — the shape is pure data, no functions or
- *  cycles — and saves a stack of `{...x, memorize: {...x.memorize, club150: {...x.memorize.club150}}}`
- *  spread expressions every time a nested field is read for v-model. */
+/** Clone a per-club settings object for the editable draft. The shape
+ *  is pure data (no functions, no cycles) so `structuredClone` is
+ *  fully equivalent to a JSON round-trip and avoids the
+ *  `{...x, memorize: {...x.memorize, club150: {...x.memorize.club150}}}`
+ *  manual-spread stack every time a nested field is bound to v-model. */
 function clonePerClub(p: PerClubYearSettings): PerClubYearSettings {
-  return JSON.parse(JSON.stringify(p)) as PerClubYearSettings
+  return structuredClone(p)
 }
 
 async function refresh() {
@@ -214,13 +212,18 @@ async function onSave(card: YearCard) {
   }
 }
 
-/** Deep-equality check between draft and view.perClub — used to gate
- *  the Save button. JSON.stringify is fine here because the shapes are
- *  pure data with stable key order (constructed object-literally by
- *  the API). */
-function settingsAreDirty(card: YearCard): boolean {
-  return JSON.stringify(card.draft) !== JSON.stringify(card.view.perClub)
-}
+/** Deep-equality check between the active card's draft and its
+ *  saved view.perClub — used to gate the Save button. As a computed
+ *  it caches the serialise pair between mutations, so the user
+ *  rapidly clicking through checkboxes doesn't fire two
+ *  `JSON.stringify` passes per keystroke. JSON.stringify is sound
+ *  here because both objects originate from the same construction
+ *  path (server → `clonePerClub` → draft) so key order matches. */
+const selectedIsDirty = computed<boolean>(() => {
+  const c = selected.value
+  if (!c) return false
+  return JSON.stringify(c.draft) !== JSON.stringify(c.view.perClub)
+})
 
 function retentionPctFor(card: YearCard, club: Club): number {
   return Math.round(card.draft.review[club].desiredRetention * 100)
@@ -373,21 +376,8 @@ onMounted(refresh)
               <span v-if="isStudying(selected)" class="tier-pill-count">
                 {{ selected.view.clubs[tier].cardCount }}
               </span>
-              <!-- Derived from view.perClub, not view.clubs[tier].status:
-                   the latter goes through the lossy perClubToLegacy
-                   collapse on the API side, so a non-monotonic config
-                   (e.g. Club 300 enabled but Club 150 off) would show
-                   the wrong pill. Per-club is the source of truth. -->
-              <StatusChip
-                :variant="STATUS_VARIANTS[clubStatusFor(
-                  selected.view.perClub.memorize[TIER_TO_CLUB[tier]],
-                  selected.view.perClub.review[TIER_TO_CLUB[tier]],
-                )]"
-              >
-                {{ STATUS_LABELS[clubStatusFor(
-                  selected.view.perClub.memorize[TIER_TO_CLUB[tier]],
-                  selected.view.perClub.review[TIER_TO_CLUB[tier]],
-                )] }}
+              <StatusChip :variant="STATUS_CHIP[selected.view.clubs[tier].status].variant">
+                {{ STATUS_CHIP[selected.view.clubs[tier].status].label }}
               </StatusChip>
             </span>
           </div>
@@ -446,17 +436,7 @@ onMounted(refresh)
                   Move to {{ CLUB_LABELS[CLUBS[idx + 1]] }} when:
                 </span>
                 <select
-                  v-if="club === 'club150'"
-                  v-model="selected.draft.moveToNext.p150To300"
-                  :disabled="selected.saving"
-                >
-                  <option v-for="opt in GATE_OPTIONS" :key="opt.value" :value="opt.value">
-                    {{ opt.label }}
-                  </option>
-                </select>
-                <select
-                  v-else
-                  v-model="selected.draft.moveToNext.p300ToFull"
+                  v-model="selected.draft.moveToNext[GATE_FIELDS[idx]]"
                   :disabled="selected.saving"
                 >
                   <option v-for="opt in GATE_OPTIONS" :key="opt.value" :value="opt.value">
@@ -486,9 +466,9 @@ onMounted(refresh)
                   <span class="chain-card-name">
                     {{ CLUB_LABELS[club] }}
                     <StatusChip
-                      :variant="STATUS_VARIANTS[clubStatusFor(selected.draft.memorize[club], selected.draft.review[club])]"
+                      :variant="STATUS_CHIP[clubStatusFor(selected.draft.memorize[club], selected.draft.review[club])].variant"
                     >
-                      {{ STATUS_LABELS[clubStatusFor(selected.draft.memorize[club], selected.draft.review[club])] }}
+                      {{ STATUS_CHIP[clubStatusFor(selected.draft.memorize[club], selected.draft.review[club])].label }}
                     </StatusChip>
                   </span>
                 </label>
@@ -610,7 +590,7 @@ onMounted(refresh)
           <button
             type="button"
             class="save-button"
-            :disabled="!settingsAreDirty(selected) || selected.saving"
+            :disabled="!selectedIsDirty || selected.saving"
             @click="onSave(selected)"
           >
             {{ selected.saving ? 'Saving…' : 'Save settings' }}
