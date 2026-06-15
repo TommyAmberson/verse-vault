@@ -29,6 +29,7 @@ import {
   validateYearSettings,
   type YearSettings,
 } from './year-settings.js';
+import { ScheduleValidationError, validateSchedule } from './schedules.js';
 
 const SUPPORTED_EXPORT_VERSION = 1;
 
@@ -127,6 +128,7 @@ export async function applyAccountImport(
       db.transaction((tx) => {
         applyEnrollmentExtras(tx, key, material);
         applySettings(tx, key, material);
+        applySchedule(tx, key, material);
       });
       engines.invalidate(key);
 
@@ -217,10 +219,22 @@ function applySettings(
     throw err;
   }
 
+  // Phase 1: take the per-club configJson from the export when present
+  // (newer exports already carry it). Older exports omit the field —
+  // keep configJson null in that case so `readMaterialConfigJson`'s
+  // fallback path synthesises from the legacy columns on next read.
+  // Synthesising at import time would break round-trip equality with
+  // pre-Phase-1 export shapes.
+  const configJson =
+    material.settings.configJson !== undefined && material.settings.configJson !== null
+      ? material.settings.configJson
+      : null;
+
   const row = {
     userId: key.userId,
     materialId: key.materialId,
     ...validated,
+    configJson,
     // Use the export-recorded `updatedAt` verbatim. It's the next-merge
     // anchor: a later re-import with the same anchor is a no-op, and
     // any local tweak after this row goes in stamps a newer ts via the
@@ -240,6 +254,66 @@ function applySettings(
       .run();
   } else {
     tx.insert(schema.userYearSettings).values(row).run();
+  }
+}
+
+/** Phase 1: apply an imported per-material memorize schedule override.
+ *  Optional — older exports omit the field; absent → no-op. Validated
+ *  with the same shape-check the PUT route applies so bad imports
+ *  surface as a 400 instead of corrupting the row.
+ *
+ *  Merge policy mirrors `applySettings`: newer updatedAt wins. A later
+ *  re-import with the same anchor is a no-op; a local edit after this
+ *  row goes in stamps a newer ts via the PUT route and wins on the next
+ *  merge.
+ *
+ *  Lives in STEP 1 of `applyAccountImport`'s three-step transaction so
+ *  the engine.load() in STEP 2 picks up the imported schedule before
+ *  the cardref index is built. */
+function applySchedule(
+  tx: Tx,
+  key: { userId: string; materialId: string },
+  material: MaterialExport,
+): void {
+  if (!material.schedule) return;
+  try {
+    validateSchedule(material.schedule.scheduleJson);
+  } catch (err) {
+    if (err instanceof ScheduleValidationError) {
+      throw new ImportValidationError(`schedule for ${key.materialId}: ${err.message}`);
+    }
+    throw err;
+  }
+  const existing = tx
+    .select({ updatedAt: schema.materialSchedules.updatedAt })
+    .from(schema.materialSchedules)
+    .where(
+      and(
+        eq(schema.materialSchedules.userId, key.userId),
+        eq(schema.materialSchedules.materialId, key.materialId),
+      ),
+    )
+    .get();
+  if (existing && existing.updatedAt >= material.schedule.updatedAt) return;
+
+  const row = {
+    userId: key.userId,
+    materialId: key.materialId,
+    scheduleJson: material.schedule.scheduleJson,
+    updatedAt: material.schedule.updatedAt,
+  };
+  if (existing) {
+    tx.update(schema.materialSchedules)
+      .set(row)
+      .where(
+        and(
+          eq(schema.materialSchedules.userId, key.userId),
+          eq(schema.materialSchedules.materialId, key.materialId),
+        ),
+      )
+      .run();
+  } else {
+    tx.insert(schema.materialSchedules).values(row).run();
   }
 }
 
