@@ -76,6 +76,32 @@ describe('schedules routes', () => {
     expect(body.title).toBe('My Edited Schedule');
   });
 
+  it('PUT 400s when body materialId mismatches URL materialId', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    const wrong = {
+      version: 1,
+      materialId: 'nkjv-john',
+      season: '2025-26',
+      title: 'Mismatched',
+      meetingDayOfWeek: 'Mon',
+      weeks: [],
+      meets: [],
+    };
+    const put = await test.app.request(
+      `/api/materials/${MATERIAL_ID}/schedule`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify(wrong),
+      },
+    );
+    expect(put.status).toBe(400);
+    const body = (await put.json()) as { error: string };
+    expect(body.error).toMatch(/materialId/);
+  });
+
   it('PUT 400s on malformed payload', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;

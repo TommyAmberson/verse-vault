@@ -122,6 +122,18 @@ export class ScheduleValidationError extends Error {
   }
 }
 
+/** `YYYY-MM-DD` with sane month/day ranges (1-12 / 1-31). The Rust-side
+ *  `parse_iso_date` rejects 0-month / 0-day, so accepting them at the API
+ *  boundary would silently disable schedule logic for that week (and via
+ *  `current_week_index`'s defensive skip, lose the week from cumulative
+ *  counts). Catch them here so the user sees a 400 instead. */
+function isValidIsoDate(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const m = Number(s.slice(5, 7));
+  const d = Number(s.slice(8, 10));
+  return m >= 1 && m <= 12 && d >= 1 && d <= 31;
+}
+
 interface SchedulePayload {
   version: number;
   materialId: string;
@@ -179,8 +191,8 @@ export function validateSchedule(json: string): SchedulePayload {
       throw new ScheduleValidationError(`weeks[${i}] must be an object`);
     }
     const wo = w as Record<string, unknown>;
-    if (typeof wo.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(wo.date)) {
-      throw new ScheduleValidationError(`weeks[${i}].date must be YYYY-MM-DD`);
+    if (typeof wo.date !== 'string' || !isValidIsoDate(wo.date)) {
+      throw new ScheduleValidationError(`weeks[${i}].date must be a real YYYY-MM-DD`);
     }
   }
   const meets = obj.meets;

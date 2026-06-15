@@ -133,6 +133,23 @@ describe('validateSchedule', () => {
     expect(() => validateSchedule(bad)).toThrow(/date/);
   });
 
+  it('rejects month=00 / day=00 dates that the Rust parser would also reject', () => {
+    // The regex on its own accepts these; isValidIsoDate catches them.
+    // current_week_index defensively skips bad rows now, but the API
+    // shouldn't let them through in the first place.
+    for (const date of ['2025-00-08', '2025-13-08', '2025-09-00', '2025-09-32']) {
+      const bad = JSON.stringify({
+        version: 1,
+        materialId: 'x',
+        season: 'y',
+        title: 't',
+        meetingDayOfWeek: 'Mon',
+        weeks: [{ date, isReview: false }],
+      });
+      expect(() => validateSchedule(bad)).toThrow(/date/);
+    }
+  });
+
   it('rejects non-array meets', () => {
     const bad = JSON.stringify({
       version: 1,

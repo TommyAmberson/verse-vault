@@ -26,6 +26,7 @@ import {
 } from './review-log.js';
 import {
   ValidationError,
+  validatePerClubYearSettings,
   validateYearSettings,
   type YearSettings,
 } from './year-settings.js';
@@ -225,10 +226,49 @@ function applySettings(
   // fallback path synthesises from the legacy columns on next read.
   // Synthesising at import time would break round-trip equality with
   // pre-Phase-1 export shapes.
-  const configJson =
-    material.settings.configJson !== undefined && material.settings.configJson !== null
-      ? material.settings.configJson
-      : null;
+  //
+  // When a configJson IS present, run it through the same shape check
+  // the year-settings PUT route applies — a hostile export with a
+  // malformed per-club blob would otherwise land in the DB and surface
+  // as a 500 on the next engine.load (parse_material_config throws).
+  let configJson: string | null = null;
+  if (material.settings.configJson !== undefined && material.settings.configJson !== null) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(material.settings.configJson);
+    } catch (err) {
+      throw new ImportValidationError(
+        `settings.configJson for ${key.materialId}: invalid JSON (${(err as Error).message})`,
+      );
+    }
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new ImportValidationError(
+        `settings.configJson for ${key.materialId}: must be an object`,
+      );
+    }
+    const obj = parsed as Record<string, unknown>;
+    try {
+      validatePerClubYearSettings({
+        headingCard: obj.headingCard,
+        headingPassageCard: obj.headingPassageCard,
+        ftv: obj.ftv,
+        clubCardScope: obj.clubCardScope,
+        chapterListScope: obj.chapterListScope,
+        memorize: obj.memorize,
+        review: obj.review,
+        moveToNext: obj.moveToNext,
+        lessonBatchSize: obj.lessonBatchSize,
+      });
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        throw new ImportValidationError(
+          `settings.configJson for ${key.materialId}: ${err.message}`,
+        );
+      }
+      throw err;
+    }
+    configJson = material.settings.configJson;
+  }
 
   const row = {
     userId: key.userId,

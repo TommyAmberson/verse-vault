@@ -60,7 +60,20 @@ export function schedulesRoutes(deps: SchedulesRoutesDeps) {
     }
     const text = await c.req.text();
     try {
-      validateSchedule(text);
+      const parsed = validateSchedule(text);
+      // Cross-check the body's materialId against the URL so a user
+      // can't accidentally (or deliberately) store nkjv-john's schedule
+      // under nkjv-cor's row — the WASM engine wouldn't crash, but
+      // book/chapter refs in the schedule wouldn't match any verse in
+      // the running engine, silently producing an empty Phase 1.
+      if (parsed.materialId !== materialId) {
+        return c.json(
+          {
+            error: `body materialId (${parsed.materialId}) does not match URL materialId (${materialId})`,
+          },
+          400,
+        );
+      }
     } catch (err) {
       if (err instanceof ScheduleValidationError) {
         return c.json({ error: err.message }, 400);
