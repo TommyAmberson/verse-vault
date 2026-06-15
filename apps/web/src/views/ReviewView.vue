@@ -18,7 +18,6 @@ const engine = useEngine()
 
 const materialId = ref<string | null>(null)
 const materialConfig = shallowRef<ReturnType<typeof buildMaterialConfig> | null>(null)
-const desiredRetention = ref<number | null>(null)
 const card = ref<CardRender | null>(null)
 const revealed = ref(false)
 const done = ref(false)
@@ -35,7 +34,6 @@ async function resolveMaterial() {
   if (target) {
     materialId.value = target.materialId
     materialConfig.value = buildMaterialConfig(target.settings)
-    desiredRetention.value = target.settings.desiredRetention
     return true
   }
   return false
@@ -98,11 +96,10 @@ onMounted(async () => {
       done.value = true
       return
     }
-    await engine.init(
-      materialId.value,
-      materialConfig.value ?? undefined,
-      desiredRetention.value ?? undefined,
-    )
+    // Schedule wiring lands in commit 2 of the Phase 2 train; for now
+    // the engine ctor receives '' for schedule_json, collapsing to
+    // pure-Sequential — matches pre-Phase-1 behaviour byte-for-byte.
+    await engine.init(materialId.value, materialConfig.value ?? undefined)
     await loadNext()
   } catch (err) {
     error.value = formatError(err)

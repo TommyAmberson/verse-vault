@@ -148,17 +148,17 @@ export function useEngine() {
    *
    *  Pass `config` to apply the user's year-settings (scope toggles,
    *  headings/ftv) when constructing the engine. Without it the engine
-   *  uses `MaterialConfig::default()` — fine on a brand-new account,
-   *  but surfaces the wrong card set after /settings is touched.
+   *  uses the wasm-side fallback (all-clubs-enabled) — fine on a brand-
+   *  new account, but surfaces the wrong card set after /settings is
+   *  touched.
    *
-   *  Pass `desiredRetention` to honour the user's `/settings` target-
-   *  retention slider in the local-first hot path. Omitting it falls
-   *  back to the engine's default (0.9), which silently disagrees with
-   *  the server scheduler whenever the user has set a non-default
-   *  value. */
-  async function init(id: string, config?: WireMaterialConfig, desiredRetention?: number) {
+   *  `schedule` is the per-(user, material) memorize schedule (bundled
+   *  default or user override) — wasm@0.6.0's schedule-aware Phase 1 of
+   *  the memorize fill reads it. Empty string skips it; behaviour
+   *  collapses to pure-Sequential, matching pre-Phase-1. */
+  async function init(id: string, config?: WireMaterialConfig, schedule: unknown | '' = '') {
     try {
-      await engineStore.loadEngine(id, nowSecs(), config, desiredRetention)
+      await engineStore.loadEngine(id, nowSecs(), config, schedule)
       active.add(id)
       await refreshCounts()
       ready.value = true
@@ -212,7 +212,7 @@ export function useEngine() {
   }
 
   function memorizeSession(materialId: string, limit: number) {
-    return engineStore.memorizeSession(materialId, limit)
+    return engineStore.memorizeSession(materialId, limit, nowSecs())
   }
 
   function newCardCount(materialId: string): number {

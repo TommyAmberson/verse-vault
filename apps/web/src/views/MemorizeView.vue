@@ -96,10 +96,13 @@ async function buildSession() {
   )
   // Boot the engine for every eligible year in parallel, then compute
   // each year's session payload locally. Settings pass through so the
-  // engine respects per-year scope toggles (e.g. chapter_list_scope).
+  // engine respects per-year scope toggles. Schedule wiring lands in
+  // commit 2 of the Phase 2 train; the engine ctor currently receives
+  // '' for schedule_json, collapsing memorize_session_v2 to pure-
+  // Sequential — matches pre-Phase-1 behaviour for now.
   await Promise.all(
     eligibleYears.map((y) =>
-      engine.init(y.materialId, buildMaterialConfig(y.settings), y.settings.desiredRetention),
+      engine.init(y.materialId, buildMaterialConfig(y.settings)),
     ),
   )
   const sessions: {
