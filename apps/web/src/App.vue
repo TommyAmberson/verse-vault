@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import MobileTabBar from '@/components/MobileTabBar.vue'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import { useAuth } from '@/composables/useAuth'
+import { memorizeBadgeCount } from '@/lib/badges'
 
 const { activeProfile, conflict, acceptPendingSignIn, cancelPendingSignIn } = useAuth()
 const route = useRoute()
@@ -28,7 +29,8 @@ async function refreshMemorizeCount() {
   if (!user.value) return
   try {
     const res = await api.getYears()
-    newToMemorize.value = res.years.reduce((sum, y) => sum + y.newCardCount, 0)
+    const todayIso = new Date().toISOString().slice(0, 10)
+    newToMemorize.value = await memorizeBadgeCount(res.years, api.getSchedule, todayIso)
   } catch {
     // Don't fail nav rendering on a count fetch error; leave at 0.
   }
