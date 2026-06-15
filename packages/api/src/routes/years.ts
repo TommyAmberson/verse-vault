@@ -16,6 +16,7 @@ import {
   ensureRetention,
   legacyToNew,
   looksLikePerClub,
+  type PerClubYearSettings,
   perClubToLegacy,
   TIER_SCOPES,
   type TierScope,
@@ -58,7 +59,16 @@ interface YearView {
    *  this year. Sourced from the `offline_mode` column on the
    *  `user_materials` row (false for unenrolled years). */
   offlineMode: boolean;
+  /** Legacy flat settings — kept on the response for clients that
+   *  haven't migrated to `perClub`. The engine reads `perClub`. */
   settings: YearSettings;
+  /** Phase 1+ per-club configuration. Mirrors what's stored in
+   *  `user_year_settings.config_json` (synthesised via `legacyToNew`
+   *  when the column hasn't been populated yet). Lossless: includes
+   *  `catchUp` and `moveToNext` choices that the legacy `settings`
+   *  field can't represent, so the chain UI in /settings/materials can
+   *  round-trip them without dropping the user's selections. */
+  perClub: PerClubYearSettings;
   clubs: Record<ClubTier, ClubView>;
   /** Count of cards still in `CardState::New` — drives the
    *  "N to memorize" nudge in the web nav. */
@@ -162,6 +172,34 @@ function readYearSettings(
   };
 }
 
+/** Build the per-club settings object the chain UI consumes. Mirrors
+ *  `readMaterialConfigJson` in lib/engine.ts: prefer the stored
+ *  `config_json` blob, fall back to synthesising from the legacy
+ *  columns so the route, the engine, and the UI agree on what's on
+ *  disk. The two readers are intentionally parallel — both swap to
+ *  a shared parsed helper if we add a third consumer. */
+function readPerClubSettings(
+  db: DB,
+  userId: string,
+  materialId: string,
+  legacyFallback: YearSettings,
+): PerClubYearSettings {
+  const row = db
+    .select()
+    .from(schema.userYearSettings)
+    .where(
+      and(
+        eq(schema.userYearSettings.userId, userId),
+        eq(schema.userYearSettings.materialId, materialId),
+      ),
+    )
+    .get();
+  if (row?.configJson != null && row.configJson !== '') {
+    return JSON.parse(row.configJson) as PerClubYearSettings;
+  }
+  return legacyToNew(row ? (row as YearSettings) : legacyFallback);
+}
+
 export function yearsRoutes(deps: YearsRoutesDeps) {
   const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
   const app = new Hono<{ Variables: SessionVariables }>();
@@ -181,12 +219,9 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     const out: YearView[] = [];
     for (const material of MATERIALS) {
       const enrolled = enrolledIds.has(material.id);
-      const settings = readYearSettings(
-        deps.db,
-        user.id,
-        material.id,
-        enrolled ? ENROLLED_DEFAULTS : UNENROLLED_DEFAULTS,
-      );
+      const fallback = enrolled ? ENROLLED_DEFAULTS : UNENROLLED_DEFAULTS;
+      const settings = readYearSettings(deps.db, user.id, material.id, fallback);
+      const perClub = readPerClubSettings(deps.db, user.id, material.id, fallback);
 
       // Only load the engine for enrolled years — unenrolled ones have
       // no graph_snapshot yet. Card counts stay at zero until the user
@@ -231,6 +266,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         enrolled,
         offlineMode: offlineModeByMaterial.get(material.id) ?? false,
         settings,
+        perClub,
         clubs,
         newCardCount,
       });

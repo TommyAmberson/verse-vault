@@ -10,6 +10,18 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.29] — 2026-06-15
+
+`GET /api/years` now surfaces `perClub` (parsed `PerClubYearSettings`) alongside the legacy
+`settings` field. The web client's Phase 2 chain UI reads it so user-customised `catchUp` and
+`moveToNext` selections round-trip through a save → reload — values the lossy legacy-column collapse
+can't carry. No client breaks: the existing `settings` field is unchanged.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — unchanged.
+* `verse-vault-wasm@0.6.0` — unchanged.
+
 ## [0.1.28] — 2026-06-14
 
 Phase 1 of the schedules + per-club settings rework. MINOR per this changelog's rubric — additive
