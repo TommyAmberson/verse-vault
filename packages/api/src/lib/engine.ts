@@ -8,6 +8,7 @@ import * as schema from '../db/schema.js';
 import { type Grade, writeTestStates } from './review-log.js';
 import { type UserMaterial, userMaterialKey } from './keys.js';
 import { getMaterialJson } from './materials.js';
+import { loadSchedule } from './schedules.js';
 
 function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex');
@@ -231,34 +232,28 @@ function canonicalizeKey(value: unknown): string {
   return `{${parts.join(',')}}`;
 }
 
-/** Per-(user, material) target retention. Falls back to the
- *  `EngineStore` default when the user has no `user_year_settings`
- *  row yet (the pre-enrollment picker case). The settings endpoint
- *  invalidates the cached engine on save, so a saved change takes
- *  effect on the next `load()`. */
-function readDesiredRetention(db: DB, key: EngineKey, fallback: number): number {
-  const row = db
-    .select({ desiredRetention: schema.userYearSettings.desiredRetention })
-    .from(schema.userYearSettings)
-    .where(
-      and(
-        eq(schema.userYearSettings.userId, key.userId),
-        eq(schema.userYearSettings.materialId, key.materialId),
-      ),
-    )
-    .get();
-  return row?.desiredRetention ?? fallback;
-}
+// `readDesiredRetention` was removed in Phase 1 — target retention is
+// per-club inside `MaterialConfig.review.{club}.desiredRetention`, read
+// from `config_json` by `readMaterialConfigJson`. The legacy
+// `user_year_settings.desired_retention` column still receives writes
+// during the dual-shape transition but no longer drives the engine.
 
 /**
  * Build a JSON-encoded `MaterialConfig` for this user × material from
- * the picker table. No row means defaults (the WASM constructor uses
- * `MaterialConfig::default()` directly when we return the empty string).
+ * the picker table.
  *
- * The DB stores scope values in the same camelCase form (`off` / `up150`
- * / `up300` / `all`) that the Rust enums declare via
- * `#[serde(rename_all = "camelCase")]`, so the values pass through with
- * no translation step.
+ * As of Phase 1: prefer the per-club `config_json` blob (written
+ * verbatim by the route layer for both shape-paths); fall back to
+ * synthesising the per-club shape from the legacy columns when
+ * `config_json` is NULL (pre-migration rows the user hasn't touched
+ * yet). No row → empty string → WASM uses the legacy "everything on"
+ * fallback inside `parse_material_config('')`.
+ *
+ * The synthesised path mirrors `legacyToNew` so route writes and
+ * engine reads agree on the per-club semantics. The wire form
+ * matches `crates/core@0.6.0`'s `MaterialConfig` accept-either-shape
+ * deserialiser (snake_case for the legacy fields; camelCase for the
+ * new per-club fields).
  */
 function readMaterialConfigJson(db: DB, key: EngineKey): string {
   const settings = db
@@ -274,15 +269,58 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
 
   if (!settings) return '';
 
-  return JSON.stringify({
-    heading_card: settings.headingCard,
-    heading_passage_card: settings.headingPassageCard,
-    ftv: settings.ftv,
-    new_scope: settings.newScope,
-    review_scope: settings.reviewScope,
-    club_card_scope: settings.clubCardScope,
-    chapter_list_scope: settings.chapterListScope,
+  // Phase 1 happy path: use the per-club blob materialised by migration
+  // 0023 and re-written by the route on every save. Verbatim pass-
+  // through — the engine parses it as the new shape.
+  if (settings.configJson !== null && settings.configJson !== '') {
+    return settings.configJson;
+  }
+
+  // Fallback: synthesise the per-club shape from the legacy columns
+  // for any row where config_json hasn't been populated yet. Matches
+  // the `legacyToNew` converter in lib/year-settings.ts.
+  return JSON.stringify(synthesizeConfigJson(settings));
+}
+
+function synthesizeConfigJson(s: {
+  headingCard: boolean;
+  headingPassageCard: boolean;
+  ftv: boolean;
+  newScope: string;
+  reviewScope: string;
+  clubCardScope: string;
+  chapterListScope: string;
+  lessonBatchSize: number;
+  desiredRetention: number;
+}): Record<string, unknown> {
+  const clamp = (r: number): number => Math.max(0.5, Math.min(0.9, r));
+  const scoped = (scope: string) => ({
+    club150: scope === 'up150' || scope === 'up300' || scope === 'all',
+    club300: scope === 'up300' || scope === 'all',
+    full: scope === 'all',
   });
+  const mem = scoped(s.newScope);
+  const rev = scoped(s.reviewScope);
+  const retention = clamp(s.desiredRetention);
+  return {
+    headingCard: s.headingCard,
+    headingPassageCard: s.headingPassageCard,
+    ftv: s.ftv,
+    clubCardScope: s.clubCardScope,
+    chapterListScope: s.chapterListScope,
+    lessonBatchSize: s.lessonBatchSize,
+    memorize: {
+      club150: { enabled: mem.club150, catchUp: 'sequential' },
+      club300: { enabled: mem.club300, catchUp: 'sequential' },
+      full: { enabled: mem.full, catchUp: 'sequential' },
+    },
+    review: {
+      club150: { enabled: rev.club150, desiredRetention: retention },
+      club300: { enabled: rev.club300, desiredRetention: retention },
+      full: { enabled: rev.full, desiredRetention: retention },
+    },
+    moveToNext: { p150To300: 'caughtUp', p300ToFull: 'caughtUp' },
+  };
 }
 
 /** Cumulative-sum half-open word ranges per phrase, keyed by verse_id.
@@ -559,11 +597,12 @@ export class EngineStore {
     const materialJson = bundledJson;
     const testStates = readTestStateEntries(this.db, key, materialJson);
     const configJson = readMaterialConfigJson(this.db, key);
+    const scheduleJson = loadSchedule(this.db, key.userId, key.materialId);
     const engine = new WasmEngine(
       materialJson,
       configJson,
+      scheduleJson,
       JSON.stringify(testStates),
-      readDesiredRetention(this.db, key, this.desiredRetention),
       BigInt(this.now()),
     );
 
@@ -623,12 +662,13 @@ export class EngineStore {
     // inside readTestStateEntries handles known structural transforms.
     const materialJson = this.loadBundledJson(key.materialId);
     const configJson = readMaterialConfigJson(this.db, key);
+    const scheduleJson = loadSchedule(this.db, key.userId, key.materialId);
     const engine = new WasmEngine(
       materialJson,
       configJson,
+      scheduleJson,
       // Empty persisted states — we'll replay the full log on top.
       '[]',
-      readDesiredRetention(this.db, key, this.desiredRetention),
       BigInt(this.now()),
     );
 

@@ -106,10 +106,14 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
   const snapshotId = randomUUID();
   const createdAt = now();
 
-  // Empty config = MaterialConfig::default() — enrollment seeds the same
-  // card set regardless of per-user picker choices; those are applied at
-  // query time (slice 1) and at /memorize introduction (slice 2).
-  const seedEngine = new WasmEngine(materialJson, '', '', desiredRetention, BigInt(createdAt));
+  // Empty config = parse_material_config('')'s test-friendly fallback
+  // (all clubs enabled) — enrollment seeds the same card set regardless
+  // of per-user picker choices; those are applied at query time (slice 1)
+  // and at /memorize introduction (slice 2). The desiredRetention arg
+  // was removed in wasm@0.6.0 (per-club inside MaterialConfig); kept as
+  // a no-op formal here since enrollment doesn't need a schedule.
+  void desiredRetention;
+  const seedEngine = new WasmEngine(materialJson, '', '', '', BigInt(createdAt));
   let testStates: TestStateEntry[];
   try {
     testStates = JSON.parse(seedEngine.export_test_states()) as TestStateEntry[];
