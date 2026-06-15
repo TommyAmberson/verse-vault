@@ -57,8 +57,27 @@ const router = createRouter({
     },
     {
       path: '/settings',
-      name: 'settings',
       component: () => import('@/views/SettingsView.vue'),
+      children: [
+        // Materials is the default — matches today's behaviour where
+        // /settings opens straight onto the per-material tabs.
+        { path: '', redirect: '/settings/materials' },
+        {
+          path: 'account',
+          name: 'settings-account',
+          component: () => import('@/views/SettingsAccountView.vue'),
+        },
+        {
+          path: 'preferences',
+          name: 'settings-preferences',
+          component: () => import('@/views/SettingsPreferencesView.vue'),
+        },
+        {
+          path: 'materials',
+          name: 'settings-materials',
+          component: () => import('@/views/SettingsMaterialsView.vue'),
+        },
+      ],
     },
   ],
 })
