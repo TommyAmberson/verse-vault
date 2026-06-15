@@ -313,15 +313,28 @@ pub fn next_memorize_batch(
         return Vec::new();
     }
 
-    let lookup = build_verse_lookup(engine);
     let unmemorized = unmemorized_verses_by_tier(engine, &eligible);
     let mut picked: Vec<u32> = Vec::new();
     let mut seen: HashSet<u32> = HashSet::new();
 
-    // Phase 1: CalendarCascade clubs' this-week primary.
-    if let Some(sched) = schedule
+    // Phase 1: CalendarCascade clubs' this-week primary. Only runs when
+    // a schedule is supplied AND at least one eligible club is on
+    // CalendarCascade — the (book, chapter, verse) → verse_id lookup is
+    // an O(verses) HashMap with owned String keys, so building it
+    // unconditionally would burn one full allocation on every memorize
+    // click for the common Sequential-only path.
+    let mut any_cascade = false;
+    for &club in &eligible {
+        if engine.material_config.catch_up_for(club) == CatchUp::CalendarCascade {
+            any_cascade = true;
+            break;
+        }
+    }
+    if any_cascade
+        && let Some(sched) = schedule
         && let Some(week_idx) = sched.current_week_index(now_secs)
     {
+        let lookup = build_verse_lookup(engine);
         let mut phase1: Vec<u32> = Vec::new();
         for &club in &eligible {
             if engine.material_config.catch_up_for(club) != CatchUp::CalendarCascade {
@@ -419,7 +432,16 @@ fn compute_eligible_clubs(
         let gate_open = match prev_eligible {
             None => true,
             Some(higher) => {
-                let gate = config.gate_to(club).unwrap_or(MoveToNextGate::Always);
+                // `gate_to(Club150)` is the only `None` case — that branch
+                // is structurally unreachable here because Club150 always
+                // hits the `prev_eligible: None` arm above. Any future
+                // tier added between Club150 and Club300 would need a
+                // gate entry in `MaterialConfig`; the expect catches the
+                // omission instead of silently falling through to
+                // `Always`.
+                let gate = config
+                    .gate_to(club)
+                    .expect("gate_to is Some for every non-top tier");
                 gate_is_open(engine, schedule, higher, gate, now_secs)
             }
         };
@@ -533,9 +555,11 @@ fn unmemorized_verses_by_tier(
 /// tier in this engine. `memorized` = verses with no `New` bulk-graduable
 /// cards left.
 fn tier_memorize_progress(engine: &ReviewEngine, tier: ClubTier) -> (usize, usize) {
-    let mut memorized = 0;
-    let mut total = 0;
-    let mut counted: HashSet<u32> = HashSet::new();
+    // One pass over `engine.cards` building per-verse "has any New bulk-
+    // graduable card" — the HashMap key already dedupes verse_ids, so an
+    // extra HashSet for tracking would be redundant. The second walk is
+    // over the HashMap (not the cards), so it stays O(verses) regardless
+    // of how many cards each verse has.
     let mut has_new: HashMap<u32, bool> = HashMap::new();
     for card in &engine.cards {
         if !is_bulk_graduable(&card.kind) {
@@ -546,10 +570,9 @@ fn tier_memorize_progress(engine: &ReviewEngine, tier: ClubTier) -> (usize, usiz
             *entry = true;
         }
     }
+    let mut memorized = 0;
+    let mut total = 0;
     for (&vid, &any_new) in &has_new {
-        if !counted.insert(vid) {
-            continue;
-        }
         let Some(elements) = engine.verse_index.elements_of(vid) else {
             continue;
         };

@@ -200,6 +200,32 @@ impl Schedule {
         out
     }
 
+    /// Count of verses scheduled for `tier` in the single row at
+    /// `week_idx`. Skips the owned-`VerseRef` construction the gate hot
+    /// path doesn't need.
+    fn week_verse_count(&self, week_idx: usize, tier: ClubTier) -> usize {
+        let Some(week) = self.weeks.get(week_idx) else {
+            return 0;
+        };
+        if week.passage.is_none() {
+            return 0;
+        }
+        self.verse_numbers_for_tier(week, tier).len()
+    }
+
+    /// Total count of unique verses scheduled for `tier` from week 0
+    /// through `through_week_idx`. Cheaper than counting
+    /// `cumulative_verse_refs_through_week(...).len()` because it sums
+    /// per-row counts directly instead of materialising the full
+    /// `Vec<VerseRef>` (which clones `passage.book` per entry).
+    fn cumulative_count_through_week(&self, through_week_idx: usize, tier: ClubTier) -> usize {
+        if self.weeks.is_empty() {
+            return 0;
+        }
+        let cap = through_week_idx.min(self.weeks.len() - 1);
+        (0..=cap).map(|idx| self.week_verse_count(idx, tier)).sum()
+    }
+
     /// Total count of unique verses scheduled for `tier` from week 0
     /// through the schedule's current-week index. `0` when the season
     /// hasn't started yet. Used by the memorize-tab badge math and the
@@ -208,7 +234,7 @@ impl Schedule {
         let Some(idx) = self.current_week_index(now_secs) else {
             return 0;
         };
-        self.cumulative_verse_refs_through_week(idx, tier).len()
+        self.cumulative_count_through_week(idx, tier)
     }
 
     /// Cumulative count for `tier` through the schedule's most-recent
@@ -230,7 +256,7 @@ impl Schedule {
             if d > meet_day {
                 break;
             }
-            count += self.week_verse_refs(i, tier).len();
+            count += self.week_verse_count(i, tier);
         }
         count
     }
@@ -246,7 +272,7 @@ impl Schedule {
         if idx == 0 {
             return 0;
         }
-        self.cumulative_verse_refs_through_week(idx - 1, tier).len()
+        self.cumulative_count_through_week(idx - 1, tier)
     }
 
     /// Internal: verse numbers for `tier` in this single row. `Full` is
