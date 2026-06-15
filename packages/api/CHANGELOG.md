@@ -10,6 +10,77 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.28] — 2026-06-14
+
+Phase 1 of the schedules + per-club settings rework. MINOR per this changelog's rubric — additive
+endpoints, both-shape acceptance on existing endpoints, and a new disk-loaded resource (bundled
+schedules) that older clients can simply ignore.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — `MaterialConfig` restructures from the flat
+  `(new_scope, review_scope, desired_retention)` triple into per-club shapes (`memorize`, `review`,
+  `move_to_next`). New `Schedule` data model
+  * the two-phase canonical-order memorize fill. Per-verse retention threading through every
+    scheduler entry point. MAJOR — pre-0.6.0 state shape no longer drives the engine directly (read
+    through the serde-aliases migration adapter).
+* `verse-vault-wasm@0.6.0` — `WasmEngine` constructor drops `desired_retention`, adds
+  `schedule_json`. New `memorize_session_v2(limit, now_secs)` is the schedule-aware surface; legacy
+  `memorize_session(limit)` stays as a deprecated wrapper for one release. MAJOR.
+
+### New: `GET/PUT/DELETE /api/materials/:id/schedule`
+
+Per-(user, material) memorize-schedule overrides. `GET` returns the user's customised schedule if
+present, else the bundled default (`data/schedules/<deck>-<season>.json`), else
+`{ schedule: null }`. `PUT` shape-validates and upserts, invalidates the engine cache. `DELETE`
+drops the override; bundled default reapplies on the next request. Unknown `materialId` → 404;
+missing auth → 401; malformed PUT body → 400.
+
+### `POST /api/years/:id/settings` accepts the per-club shape
+
+The route detects shape via the `looksLikePerClub` heuristic (presence of `memorize` or `review` at
+the body root). Per-club shape: every field required, validated by `validatePerClubYearSettings`,
+retention clamped to `[0.5, 0.9]`. Legacy flat shape: existing partial-merge semantics preserved,
+retention still validates in the legacy `[0.7, 0.97]` range. Both paths dual-write — the legacy
+columns stay authoritative for older clients while `config_json` carries the per-club shape the
+engine reads.
+
+### Per-club desired retention
+
+Retention is now per-club, not per-material. The legacy `user_year_settings.desired_retention`
+column survives as a mirror for backward compat with pre-Phase-1 clients; the engine reads
+`config_json.review.{club}.desiredRetention` instead, with the [0.5, 0.9] clamp applied on read for
+defence-in-depth.
+
+### Schedules bundled per material
+
+`data/schedules/<deck>-<season>.json` (gitignored alongside the deck JSONs themselves, whitelisted
+via a `!data/schedules/*.json` rule). Phase 1 ships the SK 2025-26 1 & 2 Corinthians schedule
+covering 24 of 27 active weeks plus all 3 meets. Multi-chapter weeks are stubbed as Review weeks
+because Phase 1's `Schedule.Passage` model is single-chapter (the rest of the season's weeks fall
+outside that limitation).
+
+### Import / export round-trip the new fields
+
+* `YearSettingsExport.configJson` — per-club shape carried verbatim through export and import. Older
+  exports omit the field; the importer treats absent as null, preserving round-trip equality with
+  pre-Phase-1 shapes.
+* `ScheduleExport { scheduleJson, updatedAt }` — per-(user, material) schedule overrides. Optional
+  on `MaterialExport`. Applied in STEP 1 of the three-step import transaction so engine.load() in
+  STEP 2 picks up the imported schedule before the cardref index is built — preserves the
+  apply-settings-before-cardref invariant from PR #95.
+
+### DB
+
+Two new migrations:
+
+* `0022_material_schedules.sql` — new table keyed by `(user_id, material_id)` storing schedule
+  overrides as a JSON blob, with an `idx_material_schedules_user` index.
+* `0023_user_year_settings_per_club.sql` — adds the `config_json` column to `user_year_settings`,
+  materialises it from the legacy flat columns via SQLite's `json_object()` per the spec's migration
+  table. Legacy columns stay during transition; a future migration drops them once Phase 2's web UI
+  ships.
+
 ## [0.1.27] — 2026-06-12
 
 ### Bundled algorithm contract
