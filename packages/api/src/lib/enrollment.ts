@@ -29,7 +29,6 @@ export interface EnrollArgs {
   /** Optional override for the bundled MaterialData JSON. Tests pass a tiny
    * inline material to avoid loading multi-hundred-kB blobs from disk. */
   materialJson?: string;
-  desiredRetention?: number;
 }
 
 export class UnknownMaterialError extends Error {
@@ -45,8 +44,6 @@ export class AlreadyEnrolledError extends Error {
     this.name = 'AlreadyEnrolledError';
   }
 }
-
-const DEFAULT_DESIRED_RETENTION = 0.9;
 
 /**
  * Returns the user_materials row for the caller, or throws NotEnrolledError.
@@ -97,7 +94,6 @@ export function isEnrolled(db: DB, key: UserMaterial): boolean {
 export function enrollUser(args: EnrollArgs): { snapshotId: string; version: number } {
   const { db, userId, materialId } = args;
   const now = args.now ?? (() => Math.floor(Date.now() / 1000));
-  const desiredRetention = args.desiredRetention ?? DEFAULT_DESIRED_RETENTION;
 
   const material = getMaterial(materialId);
   if (!material) throw new UnknownMaterialError(materialId);
@@ -109,10 +105,9 @@ export function enrollUser(args: EnrollArgs): { snapshotId: string; version: num
   // Empty config = parse_material_config('')'s test-friendly fallback
   // (all clubs enabled) — enrollment seeds the same card set regardless
   // of per-user picker choices; those are applied at query time (slice 1)
-  // and at /memorize introduction (slice 2). The desiredRetention arg
-  // was removed in wasm@0.6.0 (per-club inside MaterialConfig); kept as
-  // a no-op formal here since enrollment doesn't need a schedule.
-  void desiredRetention;
+  // and at /memorize introduction (slice 2). Empty schedule too: the
+  // seed run only needs the build/test_state pipeline, not the
+  // schedule-aware memorize batcher.
   const seedEngine = new WasmEngine(materialJson, '', '', '', BigInt(createdAt));
   let testStates: TestStateEntry[];
   try {

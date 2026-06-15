@@ -97,8 +97,8 @@ function effectiveStatus(settings: YearSettings, tier: ClubTier): ClubStatus {
 }
 
 // Two fallbacks when the user has no user_year_settings row. Enrolled
-// users default to "study everything" (every tier covered by both
-// scopes — wider than the post-Phase-1 `MaterialConfig::default()`,
+// users default to "study everything" — every tier covered by both
+// scopes (wider than the post-Phase-1 `MaterialConfig::default()`,
 // which is Club-150-only, but matches the *legacy* shape this route
 // still surfaces alongside the per-club `configJson`). Unenrolled
 // users default to paused so the per-tier chip doesn't lie ("Active"
@@ -107,11 +107,13 @@ function effectiveStatus(settings: YearSettings, tier: ClubTier): ClubStatus {
 // VerseInHeading defaults off; HeadingPassage defaults on. Matches the
 // core defaults after the heading config split (core 0.2.0): the
 // passage-cued card is the primary heading test and the per-verse
-// "which heading?" card is now opt-in. Retention stays at 0.9 — the
-// /api/years legacy response is still the high-retention default for
-// pre-Phase-1 clients; per-club retention (clamped into [0.5, 0.9]
-// with default 0.8) lives inside `config_json` and is what the engine
-// actually reads.
+// "which heading?" card is now opt-in.
+// `desiredRetention: 0.8` matches the post-Phase-1 spec — `legacyToNew`
+// uses this value verbatim when synthesising `config_json`, so the
+// engine's per-club retention agrees with the spec for users who post
+// partial legacy bodies. Pre-Phase-1 clients reading the /api/years
+// response receive 0.8 instead of the old 0.9 default; both values are
+// inside the legacy `ensureRetention` range so no client breaks.
 const ENROLLED_DEFAULTS: YearSettings = {
   headingCard: false,
   headingPassageCard: true,
@@ -121,7 +123,7 @@ const ENROLLED_DEFAULTS: YearSettings = {
   clubCardScope: 'off',
   chapterListScope: 'up150',
   lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
-  desiredRetention: 0.9,
+  desiredRetention: 0.8,
 };
 
 const UNENROLLED_DEFAULTS: YearSettings = {

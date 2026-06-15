@@ -93,7 +93,10 @@ describe('years routes', () => {
       clubCardScope: 'off',
       chapterListScope: 'up150',
       lessonBatchSize: 3,
-      desiredRetention: 0.9,
+      // ENROLLED_DEFAULTS shifted from 0.9 to 0.8 in Phase 1 so the
+      // per-club configJson synthesised via legacyToNew agrees with
+      // the spec's 0.8 new-user default.
+      desiredRetention: 0.8,
     });
     for (const tier of ['150', '300', 'full'] as const) {
       expect(year.clubs[tier].status).toBe('active');

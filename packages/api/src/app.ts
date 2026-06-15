@@ -57,7 +57,7 @@ export function createApp(deps: AppDeps) {
   // (`src/index.ts`). Tests reach in via `createTestApp` and
   // construct their own short-lived processes, so they neither need
   // nor want a 60 s setInterval per `createApp` call.
-  const engines = new EngineStore(deps.db, undefined, deps.now);
+  const engines = new EngineStore(deps.db, deps.now);
   const apibibleCache = deps.bibleApiKey
     ? new ApibibleCache(deps.db, deps.bibleApiKey, deps.now)
     : undefined;

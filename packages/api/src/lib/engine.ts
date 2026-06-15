@@ -9,6 +9,7 @@ import { type Grade, writeTestStates } from './review-log.js';
 import { type UserMaterial, userMaterialKey } from './keys.js';
 import { getMaterialJson } from './materials.js';
 import { loadSchedule } from './schedules.js';
+import { legacyToNew, type YearSettings } from './year-settings.js';
 
 function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex');
@@ -83,8 +84,6 @@ export function getLatestSnapshot(db: DB, key: EngineKey) {
     .limit(1)
     .get();
 }
-
-const DEFAULT_DESIRED_RETENTION = 0.9;
 
 export type EngineKey = UserMaterial;
 
@@ -276,51 +275,12 @@ function readMaterialConfigJson(db: DB, key: EngineKey): string {
     return settings.configJson;
   }
 
-  // Fallback: synthesise the per-club shape from the legacy columns
-  // for any row where config_json hasn't been populated yet. Matches
-  // the `legacyToNew` converter in lib/year-settings.ts.
-  return JSON.stringify(synthesizeConfigJson(settings));
-}
-
-function synthesizeConfigJson(s: {
-  headingCard: boolean;
-  headingPassageCard: boolean;
-  ftv: boolean;
-  newScope: string;
-  reviewScope: string;
-  clubCardScope: string;
-  chapterListScope: string;
-  lessonBatchSize: number;
-  desiredRetention: number;
-}): Record<string, unknown> {
-  const clamp = (r: number): number => Math.max(0.5, Math.min(0.9, r));
-  const scoped = (scope: string) => ({
-    club150: scope === 'up150' || scope === 'up300' || scope === 'all',
-    club300: scope === 'up300' || scope === 'all',
-    full: scope === 'all',
-  });
-  const mem = scoped(s.newScope);
-  const rev = scoped(s.reviewScope);
-  const retention = clamp(s.desiredRetention);
-  return {
-    headingCard: s.headingCard,
-    headingPassageCard: s.headingPassageCard,
-    ftv: s.ftv,
-    clubCardScope: s.clubCardScope,
-    chapterListScope: s.chapterListScope,
-    lessonBatchSize: s.lessonBatchSize,
-    memorize: {
-      club150: { enabled: mem.club150, catchUp: 'sequential' },
-      club300: { enabled: mem.club300, catchUp: 'sequential' },
-      full: { enabled: mem.full, catchUp: 'sequential' },
-    },
-    review: {
-      club150: { enabled: rev.club150, desiredRetention: retention },
-      club300: { enabled: rev.club300, desiredRetention: retention },
-      full: { enabled: rev.full, desiredRetention: retention },
-    },
-    moveToNext: { p150To300: 'caughtUp', p300ToFull: 'caughtUp' },
-  };
+  // Fallback: synthesise the per-club shape from the legacy columns for
+  // any row where config_json hasn't been populated yet. Delegates to
+  // `legacyToNew` so the migration table (scope ladders → per-club
+  // booleans, retention clamp into [0.5, 0.9], default catch_up + gates)
+  // lives in exactly one place.
+  return JSON.stringify(legacyToNew(settings as YearSettings));
 }
 
 /** Cumulative-sum half-open word ranges per phrase, keyed by verse_id.
@@ -516,7 +476,6 @@ export class EngineStore {
 
   constructor(
     private readonly db: DB,
-    private readonly desiredRetention: number = DEFAULT_DESIRED_RETENTION,
     private readonly now: () => number = () => Math.floor(Date.now() / 1000),
     /** Source of the bundled MaterialData JSON, by material id. Tests
      *  inject a stub to drive snapshot-bump scenarios; production

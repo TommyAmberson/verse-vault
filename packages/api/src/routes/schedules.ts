@@ -41,12 +41,20 @@ export function schedulesRoutes(deps: SchedulesRoutesDeps) {
 
   app.use('*', requireAuth());
 
-  app.get('/:materialId/schedule', (c) => {
-    const user = getUser(c);
+  // Single guard for the 404-on-unknown-material check so every method
+  // can't silently forget it (and a future PATCH / HEAD doesn't add a
+  // fourth copy of the same `!MATERIALS.some(...)` predicate).
+  app.use('/:materialId/schedule', async (c, next) => {
     const materialId = c.req.param('materialId');
     if (!MATERIALS.some((m) => m.id === materialId)) {
       return c.json({ error: `Unknown material: ${materialId}` }, 404);
     }
+    return next();
+  });
+
+  app.get('/:materialId/schedule', (c) => {
+    const user = getUser(c);
+    const materialId = c.req.param('materialId');
     const json = loadSchedule(deps.db, user.id, materialId);
     if (json === '') return c.json({ schedule: null });
     return c.body(json, 200, { 'Content-Type': 'application/json' });
@@ -55,9 +63,6 @@ export function schedulesRoutes(deps: SchedulesRoutesDeps) {
   app.put('/:materialId/schedule', async (c) => {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
-    if (!MATERIALS.some((m) => m.id === materialId)) {
-      return c.json({ error: `Unknown material: ${materialId}` }, 404);
-    }
     const text = await c.req.text();
     try {
       const parsed = validateSchedule(text);
@@ -96,9 +101,6 @@ export function schedulesRoutes(deps: SchedulesRoutesDeps) {
   app.delete('/:materialId/schedule', (c) => {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
-    if (!MATERIALS.some((m) => m.id === materialId)) {
-      return c.json({ error: `Unknown material: ${materialId}` }, 404);
-    }
     deps.db
       .delete(schema.materialSchedules)
       .where(
