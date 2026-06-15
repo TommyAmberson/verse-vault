@@ -20,9 +20,6 @@ const emit = defineEmits<{
   /** Clicked a signed-out card — re-auth required to use it. */
   reauth: []
   'sign-out': []
-  export: []
-  import: []
-  'delete-progress': []
   delete: []
 }>()
 
@@ -63,17 +60,15 @@ const lastUsedLabel = computed(() => {
 // Every kebab item does the same three things — stop the card's click
 // handler firing, close the menu, then emit. One helper keeps the
 // handler list from growing 1:1 with the menu.
-function menuAction(
-  ev: Event,
-  action: 'export' | 'import' | 'sign-out' | 'delete-progress' | 'delete',
-) {
+function menuAction(ev: Event, action: 'sign-out' | 'delete') {
   ev.stopPropagation()
   closeMenu()
   // `defineEmits` types `emit` as an overload set — one signature per
   // declared event — and TS can't match a union argument against
-  // overloads. `action` is always one of the declared events, so
-  // narrowing to a single name is sound.
-  emit(action as 'export')
+  // overloads. Branch on the narrow type so each call site hits the
+  // correct overload at compile time.
+  if (action === 'sign-out') emit('sign-out')
+  else emit('delete')
 }
 
 // The card surface is a role="button" div rather than a native
@@ -132,36 +127,9 @@ function onCardKeydown(ev: KeyboardEvent) {
           type="button"
           class="menu-item"
           role="menuitem"
-          @click="menuAction($event, 'export')"
-        >
-          Export my data
-        </button>
-        <button
-          v-if="signedIn"
-          type="button"
-          class="menu-item"
-          role="menuitem"
-          @click="menuAction($event, 'import')"
-        >
-          Import data
-        </button>
-        <button
-          v-if="signedIn"
-          type="button"
-          class="menu-item"
-          role="menuitem"
           @click="menuAction($event, 'sign-out')"
         >
           Sign out
-        </button>
-        <button
-          v-if="signedIn"
-          type="button"
-          class="menu-item destructive"
-          role="menuitem"
-          @click="menuAction($event, 'delete-progress')"
-        >
-          Delete all progress
         </button>
         <button
           type="button"

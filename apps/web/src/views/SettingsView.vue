@@ -1,498 +1,66 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 
-import ScopeLevelSelector from '@/components/ScopeLevelSelector.vue'
-import StatusChip from '@/components/StatusChip.vue'
-import {
-  type ChapterListScope,
-  type ClubStatus,
-  type ClubTier,
-  type TierScope,
-  type YearSettings,
-  type YearView,
-  api,
-} from '@/api'
-import { invalidateSession } from '@/lib/engine/engineStore'
-import { bulkPutRenders, clearRenders, newestRenderFetchedAt } from '@/lib/engine/persistence'
-
-const SECS_PER_DAY = 86400
-
-const CLUB_TIERS: ClubTier[] = ['150', '300', 'full']
-
-const TIER_LABELS: Record<ClubTier, string> = {
-  '150': 'Club 150',
-  '300': 'Club 300',
-  full: 'Full',
+interface Section {
+  name: string
+  label: string
+  path: string
 }
 
-const STATUS_LABELS: Record<ClubStatus, string> = {
-  active: 'Active',
-  maintenance: 'Maintenance',
-  paused: 'Paused',
-}
-
-const STATUS_VARIANTS: Record<ClubStatus, 'accent' | 'warning' | 'muted'> = {
-  active: 'accent',
-  maintenance: 'warning',
-  paused: 'muted',
-}
-
-// All four scope tracks share the same 4-stop shape (chapter-list is
-// missing the Full stop). Stops are ordered: Off ── 150 ── 300 ── Full.
-const TIER_SCOPE_LEVELS: { value: TierScope; label: string }[] = [
-  { value: 'off', label: 'Off' },
-  { value: 'up150', label: '150' },
-  { value: 'up300', label: '300' },
-  { value: 'all', label: 'Full' },
+const SECTIONS: Section[] = [
+  { name: 'settings-account', label: 'Account', path: '/settings/account' },
+  { name: 'settings-preferences', label: 'Preferences', path: '/settings/preferences' },
+  { name: 'settings-materials', label: 'Materials', path: '/settings/materials' },
 ]
 
-const CHAPTER_LIST_LEVELS: { value: ChapterListScope; label: string }[] = [
-  { value: 'off', label: 'Off' },
-  { value: 'up150', label: '150' },
-  { value: 'up300', label: '300' },
-]
+const route = useRoute()
 
-const NEW_DESCRIPTIONS: Record<TierScope, string> = {
-  off: 'No tier is introducing new verses.',
-  up150: 'Memorizing Club 150 verses.',
-  up300: 'Memorizing Club 150 and Club 300 verses.',
-  all: 'Memorizing every tier, including Full.',
-}
-
-const REVIEW_DESCRIPTIONS: Record<TierScope, string> = {
-  off: 'No reviews surfaced.',
-  up150: 'Reviewing Club 150 verses.',
-  up300: 'Reviewing Club 150 and Club 300 verses.',
-  all: 'Reviewing every tier, including Full.',
-}
-
-const CLUB_CARD_DESCRIPTIONS: Record<TierScope, string> = {
-  off: 'No "which club?" prompts.',
-  up150: 'Asks for Club 150 verses only.',
-  up300: 'Asks for Club 150 and Club 300 verses (not Full).',
-  all: 'Asks for every verse, including Full-tier.',
-}
-
-const CHAPTER_LIST_DESCRIPTIONS: Record<ChapterListScope, string> = {
-  off: 'No chapter-list prompts.',
-  up150: 'One card per chapter listing its Club 150 verses.',
-  up300: 'Two cards per chapter: Club 150 list and Club 300 list.',
-}
-
-interface YearCard {
-  view: YearView
-  draft: YearSettings
-  saving: boolean
-  /** True while the toggle's flip-and-fetch (or flip-and-clear) is
-   *  in flight. Drives the row's spinner state independent of the
-   *  larger settings-form `saving` flag. */
-  offlineBusy: boolean
-  /** Unix-secs of the newest IDB render for this material, or 0 if
-   *  none cached. Used to render "Last refreshed N days ago". */
-  newestRenderAt: number
-}
-
-const cards = ref<YearCard[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
-const selectedMaterialId = ref<string | null>(null)
-
-const selected = computed<YearCard | null>(() => {
-  const id = selectedMaterialId.value
-  if (!id) return null
-  return cards.value.find((c) => c.view.materialId === id) ?? null
+// Match either by route name (set on the child routes) or by path prefix,
+// so the rail highlights even when a future child route nests deeper
+// (e.g. /settings/materials/<materialId>). The path branch requires an
+// exact match OR a `/`-anchored prefix so a future sibling like
+// `/settings/materials-archive` won't incorrectly highlight Materials.
+const activeSection = computed<string>(() => {
+  const byName = SECTIONS.find((s) => s.name === route.name)
+  if (byName) return byName.name
+  const byPath = SECTIONS.find(
+    (s) => route.path === s.path || route.path.startsWith(s.path + '/'),
+  )
+  return byPath?.name ?? SECTIONS[0].name
 })
 
-/** A year reads as "studying" iff at least one of `newScope` or
- *  `reviewScope` is on. Provisioned-but-all-paused years (e.g. the
- *  user touched the year once then turned everything off) display the
- *  same as never-touched years: no enrolled marker, no card counts. */
-function isStudying(c: YearCard): boolean {
-  if (!c.view.enrolled) return false
-  return c.view.settings.newScope !== 'off' || c.view.settings.reviewScope !== 'off'
-}
-
-async function refresh() {
-  loading.value = true
-  error.value = null
-  try {
-    const res = await api.getYears()
-    const enriched = await Promise.all(
-      res.years.map(async (view) => ({
-        view,
-        draft: { ...view.settings },
-        saving: false,
-        offlineBusy: false,
-        newestRenderAt: view.offlineMode ? await newestRenderFetchedAt(view.materialId) : 0,
-      })),
-    )
-    cards.value = enriched
-    // Re-resolve the active tab after the list changes. Prefer the year
-    // the user is actively studying (any scope above off) so the picker
-    // opens on a working panel; otherwise fall back to any enrolled year,
-    // and finally to the first listed.
-    if (cards.value.length === 0) {
-      selectedMaterialId.value = null
-    } else if (!cards.value.some((c) => c.view.materialId === selectedMaterialId.value)) {
-      const next =
-        cards.value.find(isStudying) ?? cards.value.find((c) => c.view.enrolled) ?? cards.value[0]
-      selectedMaterialId.value = next?.view.materialId ?? null
-    }
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    loading.value = false
-  }
-}
-
-/** Strip the "(NKJV)" suffix some titles carry — saves horizontal space
- *  in the tab strip without losing meaning. */
-function tabTitle(full: string): string {
-  return full.replace(/\s*\(NKJV\)\s*$/, '')
-}
-
-const TIER_SCOPE_RANK: Record<TierScope, number> = {
-  off: 0,
-  up150: 1,
-  up300: 2,
-  all: 3,
-}
-
-/** True when Review's reach is narrower than New's — i.e. the user is
- *  memorising verses at a tier they don't review, so freshly-introduced
- *  verses won't re-surface. Worth surfacing because it's almost always
- *  an oversight rather than an intentional config. */
-function reviewBehindNew(s: YearSettings): boolean {
-  return TIER_SCOPE_RANK[s.reviewScope] < TIER_SCOPE_RANK[s.newScope]
-}
-
-/** Settings that affect engine construction — flipping any of these
- *  means the cached WasmEngine + render cache must be rebuilt so the
- *  next session uses the new value. `lessonBatchSize` is intentionally
- *  excluded; it's a session-size knob the engine doesn't consume. */
-const ENGINE_AFFECTING_SETTINGS: ReadonlyArray<keyof YearSettings> = [
-  'headingCard',
-  'headingPassageCard',
-  'ftv',
-  'newScope',
-  'reviewScope',
-  'clubCardScope',
-  'chapterListScope',
-  'desiredRetention',
-]
-
-function affectsEngine(draft: YearSettings, current: YearSettings): boolean {
-  return ENGINE_AFFECTING_SETTINGS.some((k) => draft[k] !== current[k])
-}
-
-async function onSave(card: YearCard) {
-  card.saving = true
-  try {
-    const shouldInvalidate = affectsEngine(card.draft, card.view.settings)
-    // Capture before invalidate — its IDB clear happens before the
-    // refresh that would update card.view.offlineMode.
-    const wasOfflineMode = card.view.offlineMode
-    await api.updateYearSettings(card.view.materialId, card.draft)
-    if (shouldInvalidate) {
-      // invalidateSession drops the cached engine AND the render cache
-      // so the next ReviewView/MemorizeView visit rebuilds with the new
-      // MaterialConfig. When offline mode is on, the user has committed
-      // to "this deck works offline" — re-seed the bulk renders rather
-      // than leaving them in a checked-toggle/empty-IDB limbo.
-      await invalidateSession(card.view.materialId)
-      if (wasOfflineMode) {
-        await seedOfflineRenders(card.view.materialId)
-      }
-    }
-    await refresh()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
-    card.saving = false
-  }
-}
-
-function onRetentionInput(card: YearCard, event: Event) {
-  const pct = Number((event.target as HTMLInputElement).value)
-  if (Number.isFinite(pct)) {
-    card.draft.desiredRetention = pct / 100
-  }
-}
-
-function settingsAreDirty(card: YearCard): boolean {
-  return (Object.keys(card.draft) as Array<keyof YearSettings>).some(
-    (k) => card.draft[k] !== card.view.settings[k],
-  )
-}
-
-function refreshedLabel(card: YearCard): string {
-  if (card.newestRenderAt === 0) return 'Not yet downloaded.'
-  const days = Math.floor((Date.now() / 1000 - card.newestRenderAt) / SECS_PER_DAY)
-  if (days <= 0) return 'Refreshed today.'
-  if (days === 1) return 'Refreshed 1 day ago.'
-  return `Refreshed ${days} days ago.`
-}
-
-/** Fetch the bulk renders payload and seed IDB with it. Drops any
- *  composed=null rows the server emitted (chapter-fetch failures or
- *  unset BIBLE_API_KEY) so we don't shadow recovery for 30 days — the
- *  lazy `getRender` path applies the same filter and would refuse to
- *  cache them on the single-card route. */
-async function seedOfflineRenders(materialId: string): Promise<void> {
-  const { renders } = await api.getMaterialRenders(materialId)
-  await bulkPutRenders(
-    materialId,
-    renders
-      .filter((r) => r.composed !== null)
-      .map((r) => {
-        const { fetchedAt, ...cardRender } = r
-        return { materialId, cardId: r.cardId, composed: cardRender, fetchedAt }
-      }),
-  )
-}
-
-async function onToggleOffline(card: YearCard) {
-  if (card.offlineBusy) return
-  const next = !card.view.offlineMode
-  card.offlineBusy = true
-  try {
-    if (next) {
-      // Flip the flag first so a partial failure mid-download still
-      // leaves the user's intent on record (they can retry the
-      // download from the toggle without re-flipping).
-      await api.setOfflineMode(card.view.materialId, true)
-      await seedOfflineRenders(card.view.materialId)
-    } else {
-      await clearRenders(card.view.materialId)
-      await api.setOfflineMode(card.view.materialId, false)
-    }
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    card.offlineBusy = false
-    // Always re-sync from the server, even on failure, so the toggle
-    // state reflects authoritative truth instead of stale local state.
-    await refresh()
-  }
-}
-
-onMounted(refresh)
+const activeLabel = computed(
+  () => SECTIONS.find((s) => s.name === activeSection.value)?.label ?? '',
+)
 </script>
 
 <template>
   <div class="settings">
     <h2>Settings</h2>
-    <div v-if="error" class="banner banner-error">{{ error }}</div>
-    <div v-if="loading" class="status">Loading…</div>
-    <div v-else-if="cards.length === 0" class="status">
-      No materials in the catalog.
-    </div>
-    <template v-else>
-      <nav class="year-tabs" role="tablist" aria-label="Year">
-        <button
-          v-for="c in cards"
-          :key="c.view.materialId"
-          type="button"
-          role="tab"
-          :class="[
-            'year-tab',
-            {
-              'tab-active': c.view.materialId === selectedMaterialId,
-              'tab-unenrolled': !isStudying(c),
-            },
-          ]"
-          :aria-selected="c.view.materialId === selectedMaterialId"
-          :tabindex="c.view.materialId === selectedMaterialId ? 0 : -1"
-          @click="selectedMaterialId = c.view.materialId"
+    <div class="layout">
+      <nav class="rail" aria-label="Settings sections">
+        <RouterLink
+          v-for="s in SECTIONS"
+          :key="s.name"
+          :to="s.path"
+          class="rail-link"
+          :class="{ 'rail-link-active': s.name === activeSection }"
         >
-          <span class="tab-title">{{ tabTitle(c.view.title) }}</span>
-          <span
-            v-if="isStudying(c)"
-            class="tab-marker tab-marker-enrolled"
-            aria-hidden="true"
-          />
-        </button>
+          {{ s.label }}
+        </RouterLink>
       </nav>
-      <article
-        v-if="selected"
-        :key="selected.view.materialId"
-        class="year-card"
-        :class="{ 'year-card-unenrolled': !isStudying(selected) }"
-      >
-        <header class="year-header">
-          <div class="year-title-row">
-            <h3>{{ selected.view.title }}</h3>
-            <span v-if="!isStudying(selected)" class="enrollment-badge">Not enrolled</span>
-          </div>
-          <p class="year-description">{{ selected.view.description }}</p>
-          <div class="tier-summary">
-            <span v-for="tier in CLUB_TIERS" :key="tier" class="tier-pill">
-              <span class="tier-pill-name">{{ TIER_LABELS[tier] }}</span>
-              <span v-if="isStudying(selected)" class="tier-pill-count">
-                {{ selected.view.clubs[tier].cardCount }}
-              </span>
-              <StatusChip :variant="STATUS_VARIANTS[selected.view.clubs[tier].status]">
-                {{ STATUS_LABELS[selected.view.clubs[tier].status] }}
-              </StatusChip>
-            </span>
-          </div>
-        </header>
-
-        <section class="settings">
-          <div class="section-title">Study scopes</div>
-          <div class="scope-stack">
-            <div class="scope-row">
-              <span class="scope-row-label">Memorize new verses</span>
-              <ScopeLevelSelector
-                v-model="selected.draft.newScope"
-                :levels="TIER_SCOPE_LEVELS"
-                :description="NEW_DESCRIPTIONS[selected.draft.newScope]"
-                :disabled="selected.saving"
-                aria-label="New verses scope"
-              />
-            </div>
-            <div class="scope-row">
-              <span class="scope-row-label">Review existing verses</span>
-              <ScopeLevelSelector
-                v-model="selected.draft.reviewScope"
-                :levels="TIER_SCOPE_LEVELS"
-                :description="REVIEW_DESCRIPTIONS[selected.draft.reviewScope]"
-                :disabled="selected.saving"
-                aria-label="Review scope"
-              />
-              <p v-if="reviewBehindNew(selected.draft)" class="scope-warning" role="alert">
-                Review is narrower than New — verses you introduce above this level
-                won't re-surface in /review.
-              </p>
-              <p class="scope-fineprint">
-                A tier in both becomes Active; review-only becomes Maintenance; neither is
-                Paused.
-              </p>
-            </div>
-          </div>
-
-          <div class="section-title section-title-spaced">Card kinds</div>
-          <div class="scope-stack">
-            <label class="toggle">
-              <input
-                v-model="selected.draft.headingPassageCard"
-                type="checkbox"
-                :disabled="selected.saving"
-              />
-              <span>Heading passage prompts <span class="toggle-hint">— "what heading is this passage under?"</span></span>
-            </label>
-            <label class="toggle">
-              <input
-                v-model="selected.draft.headingCard"
-                type="checkbox"
-                :disabled="selected.saving"
-              />
-              <span>Per-verse heading prompts <span class="toggle-hint">— "which heading is this verse in?" (one card per verse)</span></span>
-            </label>
-            <label class="toggle">
-              <input
-                v-model="selected.draft.ftv"
-                type="checkbox"
-                :disabled="selected.saving"
-              />
-              <span>FTV (finish-the-verse) prompts</span>
-            </label>
-            <div class="scope-row">
-              <span class="scope-row-label">"Which club is this verse in?" prompts</span>
-              <ScopeLevelSelector
-                v-model="selected.draft.clubCardScope"
-                :levels="TIER_SCOPE_LEVELS"
-                :description="CLUB_CARD_DESCRIPTIONS[selected.draft.clubCardScope]"
-                :disabled="selected.saving"
-                aria-label="Per-verse club-card scope"
-              />
-            </div>
-            <div class="scope-row">
-              <span class="scope-row-label">Chapter-list prompts</span>
-              <ScopeLevelSelector
-                v-model="selected.draft.chapterListScope"
-                :levels="CHAPTER_LIST_LEVELS"
-                :description="CHAPTER_LIST_DESCRIPTIONS[selected.draft.chapterListScope]"
-                :disabled="selected.saving"
-                aria-label="Chapter-list scope"
-              />
-            </div>
-          </div>
-
-          <div class="section-title section-title-spaced">Offline study</div>
-          <div class="scope-stack">
-            <label class="toggle">
-              <input
-                type="checkbox"
-                :checked="selected.view.offlineMode"
-                :disabled="selected.offlineBusy || !selected.view.enrolled"
-                @change="onToggleOffline(selected)"
-              />
-              <span>Make this year available offline</span>
-            </label>
-            <p class="scope-fineprint">
-              Downloads ~5&nbsp;MB of pre-composed verse HTML so reviews work
-              without a network. Refreshes every 30&nbsp;days from
-              <a href="https://api.bible" target="_blank" rel="noopener">api.bible</a>
-              per the cache policy.
-            </p>
-            <p v-if="selected.offlineBusy" class="scope-fineprint" aria-live="polite">
-              {{ selected.view.offlineMode ? 'Clearing offline copy…' : 'Downloading offline copy…' }}
-            </p>
-            <p v-else-if="selected.view.offlineMode" class="scope-fineprint">
-              {{ refreshedLabel(selected) }}
-            </p>
-          </div>
-
-          <div class="section-title section-title-spaced">Session</div>
-          <label class="number-row">
-            <span>Verses per memorize session</span>
-            <input
-              v-model.number="selected.draft.lessonBatchSize"
-              type="number"
-              min="1"
-              max="10"
-              :disabled="selected.saving"
-            />
-          </label>
-
-          <label class="range-row">
-            <span class="range-label">
-              Target retention
-              <span class="range-value">{{ Math.round(selected.draft.desiredRetention * 100) }}%</span>
-            </span>
-            <input
-              :value="Math.round(selected.draft.desiredRetention * 100)"
-              type="range"
-              min="70"
-              max="97"
-              step="1"
-              :disabled="selected.saving"
-              @input="onRetentionInput(selected, $event)"
-            />
-          </label>
-          <p class="scope-fineprint">
-            Higher target → more reviews + stronger recall. Lower → fewer reviews + more lapses.
-            FSRS recommends 80–95%.
-          </p>
-
-          <button
-            type="button"
-            class="save-button"
-            :disabled="!settingsAreDirty(selected) || selected.saving"
-            @click="onSave(selected)"
-          >
-            {{ selected.saving ? 'Saving…' : 'Save settings' }}
-          </button>
-        </section>
-      </article>
-    </template>
+      <section class="content" :aria-label="activeLabel">
+        <RouterView />
+      </section>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .settings {
   width: 100%;
-  max-width: 720px;
+  max-width: 960px;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -503,277 +71,70 @@ h2 {
   margin: 0;
 }
 
-.banner {
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-}
-.banner-error {
-  background: var(--color-error-bg);
-  color: var(--color-error);
+.layout {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  gap: 1.5rem;
+  align-items: start;
 }
 
-.status {
-  padding: 2rem;
-  text-align: center;
-  color: var(--color-muted);
-}
-
-.year-tabs {
+.rail {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.year-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px 6px 0 0;
-  padding: 0.4rem 0.85rem;
-  margin-bottom: -1px; /* lap the bottom border for the "tab joins panel" look */
-  color: var(--color-muted);
-  font-family: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.year-tab:hover {
-  color: var(--color-text);
-}
-
-.year-tab.tab-active {
-  color: var(--color-text);
-  background: var(--color-bg-card);
-  border-color: var(--color-border);
-  border-bottom-color: var(--color-bg-card);
-  font-weight: 500;
-}
-
-.year-tab.tab-unenrolled .tab-title {
-  font-style: italic;
-}
-
-.tab-marker {
-  width: 0.4rem;
-  height: 0.4rem;
-  border-radius: 999px;
-}
-
-.tab-marker-enrolled {
-  background: var(--color-accent);
-}
-
-.year-card {
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 1.25rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
 }
 
-.year-card-unenrolled {
-  /* Subtle dimming so unenrolled years read as "available, not yet
-     activated" without disappearing into the background. */
-  border-style: dashed;
-}
-
-.year-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.year-title-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.year-header h3 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-}
-
-.year-description {
-  margin: 0;
-  font-size: 0.85rem;
+.rail-link {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
   color: var(--color-muted);
-  line-height: 1.4;
-}
-
-.enrollment-badge {
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 0.1rem 0.5rem;
-  white-space: nowrap;
-}
-
-.tier-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.tier-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-bg);
-  font-size: 0.82rem;
-}
-
-.tier-pill-name {
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-.tier-pill-count {
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.section-title {
-  font-size: 0.78rem;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.section-title-spaced {
-  margin-top: 0.75rem;
-}
-
-.settings {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.scope-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.toggle input[type='checkbox'] {
-  accent-color: var(--color-accent);
-}
-
-.toggle-hint {
-  color: var(--color-muted);
-  font-size: 0.85em;
-}
-
-.scope-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.scope-row-label {
+  text-decoration: none;
   font-size: 0.95rem;
+  font-weight: 500;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.rail-link:hover {
   color: var(--color-text);
 }
 
-.scope-fineprint {
-  margin: 0;
-  font-size: 0.78rem;
-  color: var(--color-muted);
-  font-style: italic;
-}
-
-.scope-warning {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--color-grade-hard);
-  background: var(--color-grade-hard-bg);
-  border-left: 3px solid var(--color-grade-hard);
-  border-radius: 3px;
-  padding: 0.35rem 0.6rem;
-}
-
-.number-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.number-row input {
-  padding: 0.25rem 0.5rem;
-  background: var(--color-bg);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  width: 4rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.range-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.range-label {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.range-value {
+.rail-link-active {
   color: var(--color-accent);
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
+  background: var(--color-accent-soft);
 }
 
-.range-row input[type='range'] {
-  width: 100%;
-  accent-color: var(--color-accent);
+.rail-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
-.save-button {
-  align-self: flex-start;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  border: none;
-  border-radius: 4px;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.95rem;
-  cursor: pointer;
+.content {
+  min-width: 0;
 }
-.save-button:disabled {
-  background: var(--color-border);
-  color: var(--color-muted);
-  cursor: not-allowed;
+
+/* On narrow viewports the rail becomes a horizontal scrolling strip
+   above the content. Same routes, same DOM — only the rail flips
+   between column (desktop) and row (mobile). */
+@media (max-width: 720px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .rail {
+    flex-direction: row;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding: 0.3rem;
+  }
+
+  .rail-link {
+    flex: 0 0 auto;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.9rem;
+  }
 }
 </style>

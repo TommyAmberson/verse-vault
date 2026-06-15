@@ -9,6 +9,85 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-15
+
+Phase 2 of the schedules + per-club settings rework. MINOR — the engine boot paths swap onto the
+`verse-vault-wasm@0.6.0` constructor signature (schedule arg in, `desired_retention` arg out), the
+`/settings` page picks up the spec's three-section IA with the chain UI replacing the legacy scope
+ladder, and the Memorize tab badge reads the bundled schedule. No state-shape break for end users;
+the IDB cache rebuilds against the new engine signature on first load after deploy.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — per-club `MaterialConfig`, two-phase canonical-order memorize fill,
+  per-verse target retention. Shipped with API 0.1.28.
+* `verse-vault-wasm@0.6.0` — `WasmEngine` constructor takes `schedule_json`, drops
+  `desired_retention`. `memorize_session_v2(limit, now_secs)` is the new fill entry point. Shipped
+  with API 0.1.28.
+
+### Engine boot wires up schedule + per-club config
+
+`engineLoader.createEngine` now calls
+`new WasmEngine(materialData, materialConfig, schedule, testStates, BigInt(nowSecs))`, mirroring the
+wasm@0.6.0 signature. `engineStore.loadEngine` takes the schedule alongside the per-material config
+and threads it through every code path that builds or rebuilds the engine — initial load,
+post-rebuild after sync, refetchSyncState. `useEngine.init` gains an optional `schedule` parameter
+(defaults to `''` so callers that don't have one collapse to the pre-Phase-1 Sequential behaviour).
+`memorizeSession` switches to `memorize_session_v2` and passes `now_secs` so Phase 1 of the fill can
+read the schedule.
+
+`ReviewView` and `MemorizeView` fetch the schedule via `api.getSchedule(materialId)` before calling
+`engine.init` so the engine always boots with the user's authoritative schedule (or the bundled
+default, or `''` when neither exists).
+
+### Per-club settings + API client
+
+New TypeScript types in `api.ts` for the per-club shape: `Club`, `CatchUp`, `MoveToNextGate`,
+`ClubMemorizeConfig`, `ClubReviewConfig`, `MoveToNextConfig`, `PerClubYearSettings`. New `ApiClient`
+methods:
+
+* `updateYearSettingsPerClub(materialId, settings)` — POSTs the per-club shape to
+  `/api/years/:id/settings`. Symmetric to the legacy `updateYearSettings` for the new chain UI.
+* `getSchedule(materialId)` / `putSchedule(materialId, schedule)` / `deleteSchedule(materialId)` —
+  wrappers around `/api/materials/:id/schedule`. `getSchedule` normalises the server's
+  `{ schedule: null }` envelope to a plain `null` so callers can branch on truthiness.
+
+`YearView.perClub: PerClubYearSettings` mirrors the new server field — the chain UI reads it for
+round-trip-safe loads.
+
+### Settings page: three-section IA (Account / Preferences / Materials)
+
+`/settings` is now a section host with a left rail (desktop) / horizontal scrolling chips (mobile)
+and child routes:
+
+* `/settings/account` — Export my data, Import data, Delete all progress. Closes [#92][issue-92] by
+  migrating the three account-level actions out of `ProfilePickerView`'s profile-card kebab (which
+  now only carries Sign out + Delete profile). `AppAvatar` gains an "Account" item that deep-links
+  into the section. `/profiles` goes back to being purely sign-in plus multi-profile switching.
+* `/settings/preferences` — placeholder shell. Empty at launch per the spec.
+* `/settings/materials` — the per-material card, default route. Carries the chain UI for "What to
+  memorize" (per-club Enable + Catch-up dropdown, indented dashed gate rows between flanking enabled
+  clubs carrying the Move-to-next-club selector) and per-club "What to review" cards with individual
+  retention sliders (50–90%). The material-wide retention slider is gone; per-club status chips
+  (Active / Maintenance / Paused) derive from the user's edits in real time. Card kinds, Offline
+  study, and Session sections unchanged. Saves call `api.updateYearSettingsPerClub`.
+
+### Schedule-aware Memorize tab badge
+
+The nav-bar Memorize pill switches from a flat sum of every year's `newCardCount` to a
+schedule-aware count. Per-year contribution:
+
+* No memorize club enabled → 0.
+* No schedule → `newCardCount` (pre-Phase-2 fallback for decks without a published schedule).
+* Schedule present → `min(newCardCount, cumulative_through_current_week)` where `cumulative` is
+  summed across enabled clubs' tiers in weeks [0, current_week]. Caps the badge at this week's plan
+  when behind; falls back to `newCardCount` when caught up with leftover.
+
+Math lives in `lib/badges.ts` so it's swap-out-ready when a future API surface exposes per-club
+graduated counts and the v1 approximation can be replaced by the spec's exact formula.
+
+[issue-92]: https://github.com/tommyamberson/verse-vault/issues/92
+
 ## [0.2.0] — 2026-06-12
 
 MINOR bump for the nav redesign (identity popover, mobile bottom tab bar, route renames). Also packs

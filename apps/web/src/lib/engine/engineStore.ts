@@ -37,7 +37,10 @@ import type {
   WireMaterialConfig,
 } from './types'
 
-const DEFAULT_DESIRED_RETENTION = 0.9
+// Per-club retention now lives inside MaterialConfig (wasm@0.6.0).
+// Schedules are optional per material — empty string skips the
+// schedule-aware Phase 1 of the memorize fill, matching the legacy
+// pre-Phase-1 behaviour for decks that don't ship one.
 
 interface EngineSession {
   materialId: string
@@ -46,13 +49,11 @@ interface EngineSession {
   /** Cached so refetch + rebuild paths can re-pass it to `createEngine`
    *  without the caller having to reload year settings every time. */
   materialConfig: WireMaterialConfig | undefined
-  /** FSRS target retention the engine was constructed with. Same
-   *  motivation as `materialConfig`: refetch + rebuild paths re-pass
-   *  it, and the server-side scheduler uses the same per-user value
-   *  (packages/api/src/lib/enrollment.ts), so the local engine has to
-   *  honour the user's `/settings` slider rather than falling back to
-   *  the constant default. */
-  desiredRetention: number
+  /** Per-(user, material) schedule override or bundled default, cached
+   *  for the same reason as `materialConfig` — refetch + rebuild paths
+   *  rebuild the engine and need to re-pass it. Empty string when no
+   *  schedule applies (memorize collapses to pure-Sequential). */
+  schedule: unknown | ''
 }
 
 function requireSession(materialId: string, caller: string): EngineSession {
@@ -114,14 +115,19 @@ export interface FlushResult {
  *  return the cached session.
  *
  *  `materialConfig` lets callers pass the user's year settings so the
- *  engine respects scope toggles (newScope, reviewScope, etc.). Omit
- *  to use `MaterialConfig::default()` — only safe before the user has
- *  touched settings; after that the wrong card set surfaces. */
+ *  engine respects per-club enables, retention, and gates. Omit to use
+ *  the wasm-side fallback (all-clubs-enabled at the legacy retention)
+ *  — only safe before the user has touched settings; after that the
+ *  wrong card set surfaces.
+ *
+ *  `schedule` is the per-(user, material) memorize schedule (bundled
+ *  default or user override). Empty string skips schedule-aware Phase 1
+ *  of the memorize fill — pure-Sequential behaviour. */
 export async function loadEngine(
   materialId: string,
   nowSecs: number,
   materialConfig?: WireMaterialConfig,
-  desiredRetention: number = DEFAULT_DESIRED_RETENTION,
+  schedule: unknown | '' = '',
 ): Promise<EngineSession> {
   const existing = sessions.get(materialId)
   if (existing) return existing
@@ -149,8 +155,8 @@ export async function loadEngine(
   const engine = createEngine({
     materialData: snapshot.materialData,
     materialConfig: materialConfig ?? '',
+    schedule,
     testStates,
-    desiredRetention,
     nowSecs,
   })
   applyGraduations(engine, snapshot.graduatedVerseIds, snapshot.graduatedCardIds)
@@ -160,7 +166,7 @@ export async function loadEngine(
     engine,
     snapshotVersion: snapshot.version,
     materialConfig,
-    desiredRetention,
+    schedule,
   }
   sessions.set(materialId, session)
   return session
@@ -194,8 +200,8 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
   const replacement = createEngine({
     materialData: fetched.snapshot.materialData,
     materialConfig: session.materialConfig ?? '',
+    schedule: session.schedule,
     testStates: fetched.testStates,
-    desiredRetention: session.desiredRetention,
     nowSecs,
   })
   const previous = session.engine
@@ -371,13 +377,19 @@ interface MemorizeSessionEntry {
 
 /** Build a memorize session payload locally. Mirrors the server's
  *  `/api/cards/memorize/session` route. See `MemorizeSessionResponse`
- *  in `@/api` for field semantics. */
+ *  in `@/api` for field semantics.
+ *
+ *  Uses wasm@0.6.0's `memorize_session_v2(limit, now_secs)` — the
+ *  schedule-aware two-phase canonical-order fill. Falls back to pure-
+ *  Sequential when no schedule was passed to the engine constructor,
+ *  matching pre-Phase-1 behaviour for decks without a schedule. */
 export function memorizeSession(
   materialId: string,
   limit: number,
+  nowSecs: number,
 ): { verses: MemorizeSessionEntry[]; orphans: number[] } {
   const session = requireSession(materialId, 'memorizeSession')
-  const parsed = JSON.parse(session.engine.memorize_session(limit)) as {
+  const parsed = JSON.parse(session.engine.memorize_session_v2(limit, BigInt(nowSecs))) as {
     verses: MemorizeSessionEntry[]
     orphans?: number[]
   }
@@ -549,8 +561,8 @@ async function doFlush(
       const replacement = createEngine({
         materialData: snapshot.materialData,
         materialConfig: session.materialConfig ?? '',
+        schedule: session.schedule,
         testStates: response.testStates,
-        desiredRetention: session.desiredRetention,
         nowSecs,
       })
       const previous = session.engine

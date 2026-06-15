@@ -59,6 +59,11 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onWindowKeydown, true)
 })
 
+function goAccount() {
+  close()
+  void router.push('/settings/account')
+}
+
 function goSwitchProfile() {
   close()
   void router.push('/profiles?force=1')
@@ -115,6 +120,9 @@ async function onSignOut() {
           <p class="name">{{ activeProfile.displayName }}</p>
           <p class="email">{{ activeProfile.email }}</p>
         </div>
+        <button type="button" class="menu-item" role="menuitem" @click="goAccount">
+          Account
+        </button>
         <button type="button" class="menu-item" role="menuitem" @click="goSwitchProfile">
           Switch profile
         </button>

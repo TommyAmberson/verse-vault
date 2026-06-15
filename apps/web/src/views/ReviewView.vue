@@ -18,7 +18,6 @@ const engine = useEngine()
 
 const materialId = ref<string | null>(null)
 const materialConfig = shallowRef<ReturnType<typeof buildMaterialConfig> | null>(null)
-const desiredRetention = ref<number | null>(null)
 const card = ref<CardRender | null>(null)
 const revealed = ref(false)
 const done = ref(false)
@@ -35,7 +34,6 @@ async function resolveMaterial() {
   if (target) {
     materialId.value = target.materialId
     materialConfig.value = buildMaterialConfig(target.settings)
-    desiredRetention.value = target.settings.desiredRetention
     return true
   }
   return false
@@ -98,11 +96,12 @@ onMounted(async () => {
       done.value = true
       return
     }
-    await engine.init(
-      materialId.value,
-      materialConfig.value ?? undefined,
-      desiredRetention.value ?? undefined,
-    )
+    // Pull the schedule alongside settings so the engine ctor receives
+    // it on the first call. /review doesn't actually use Phase 1 of the
+    // memorize fill, but the engine is shared with /memorize via the
+    // session cache — a later /memorize visit gets the schedule too.
+    const schedule = await api.getSchedule(materialId.value)
+    await engine.init(materialId.value, materialConfig.value ?? undefined, schedule ?? '')
     await loadNext()
   } catch (err) {
     error.value = formatError(err)

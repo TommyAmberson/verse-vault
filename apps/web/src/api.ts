@@ -160,9 +160,72 @@ export interface YearSettings {
   clubCardScope: TierScope
   chapterListScope: ChapterListScope
   lessonBatchSize: number
-  /** FSRS target retention in `[0.7, 0.97]`. Higher = more reviews +
-   *  better recall; lower = fewer reviews + more lapses. */
+  /** Legacy FSRS target retention. Pre-Phase-1 clients honoured this
+   *  as the per-material slider. As of Phase 1 it survives only as a
+   *  mirror for backward compat — the engine reads per-club retention
+   *  from `configJson.review.{club}.desiredRetention`. */
   desiredRetention: number
+}
+
+// === Phase 1+ per-club shape ===============================================
+//
+// Mirrors `crates/core::material_config::MaterialConfig`'s JSON wire form and
+// the API's `PerClubYearSettings` (`packages/api/src/lib/year-settings.ts`).
+// The `POST /api/years/:materialId/settings` route accepts EITHER this shape
+// or the legacy flat `YearSettings`; per-club is required complete (no
+// partial-merge), legacy keeps its existing partial-merge semantics.
+
+export type Club = 'club150' | 'club300' | 'full'
+export type CatchUp = 'sequential' | 'calendarCascade'
+export type MoveToNextGate =
+  | 'fullyMemorized'
+  | 'afterMajorCheckpoint'
+  | 'afterMinorCheckpoint'
+  | 'caughtUp'
+  | 'always'
+
+export interface ClubMemorizeConfig {
+  enabled: boolean
+  catchUp: CatchUp
+}
+
+export interface ClubReviewConfig {
+  enabled: boolean
+  /** Valid range `[0.5, 0.9]`. The engine clamps on read for defence-
+   *  in-depth; the API rejects out-of-range values at the boundary. */
+  desiredRetention: number
+}
+
+export interface ClubMemorizeMap {
+  club150: ClubMemorizeConfig
+  club300: ClubMemorizeConfig
+  full: ClubMemorizeConfig
+}
+
+export interface ClubReviewMap {
+  club150: ClubReviewConfig
+  club300: ClubReviewConfig
+  full: ClubReviewConfig
+}
+
+export interface MoveToNextConfig {
+  p150To300: MoveToNextGate
+  p300ToFull: MoveToNextGate
+}
+
+/** New per-club settings shape. The POST settings route accepts this
+ *  as a complete body (every field required); the chain UI on the
+ *  Phase 2 settings page builds + sends this directly. */
+export interface PerClubYearSettings {
+  headingCard: boolean
+  headingPassageCard: boolean
+  ftv: boolean
+  clubCardScope: TierScope
+  chapterListScope: ChapterListScope
+  memorize: ClubMemorizeMap
+  review: ClubReviewMap
+  moveToNext: MoveToNextConfig
+  lessonBatchSize: number
 }
 
 export interface ClubView {
@@ -182,7 +245,13 @@ export interface YearView {
   /** True when the user has opted into bulk-renders download for this
    *  year. Server returns false for unenrolled years. */
   offlineMode: boolean
+  /** Legacy flat settings — kept for backward compat with code paths
+   *  not yet migrated to `perClub`. The engine reads `perClub`. */
   settings: YearSettings
+  /** Per-club configuration as stored on the server (Phase 1+). The
+   *  chain UI in /settings/materials reads this so user-customised
+   *  `catchUp` and `moveToNext` choices round-trip cleanly. */
+  perClub: PerClubYearSettings
   clubs: Record<ClubTier, ClubView>
   /** Total `New` cards in the engine — drives the "N to memorize" pill. */
   newCardCount: number
@@ -267,6 +336,26 @@ export interface ApiClient {
   getActivity(days?: number): Promise<ActivityResponse>
   getYears(): Promise<YearsResponse>
   updateYearSettings(materialId: string, settings: Partial<YearSettings>): Promise<{ settings: YearSettings }>
+  /** Phase 2 per-club POST. Sends the new shape; the API detects via
+   *  the `looksLikePerClub` heuristic (presence of `memorize` or
+   *  `review`) and validates every field. Returns the round-tripped
+   *  legacy view (server collapses per-club → legacy YearSettings for
+   *  the response). */
+  updateYearSettingsPerClub(
+    materialId: string,
+    settings: PerClubYearSettings,
+  ): Promise<{ settings: YearSettings }>
+  /** GET /api/materials/:materialId/schedule — returns the user's
+   *  customised schedule if present, else the bundled default, else
+   *  `null` when no schedule ships for the material (memorize then
+   *  collapses to pure-Sequential on the engine side). */
+  getSchedule(materialId: string): Promise<unknown | null>
+  /** PUT /api/materials/:materialId/schedule — upserts the user's copy.
+   *  Server validates the body's shape AND cross-checks `materialId`. */
+  putSchedule(materialId: string, schedule: unknown): Promise<{ ok: true }>
+  /** DELETE /api/materials/:materialId/schedule — drops the user's
+   *  override; bundled default reapplies on next read. */
+  deleteSchedule(materialId: string): Promise<{ ok: true; fallbackToBundled: boolean }>
   /** Fat-client sync: snapshot + materialised test states + last
    *  applied event id. Mirrors `/sync/:materialId/state` on the API. */
   getSyncState(materialId: string): Promise<SyncStateResponse>
@@ -290,7 +379,7 @@ export interface ApiClient {
  *  so the Better Auth session cookie flows through on every call. */
 export function createApiClient(apiUrl: string): ApiClient {
   async function request<T>(
-    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     path: string,
     body?: unknown,
   ): Promise<T> {
@@ -334,6 +423,31 @@ export function createApiClient(apiUrl: string): ApiClient {
     getYears: () => request('GET', '/api/years'),
     updateYearSettings: (materialId, settings) =>
       request('POST', `/api/years/${encodeURIComponent(materialId)}/settings`, settings),
+    updateYearSettingsPerClub: (materialId, settings) =>
+      request('POST', `/api/years/${encodeURIComponent(materialId)}/settings`, settings),
+    getSchedule: async (materialId) => {
+      // The GET route returns either the schedule JSON verbatim (with
+      // content-type application/json) or `{ schedule: null }` when no
+      // schedule ships for this material. Normalise both into a single
+      // `unknown | null` for callers.
+      const body = await request<unknown>(
+        'GET',
+        `/api/materials/${encodeURIComponent(materialId)}/schedule`,
+      )
+      if (
+        body !== null
+        && typeof body === 'object'
+        && 'schedule' in body
+        && (body as { schedule: unknown }).schedule === null
+      ) {
+        return null
+      }
+      return body
+    },
+    putSchedule: (materialId, schedule) =>
+      request('PUT', `/api/materials/${encodeURIComponent(materialId)}/schedule`, schedule),
+    deleteSchedule: (materialId) =>
+      request('DELETE', `/api/materials/${encodeURIComponent(materialId)}/schedule`),
     getSyncState: (materialId) =>
       request('GET', `/api/sync/${encodeURIComponent(materialId)}/state`),
     postSyncEvents: (materialId, body) =>
