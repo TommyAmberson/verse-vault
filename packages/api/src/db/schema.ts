@@ -134,6 +134,13 @@ export const userYearSettings = sqliteTable(
     chapterListScope: text('chapter_list_scope').notNull(),
     lessonBatchSize: integer('lesson_batch_size').notNull(),
     desiredRetention: real('desired_retention').notNull().default(0.9),
+    /** Phase 1 of the schedules + per-club work: holds the per-club
+     *  MaterialConfig shape as a JSON blob, materialised from the legacy
+     *  flat columns by migration 0023. The route layer dual-writes
+     *  during transition (legacy columns + this column) so importers and
+     *  pre-Phase-2 web clients keep working. A future migration drops
+     *  the legacy columns once the web rework is shipped. */
+    configJson: text('config_json'),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
