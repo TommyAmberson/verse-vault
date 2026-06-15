@@ -38,11 +38,20 @@ type ClubTier = '150' | '300' | 'full';
 const CLUB_TIERS: readonly ClubTier[] = ['150', '300', 'full'];
 
 interface ClubView {
-  /** Effective per-tier status derived from active_scope and
-   *  maintenance_scope. Read-only on the API; clients set the two
-   *  scopes via the year-settings endpoint. */
+  /** Effective per-tier status derived from the per-club `enabled`
+   *  booleans in `MaterialConfig`. Read-only on the API; clients set
+   *  enable flags via `POST /api/years/:id/settings`. */
   status: ClubStatus;
   cardCount: number;
+  // TODO(phase-3): expose per-club `graduated` count here. The web
+  // client's Memorize-tab badge in apps/web/src/lib/badges.ts is
+  // approximating `max(0, cumulative_through_current_week - memorized)`
+  // by `min(newCardCount, cumulative)` because there's no per-club
+  // graduated count on this response. The engine already knows the
+  // value via `WasmEngine.card_count_by_club()` plus a graduated-set
+  // filter; surfacing it lets the badge match the spec formula
+  // exactly. Spec: docs/superpowers/specs/2026-06-14-schedules-and-settings-design.md
+  // §"Memorize tab badge".
 }
 
 interface YearView {
@@ -93,16 +102,22 @@ interface ClubCounts {
   Full?: number;
 }
 
-function tierScopeIncludes(scope: TierScope, tier: ClubTier): boolean {
-  if (scope === 'off') return false;
-  if (scope === 'all') return true;
-  if (scope === 'up150') return tier === '150';
-  return tier === '150' || tier === '300';
-}
+const TIER_TO_CLUB_KEY: Record<ClubTier, 'club150' | 'club300' | 'full'> = {
+  '150': 'club150',
+  '300': 'club300',
+  full: 'full',
+};
 
-function effectiveStatus(settings: YearSettings, tier: ClubTier): ClubStatus {
-  if (tierScopeIncludes(settings.newScope, tier)) return 'active';
-  if (tierScopeIncludes(settings.reviewScope, tier)) return 'maintenance';
+/** Effective per-tier status derived from the per-club booleans —
+ *  memorize-on (with or without review) → active, review-only →
+ *  maintenance, neither → paused. Matches the chip semantics shown in
+ *  /settings/materials' per-club cards. Reading per-club instead of the
+ *  legacy `newScope`/`reviewScope` ladders avoids the lossy collapse
+ *  for non-monotonic configs (e.g. only Club 300 enabled). */
+function effectiveStatus(perClub: PerClubYearSettings, tier: ClubTier): ClubStatus {
+  const club = TIER_TO_CLUB_KEY[tier];
+  if (perClub.memorize[club].enabled) return 'active';
+  if (perClub.review[club].enabled) return 'maintenance';
   return 'paused';
 }
 
@@ -142,23 +157,13 @@ const UNENROLLED_DEFAULTS: YearSettings = {
   reviewScope: 'off',
 };
 
-function readYearSettings(
-  db: DB,
-  userId: string,
-  materialId: string,
-  fallback: YearSettings,
-): YearSettings {
-  const row = db
-    .select()
-    .from(schema.userYearSettings)
-    .where(
-      and(
-        eq(schema.userYearSettings.userId, userId),
-        eq(schema.userYearSettings.materialId, materialId),
-      ),
-    )
-    .get();
-  if (!row) return fallback;
+type SettingsRow = typeof schema.userYearSettings.$inferSelect;
+
+/** Narrow a raw Drizzle row to the legacy `YearSettings` shape. The DB
+ *  schema declares scope/chapterListScope as plain `text` (not the
+ *  string-literal unions), so the cast is the boundary where we trust
+ *  the writer to have validated. */
+function rowToYearSettings(row: SettingsRow): YearSettings {
   return {
     headingCard: row.headingCard,
     headingPassageCard: row.headingPassageCard,
@@ -172,26 +177,12 @@ function readYearSettings(
   };
 }
 
-/** Build the per-club settings object the chain UI consumes. Mirrors
- *  `readMaterialConfigJson` in lib/engine.ts: prefer the stored
- *  `config_json` blob, fall back to synthesising from the legacy
- *  columns so the route, the engine, and the UI agree on what's on
- *  disk. The two readers are intentionally parallel — both swap to
- *  a shared parsed helper if we add a third consumer.
- *
- *  Reads `configJson` directly off the row but defers to the explicit
- *  `readYearSettings` extractor for the legacy-column path: the raw
- *  Drizzle row carries non-settings columns (`userId`, `materialId`,
- *  `updatedAt`, …) and the scope/retention columns aren't enum-narrowed
- *  to `TierScope`/`ChapterListScope` at the schema level, so passing
- *  the raw row to `legacyToNew` would trust un-narrowed strings. */
-function readPerClubSettings(
+function fetchSettingsRow(
   db: DB,
   userId: string,
   materialId: string,
-  legacyFallback: YearSettings,
-): PerClubYearSettings {
-  const row = db
+): SettingsRow | undefined {
+  return db
     .select()
     .from(schema.userYearSettings)
     .where(
@@ -201,10 +192,42 @@ function readPerClubSettings(
       ),
     )
     .get();
-  if (row?.configJson != null && row.configJson !== '') {
-    return JSON.parse(row.configJson) as PerClubYearSettings;
-  }
-  return legacyToNew(readYearSettings(db, userId, materialId, legacyFallback));
+}
+
+function readYearSettings(
+  db: DB,
+  userId: string,
+  materialId: string,
+  fallback: YearSettings,
+): YearSettings {
+  const row = fetchSettingsRow(db, userId, materialId);
+  return row ? rowToYearSettings(row) : fallback;
+}
+
+/** Build both the legacy `YearSettings` and the per-club shape from a
+ *  single DB read. The GET `/api/years` loop calls this once per
+ *  enrolled material — splitting the query into two helpers (the
+ *  pre-cleanup shape) doubled the SQLite queries on this endpoint,
+ *  which is hit on every navigation.
+ *
+ *  Per-club derivation mirrors `readMaterialConfigJson` in lib/engine.ts:
+ *  prefer the stored `config_json` blob, fall back to synthesising via
+ *  `legacyToNew(legacySettings)` when the column hasn't been populated
+ *  yet. The legacy path runs through `rowToYearSettings` so the scope
+ *  fields are narrowed to their enums before `legacyToNew` reads them. */
+function readSettingsBundle(
+  db: DB,
+  userId: string,
+  materialId: string,
+  fallback: YearSettings,
+): { legacy: YearSettings; perClub: PerClubYearSettings } {
+  const row = fetchSettingsRow(db, userId, materialId);
+  const legacy = row ? rowToYearSettings(row) : fallback;
+  const perClub =
+    row?.configJson != null && row.configJson !== ''
+      ? (JSON.parse(row.configJson) as PerClubYearSettings)
+      : legacyToNew(legacy);
+  return { legacy, perClub };
 }
 
 export function yearsRoutes(deps: YearsRoutesDeps) {
@@ -227,8 +250,12 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     for (const material of MATERIALS) {
       const enrolled = enrolledIds.has(material.id);
       const fallback = enrolled ? ENROLLED_DEFAULTS : UNENROLLED_DEFAULTS;
-      const settings = readYearSettings(deps.db, user.id, material.id, fallback);
-      const perClub = readPerClubSettings(deps.db, user.id, material.id, fallback);
+      const { legacy: settings, perClub } = readSettingsBundle(
+        deps.db,
+        user.id,
+        material.id,
+        fallback,
+      );
 
       // Only load the engine for enrolled years — unenrolled ones have
       // no graph_snapshot yet. Card counts stay at zero until the user
@@ -253,15 +280,15 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
 
       const clubs: YearView['clubs'] = {
         '150': {
-          status: effectiveStatus(settings, '150'),
+          status: effectiveStatus(perClub, '150'),
           cardCount: counts.Club150 ?? 0,
         },
         '300': {
-          status: effectiveStatus(settings, '300'),
+          status: effectiveStatus(perClub, '300'),
           cardCount: counts.Club300 ?? 0,
         },
         full: {
-          status: effectiveStatus(settings, 'full'),
+          status: effectiveStatus(perClub, 'full'),
           cardCount: counts.Full ?? 0,
         },
       };
