@@ -22,6 +22,75 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-06-14
+
+MAJOR bump for the schedules + per-club settings rework (Phase 1). The state shape of
+`MaterialConfig` changes: the flat `(new_scope, review_scope, desired_retention)` triple is replaced
+by per-club `memorize`, `review`, and a per-pair `move_to_next` gate. Event replay of pre-0.6.0
+settings JSON still works via serde aliases that materialise the per-club shape on read — but a
+0.6.0 engine constructed from a 0.5.1 settings string sees a different `MaterialConfig` than a 0.5.1
+engine would, so this is a MAJOR by the changelog's "different state under replay" rubric.
+
+### New: per-club memorize + review config
+
+* `MaterialConfig.memorize: ClubMemorizeMap` — per-club
+  `{ enabled, catch_up: Sequential | CalendarCascade }`. Replaces `new_scope` and
+  `desired_retention`'s memorize half.
+* `MaterialConfig.review: ClubReviewMap` — per-club `{ enabled, desired_retention }`. Retention is
+  now per-club (range `[0.5, 0.9]`, default `0.8`); the old flat `desired_retention` migrates by
+  applying the (clamped) value across every enabled review club.
+* `MaterialConfig.move_to_next: MoveToNextConfig` — per adjacent pair (`p150_to_300`,
+  `p300_to_full`), with five gates: `FullyMemorized`, `AfterMajorCheckpoint`,
+  `AfterMinorCheckpoint`, `CaughtUp`, `Always`. Default `CaughtUp` so enabling a lower club surfaces
+  its verses as soon as the user is on-pace for the higher.
+* `MaterialConfig.lesson_batch_size: u8` (default `1`) — moved into the config so per-session size
+  travels with the rest of the per-material preferences.
+* `MaterialConfig::default()` is now the spec's new-user shape (Club 150 enabled at retention 0.8,
+  others off). The historical "everything active at 0.9" is now
+  `MaterialConfig::all_clubs_enabled(0.9)`; `builder::build()` uses the latter so existing test
+  fixtures continue to emit cards for every tier.
+
+Legacy JSON (`{ new_scope, review_scope, desired_retention, ... }`) still parses through
+`MaterialConfigRaw`'s `from` adapter. The retention is clamped to the new `[0.5, 0.9]` range; values
+stored above 0.9 (a common pre-0.6.0 preference) cap to 0.9 on first load.
+
+### New: `Schedule` data model
+
+* `crates/core/src/schedule_data.rs` introduces
+  `Schedule { weeks, meets, meeting_day_of_week, ... }` and
+  `Meet { id, name, start_date, end_date, location }`. Bundled per material at
+  `data/schedules/<deck>-<season>.json`; the API ships a customised copy per user in a
+  `material_schedules` row.
+* Date helpers (`current_week_index`, `most_recent_past_meet`) and verse-ref helpers
+  (`week_verse_refs`, `cumulative_verse_refs_through_week`, `cumulative_count_*`) anchor the
+  cross-club gate evaluators and the memorize-tab badge math downstream. Full-tier refs are derived
+  as `passage` range minus `club150 ∪ club300`.
+
+### Per-verse retention threading
+
+* `ReviewEngine::target_r_for_verse(verse_id) -> f32` reads the verse's most-specific tier and looks
+  up `MaterialConfig::target_r_for(tier)`. Falls back to `schedule_params.target_retention` for
+  pseudo-verses with no tier.
+* `next_card`, `due_review_count`, `due_verse_count`, and `next_relearn_card` all switch to the
+  per-verse path. `ScheduleParams.target_retention` stays as the fallback only; the scheduler no
+  longer uses it directly for the threshold check.
+* `target_r_for` clamps to `[0.5, 0.9]` on read — out-of-range stored values can't reach FSRS math
+  (would produce NaN or infinite due times).
+
+### New: two-phase canonical memorize fill
+
+* `next_memorize_batch(engine, schedule, now_secs, batch_size) -> Vec<CardId>` in `schedule.rs`
+  implements the spec's algorithm. Phase 1 picks `CalendarCascade` clubs' this-week primary verses
+  in canonical order (soft cap overflow allowed). Phase 2 picks everything else eligible in
+  canonical order until the batch fills. Cross-club gates only control eligibility; once eligible,
+  ordering is purely canonical.
+* `next_memorize_card(engine, now_secs)` is now a thin `.first()` wrapper around
+  `next_memorize_batch(engine, None, now_secs, 1)`. Passing `schedule: None` collapses the algorithm
+  to Phase 2 only (i.e. pure-Sequential), which matches the legacy single-card surface.
+* `anchor_card_for_verse(engine, verse_id)` extracted as a shared helper — picks `Recitation` when
+  New, else the first `New` bulk-graduable card. Commit on `crates/wasm@0.6.0` reuses this in
+  `memorize_session_v2` so the wasm verse-anchor pick stays consistent with the new batch surface.
+
 ## [0.5.1] — 2026-06-11
 
 Two correctness fixes surfaced by an exhaustive review pass. Both are pure implementation fixes with

@@ -117,10 +117,10 @@ pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
         .iter()
         .filter(|c| matches!(c.state, CardState::Active))
         .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
-        .filter_map(|c| Some((c.id, engine.card_min_r(c, now_secs)?)))
-        .filter(|(_, r)| *r < engine.schedule_params.target_retention)
+        .filter_map(|c| Some((c, engine.card_min_r(c, now_secs)?)))
+        .filter(|(c, r)| *r < engine.target_r_for_verse(c.verse_id))
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-        .map(|(id, _)| id)
+        .map(|(c, _)| c.id)
 }
 
 /// Bucket every active card by its **weakest test's stability** —
@@ -181,7 +181,6 @@ pub fn new_verse_count(engine: &ReviewEngine) -> u32 {
 /// eligibility (active + below-target, ignoring cooldown) and
 /// applies the same verse-content filter as `new_verse_count`.
 pub fn due_verse_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
-    let target = engine.schedule_params.target_retention;
     let mut seen: HashSet<u32> = HashSet::new();
     for card in &engine.cards {
         if !matches!(card.state, CardState::Active) {
@@ -190,6 +189,7 @@ pub fn due_verse_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
         if !is_verse_content_card(&card.kind) {
             continue;
         }
+        let target = engine.target_r_for_verse(card.verse_id);
         if let Some(r) = engine.card_min_r(card, now_secs)
             && r < target
         {
@@ -261,8 +261,8 @@ pub fn due_review_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
         .cards
         .iter()
         .filter(|c| matches!(c.state, CardState::Active))
-        .filter_map(|c| engine.card_min_r(c, now_secs))
-        .filter(|r| *r < engine.schedule_params.target_retention)
+        .filter_map(|c| Some((c, engine.card_min_r(c, now_secs)?)))
+        .filter(|(c, r)| *r < engine.target_r_for_verse(c.verse_id))
         .count() as u32
 }
 
@@ -585,12 +585,12 @@ pub fn new_card_count(engine: &ReviewEngine) -> u32 {
 /// Returns `None` when no lane card is due. Ties broken by earliest due time
 /// (the lapse a learner has been kept waiting longest gets cleared first).
 pub fn next_relearn_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
-    let target = engine.schedule_params.target_retention;
     engine
         .cards
         .iter()
         .filter(|c| matches!(c.state, CardState::Active))
         .filter_map(|c| {
+            let target = engine.target_r_for_verse(c.verse_id);
             let atoms = engine.atoms_for(c.verse_id);
             let earliest_due = c
                 .tests(&atoms)
@@ -1112,14 +1112,17 @@ mod tests {
 
     #[test]
     fn due_review_count_is_zero_when_no_card_is_due() {
-        // Target 0.0 — no card's retrievability can fall below it,
-        // so nothing is due regardless of how stale the cards are.
+        // `new_unseen` antedates test states by 365 days from the build
+        // timestamp, so a build at `now` and a query at `now - 365 days`
+        // sees elapsed = 0 → retrievability 1.0 → nothing below target.
+        // Verifies the per-verse-retention filter still excludes not-yet-
+        // due cards after the threshold move.
+        let now = 86400 * 365;
         let m = sample_material_two_verses();
-        let r = crate::builder::build(&m, 86400 * 365);
+        let r = crate::builder::build(&m, now);
         let mut engine = ReviewEngine::new(r, 0.9);
-        engine.schedule_params.target_retention = 0.0;
         engine.graduate_all();
-        assert_eq!(due_review_count(&engine, 86400 * 365), 0);
+        assert_eq!(due_review_count(&engine, 0), 0);
     }
 
     #[test]
