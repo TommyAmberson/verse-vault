@@ -233,36 +233,41 @@ accepted via serde aliases for one release.
 
 ## Memorize algorithm
 
-### Per-click cascade
+### Per-click flow
 
-Each tap of Memorize builds the next `lesson_batch_size` verses (default 1) and runs them through
-the existing read → drill → reading-end flow.
+Each tap of Memorize fills the next `lesson_batch_size` verses (default 1) and hands them to the
+existing read → drill → reading-end pipeline.
 
 For each click:
 
-1. For each enabled club in priority order [Club150, Club300, Full]:
-   * Build the club's **ordered pool** per its `catch_up` setting.
-2. Apply the cross-club gates (`move_to_next`) to determine which clubs' pools are eligible to
-   contribute right now.
-3. Walk the eligible pools to fill `lesson_batch_size` verses, respecting:
-   * The priority order of clubs.
-   * The within-level interleave rule for backlog (see below).
-   * The soft cap rule.
+1. Determine the **eligible clubs**: enabled clubs whose cross-club gate from the higher enabled
+   club is met. The highest-priority enabled club is always eligible (it has no gate above it).
+2. **Phase 1 — this week's primary, in canonical order.** Across eligible clubs whose `catch_up` is
+   `CalendarCascade`, take all un-memorized verses in this week's calendar rows, sorted by canonical
+   (deck/passage) order. No within-phase club priority — verses interleave by deck position.
+3. **Phase 2 — everything else eligible, in canonical order.** If `lesson_batch_size` slots remain,
+   take un-memorized verses from all eligible clubs' remaining pools (Sequential clubs' full pools,
+   CalendarCascade clubs' backlog and lookahead), sorted by canonical order, until the batch is
+   full.
 
-### Per-club pool ordering (Knob 1)
+Once a club is eligible, ordering is purely canonical. Knob 2 only controls eligibility, not fill
+priority. The hierarchy (Club150 → Club300 → Full) determines gate direction; it does **not**
+prioritise one club over another in the fill.
+
+### Per-club pool definition (Knob 1)
 
 For a club with mode `Sequential`:
 
-* Pool = the un-memorized verses in this club's sequence (passage order across the deck), in order.
-* Unbounded — pulls forward through the season as needed.
+* Pool = un-memorized verses in this club's sequence (canonical deck/passage order).
+* No subdivision — every un-memorized verse contributes via Phase 2 in canonical order.
 
 For a club with mode `CalendarCascade`:
 
-* **Primary** = un-memorized verses in this week's calendar row for this club.
-* **Backlog** = un-memorized verses from prior weeks' rows for this club, in reverse-chronological
-  order (most recent missed week first).
-* **Lookahead** = un-memorized verses from future weeks' rows for this club, in order.
-* The pool walks Primary → Backlog → Lookahead.
+* **Primary** = un-memorized verses in this week's calendar row for this club. Contributes via
+  Phase 1.
+* **Remaining** = un-memorized verses from prior and future weeks' rows for this club. Contributes
+  via Phase 2 in canonical order (deck order naturally puts earlier-week verses before later-week
+  verses — backlog gets picked before lookahead).
 
 ### Cross-club gates (Knob 2)
 
@@ -281,43 +286,58 @@ For `CalendarCascade` clubs, "user position" means count of verses memorized; "c
 means cumulative verses through that week. For `Sequential` clubs, the same comparison applies — the
 sequence pointer is the user position.
 
-### Backlog interleave rule
-
-When the higher club is in `CalendarCascade` mode and has backlog, that backlog drops down to the
-next club's priority level. A `Sequential` club has no separate backlog vs primary — its entire pool
-sits at the club's own level. Effective levels in a fully-enabled three-club material:
-
-* **Level 1** (Club 150): Club 150's pool (primary verses if `CalendarCascade`; the whole Sequential
-  pool if `Sequential`).
-* **Level 2** (Club 300): Club 150 backlog (only if Club 150 is `CalendarCascade`) ∪ Club 300's pool
-  (interleaved within the level if both present, round-robin).
-* **Level 3** (Full): Club 300 backlog (only if Club 300 is `CalendarCascade`) ∪ Full's pool
-  (interleaved).
-
-The cross-club gate gates the lower club's pool from entering its level. Higher club's backlog
-enters the next level regardless of the gate — it's not "the lower club," it's "this club's missed
-verses."
-
 ### Soft cap
 
-`lesson_batch_size` is a soft cap. A `CalendarCascade` club's **primary** pool is always included in
-full, even if it overflows the cap. The cap only constrains backlog, lookahead, and lower-priority
-clubs' contributions.
+`lesson_batch_size` is a soft cap on **Phase 2** only. Phase 1 (CalendarCascade clubs' this-week
+primary) is always included in full, even when it overflows the batch. Phase 2 contributes only if
+slots remain after Phase 1; it contributes 0 if Phase 1 already met or exceeded the batch.
 
 Example (with `lesson_batch_size = 5` for illustrative overflow — the new default is 1): Club 150 in
-`CalendarCascade`, this week has 7 primary verses. The session has 7 verses (soft-cap overflow);
-lower clubs contribute 0.
+`CalendarCascade`, this week has 7 primary verses. Phase 1 takes all 7. Phase 2 contributes 0.
+Session = 7 verses.
+
+### Worked examples
+
+For each, Club 300/Full gate = `CaughtUp` unless stated.
+
+| Config                                                          | User progress                                     | Session at `batch=1`                                                                                                                                               |
+| --------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 150 Sequential, others off                                      | At verse 14                                       | 1 verse: next Club 150 verse in canonical order                                                                                                                    |
+| 150 Sequential, 300 Sequential                                  | Caught up on 150, week 5                          | 1 verse: first un-memorized in canonical order across both pools — could be either club                                                                            |
+| 150 Sequential, 300 Sequential, gate=`FullyMemorized`           | Caught up on 150 (not done)                       | 1 verse: Club 150 (gate closed, 300 not eligible)                                                                                                                  |
+| 150 CalendarCascade, 300 Off                                    | At verse 14 of week 5 (this week has 7 primary)   | 1 verse: first un-memorized of this week's 7, in canonical order                                                                                                   |
+| 150 CalendarCascade, 300 Sequential                             | This week's 150 done; 300 has un-memorized verses | Phase 1 = 0 verses (150 primary empty). Phase 2 picks next eligible in canonical order — could be 150's lookahead/backlog or 300, whichever is earlier in the deck |
+| 150 CalendarCascade with this week = 7 verses, `batch_size = 5` | Behind by 2 weeks                                 | Phase 1 = 7 (soft cap overflow). Phase 2 = 0. Session = 7 verses                                                                                                   |
 
 ### Single-club default flow
 
 For the typical user (Club 150 enabled, others off, `lesson_batch_size = 1`, catch-up Sequential):
 
-1. Sequential pool for Club 150 = next un-memorized verse in sequence.
-2. No other clubs eligible.
-3. Fill 1 verse from Club 150's pool.
+1. Phase 1 contributes nothing (Club 150 is Sequential, not CalendarCascade).
+2. Phase 2 picks the first un-memorized Club 150 verse in canonical order.
+3. Session has 1 verse.
 
-Result: each tap of Memorize shows one verse. UI shows it immediately and goes straight into the
-existing read → drill flow.
+Each tap of Memorize shows one verse. UI shows it immediately and goes straight into the existing
+read → drill flow.
+
+### Memorize tab badge
+
+The Memorize nav item carries a count badge: total un-memorized verses across enabled clubs through
+the end of the current scheduled week.
+
+```text
+badge = Σ (over enabled clubs)  max(0, cumulative_through_current_week − memorized)
+```
+
+* `cumulative_through_current_week` = sum of verse counts in the user's edited schedule rows from
+  week 1 through the current week, for this club's tier.
+* `memorized` = count of this club's verses already graduated.
+* `max(0, …)` clamps a club's contribution to 0 when the user is ahead.
+
+Display: a single sum on the pill (consistent with today's "new to memorize" badge slot). Tap or
+hover surfaces the per-club split when multiple clubs are enabled. Hitting 0 = caught up to the
+week's plan. Review weeks don't introduce new verses, so the cumulative target is unchanged through
+them — a Review week with no carry-over reads 0; with backlog, reads the backlog count.
 
 ### Memorize-ahead
 
@@ -539,8 +559,13 @@ For future-me reference. All confirmed during the 2026-06-14 brainstorm session.
 * Defaults: Club 150 = enabled + Sequential; 300/Full = off; gates = Caught up. ✓
 * `lesson_batch_size` default: 1 (down from 5). ✓
 * Soft cap rule: Calendar-cascade primary pool overflows the cap. ✓
-* Backlog from Calendar-cascade drops to next club's level, interleaved. ✓
-* Strict "Fully memorized" gate drains the higher club entirely. ✓
+* Fill order is canonical (deck/passage order) — not club-priority. ✓
+* Knob 2 gates only control eligibility, not fill priority. ✓
+* Phase 1 = CalendarCascade clubs' this-week primary (canonical order); Phase 2 = everything else
+  eligible (canonical order). ✓
+* Strict "Fully memorized" gate drains the higher club entirely (because lower club stays
+  ineligible). ✓
+* Memorize tab badge: total un-memorized through end of current week, summed across enabled clubs. ✓
 * Single-click memorize: next N verses, drill, done. ✓
 * "Memorize ahead" preflight for multi-verse / power-user sessions. ✓
 * Inter-club gate UI only visible when both flanking clubs are enabled. ✓
