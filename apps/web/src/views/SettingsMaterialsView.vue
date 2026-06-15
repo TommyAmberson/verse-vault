@@ -5,10 +5,15 @@ import ScopeLevelSelector from '@/components/ScopeLevelSelector.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import {
   type ChapterListScope,
+  type CatchUp,
+  type Club,
+  type ClubMemorizeConfig,
+  type ClubReviewConfig,
   type ClubStatus,
   type ClubTier,
+  type MoveToNextGate,
+  type PerClubYearSettings,
   type TierScope,
-  type YearSettings,
   type YearView,
   api,
 } from '@/api'
@@ -18,11 +23,24 @@ import { bulkPutRenders, clearRenders, newestRenderFetchedAt } from '@/lib/engin
 const SECS_PER_DAY = 86400
 
 const CLUB_TIERS: ClubTier[] = ['150', '300', 'full']
+const CLUBS: Club[] = ['club150', 'club300', 'full']
 
 const TIER_LABELS: Record<ClubTier, string> = {
   '150': 'Club 150',
   '300': 'Club 300',
   full: 'Full',
+}
+
+const CLUB_LABELS: Record<Club, string> = {
+  club150: 'Club 150',
+  club300: 'Club 300',
+  full: 'Full',
+}
+
+const CLUB_TO_TIER: Record<Club, ClubTier> = {
+  club150: '150',
+  club300: '300',
+  full: 'full',
 }
 
 const STATUS_LABELS: Record<ClubStatus, string> = {
@@ -37,34 +55,18 @@ const STATUS_VARIANTS: Record<ClubStatus, 'accent' | 'warning' | 'muted'> = {
   paused: 'muted',
 }
 
-// All four scope tracks share the same 4-stop shape (chapter-list is
-// missing the Full stop). Stops are ordered: Off ── 150 ── 300 ── Full.
-const TIER_SCOPE_LEVELS: { value: TierScope; label: string }[] = [
-  { value: 'off', label: 'Off' },
-  { value: 'up150', label: '150' },
-  { value: 'up300', label: '300' },
-  { value: 'all', label: 'Full' },
-]
-
 const CHAPTER_LIST_LEVELS: { value: ChapterListScope; label: string }[] = [
   { value: 'off', label: 'Off' },
   { value: 'up150', label: '150' },
   { value: 'up300', label: '300' },
 ]
 
-const NEW_DESCRIPTIONS: Record<TierScope, string> = {
-  off: 'No tier is introducing new verses.',
-  up150: 'Memorizing Club 150 verses.',
-  up300: 'Memorizing Club 150 and Club 300 verses.',
-  all: 'Memorizing every tier, including Full.',
-}
-
-const REVIEW_DESCRIPTIONS: Record<TierScope, string> = {
-  off: 'No reviews surfaced.',
-  up150: 'Reviewing Club 150 verses.',
-  up300: 'Reviewing Club 150 and Club 300 verses.',
-  all: 'Reviewing every tier, including Full.',
-}
+const TIER_SCOPE_LEVELS: { value: TierScope; label: string }[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'up150', label: '150' },
+  { value: 'up300', label: '300' },
+  { value: 'all', label: 'Full' },
+]
 
 const CLUB_CARD_DESCRIPTIONS: Record<TierScope, string> = {
   off: 'No "which club?" prompts.',
@@ -79,9 +81,30 @@ const CHAPTER_LIST_DESCRIPTIONS: Record<ChapterListScope, string> = {
   up300: 'Two cards per chapter: Club 150 list and Club 300 list.',
 }
 
+const CATCH_UP_OPTIONS: { value: CatchUp; label: string }[] = [
+  { value: 'sequential', label: 'Sequential (next un-memorized verse)' },
+  { value: 'calendarCascade', label: 'Calendar cascade (this week first, then backlog)' },
+]
+
+const GATE_OPTIONS: { value: MoveToNextGate; label: string }[] = [
+  { value: 'fullyMemorized', label: 'Fully memorized' },
+  { value: 'afterMajorCheckpoint', label: 'After major checkpoint (meet)' },
+  { value: 'afterMinorCheckpoint', label: 'After minor checkpoint (this week)' },
+  { value: 'caughtUp', label: 'Caught up to last week' },
+  { value: 'always', label: 'Always (no gate)' },
+]
+
+// Per-club retention range from the spec. Tighter than the legacy
+// material-wide [0.7, 0.97] band so the slider exposes the meaningful
+// region without trailing into asymptotic stability blow-ups.
+const MIN_RETENTION_PCT = 50
+const MAX_RETENTION_PCT = 90
+
 interface YearCard {
   view: YearView
-  draft: YearSettings
+  /** Per-club draft, the source of truth for the form. Saving the card
+   *  POSTs this verbatim via `updateYearSettingsPerClub`. */
+  draft: PerClubYearSettings
   saving: boolean
   /** True while the toggle's flip-and-fetch (or flip-and-clear) is
    *  in flight. Drives the row's spinner state independent of the
@@ -103,13 +126,21 @@ const selected = computed<YearCard | null>(() => {
   return cards.value.find((c) => c.view.materialId === id) ?? null
 })
 
-/** A year reads as "studying" iff at least one of `newScope` or
- *  `reviewScope` is on. Provisioned-but-all-paused years (e.g. the
- *  user touched the year once then turned everything off) display the
- *  same as never-touched years: no enrolled marker, no card counts. */
+/** "Studying" iff enrolled AND any club is enabled for memorize OR
+ *  review. Provisioned-but-everything-off years (e.g. the user touched
+ *  the year once then disabled every club) read the same as
+ *  never-touched: no enrolled marker, no card counts. */
 function isStudying(c: YearCard): boolean {
   if (!c.view.enrolled) return false
-  return c.view.settings.newScope !== 'off' || c.view.settings.reviewScope !== 'off'
+  return CLUBS.some((k) => c.view.perClub.memorize[k].enabled || c.view.perClub.review[k].enabled)
+}
+
+/** Clone a per-club settings object for the editable draft. JSON
+ *  round-trip is safe — the shape is pure data, no functions or
+ *  cycles — and saves a stack of `{...x, memorize: {...x.memorize, club150: {...x.memorize.club150}}}`
+ *  spread expressions every time a nested field is read for v-model. */
+function clonePerClub(p: PerClubYearSettings): PerClubYearSettings {
+  return JSON.parse(JSON.stringify(p)) as PerClubYearSettings
 }
 
 async function refresh() {
@@ -120,7 +151,7 @@ async function refresh() {
     const enriched = await Promise.all(
       res.years.map(async (view) => ({
         view,
-        draft: { ...view.settings },
+        draft: clonePerClub(view.perClub),
         saving: false,
         offlineBusy: false,
         newestRenderAt: view.offlineMode ? await newestRenderFetchedAt(view.materialId) : 0,
@@ -128,9 +159,9 @@ async function refresh() {
     )
     cards.value = enriched
     // Re-resolve the active tab after the list changes. Prefer the year
-    // the user is actively studying (any scope above off) so the picker
-    // opens on a working panel; otherwise fall back to any enrolled year,
-    // and finally to the first listed.
+    // the user is actively studying so the picker opens on a working
+    // panel; otherwise fall back to any enrolled year, then to the first
+    // listed.
     if (cards.value.length === 0) {
       selectedMaterialId.value = null
     } else if (!cards.value.some((c) => c.view.materialId === selectedMaterialId.value)) {
@@ -151,59 +182,25 @@ function tabTitle(full: string): string {
   return full.replace(/\s*\(NKJV\)\s*$/, '')
 }
 
-const TIER_SCOPE_RANK: Record<TierScope, number> = {
-  off: 0,
-  up150: 1,
-  up300: 2,
-  all: 3,
-}
-
-/** True when Review's reach is narrower than New's — i.e. the user is
- *  memorising verses at a tier they don't review, so freshly-introduced
- *  verses won't re-surface. Worth surfacing because it's almost always
- *  an oversight rather than an intentional config. */
-function reviewBehindNew(s: YearSettings): boolean {
-  return TIER_SCOPE_RANK[s.reviewScope] < TIER_SCOPE_RANK[s.newScope]
-}
-
-/** Settings that affect engine construction — flipping any of these
- *  means the cached WasmEngine + render cache must be rebuilt so the
- *  next session uses the new value. `lessonBatchSize` is intentionally
- *  excluded; it's a session-size knob the engine doesn't consume. */
-const ENGINE_AFFECTING_SETTINGS: ReadonlyArray<keyof YearSettings> = [
-  'headingCard',
-  'headingPassageCard',
-  'ftv',
-  'newScope',
-  'reviewScope',
-  'clubCardScope',
-  'chapterListScope',
-  'desiredRetention',
-]
-
-function affectsEngine(draft: YearSettings, current: YearSettings): boolean {
-  return ENGINE_AFFECTING_SETTINGS.some((k) => draft[k] !== current[k])
+/** True when the chain has a "memorize this club but don't review it"
+ *  gap — the user is introducing verses that won't re-surface in
+ *  /review. Almost always an oversight rather than intent. */
+function memorizeBehindReview(draft: PerClubYearSettings): boolean {
+  return CLUBS.some((k) => draft.memorize[k].enabled && !draft.review[k].enabled)
 }
 
 async function onSave(card: YearCard) {
   card.saving = true
   try {
-    const shouldInvalidate = affectsEngine(card.draft, card.view.settings)
-    // Capture before invalidate — its IDB clear happens before the
-    // refresh that would update card.view.offlineMode.
     const wasOfflineMode = card.view.offlineMode
-    await api.updateYearSettings(card.view.materialId, card.draft)
-    if (shouldInvalidate) {
-      // invalidateSession drops the cached engine AND the render cache
-      // so the next ReviewView/MemorizeView visit rebuilds with the new
-      // MaterialConfig. When offline mode is on, the user has committed
-      // to "this deck works offline" — re-seed the bulk renders rather
-      // than leaving them in a checked-toggle/empty-IDB limbo.
-      await invalidateSession(card.view.materialId)
-      if (wasOfflineMode) {
-        await seedOfflineRenders(card.view.materialId)
-      }
-    }
+    await api.updateYearSettingsPerClub(card.view.materialId, card.draft)
+    // Every per-club save can shift the MaterialConfig (enabled clubs,
+    // catchUp choices, retention bands) — always drop the cached engine
+    // and the render cache so the next session rebuilds. lessonBatchSize
+    // alone doesn't move the engine, but the round-trip cost of a
+    // diff-and-skip check isn't worth it vs. the one IDB clear.
+    await invalidateSession(card.view.materialId)
+    if (wasOfflineMode) await seedOfflineRenders(card.view.materialId)
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -211,17 +208,42 @@ async function onSave(card: YearCard) {
   }
 }
 
-function onRetentionInput(card: YearCard, event: Event) {
-  const pct = Number((event.target as HTMLInputElement).value)
-  if (Number.isFinite(pct)) {
-    card.draft.desiredRetention = pct / 100
-  }
+/** Deep-equality check between draft and view.perClub — used to gate
+ *  the Save button. JSON.stringify is fine here because the shapes are
+ *  pure data with stable key order (constructed object-literally by
+ *  the API). */
+function settingsAreDirty(card: YearCard): boolean {
+  return JSON.stringify(card.draft) !== JSON.stringify(card.view.perClub)
 }
 
-function settingsAreDirty(card: YearCard): boolean {
-  return (Object.keys(card.draft) as Array<keyof YearSettings>).some(
-    (k) => card.draft[k] !== card.view.settings[k],
-  )
+function retentionPctFor(card: YearCard, club: Club): number {
+  return Math.round(card.draft.review[club].desiredRetention * 100)
+}
+
+function onRetentionInput(card: YearCard, club: Club, event: Event) {
+  const pct = Number((event.target as HTMLInputElement).value)
+  if (!Number.isFinite(pct)) return
+  card.draft.review[club].desiredRetention = pct / 100
+}
+
+/** Memorized-verse progress per club, sourced from the engine-loaded
+ *  card counts. The chain UI shows this next to each club's enable
+ *  checkbox so the user can see how far along they are. */
+function memorizedFor(card: YearCard, club: Club): number {
+  return card.view.clubs[CLUB_TO_TIER[club]].cardCount
+}
+
+/** Status chip variant for the per-club card. The legacy "status" enum
+ *  collapsed memorize+review intent into Active/Maintenance/Paused;
+ *  with per-club shapes that's now derivable: memorize+review enabled
+ *  → Active, review only → Maintenance, neither → Paused. */
+function clubStatusFor(
+  memorize: ClubMemorizeConfig,
+  review: ClubReviewConfig,
+): ClubStatus {
+  if (memorize.enabled) return 'active'
+  if (review.enabled) return 'maintenance'
+  return 'paused'
 }
 
 function refreshedLabel(card: YearCard): string {
@@ -337,37 +359,132 @@ onMounted(refresh)
         </header>
 
         <section class="settings-section">
-          <div class="section-title">Study scopes</div>
-          <div class="scope-stack">
-            <div class="scope-row">
-              <span class="scope-row-label">Memorize new verses</span>
-              <ScopeLevelSelector
-                v-model="selected.draft.newScope"
-                :levels="TIER_SCOPE_LEVELS"
-                :description="NEW_DESCRIPTIONS[selected.draft.newScope]"
-                :disabled="selected.saving"
-                aria-label="New verses scope"
-              />
-            </div>
-            <div class="scope-row">
-              <span class="scope-row-label">Review existing verses</span>
-              <ScopeLevelSelector
-                v-model="selected.draft.reviewScope"
-                :levels="TIER_SCOPE_LEVELS"
-                :description="REVIEW_DESCRIPTIONS[selected.draft.reviewScope]"
-                :disabled="selected.saving"
-                aria-label="Review scope"
-              />
-              <p v-if="reviewBehindNew(selected.draft)" class="scope-warning" role="alert">
-                Review is narrower than New — verses you introduce above this level
-                won't re-surface in /review.
-              </p>
-              <p class="scope-fineprint">
-                A tier in both becomes Active; review-only becomes Maintenance; neither is
-                Paused.
-              </p>
-            </div>
+          <div class="section-title">What to memorize</div>
+          <div class="chain">
+            <template v-for="(club, idx) in CLUBS" :key="club">
+              <article
+                class="chain-card"
+                :class="{ 'chain-card-disabled': !selected.draft.memorize[club].enabled }"
+              >
+                <header class="chain-card-header">
+                  <label class="chain-enable">
+                    <input
+                      v-model="selected.draft.memorize[club].enabled"
+                      type="checkbox"
+                      :disabled="selected.saving"
+                      :aria-label="`Enable memorize for ${CLUB_LABELS[club]}`"
+                    />
+                    <span class="chain-card-name">{{ CLUB_LABELS[club] }}</span>
+                  </label>
+                  <span class="chain-card-progress">
+                    {{ memorizedFor(selected, club) }} cards
+                  </span>
+                </header>
+                <label
+                  v-if="selected.draft.memorize[club].enabled"
+                  class="chain-knob"
+                >
+                  <span class="chain-knob-label">Catch-up</span>
+                  <select
+                    v-model="selected.draft.memorize[club].catchUp"
+                    :disabled="selected.saving"
+                  >
+                    <option v-for="opt in CATCH_UP_OPTIONS" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </option>
+                  </select>
+                </label>
+              </article>
+
+              <!-- Gate row between clubs[idx] and clubs[idx+1]. Only
+                   render when both flanking clubs are enabled — the
+                   gate's irrelevant when either side is off. -->
+              <div
+                v-if="
+                  idx < CLUBS.length - 1
+                    && selected.draft.memorize[club].enabled
+                    && selected.draft.memorize[CLUBS[idx + 1]].enabled
+                "
+                class="chain-gate"
+              >
+                <span class="chain-gate-label">
+                  Move to {{ CLUB_LABELS[CLUBS[idx + 1]] }} when:
+                </span>
+                <select
+                  v-if="club === 'club150'"
+                  v-model="selected.draft.moveToNext.p150To300"
+                  :disabled="selected.saving"
+                >
+                  <option v-for="opt in GATE_OPTIONS" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
+                <select
+                  v-else
+                  v-model="selected.draft.moveToNext.p300ToFull"
+                  :disabled="selected.saving"
+                >
+                  <option v-for="opt in GATE_OPTIONS" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
+              </div>
+            </template>
           </div>
+
+          <div class="section-title section-title-spaced">What to review</div>
+          <div class="chain">
+            <article
+              v-for="club in CLUBS"
+              :key="club"
+              class="chain-card"
+              :class="{ 'chain-card-disabled': !selected.draft.review[club].enabled }"
+            >
+              <header class="chain-card-header">
+                <label class="chain-enable">
+                  <input
+                    v-model="selected.draft.review[club].enabled"
+                    type="checkbox"
+                    :disabled="selected.saving"
+                    :aria-label="`Enable review for ${CLUB_LABELS[club]}`"
+                  />
+                  <span class="chain-card-name">
+                    {{ CLUB_LABELS[club] }}
+                    <StatusChip
+                      :variant="STATUS_VARIANTS[clubStatusFor(selected.draft.memorize[club], selected.draft.review[club])]"
+                    >
+                      {{ STATUS_LABELS[clubStatusFor(selected.draft.memorize[club], selected.draft.review[club])] }}
+                    </StatusChip>
+                  </span>
+                </label>
+              </header>
+              <label
+                v-if="selected.draft.review[club].enabled"
+                class="range-row"
+              >
+                <span class="range-label">
+                  Target retention
+                  <span class="range-value">{{ retentionPctFor(selected, club) }}%</span>
+                </span>
+                <input
+                  :value="retentionPctFor(selected, club)"
+                  type="range"
+                  :min="MIN_RETENTION_PCT"
+                  :max="MAX_RETENTION_PCT"
+                  step="1"
+                  :disabled="selected.saving"
+                  @input="onRetentionInput(selected, club, $event)"
+                />
+              </label>
+            </article>
+          </div>
+          <p v-if="memorizeBehindReview(selected.draft)" class="scope-warning" role="alert">
+            One or more clubs are set to memorize but not review — newly-introduced verses won't re-surface in /review.
+          </p>
+          <p class="scope-fineprint">
+            Higher target → more reviews + stronger recall. Lower → fewer reviews + more lapses.
+            Range is {{ MIN_RETENTION_PCT }}–{{ MAX_RETENTION_PCT }}%.
+          </p>
 
           <div class="section-title section-title-spaced">Card kinds</div>
           <div class="scope-stack">
@@ -453,26 +570,6 @@ onMounted(refresh)
               :disabled="selected.saving"
             />
           </label>
-
-          <label class="range-row">
-            <span class="range-label">
-              Target retention
-              <span class="range-value">{{ Math.round(selected.draft.desiredRetention * 100) }}%</span>
-            </span>
-            <input
-              :value="Math.round(selected.draft.desiredRetention * 100)"
-              type="range"
-              min="70"
-              max="97"
-              step="1"
-              :disabled="selected.saving"
-              @input="onRetentionInput(selected, $event)"
-            />
-          </label>
-          <p class="scope-fineprint">
-            Higher target → more reviews + stronger recall. Lower → fewer reviews + more lapses.
-            FSRS recommends 80–95%.
-          </p>
 
           <button
             type="button"
@@ -574,8 +671,6 @@ onMounted(refresh)
 }
 
 .year-card-unenrolled {
-  /* Subtle dimming so unenrolled years read as "available, not yet
-     activated" without disappearing into the background. */
   border-style: dashed;
 }
 
@@ -660,6 +755,94 @@ onMounted(refresh)
   gap: 0.75rem;
 }
 
+.chain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.chain-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.chain-card-disabled {
+  opacity: 0.6;
+}
+
+.chain-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.chain-enable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.chain-enable input[type='checkbox'] {
+  accent-color: var(--color-accent);
+}
+
+.chain-card-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+.chain-card-progress {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chain-knob {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chain-knob-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.chain-knob select,
+.chain-gate select {
+  padding: 0.3rem 0.5rem;
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.chain-gate {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-left: 1rem;
+  padding: 0.4rem 0.75rem;
+  border-left: 2px dashed var(--color-border);
+}
+
+.chain-gate-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
 .scope-stack {
   display: flex;
   flex-direction: column;
@@ -740,6 +923,7 @@ onMounted(refresh)
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
+  font-size: 0.85rem;
 }
 
 .range-value {

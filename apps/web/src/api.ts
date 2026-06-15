@@ -245,7 +245,13 @@ export interface YearView {
   /** True when the user has opted into bulk-renders download for this
    *  year. Server returns false for unenrolled years. */
   offlineMode: boolean
+  /** Legacy flat settings — kept for backward compat with code paths
+   *  not yet migrated to `perClub`. The engine reads `perClub`. */
   settings: YearSettings
+  /** Per-club configuration as stored on the server (Phase 1+). The
+   *  chain UI in /settings/materials reads this so user-customised
+   *  `catchUp` and `moveToNext` choices round-trip cleanly. */
+  perClub: PerClubYearSettings
   clubs: Record<ClubTier, ClubView>
   /** Total `New` cards in the engine — drives the "N to memorize" pill. */
   newCardCount: number
