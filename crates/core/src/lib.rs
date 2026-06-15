@@ -7,6 +7,7 @@ pub mod fsrs_bridge;
 pub mod material_config;
 pub mod render;
 pub mod schedule;
+pub mod schedule_data;
 pub mod session;
 pub mod test_kind;
 pub mod test_state;
