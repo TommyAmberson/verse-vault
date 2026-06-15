@@ -177,7 +177,14 @@ function readYearSettings(
  *  `config_json` blob, fall back to synthesising from the legacy
  *  columns so the route, the engine, and the UI agree on what's on
  *  disk. The two readers are intentionally parallel — both swap to
- *  a shared parsed helper if we add a third consumer. */
+ *  a shared parsed helper if we add a third consumer.
+ *
+ *  Reads `configJson` directly off the row but defers to the explicit
+ *  `readYearSettings` extractor for the legacy-column path: the raw
+ *  Drizzle row carries non-settings columns (`userId`, `materialId`,
+ *  `updatedAt`, …) and the scope/retention columns aren't enum-narrowed
+ *  to `TierScope`/`ChapterListScope` at the schema level, so passing
+ *  the raw row to `legacyToNew` would trust un-narrowed strings. */
 function readPerClubSettings(
   db: DB,
   userId: string,
@@ -197,7 +204,7 @@ function readPerClubSettings(
   if (row?.configJson != null && row.configJson !== '') {
     return JSON.parse(row.configJson) as PerClubYearSettings;
   }
-  return legacyToNew(row ? (row as YearSettings) : legacyFallback);
+  return legacyToNew(readYearSettings(db, userId, materialId, legacyFallback));
 }
 
 export function yearsRoutes(deps: YearsRoutesDeps) {
