@@ -165,3 +165,6 @@ __pycache__/
 
 # Local git worktrees
 /.worktrees/
+
+# Visual companion (brainstorming) scratch
+/.superpowers/
