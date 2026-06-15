@@ -99,7 +99,15 @@ impl Schedule {
         let today = days_since_epoch_from_secs(now_secs);
         let mut hit: Option<usize> = None;
         for (i, w) in self.weeks.iter().enumerate() {
-            let d = parse_iso_date(&w.date)?;
+            // `?` would short-circuit the whole function on a single
+            // malformed date and silently collapse the schedule into
+            // pre-season state for every caller — including the badge
+            // math and the cross-club gates. Skip the bad row instead so
+            // a typo in one week doesn't disable scheduling for the
+            // entire season.
+            let Some(d) = parse_iso_date(&w.date) else {
+                continue;
+            };
             if d <= today {
                 hit = Some(i);
             } else {
