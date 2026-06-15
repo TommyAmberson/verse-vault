@@ -38,12 +38,6 @@ import type { Club, YearView } from '@/api'
 
 const CLUBS: readonly Club[] = ['club150', 'club300', 'full'] as const
 
-const CLUB_TO_TIER_KEY: Record<Club, 'club150' | 'club300' | 'full'> = {
-  club150: 'club150',
-  club300: 'club300',
-  full: 'full',
-}
-
 interface ScheduleWeek {
   date: string
   verses: Partial<Record<Club, number[]>> | null
@@ -79,7 +73,7 @@ function cumulativeThroughWeek(
     const w = weeks[i]?.verses
     if (!w) continue
     for (const club of enabledClubs) {
-      sum += w[CLUB_TO_TIER_KEY[club]]?.length ?? 0
+      sum += w[club]?.length ?? 0
     }
   }
   return sum
@@ -96,14 +90,25 @@ export function badgeContribution(
   if (enabledClubs.length === 0) return 0
   if (!schedule || schedule.weeks.length === 0) return year.newCardCount
   const idx = currentWeekIndex(schedule.weeks, today)
-  if (idx < 0) return 0
+  // Today before week 0 of a published schedule (e.g. the user installs
+  // the deck weeks before the season starts): the user can still
+  // sequentially memorize verses, so fall back to newCardCount rather
+  // than zeroing the badge. The schedule cap only kicks in once week 0
+  // has arrived.
+  if (idx < 0) return year.newCardCount
   const cumulative = cumulativeThroughWeek(schedule.weeks, idx, enabledClubs)
   return Math.min(year.newCardCount, cumulative)
 }
 
 /** Compute the schedule-aware Memorize badge count across every year.
- *  Driver fetches schedules in parallel — one round-trip per enrolled
- *  year on top of the existing `getYears()` call. */
+ *  Skips years with no enabled memorize club before any network call —
+ *  pressing Memorize on those years wouldn't introduce a verse anyway,
+ *  and the badge fires on every navigation, so the saved round-trips
+ *  add up for users with many catalog years.
+ *
+ *  Per-year fetch failures degrade gracefully: a single transient
+ *  network error on one year falls back to `newCardCount` for that
+ *  year rather than blanking the whole badge via Promise.all rejection. */
 export async function memorizeBadgeCount(
   years: readonly YearView[],
   getSchedule: (materialId: string) => Promise<unknown | null>,
@@ -111,8 +116,14 @@ export async function memorizeBadgeCount(
 ): Promise<number> {
   const contributions = await Promise.all(
     years.map(async (year) => {
-      const raw = await getSchedule(year.materialId)
-      const schedule = (raw as Schedule | null) ?? null
+      if (!CLUBS.some((c) => year.perClub.memorize[c].enabled)) return 0
+      let schedule: Schedule | null = null
+      try {
+        schedule = ((await getSchedule(year.materialId)) as Schedule | null) ?? null
+      } catch {
+        // Treat as schedule-absent — badgeContribution falls back to
+        // newCardCount for this year.
+      }
       return badgeContribution(year, schedule, todayIso)
     }),
   )
