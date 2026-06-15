@@ -22,6 +22,7 @@ import { accountRoutes } from './routes/account.js';
 import { cardsRoutes } from './routes/cards.js';
 import { materialsRoutes } from './routes/materials.js';
 import { activityRoutes } from './routes/activity.js';
+import { schedulesRoutes } from './routes/schedules.js';
 import { statsRoutes } from './routes/stats.js';
 import { syncRoutes } from './routes/sync.js';
 import { yearsRoutes } from './routes/years.js';
@@ -56,7 +57,7 @@ export function createApp(deps: AppDeps) {
   // (`src/index.ts`). Tests reach in via `createTestApp` and
   // construct their own short-lived processes, so they neither need
   // nor want a 60 s setInterval per `createApp` call.
-  const engines = new EngineStore(deps.db, undefined, deps.now);
+  const engines = new EngineStore(deps.db, deps.now);
   const apibibleCache = deps.bibleApiKey
     ? new ApibibleCache(deps.db, deps.bibleApiKey, deps.now)
     : undefined;
@@ -151,6 +152,7 @@ export function createApp(deps: AppDeps) {
     }),
   );
   app.route('/api/years', yearsRoutes({ db: deps.db, engines, now: deps.now }));
+  app.route('/api/materials', schedulesRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/stats', statsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/activity', activityRoutes({ db: deps.db, now: deps.now }));
   app.route('/api', accountRoutes({ db: deps.db, engines, now: deps.now }));

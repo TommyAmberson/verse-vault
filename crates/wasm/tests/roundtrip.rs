@@ -27,13 +27,13 @@ const GRADE_GOOD: u8 = 3;
 
 #[test]
 fn constructor_loads_material_without_panic() {
-    let _engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 86400 * 365)
+    let _engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 86400 * 365)
         .expect("constructor should succeed");
 }
 
 #[test]
 fn constructor_accepts_empty_persisted_states() {
-    let _engine = WasmEngine::new(MATERIAL_JSON, "", "[]", 0.9, 86400 * 365).unwrap();
+    let _engine = WasmEngine::new(MATERIAL_JSON, "", "", "[]", 86400 * 365).unwrap();
 }
 
 /// Look up the first card for verse 0 from the material.
@@ -61,7 +61,7 @@ fn first_card_id_where<F: Fn(&CardKind) -> bool>(pred: F) -> u32 {
 #[test]
 fn replay_event_returns_root_update_for_atomic_card() {
     let now = 86400 * 365;
-    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, now).unwrap();
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", "", now).unwrap();
     let card_id = first_card_id_where(|k| matches!(k, CardKind::PhraseFill { .. }));
     let resp = engine
         .replay_event(card_id, GRADE_GOOD, now + 86400 * 30)
@@ -74,7 +74,7 @@ fn replay_event_returns_root_update_for_atomic_card() {
 #[test]
 fn replay_event_returns_sub_updates_for_composite_card() {
     let now = 86400 * 365;
-    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, now).unwrap();
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", "", now).unwrap();
     let card_id = first_card_id_where(|k| matches!(k, CardKind::Recitation));
     let resp = engine
         .replay_event(card_id, GRADE_GOOD, now + 86400 * 30)
@@ -93,7 +93,7 @@ fn replay_event_returns_sub_updates_for_composite_card() {
 #[test]
 fn export_test_states_after_review_round_trips() {
     let now = 86400 * 365;
-    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, now).unwrap();
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", "", now).unwrap();
     let card_id = first_card_id();
     let _ = engine
         .replay_event(card_id, GRADE_GOOD, now + 86400 * 30)
@@ -110,7 +110,7 @@ fn export_test_states_after_review_round_trips() {
 #[test]
 fn replay_event_unknown_card_id_returns_error() {
     let now = 86400 * 365;
-    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, now).unwrap();
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", "", now).unwrap();
     let bogus_id: u32 = 999_999;
     let result = engine.replay_event_for_test(bogus_id, GRADE_GOOD, now);
     let err = result.expect_err("unknown card id should yield Err, not panic");
@@ -120,7 +120,7 @@ fn replay_event_unknown_card_id_returns_error() {
 #[test]
 fn replay_event_invalid_grade_returns_error() {
     let now = 86400 * 365;
-    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, now).unwrap();
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", "", now).unwrap();
     let card_id = first_card_id();
     let result = engine.replay_event_for_test(card_id, 0, now);
     let err = result.expect_err("invalid grade should yield Err, not panic");
@@ -136,7 +136,7 @@ fn next_card_returns_some_when_due_after_graduation() {
     // we ask at +60 days past t=365d, retrievability is well below 0.9. The
     // verse has to be graduated (memorize → Active) before `next_card` will
     // surface its cards — without graduation, /review is empty.
-    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 0).unwrap();
     engine.graduate_verse(0);
     let pick = engine.next_review_card(86400 * 365 + 86400 * 60);
     assert!(pick.is_some(), "expected a due card");
@@ -145,13 +145,13 @@ fn next_card_returns_some_when_due_after_graduation() {
 #[test]
 fn next_card_empty_until_verse_graduates() {
     // Brand-new engine: every card is `New`. /review must be empty.
-    let engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
+    let engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 0).unwrap();
     assert!(engine.next_review_card(86400 * 365 + 86400 * 60).is_none());
 }
 
 #[test]
 fn get_card_render_for_phrase_fill_returns_structural_metadata() {
-    let engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
+    let engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 0).unwrap();
     let card_id = first_card_id_where(|k| matches!(k, CardKind::PhraseFill { position: 1 }));
     let json = engine.get_card_render_for_test(card_id).unwrap();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -169,7 +169,7 @@ fn get_card_render_for_phrase_fill_returns_structural_metadata() {
 
 #[test]
 fn get_card_render_for_recitation_has_structural_verse_data() {
-    let engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
+    let engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 0).unwrap();
     let card_id = first_card_id_where(|k| matches!(k, CardKind::Recitation));
     let json = engine.get_card_render_for_test(card_id).unwrap();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -190,7 +190,7 @@ fn get_card_render_for_recitation_has_structural_verse_data() {
 
 #[test]
 fn get_card_render_unknown_card_id_returns_error() {
-    let engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
+    let engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 0).unwrap();
     let err = engine.get_card_render_for_test(999_999).unwrap_err();
     assert!(err.contains("unknown card id"), "got: {err}");
 }
@@ -202,17 +202,19 @@ fn material_config_json_parses_and_filters_emission() {
     // engine produces fewer cards than the default. Core-level tests
     // verify the specific kinds dropped; this test just confirms the
     // config JSON crosses the wasm boundary and reaches `build_with_config`.
-    let default_engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
+    let default_engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 0).unwrap();
     // Turn off the year-wide toggles. Club configs stay at their map
     // entries from build_with_config; we only need `headings` and `ftv`
     // off to demonstrate that config JSON crosses the wasm boundary.
     let off_engine = WasmEngine::new(
         MATERIAL_JSON,
+        // Legacy-shape JSON; new_scope/review_scope=all keeps the Full
+        // verse out of Paused via the legacy → per-club migrator.
         r#"{"headings":false,"ftv":false,
-            "club_card_scope":"off","chapter_list_scope":"off",
-            "clubs":{"Full":"Active"}}"#,
+            "new_scope":"all","review_scope":"all",
+            "club_card_scope":"off","chapter_list_scope":"off"}"#,
         "",
-        0.9,
+        "",
         0,
     )
     .unwrap();
@@ -248,7 +250,7 @@ const MATERIAL_HP_CCL_JSON: &str = r#"{
 
 #[test]
 fn memorize_session_surfaces_hp_and_ccl_as_standalone_slots() {
-    let engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, "", "", 0.9, 0).unwrap();
+    let engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, "", "", "", 0).unwrap();
     let json = engine.memorize_session(10).unwrap();
     let session: serde_json::Value = serde_json::from_str(&json).unwrap();
     let entries = session["verses"].as_array().unwrap();
@@ -297,7 +299,7 @@ fn memorize_session_surfaces_orphan_conditional_cards() {
         "chapter_list_scope": "up150",
         "clubs": {"Club150": "Active"}
     }"#;
-    let mut engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, config_json, "", 0.9, 0).unwrap();
+    let mut engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, config_json, "", "", 0).unwrap();
     engine.graduate_verse(0);
     let json = engine.memorize_session(10).unwrap();
     let session: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -334,7 +336,7 @@ fn memorize_session_surfaces_orphans_when_no_fresh_verses() {
         "chapter_list_scope": "up150",
         "clubs": {"Club150": "Active"}
     }"#;
-    let mut engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, config_json, "", 0.9, 0).unwrap();
+    let mut engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, config_json, "", "", 0).unwrap();
     engine.graduate_verse(0);
     engine.graduate_verse(1);
     let json = engine.memorize_session(3).unwrap();
@@ -355,7 +357,7 @@ fn memorize_session_surfaces_orphans_when_no_fresh_verses() {
 
 #[test]
 fn graduate_card_flips_one_card_and_is_idempotent() {
-    let mut engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, "", "", 0.9, 0).unwrap();
+    let mut engine = WasmEngine::new(MATERIAL_HP_CCL_JSON, "", "", "", 0).unwrap();
     let json = engine.memorize_session(10).unwrap();
     let session: serde_json::Value = serde_json::from_str(&json).unwrap();
     let entries = session["verses"].as_array().unwrap();
@@ -372,7 +374,7 @@ fn graduate_card_flips_one_card_and_is_idempotent() {
     // re-check the HP state through the wire shape here, but a second
     // graduate_card returns false (already Active), and a fresh engine
     // confirms graduate_verse alone leaves the HP New.
-    let mut engine2 = WasmEngine::new(MATERIAL_HP_CCL_JSON, "", "", 0.9, 0).unwrap();
+    let mut engine2 = WasmEngine::new(MATERIAL_HP_CCL_JSON, "", "", "", 0).unwrap();
     engine2.graduate_verse(0);
     engine2.graduate_verse(1);
     // HP is still New, so graduate_card returns true.
@@ -381,7 +383,7 @@ fn graduate_card_flips_one_card_and_is_idempotent() {
 
 #[test]
 fn card_count_by_club_returns_buckets_for_full_tier_material() {
-    let engine = WasmEngine::new(MATERIAL_JSON, "", "", 0.9, 0).unwrap();
+    let engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 0).unwrap();
     let json = engine.card_count_by_club_for_test();
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     // MATERIAL_JSON has empty clubs on its single verse, so parse_tiers

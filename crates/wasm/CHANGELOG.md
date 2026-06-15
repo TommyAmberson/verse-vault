@@ -22,6 +22,61 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-06-14
+
+MAJOR bump for the schedules + per-club settings rework (Phase 1). The `WasmEngine` constructor
+signature changes — `desired_retention` is removed, `schedule_json` is added — and the per-club
+`MaterialConfig` shape now flows across the wire. Pre-0.6.0 JS callers will not type-check or run
+against this build; update the constructor call site (and the `memorize_session` call site when
+ready, see below) when bumping consumers.
+
+### `WasmEngine` constructor signature change
+
+Old:
+
+```ts
+new WasmEngine(material_json, material_config_json, persisted_states_json, desired_retention, now_secs)
+```
+
+New:
+
+```ts
+new WasmEngine(material_json, material_config_json, schedule_json, persisted_states_json, now_secs)
+```
+
+* `desired_retention` is removed. Per-club retention now lives inside
+  `MaterialConfig.review.{club}.desiredRetention`; the fallback for pseudo-verses with no tier is
+  the engine's `ScheduleParams::default().target_retention` (0.9).
+* `schedule_json` is new. Pass `""` to skip the schedule entirely — the memorize algorithm collapses
+  to pure-Sequential canonical-order fill in that case, matching pre-0.6.0 behaviour. Otherwise it's
+  a JSON `Schedule` matching the bundled `data/schedules/<deck>-<season>.json` shape from
+  `crates/core@0.6.0`.
+
+### `MaterialConfig` wire shape
+
+The flat `(new_scope, review_scope, desired_retention)` triple is replaced by per-club `memorize`,
+`review`, and a per-pair `move_to_next` gate. Legacy shape is still accepted on read via the
+migration adapter — but new clients should emit the per-club shape directly to avoid the clamp on
+legacy retention values above 0.9. See `crates/core@0.6.0`'s changelog for the field list and
+migration semantics.
+
+### New: `memorize_session_v2(limit, now_secs)`
+
+* Schedule-aware two-phase canonical-order fill. Phase 1 picks `CalendarCascade` clubs' this-week
+  primary verses, Phase 2 fills the rest from eligible clubs in canonical (deck) order. Returns the
+  same `{ verses, orphans }` JSON shape `memorize_session` returns.
+* `memorize_session(limit)` stays callable for one release as a deprecated wrapper — it invokes v2
+  with `now_secs = 0`, which collapses gracefully when no schedule is supplied. The web client's
+  call site switches in Phase 2 of the implementation train.
+
+### Test scaffolding adjustment
+
+* `parse_material_config("")` now returns `MaterialConfig::all_clubs_enabled(0.9)` instead of
+  `MaterialConfig::default()`. The new default is the spec's Club-150-only shape, which would
+  silently pause fixtures using `clubs: []` (resolves to `Full`). The TS API path always supplies a
+  real per-club JSON for production users, so this branch is reached only in tests and the WASM
+  smoke harness.
+
 ## [0.5.1] — 2026-06-11
 
 ### Fix `memorize_session` ignoring tier-scope

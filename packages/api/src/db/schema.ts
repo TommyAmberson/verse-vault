@@ -99,25 +99,28 @@ export const userMaterials = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
 );
 
-// Per-year material picker toggles. One row per (user, material). Four
-// "tier scope" columns plus two booleans plus the lesson batch size
-// drive the engine's `MaterialConfig` at construction time:
+// Per-year material picker toggles. One row per (user, material).
 //
-// - active_scope: which tiers introduce new verses (and review them).
-// - maintenance_scope: which tiers (additionally) review only.
-// - club_card_scope: which tiers get the per-verse "Which club?" card.
-// - chapter_list_scope: which tiers get the chapter-list card.
+// As of Phase 1 (migration 0023) the per-club `config_json` blob is the
+// authoritative MaterialConfig shape — `readMaterialConfigJson` reads it
+// verbatim and passes it to the WASM engine. The legacy flat columns
+// stay during the transition: route writes mirror both, the importer
+// preserves whichever shape the export carried, and the engine
+// synthesises a per-club shape from the legacy columns when `config_json`
+// is NULL (rows untouched since the migration).
 //
-// Each scope is one of "off" | "up150" | "up300" | "all"
-// (chapter_list_scope omits "all" — Full never emits a chapter-list).
+// Legacy columns and how they map to the per-club shape:
+// - new_scope:    which tiers introduce new verses → memorize.{club}.enabled
+// - review_scope: which tiers surface in /review → review.{club}.enabled
+// - desired_retention: applied to every enabled review club, clamped
+//   into the new [0.5, 0.9] range. No longer an ctor arg — per-club
+//   retention lives inside `config_json.review.{club}.desiredRetention`.
+// - club_card_scope:    per-verse "Which club?" card (unchanged)
+// - chapter_list_scope: chapter-list card (unchanged)
+// - lesson_batch_size:  per-session target (now also inside config_json)
 //
-// Per-tier effective status is derived: a tier covered by active_scope
-// is Active; covered only by maintenance_scope is Maintenance; covered
-// by neither is Paused.
-//
-// `desired_retention` is read alongside `MaterialConfig` and threaded
-// as a separate ctor arg to `new WasmEngine(...)`, not part of the
-// MaterialConfig JSON.
+// A future migration drops the legacy columns once Phase 2's web UI
+// switches to the per-club shape end-to-end.
 export const userYearSettings = sqliteTable(
   'user_year_settings',
   {
@@ -134,9 +137,47 @@ export const userYearSettings = sqliteTable(
     chapterListScope: text('chapter_list_scope').notNull(),
     lessonBatchSize: integer('lesson_batch_size').notNull(),
     desiredRetention: real('desired_retention').notNull().default(0.9),
+    /** Phase 1 of the schedules + per-club work: holds the per-club
+     *  MaterialConfig shape as a JSON blob, materialised from the legacy
+     *  flat columns by migration 0023. The route layer dual-writes
+     *  during transition (legacy columns + this column) so importers and
+     *  pre-Phase-2 web clients keep working. A future migration drops
+     *  the legacy columns once the web rework is shipped. */
+    configJson: text('config_json'),
     updatedAt: integer('updated_at').notNull(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
+);
+
+// Per-(user, material) memorize schedule. Stores the user's
+// customised copy of the bundled `data/schedules/<deck>-<season>.json`
+// schedule as a single JSON blob (~5 KB). Schedules are shipped per
+// material; the user clones the default into this row on first edit.
+// A missing row means "use the bundled default"; deleting the row
+// is the "reset to default" action surfaced in the schedule editor.
+//
+// Sync semantics: last-write-wins. There is no event-log replay for
+// schedule edits — the row IS the authoritative state. Writers
+// invalidate the engine cache via `engines.invalidate(key)` so the
+// next `EngineStore.load` re-reads the schedule alongside the
+// material data.
+export const materialSchedules = sqliteTable(
+  'material_schedules',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    /** Full Schedule JSON (matches the bundled `data/schedules/<deck>-<season>.json`
+     *  shape from `crates/core::schedule_data::Schedule`). The TS layer never
+     *  inspects the body — it's passed verbatim to the WASM engine. */
+    scheduleJson: text('schedule_json').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.materialId] }),
+    userIdx: index('idx_material_schedules_user').on(t.userId),
+  }),
 );
 
 // Tracks which version of a material's bundled JSON (stored on disk under

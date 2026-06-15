@@ -149,6 +149,13 @@ __pycache__/
 # counts, user annotations, and verse refs. The other gitignored data/*
 # files (Anki backups, raw NKJV text, the api.bible cache) stay ignored.
 !/data/[0-9]-*.json
+# Bundled memorize schedules for the Phase 1 schedules + per-club work
+# (see `docs/superpowers/specs/2026-06-14-schedules-and-settings-design.md`).
+# Same whitelist pattern as the deck files — the loader at
+# `packages/api/src/lib/schedules.ts` picks them up from disk per
+# materialId.
+!/data/schedules/
+!/data/schedules/*.json
 
 # wasm-pack build output
 /crates/wasm/pkg/
@@ -165,3 +172,6 @@ __pycache__/
 
 # Local git worktrees
 /.worktrees/
+
+# Visual companion (brainstorming) scratch
+/.superpowers/

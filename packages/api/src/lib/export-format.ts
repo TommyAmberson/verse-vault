@@ -48,7 +48,12 @@ export type CardRef =
 
 /** Per-(user, material) settings. Mirrors `user_year_settings` columns
  *  in camelCase so a new column added there propagates by re-running
- *  the export with the wider type. */
+ *  the export with the wider type.
+ *
+ *  Phase 1: `configJson` carries the per-club shape verbatim when the
+ *  row has been migrated / re-written under the new flow. Older exports
+ *  omit it (null when absent); the importer falls back to deriving the
+ *  per-club shape from the flat columns via `legacyToNew`. */
 export interface YearSettingsExport {
   headingCard: boolean;
   headingPassageCard: boolean;
@@ -59,6 +64,19 @@ export interface YearSettingsExport {
   chapterListScope: string;
   lessonBatchSize: number;
   desiredRetention: number;
+  /** Phase 1+ — per-club MaterialConfig JSON string. Null on older
+   *  exports; null on rows that haven't been touched since migration
+   *  0023 (the engine path synthesises in that case). */
+  configJson?: string | null;
+  updatedAt: number;
+}
+
+/** Per-(user, material) memorize schedule override. `null` (or absent)
+ *  when the user hasn't customised the bundled default. Exported and
+ *  imported verbatim — the importer doesn't re-validate the body
+ *  (the engine load path does on the next request). */
+export interface ScheduleExport {
+  scheduleJson: string;
   updatedAt: number;
 }
 
@@ -102,6 +120,9 @@ export interface MaterialExport {
   /** `null` when no `user_year_settings` row exists (user enrolled but
    *  never touched any setting). */
   settings: YearSettingsExport | null;
+  /** Phase 1+ — `null` when the user hasn't customised the bundled
+   *  default. Omitted (treated as null) on pre-Phase-1 exports. */
+  schedule?: ScheduleExport | null;
   snapshot: MaterialSnapshotExport;
   graduatedVerses: GraduatedVerseExport[];
   graduatedCards: GraduatedCardExport[];

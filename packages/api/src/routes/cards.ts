@@ -90,7 +90,10 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     const raw = await deps.engines.tryLoad({ userId: user.id, materialId });
     if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
     using loaded = raw;
-    const session = JSON.parse(loaded.engine.memorize_session(max)) as {
+    // Schedule-aware two-phase canonical fill via wasm@0.6.0's v2 surface.
+    // The engine carries the schedule passed at construction; the algorithm
+    // collapses to pure-Sequential when none ships for the material.
+    const session = JSON.parse(loaded.engine.memorize_session_v2(max, BigInt(now()))) as {
       verses: { verseId: number; cardIds: number[] }[];
       orphans?: number[];
     };

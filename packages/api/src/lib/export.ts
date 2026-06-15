@@ -73,6 +73,7 @@ function buildMaterialExport(
   };
 
   const settings = readSettingsExport(db, key);
+  const schedule = readScheduleExport(db, key);
   const snapshot = readSnapshotExport(db, key, snapshotVersion);
   const graduatedVerses = readGraduatedVerseExport(db, key);
   const graduatedCards = readGraduatedCardExport(db, key, index);
@@ -82,6 +83,7 @@ function buildMaterialExport(
     materialId: key.materialId,
     enrollment,
     settings,
+    schedule,
     snapshot,
     graduatedVerses,
     graduatedCards,
@@ -114,8 +116,30 @@ function readSettingsExport(
     chapterListScope: row.chapterListScope,
     lessonBatchSize: row.lessonBatchSize,
     desiredRetention: row.desiredRetention,
+    configJson: row.configJson,
     updatedAt: row.updatedAt,
   };
+}
+
+function readScheduleExport(
+  db: DB,
+  key: { userId: string; materialId: string },
+): import('./export-format.js').ScheduleExport | null {
+  const row = db
+    .select({
+      scheduleJson: schema.materialSchedules.scheduleJson,
+      updatedAt: schema.materialSchedules.updatedAt,
+    })
+    .from(schema.materialSchedules)
+    .where(
+      and(
+        eq(schema.materialSchedules.userId, key.userId),
+        eq(schema.materialSchedules.materialId, key.materialId),
+      ),
+    )
+    .get();
+  if (!row) return null;
+  return { scheduleJson: row.scheduleJson, updatedAt: row.updatedAt };
 }
 
 function readSnapshotExport(

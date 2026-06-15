@@ -126,6 +126,24 @@ impl ReviewEngine {
         !matches!(self.verse_status(verse_id), Some(ClubStatus::Maintenance))
     }
 
+    /// Per-verse target retention used by the scheduler — reads the
+    /// most-specific tier from `verse_index` and looks it up via
+    /// `MaterialConfig::target_r_for`. Falls back to the engine's
+    /// fallback `schedule_params.target_retention` when the verse has
+    /// no tier (pseudos, fixtures with empty `clubs`).
+    ///
+    /// All due-time math (`next_card`, relearn lane, `due_*_count`)
+    /// reads through this helper so per-club retention preferences
+    /// kick in without re-threading parameters through every scheduler
+    /// entry point.
+    pub fn target_r_for_verse(&self, verse_id: u32) -> f32 {
+        self.verse_index
+            .elements_of(verse_id)
+            .and_then(|e| e.clubs.first().copied())
+            .map(|tier| self.material_config.target_r_for(tier))
+            .unwrap_or(self.schedule_params.target_retention)
+    }
+
     /// Borrow the per-verse render data for a verse, or `None` if the verse
     /// isn't in the catalog.
     pub fn verse_render(&self, verse_id: u32) -> Option<&VerseRender> {

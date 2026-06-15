@@ -309,11 +309,18 @@ fn build_heading_lookup(headings: &[HeadingData]) -> HashMap<(String, u16, u16),
     lookup
 }
 
-/// Build cards and seeded test states from material data, with the default
-/// (everything-on) `MaterialConfig`. Convenience wrapper around
-/// [`build_with_config`] for callers (sim, tests) that don't filter.
+/// Build cards and seeded test states from material data with the
+/// "everything-on" config — every club enabled for both memorize and
+/// review at 0.9 retention. Convenience wrapper around
+/// [`build_with_config`] for callers (sim, tests, the WASM smoke harness)
+/// that want a fully-open engine without specifying per-club shape.
+///
+/// Note: `MaterialConfig::default()` is the *new-user* default
+/// (Club 150 only, retention 0.8). This wrapper specifically opens
+/// every tier so test fixtures using `clubs: []` (which `parse_tiers`
+/// resolves to `Full`) aren't silently paused.
 pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
-    build_with_config(data, &MaterialConfig::default(), now_secs)
+    build_with_config(data, &MaterialConfig::all_clubs_enabled(0.9), now_secs)
 }
 
 /// Build cards and seeded test states from material data.
@@ -984,11 +991,7 @@ mod tests {
             ClubTier::Club300 => crate::material_config::TierScope::Up150,
             ClubTier::Full => crate::material_config::TierScope::Up300,
         };
-        MaterialConfig {
-            new_scope: scope,
-            review_scope: scope,
-            ..MaterialConfig::default()
-        }
+        MaterialConfig::from_scopes(scope, scope)
     }
 
     #[test]
@@ -1075,9 +1078,11 @@ mod tests {
         let m: MaterialData = serde_json::from_str(json).unwrap();
         // chapter_list_scope defaults to Up150 (per ChapterListScope::default),
         // so the Club300 chapter card needs an explicit Up300 to surface.
+        // Use the test-friendly all-clubs-enabled config so the Club300
+        // verse isn't filtered out by the new "Club 150 only" default.
         let cfg = MaterialConfig {
             chapter_list_scope: ChapterListScope::Up300,
-            ..MaterialConfig::default()
+            ..MaterialConfig::all_clubs_enabled(0.9)
         };
         let r = build_with_config(&m, &cfg, 0);
         let chapter_cards: Vec<&Card> = r

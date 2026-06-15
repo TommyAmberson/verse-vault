@@ -93,7 +93,10 @@ describe('years routes', () => {
       clubCardScope: 'off',
       chapterListScope: 'up150',
       lessonBatchSize: 3,
-      desiredRetention: 0.9,
+      // ENROLLED_DEFAULTS shifted from 0.9 to 0.8 in Phase 1 so the
+      // per-club configJson synthesised via legacyToNew agrees with
+      // the spec's 0.8 new-user default.
+      desiredRetention: 0.8,
     });
     for (const tier of ['150', '300', 'full'] as const) {
       expect(year.clubs[tier].status).toBe('active');
@@ -207,5 +210,80 @@ describe('years routes', () => {
       body: JSON.stringify({ headingCard: false }),
     });
     expect(res.status).toBe(404);
+  });
+
+  it('accepts the new per-club shape and derives legacy scopes', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID, 150);
+
+    const res = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({
+        headingCard: false,
+        headingPassageCard: true,
+        ftv: true,
+        clubCardScope: 'off',
+        chapterListScope: 'up150',
+        memorize: {
+          club150: { enabled: true, catchUp: 'calendarCascade' },
+          club300: { enabled: true, catchUp: 'sequential' },
+          full: { enabled: false, catchUp: 'sequential' },
+        },
+        review: {
+          club150: { enabled: true, desiredRetention: 0.85 },
+          club300: { enabled: false, desiredRetention: 0.8 },
+          full: { enabled: false, desiredRetention: 0.8 },
+        },
+        moveToNext: { p150To300: 'fullyMemorized', p300ToFull: 'caughtUp' },
+        lessonBatchSize: 1,
+      }),
+    });
+    expect(res.status).toBe(200);
+
+    const get = await test.app.request('/api/years', { headers: { cookie } });
+    const body = (await get.json()) as YearsResponse;
+    const year = body.years.find((y) => y.materialId === MATERIAL_ID)!;
+    // perClubToLegacy collapses memorize.{150,300}.enabled → up300.
+    expect(year.settings.newScope).toBe('up300');
+    // Only review.club150 enabled → up150.
+    expect(year.settings.reviewScope).toBe('up150');
+    expect(year.settings.lessonBatchSize).toBe(1);
+    // desiredRetention picks club150's value.
+    expect(year.settings.desiredRetention).toBe(0.85);
+  });
+
+  it('rejects per-club retention out of [0.5, 0.9]', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID, 150);
+
+    const res = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({
+        headingCard: false,
+        headingPassageCard: true,
+        ftv: true,
+        clubCardScope: 'off',
+        chapterListScope: 'up150',
+        memorize: {
+          club150: { enabled: true, catchUp: 'sequential' },
+          club300: { enabled: false, catchUp: 'sequential' },
+          full: { enabled: false, catchUp: 'sequential' },
+        },
+        review: {
+          club150: { enabled: true, desiredRetention: 0.95 },
+          club300: { enabled: false, desiredRetention: 0.8 },
+          full: { enabled: false, desiredRetention: 0.8 },
+        },
+        moveToNext: { p150To300: 'caughtUp', p300ToFull: 'caughtUp' },
+        lessonBatchSize: 1,
+      }),
+    });
+    expect(res.status).toBe(400);
   });
 });

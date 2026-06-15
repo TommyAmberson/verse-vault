@@ -126,7 +126,7 @@ describe('EngineStore', () => {
       )
       .run();
 
-    const store = new EngineStore(test.db, 0.9, () => 0, () => fixtureMaterial([2, 2, 2, 3]));
+    const store = new EngineStore(test.db, () => 0, () => fixtureMaterial([2, 2, 2, 3]));
     const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
     const states = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
     const phrase1 = states.find((s) => {
@@ -166,7 +166,7 @@ describe('EngineStore', () => {
       })
       .run();
 
-    const store = new EngineStore(test.db, 0.9, () => 0, () => fixtureMaterial([2, 2, 2, 3]));
+    const store = new EngineStore(test.db, () => 0, () => fixtureMaterial([2, 2, 2, 3]));
     const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
     const states = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
     const orphan = states.find((s) => {
@@ -192,7 +192,7 @@ describe('EngineStore', () => {
     });
 
     let bundled = before;
-    const store = new EngineStore(test.db, 0.9, () => 1, () => bundled);
+    const store = new EngineStore(test.db, () => 1, () => bundled);
 
     // Same content → no bump.
     const first = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
@@ -245,7 +245,7 @@ describe('EngineStore', () => {
       )
       .run();
 
-    const store = new EngineStore(test.db, 0.9, () => 1, () => fixture);
+    const store = new EngineStore(test.db, () => 1, () => fixture);
     const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
     expect(loaded.snapshotVersion).toBe(2);
 
@@ -289,7 +289,7 @@ describe('EngineStore', () => {
       )
       .run();
 
-    const store = new EngineStore(test.db, 0.9, () => 1, () => fixture);
+    const store = new EngineStore(test.db, () => 1, () => fixture);
     const [a, b] = await Promise.all([
       store.load({ userId: 'u1', materialId: 'nkjv-cor' }),
       store.load({ userId: 'u1', materialId: 'nkjv-cor' }),
@@ -357,7 +357,7 @@ describe('EngineStore', () => {
       .run();
 
     let bundled = before;
-    const store = new EngineStore(test.db, 0.9, () => 1, () => bundled);
+    const store = new EngineStore(test.db, () => 1, () => bundled);
     bundled = after;
     const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
     const states = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
@@ -425,7 +425,7 @@ describe('EngineStore eviction', () => {
     seed(test.db, 'u3');
 
     let clock = 100;
-    const store = new EngineStore(test.db, 0.9, () => clock, undefined, { maxEntries: 2 });
+    const store = new EngineStore(test.db, () => clock, undefined, { maxEntries: 2 });
 
     clock = 100;
     const u1Orig = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
@@ -456,7 +456,7 @@ describe('EngineStore eviction', () => {
     seed(test.db, 'u3');
 
     let clock = 100;
-    const store = new EngineStore(test.db, 0.9, () => clock, undefined, { maxEntries: 2 });
+    const store = new EngineStore(test.db, () => clock, undefined, { maxEntries: 2 });
 
     clock = 100;
     const u1Orig = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
@@ -481,7 +481,7 @@ describe('EngineStore eviction', () => {
     seed(test.db, 'u1');
 
     let clock = 100;
-    const store = new EngineStore(test.db, 0.9, () => clock, undefined, {
+    const store = new EngineStore(test.db, () => clock, undefined, {
       idleTtlSecs: 50,
     });
 
@@ -509,7 +509,7 @@ describe('EngineStore eviction', () => {
     seed(test.db, 'u1');
 
     let clock = 100;
-    const store = new EngineStore(test.db, 0.9, () => clock, undefined, {
+    const store = new EngineStore(test.db, () => clock, undefined, {
       idleTtlSecs: 50,
     });
 
@@ -543,7 +543,7 @@ describe('EngineStore eviction', () => {
     seed(test.db, 'u1');
 
     let clock = 100;
-    const store = new EngineStore(test.db, 0.9, () => clock);
+    const store = new EngineStore(test.db, () => clock);
 
     const handle = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
     handle[Symbol.dispose]();
@@ -571,7 +571,7 @@ describe('EngineStore eviction', () => {
     seed(test.db, 'u1');
 
     let clock = 100;
-    const store = new EngineStore(test.db, 0.9, () => clock, undefined, {
+    const store = new EngineStore(test.db, () => clock, undefined, {
       idleTtlSecs: 50,
     });
 
@@ -606,7 +606,7 @@ describe('EngineStore eviction', () => {
     cleanup = test.cleanup;
 
     // Pick a long interval so the timer never actually fires under the test.
-    const store = new EngineStore(test.db, 0.9, () => 0, undefined, {
+    const store = new EngineStore(test.db, () => 0, undefined, {
       reaperIntervalSecs: 3600,
     });
 

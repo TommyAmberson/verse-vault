@@ -14,9 +14,13 @@ import {
   ensureBoolean,
   ensureEnum,
   ensureRetention,
+  legacyToNew,
+  looksLikePerClub,
+  perClubToLegacy,
   TIER_SCOPES,
   type TierScope,
   ValidationError,
+  validatePerClubYearSettings,
   type YearSettings,
 } from '../lib/year-settings.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
@@ -93,15 +97,23 @@ function effectiveStatus(settings: YearSettings, tier: ClubTier): ClubStatus {
 }
 
 // Two fallbacks when the user has no user_year_settings row. Enrolled
-// users default to "study everything" (mirrors the engine's
-// MaterialConfig::default); unenrolled users default to paused so the
-// per-tier chip doesn't lie ("Active" on a year the user hasn't
-// touched would be misleading). Either way, the user can opt in or
-// out from the picker.
-// VerseInHeading defaults off; HeadingPassage defaults on. Mirrors
-// `MaterialConfig::default()` after the heading config split (core
-// 0.2.0): the passage-cued card is the primary heading test and the
-// per-verse "which heading?" card is now opt-in.
+// users default to "study everything" — every tier covered by both
+// scopes (wider than the post-Phase-1 `MaterialConfig::default()`,
+// which is Club-150-only, but matches the *legacy* shape this route
+// still surfaces alongside the per-club `configJson`). Unenrolled
+// users default to paused so the per-tier chip doesn't lie ("Active"
+// on a year the user hasn't touched would be misleading). Either way,
+// the user can opt in or out from the picker.
+// VerseInHeading defaults off; HeadingPassage defaults on. Matches the
+// core defaults after the heading config split (core 0.2.0): the
+// passage-cued card is the primary heading test and the per-verse
+// "which heading?" card is now opt-in.
+// `desiredRetention: 0.8` matches the post-Phase-1 spec — `legacyToNew`
+// uses this value verbatim when synthesising `config_json`, so the
+// engine's per-club retention agrees with the spec for users who post
+// partial legacy bodies. Pre-Phase-1 clients reading the /api/years
+// response receive 0.8 instead of the old 0.9 default; both values are
+// inside the legacy `ensureRetention` range so no client breaks.
 const ENROLLED_DEFAULTS: YearSettings = {
   headingCard: false,
   headingPassageCard: true,
@@ -111,7 +123,7 @@ const ENROLLED_DEFAULTS: YearSettings = {
   clubCardScope: 'off',
   chapterListScope: 'up150',
   lessonBatchSize: DEFAULT_LESSON_BATCH_SIZE,
-  desiredRetention: 0.9,
+  desiredRetention: 0.8,
 };
 
 const UNENROLLED_DEFAULTS: YearSettings = {
@@ -234,12 +246,16 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
       return c.json({ error: `Unknown material: ${materialId}` }, 404);
     }
 
-    let body: SettingsBody;
+    let rawBody: unknown;
     try {
-      body = (await c.req.json()) as SettingsBody;
+      rawBody = await c.req.json();
     } catch {
       return c.json({ error: 'invalid JSON body' }, 400);
     }
+    if (typeof rawBody !== 'object' || rawBody === null) {
+      return c.json({ error: 'body must be an object' }, 400);
+    }
+    const bodyObj = rawBody as Record<string, unknown>;
 
     // For partial-body merging, pick defaults based on whether the
     // user is already enrolled. Enrolled-without-row falls back to
@@ -253,31 +269,58 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
       materialId,
       alreadyEnrolled ? ENROLLED_DEFAULTS : UNENROLLED_DEFAULTS,
     );
-    let next: YearSettings;
-    try {
-      const pick = <K extends keyof YearSettings>(
-        field: K,
-        validate: (v: unknown) => YearSettings[K],
-      ): YearSettings[K] =>
-        body[field] === undefined ? existing[field] : validate(body[field]);
 
-      next = {
-        headingCard: pick('headingCard', (v) => ensureBoolean(v, 'headingCard')),
-        headingPassageCard: pick('headingPassageCard', (v) =>
-          ensureBoolean(v, 'headingPassageCard'),
-        ),
-        ftv: pick('ftv', (v) => ensureBoolean(v, 'ftv')),
-        newScope: pick('newScope', (v) => ensureEnum(v, 'newScope', TIER_SCOPES)),
-        reviewScope: pick('reviewScope', (v) => ensureEnum(v, 'reviewScope', TIER_SCOPES)),
-        clubCardScope: pick('clubCardScope', (v) =>
-          ensureEnum(v, 'clubCardScope', TIER_SCOPES),
-        ),
-        chapterListScope: pick('chapterListScope', (v) =>
-          ensureEnum(v, 'chapterListScope', CHAPTER_LIST_SCOPES),
-        ),
-        lessonBatchSize: pick('lessonBatchSize', ensureBatchSize),
-        desiredRetention: pick('desiredRetention', ensureRetention),
-      };
+    let next: YearSettings;
+    let configJson: string;
+    try {
+      if (looksLikePerClub(bodyObj)) {
+        // New per-club shape: validate (every field required — no
+        // partial merge for the per-club path), then derive the legacy
+        // YearSettings via perClubToLegacy. The legacy columns get the
+        // lossy collapse; the configJson stores the verbatim per-club
+        // shape that the engine reads on load (commit 8).
+        const perClub = validatePerClubYearSettings({
+          headingCard: bodyObj.headingCard,
+          headingPassageCard: bodyObj.headingPassageCard,
+          ftv: bodyObj.ftv,
+          clubCardScope: bodyObj.clubCardScope,
+          chapterListScope: bodyObj.chapterListScope,
+          memorize: bodyObj.memorize,
+          review: bodyObj.review,
+          moveToNext: bodyObj.moveToNext,
+          lessonBatchSize: bodyObj.lessonBatchSize,
+        });
+        next = perClubToLegacy(perClub);
+        configJson = JSON.stringify(perClub);
+      } else {
+        // Legacy flat shape: existing partial-merge path. Derive the
+        // per-club shape via legacyToNew so configJson stays in sync.
+        const body = bodyObj as SettingsBody;
+        const pick = <K extends keyof YearSettings>(
+          field: K,
+          validate: (v: unknown) => YearSettings[K],
+        ): YearSettings[K] =>
+          body[field] === undefined ? existing[field] : validate(body[field]);
+
+        next = {
+          headingCard: pick('headingCard', (v) => ensureBoolean(v, 'headingCard')),
+          headingPassageCard: pick('headingPassageCard', (v) =>
+            ensureBoolean(v, 'headingPassageCard'),
+          ),
+          ftv: pick('ftv', (v) => ensureBoolean(v, 'ftv')),
+          newScope: pick('newScope', (v) => ensureEnum(v, 'newScope', TIER_SCOPES)),
+          reviewScope: pick('reviewScope', (v) => ensureEnum(v, 'reviewScope', TIER_SCOPES)),
+          clubCardScope: pick('clubCardScope', (v) =>
+            ensureEnum(v, 'clubCardScope', TIER_SCOPES),
+          ),
+          chapterListScope: pick('chapterListScope', (v) =>
+            ensureEnum(v, 'chapterListScope', CHAPTER_LIST_SCOPES),
+          ),
+          lessonBatchSize: pick('lessonBatchSize', ensureBatchSize),
+          desiredRetention: pick('desiredRetention', ensureRetention),
+        };
+        configJson = JSON.stringify(legacyToNew(next));
+      }
     } catch (err) {
       if (err instanceof ValidationError) return c.json({ error: err.message }, 400);
       throw err;
@@ -296,7 +339,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
     }
 
     const ts = now();
-    const row = { ...next, updatedAt: ts };
+    const row = { ...next, configJson, updatedAt: ts };
     deps.db
       .insert(schema.userYearSettings)
       .values({ userId: user.id, materialId, ...row })
