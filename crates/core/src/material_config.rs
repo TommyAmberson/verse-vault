@@ -162,27 +162,18 @@ pub enum MoveToNextGate {
 }
 
 /// Per-adjacent-pair cross-club gates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MoveToNextConfig {
     pub p150_to_300: MoveToNextGate,
     pub p300_to_full: MoveToNextGate,
 }
 
-impl Default for MoveToNextConfig {
-    fn default() -> Self {
-        Self {
-            p150_to_300: MoveToNextGate::default(),
-            p300_to_full: MoveToNextGate::default(),
-        }
-    }
-}
-
 /// Three named slots indexed by `ClubTier`. JSON wire form is
 /// `{"club150": …, "club300": …, "full": …}` — chosen over a HashMap
 /// keyed by the tier enum for explicit field shapes and zero-cost
 /// indexing.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClubMemorizeMap {
     #[serde(default)]
@@ -191,16 +182,6 @@ pub struct ClubMemorizeMap {
     pub club300: ClubMemorizeConfig,
     #[serde(default)]
     pub full: ClubMemorizeConfig,
-}
-
-impl Default for ClubMemorizeMap {
-    fn default() -> Self {
-        Self {
-            club150: ClubMemorizeConfig::default(),
-            club300: ClubMemorizeConfig::default(),
-            full: ClubMemorizeConfig::default(),
-        }
-    }
 }
 
 impl ClubMemorizeMap {
@@ -213,7 +194,7 @@ impl ClubMemorizeMap {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClubReviewMap {
     #[serde(default)]
@@ -222,16 +203,6 @@ pub struct ClubReviewMap {
     pub club300: ClubReviewConfig,
     #[serde(default)]
     pub full: ClubReviewConfig,
-}
-
-impl Default for ClubReviewMap {
-    fn default() -> Self {
-        Self {
-            club150: ClubReviewConfig::default(),
-            club300: ClubReviewConfig::default(),
-            full: ClubReviewConfig::default(),
-        }
-    }
 }
 
 impl ClubReviewMap {
