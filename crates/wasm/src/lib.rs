@@ -265,11 +265,12 @@ impl From<&TestUpdate> for TestUpdateWire {
     }
 }
 
-/// Engine handle exposed to JS. Wraps a `ReviewEngine` and translates JSON
-/// payloads at the boundary.
+/// Engine handle exposed to JS. Wraps a `ReviewEngine`, an optional per-
+/// material `Schedule`, and translates JSON payloads at the boundary.
 #[wasm_bindgen]
 pub struct WasmEngine {
     engine: ReviewEngine,
+    schedule: Option<verse_vault_core::schedule_data::Schedule>,
 }
 
 #[wasm_bindgen]
@@ -286,21 +287,41 @@ impl WasmEngine {
     /// fallback config (transitional — Phase 1's API path always supplies
     /// a real per-club JSON for production users; see `parse_material_config`)
     /// (everything-on); otherwise it's a JSON `MaterialConfig` carrying the
-    /// per-year toggles (headings / ftv / citation).
+    /// per-year toggles (headings / ftv / citation) plus the per-club
+    /// memorize / review / move_to_next shape.
+    /// `schedule_json` may be `""` to skip the schedule entirely — the
+    /// memorize algorithm collapses to pure-Sequential when no schedule is
+    /// supplied. Otherwise it's a JSON `Schedule` matching the bundled
+    /// `data/schedules/<deck>-<season>.json` shape.
+    ///
+    /// As of `crates/wasm@0.6.0` the standalone `desired_retention`
+    /// argument was removed: per-club retention now lives inside
+    /// `MaterialConfig.review.{club}.desired_retention`, and the
+    /// fallback for pseudo-verses with no tier is the
+    /// `ScheduleParams::default().target_retention` (0.9). Existing
+    /// callers should drop the argument and pass `schedule_json` in
+    /// its slot (empty string preserves pre-0.6.0 behaviour).
     #[wasm_bindgen(constructor)]
     pub fn new(
         material_json: &str,
         material_config_json: &str,
+        schedule_json: &str,
         persisted_states_json: &str,
-        desired_retention: f32,
         now_secs: i64,
     ) -> Result<WasmEngine, JsError> {
         let material: MaterialData = serde_json::from_str(material_json)
             .map_err(|e| JsError::new(&format!("material_json parse error: {e}")))?;
         let config = parse_material_config(material_config_json)
             .map_err(|e| JsError::new(&format!("material_config_json parse error: {e}")))?;
+        let schedule = parse_schedule(schedule_json)
+            .map_err(|e| JsError::new(&format!("schedule_json parse error: {e}")))?;
         let build_result = build_with_config(&material, &config, now_secs);
-        let mut engine = ReviewEngine::new(build_result, desired_retention);
+        // ReviewEngine::new still takes a `desired_retention` that seeds
+        // `ScheduleParams.target_retention`; that param now only services
+        // the fallback path (`target_r_for_verse` falls back to it for
+        // pseudo-verses with no tier). Per-tier retention is read from
+        // the MaterialConfig.
+        let mut engine = ReviewEngine::new(build_result, 0.9);
 
         let trimmed = persisted_states_json.trim();
         if !trimmed.is_empty() {
@@ -312,7 +333,7 @@ impl WasmEngine {
             }
         }
 
-        Ok(WasmEngine { engine })
+        Ok(WasmEngine { engine, schedule })
     }
 
     /// Apply a card review. `grade` is the FSRS-style integer rating
@@ -433,10 +454,27 @@ impl WasmEngine {
     /// / drill / graduation steps. Graduation goes through
     /// `graduate_card`, not the host verse's `graduate_verse`.
     pub fn memorize_session(&self, limit: u32) -> Result<String, JsError> {
+        // Pre-0.6.0 surface — calls v2 with `now_secs = 0` so the
+        // existing web client keeps working through the wasm bump. The
+        // empty-or-absent schedule path inside next_memorize_batch
+        // collapses to Phase 2 (pure-Sequential) which matches today's
+        // canonical-order behaviour exactly. Deprecated; remove after
+        // Phase 2 ships the v2 call site on the web client.
+        self.memorize_session_v2(limit, 0)
+    }
+
+    /// Schedule-aware memorize session — two-phase canonical fill via
+    /// `crates/core::schedule::next_memorize_batch`. Returns the same
+    /// `{ verses, orphans }` JSON shape `memorize_session` returns; only
+    /// the verse-anchor source changes.
+    ///
+    /// `now_secs` is the wall-clock used to compute the current week
+    /// (CalendarCascade Phase 1) and to evaluate cross-club gates that
+    /// reference dated checkpoints.
+    pub fn memorize_session_v2(&self, limit: u32, now_secs: i64) -> Result<String, JsError> {
         use std::collections::{HashMap, HashSet};
         use verse_vault_core::card::{CardKind, CardState};
         use verse_vault_core::element::ClubTier;
-        use verse_vault_core::engine::is_bulk_graduable;
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
         struct Entry {
@@ -471,25 +509,13 @@ impl WasmEngine {
         }
         let cards = &self.engine.cards;
 
-        // Tier-scope gate, computed once and reused across every loop
-        // below. A verse in `Maintenance` status (its tier is in
-        // `review_scope` but not in `new_scope`) keeps its cards built
-        // so already-memorized work can still be reviewed, but New
-        // cards on those verses must NOT enter the memorize queue —
-        // the user explicitly opted out of introducing new verses from
-        // that tier. `schedule::next_memorize_card` and
-        // `schedule::new_card_count` already apply this gate per-card
-        // for the next-card picker and the dashboard count; this path
-        // was independently picking the memorize batch and orphans and
-        // missed the same gate (the verse-anchor loop initially, and —
-        // discovered next — the HP/CCL assignment + conditional orphan
-        // loops). The HashSet collects verse_ids that have at least
-        // one `New` card AND pass `verse_active_for_memorize`, so
-        // every downstream loop can short-circuit with a single
-        // contains() check. Pseudo-verses (HP, CCL) carry their own
-        // `clubs` shape — HP has `Vec::new()` (no tier, gate passes),
-        // CCL has `vec![card_tier]` (gate fires on Maintenance, which
-        // is the correct exclusion).
+        // Tier gate for the HP/CCL/orphan placement loops below. A verse
+        // in `Maintenance` keeps its cards built so already-memorized
+        // work can still be reviewed, but New cards on those verses must
+        // NOT enter the memorize queue. The HashSet collects verse_ids
+        // that have at least one `New` card AND pass
+        // `verse_active_for_memorize`, so every downstream loop can
+        // short-circuit with a single contains() check.
         let memorize_active_verses: HashSet<u32> = cards
             .iter()
             .filter(|c| matches!(c.state, CardState::New))
@@ -497,31 +523,23 @@ impl WasmEngine {
             .map(|c| c.verse_id)
             .collect();
 
-        // "Fresh" verses — those with at least one New unconditional
-        // verse-bound card (the set `graduate_verse` flips). Orphan-only
-        // verses (where every New card is a conditional kind on a verse
-        // whose content was already graduated) deliberately don't anchor
-        // a session-verse; their conditional cards distribute into the
-        // orphan slot below.
-        let mut seen_verses: HashSet<u32> = HashSet::new();
-        let mut verse_order: Vec<u32> = Vec::new();
-        for card in cards.iter() {
-            if !matches!(card.state, CardState::New) {
-                continue;
-            }
-            if !is_bulk_graduable(&card.kind) {
-                continue;
-            }
-            if !memorize_active_verses.contains(&card.verse_id) {
-                continue;
-            }
-            if seen_verses.insert(card.verse_id) {
-                verse_order.push(card.verse_id);
-                if verse_order.len() >= limit as usize {
-                    break;
-                }
-            }
-        }
+        // Verse anchors come from the schedule-aware two-phase fill —
+        // Phase 1 picks CalendarCascade clubs' this-week primary verses
+        // first, Phase 2 fills the rest in canonical order. With no
+        // schedule supplied (legacy path), Phase 1 contributes nothing
+        // and Phase 2 walks every eligible verse in canonical order,
+        // matching the old card-scan behaviour byte-for-byte.
+        let batch_cap = limit.min(u8::MAX as u32) as u8;
+        let batch_card_ids = verse_vault_core::schedule::next_memorize_batch(
+            &self.engine,
+            self.schedule.as_ref(),
+            now_secs,
+            batch_cap,
+        );
+        let verse_order: Vec<u32> = batch_card_ids
+            .iter()
+            .filter_map(|cid| self.engine.card(*cid).map(|c| c.verse_id))
+            .collect();
 
         // Pre-compute pseudo-card attachments before walking the verses.
         // Two rules govern when a HeadingPassage / ChapterClubList card
@@ -881,6 +899,17 @@ impl WasmEngine {
     pub fn all_card_renders(&self) -> Result<String, JsError> {
         serde_json::to_string(&self.all_card_renders_inner())
             .map_err(|e| JsError::new(&format!("render serialise error: {e}")))
+    }
+}
+
+fn parse_schedule(
+    json: &str,
+) -> Result<Option<verse_vault_core::schedule_data::Schedule>, serde_json::Error> {
+    let trimmed = json.trim();
+    if trimmed.is_empty() {
+        Ok(None)
+    } else {
+        serde_json::from_str(trimmed).map(Some)
     }
 }
 
