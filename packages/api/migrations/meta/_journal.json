@@ -155,6 +155,13 @@
       "when": 1779472800000,
       "tag": "0021_backfill_desired_retention_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1781481600000,
+      "tag": "0022_material_schedules",
+      "breakpoints": true
     }
   ]
 }

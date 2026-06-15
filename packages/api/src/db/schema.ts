@@ -139,6 +139,37 @@ export const userYearSettings = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
 );
 
+// Per-(user, material) memorize schedule. Stores the user's
+// customised copy of the bundled `data/schedules/<deck>-<season>.json`
+// schedule as a single JSON blob (~5 KB). Schedules are shipped per
+// material; the user clones the default into this row on first edit.
+// A missing row means "use the bundled default"; deleting the row
+// is the "reset to default" action surfaced in the schedule editor.
+//
+// Sync semantics: last-write-wins. There is no event-log replay for
+// schedule edits — the row IS the authoritative state. Writers
+// invalidate the engine cache via `engines.invalidate(key)` so the
+// next `EngineStore.load` re-reads the schedule alongside the
+// material data.
+export const materialSchedules = sqliteTable(
+  'material_schedules',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    materialId: text('material_id').notNull(),
+    /** Full Schedule JSON (matches the bundled `data/schedules/<deck>-<season>.json`
+     *  shape from `crates/core::schedule_data::Schedule`). The TS layer never
+     *  inspects the body — it's passed verbatim to the WASM engine. */
+    scheduleJson: text('schedule_json').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.materialId] }),
+    userIdx: index('idx_material_schedules_user').on(t.userId),
+  }),
+);
+
 // Tracks which version of a material's bundled JSON (stored on disk under
 // `data/<materialId>.json`) each user is currently on. `content_sha` is
 // compared against the disk file's SHA on every `EngineStore.load`; a
