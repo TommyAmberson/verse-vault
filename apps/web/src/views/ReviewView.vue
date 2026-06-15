@@ -96,10 +96,12 @@ onMounted(async () => {
       done.value = true
       return
     }
-    // Schedule wiring lands in commit 2 of the Phase 2 train; for now
-    // the engine ctor receives '' for schedule_json, collapsing to
-    // pure-Sequential — matches pre-Phase-1 behaviour byte-for-byte.
-    await engine.init(materialId.value, materialConfig.value ?? undefined)
+    // Pull the schedule alongside settings so the engine ctor receives
+    // it on the first call. /review doesn't actually use Phase 1 of the
+    // memorize fill, but the engine is shared with /memorize via the
+    // session cache — a later /memorize visit gets the schedule too.
+    const schedule = await api.getSchedule(materialId.value)
+    await engine.init(materialId.value, materialConfig.value ?? undefined, schedule ?? '')
     await loadNext()
   } catch (err) {
     error.value = formatError(err)
