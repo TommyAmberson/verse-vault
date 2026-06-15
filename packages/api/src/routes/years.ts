@@ -97,15 +97,21 @@ function effectiveStatus(settings: YearSettings, tier: ClubTier): ClubStatus {
 }
 
 // Two fallbacks when the user has no user_year_settings row. Enrolled
-// users default to "study everything" (mirrors the engine's
-// MaterialConfig::default); unenrolled users default to paused so the
-// per-tier chip doesn't lie ("Active" on a year the user hasn't
-// touched would be misleading). Either way, the user can opt in or
-// out from the picker.
-// VerseInHeading defaults off; HeadingPassage defaults on. Mirrors
-// `MaterialConfig::default()` after the heading config split (core
-// 0.2.0): the passage-cued card is the primary heading test and the
-// per-verse "which heading?" card is now opt-in.
+// users default to "study everything" (every tier covered by both
+// scopes — wider than the post-Phase-1 `MaterialConfig::default()`,
+// which is Club-150-only, but matches the *legacy* shape this route
+// still surfaces alongside the per-club `configJson`). Unenrolled
+// users default to paused so the per-tier chip doesn't lie ("Active"
+// on a year the user hasn't touched would be misleading). Either way,
+// the user can opt in or out from the picker.
+// VerseInHeading defaults off; HeadingPassage defaults on. Matches the
+// core defaults after the heading config split (core 0.2.0): the
+// passage-cued card is the primary heading test and the per-verse
+// "which heading?" card is now opt-in. Retention stays at 0.9 — the
+// /api/years legacy response is still the high-retention default for
+// pre-Phase-1 clients; per-club retention (clamped into [0.5, 0.9]
+// with default 0.8) lives inside `config_json` and is what the engine
+// actually reads.
 const ENROLLED_DEFAULTS: YearSettings = {
   headingCard: false,
   headingPassageCard: true,

@@ -99,25 +99,28 @@ export const userMaterials = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.userId, t.materialId] }) }),
 );
 
-// Per-year material picker toggles. One row per (user, material). Four
-// "tier scope" columns plus two booleans plus the lesson batch size
-// drive the engine's `MaterialConfig` at construction time:
+// Per-year material picker toggles. One row per (user, material).
 //
-// - active_scope: which tiers introduce new verses (and review them).
-// - maintenance_scope: which tiers (additionally) review only.
-// - club_card_scope: which tiers get the per-verse "Which club?" card.
-// - chapter_list_scope: which tiers get the chapter-list card.
+// As of Phase 1 (migration 0023) the per-club `config_json` blob is the
+// authoritative MaterialConfig shape — `readMaterialConfigJson` reads it
+// verbatim and passes it to the WASM engine. The legacy flat columns
+// stay during the transition: route writes mirror both, the importer
+// preserves whichever shape the export carried, and the engine
+// synthesises a per-club shape from the legacy columns when `config_json`
+// is NULL (rows untouched since the migration).
 //
-// Each scope is one of "off" | "up150" | "up300" | "all"
-// (chapter_list_scope omits "all" — Full never emits a chapter-list).
+// Legacy columns and how they map to the per-club shape:
+// - new_scope:    which tiers introduce new verses → memorize.{club}.enabled
+// - review_scope: which tiers surface in /review → review.{club}.enabled
+// - desired_retention: applied to every enabled review club, clamped
+//   into the new [0.5, 0.9] range. No longer an ctor arg — per-club
+//   retention lives inside `config_json.review.{club}.desiredRetention`.
+// - club_card_scope:    per-verse "Which club?" card (unchanged)
+// - chapter_list_scope: chapter-list card (unchanged)
+// - lesson_batch_size:  per-session target (now also inside config_json)
 //
-// Per-tier effective status is derived: a tier covered by active_scope
-// is Active; covered only by maintenance_scope is Maintenance; covered
-// by neither is Paused.
-//
-// `desired_retention` is read alongside `MaterialConfig` and threaded
-// as a separate ctor arg to `new WasmEngine(...)`, not part of the
-// MaterialConfig JSON.
+// A future migration drops the legacy columns once Phase 2's web UI
+// switches to the per-club shape end-to-end.
 export const userYearSettings = sqliteTable(
   'user_year_settings',
   {
