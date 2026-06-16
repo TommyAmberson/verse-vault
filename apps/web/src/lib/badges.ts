@@ -35,6 +35,7 @@
  */
 
 import type { Club, YearView } from '@/api'
+import type { Schedule, ScheduleWeek } from '@/lib/schedule'
 
 const CLUBS: readonly Club[] = ['club150', 'club300', 'full'] as const
 
@@ -54,16 +55,6 @@ const scheduleCache = new Map<string, Promise<unknown | null>>()
 export function invalidateScheduleCache(materialId?: string): void {
   if (materialId === undefined) scheduleCache.clear()
   else scheduleCache.delete(materialId)
-}
-
-interface ScheduleWeek {
-  date: string
-  verses: Partial<Record<Club, number[]>> | null
-  isReview?: boolean
-}
-
-interface Schedule {
-  weeks: ScheduleWeek[]
 }
 
 /** Return the index of the latest week whose date is on or before

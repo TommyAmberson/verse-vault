@@ -10,6 +10,9 @@ import type {
   SyncEventsResponse,
   SyncStateResponse,
 } from './lib/engine/types'
+import type { Schedule } from './lib/schedule'
+
+export type { Schedule } from './lib/schedule'
 
 export type Grade = 1 | 2 | 3 | 4
 
@@ -348,11 +351,15 @@ export interface ApiClient {
   /** GET /api/materials/:materialId/schedule — returns the user's
    *  customised schedule if present, else the bundled default, else
    *  `null` when no schedule ships for the material (memorize then
-   *  collapses to pure-Sequential on the engine side). */
-  getSchedule(materialId: string): Promise<unknown | null>
+   *  collapses to pure-Sequential on the engine side). Result is
+   *  typed as the parsed `Schedule` shape; callers in hot paths (the
+   *  Memorize-tab badge math) treat it as a structural `unknown` so a
+   *  shape mismatch from a future server change degrades gracefully
+   *  instead of throwing at the boundary. */
+  getSchedule(materialId: string): Promise<Schedule | null>
   /** PUT /api/materials/:materialId/schedule — upserts the user's copy.
    *  Server validates the body's shape AND cross-checks `materialId`. */
-  putSchedule(materialId: string, schedule: unknown): Promise<{ ok: true }>
+  putSchedule(materialId: string, schedule: Schedule): Promise<{ ok: true }>
   /** DELETE /api/materials/:materialId/schedule — drops the user's
    *  override; bundled default reapplies on next read. */
   deleteSchedule(materialId: string): Promise<{ ok: true; fallbackToBundled: boolean }>
