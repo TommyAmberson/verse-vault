@@ -162,4 +162,126 @@ describe('validateSchedule', () => {
     });
     expect(() => validateSchedule(bad)).toThrow(/meets/);
   });
+
+  it('accepts a well-formed meets array', () => {
+    const ok = JSON.stringify({
+      version: 1,
+      materialId: 'x',
+      season: 'y',
+      title: 't',
+      meetingDayOfWeek: 'Mon',
+      weeks: [],
+      meets: [
+        {
+          id: 'first',
+          name: 'First Quiz Meet',
+          startDate: '2026-01-10',
+          endDate: '2026-01-12',
+          location: 'Heritage Alliance Church',
+        },
+      ],
+    });
+    const parsed = validateSchedule(ok);
+    expect(parsed.meets).toHaveLength(1);
+    expect(parsed.meets?.[0].id).toBe('first');
+  });
+
+  it('rejects meets with missing or malformed fields', () => {
+    const base = {
+      version: 1,
+      materialId: 'x',
+      season: 'y',
+      title: 't',
+      meetingDayOfWeek: 'Mon',
+      weeks: [],
+    };
+    const validMeet = {
+      id: 'first',
+      name: 'First',
+      startDate: '2026-01-10',
+      endDate: '2026-01-12',
+      location: 'X',
+    };
+    // Missing each required field in turn.
+    for (const k of ['id', 'name', 'startDate', 'endDate'] as const) {
+      const { [k]: _omit, ...partial } = validMeet;
+      const bad = JSON.stringify({ ...base, meets: [partial] });
+      expect(() => validateSchedule(bad)).toThrow(new RegExp(k));
+    }
+    // Malformed dates.
+    for (const field of ['startDate', 'endDate'] as const) {
+      const bad = JSON.stringify({
+        ...base,
+        meets: [{ ...validMeet, [field]: '2026-13-99' }],
+      });
+      expect(() => validateSchedule(bad)).toThrow(new RegExp(field));
+    }
+  });
+
+  it('accepts meets with empty or missing location', () => {
+    const base = {
+      version: 1,
+      materialId: 'x',
+      season: 'y',
+      title: 't',
+      meetingDayOfWeek: 'Mon',
+      weeks: [],
+    };
+    const meet = {
+      id: 'first',
+      name: 'First',
+      startDate: '2026-01-10',
+      endDate: '2026-01-12',
+    };
+    // Empty string — common for "to be announced" cases. "TBD" is also
+    // legitimate but it's just a regular non-empty string.
+    const empty = validateSchedule(JSON.stringify({ ...base, meets: [{ ...meet, location: '' }] }));
+    expect(empty.meets?.[0].location).toBe('');
+    // Missing field falls through to ''.
+    const missing = validateSchedule(JSON.stringify({ ...base, meets: [meet] }));
+    expect(missing.meets?.[0].location).toBe('');
+  });
+
+  it('rejects meets where endDate precedes startDate', () => {
+    const bad = JSON.stringify({
+      version: 1,
+      materialId: 'x',
+      season: 'y',
+      title: 't',
+      meetingDayOfWeek: 'Mon',
+      weeks: [],
+      meets: [
+        {
+          id: 'first',
+          name: 'First',
+          startDate: '2026-01-12',
+          endDate: '2026-01-10',
+          location: 'X',
+        },
+      ],
+    });
+    expect(() => validateSchedule(bad)).toThrow(/endDate/);
+  });
+
+  it('rejects meets with duplicate ids', () => {
+    const meet = {
+      name: 'First',
+      startDate: '2026-01-10',
+      endDate: '2026-01-12',
+      location: 'X',
+    };
+    const bad = JSON.stringify({
+      version: 1,
+      materialId: 'x',
+      season: 'y',
+      title: 't',
+      meetingDayOfWeek: 'Mon',
+      weeks: [],
+      meets: [
+        { id: 'first', ...meet },
+        { id: 'first', ...meet },
+      ],
+    });
+    expect(() => validateSchedule(bad)).toThrow(/duplicated/);
+  });
 });
