@@ -106,21 +106,21 @@ export function cloneSchedule(s: Schedule): Schedule {
   return structuredClone(s)
 }
 
-/** Shift every week's date by the shortest-path delta from the
- *  schedule's current meeting day to `newDay`, and update
- *  `meetingDayOfWeek` itself. Returns a new schedule; doesn't mutate
+/** Shift every week's date to land on `newDay` within the same
+ *  calendar week (Sun-Sat). Returns a new schedule; doesn't mutate
  *  the input. Meets are left alone — they have their own dates
  *  independent of the practice day.
  *
- *  The shortest-path delta wraps `[-3, +3]` so that crossings of the
- *  Sun/Sat boundary take the short way around: Sat→Sun is +1 (not
- *  -6), Sun→Sat is -1 (not +6). A user picking the adjacent day
- *  expects each week to nudge by one day, never to lurch the long
- *  way around the week. */
+ *  The week is the contiguous Sun-Sat block containing the current
+ *  date. The new date is `weekStartSunday + newDayIndex`, which is
+ *  equivalent to `oldDate + (newDayIndex - oldDayIndex)` when every
+ *  week already falls on `meetingDayOfWeek` (the schedule's
+ *  invariant). So Mon→Fri is +4 (Friday of the same week), Sat→Sun
+ *  is -6 (Sunday that starts the same week containing that
+ *  Saturday), Sun→Sat is +6. Never wraps to an adjacent calendar
+ *  week. */
 export function applyMeetingDayShift(s: Schedule, newDay: DayOfWeek): Schedule {
-  let deltaDays
-    = (dayOfWeekIndex(newDay) - dayOfWeekIndex(s.meetingDayOfWeek) + 7) % 7
-  if (deltaDays > 3) deltaDays -= 7
+  const deltaDays = dayOfWeekIndex(newDay) - dayOfWeekIndex(s.meetingDayOfWeek)
   if (deltaDays === 0) return cloneSchedule(s)
   const next = cloneSchedule(s)
   next.meetingDayOfWeek = newDay
