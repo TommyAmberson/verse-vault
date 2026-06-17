@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import { api } from '@/api'
@@ -7,8 +7,13 @@ import {
   type Schedule,
   type ScheduleMeet,
   type ScheduleWeek,
+  addWeekAt,
   cloneSchedule,
   formatPassage,
+  formatVerseList,
+  parseVerseList,
+  removeWeekAt,
+  shiftDate,
   verseCountsForWeek,
 } from '@/lib/schedule'
 
@@ -113,6 +118,134 @@ const selectedMeet = computed<ScheduleMeet | null>(() => {
   if (selection.value?.kind !== 'meet') return null
   return display.value?.meets.find((m) => m.id === selection.value!.meetId) ?? null
 })
+
+// =============================================================================
+// Per-week editor state
+// =============================================================================
+
+/** Local text mirrors for the per-tier comma-separated verse inputs.
+ *  Bound directly via v-model so the user sees what they typed before
+ *  the parser runs; on blur we parse + commit into the draft and the
+ *  mirror re-syncs from the formatted draft value. Per-tier rather
+ *  than per-week so swapping selection wipes them cleanly via the
+ *  watcher below. */
+const verseInput150 = ref('')
+const verseInput300 = ref('')
+const verseInputError = ref<string | null>(null)
+
+/** Re-seed the mirrors whenever the selected week changes (including
+ *  null → some-week). Without this the prior week's text would linger
+ *  in the inputs after the user clicks a new row. */
+watch(
+  () => (selection.value?.kind === 'week' ? selection.value.weekIdx : -1),
+  () => {
+    const w = selectedWeek.value
+    verseInputError.value = null
+    verseInput150.value = formatVerseList(w?.verses?.club150)
+    verseInput300.value = formatVerseList(w?.verses?.club300)
+  },
+  { immediate: true },
+)
+
+function commitVerseInput(tier: 'club150' | 'club300') {
+  if (draft.value === null || selection.value?.kind !== 'week') return
+  const raw = tier === 'club150' ? verseInput150.value : verseInput300.value
+  const parsed = parseVerseList(raw)
+  if (parsed === null) {
+    verseInputError.value
+      = 'Verses must be positive whole numbers separated by commas or spaces.'
+    return
+  }
+  verseInputError.value = null
+  const idx = selection.value.weekIdx
+  const week = draft.value.weeks[idx]
+  if (!week) return
+  const nextVerses = { ...(week.verses ?? {}), [tier]: parsed }
+  draft.value.weeks[idx] = { ...week, verses: nextVerses }
+  // Re-format from canonical (sorted, deduped is the parser's
+  // responsibility) so the user sees the normalized value after blur.
+  if (tier === 'club150') verseInput150.value = formatVerseList(parsed)
+  else verseInput300.value = formatVerseList(parsed)
+}
+
+function updateWeekField<K extends keyof ScheduleWeek>(key: K, value: ScheduleWeek[K]) {
+  if (draft.value === null || selection.value?.kind !== 'week') return
+  const idx = selection.value.weekIdx
+  const week = draft.value.weeks[idx]
+  if (!week) return
+  draft.value.weeks[idx] = { ...week, [key]: value }
+}
+
+function updatePassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVerse'>(
+  key: K,
+  value: K extends 'book' ? string : number,
+) {
+  if (draft.value === null || selection.value?.kind !== 'week') return
+  const idx = selection.value.weekIdx
+  const week = draft.value.weeks[idx]
+  if (!week) return
+  // Coerce review week toggle: starting a passage edit on a review week
+  // implicitly de-reviews it via the dedicated toggle, not by side
+  // effect — guard so the editor doesn't silently un-mark.
+  if (week.passage === null) return
+  draft.value.weeks[idx] = {
+    ...week,
+    passage: { ...week.passage, [key]: value },
+  }
+}
+
+function toggleReviewWeek() {
+  if (draft.value === null || selection.value?.kind !== 'week') return
+  const idx = selection.value.weekIdx
+  const week = draft.value.weeks[idx]
+  if (!week) return
+  if (week.isReview) {
+    // De-reviewing: rehydrate empty passage + verses so the editor has
+    // something to bind. The user fills in the actual passage details.
+    draft.value.weeks[idx] = {
+      ...week,
+      isReview: false,
+      passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
+      verses: { club150: [], club300: [] },
+    }
+  } else {
+    draft.value.weeks[idx] = { ...week, isReview: true, passage: null, verses: null }
+  }
+  // Re-seed the verse mirrors after the structural change.
+  const next = draft.value.weeks[idx]
+  verseInput150.value = formatVerseList(next.verses?.club150)
+  verseInput300.value = formatVerseList(next.verses?.club300)
+}
+
+function addWeekAfterLast() {
+  if (draft.value === null) return
+  const last = draft.value.weeks[draft.value.weeks.length - 1]
+  // Default the new week's date to one week after the last existing
+  // week, falling back to today when the schedule has none yet. The
+  // user can pick a passage from the edit form once selected.
+  const newDate = last ? shiftDate(last.date, 7) : new Date().toISOString().slice(0, 10)
+  const blank: ScheduleWeek = {
+    date: newDate,
+    passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
+    verses: { club150: [], club300: [] },
+    isReview: false,
+  }
+  draft.value = addWeekAt(draft.value, draft.value.weeks.length, blank)
+  selectWeek(draft.value.weeks.length - 1)
+}
+
+function removeSelectedWeek() {
+  if (draft.value === null || selection.value?.kind !== 'week') return
+  const idx = selection.value.weekIdx
+  draft.value = removeWeekAt(draft.value, idx)
+  // Move selection to the previous week if there is one; otherwise drop.
+  if (draft.value.weeks.length === 0) {
+    selection.value = null
+  } else {
+    const nextIdx = Math.min(idx, draft.value.weeks.length - 1)
+    selectWeek(nextIdx)
+  }
+}
 
 /** Dirty iff the user has actually edited the draft. JSON.stringify
  *  is sound because both objects originate from the same construction
@@ -275,8 +408,8 @@ function backToSettings() {
       </header>
 
       <section class="editor-body">
-        <nav class="timeline" aria-label="Schedule timeline">
-          <ol>
+        <nav class="timeline-pane" aria-label="Schedule timeline">
+          <ol class="timeline">
             <li
               v-for="(item, i) in timeline"
               :key="`${item.kind}-${item.kind === 'week' ? item.weekIdx : item.meet?.id}-${i}`"
@@ -322,16 +455,27 @@ function backToSettings() {
               </button>
             </li>
           </ol>
+          <button
+            v-if="mode === 'edit'"
+            type="button"
+            class="add-week"
+            @click="addWeekAfterLast"
+          >
+            + Add a week
+          </button>
         </nav>
 
-        <!-- Detail pane lands in commits 5 (week) and 6 (meet). For now
-             this is a read-only display of whatever the user selected so
-             the timeline is useful even before the editors arrive. -->
         <section class="detail" aria-label="Selected item">
           <p v-if="selection === null" class="placeholder">
             Pick a week or meet from the timeline.
           </p>
-          <div v-else-if="selectedWeek" class="detail-week">
+
+          <!-- View-mode week display: same read-only shape regardless of
+               whether the user is editing the schedule overall. -->
+          <div
+            v-else-if="selectedWeek && mode === 'view'"
+            class="detail-week"
+          >
             <h3>{{ formatPassage(selectedWeek.passage) }}</h3>
             <p class="detail-date">{{ formatTimelineDate(selectedWeek.date) }}</p>
             <dl v-if="!selectedWeek.isReview">
@@ -342,6 +486,106 @@ function backToSettings() {
             </dl>
             <p v-else class="detail-review">Review week — no new verses.</p>
           </div>
+
+          <!-- Edit-mode week form. Date is derived from the schedule's
+               meetingDayOfWeek + week ordering and isn't editable per
+               the Phase 3 design (no per-week overrides). -->
+          <form
+            v-else-if="selectedWeek && mode === 'edit'"
+            class="week-form"
+            @submit.prevent
+          >
+            <p class="detail-date">{{ formatTimelineDate(selectedWeek.date) }}</p>
+
+            <label class="toggle">
+              <input
+                type="checkbox"
+                :checked="selectedWeek.isReview"
+                @change="toggleReviewWeek"
+              />
+              <span>Review week (no new verses introduced)</span>
+            </label>
+
+            <template v-if="!selectedWeek.isReview && selectedWeek.passage">
+              <fieldset class="passage">
+                <legend>Passage</legend>
+                <label class="field passage-book">
+                  <span>Book</span>
+                  <input
+                    type="text"
+                    :value="selectedWeek.passage.book"
+                    @input="updatePassageField('book', ($event.target as HTMLInputElement).value)"
+                  />
+                </label>
+                <label class="field passage-chapter">
+                  <span>Chapter</span>
+                  <input
+                    type="number"
+                    min="1"
+                    :value="selectedWeek.passage.chapter || ''"
+                    @input="updatePassageField('chapter', Number(($event.target as HTMLInputElement).value) || 0)"
+                  />
+                </label>
+                <label class="field passage-start">
+                  <span>Start verse</span>
+                  <input
+                    type="number"
+                    min="1"
+                    :value="selectedWeek.passage.startVerse || ''"
+                    @input="updatePassageField('startVerse', Number(($event.target as HTMLInputElement).value) || 0)"
+                  />
+                </label>
+                <label class="field passage-end">
+                  <span>End verse</span>
+                  <input
+                    type="number"
+                    min="1"
+                    :value="selectedWeek.passage.endVerse || ''"
+                    @input="updatePassageField('endVerse', Number(($event.target as HTMLInputElement).value) || 0)"
+                  />
+                </label>
+              </fieldset>
+
+              <fieldset class="verses">
+                <legend>Verse numbers</legend>
+                <label class="field">
+                  <span>Club 150</span>
+                  <input
+                    v-model="verseInput150"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="e.g. 5, 10, 17, 18"
+                    @blur="commitVerseInput('club150')"
+                  />
+                </label>
+                <label class="field">
+                  <span>Club 300</span>
+                  <input
+                    v-model="verseInput300"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="e.g. 1, 2, 4, 8"
+                    @blur="commitVerseInput('club300')"
+                  />
+                </label>
+                <p v-if="verseInputError" class="field-error" role="alert">
+                  {{ verseInputError }}
+                </p>
+                <p class="field-hint">
+                  Comma- or space-separated verse numbers. Saved to the draft on blur.
+                </p>
+              </fieldset>
+            </template>
+
+            <button
+              type="button"
+              class="danger"
+              @click="removeSelectedWeek"
+            >
+              Remove this week
+            </button>
+          </form>
+
           <div v-else-if="selectedMeet" class="detail-meet">
             <h3>⛺ {{ selectedMeet.name }}</h3>
             <p class="detail-date">{{ formatMeetDateRange(selectedMeet) }}</p>
@@ -496,7 +740,16 @@ button.secondary:hover:not(:disabled) {
   }
 }
 
+.timeline-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   max-height: 60vh;
   overflow-y: auto;
   border: 1px solid var(--color-border);
@@ -504,10 +757,21 @@ button.secondary:hover:not(:disabled) {
   background: var(--color-bg);
 }
 
-.timeline ol {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.add-week {
+  align-self: flex-start;
+  background: none;
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.add-week:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text);
 }
 
 .timeline-item {
@@ -629,5 +893,107 @@ button.secondary:hover:not(:disabled) {
   color: var(--color-muted);
   font-style: italic;
   text-align: center;
+}
+
+.week-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.toggle input[type='checkbox'] {
+  accent-color: var(--color-accent);
+}
+
+fieldset.passage,
+fieldset.verses {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1rem;
+}
+
+fieldset legend {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+  padding: 0 0.3rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.field span {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.field input {
+  padding: 0.35rem 0.55rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.field input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+  border-color: var(--color-accent);
+}
+
+.passage-book {
+  grid-column: 1 / -1;
+}
+
+fieldset.verses {
+  grid-template-columns: 1fr;
+}
+
+.field-error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-error);
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--color-muted);
+}
+
+button.danger {
+  align-self: flex-start;
+  background: var(--color-grade-again);
+  color: var(--color-on-accent);
+  border: none;
+  border-radius: 4px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button.danger:hover {
+  filter: brightness(1.1);
 }
 </style>
