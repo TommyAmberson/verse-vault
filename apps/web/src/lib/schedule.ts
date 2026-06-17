@@ -34,7 +34,16 @@ export interface ScheduleVerses {
 export interface ScheduleWeek {
   /** ISO `YYYY-MM-DD`. Falls on `meetingDayOfWeek` by construction;
    *  changing the schedule's meeting day shifts all week dates by
-   *  the signed delta. */
+   *  the signed delta.
+   *
+   *  TODO(schedule-shape-bump): this is a stored invariant —
+   *  `applyMeetingDayShift` has to rewrite every week's `date` each
+   *  time the meeting day changes, and the on-disk JSONs carry
+   *  redundant information (every week's date is derivable from
+   *  schedule.weeks[0].date + index * 7). The cleaner shape is a
+   *  single `startDate` on `Schedule` with per-week dates derived.
+   *  Deferred — touches the on-disk schedules, the API validator's
+   *  per-week loop, and the WASM `parse_schedule` deserialiser. */
   date: string
   /** Null on Review weeks. */
   passage: SchedulePassage | null
@@ -65,8 +74,6 @@ export interface Schedule {
 // =============================================================================
 // Date helpers
 // =============================================================================
-
-const MS_PER_DAY = 86_400_000
 
 /** Parse `YYYY-MM-DD` into a UTC-anchored Date so the arithmetic
  *  stays timezone-free. */
@@ -115,11 +122,14 @@ export function applyMeetingDayShift(s: Schedule, newDay: DayOfWeek): Schedule {
 }
 
 /** Insert a new week at `index`. The caller picks the date + passage;
- *  this helper just slots the row in. */
+ *  this helper just slots the row in. The incoming `week` is trusted
+ *  to be caller-owned (every call site builds it as a fresh literal),
+ *  so we skip the per-argument clone — `cloneSchedule` above already
+ *  produced an owned copy of the destination. */
 export function addWeekAt(s: Schedule, index: number, week: ScheduleWeek): Schedule {
   const next = cloneSchedule(s)
   const clamped = Math.max(0, Math.min(next.weeks.length, index))
-  next.weeks.splice(clamped, 0, structuredClone(week))
+  next.weeks.splice(clamped, 0, week)
   return next
 }
 
@@ -151,7 +161,7 @@ export function slugifyMeetId(name: string, existing: readonly string[]): string
 
 export function addMeet(s: Schedule, meet: ScheduleMeet): Schedule {
   const next = cloneSchedule(s)
-  next.meets.push(structuredClone(meet))
+  next.meets.push(meet)
   return next
 }
 
@@ -159,7 +169,7 @@ export function updateMeet(s: Schedule, id: string, patch: ScheduleMeet): Schedu
   const next = cloneSchedule(s)
   const i = next.meets.findIndex((m) => m.id === id)
   if (i < 0) return next
-  next.meets[i] = structuredClone(patch)
+  next.meets[i] = patch
   return next
 }
 

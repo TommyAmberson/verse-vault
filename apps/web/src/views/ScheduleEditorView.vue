@@ -66,6 +66,10 @@ interface TimelineItem {
   weekIdx: number
   week?: ScheduleWeek
   meet?: ScheduleMeet
+  /** Pre-computed verse counts for week rows so the template doesn't
+   *  call `verseCountsForWeek` twice per row to read club150 then
+   *  club300 off two separate return objects. */
+  weekCounts?: { club150: number; club300: number }
 }
 
 /** Single chronological list of weeks + meets for the left pane. Meets
@@ -77,7 +81,13 @@ const timeline = computed<TimelineItem[]>(() => {
   if (s === null) return []
   const items: TimelineItem[] = []
   s.weeks.forEach((week, weekIdx) => {
-    items.push({ kind: 'week', sortKey: week.date, weekIdx, week })
+    items.push({
+      kind: 'week',
+      sortKey: week.date,
+      weekIdx,
+      week,
+      weekCounts: verseCountsForWeek(week),
+    })
   })
   s.meets.forEach((meet) => {
     // weekIdx is unused for meet items; -1 makes that explicit.
@@ -174,14 +184,6 @@ function commitVerseInput(tier: 'club150' | 'club300') {
   // responsibility) so the user sees the normalized value after blur.
   if (tier === 'club150') verseInput150.value = formatVerseList(parsed)
   else verseInput300.value = formatVerseList(parsed)
-}
-
-function updateWeekField<K extends keyof ScheduleWeek>(key: K, value: ScheduleWeek[K]) {
-  if (draft.value === null || selection.value?.kind !== 'week') return
-  const idx = selection.value.weekIdx
-  const week = draft.value.weeks[idx]
-  if (!week) return
-  draft.value.weeks[idx] = { ...week, [key]: value }
 }
 
 function updatePassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVerse'>(
@@ -318,9 +320,22 @@ watch(
 // Day-of-week shift + reset
 // =============================================================================
 
-const pendingReset = ref(false)
-const resetBusy = ref(false)
-const resetBanner = ref<string | null>(null)
+/** Reset flow as a single discriminated union so structurally
+ *  impossible combinations (e.g. dialog open AND banner showing AND
+ *  busy spinner) can't arise. The three prior refs encoded the same
+ *  state space with three booleans that, taken together, could
+ *  represent 2^3 combos most of which had no UI meaning. */
+type ResetState =
+  | { kind: 'idle' }
+  | { kind: 'confirming' }
+  | { kind: 'busy' }
+  | { kind: 'done'; banner: string }
+
+const resetState = ref<ResetState>({ kind: 'idle' })
+
+const resetBanner = computed<string | null>(() =>
+  resetState.value.kind === 'done' ? resetState.value.banner : null,
+)
 
 function onMeetingDayChange(newDay: DayOfWeek) {
   if (draft.value === null) return
@@ -331,28 +346,26 @@ function onMeetingDayChange(newDay: DayOfWeek) {
 }
 
 function onResetClick() {
-  resetBanner.value = null
-  pendingReset.value = true
+  resetState.value = { kind: 'confirming' }
 }
 
 function cancelReset() {
-  pendingReset.value = false
+  resetState.value = { kind: 'idle' }
 }
 
 async function confirmReset() {
-  if (resetBusy.value) return
-  resetBusy.value = true
+  if (resetState.value.kind === 'busy') return
+  resetState.value = { kind: 'busy' }
   try {
     const { fallbackToBundled } = await api.deleteSchedule(materialId.value)
-    resetBanner.value = fallbackToBundled
+    const banner = fallbackToBundled
       ? 'Reset complete — bundled schedule reapplied.'
       : 'No user customization existed; nothing to reset.'
+    resetState.value = { kind: 'done', banner }
     await refresh()
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
-  } finally {
-    resetBusy.value = false
-    pendingReset.value = false
+    resetState.value = { kind: 'idle' }
   }
 }
 
@@ -494,7 +507,7 @@ function backToSettings() {
             <button
               type="button"
               class="secondary"
-              :disabled="resetBusy"
+              :disabled="resetState.kind === 'busy'"
               @click="onResetClick"
             >
               Reset to default
@@ -573,7 +586,7 @@ function backToSettings() {
                 <span class="row-body">
                   <span class="row-title">{{ formatPassage(item.week.passage) }}</span>
                   <span v-if="!item.week.isReview" class="row-meta">
-                    {{ verseCountsForWeek(item.week).club150 }} / {{ verseCountsForWeek(item.week).club300 }}
+                    {{ item.weekCounts?.club150 ?? 0 }} / {{ item.weekCounts?.club300 ?? 0 }}
                   </span>
                   <span v-else class="row-meta">Review week</span>
                 </span>
@@ -739,7 +752,7 @@ function backToSettings() {
             class="meet-form"
             @submit.prevent
           >
-            <fieldset>
+            <fieldset class="meet-fields">
               <legend>Meet</legend>
               <label class="field">
                 <span>Name</span>
@@ -786,11 +799,11 @@ function backToSettings() {
     </template>
 
     <ConfirmDialog
-      v-if="pendingReset"
+      v-if="resetState.kind === 'confirming' || resetState.kind === 'busy'"
       title="Reset to bundled schedule?"
       confirm-label="Reset"
       destructive
-      :busy="resetBusy"
+      :busy="resetState.kind === 'busy'"
       @confirm="confirmReset"
       @cancel="cancelReset"
     >
@@ -1165,7 +1178,8 @@ button.secondary:hover:not(:disabled) {
 }
 
 fieldset.passage,
-fieldset.verses {
+fieldset.verses,
+fieldset.meet-fields {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 0.75rem 1rem;
@@ -1252,24 +1266,6 @@ button.danger:hover {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.meet-form fieldset {
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
-  margin: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem 1rem;
-}
-
-.meet-form fieldset legend {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-muted);
-  padding: 0 0.3rem;
 }
 
 .meet-location {
