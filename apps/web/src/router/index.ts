@@ -56,6 +56,11 @@ const router = createRouter({
       component: () => import('@/views/StatsView.vue'),
     },
     {
+      path: '/schedule/:materialId',
+      name: 'schedule',
+      component: () => import('@/views/ScheduleEditorView.vue'),
+    },
+    {
       path: '/settings',
       component: () => import('@/views/SettingsView.vue'),
       children: [
