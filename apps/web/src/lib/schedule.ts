@@ -106,12 +106,21 @@ export function cloneSchedule(s: Schedule): Schedule {
   return structuredClone(s)
 }
 
-/** Shift every week's date by the delta from the schedule's current
- *  meeting day to `newDay`, and update `meetingDayOfWeek` itself.
- *  Returns a new schedule; doesn't mutate the input. Meets are left
- *  alone — they have their own dates independent of the practice day. */
+/** Shift every week's date by the shortest-path delta from the
+ *  schedule's current meeting day to `newDay`, and update
+ *  `meetingDayOfWeek` itself. Returns a new schedule; doesn't mutate
+ *  the input. Meets are left alone — they have their own dates
+ *  independent of the practice day.
+ *
+ *  The shortest-path delta wraps `[-3, +3]` so that crossings of the
+ *  Sun/Sat boundary take the short way around: Sat→Sun is +1 (not
+ *  -6), Sun→Sat is -1 (not +6). A user picking the adjacent day
+ *  expects each week to nudge by one day, never to lurch the long
+ *  way around the week. */
 export function applyMeetingDayShift(s: Schedule, newDay: DayOfWeek): Schedule {
-  const deltaDays = dayOfWeekIndex(newDay) - dayOfWeekIndex(s.meetingDayOfWeek)
+  let deltaDays
+    = (dayOfWeekIndex(newDay) - dayOfWeekIndex(s.meetingDayOfWeek) + 7) % 7
+  if (deltaDays > 3) deltaDays -= 7
   if (deltaDays === 0) return cloneSchedule(s)
   const next = cloneSchedule(s)
   next.meetingDayOfWeek = newDay
@@ -145,15 +154,16 @@ export function removeWeekAt(s: Schedule, index: number): Schedule {
  *  references meets by id, so we want deterministic ids that survive
  *  small typos in the name. */
 export function slugifyMeetId(name: string, existing: readonly string[]): string {
-  const base = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-  let candidate = base || 'meet'
+  const stem
+    = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'meet'
+  let candidate = stem
   let suffix = 2
   const seen = new Set(existing)
   while (seen.has(candidate)) {
-    candidate = `${base}-${suffix}`
+    candidate = `${stem}-${suffix}`
     suffix += 1
   }
   return candidate

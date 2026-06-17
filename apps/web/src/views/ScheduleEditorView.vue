@@ -4,6 +4,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import { api } from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { invalidateScheduleCache } from '@/lib/badges'
 import {
   DAYS_OF_WEEK,
   type DayOfWeek,
@@ -107,6 +108,19 @@ function selectWeek(weekIdx: number) {
 
 function selectMeet(meetId: string) {
   selection.value = { kind: 'meet', meetId }
+}
+
+/** Single predicate that drives both the .is-selected class (visual
+ *  highlight) and the button's aria-current (assistive-tech signal).
+ *  Without it the template carried two parallel boolean expressions
+ *  that could drift; one helper keeps them in sync. */
+function isItemSelected(item: TimelineItem): boolean {
+  const sel = selection.value
+  if (sel === null) return false
+  if (item.kind === 'week') {
+    return sel.kind === 'week' && sel.weekIdx === item.weekIdx
+  }
+  return sel.kind === 'meet' && sel.meetId === item.meet?.id
 }
 
 /** Long-form weekday + month-day label for the timeline. ISO `YYYY-MM-DD`
@@ -358,6 +372,11 @@ async function confirmReset() {
   resetState.value = { kind: 'busy' }
   try {
     const { fallbackToBundled } = await api.deleteSchedule(materialId.value)
+    // The Memorize-tab badge memoizes the per-material schedule for
+    // the tab session; without explicit invalidation, navigating to
+    // /memorize after a reset would keep computing the badge against
+    // the user's (now-deleted) override. Same invariant on save below.
+    invalidateScheduleCache(materialId.value)
     const banner = fallbackToBundled
       ? 'Reset complete — bundled schedule reapplied.'
       : 'No user customization existed; nothing to reset.'
@@ -417,6 +436,7 @@ async function save() {
   error.value = null
   try {
     await api.putSchedule(materialId.value, draft.value)
+    invalidateScheduleCache(materialId.value)
     saved.value = cloneSchedule(draft.value)
     mode.value = 'view'
   } catch (err) {
@@ -565,21 +585,14 @@ function backToSettings() {
               :key="`${item.kind}-${item.kind === 'week' ? item.weekIdx : item.meet?.id}-${i}`"
               :class="[
                 `timeline-item timeline-${item.kind}`,
-                {
-                  'is-selected':
-                    (item.kind === 'week'
-                      && selection?.kind === 'week'
-                      && selection.weekIdx === item.weekIdx)
-                    || (item.kind === 'meet'
-                      && selection?.kind === 'meet'
-                      && selection.meetId === item.meet?.id),
-                },
+                { 'is-selected': isItemSelected(item) },
               ]"
             >
               <button
                 v-if="item.kind === 'week' && item.week"
                 type="button"
                 class="timeline-button"
+                :aria-current="isItemSelected(item) ? 'true' : undefined"
                 @click="selectWeek(item.weekIdx)"
               >
                 <span class="row-date">{{ formatTimelineDate(item.week.date) }}</span>
@@ -595,6 +608,7 @@ function backToSettings() {
                 v-else-if="item.kind === 'meet' && item.meet"
                 type="button"
                 class="timeline-button meet"
+                :aria-current="isItemSelected(item) ? 'true' : undefined"
                 @click="selectMeet(item.meet.id)"
               >
                 <span class="row-date">{{ formatMeetDateRange(item.meet) }}</span>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { onBeforeRouteLeave, RouterLink } from 'vue-router'
 
 import ScopeLevelSelector from '@/components/ScopeLevelSelector.vue'
 import StatusChip from '@/components/StatusChip.vue'
@@ -324,6 +324,20 @@ async function onToggleOffline(card: YearCard) {
 }
 
 onMounted(refresh)
+
+/** Same nav-away guard pattern as ScheduleEditorView — the chain UI
+ *  holds an editable draft, and the new "Edit schedule →" RouterLink
+ *  in the per-material header is a one-click way to leave the route
+ *  with unsaved per-club changes. Without this prompt the user's
+ *  edits silently vanish on click. */
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!selectedIsDirty.value) {
+    next()
+    return
+  }
+  const ok = window.confirm('You have unsaved settings. Leave without saving?')
+  next(ok)
+})
 </script>
 
 <template>
