@@ -7,13 +7,17 @@ import {
   type Schedule,
   type ScheduleMeet,
   type ScheduleWeek,
+  addMeet,
   addWeekAt,
   cloneSchedule,
   formatPassage,
   formatVerseList,
   parseVerseList,
+  removeMeet,
   removeWeekAt,
   shiftDate,
+  slugifyMeetId,
+  updateMeet,
   verseCountsForWeek,
 } from '@/lib/schedule'
 
@@ -247,6 +251,65 @@ function removeSelectedWeek() {
   }
 }
 
+// =============================================================================
+// Meet editor state
+// =============================================================================
+
+const meetEndDateError = ref<string | null>(null)
+
+/** Patch a single field on the selected meet in the draft. `id` is
+ *  intentionally excluded — meets get a slug-derived id at creation
+ *  and stay stable so the chain UI's gate references survive renames. */
+function updateMeetField<K extends 'name' | 'startDate' | 'endDate' | 'location'>(
+  key: K,
+  value: string,
+) {
+  if (draft.value === null || selection.value?.kind !== 'meet') return
+  const meet = draft.value.meets.find((m) => m.id === selection.value!.meetId)
+  if (!meet) return
+  const next: ScheduleMeet = { ...meet, [key]: value }
+  // Inline endDate sanity check — surfaced as a hint, not a hard block,
+  // so the user can correct without losing focus. Server-side
+  // validateSchedule rejects on save if it's still inverted.
+  if (next.endDate < next.startDate) {
+    meetEndDateError.value = 'End date is before start date.'
+  } else {
+    meetEndDateError.value = null
+  }
+  draft.value = updateMeet(draft.value, meet.id, next)
+}
+
+function addMeetAfterLast() {
+  if (draft.value === null) return
+  const existingIds = draft.value.meets.map((m) => m.id)
+  const today = new Date().toISOString().slice(0, 10)
+  const blank: ScheduleMeet = {
+    id: slugifyMeetId('new-meet', existingIds),
+    name: 'New meet',
+    startDate: today,
+    endDate: today,
+    location: '',
+  }
+  draft.value = addMeet(draft.value, blank)
+  selectMeet(blank.id)
+}
+
+function removeSelectedMeet() {
+  if (draft.value === null || selection.value?.kind !== 'meet') return
+  const meetId = selection.value.meetId
+  draft.value = removeMeet(draft.value, meetId)
+  selection.value = null
+  meetEndDateError.value = null
+}
+
+// Clear the meet end-date error whenever selection moves off the meet.
+watch(
+  () => selection.value?.kind,
+  () => {
+    meetEndDateError.value = null
+  },
+)
+
 /** Dirty iff the user has actually edited the draft. JSON.stringify
  *  is sound because both objects originate from the same construction
  *  path (server JSON → structuredClone), so key order matches. */
@@ -455,14 +518,14 @@ function backToSettings() {
               </button>
             </li>
           </ol>
-          <button
-            v-if="mode === 'edit'"
-            type="button"
-            class="add-week"
-            @click="addWeekAfterLast"
-          >
-            + Add a week
-          </button>
+          <div v-if="mode === 'edit'" class="add-row">
+            <button type="button" class="add-week" @click="addWeekAfterLast">
+              + Add a week
+            </button>
+            <button type="button" class="add-week" @click="addMeetAfterLast">
+              + Add a meet
+            </button>
+          </div>
         </nav>
 
         <section class="detail" aria-label="Selected item">
@@ -586,11 +649,64 @@ function backToSettings() {
             </button>
           </form>
 
-          <div v-else-if="selectedMeet" class="detail-meet">
+          <!-- View-mode meet display. -->
+          <div
+            v-else-if="selectedMeet && mode === 'view'"
+            class="detail-meet"
+          >
             <h3>⛺ {{ selectedMeet.name }}</h3>
             <p class="detail-date">{{ formatMeetDateRange(selectedMeet) }}</p>
             <p v-if="selectedMeet.location" class="detail-location">{{ selectedMeet.location }}</p>
           </div>
+
+          <!-- Edit-mode meet form. -->
+          <form
+            v-else-if="selectedMeet && mode === 'edit'"
+            class="meet-form"
+            @submit.prevent
+          >
+            <fieldset>
+              <legend>Meet</legend>
+              <label class="field">
+                <span>Name</span>
+                <input
+                  type="text"
+                  :value="selectedMeet.name"
+                  @input="updateMeetField('name', ($event.target as HTMLInputElement).value)"
+                />
+              </label>
+              <label class="field">
+                <span>Start date</span>
+                <input
+                  type="date"
+                  :value="selectedMeet.startDate"
+                  @input="updateMeetField('startDate', ($event.target as HTMLInputElement).value)"
+                />
+              </label>
+              <label class="field">
+                <span>End date</span>
+                <input
+                  type="date"
+                  :value="selectedMeet.endDate"
+                  @input="updateMeetField('endDate', ($event.target as HTMLInputElement).value)"
+                />
+              </label>
+              <label class="field meet-location">
+                <span>Location (optional, may be "TBD")</span>
+                <input
+                  type="text"
+                  :value="selectedMeet.location"
+                  @input="updateMeetField('location', ($event.target as HTMLInputElement).value)"
+                />
+              </label>
+              <p v-if="meetEndDateError" class="field-error" role="alert">
+                {{ meetEndDateError }}
+              </p>
+            </fieldset>
+            <button type="button" class="danger" @click="removeSelectedMeet">
+              Remove this meet
+            </button>
+          </form>
         </section>
       </section>
     </template>
@@ -757,8 +873,13 @@ button.secondary:hover:not(:disabled) {
   background: var(--color-bg);
 }
 
+.add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .add-week {
-  align-self: flex-start;
   background: none;
   border: 1px dashed var(--color-border);
   border-radius: 6px;
@@ -995,5 +1116,33 @@ button.danger {
 
 button.danger:hover {
   filter: brightness(1.1);
+}
+
+.meet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.meet-form fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1rem;
+}
+
+.meet-form fieldset legend {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+  padding: 0 0.3rem;
+}
+
+.meet-location {
+  grid-column: 1 / -1;
 }
 </style>
