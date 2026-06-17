@@ -3,12 +3,16 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import { api } from '@/api'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import {
+  DAYS_OF_WEEK,
+  type DayOfWeek,
   type Schedule,
   type ScheduleMeet,
   type ScheduleWeek,
   addMeet,
   addWeekAt,
+  applyMeetingDayShift,
   cloneSchedule,
   formatPassage,
   formatVerseList,
@@ -310,6 +314,48 @@ watch(
   },
 )
 
+// =============================================================================
+// Day-of-week shift + reset
+// =============================================================================
+
+const pendingReset = ref(false)
+const resetBusy = ref(false)
+const resetBanner = ref<string | null>(null)
+
+function onMeetingDayChange(newDay: DayOfWeek) {
+  if (draft.value === null) return
+  // Pure helper returns a new schedule with every week's date shifted
+  // by the signed (newDow - oldDow) delta; meets are untouched (they
+  // have their own weekend dates that don't track the practice day).
+  draft.value = applyMeetingDayShift(draft.value, newDay)
+}
+
+function onResetClick() {
+  resetBanner.value = null
+  pendingReset.value = true
+}
+
+function cancelReset() {
+  pendingReset.value = false
+}
+
+async function confirmReset() {
+  if (resetBusy.value) return
+  resetBusy.value = true
+  try {
+    const { fallbackToBundled } = await api.deleteSchedule(materialId.value)
+    resetBanner.value = fallbackToBundled
+      ? 'Reset complete — bundled schedule reapplied.'
+      : 'No user customization existed; nothing to reset.'
+    await refresh()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    resetBusy.value = false
+    pendingReset.value = false
+  }
+}
+
 /** Dirty iff the user has actually edited the draft. JSON.stringify
  *  is sound because both objects originate from the same construction
  *  path (server JSON → structuredClone), so key order matches. */
@@ -445,6 +491,14 @@ function backToSettings() {
 
         <div class="mode-controls">
           <template v-if="mode === 'view'">
+            <button
+              type="button"
+              class="secondary"
+              :disabled="resetBusy"
+              @click="onResetClick"
+            >
+              Reset to default
+            </button>
             <button type="button" class="primary" @click="enterEdit">
               Edit schedule
             </button>
@@ -469,6 +523,26 @@ function backToSettings() {
           </template>
         </div>
       </header>
+
+      <p v-if="resetBanner" class="banner banner-info">{{ resetBanner }}</p>
+
+      <div v-if="mode === 'edit'" class="day-picker">
+        <label>
+          <span>Meets on</span>
+          <select
+            :value="display.meetingDayOfWeek"
+            @change="onMeetingDayChange(($event.target as HTMLSelectElement).value as DayOfWeek)"
+          >
+            <option v-for="d in DAYS_OF_WEEK" :key="d" :value="d">
+              {{ d }}days
+            </option>
+          </select>
+        </label>
+        <p class="day-picker-hint">
+          Changing the meeting day shifts every practice week by the same
+          delta. Meet weekends stay on their own dates.
+        </p>
+      </div>
 
       <section class="editor-body">
         <nav class="timeline-pane" aria-label="Schedule timeline">
@@ -710,6 +784,21 @@ function backToSettings() {
         </section>
       </section>
     </template>
+
+    <ConfirmDialog
+      v-if="pendingReset"
+      title="Reset to bundled schedule?"
+      confirm-label="Reset"
+      destructive
+      :busy="resetBusy"
+      @confirm="confirmReset"
+      @cancel="cancelReset"
+    >
+      <p>
+        This discards your customizations for this material and reapplies
+        the bundled schedule. Existing memorize progress is unaffected.
+      </p>
+    </ConfirmDialog>
   </div>
 </template>
 
@@ -730,6 +819,47 @@ function backToSettings() {
 .banner-error {
   background: var(--color-error-bg);
   color: var(--color-error);
+}
+
+.banner-info {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+.day-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.day-picker label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.day-picker select {
+  padding: 0.3rem 0.5rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.day-picker-hint {
+  margin: 0;
+  flex: 1 1 18rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  font-style: italic;
 }
 
 .status {
