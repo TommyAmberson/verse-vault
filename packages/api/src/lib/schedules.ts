@@ -161,6 +161,23 @@ export interface ValidatedMeet {
   location: string;
 }
 
+/** Pull a non-empty string field off a record. Shared by the top-level
+ *  schedule fields and the per-meet field-checks — both error formats
+ *  differ only in the prefix, so the caller passes a lazy label
+ *  builder rather than two near-identical closures inside the same
+ *  file. */
+function requireNonEmptyStr(
+  src: Record<string, unknown>,
+  k: string,
+  label: () => string,
+): string {
+  const v = src[k];
+  if (typeof v !== 'string' || v.length === 0) {
+    throw new ScheduleValidationError(label());
+  }
+  return v;
+}
+
 export function validateSchedule(json: string): SchedulePayload {
   let parsed: unknown;
   try {
@@ -172,13 +189,8 @@ export function validateSchedule(json: string): SchedulePayload {
     throw new ScheduleValidationError('schedule must be an object');
   }
   const obj = parsed as Record<string, unknown>;
-  const requireStr = (k: string): string => {
-    const v = obj[k];
-    if (typeof v !== 'string' || v.length === 0) {
-      throw new ScheduleValidationError(`missing string field: ${k}`);
-    }
-    return v;
-  };
+  const requireStr = (k: string): string =>
+    requireNonEmptyStr(obj, k, () => `missing string field: ${k}`);
   const requireNum = (k: string): number => {
     const v = obj[k];
     if (typeof v !== 'number' || !Number.isFinite(v)) {
@@ -242,13 +254,12 @@ function validateMeets(raw: unknown): ValidatedMeet[] | undefined {
       throw new ScheduleValidationError(`meets[${i}] must be an object`);
     }
     const mo = m as Record<string, unknown>;
-    const requireMeetStr = (k: string): string => {
-      const v = mo[k];
-      if (typeof v !== 'string' || v.length === 0) {
-        throw new ScheduleValidationError(`meets[${i}].${k} must be a non-empty string`);
-      }
-      return v;
-    };
+    const requireMeetStr = (k: string): string =>
+      requireNonEmptyStr(
+        mo,
+        k,
+        () => `meets[${i}].${k} must be a non-empty string`,
+      );
     const id = requireMeetStr('id');
     if (seenIds.has(id)) {
       throw new ScheduleValidationError(`meets[${i}].id "${id}" is duplicated`);
