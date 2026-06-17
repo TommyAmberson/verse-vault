@@ -161,6 +161,31 @@ export interface ValidatedMeet {
   location: string;
 }
 
+/** Field-level validation for `weeks[i].passage` on non-Review weeks.
+ *  `passage: null` is the valid Review-week shape and is gated above
+ *  by the `isReview` check; this helper is only called when the week
+ *  is supposed to carry real content. */
+function validateWeekPassage(i: number, raw: unknown): void {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new ScheduleValidationError(
+      `weeks[${i}].passage must be an object on non-review weeks`,
+    );
+  }
+  const p = raw as Record<string, unknown>;
+  if (typeof p.book !== 'string' || p.book.length === 0) {
+    throw new ScheduleValidationError(`weeks[${i}].passage.book must be a non-empty string`);
+  }
+  for (const f of ['chapter', 'startVerse', 'endVerse'] as const) {
+    const v = p[f];
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) {
+      throw new ScheduleValidationError(`weeks[${i}].passage.${f} must be a positive integer`);
+    }
+  }
+  if ((p.endVerse as number) < (p.startVerse as number)) {
+    throw new ScheduleValidationError(`weeks[${i}].passage.endVerse is before startVerse`);
+  }
+}
+
 /** Pull a non-empty string field off a record. Shared by the top-level
  *  schedule fields and the per-meet field-checks — both error formats
  *  differ only in the prefix, so the caller passes a lazy label
@@ -222,6 +247,16 @@ export function validateSchedule(json: string): SchedulePayload {
     const wo = w as Record<string, unknown>;
     if (typeof wo.date !== 'string' || !isValidIsoDate(wo.date)) {
       throw new ScheduleValidationError(`weeks[${i}].date must be a real YYYY-MM-DD`);
+    }
+    // Non-review weeks must carry a usable passage. Without this,
+    // the Phase 3 editor's de-review toggle could save zeroed
+    // placeholder values ({book: '', chapter: 0, startVerse: 0,
+    // endVerse: 0}) that the WASM engine then trips over. The
+    // editor's user flow asks for these fields immediately after
+    // de-review, but a save before they're filled in needs to fail
+    // here rather than silently corrupt the schedule.
+    if (wo.isReview === false || wo.isReview === undefined) {
+      validateWeekPassage(i, wo.passage);
     }
   }
   const meets = validateMeets(obj.meets);
