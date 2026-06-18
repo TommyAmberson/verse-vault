@@ -50,13 +50,7 @@ const CLUBS: readonly Club[] = ['club150', 'club300', 'full'] as const
  *  Caches the in-flight promise so concurrent calls (e.g. two
  *  fast back-to-back nav events) share one round-trip rather than
  *  racing two. Exported so callers can invalidate per-material on
- *  schedule writes.
- *
- *  TODO(#100): the cache is keyed by `materialId` only, so a profile
- *  switch leaks the prior profile's schedule into the new profile's
- *  badge count for the same material. Fix: clear on profile switch
- *  inside `useAuth`, or rekey by (userId, materialId). Out of scope
- *  for the Phase 3 PR — see github.com/TommyAmberson/verse-vault/issues/100. */
+ *  schedule writes or per-profile on profile transitions (#100). */
 const scheduleCache = new Map<string, Promise<unknown | null>>()
 
 export function invalidateScheduleCache(materialId?: string): void {
