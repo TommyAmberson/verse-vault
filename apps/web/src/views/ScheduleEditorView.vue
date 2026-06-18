@@ -17,6 +17,7 @@ import {
   cloneSchedule,
   formatPassage,
   formatVerseList,
+  fullDayName,
   parseVerseList,
   removeMeet,
   removeWeekAt,
@@ -514,7 +515,8 @@ function backToSettings() {
           <div class="title-block">
             <h2>{{ display.title }}</h2>
             <p class="subtitle">
-              {{ display.season }} · meets {{ display.meetingDayOfWeek
+              {{ display.season }} · meets {{
+                fullDayName(display.meetingDayOfWeek)
               }}s ·
               {{ display.weeks.length }} weeks ·
               {{ display.meets.length }} meets
@@ -567,7 +569,7 @@ function backToSettings() {
             @change="onMeetingDayChange(($event.target as HTMLSelectElement).value as DayOfWeek)"
           >
             <option v-for="d in DAYS_OF_WEEK" :key="d" :value="d">
-              {{ d }}days
+              {{ fullDayName(d) }}s
             </option>
           </select>
         </label>

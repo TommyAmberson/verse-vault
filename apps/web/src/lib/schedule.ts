@@ -19,6 +19,24 @@ export const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as
 
 export type DayOfWeek = (typeof DAYS_OF_WEEK)[number]
 
+const DAY_NAMES_LONG = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const
+
+/** Full day name (e.g. `Wednesday`) for a 3-letter `DayOfWeek` (e.g.
+ *  `Wed`). The `${abbrev}days` shorthand silently produces "Tuedays" /
+ *  "Weddays" / "Thudays" / "Satdays" — use this when rendering to the
+ *  user. */
+export function fullDayName(day: DayOfWeek): string {
+  return DAY_NAMES_LONG[DAYS_OF_WEEK.indexOf(day)]
+}
+
 export interface SchedulePassage {
   book: string
   chapter: number
