@@ -9,6 +9,74 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-17
+
+Phase 3 — the schedule editor at `/schedule/<materialId>`. MINOR — additive UI surface on top of the
+Phase 1 schedule data model and API, no engine or wire-format change. Closes the Phase 2 spec
+deferral of the "Edit schedule →" link on the per-material card. Bundles tighter Meet validation on
+the API as part of the same train (also additive, doesn't bump the API contract).
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — unchanged.
+* `verse-vault-wasm@0.6.0` — unchanged.
+
+### Schedule editor
+
+New `/schedule/:materialId` route mounted under the existing router. The editor:
+
+* Loads via `api.getSchedule`, holds two refs (`saved` and `draft` — a `structuredClone` of saved
+  that the user mutates), and a `mode: 'view' | 'edit'` switch.
+* Gates Save behind a `JSON.stringify` dirty-check; Discard reclones saved into draft and returns to
+  view mode.
+* Guards nav-away via both `onBeforeRouteLeave` (in-app) and `beforeunload` (tab close / refresh /
+  external nav) — the SPA router doesn't fire `beforeunload` on its own and `beforeunload` doesn't
+  fire on in-app nav, so both are needed.
+
+Left pane / top stack: a chronologically interleaved timeline of weeks and meets. Items sort by date
+with weeks ahead of meets on ties (practice precedes the weekend). Weeks show date, passage label,
+per-tier verse counts; meets show as italicized rows with a ⛺ tag and location.
+
+Right pane / bottom stack: detail editor for the selected item.
+
+* **Per-week editor.** Review-week toggle. Passage editor (book / chapter / start verse / end
+  verse). Per-tier verse-number inputs — comma- or space-separated text, parsed on blur via
+  `parseVerseList`, normalized (sorted) on commit. Invalid tokens surface an inline error and leave
+  the draft untouched. Remove-this-week button. Add-a-week affordance below the timeline; new weeks
+  default to the practice cycle (7 days) after the last existing week.
+* **Per-meet editor.** Name, start/end dates, location. Inline endDate-before-startDate hint (soft
+  warning; server-side `validateSchedule` is the hard gate on save). Add-a-meet affordance next to
+  add-a-week; new meets get a `slugifyMeetId`-derived stable id so the chain UI's `move_to_next`
+  gates referencing the meet survive renames.
+
+Top-level controls.
+
+* **Meeting-day picker** (edit mode only). Bound to `meetingDayOfWeek`; changes run
+  `applyMeetingDayShift` from `lib/schedule.ts` to translate every week's date by the signed delta.
+  Meets stay on their own dates per the no-per-week-override design.
+* **Reset to default** (view mode only, in the header). `ConfirmDialog`-gated; on confirm fires
+  `DELETE /api/materials/:id/schedule`, banner reflects the response's `fallbackToBundled` flag.
+
+`/settings/materials` gets the "Edit schedule →" RouterLink the Phase 2 spec deferred, rendered next
+to the title for every material so it's discoverable without scrolling past the chain UI. The
+editor's empty-state path keeps schedule-less decks from dead-ending.
+
+### Library helpers + canonical types
+
+New `apps/web/src/lib/schedule.ts` is the source of truth for the editor:
+
+* Canonical TS types (`Schedule`, `ScheduleWeek`, `ScheduleMeet`, `SchedulePassage`, `DayOfWeek`)
+  mirroring the on-disk JSON and the API's `SchedulePayload`. `api.ts` re-exports `Schedule` and now
+  types `getSchedule`/`putSchedule` against the parsed shape.
+* Pure data-mutating helpers — `applyMeetingDayShift`, `addWeekAt`, `removeWeekAt`, `addMeet`,
+  `updateMeet`, `removeMeet`, `slugifyMeetId`, `cloneSchedule`. Used by the editor for every draft
+  mutation.
+* Display + arithmetic primitives — `shiftDate`, `formatPassage`, `verseCountsForWeek`,
+  `parseVerseList`, `formatVerseList`.
+
+`lib/badges.ts` drops its inline `Schedule`/`ScheduleWeek` interfaces and imports the canonical pair
+— a drift risk surfaced in the Phase 2 simplify pass.
+
 ## [0.3.0] — 2026-06-15
 
 Phase 2 of the schedules + per-club settings rework. MINOR — the engine boot paths swap onto the

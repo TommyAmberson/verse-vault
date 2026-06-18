@@ -10,6 +10,19 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### `validateSchedule` tightens Meet + passage validation
+
+Shipped with apps/web 0.4.0 (Phase 3 schedule editor). The user-customisable surface behind
+`PUT /api/materials/:id/schedule` now field-checks meets and per-week passages so a malformed editor
+payload can't reach disk.
+
+* Meets: each entry must carry `id`, `name`, `startDate`, `endDate` as non-empty strings; dates are
+  `YYYY-MM-DD` with sane month/day; `endDate >= startDate`; `id` unique within the schedule.
+  `location` accepts empty/missing/"TBD" (the bundled schedules use both forms as placeholders).
+* Per-week passage on non-Review weeks: `book` non-empty; `chapter`, `startVerse`, `endVerse`
+  positive integers; `endVerse >= startVerse`. Closes a gap where the editor's de-review toggle
+  could save zeroed placeholders the server silently accepted.
+
 ## [0.1.29] — 2026-06-15
 
 `GET /api/years` now surfaces `perClub` (parsed `PerClubYearSettings`) alongside the legacy

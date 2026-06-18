@@ -35,35 +35,33 @@
  */
 
 import type { Club, YearView } from '@/api'
+import type { Schedule, ScheduleWeek } from '@/lib/schedule'
 
 const CLUBS: readonly Club[] = ['club150', 'club300', 'full'] as const
 
 /** Module-level cache for the schedule fetches `memorizeBadgeCount`
  *  fires on every navigation. Schedules are essentially static within
  *  a tab session — they only change via PUT/DELETE
- *  `/api/materials/:id/schedule` (Phase 3 UI; not yet wired). Without
- *  this cache, every nav re-fetches one schedule per enrolled year,
- *  multiplying the per-route badge cost N+1 times.
+ *  `/api/materials/:id/schedule` (the Phase 3 editor invalidates here
+ *  after each write). Without this cache, every nav re-fetches one
+ *  schedule per enrolled year, multiplying the per-route badge cost
+ *  N+1 times.
  *
  *  Caches the in-flight promise so concurrent calls (e.g. two
  *  fast back-to-back nav events) share one round-trip rather than
- *  racing two. Exported so future schedule-write paths can invalidate
- *  it explicitly when the editor lands. */
+ *  racing two. Exported so callers can invalidate per-material on
+ *  schedule writes.
+ *
+ *  TODO(#100): the cache is keyed by `materialId` only, so a profile
+ *  switch leaks the prior profile's schedule into the new profile's
+ *  badge count for the same material. Fix: clear on profile switch
+ *  inside `useAuth`, or rekey by (userId, materialId). Out of scope
+ *  for the Phase 3 PR — see github.com/TommyAmberson/verse-vault/issues/100. */
 const scheduleCache = new Map<string, Promise<unknown | null>>()
 
 export function invalidateScheduleCache(materialId?: string): void {
   if (materialId === undefined) scheduleCache.clear()
   else scheduleCache.delete(materialId)
-}
-
-interface ScheduleWeek {
-  date: string
-  verses: Partial<Record<Club, number[]>> | null
-  isReview?: boolean
-}
-
-interface Schedule {
-  weeks: ScheduleWeek[]
 }
 
 /** Return the index of the latest week whose date is on or before

@@ -141,7 +141,66 @@ interface SchedulePayload {
   title: string;
   meetingDayOfWeek: string;
   weeks: unknown[];
-  meets?: unknown[];
+  meets?: ValidatedMeet[];
+}
+
+/** Spec'd Meet shape from data/schedules/*.json. `id` is a stable slug
+ *  the chain UI's `move_to_next` gates may reference; `startDate` and
+ *  `endDate` define the major-checkpoint window for those gates. The
+ *  Phase 3 editor writes user customisations to this surface, so the
+ *  server has to defend the shape.
+ *
+ *  `location` is intentionally an arbitrary string and may be empty —
+ *  the bundled schedules already use "TBD" as a placeholder for the
+ *  Second Weekend Meet, and the editor lets users clear the field. */
+export interface ValidatedMeet {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+}
+
+/** Field-level validation for `weeks[i].passage` on non-Review weeks.
+ *  `passage: null` is the valid Review-week shape and is gated above
+ *  by the `isReview` check; this helper is only called when the week
+ *  is supposed to carry real content. */
+function validateWeekPassage(i: number, raw: unknown): void {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new ScheduleValidationError(
+      `weeks[${i}].passage must be an object on non-review weeks`,
+    );
+  }
+  const p = raw as Record<string, unknown>;
+  if (typeof p.book !== 'string' || p.book.length === 0) {
+    throw new ScheduleValidationError(`weeks[${i}].passage.book must be a non-empty string`);
+  }
+  for (const f of ['chapter', 'startVerse', 'endVerse'] as const) {
+    const v = p[f];
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) {
+      throw new ScheduleValidationError(`weeks[${i}].passage.${f} must be a positive integer`);
+    }
+  }
+  if ((p.endVerse as number) < (p.startVerse as number)) {
+    throw new ScheduleValidationError(`weeks[${i}].passage.endVerse is before startVerse`);
+  }
+}
+
+/** Pull a non-empty string field off a record. Shared by the top-level
+ *  schedule fields and the per-meet field-checks — both error formats
+ *  differ only in the prefix, so the caller passes a lazy label
+ *  builder rather than two near-identical closures inside the same
+ *  file. */
+function requireNonEmptyStr(
+  src: Record<string, unknown>,
+  k: string,
+  label: () => string,
+): string {
+  const v = src[k];
+  if (typeof v !== 'string' || v.length === 0) {
+    throw new ScheduleValidationError(label());
+  }
+  return v;
 }
 
 export function validateSchedule(json: string): SchedulePayload {
@@ -155,13 +214,8 @@ export function validateSchedule(json: string): SchedulePayload {
     throw new ScheduleValidationError('schedule must be an object');
   }
   const obj = parsed as Record<string, unknown>;
-  const requireStr = (k: string): string => {
-    const v = obj[k];
-    if (typeof v !== 'string' || v.length === 0) {
-      throw new ScheduleValidationError(`missing string field: ${k}`);
-    }
-    return v;
-  };
+  const requireStr = (k: string): string =>
+    requireNonEmptyStr(obj, k, () => `missing string field: ${k}`);
   const requireNum = (k: string): number => {
     const v = obj[k];
     if (typeof v !== 'number' || !Number.isFinite(v)) {
@@ -194,11 +248,18 @@ export function validateSchedule(json: string): SchedulePayload {
     if (typeof wo.date !== 'string' || !isValidIsoDate(wo.date)) {
       throw new ScheduleValidationError(`weeks[${i}].date must be a real YYYY-MM-DD`);
     }
+    // Non-review weeks must carry a usable passage. Without this,
+    // the Phase 3 editor's de-review toggle could save zeroed
+    // placeholder values ({book: '', chapter: 0, startVerse: 0,
+    // endVerse: 0}) that the WASM engine then trips over. The
+    // editor's user flow asks for these fields immediately after
+    // de-review, but a save before they're filled in needs to fail
+    // here rather than silently corrupt the schedule.
+    if (wo.isReview === false || wo.isReview === undefined) {
+      validateWeekPassage(i, wo.passage);
+    }
   }
-  const meets = obj.meets;
-  if (meets !== undefined && !Array.isArray(meets)) {
-    throw new ScheduleValidationError('meets must be an array when present');
-  }
+  const meets = validateMeets(obj.meets);
   return {
     version,
     materialId,
@@ -206,6 +267,60 @@ export function validateSchedule(json: string): SchedulePayload {
     title,
     meetingDayOfWeek,
     weeks,
-    meets: meets as unknown[] | undefined,
+    meets,
   };
+}
+
+/** Field-level validation for the `meets` array. The Phase 3 editor
+ *  writes user customisations through this surface, so each meet has to
+ *  be defended — a malformed `startDate` would silently disable the
+ *  `afterMajorCheckpoint` gate's "most recent past meet" lookup, and
+ *  duplicate `id`s would make stable referencing impossible. */
+function validateMeets(raw: unknown): ValidatedMeet[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw)) {
+    throw new ScheduleValidationError('meets must be an array when present');
+  }
+  const seenIds = new Set<string>();
+  const meets: ValidatedMeet[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const m = raw[i];
+    if (typeof m !== 'object' || m === null) {
+      throw new ScheduleValidationError(`meets[${i}] must be an object`);
+    }
+    const mo = m as Record<string, unknown>;
+    const requireMeetStr = (k: string): string =>
+      requireNonEmptyStr(
+        mo,
+        k,
+        () => `meets[${i}].${k} must be a non-empty string`,
+      );
+    const id = requireMeetStr('id');
+    if (seenIds.has(id)) {
+      throw new ScheduleValidationError(`meets[${i}].id "${id}" is duplicated`);
+    }
+    seenIds.add(id);
+    const name = requireMeetStr('name');
+    const startDate = requireMeetStr('startDate');
+    if (!isValidIsoDate(startDate)) {
+      throw new ScheduleValidationError(`meets[${i}].startDate must be a real YYYY-MM-DD`);
+    }
+    const endDate = requireMeetStr('endDate');
+    if (!isValidIsoDate(endDate)) {
+      throw new ScheduleValidationError(`meets[${i}].endDate must be a real YYYY-MM-DD`);
+    }
+    if (endDate < startDate) {
+      throw new ScheduleValidationError(`meets[${i}].endDate is before startDate`);
+    }
+    // `location` accepts any string including '' — the bundled schedules
+    // ship "TBD" as a placeholder, and the editor exposes the field as
+    // freely clearable. Missing field falls through to ''.
+    const locRaw = mo.location;
+    if (locRaw !== undefined && typeof locRaw !== 'string') {
+      throw new ScheduleValidationError(`meets[${i}].location must be a string`);
+    }
+    const location = locRaw ?? '';
+    meets.push({ id, name, startDate, endDate, location });
+  }
+  return meets;
 }

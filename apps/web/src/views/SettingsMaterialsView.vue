@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { onBeforeRouteLeave, RouterLink } from 'vue-router'
 
 import ScopeLevelSelector from '@/components/ScopeLevelSelector.vue'
 import StatusChip from '@/components/StatusChip.vue'
@@ -323,6 +324,20 @@ async function onToggleOffline(card: YearCard) {
 }
 
 onMounted(refresh)
+
+/** Same nav-away guard pattern as ScheduleEditorView — the chain UI
+ *  holds an editable draft, and the new "Edit schedule →" RouterLink
+ *  in the per-material header is a one-click way to leave the route
+ *  with unsaved per-club changes. Without this prompt the user's
+ *  edits silently vanish on click. */
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!selectedIsDirty.value) {
+    next()
+    return
+  }
+  const ok = window.confirm('You have unsaved settings. Leave without saving?')
+  next(ok)
+})
 </script>
 
 <template>
@@ -368,6 +383,12 @@ onMounted(refresh)
           <div class="year-title-row">
             <h3>{{ selected.view.title }}</h3>
             <span v-if="!isStudying(selected)" class="enrollment-badge">Not enrolled</span>
+            <RouterLink
+              :to="`/schedule/${encodeURIComponent(selected.view.materialId)}`"
+              class="schedule-link"
+            >
+              Edit schedule →
+            </RouterLink>
           </div>
           <p class="year-description">{{ selected.view.description }}</p>
           <div class="tier-summary">
@@ -725,6 +746,22 @@ onMounted(refresh)
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
   white-space: nowrap;
+}
+
+/* Anchors the schedule-editor entry point. Sits next to the title so
+   it's discoverable without burying the per-club chain UI below the
+   fold. The card header already uses justify-content: space-between
+   on the title row; the link rides the right edge there. */
+.schedule-link {
+  margin-left: auto;
+  color: var(--color-accent);
+  font-size: 0.85rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.schedule-link:hover {
+  text-decoration: underline;
 }
 
 .tier-summary {

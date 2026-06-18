@@ -10,6 +10,9 @@ import type {
   SyncEventsResponse,
   SyncStateResponse,
 } from './lib/engine/types'
+import type { Schedule } from './lib/schedule'
+
+export type { Schedule } from './lib/schedule'
 
 export type Grade = 1 | 2 | 3 | 4
 
@@ -348,11 +351,15 @@ export interface ApiClient {
   /** GET /api/materials/:materialId/schedule — returns the user's
    *  customised schedule if present, else the bundled default, else
    *  `null` when no schedule ships for the material (memorize then
-   *  collapses to pure-Sequential on the engine side). */
-  getSchedule(materialId: string): Promise<unknown | null>
+   *  collapses to pure-Sequential on the engine side). Result is
+   *  typed as the parsed `Schedule` shape; callers in hot paths (the
+   *  Memorize-tab badge math) treat it as a structural `unknown` so a
+   *  shape mismatch from a future server change degrades gracefully
+   *  instead of throwing at the boundary. */
+  getSchedule(materialId: string): Promise<Schedule | null>
   /** PUT /api/materials/:materialId/schedule — upserts the user's copy.
    *  Server validates the body's shape AND cross-checks `materialId`. */
-  putSchedule(materialId: string, schedule: unknown): Promise<{ ok: true }>
+  putSchedule(materialId: string, schedule: Schedule): Promise<{ ok: true }>
   /** DELETE /api/materials/:materialId/schedule — drops the user's
    *  override; bundled default reapplies on next read. */
   deleteSchedule(materialId: string): Promise<{ ok: true; fallbackToBundled: boolean }>
@@ -442,7 +449,20 @@ export function createApiClient(apiUrl: string): ApiClient {
       ) {
         return null
       }
-      return body
+      // The API's SchedulePayload types `meets` as optional and weeks
+      // are present-but-passed-verbatim. The web's Schedule shape
+      // declares `meets: ScheduleMeet[]` and `weeks: ScheduleWeek[]`
+      // as required arrays — the editor iterates and reads `.length`
+      // off both unconditionally. Bundled JSONs older than Phase 3
+      // (or future ones written without a `meets` block) would crash
+      // the editor on `undefined.forEach`. Backfill the arrays here
+      // so the type assertion at the boundary holds.
+      if (body !== null && typeof body === 'object') {
+        const obj = body as Record<string, unknown>
+        if (!Array.isArray(obj.meets)) obj.meets = []
+        if (!Array.isArray(obj.weeks)) obj.weeks = []
+      }
+      return body as Schedule | null
     },
     putSchedule: (materialId, schedule) =>
       request('PUT', `/api/materials/${encodeURIComponent(materialId)}/schedule`, schedule),
