@@ -435,8 +435,17 @@ export async function signOut(targetProfileId?: string): Promise<void> {
 
   if (activeProfile.value?.profileId === targetId) {
     await registry.setLastActiveProfileId(null)
-    await setActiveProfile(null)
+    // Drain BEFORE detaching the DB handle so the final in-flight
+    // flush can write `testStates` + `deleteQueuedEvents` against
+    // profile A's still-open IDB. With the reverse ordering the
+    // flush's response handler hits `openDb()` → "No active profile",
+    // `Promise.allSettled` swallows the rejection, the local IDB
+    // misses the final batch, and the queue rows linger until the
+    // next sign-in re-sends them (server dedupes by clientEventId,
+    // so it's self-healing — but the staleness window between
+    // sign-out and next sign-in is real).
     await clearProfileCaches()
+    await setActiveProfile(null)
     activeProfile.value = null
     // Reset the load-once flag so the next sign-in re-reads the
     // registry — keeps the "flag true ⟺ registry consulted this
