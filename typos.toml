@@ -10,3 +10,4 @@ extend-exclude = [
 [default.extend-words]
 OT = "OT" # old testament
 NAM = "NAM" # USX book code for Nahum
+nd = "nd" # English ordinal suffix (2nd, 22nd, …); appears as `${day}nd`

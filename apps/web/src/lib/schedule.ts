@@ -115,6 +115,45 @@ export function shiftDate(iso: string, deltaDays: number): string {
   return formatIsoDate(d)
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const
+
+/** Full month name (e.g. `September`) for a `YYYY-MM-DD` date. */
+export function monthName(iso: string): string {
+  return MONTH_NAMES[parseIsoDate(iso).getUTCMonth()]
+}
+
+/** Day of month from `YYYY-MM-DD`. */
+export function dayOfMonth(iso: string): number {
+  return parseIsoDate(iso).getUTCDate()
+}
+
+/** English ordinal suffix: 1st, 2nd, 3rd, 4th, …, 21st, 22nd, 23rd, 24th…
+ *  Used for the table-date column ("- 11th") in the schedule view,
+ *  which lays out the season under month headers and so leaves only
+ *  the ordinal day-of-month to scan against the printable schedule. */
+export function englishOrdinal(day: number): string {
+  const mod100 = day % 100
+  if (mod100 >= 11 && mod100 <= 13) return `${day}th`
+  const mod10 = day % 10
+  if (mod10 === 1) return `${day}st`
+  if (mod10 === 2) return `${day}nd`
+  if (mod10 === 3) return `${day}rd`
+  return `${day}th`
+}
+
+/** Sunday-anchored week-key for an ISO date — the Sunday of the
+ *  Sun-Sat week containing the date. Two dates share a week iff they
+ *  produce the same key. Sunday-first to match the project-wide
+ *  convention (see `applyMeetingDayShift`'s docstring). */
+export function isoWeekStart(iso: string): string {
+  const d = parseIsoDate(iso)
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay())
+  return formatIsoDate(d)
+}
+
 // =============================================================================
 // Schedule helpers (pure)
 // =============================================================================
