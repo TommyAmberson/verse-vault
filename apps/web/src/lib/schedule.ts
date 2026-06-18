@@ -101,9 +101,16 @@ export function shiftDate(iso: string, deltaDays: number): string {
 // Schedule helpers (pure)
 // =============================================================================
 
-/** Deep-clone a schedule. Pure data shape so structuredClone is sound. */
+/** Deep-clone a schedule. Uses JSON round-trip rather than
+ *  `structuredClone` because the call sites in `ScheduleEditorView`
+ *  pass `saved.value` / `draft.value` — Vue wraps ref-held objects
+ *  in a reactive Proxy, and `structuredClone` throws
+ *  `Proxy object could not be cloned` on those. `JSON.stringify`
+ *  walks the proxy's [[Get]] trap correctly and emits the plain
+ *  underlying data; `Schedule` carries only string / number / boolean /
+ *  null / array / object, so the round-trip is exact. */
 export function cloneSchedule(s: Schedule): Schedule {
-  return structuredClone(s)
+  return JSON.parse(JSON.stringify(s)) as Schedule
 }
 
 /** Shift every week's date to land on `newDay` within the same

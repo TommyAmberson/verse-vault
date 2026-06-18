@@ -390,7 +390,7 @@ async function confirmReset() {
 
 /** Dirty iff the user has actually edited the draft. JSON.stringify
  *  is sound because both objects originate from the same construction
- *  path (server JSON → structuredClone), so key order matches. */
+ *  path (server JSON → cloneSchedule), so key order matches. */
 const isDirty = computed<boolean>(() => {
   if (saved.value === null || draft.value === null) return false
   return JSON.stringify(draft.value) !== JSON.stringify(saved.value)
