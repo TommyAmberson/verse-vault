@@ -1038,9 +1038,14 @@ button.secondary:hover:not(:disabled) {
   padding: 1.25rem 1.5rem;
 }
 
+/* `auto` for the table cell pairs with `.schedule-table`'s
+ * `width: max-content` so the cell shrinks to the table's
+ * natural width — without this, the cell would still be 1fr
+ * and the table would sit at the left of a cell with hundreds
+ * of pixels of trailing whitespace before the form pane. */
 .editor-body.is-editing {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+  grid-template-columns: auto minmax(18rem, 22rem);
   gap: 1.5rem;
   align-items: start;
 }
@@ -1058,8 +1063,16 @@ button.secondary:hover:not(:disabled) {
   min-width: 0;
 }
 
+/* Shrink the table to its widest row rather than stretching across
+ * the grid cell — `width: 100%` makes verse cells (the only
+ * width: auto columns) absorb hundreds of trailing pixels when
+ * verse lists are short, which looks aimless next to the printable
+ * PDF's tight columns. `max-content` lets each column size to its
+ * widest cell while `max-width: 100%` still prevents overflow on
+ * narrow viewports. */
 .schedule-table {
-  width: 100%;
+  width: max-content;
+  max-width: 100%;
   border-collapse: collapse;
   font-size: 0.92rem;
   font-variant-numeric: tabular-nums;
