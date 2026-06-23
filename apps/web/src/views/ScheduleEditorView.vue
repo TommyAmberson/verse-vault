@@ -853,21 +853,12 @@ function backToSettings() {
 </template>
 
 <style scoped>
-/* View mode keeps the existing 960px cap (same as the rest of the app
- * for prose readability). Edit mode needs more horizontal room — the
- * form pane and the 4-column table would otherwise squeeze the verse
- * cells into 2-line wraps. The `:has(.is-editing)` selector promotes
- * the wrapper to the wider cap only while editing. */
 .schedule-editor {
   width: 100%;
   max-width: 960px;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-}
-
-.schedule-editor:has(.editor-body.is-editing) {
-  max-width: 1240px;
 }
 
 .banner {
@@ -1040,7 +1031,7 @@ button.secondary:hover:not(:disabled) {
 
 .editor-body.is-editing {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem);
   gap: 1.5rem;
   align-items: start;
 }
@@ -1077,11 +1068,11 @@ button.secondary:hover:not(:disabled) {
 }
 
 .col-date {
-  width: 4rem;
+  width: 4.5rem;
 }
 
 .col-passage {
-  width: 13rem;
+  width: 9rem;
 }
 
 .col-verses {
