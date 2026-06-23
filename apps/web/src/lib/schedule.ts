@@ -19,6 +19,24 @@ export const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as
 
 export type DayOfWeek = (typeof DAYS_OF_WEEK)[number]
 
+const DAY_NAMES_LONG = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const
+
+/** Full day name (e.g. `Wednesday`) for a 3-letter `DayOfWeek` (e.g.
+ *  `Wed`). The `${abbrev}days` shorthand silently produces "Tuedays" /
+ *  "Weddays" / "Thudays" / "Satdays" — use this when rendering to the
+ *  user. */
+export function fullDayName(day: DayOfWeek): string {
+  return DAY_NAMES_LONG[DAYS_OF_WEEK.indexOf(day)]
+}
+
 export interface SchedulePassage {
   book: string
   chapter: number
@@ -97,13 +115,59 @@ export function shiftDate(iso: string, deltaDays: number): string {
   return formatIsoDate(d)
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const
+
+/** Full month name (e.g. `September`) for a `YYYY-MM-DD` date. */
+export function monthName(iso: string): string {
+  return MONTH_NAMES[parseIsoDate(iso).getUTCMonth()]
+}
+
+/** Day of month from `YYYY-MM-DD`. */
+export function dayOfMonth(iso: string): number {
+  return parseIsoDate(iso).getUTCDate()
+}
+
+/** English ordinal suffix: 1st, 2nd, 3rd, 4th, …, 21st, 22nd, 23rd, 24th…
+ *  Used for the table-date column ("- 11th") in the schedule view,
+ *  which lays out the season under month headers and so leaves only
+ *  the ordinal day-of-month to scan against the printable schedule. */
+export function englishOrdinal(day: number): string {
+  const mod100 = day % 100
+  if (mod100 >= 11 && mod100 <= 13) return `${day}th`
+  const mod10 = day % 10
+  if (mod10 === 1) return `${day}st`
+  if (mod10 === 2) return `${day}nd`
+  if (mod10 === 3) return `${day}rd`
+  return `${day}th`
+}
+
+/** Sunday-anchored week-key for an ISO date — the Sunday of the
+ *  Sun-Sat week containing the date. Two dates share a week iff they
+ *  produce the same key. Sunday-first to match the project-wide
+ *  convention (see `applyMeetingDayShift`'s docstring). */
+export function isoWeekStart(iso: string): string {
+  const d = parseIsoDate(iso)
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay())
+  return formatIsoDate(d)
+}
+
 // =============================================================================
 // Schedule helpers (pure)
 // =============================================================================
 
-/** Deep-clone a schedule. Pure data shape so structuredClone is sound. */
+/** Deep-clone a schedule. Uses JSON round-trip rather than
+ *  `structuredClone` because the call sites in `ScheduleEditorView`
+ *  pass `saved.value` / `draft.value` — Vue wraps ref-held objects
+ *  in a reactive Proxy, and `structuredClone` throws
+ *  `Proxy object could not be cloned` on those. `JSON.stringify`
+ *  walks the proxy's [[Get]] trap correctly and emits the plain
+ *  underlying data; `Schedule` carries only string / number / boolean /
+ *  null / array / object, so the round-trip is exact. */
 export function cloneSchedule(s: Schedule): Schedule {
-  return structuredClone(s)
+  return JSON.parse(JSON.stringify(s)) as Schedule
 }
 
 /** Shift every week's date to land on `newDay` within the same

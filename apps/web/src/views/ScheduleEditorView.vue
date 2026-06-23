@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import { api } from '@/api'
@@ -15,15 +15,18 @@ import {
   addWeekAt,
   applyMeetingDayShift,
   cloneSchedule,
+  englishOrdinal,
   formatPassage,
   formatVerseList,
+  fullDayName,
+  isoWeekStart,
+  monthName,
   parseVerseList,
   removeMeet,
   removeWeekAt,
   shiftDate,
   slugifyMeetId,
   updateMeet,
-  verseCountsForWeek,
 } from '@/lib/schedule'
 
 type Mode = 'view' | 'edit'
@@ -59,47 +62,71 @@ type Selection =
 
 const selection = ref<Selection>(null)
 
-interface TimelineItem {
-  kind: 'week' | 'meet'
-  /** Primary sort key — week.date or meet.startDate. */
-  sortKey: string
-  /** Original index into display.weeks; only meaningful when kind === 'week'. */
-  weekIdx: number
-  week?: ScheduleWeek
-  meet?: ScheduleMeet
-  /** Pre-computed verse counts for week rows so the template doesn't
-   *  call `verseCountsForWeek` twice per row to read club150 then
-   *  club300 off two separate return objects. */
-  weekCounts?: { club150: number; club300: number }
-}
+/** A row in the printable-style schedule table: month-section header,
+ *  practice week, or a meet weekend (renders as a full-width band).
+ *  Rows are produced in chronological order; on a tied date, weeks
+ *  sort before meets (the practice happens before the weekend meet)
+ *  and month headers slot in whenever the calendar month changes. */
+type TableRow =
+  | { kind: 'month'; key: string; label: string }
+  | {
+    kind: 'week'
+    key: string
+    weekIdx: number
+    week: ScheduleWeek
+    ordinal: string
+    isCurrent: boolean
+  }
+  | { kind: 'meet'; key: string; meet: ScheduleMeet; dateRange: string }
 
-/** Single chronological list of weeks + meets for the left pane. Meets
- *  sort after a week on the same date (the practice happens first,
- *  the meet weekend lands during/after). Within meets on the same
- *  startDate, the array order wins. */
-const timeline = computed<TimelineItem[]>(() => {
+/** Sun-anchored week key for "today" — keeps the current-week
+ *  highlight stable across nav events without re-evaluating Date on
+ *  every render. */
+const todayWeekKey = isoWeekStart(new Date().toISOString().slice(0, 10))
+
+const rows = computed<TableRow[]>(() => {
   const s = display.value
   if (s === null) return []
-  const items: TimelineItem[] = []
-  s.weeks.forEach((week, weekIdx) => {
-    items.push({
-      kind: 'week',
-      sortKey: week.date,
-      weekIdx,
-      week,
-      weekCounts: verseCountsForWeek(week),
-    })
-  })
-  s.meets.forEach((meet) => {
-    // weekIdx is unused for meet items; -1 makes that explicit.
-    items.push({ kind: 'meet', sortKey: meet.startDate, weekIdx: -1, meet })
-  })
-  return items.sort((a, b) => {
-    if (a.sortKey !== b.sortKey) return a.sortKey.localeCompare(b.sortKey)
-    // Same date: weeks before meets.
+  type Chronological =
+    | { kind: 'week'; date: string; weekIdx: number; week: ScheduleWeek }
+    | { kind: 'meet'; date: string; meet: ScheduleMeet }
+  const items: Chronological[] = []
+  s.weeks.forEach((week, weekIdx) =>
+    items.push({ kind: 'week', date: week.date, weekIdx, week }),
+  )
+  s.meets.forEach((meet) => items.push({ kind: 'meet', date: meet.startDate, meet }))
+  items.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date)
     if (a.kind !== b.kind) return a.kind === 'week' ? -1 : 1
     return 0
   })
+  const result: TableRow[] = []
+  let lastMonth = ''
+  for (const it of items) {
+    const m = monthName(it.date)
+    if (m !== lastMonth) {
+      result.push({ kind: 'month', key: `month-${it.date}`, label: m })
+      lastMonth = m
+    }
+    if (it.kind === 'week') {
+      result.push({
+        kind: 'week',
+        key: `week-${it.weekIdx}`,
+        weekIdx: it.weekIdx,
+        week: it.week,
+        ordinal: englishOrdinal(Number(it.date.slice(8, 10))),
+        isCurrent: isoWeekStart(it.date) === todayWeekKey,
+      })
+    } else {
+      result.push({
+        kind: 'meet',
+        key: `meet-${it.meet.id}`,
+        meet: it.meet,
+        dateRange: formatMeetDateRange(it.meet),
+      })
+    }
+  }
+  return result
 })
 
 function selectWeek(weekIdx: number) {
@@ -110,17 +137,12 @@ function selectMeet(meetId: string) {
   selection.value = { kind: 'meet', meetId }
 }
 
-/** Single predicate that drives both the .is-selected class (visual
- *  highlight) and the button's aria-current (assistive-tech signal).
- *  Without it the template carried two parallel boolean expressions
- *  that could drift; one helper keeps them in sync. */
-function isItemSelected(item: TimelineItem): boolean {
-  const sel = selection.value
-  if (sel === null) return false
-  if (item.kind === 'week') {
-    return sel.kind === 'week' && sel.weekIdx === item.weekIdx
-  }
-  return sel.kind === 'meet' && sel.meetId === item.meet?.id
+function isWeekRowSelected(weekIdx: number): boolean {
+  return selection.value?.kind === 'week' && selection.value.weekIdx === weekIdx
+}
+
+function isMeetRowSelected(meetId: string): boolean {
+  return selection.value?.kind === 'meet' && selection.value.meetId === meetId
 }
 
 /** Long-form weekday + month-day label for the timeline. ISO `YYYY-MM-DD`
@@ -390,7 +412,7 @@ async function confirmReset() {
 
 /** Dirty iff the user has actually edited the draft. JSON.stringify
  *  is sound because both objects originate from the same construction
- *  path (server JSON → structuredClone), so key order matches. */
+ *  path (server JSON → cloneSchedule), so key order matches. */
 const isDirty = computed<boolean>(() => {
   if (saved.value === null || draft.value === null) return false
   return JSON.stringify(draft.value) !== JSON.stringify(saved.value)
@@ -470,6 +492,13 @@ onBeforeRouteLeave((_to, _from, next) => {
 onMounted(async () => {
   window.addEventListener('beforeunload', onBeforeUnload)
   await refresh()
+  // After the table has rendered, bring the current week into view —
+  // a 30+ week table otherwise leaves the user at the top, mid-season.
+  // No-op when the season hasn't started or has already ended.
+  await nextTick()
+  document
+    .querySelector('.week-row.is-current')
+    ?.scrollIntoView({ block: 'center', behavior: 'instant' })
 })
 
 // onBeforeRouteLeave is component-scoped and clears itself; the
@@ -514,7 +543,8 @@ function backToSettings() {
           <div class="title-block">
             <h2>{{ display.title }}</h2>
             <p class="subtitle">
-              {{ display.season }} · meets {{ display.meetingDayOfWeek
+              {{ display.season }} · meets {{
+                fullDayName(display.meetingDayOfWeek)
               }}s ·
               {{ display.weeks.length }} weeks ·
               {{ display.meets.length }} meets
@@ -567,7 +597,7 @@ function backToSettings() {
             @change="onMeetingDayChange(($event.target as HTMLSelectElement).value as DayOfWeek)"
           >
             <option v-for="d in DAYS_OF_WEEK" :key="d" :value="d">
-              {{ d }}days
+              {{ fullDayName(d) }}s
             </option>
           </select>
         </label>
@@ -577,48 +607,65 @@ function backToSettings() {
         </p>
       </div>
 
-      <section class="editor-body">
-        <nav class="timeline-pane" aria-label="Schedule timeline">
-          <ol class="timeline">
-            <li
-              v-for="(item, i) in timeline"
-              :key="`${item.kind}-${item.kind === 'week' ? item.weekIdx : item.meet?.id}-${i}`"
-              :class="[
-                `timeline-item timeline-${item.kind}`,
-                { 'is-selected': isItemSelected(item) },
-              ]"
-            >
-              <button
-                v-if="item.kind === 'week' && item.week"
-                type="button"
-                class="timeline-button"
-                :aria-current="isItemSelected(item) ? 'true' : undefined"
-                @click="selectWeek(item.weekIdx)"
-              >
-                <span class="row-date">{{ formatTimelineDate(item.week.date) }}</span>
-                <span class="row-body">
-                  <span class="row-title">{{ formatPassage(item.week.passage) }}</span>
-                  <span v-if="!item.week.isReview" class="row-meta">
-                    {{ item.weekCounts?.club150 ?? 0 }} / {{ item.weekCounts?.club300 ?? 0 }}
-                  </span>
-                  <span v-else class="row-meta">Review week</span>
-                </span>
-              </button>
-              <button
-                v-else-if="item.kind === 'meet' && item.meet"
-                type="button"
-                class="timeline-button meet"
-                :aria-current="isItemSelected(item) ? 'true' : undefined"
-                @click="selectMeet(item.meet.id)"
-              >
-                <span class="row-date">{{ formatMeetDateRange(item.meet) }}</span>
-                <span class="row-body">
-                  <span class="row-title">⛺ {{ item.meet.name }}</span>
-                  <span v-if="item.meet.location" class="row-meta">{{ item.meet.location }}</span>
-                </span>
-              </button>
-            </li>
-          </ol>
+      <section class="editor-body" :class="{ 'is-editing': mode === 'edit' }">
+        <div class="table-pane">
+          <table class="schedule-table" aria-label="Season schedule">
+            <thead>
+              <tr>
+                <th scope="col" class="col-date">Date</th>
+                <th scope="col" class="col-passage">Passage</th>
+                <th scope="col" class="col-verses">Club 150</th>
+                <th scope="col" class="col-verses">Club 300</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="row in rows" :key="row.key">
+                <tr v-if="row.kind === 'month'" class="month-row">
+                  <th colspan="4" scope="rowgroup" class="month-label">
+                    {{ row.label }}
+                  </th>
+                </tr>
+                <tr
+                  v-else-if="row.kind === 'week'"
+                  class="week-row"
+                  :class="{
+                    'is-current': row.isCurrent,
+                    'is-selected': isWeekRowSelected(row.weekIdx),
+                    'is-review': row.week.isReview,
+                  }"
+                  :aria-current="row.isCurrent ? 'date' : undefined"
+                  @click="mode === 'edit' ? selectWeek(row.weekIdx) : null"
+                >
+                  <td class="cell-date">{{ row.ordinal }}</td>
+                  <td class="cell-passage">{{ formatPassage(row.week.passage) }}</td>
+                  <td class="cell-verses">
+                    <span v-if="row.week.verses?.club150?.length">
+                      {{ formatVerseList(row.week.verses.club150) }}
+                    </span>
+                  </td>
+                  <td class="cell-verses">
+                    <span v-if="row.week.verses?.club300?.length">
+                      {{ formatVerseList(row.week.verses.club300) }}
+                    </span>
+                  </td>
+                </tr>
+                <tr
+                  v-else-if="row.kind === 'meet'"
+                  class="meet-row"
+                  :class="{ 'is-selected': isMeetRowSelected(row.meet.id) }"
+                  @click="mode === 'edit' ? selectMeet(row.meet.id) : null"
+                >
+                  <td colspan="4" class="meet-cell">
+                    <span class="meet-dates">{{ row.dateRange }}</span>
+                    <span class="meet-name">{{ row.meet.name }}</span>
+                    <span v-if="row.meet.location" class="meet-location">
+                      | {{ row.meet.location }}
+                    </span>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
           <div v-if="mode === 'edit'" class="add-row">
             <button type="button" class="add-week" @click="addWeekAfterLast">
               + Add a week
@@ -627,35 +674,22 @@ function backToSettings() {
               + Add a meet
             </button>
           </div>
-        </nav>
+        </div>
 
-        <section class="detail" aria-label="Selected item">
+        <aside
+          v-if="mode === 'edit'"
+          class="detail"
+          aria-label="Selected item"
+        >
           <p v-if="selection === null" class="placeholder">
-            Pick a week or meet from the timeline.
+            Pick a row from the schedule to edit it.
           </p>
 
-          <!-- View-mode week display: same read-only shape regardless of
-               whether the user is editing the schedule overall. -->
-          <div
-            v-else-if="selectedWeek && mode === 'view'"
-            class="detail-week"
-          >
-            <h3>{{ formatPassage(selectedWeek.passage) }}</h3>
-            <p class="detail-date">{{ formatTimelineDate(selectedWeek.date) }}</p>
-            <dl v-if="!selectedWeek.isReview">
-              <dt>Club 150</dt>
-              <dd>{{ (selectedWeek.verses?.club150 ?? []).join(', ') || '—' }}</dd>
-              <dt>Club 300</dt>
-              <dd>{{ (selectedWeek.verses?.club300 ?? []).join(', ') || '—' }}</dd>
-            </dl>
-            <p v-else class="detail-review">Review week — no new verses.</p>
-          </div>
-
-          <!-- Edit-mode week form. Date is derived from the schedule's
-               meetingDayOfWeek + week ordering and isn't editable per
-               the Phase 3 design (no per-week overrides). -->
+          <!-- Week form. Date is derived from meetingDayOfWeek + week
+               ordering and isn't directly editable per the Phase 3
+               design (no per-week overrides). -->
           <form
-            v-else-if="selectedWeek && mode === 'edit'"
+            v-else-if="selectedWeek"
             class="week-form"
             @submit.prevent
           >
@@ -750,19 +784,8 @@ function backToSettings() {
             </button>
           </form>
 
-          <!-- View-mode meet display. -->
-          <div
-            v-else-if="selectedMeet && mode === 'view'"
-            class="detail-meet"
-          >
-            <h3>⛺ {{ selectedMeet.name }}</h3>
-            <p class="detail-date">{{ formatMeetDateRange(selectedMeet) }}</p>
-            <p v-if="selectedMeet.location" class="detail-location">{{ selectedMeet.location }}</p>
-          </div>
-
-          <!-- Edit-mode meet form. -->
           <form
-            v-else-if="selectedMeet && mode === 'edit'"
+            v-else-if="selectedMeet"
             class="meet-form"
             @submit.prevent
           >
@@ -808,7 +831,7 @@ function backToSettings() {
               Remove this meet
             </button>
           </form>
-        </section>
+        </aside>
       </section>
     </template>
 
@@ -995,45 +1018,184 @@ button.secondary:hover:not(:disabled) {
   border-color: var(--color-accent);
 }
 
+/* View mode: single-column flow (the table IS the detail).
+ * Edit mode: two-column grid with the form pane on the right.
+ * The `.is-editing` class on `.editor-body` flips between them. */
 .editor-body {
-  display: grid;
-  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
-  gap: 1rem;
-  align-items: start;
+  display: block;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 1rem;
-  min-height: 18rem;
+  padding: 1.25rem 1.5rem;
 }
 
-@media (max-width: 720px) {
-  .editor-body {
+.editor-body.is-editing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 920px) {
+  .editor-body.is-editing {
     grid-template-columns: 1fr;
   }
 }
 
-.timeline-pane {
+.table-pane {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
-.timeline {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 60vh;
-  overflow-y: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.schedule-table thead th {
+  text-align: left;
+  padding: 0 0.5rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.col-date {
+  width: 4.5rem;
+}
+
+.col-passage {
+  width: 9rem;
+}
+
+.col-verses {
+  width: auto;
+}
+
+.month-row .month-label {
+  padding: 1.2rem 0.5rem 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  text-align: left;
+  border-bottom: none;
+}
+
+.week-row > td {
+  padding: 0.35rem 0.5rem;
+  vertical-align: top;
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+}
+
+.cell-date {
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.cell-date::before {
+  content: '– ';
+  color: var(--color-muted);
+}
+
+.cell-passage {
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.cell-verses {
+  color: var(--color-text);
+  word-spacing: 0.05em;
+}
+
+.week-row.is-review .cell-passage {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+/* "You are here." Left-edge accent + bolder title. The current-week
+ * marker is the first thing the user looks for; this needs to be
+ * visible without scanning. */
+.week-row.is-current > td {
+  background: var(--color-accent-soft);
+}
+
+.week-row.is-current .cell-date {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.week-row.is-current .cell-date::before {
+  content: '▸ ';
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.week-row.is-current .cell-passage {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.editor-body.is-editing .week-row {
+  cursor: pointer;
+}
+
+.editor-body.is-editing .week-row:hover > td {
   background: var(--color-bg);
+}
+
+.editor-body.is-editing .week-row.is-selected > td {
+  background: var(--color-accent-soft);
+}
+
+.meet-row .meet-cell {
+  padding: 0.6rem 0.5rem;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--color-text);
+}
+
+.meet-dates {
+  color: var(--color-muted);
+  margin-right: 0.5rem;
+  font-weight: 500;
+}
+
+.meet-name {
+  color: var(--color-text);
+}
+
+.meet-location {
+  color: var(--color-muted);
+  font-weight: 400;
+  margin-left: 0.3rem;
+}
+
+.editor-body.is-editing .meet-row {
+  cursor: pointer;
+}
+
+.editor-body.is-editing .meet-row:hover .meet-cell,
+.editor-body.is-editing .meet-row.is-selected .meet-cell {
+  background: var(--color-accent-soft);
 }
 
 .add-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .add-week {
@@ -1052,117 +1214,14 @@ button.secondary:hover:not(:disabled) {
   color: var(--color-text);
 }
 
-.timeline-item {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.timeline-item:last-child {
-  border-bottom: none;
-}
-
-.timeline-item.is-selected {
-  background: var(--color-accent-soft);
-}
-
-.timeline-button {
-  width: 100%;
-  display: grid;
-  grid-template-columns: minmax(7rem, auto) 1fr;
-  gap: 0.7rem;
-  align-items: center;
-  background: none;
-  border: none;
-  padding: 0.5rem 0.75rem;
-  font-family: inherit;
-  font-size: 0.85rem;
-  text-align: left;
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.timeline-button:hover {
-  background: var(--color-accent-soft);
-}
-
-.timeline-button.meet {
-  background: var(--color-bg-card);
-  font-style: italic;
-}
-
-.timeline-button.meet:hover {
-  background: var(--color-accent-soft);
-}
-
-.row-date {
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.row-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.row-title {
-  color: var(--color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.row-meta {
-  color: var(--color-muted);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .detail {
   padding: 0.5rem 0.5rem 1rem;
-}
-
-.detail h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1.05rem;
-  font-weight: 600;
 }
 
 .detail-date {
   margin: 0 0 1rem;
   color: var(--color-muted);
   font-size: 0.85rem;
-}
-
-.detail-location {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 0.85rem;
-}
-
-.detail-review {
-  margin: 0;
-  color: var(--color-muted);
-  font-style: italic;
-}
-
-.detail dl {
-  margin: 0;
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.4rem 1rem;
-  font-size: 0.9rem;
-}
-
-.detail dt {
-  color: var(--color-muted);
-  font-weight: 500;
-}
-
-.detail dd {
-  margin: 0;
-  color: var(--color-text);
-  font-variant-numeric: tabular-nums;
 }
 
 .placeholder {
