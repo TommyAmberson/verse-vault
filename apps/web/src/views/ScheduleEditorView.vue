@@ -164,6 +164,24 @@ function formatMeetDateRange(meet: ScheduleMeet): string {
   return `${formatTimelineDate(meet.startDate)} – ${formatTimelineDate(meet.endDate)}`
 }
 
+/** Custom-properties style bag driving the .wk row's date-cell span in
+ *  the Ledger and Condensed regimes:
+ *
+ *  - `--wk-blocks` = how many block-rows the date spans in Ledger
+ *    (one per passage; 1 on review weeks so the span math stays sane).
+ *  - `--wk-rows`   = total flow rows the date spans in Condensed —
+ *    each block contributes 3 flow rows (passage / 150 / 300).
+ *
+ *  Cards regime ignores both — the date is a badge above the block(s)
+ *  rather than a rail alongside them. */
+function weekGridStyle(week: ScheduleWeek): Record<string, string> {
+  const blocks = week.isReview ? 1 : Math.max(1, week.blocks.length)
+  return {
+    '--wk-blocks': String(blocks),
+    '--wk-rows': String(blocks * 3),
+  }
+}
+
 const selectedWeek = computed<ScheduleWeek | null>(() => {
   if (selection.value?.kind !== 'week') return null
   return display.value?.weeks[selection.value.weekIdx] ?? null
@@ -631,7 +649,77 @@ function backToSettings() {
       </div>
 
       <section class="editor-body" :class="{ 'is-editing': mode === 'edit' }">
-        <div class="table-pane">
+        <!-- View mode: the responsive .sched layout from the redesign
+             spec §6. Container queries drive three regimes off the
+             wrapper's own width (Ledger ≥790px, Condensed 520-789px,
+             Cards <520px), so the same DOM reflows in a split pane or
+             other embedding without JS. Edit mode keeps the legacy
+             table below until the spec's phase 5 expand-in-place
+             editor lands. -->
+        <div v-if="mode === 'view'" class="sched">
+          <div class="col-head" role="row">
+            <span role="columnheader">Date</span>
+            <span role="columnheader">Passage</span>
+            <span role="columnheader">Club 150</span>
+            <span role="columnheader">Club 300</span>
+          </div>
+          <div class="sched-body">
+            <template v-for="row in rows" :key="row.key">
+              <h3 v-if="row.kind === 'month'" class="month">{{ row.label }}</h3>
+              <article
+                v-else-if="row.kind === 'week'"
+                class="wk"
+                :class="{
+                  'is-current': row.isCurrent,
+                  'is-review': row.week.isReview,
+                }"
+                :style="weekGridStyle(row.week)"
+                :aria-current="row.isCurrent ? 'date' : undefined"
+              >
+                <span class="c-date">- {{ row.ordinal }}</span>
+                <template v-if="row.week.isReview">
+                  <span class="c-pass c-review">Review</span>
+                </template>
+                <template
+                  v-for="(block, bi) in row.week.blocks"
+                  v-else
+                  :key="bi"
+                >
+                  <span class="c-pass">{{ formatPassage(block.passage) }}</span>
+                  <div class="c-150">
+                    <span class="lbl">150</span>
+                    <div class="vals">
+                      <span
+                        v-for="n in block.verses.club150 ?? []"
+                        :key="n"
+                        class="v"
+                      >{{ n }}</span>
+                    </div>
+                  </div>
+                  <div class="c-300">
+                    <span class="lbl">300</span>
+                    <div class="vals">
+                      <span
+                        v-for="n in block.verses.club300 ?? []"
+                        :key="n"
+                        class="v"
+                      >{{ n }}</span>
+                    </div>
+                  </div>
+                </template>
+              </article>
+              <div v-else-if="row.kind === 'meet'" class="meet">
+                <span class="meet-dates">{{ row.dateRange }}</span>
+                <span class="meet-name">{{ row.meet.name }}</span>
+                <span v-if="row.meet.location" class="meet-location">
+                  · {{ row.meet.location }}
+                </span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div v-else class="table-pane">
           <table class="schedule-table" aria-label="Season schedule">
             <thead>
               <tr>
@@ -657,7 +745,7 @@ function backToSettings() {
                     'is-review': row.week.isReview,
                   }"
                   :aria-current="row.isCurrent ? 'date' : undefined"
-                  @click="mode === 'edit' ? selectWeek(row.weekIdx) : null"
+                  @click="selectWeek(row.weekIdx)"
                 >
                   <td class="cell-date">{{ row.ordinal }}</td>
                   <td class="cell-passage">
@@ -678,7 +766,7 @@ function backToSettings() {
                   v-else-if="row.kind === 'meet'"
                   class="meet-row"
                   :class="{ 'is-selected': isMeetRowSelected(row.meet.id) }"
-                  @click="mode === 'edit' ? selectMeet(row.meet.id) : null"
+                  @click="selectMeet(row.meet.id)"
                 >
                   <td colspan="4" class="meet-cell">
                     <span class="meet-dates">{{ row.dateRange }}</span>
@@ -691,7 +779,7 @@ function backToSettings() {
               </template>
             </tbody>
           </table>
-          <div v-if="mode === 'edit'" class="add-row">
+          <div class="add-row">
             <button type="button" class="add-week" @click="addWeekAfterLast">
               + Add a week
             </button>
@@ -1043,8 +1131,9 @@ button.secondary:hover:not(:disabled) {
   border-color: var(--color-accent);
 }
 
-/* View mode: single-column flow (the table IS the detail).
- * Edit mode: two-column grid with the form pane on the right.
+/* View mode: single-column flow (the .sched IS the detail).
+ * Edit mode: two-column grid with the form pane on the right (and the
+ * legacy table on the left, until the spec's phase 5 lands).
  * The `.is-editing` class on `.editor-body` flips between them. */
 .editor-body {
   display: block;
@@ -1052,6 +1141,303 @@ button.secondary:hover:not(:disabled) {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
+}
+
+/* =============================================================================
+ * View-mode schedule (`.sched`) — redesign spec §3, §6.
+ *
+ * Container-query driven. Three regimes off the wrapper's own width:
+ *   base (< 520px)   — cards; date is a badge, verses are pills
+ *   ≥ 520px (Cond.)  — date rail on the left, passage + pills stacked right
+ *   ≥ 790px (Ledger) — full 4-column printable ledger, comma-list verses
+ *
+ * Multi-passage weeks (blocks.length > 1) share the date cell across all
+ * blocks: --wk-blocks spans them in Ledger, --wk-rows in Condensed. Review
+ * weeks render "Review" in the passage slot only.
+ *
+ * TODO(print): out of scope for this pass. Future: @media print that
+ * forces the Ledger regime regardless of container width and hides app
+ * chrome; see spec §3.6.
+ * ============================================================================= */
+
+.sched {
+  /* Reflow off .sched's own width, not the viewport, so the layout is
+   * correct in a split pane or any embedding. */
+  container-type: inline-size;
+  min-width: 0;
+}
+
+/* ---------- BASE: mobile-first Cards regime ---------- */
+.sched .col-head {
+  /* Column-headers row only makes sense in Ledger; hidden otherwise. */
+  display: none;
+}
+
+.sched-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+}
+
+.sched .month {
+  margin: 1rem 0 0.15rem;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.sched .month:first-child {
+  margin-top: 0.25rem;
+}
+
+.sched .wk {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+}
+
+.sched .wk.is-review {
+  border-style: dashed;
+  background: transparent;
+}
+
+.sched .wk.is-current {
+  border-color: var(--color-accent);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.sched .c-date {
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.sched .wk.is-current .c-date {
+  color: var(--color-accent);
+}
+
+.sched .c-pass {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.sched .c-review {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.sched .c-150,
+.sched .c-300 {
+  display: flex;
+  gap: 0.55rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.sched .lbl {
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  flex: 0 0 1.9rem;
+}
+
+.sched .c-150 .lbl {
+  color: var(--color-accent);
+}
+
+.sched .c-300 .lbl {
+  color: var(--color-grade-hard);
+}
+
+.sched .vals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.sched .v {
+  /* Pill — the Cards / Condensed appearance. Ledger strips this
+   * styling and swaps in a comma-separated inline flow (see below). */
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  line-height: 1.25;
+}
+
+.sched .c-300 .v {
+  background: var(--color-grade-hard-bg);
+  color: var(--color-grade-hard);
+}
+
+.sched .meet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  align-items: baseline;
+  padding: 0.55rem 0.8rem;
+  background: var(--color-grade-hard-bg);
+  border-radius: 8px;
+  color: var(--color-text);
+}
+
+.sched .meet .meet-dates {
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--color-grade-hard);
+  font-weight: 600;
+}
+
+.sched .meet .meet-name {
+  font-weight: 600;
+}
+
+.sched .meet .meet-location {
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+/* ---------- CONDENSED: 520–789px, date rail + stacked passage / pills ---------- */
+@container (min-width: 520px) {
+  .sched-body {
+    gap: 0.4rem;
+  }
+  .sched .wk {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 0.4rem 1rem;
+    align-items: baseline;
+  }
+  .sched .wk .c-date {
+    /* Date spans every child row in column 1. For a single-passage
+     * week --wk-rows is 3 (pass / 150 / 300); for review it's 3 too
+     * (harmless — only the passage child fills the span). */
+    grid-column: 1;
+    grid-row: 1 / span var(--wk-rows, 3);
+    align-self: start;
+  }
+  .sched .wk .c-pass,
+  .sched .wk .c-150,
+  .sched .wk .c-300 {
+    grid-column: 2;
+  }
+}
+
+/* ---------- LEDGER: ≥ 790px, full 4-column printable table ---------- */
+@container (min-width: 790px) {
+  .sched .col-head {
+    display: grid;
+    grid-template-columns: 5rem 1.5fr 2fr 2fr;
+    gap: 0 1rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .sched-body {
+    gap: 0;
+    padding: 0;
+  }
+  .sched .month {
+    padding: 0.9rem 1rem 0.25rem;
+    font-size: 0.75rem;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .sched .month:first-child {
+    padding-top: 0.4rem;
+  }
+  .sched .wk {
+    display: grid;
+    grid-template-columns: 5rem 1.5fr 2fr 2fr;
+    gap: 0.3rem 1rem;
+    align-items: baseline;
+    background: transparent;
+    border: none;
+    border-top: 1px solid var(--color-border);
+    border-radius: 0;
+    padding: 0.5rem 1rem;
+    box-shadow: none;
+  }
+  .sched .wk.is-review {
+    border-style: solid;
+    border-top: 1px solid var(--color-border);
+  }
+  .sched .wk.is-current {
+    background: var(--color-accent-soft);
+    box-shadow: inset 3px 0 0 var(--color-accent);
+  }
+  .sched .wk .c-date {
+    grid-column: 1;
+    /* Multi-passage weeks: one ledger row per block, date spans them. */
+    grid-row: 1 / span var(--wk-blocks, 1);
+    font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--color-muted);
+  }
+  .sched .wk .c-pass {
+    grid-column: 2;
+    font-size: 0.95rem;
+  }
+  .sched .wk .c-150 {
+    grid-column: 3;
+  }
+  .sched .wk .c-300 {
+    grid-column: 4;
+  }
+  .sched .lbl {
+    /* Labels live in the header row in Ledger mode. */
+    display: none;
+  }
+  .sched .vals {
+    display: block;
+  }
+  .sched .v {
+    /* Strip pill styling → inline comma list. `::after ", "` gives
+     * the PDF-faithful comma separator without breaking the mono grid. */
+    background: transparent;
+    padding: 0;
+    color: var(--color-text);
+    font-size: 0.8rem;
+  }
+  .sched .c-300 .v {
+    background: transparent;
+    color: var(--color-text);
+  }
+  .sched .v:not(:last-child)::after {
+    content: ', ';
+    white-space: pre;
+  }
+  .sched .meet {
+    margin: 0;
+    padding: 0.55rem 1rem;
+    border-radius: 0;
+  }
 }
 
 .editor-body.is-editing {
