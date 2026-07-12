@@ -187,14 +187,6 @@ const selectedWeek = computed<ScheduleWeek | null>(() => {
   return display.value?.weeks[selection.value.weekIdx] ?? null
 })
 
-/** First passage block of the selected week, or null for review /
- *  no-selection. Consumer sites here still edit one passage at a time
- *  (single-passage weeks) — the redesign's phase 3 rewrites the view to
- *  iterate all blocks. */
-const selectedBlock = computed<PassageBlock | null>(
-  () => selectedWeek.value?.blocks[0] ?? null,
-)
-
 const selectedMeet = computed<ScheduleMeet | null>(() => {
   if (selection.value?.kind !== 'meet') return null
   return display.value?.meets.find((m) => m.id === selection.value!.meetId) ?? null
@@ -204,34 +196,55 @@ const selectedMeet = computed<ScheduleMeet | null>(() => {
 // Per-week editor state
 // =============================================================================
 
-/** Local text mirrors for the per-tier comma-separated verse inputs.
+interface BlockVerseMirror {
+  club150: string
+  club300: string
+}
+
+/** Per-block text mirrors for the two comma-separated verse inputs.
  *  Bound directly via v-model so the user sees what they typed before
  *  the parser runs; on blur we parse + commit into the draft and the
- *  mirror re-syncs from the formatted draft value. Per-tier rather
- *  than per-week so swapping selection wipes them cleanly via the
- *  watcher below. */
-const verseInput150 = ref('')
-const verseInput300 = ref('')
+ *  mirror re-syncs from the formatted draft value. Indexed by block
+ *  index so multi-passage weeks get one row of inputs per passage
+ *  (spec §3.5 "one block per passage"). */
+const verseInputs = ref<BlockVerseMirror[]>([])
 const verseInputError = ref<string | null>(null)
 
-/** Re-seed the mirrors whenever the selected week changes (including
- *  null → some-week). Without this the prior week's text would linger
- *  in the inputs after the user clicks a new row. */
+/** Re-seed the mirrors whenever the selected week's blocks change —
+ *  swapping selection, toggling review, adding or removing a passage
+ *  block. Without this the prior state's text would linger. */
+function reseedVerseInputs() {
+  const w = selectedWeek.value
+  verseInputError.value = null
+  if (!w) {
+    verseInputs.value = []
+    return
+  }
+  verseInputs.value = w.blocks.map((b) => ({
+    club150: formatVerseList(b.verses.club150),
+    club300: formatVerseList(b.verses.club300),
+  }))
+}
+
 watch(
-  () => (selection.value?.kind === 'week' ? selection.value.weekIdx : -1),
   () => {
     const w = selectedWeek.value
-    verseInputError.value = null
-    const block = w?.blocks[0]
-    verseInput150.value = formatVerseList(block?.verses.club150)
-    verseInput300.value = formatVerseList(block?.verses.club300)
+    if (!w) return ''
+    // Fingerprint the current blocks[] shape so the watcher fires on
+    // any structural mutation (add / remove / re-select). Verse-value
+    // edits are committed through the same code path that re-formats
+    // the mirror, so their round-trip doesn't need to fire the watcher.
+    return JSON.stringify(w.blocks.map((b) => b.passage))
   },
+  reseedVerseInputs,
   { immediate: true },
 )
 
-function commitVerseInput(tier: 'club150' | 'club300') {
+function commitBlockVerseInput(blockIdx: number, tier: 'club150' | 'club300') {
   if (draft.value === null || selection.value?.kind !== 'week') return
-  const raw = tier === 'club150' ? verseInput150.value : verseInput300.value
+  const mirror = verseInputs.value[blockIdx]
+  if (!mirror) return
+  const raw = mirror[tier]
   const parsed = parseVerseList(raw)
   if (parsed === null) {
     verseInputError.value
@@ -242,18 +255,20 @@ function commitVerseInput(tier: 'club150' | 'club300') {
   const idx = selection.value.weekIdx
   const week = draft.value.weeks[idx]
   if (!week) return
-  const block = week.blocks[0]
+  const block = week.blocks[blockIdx]
   if (!block) return
-  const nextVerses = { ...block.verses, [tier]: parsed }
-  const nextBlocks = [{ ...block, verses: nextVerses }, ...week.blocks.slice(1)]
+  const nextBlocks = week.blocks.map((b, i) => {
+    if (i !== blockIdx) return b
+    return { ...b, verses: { ...b.verses, [tier]: parsed } }
+  })
   draft.value.weeks[idx] = { ...week, blocks: nextBlocks }
   // Re-format from canonical (sorted, deduped is the parser's
   // responsibility) so the user sees the normalized value after blur.
-  if (tier === 'club150') verseInput150.value = formatVerseList(parsed)
-  else verseInput300.value = formatVerseList(parsed)
+  mirror[tier] = formatVerseList(parsed)
 }
 
-function updatePassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVerse'>(
+function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVerse'>(
+  blockIdx: number,
   key: K,
   value: K extends 'book' ? string : number,
 ) {
@@ -261,15 +276,33 @@ function updatePassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVe
   const idx = selection.value.weekIdx
   const week = draft.value.weeks[idx]
   if (!week) return
-  // Coerce review week toggle: starting a passage edit on a review week
-  // implicitly de-reviews it via the dedicated toggle, not by side
-  // effect — guard so the editor doesn't silently un-mark.
-  const block = week.blocks[0]
+  const block = week.blocks[blockIdx]
   if (!block) return
-  const nextBlocks = [
-    { ...block, passage: { ...block.passage, [key]: value } },
-    ...week.blocks.slice(1),
-  ]
+  const nextBlocks = week.blocks.map((b, i) => {
+    if (i !== blockIdx) return b
+    return { ...b, passage: { ...b.passage, [key]: value } }
+  })
+  draft.value.weeks[idx] = { ...week, blocks: nextBlocks }
+}
+
+function addPassageBlock() {
+  if (draft.value === null || selection.value?.kind !== 'week') return
+  const idx = selection.value.weekIdx
+  const week = draft.value.weeks[idx]
+  if (!week) return
+  const newBlock: PassageBlock = {
+    passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
+    verses: { club150: [], club300: [] },
+  }
+  draft.value.weeks[idx] = { ...week, blocks: [...week.blocks, newBlock] }
+}
+
+function removeBlock(blockIdx: number) {
+  if (draft.value === null || selection.value?.kind !== 'week') return
+  const idx = selection.value.weekIdx
+  const week = draft.value.weeks[idx]
+  if (!week || week.blocks.length <= 1) return
+  const nextBlocks = week.blocks.filter((_, i) => i !== blockIdx)
   draft.value.weeks[idx] = { ...week, blocks: nextBlocks }
 }
 
@@ -294,10 +327,6 @@ function toggleReviewWeek() {
   } else {
     draft.value.weeks[idx] = { ...week, isReview: true, blocks: [] }
   }
-  // Re-seed the verse mirrors after the structural change.
-  const nextBlock = draft.value.weeks[idx]?.blocks[0]
-  verseInput150.value = formatVerseList(nextBlock?.verses.club150)
-  verseInput300.value = formatVerseList(nextBlock?.verses.club300)
 }
 
 function addWeekAfterLast() {
@@ -733,75 +762,98 @@ function backToSettings() {
                     />
                     <span>Review week (no new verses introduced)</span>
                   </label>
-                  <template v-if="!row.week.isReview && selectedBlock">
-                    <fieldset class="passage">
-                      <legend>Passage</legend>
-                      <label class="field passage-book">
-                        <span>Book</span>
-                        <input
-                          type="text"
-                          :value="selectedBlock.passage.book"
-                          @input="updatePassageField('book', ($event.target as HTMLInputElement).value)"
-                        />
-                      </label>
-                      <label class="field passage-chapter">
-                        <span>Chapter</span>
-                        <input
-                          type="number"
-                          min="1"
-                          :value="selectedBlock.passage.chapter || ''"
-                          @input="updatePassageField('chapter', Number(($event.target as HTMLInputElement).value) || 0)"
-                        />
-                      </label>
-                      <label class="field passage-start">
-                        <span>Start verse</span>
-                        <input
-                          type="number"
-                          min="1"
-                          :value="selectedBlock.passage.startVerse || ''"
-                          @input="updatePassageField('startVerse', Number(($event.target as HTMLInputElement).value) || 0)"
-                        />
-                      </label>
-                      <label class="field passage-end">
-                        <span>End verse</span>
-                        <input
-                          type="number"
-                          min="1"
-                          :value="selectedBlock.passage.endVerse || ''"
-                          @input="updatePassageField('endVerse', Number(($event.target as HTMLInputElement).value) || 0)"
-                        />
-                      </label>
-                    </fieldset>
-                    <fieldset class="verses">
-                      <legend>Verse numbers</legend>
-                      <label class="field">
-                        <span>Club 150</span>
-                        <input
-                          v-model="verseInput150"
-                          type="text"
-                          inputmode="numeric"
-                          placeholder="e.g. 5, 10, 17, 18"
-                          @blur="commitVerseInput('club150')"
-                        />
-                      </label>
-                      <label class="field">
-                        <span>Club 300</span>
-                        <input
-                          v-model="verseInput300"
-                          type="text"
-                          inputmode="numeric"
-                          placeholder="e.g. 1, 2, 4, 8"
-                          @blur="commitVerseInput('club300')"
-                        />
-                      </label>
-                      <p v-if="verseInputError" class="field-error" role="alert">
-                        {{ verseInputError }}
-                      </p>
-                      <p class="field-hint">
-                        Comma- or space-separated verse numbers. Saved to
-                        the draft on blur.
-                      </p>
-                    </fieldset>
+                  <template v-if="!row.week.isReview">
+                    <template
+                      v-for="(block, bi) in row.week.blocks"
+                      :key="bi"
+                    >
+                      <fieldset class="passage">
+                        <legend>
+                          Passage {{ row.week.blocks.length > 1 ? bi + 1 : '' }}
+                          <button
+                            v-if="row.week.blocks.length > 1"
+                            type="button"
+                            class="mini-danger"
+                            aria-label="Remove this passage"
+                            @click="removeBlock(bi)"
+                          >
+                            ×
+                          </button>
+                        </legend>
+                        <label class="field passage-book">
+                          <span>Book</span>
+                          <input
+                            type="text"
+                            :value="block.passage.book"
+                            @input="updateBlockPassageField(bi, 'book', ($event.target as HTMLInputElement).value)"
+                          />
+                        </label>
+                        <label class="field passage-chapter">
+                          <span>Chapter</span>
+                          <input
+                            type="number"
+                            min="1"
+                            :value="block.passage.chapter || ''"
+                            @input="updateBlockPassageField(bi, 'chapter', Number(($event.target as HTMLInputElement).value) || 0)"
+                          />
+                        </label>
+                        <label class="field passage-start">
+                          <span>Start verse</span>
+                          <input
+                            type="number"
+                            min="1"
+                            :value="block.passage.startVerse || ''"
+                            @input="updateBlockPassageField(bi, 'startVerse', Number(($event.target as HTMLInputElement).value) || 0)"
+                          />
+                        </label>
+                        <label class="field passage-end">
+                          <span>End verse</span>
+                          <input
+                            type="number"
+                            min="1"
+                            :value="block.passage.endVerse || ''"
+                            @input="updateBlockPassageField(bi, 'endVerse', Number(($event.target as HTMLInputElement).value) || 0)"
+                          />
+                        </label>
+                      </fieldset>
+                      <fieldset class="verses" v-if="verseInputs[bi]">
+                        <legend>Verse numbers</legend>
+                        <label class="field">
+                          <span>Club 150</span>
+                          <input
+                            v-model="verseInputs[bi]!.club150"
+                            type="text"
+                            inputmode="numeric"
+                            placeholder="e.g. 5, 10, 17, 18"
+                            @blur="commitBlockVerseInput(bi, 'club150')"
+                          />
+                        </label>
+                        <label class="field">
+                          <span>Club 300</span>
+                          <input
+                            v-model="verseInputs[bi]!.club300"
+                            type="text"
+                            inputmode="numeric"
+                            placeholder="e.g. 1, 2, 4, 8"
+                            @blur="commitBlockVerseInput(bi, 'club300')"
+                          />
+                        </label>
+                      </fieldset>
+                    </template>
+                    <p v-if="verseInputError" class="field-error" role="alert">
+                      {{ verseInputError }}
+                    </p>
+                    <p class="field-hint">
+                      Comma- or space-separated verse numbers. Saved to
+                      the draft on blur.
+                    </p>
+                    <button
+                      type="button"
+                      class="add-block"
+                      @click="addPassageBlock"
+                    >
+                      + Add a passage
+                    </button>
                   </template>
                   <div class="form-actions">
                     <button type="button" class="danger" @click="removeSelectedWeek">
@@ -1469,6 +1521,39 @@ button.secondary:hover:not(:disabled) {
 .add-week:hover {
   border-color: var(--color-accent);
   color: var(--color-text);
+}
+
+.add-block {
+  align-self: flex-start;
+  background: none;
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.add-block:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.mini-danger {
+  margin-left: 0.4rem;
+  border: none;
+  background: none;
+  color: var(--color-grade-again);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.3rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.mini-danger:hover {
+  background: var(--color-error-bg);
 }
 
 .toggle {

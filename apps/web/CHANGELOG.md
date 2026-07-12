@@ -9,7 +9,32 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
-## [0.7.0] — 2026-07-11
+## [0.8.0] — 2026-07-11
+
+Phase 6 of the schedule editor redesign — multi-passage editor. MINOR — the schedule editor now
+iterates every passage block on the selected week; NT-Survey-style compound weeks (`|` weeks) are
+first-class in view and edit alike.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — MAJOR. Consumes `ScheduleWeek.blocks[]` natively.
+* `verse-vault-wasm@0.7.0` — MAJOR. Normalises v1 wire form into `blocks[]` in `parse_schedule`
+  before constructing the engine.
+
+### Editor
+
+* The per-week inline form renders one `<fieldset class="passage">` + `<fieldset class="verses">`
+  pair per block. When more than one block exists each `<legend>` numbers the block and shows a
+  remove-passage `×` button.
+* **+ Add a passage** at the bottom of the form appends a fresh block. **× remove** on a passage
+  legend removes it (guarded to keep at least one block).
+* `verseInputs` state is now a `BlockVerseMirror[]` indexed by block idx; the watcher re-seeds it
+  whenever the selected week's block shape changes (selection, review toggle, add / remove passage).
+
+### View
+
+Multi-passage weeks already rendered under one shared date in the view-mode `.sched` (phases 3, 5);
+this release makes them editable end-to-end.
 
 Phase 5 of the schedule editor redesign — expand-in-place editor. MINOR — visible UX change on
 `/schedule/:materialId`: edit mode no longer opens a side pane, so nothing overflows at any
