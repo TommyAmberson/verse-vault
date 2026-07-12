@@ -9,6 +9,34 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-11
+
+Phase 5 of the schedule editor redesign — expand-in-place editor. MINOR — visible UX change on
+`/schedule/:materialId`: edit mode no longer opens a side pane, so nothing overflows at any
+container width.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — unchanged.
+* `verse-vault-wasm@0.6.0` — unchanged.
+
+### Editor
+
+* Clicking a week or meet in edit mode expands the row inline. The form sits between rows in the
+  same responsive `.sched` container, with an accent left rule + tinted background so the expansion
+  reads at every regime (Cards / Condensed / Ledger).
+* Legacy `<table class="schedule-table">` and the `<aside class="detail">` side pane are removed
+  along with their CSS. Edit mode now shares the exact DOM/CSS of view mode with a small extra form
+  block per selected row.
+* Add-week / Add-meet buttons live at the bottom of the body in edit mode.
+
+### Deferred (phase 6 alongside the Rust/WASM multi-passage contract bump)
+
+* Chip-based verse-number editor (spec §3.5 "Club 150 / 300 chips"). Today the form still uses the
+  comma-parsed text input on blur.
+* Per-block add/remove-passage affordance for compound weeks. Bundled schedules ship one passage per
+  week, so this doesn't gate today's UX; multi-passage editing lands with phase 6.
+
 ## [0.6.0] — 2026-07-11
 
 Phase 3 of the schedule editor redesign — view-mode DOM is now the responsive `.sched`
