@@ -10,11 +10,35 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.30] — 2026-07-11
+
+Phase 2 of the schedule editor redesign — `PUT /api/materials/:id/schedule` now accepts a v2 payload
+(`week.blocks: PassageBlock[]`) alongside the v1 wire form the bundled JSONs and existing user rows
+still use. MINOR — additive shape acceptance, no engine or contract-crate change.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — unchanged.
+* `verse-vault-wasm@0.6.0` — unchanged.
+
+### Schedule v2 wire shape
+
+* `validateSchedule` and the new `migrateSchedule` normalise any accepted wire version (1 or 2) onto
+  a single v2 in-memory shape (`SchedulePayloadV2`, `ScheduleWeekV2`, `PassageBlock`). Review weeks
+  carry `blocks: []`; normal weeks carry `blocks: [{ passage, verses }]`; NT-Survey-style compound
+  weeks may carry `blocks.length ≥ 2` (accepted at the API boundary but rejected at the WASM engine
+  boundary until Rust catches up in the redesign's phase 6).
+* `downgradeScheduleToV1WireFormat` serialises a v2 schedule back to the v1 shape the WASM engine
+  understands. `EngineStore.load` and `EngineStore.rebuildFromEvents` route persisted or bundled
+  schedule JSON through it before handing anything to `new WasmEngine(...)`. Without this the raw v2
+  shape would deserialise silently on the Rust side (serde ignores the unknown `blocks` field and
+  treats each week as passage-less), silently degrading Phase 1 memorize fill.
+
 ### `validateSchedule` tightens Meet + passage validation
 
-Shipped with apps/web 0.4.0 (Phase 3 schedule editor). The user-customisable surface behind
-`PUT /api/materials/:id/schedule` now field-checks meets and per-week passages so a malformed editor
-payload can't reach disk.
+Shipped originally with apps/web 0.4.0 (Phase 3 schedule editor) and now paired with the v2
+acceptance above. The user-customisable surface behind `PUT /api/materials/:id/schedule` field-
+checks meets and per-week passages so a malformed editor payload can't reach disk.
 
 * Meets: each entry must carry `id`, `name`, `startDate`, `endDate` as non-empty strings; dates are
   `YYYY-MM-DD` with sane month/day; `endDate >= startDate`; `id` unique within the schedule.
