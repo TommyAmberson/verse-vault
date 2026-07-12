@@ -9,6 +9,28 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-07-12
+
+Phase 7 of the schedule editor redesign — polish. PATCH — no observable API change, keyboard +
+focus + animation refinements only.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — unchanged.
+* `verse-vault-wasm@0.7.0` — unchanged.
+
+### Editor
+
+* **Esc dismisses the expanded form.** A window-level `keydown` listener clears `selection` when Esc
+  fires in edit mode, collapsing the inline form.
+* **First input autofocuses on select.** After a week or meet row is picked, a `nextTick` watcher
+  focuses the first input in the paired `.wk-form` / `.meet-form` so Tab / Enter work without a
+  click.
+* **Slide-in on expand.** The form animates in with a 140ms opacity + scaleY fade; disabled under
+  `prefers-reduced-motion`.
+* Auto-scroll to the current week now targets the `.sched .wk.is-current` selector — the pre-
+  phase-5 selector (`.week-row.is-current`) no longer exists.
+
 ## [0.8.0] — 2026-07-11
 
 Phase 6 of the schedule editor redesign — multi-passage editor. MINOR — the schedule editor now

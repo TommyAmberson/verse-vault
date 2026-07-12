@@ -559,22 +559,50 @@ onBeforeRouteLeave((_to, _from, next) => {
   next(ok)
 })
 
+/** Esc dismisses the expand-in-place form. Any active input inside
+ *  the form still handles Esc first (browsers cancel IME composition
+ *  etc.), so this only fires when the schedule body itself has focus
+ *  or nothing does — clearing selection collapses the form. */
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return
+  if (mode.value !== 'edit') return
+  if (selection.value === null) return
+  selection.value = null
+  e.preventDefault()
+}
+
 onMounted(async () => {
   window.addEventListener('beforeunload', onBeforeUnload)
+  window.addEventListener('keydown', onKeyDown)
   await refresh()
-  // After the table has rendered, bring the current week into view —
-  // a 30+ week table otherwise leaves the user at the top, mid-season.
+  // After the schedule has rendered, bring the current week into view —
+  // a 30+ week list otherwise leaves the user at the top, mid-season.
   // No-op when the season hasn't started or has already ended.
   await nextTick()
   document
-    .querySelector('.week-row.is-current')
+    .querySelector('.sched .wk.is-current')
     ?.scrollIntoView({ block: 'center', behavior: 'instant' })
 })
 
 // onBeforeRouteLeave is component-scoped and clears itself; the
-// beforeunload listener needs an explicit removal.
+// window listeners need explicit removal.
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', onBeforeUnload)
+  window.removeEventListener('keydown', onKeyDown)
+})
+
+/** Focus the first editable input inside the freshly-expanded form so
+ *  Tab / Enter work without the user having to click a field. Fires
+ *  after every selection change (week or meet). */
+watch(selection, async (sel) => {
+  if (sel === null || mode.value !== 'edit') return
+  await nextTick()
+  const selector
+    = sel.kind === 'week'
+      ? '.wk.is-selected + .wk-form input, .wk.is-selected + .wk-form select'
+      : '.meet.is-selected + .meet-form input, .meet.is-selected + .meet-form select'
+  const first = document.querySelector<HTMLInputElement | HTMLSelectElement>(selector)
+  first?.focus()
 })
 
 function backToSettings() {
@@ -1477,6 +1505,28 @@ button.secondary:hover:not(:disabled) {
   margin: 0;
   background: var(--color-accent-soft);
   border-left: 3px solid var(--color-accent);
+  /* Soft slide-in on expand. `prefers-reduced-motion` disables it
+   * below so users who opted out of motion don't see the animation. */
+  animation: form-slide-in 140ms ease-out;
+  transform-origin: top;
+}
+
+@keyframes form-slide-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wk-form,
+  .meet-form {
+    animation: none;
+  }
 }
 
 @container (min-width: 520px) {
