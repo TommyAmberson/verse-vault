@@ -9,6 +9,33 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-11
+
+Phase 2 of the schedule editor redesign — data model migration. MINOR — the persisted wire form is
+unchanged (bundled JSONs and existing user rows stay v1) so the change isn't user-visible, but the
+in-memory `Schedule` shape breaks previous consumers and warrants a versioned release.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — unchanged.
+* `verse-vault-wasm@0.6.0` — unchanged.
+
+### Changed
+
+* `ScheduleWeek` now carries `blocks: PassageBlock[]` (empty on review weeks, length 1 on today's
+  normal weeks, length ≥2 reserved for future NT-Survey-style compound weeks) instead of the flat
+  `passage` + `verses` fields. `PassageBlock` = `{ passage, verses }`.
+* New `migrateSchedule(raw)` normalises v1 wire payloads (bundled schedule JSONs, pre-migration user
+  rows) into the v2 in-memory shape at read time — the API still emits v1, and the client converges
+  on v2 before any consumer sees it.
+* `verseCountsForWeek` sums across every block; badge math (`badges.ts`) does the same.
+* `cloneSchedule` unchanged (JSON round-trip handles nested `blocks[]` uniformly).
+
+### Editor
+
+* `ScheduleEditorView.vue` reads/writes via `blocks[0]` — one passage per week, matching current
+  bundled schedules. Multi-passage editing lands in the redesign's phase 3 view rewrite.
+
 ## [0.4.0] — 2026-06-17
 
 Phase 3 — the schedule editor at `/schedule/<materialId>`. MINOR — additive UI surface on top of the
