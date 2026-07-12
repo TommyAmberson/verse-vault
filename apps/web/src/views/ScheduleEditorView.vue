@@ -649,14 +649,14 @@ function backToSettings() {
       </div>
 
       <section class="editor-body" :class="{ 'is-editing': mode === 'edit' }">
-        <!-- View mode: the responsive .sched layout from the redesign
-             spec §6. Container queries drive three regimes off the
-             wrapper's own width (Ledger ≥790px, Condensed 520-789px,
-             Cards <520px), so the same DOM reflows in a split pane or
-             other embedding without JS. Edit mode keeps the legacy
-             table below until the spec's phase 5 expand-in-place
-             editor lands. -->
-        <div v-if="mode === 'view'" class="sched">
+        <!-- View + edit modes share the responsive .sched layout from
+             the redesign spec §6. Container queries drive three regimes
+             off the wrapper's own width (Ledger ≥790px, Condensed
+             520-789px, Cards <520px). In edit mode, clicking a week or
+             meet expands the row's form inline (spec §3.5 — no side
+             pane, "nothing to overflow"). Add-week / Add-meet buttons
+             live at the bottom of the body. -->
+        <div class="sched">
           <div class="col-head" role="row">
             <span role="columnheader">Date</span>
             <span role="columnheader">Passage</span>
@@ -666,120 +666,220 @@ function backToSettings() {
           <div class="sched-body">
             <template v-for="row in rows" :key="row.key">
               <h3 v-if="row.kind === 'month'" class="month">{{ row.label }}</h3>
-              <article
-                v-else-if="row.kind === 'week'"
-                class="wk"
-                :class="{
-                  'is-current': row.isCurrent,
-                  'is-review': row.week.isReview,
-                }"
-                :style="weekGridStyle(row.week)"
-                :aria-current="row.isCurrent ? 'date' : undefined"
-              >
-                <span class="c-date">- {{ row.ordinal }}</span>
-                <template v-if="row.week.isReview">
-                  <span class="c-pass c-review">Review</span>
-                </template>
-                <template
-                  v-for="(block, bi) in row.week.blocks"
-                  v-else
-                  :key="bi"
-                >
-                  <span class="c-pass">{{ formatPassage(block.passage) }}</span>
-                  <div class="c-150">
-                    <span class="lbl">150</span>
-                    <div class="vals">
-                      <span
-                        v-for="n in block.verses.club150 ?? []"
-                        :key="n"
-                        class="v"
-                      >{{ n }}</span>
-                    </div>
-                  </div>
-                  <div class="c-300">
-                    <span class="lbl">300</span>
-                    <div class="vals">
-                      <span
-                        v-for="n in block.verses.club300 ?? []"
-                        :key="n"
-                        class="v"
-                      >{{ n }}</span>
-                    </div>
-                  </div>
-                </template>
-              </article>
-              <div v-else-if="row.kind === 'meet'" class="meet">
-                <span class="meet-dates">{{ row.dateRange }}</span>
-                <span class="meet-name">{{ row.meet.name }}</span>
-                <span v-if="row.meet.location" class="meet-location">
-                  · {{ row.meet.location }}
-                </span>
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <div v-else class="table-pane">
-          <table class="schedule-table" aria-label="Season schedule">
-            <thead>
-              <tr>
-                <th scope="col" class="col-date">Date</th>
-                <th scope="col" class="col-passage">Passage</th>
-                <th scope="col" class="col-verses">Club 150</th>
-                <th scope="col" class="col-verses">Club 300</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template v-for="row in rows" :key="row.key">
-                <tr v-if="row.kind === 'month'" class="month-row">
-                  <th colspan="4" scope="rowgroup" class="month-label">
-                    {{ row.label }}
-                  </th>
-                </tr>
-                <tr
-                  v-else-if="row.kind === 'week'"
-                  class="week-row"
+              <template v-else-if="row.kind === 'week'">
+                <article
+                  class="wk"
                   :class="{
                     'is-current': row.isCurrent,
-                    'is-selected': isWeekRowSelected(row.weekIdx),
                     'is-review': row.week.isReview,
+                    'is-selected': mode === 'edit' && isWeekRowSelected(row.weekIdx),
+                    'is-editable': mode === 'edit',
                   }"
+                  :style="weekGridStyle(row.week)"
                   :aria-current="row.isCurrent ? 'date' : undefined"
-                  @click="selectWeek(row.weekIdx)"
+                  :tabindex="mode === 'edit' ? 0 : undefined"
+                  @click="mode === 'edit' ? selectWeek(row.weekIdx) : null"
+                  @keydown.enter="mode === 'edit' ? selectWeek(row.weekIdx) : null"
                 >
-                  <td class="cell-date">{{ row.ordinal }}</td>
-                  <td class="cell-passage">
-                    {{ formatPassage(row.week.blocks[0]?.passage ?? null) }}
-                  </td>
-                  <td class="cell-verses">
-                    <span v-if="row.week.blocks[0]?.verses.club150?.length">
-                      {{ formatVerseList(row.week.blocks[0].verses.club150) }}
-                    </span>
-                  </td>
-                  <td class="cell-verses">
-                    <span v-if="row.week.blocks[0]?.verses.club300?.length">
-                      {{ formatVerseList(row.week.blocks[0].verses.club300) }}
-                    </span>
-                  </td>
-                </tr>
-                <tr
-                  v-else-if="row.kind === 'meet'"
-                  class="meet-row"
-                  :class="{ 'is-selected': isMeetRowSelected(row.meet.id) }"
-                  @click="selectMeet(row.meet.id)"
+                  <span class="c-date">- {{ row.ordinal }}</span>
+                  <template v-if="row.week.isReview">
+                    <span class="c-pass c-review">Review</span>
+                  </template>
+                  <template
+                    v-for="(block, bi) in row.week.blocks"
+                    v-else
+                    :key="bi"
+                  >
+                    <span class="c-pass">{{ formatPassage(block.passage) }}</span>
+                    <div class="c-150">
+                      <span class="lbl">150</span>
+                      <div class="vals">
+                        <span
+                          v-for="n in block.verses.club150 ?? []"
+                          :key="n"
+                          class="v"
+                        >{{ n }}</span>
+                      </div>
+                    </div>
+                    <div class="c-300">
+                      <span class="lbl">300</span>
+                      <div class="vals">
+                        <span
+                          v-for="n in block.verses.club300 ?? []"
+                          :key="n"
+                          class="v"
+                        >{{ n }}</span>
+                      </div>
+                    </div>
+                  </template>
+                </article>
+                <!-- Expand-in-place form: sits between rows and pushes
+                     the rest of the body down. Left accent rule + tinted
+                     background make the expansion obvious at every
+                     container width. -->
+                <form
+                  v-if="mode === 'edit' && isWeekRowSelected(row.weekIdx)"
+                  class="wk-form"
+                  @submit.prevent
                 >
-                  <td colspan="4" class="meet-cell">
-                    <span class="meet-dates">{{ row.dateRange }}</span>
-                    <span class="meet-name">{{ row.meet.name }}</span>
-                    <span v-if="row.meet.location" class="meet-location">
-                      | {{ row.meet.location }}
-                    </span>
-                  </td>
-                </tr>
+                  <p class="detail-date">
+                    {{ formatTimelineDate(row.week.date) }}
+                  </p>
+                  <label class="toggle">
+                    <input
+                      type="checkbox"
+                      :checked="row.week.isReview"
+                      @change="toggleReviewWeek"
+                    />
+                    <span>Review week (no new verses introduced)</span>
+                  </label>
+                  <template v-if="!row.week.isReview && selectedBlock">
+                    <fieldset class="passage">
+                      <legend>Passage</legend>
+                      <label class="field passage-book">
+                        <span>Book</span>
+                        <input
+                          type="text"
+                          :value="selectedBlock.passage.book"
+                          @input="updatePassageField('book', ($event.target as HTMLInputElement).value)"
+                        />
+                      </label>
+                      <label class="field passage-chapter">
+                        <span>Chapter</span>
+                        <input
+                          type="number"
+                          min="1"
+                          :value="selectedBlock.passage.chapter || ''"
+                          @input="updatePassageField('chapter', Number(($event.target as HTMLInputElement).value) || 0)"
+                        />
+                      </label>
+                      <label class="field passage-start">
+                        <span>Start verse</span>
+                        <input
+                          type="number"
+                          min="1"
+                          :value="selectedBlock.passage.startVerse || ''"
+                          @input="updatePassageField('startVerse', Number(($event.target as HTMLInputElement).value) || 0)"
+                        />
+                      </label>
+                      <label class="field passage-end">
+                        <span>End verse</span>
+                        <input
+                          type="number"
+                          min="1"
+                          :value="selectedBlock.passage.endVerse || ''"
+                          @input="updatePassageField('endVerse', Number(($event.target as HTMLInputElement).value) || 0)"
+                        />
+                      </label>
+                    </fieldset>
+                    <fieldset class="verses">
+                      <legend>Verse numbers</legend>
+                      <label class="field">
+                        <span>Club 150</span>
+                        <input
+                          v-model="verseInput150"
+                          type="text"
+                          inputmode="numeric"
+                          placeholder="e.g. 5, 10, 17, 18"
+                          @blur="commitVerseInput('club150')"
+                        />
+                      </label>
+                      <label class="field">
+                        <span>Club 300</span>
+                        <input
+                          v-model="verseInput300"
+                          type="text"
+                          inputmode="numeric"
+                          placeholder="e.g. 1, 2, 4, 8"
+                          @blur="commitVerseInput('club300')"
+                        />
+                      </label>
+                      <p v-if="verseInputError" class="field-error" role="alert">
+                        {{ verseInputError }}
+                      </p>
+                      <p class="field-hint">
+                        Comma- or space-separated verse numbers. Saved to
+                        the draft on blur.
+                      </p>
+                    </fieldset>
+                  </template>
+                  <div class="form-actions">
+                    <button type="button" class="danger" @click="removeSelectedWeek">
+                      Remove this week
+                    </button>
+                  </div>
+                </form>
               </template>
-            </tbody>
-          </table>
-          <div class="add-row">
+              <template v-else-if="row.kind === 'meet'">
+                <div
+                  class="meet"
+                  :class="{
+                    'is-selected': mode === 'edit' && isMeetRowSelected(row.meet.id),
+                    'is-editable': mode === 'edit',
+                  }"
+                  :tabindex="mode === 'edit' ? 0 : undefined"
+                  @click="mode === 'edit' ? selectMeet(row.meet.id) : null"
+                  @keydown.enter="mode === 'edit' ? selectMeet(row.meet.id) : null"
+                >
+                  <span class="meet-dates">{{ row.dateRange }}</span>
+                  <span class="meet-name">{{ row.meet.name }}</span>
+                  <span v-if="row.meet.location" class="meet-location">
+                    · {{ row.meet.location }}
+                  </span>
+                </div>
+                <form
+                  v-if="mode === 'edit' && isMeetRowSelected(row.meet.id)"
+                  class="meet-form"
+                  @submit.prevent
+                >
+                  <fieldset class="meet-fields">
+                    <legend>Meet</legend>
+                    <label class="field">
+                      <span>Name</span>
+                      <input
+                        type="text"
+                        :value="row.meet.name"
+                        @input="updateMeetField('name', ($event.target as HTMLInputElement).value)"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>Start date</span>
+                      <input
+                        type="date"
+                        :value="row.meet.startDate"
+                        @input="updateMeetField('startDate', ($event.target as HTMLInputElement).value)"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>End date</span>
+                      <input
+                        type="date"
+                        :value="row.meet.endDate"
+                        @input="updateMeetField('endDate', ($event.target as HTMLInputElement).value)"
+                      />
+                    </label>
+                    <label class="field meet-location">
+                      <span>Location (optional, may be "TBD")</span>
+                      <input
+                        type="text"
+                        :value="row.meet.location"
+                        @input="updateMeetField('location', ($event.target as HTMLInputElement).value)"
+                      />
+                    </label>
+                    <p v-if="meetEndDateError" class="field-error" role="alert">
+                      {{ meetEndDateError }}
+                    </p>
+                  </fieldset>
+                  <div class="form-actions">
+                    <button type="button" class="danger" @click="removeSelectedMeet">
+                      Remove this meet
+                    </button>
+                  </div>
+                </form>
+              </template>
+            </template>
+          </div>
+          <div v-if="mode === 'edit'" class="add-row">
             <button type="button" class="add-week" @click="addWeekAfterLast">
               + Add a week
             </button>
@@ -789,162 +889,6 @@ function backToSettings() {
           </div>
         </div>
 
-        <aside
-          v-if="mode === 'edit'"
-          class="detail"
-          aria-label="Selected item"
-        >
-          <p v-if="selection === null" class="placeholder">
-            Pick a row from the schedule to edit it.
-          </p>
-
-          <!-- Week form. Date is derived from meetingDayOfWeek + week
-               ordering and isn't directly editable per the Phase 3
-               design (no per-week overrides). -->
-          <form
-            v-else-if="selectedWeek"
-            class="week-form"
-            @submit.prevent
-          >
-            <p class="detail-date">{{ formatTimelineDate(selectedWeek.date) }}</p>
-
-            <label class="toggle">
-              <input
-                type="checkbox"
-                :checked="selectedWeek.isReview"
-                @change="toggleReviewWeek"
-              />
-              <span>Review week (no new verses introduced)</span>
-            </label>
-
-            <template v-if="!selectedWeek.isReview && selectedBlock">
-              <fieldset class="passage">
-                <legend>Passage</legend>
-                <label class="field passage-book">
-                  <span>Book</span>
-                  <input
-                    type="text"
-                    :value="selectedBlock.passage.book"
-                    @input="updatePassageField('book', ($event.target as HTMLInputElement).value)"
-                  />
-                </label>
-                <label class="field passage-chapter">
-                  <span>Chapter</span>
-                  <input
-                    type="number"
-                    min="1"
-                    :value="selectedBlock.passage.chapter || ''"
-                    @input="updatePassageField('chapter', Number(($event.target as HTMLInputElement).value) || 0)"
-                  />
-                </label>
-                <label class="field passage-start">
-                  <span>Start verse</span>
-                  <input
-                    type="number"
-                    min="1"
-                    :value="selectedBlock.passage.startVerse || ''"
-                    @input="updatePassageField('startVerse', Number(($event.target as HTMLInputElement).value) || 0)"
-                  />
-                </label>
-                <label class="field passage-end">
-                  <span>End verse</span>
-                  <input
-                    type="number"
-                    min="1"
-                    :value="selectedBlock.passage.endVerse || ''"
-                    @input="updatePassageField('endVerse', Number(($event.target as HTMLInputElement).value) || 0)"
-                  />
-                </label>
-              </fieldset>
-
-              <fieldset class="verses">
-                <legend>Verse numbers</legend>
-                <label class="field">
-                  <span>Club 150</span>
-                  <input
-                    v-model="verseInput150"
-                    type="text"
-                    inputmode="numeric"
-                    placeholder="e.g. 5, 10, 17, 18"
-                    @blur="commitVerseInput('club150')"
-                  />
-                </label>
-                <label class="field">
-                  <span>Club 300</span>
-                  <input
-                    v-model="verseInput300"
-                    type="text"
-                    inputmode="numeric"
-                    placeholder="e.g. 1, 2, 4, 8"
-                    @blur="commitVerseInput('club300')"
-                  />
-                </label>
-                <p v-if="verseInputError" class="field-error" role="alert">
-                  {{ verseInputError }}
-                </p>
-                <p class="field-hint">
-                  Comma- or space-separated verse numbers. Saved to the draft on blur.
-                </p>
-              </fieldset>
-            </template>
-
-            <button
-              type="button"
-              class="danger"
-              @click="removeSelectedWeek"
-            >
-              Remove this week
-            </button>
-          </form>
-
-          <form
-            v-else-if="selectedMeet"
-            class="meet-form"
-            @submit.prevent
-          >
-            <fieldset class="meet-fields">
-              <legend>Meet</legend>
-              <label class="field">
-                <span>Name</span>
-                <input
-                  type="text"
-                  :value="selectedMeet.name"
-                  @input="updateMeetField('name', ($event.target as HTMLInputElement).value)"
-                />
-              </label>
-              <label class="field">
-                <span>Start date</span>
-                <input
-                  type="date"
-                  :value="selectedMeet.startDate"
-                  @input="updateMeetField('startDate', ($event.target as HTMLInputElement).value)"
-                />
-              </label>
-              <label class="field">
-                <span>End date</span>
-                <input
-                  type="date"
-                  :value="selectedMeet.endDate"
-                  @input="updateMeetField('endDate', ($event.target as HTMLInputElement).value)"
-                />
-              </label>
-              <label class="field meet-location">
-                <span>Location (optional, may be "TBD")</span>
-                <input
-                  type="text"
-                  :value="selectedMeet.location"
-                  @input="updateMeetField('location', ($event.target as HTMLInputElement).value)"
-                />
-              </label>
-              <p v-if="meetEndDateError" class="field-error" role="alert">
-                {{ meetEndDateError }}
-              </p>
-            </fieldset>
-            <button type="button" class="danger" @click="removeSelectedMeet">
-              Remove this meet
-            </button>
-          </form>
-        </aside>
       </section>
     </template>
 
@@ -1440,173 +1384,75 @@ button.secondary:hover:not(:disabled) {
   }
 }
 
-.editor-body.is-editing {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem);
-  gap: 1.5rem;
-  align-items: start;
-}
+/* =============================================================================
+ * Edit mode — expand-in-place editor (spec §3.5).
+ *
+ * Selected week/meet expands into an inline form that sits between rows
+ * and pushes the rest of the body down. Left accent rule + tinted
+ * background make the expansion obvious at every container width.
+ * No side pane → nothing to overflow.
+ * ============================================================================= */
 
-@media (max-width: 920px) {
-  .editor-body.is-editing {
-    grid-template-columns: 1fr;
-  }
-}
-
-.table-pane {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.schedule-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.92rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.schedule-table thead th {
-  text-align: left;
-  padding: 0 0.5rem 0.6rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.col-date {
-  width: 4.5rem;
-}
-
-.col-passage {
-  width: 9rem;
-}
-
-.col-verses {
-  width: auto;
-}
-
-.month-row .month-label {
-  padding: 1.2rem 0.5rem 0.35rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--color-text);
-  text-align: left;
-  border-bottom: none;
-}
-
-.week-row > td {
-  padding: 0.35rem 0.5rem;
-  vertical-align: top;
-  border-top: 1px solid transparent;
-  border-bottom: 1px solid transparent;
-}
-
-.cell-date {
-  color: var(--color-muted);
-  white-space: nowrap;
-}
-
-.cell-date::before {
-  content: '– ';
-  color: var(--color-muted);
-}
-
-.cell-passage {
-  color: var(--color-text);
-  white-space: nowrap;
-}
-
-.cell-verses {
-  color: var(--color-text);
-  word-spacing: 0.05em;
-}
-
-.week-row.is-review .cell-passage {
-  color: var(--color-muted);
-  font-style: italic;
-}
-
-/* "You are here." Left-edge accent + bolder title. The current-week
- * marker is the first thing the user looks for; this needs to be
- * visible without scanning. */
-.week-row.is-current > td {
-  background: var(--color-accent-soft);
-}
-
-.week-row.is-current .cell-date {
-  color: var(--color-accent);
-  font-weight: 600;
-}
-
-.week-row.is-current .cell-date::before {
-  content: '▸ ';
-  color: var(--color-accent);
-  font-weight: 700;
-}
-
-.week-row.is-current .cell-passage {
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.editor-body.is-editing .week-row {
+.sched .wk.is-editable,
+.sched .meet.is-editable {
   cursor: pointer;
+  transition: background-color 120ms ease;
 }
 
-.editor-body.is-editing .week-row:hover > td {
+.sched .wk.is-editable:hover,
+.sched .meet.is-editable:hover {
   background: var(--color-bg);
 }
 
-.editor-body.is-editing .week-row.is-selected > td {
+.sched .wk.is-editable:focus-visible,
+.sched .meet.is-editable:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.sched .wk.is-selected,
+.sched .meet.is-selected {
   background: var(--color-accent-soft);
+  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
-.meet-row .meet-cell {
-  padding: 0.6rem 0.5rem;
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
-  font-weight: 600;
-  font-size: 0.92rem;
-  color: var(--color-text);
-}
-
-.meet-dates {
-  color: var(--color-muted);
-  margin-right: 0.5rem;
-  font-weight: 500;
-}
-
-.meet-name {
-  color: var(--color-text);
-}
-
-.meet-location {
-  color: var(--color-muted);
-  font-weight: 400;
-  margin-left: 0.3rem;
-}
-
-.editor-body.is-editing .meet-row {
-  cursor: pointer;
-}
-
-.editor-body.is-editing .meet-row:hover .meet-cell,
-.editor-body.is-editing .meet-row.is-selected .meet-cell {
+.wk-form,
+.meet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin: 0;
   background: var(--color-accent-soft);
+  border-left: 3px solid var(--color-accent);
+}
+
+@container (min-width: 520px) {
+  .wk-form,
+  .meet-form {
+    padding: 1.25rem 1.5rem;
+  }
+}
+
+.detail-date {
+  margin: 0;
+  color: var(--color-muted);
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .add-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0;
 }
 
 .add-week {
@@ -1623,30 +1469,6 @@ button.secondary:hover:not(:disabled) {
 .add-week:hover {
   border-color: var(--color-accent);
   color: var(--color-text);
-}
-
-.detail {
-  padding: 0.5rem 0.5rem 1rem;
-}
-
-.detail-date {
-  margin: 0 0 1rem;
-  color: var(--color-muted);
-  font-size: 0.85rem;
-}
-
-.placeholder {
-  margin: 0;
-  padding: 2rem 1rem;
-  color: var(--color-muted);
-  font-style: italic;
-  text-align: center;
-}
-
-.week-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
 }
 
 .toggle {
@@ -1744,12 +1566,6 @@ button.danger {
 
 button.danger:hover {
   filter: brightness(1.1);
-}
-
-.meet-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
 }
 
 .meet-location {
