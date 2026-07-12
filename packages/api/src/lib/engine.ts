@@ -8,11 +8,7 @@ import * as schema from '../db/schema.js';
 import { type Grade, writeTestStates } from './review-log.js';
 import { type UserMaterial, userMaterialKey } from './keys.js';
 import { getMaterialJson } from './materials.js';
-import {
-  downgradeScheduleToV1WireFormat,
-  loadSchedule,
-  migrateSchedule,
-} from './schedules.js';
+import { loadSchedule } from './schedules.js';
 import { legacyToNew, type YearSettings } from './year-settings.js';
 
 function sha256(s: string): string {
@@ -34,19 +30,6 @@ function safeLoadMaterialJson(materialId: string): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-/** Load the user's (or bundled) schedule and normalise it to the v1 wire
- *  form the WASM engine understands today. Persisted rows may be v1 or v2
- *  (`week.blocks[]`) after the schedule-editor redesign — `migrateSchedule`
- *  converges both onto v2 in memory, then `downgradeScheduleToV1WireFormat`
- *  serialises back to v1 for the engine boundary. Multi-passage weeks
- *  (`blocks.length > 1`) are rejected here with a clear error until the
- *  Rust contract crate learns to consume them (spec §7, phase 6). */
-function loadScheduleForEngine(db: DB, userId: string, materialId: string): string {
-  const raw = loadSchedule(db, userId, materialId);
-  if (raw === '') return '';
-  return downgradeScheduleToV1WireFormat(migrateSchedule(JSON.parse(raw)));
 }
 
 /** Detect the per-(user, material, version) UNIQUE constraint violation
@@ -573,7 +556,7 @@ export class EngineStore {
     const materialJson = bundledJson;
     const testStates = readTestStateEntries(this.db, key, materialJson);
     const configJson = readMaterialConfigJson(this.db, key);
-    const scheduleJson = loadScheduleForEngine(this.db, key.userId, key.materialId);
+    const scheduleJson = loadSchedule(this.db, key.userId, key.materialId);
     const engine = new WasmEngine(
       materialJson,
       configJson,
@@ -638,7 +621,7 @@ export class EngineStore {
     // inside readTestStateEntries handles known structural transforms.
     const materialJson = this.loadBundledJson(key.materialId);
     const configJson = readMaterialConfigJson(this.db, key);
-    const scheduleJson = loadScheduleForEngine(this.db, key.userId, key.materialId);
+    const scheduleJson = loadSchedule(this.db, key.userId, key.materialId);
     const engine = new WasmEngine(
       materialJson,
       configJson,

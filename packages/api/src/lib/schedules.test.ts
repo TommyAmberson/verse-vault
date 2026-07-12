@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import * as schema from '../db/schema.js';
 import {
-  downgradeScheduleToV1WireFormat,
   migrateSchedule,
   ScheduleValidationError,
   loadBundledSchedule,
@@ -413,39 +412,3 @@ describe('validateSchedule v2', () => {
   });
 });
 
-describe('downgradeScheduleToV1WireFormat', () => {
-  it('serialises single-block v2 back to v1 shape', () => {
-    const v2 = migrateSchedule(V1_SCHEDULE);
-    const wire = JSON.parse(downgradeScheduleToV1WireFormat(v2));
-    expect(wire.version).toBe(1);
-    expect(wire.weeks[0].passage.book).toBe('1 Corinthians');
-    expect(wire.weeks[0].verses.club150).toEqual([5, 10]);
-    expect(wire.weeks[1].passage).toBeNull();
-    expect(wire.weeks[1].verses).toBeNull();
-    expect(wire.weeks[1].isReview).toBe(true);
-  });
-
-  it('rejects multi-block weeks pending Rust/WASM support', () => {
-    const v2 = migrateSchedule({
-      ...V1_SCHEDULE,
-      version: 2,
-      weeks: [
-        {
-          date: '2025-09-08',
-          isReview: false,
-          blocks: [
-            {
-              passage: V1_SCHEDULE.weeks[0]!.passage,
-              verses: { club150: [], club300: [] },
-            },
-            {
-              passage: V1_SCHEDULE.weeks[0]!.passage,
-              verses: { club150: [], club300: [] },
-            },
-          ],
-        },
-      ],
-    });
-    expect(() => downgradeScheduleToV1WireFormat(v2)).toThrow(ScheduleValidationError);
-  });
-});

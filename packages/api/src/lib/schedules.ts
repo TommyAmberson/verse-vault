@@ -166,11 +166,9 @@ interface ClubVerseLists {
 /** One passage's worth of a week's content: a `(book, chapter,
  *  start..end)` reference and the per-club verse-number splits within
  *  that reference. Normal weeks carry one block; NT Survey-style
- *  compound weeks carry two. The multi-passage case is defined by
- *  the redesign spec (`docs/superpowers/specs/2026-06-23-schedule-editor-redesign.md`)
- *  and accepted at validation time — but the WASM engine still expects
- *  the v1 single-passage shape, so `downgradeScheduleToV1WireFormat`
- *  refuses `blocks.length > 1` until Rust support lands. */
+ *  compound weeks carry two. `verse-vault-core@0.7.0` / `verse-vault-wasm@0.7.0`
+ *  consume `blocks[]` natively, so persisted v2 schedules pass through
+ *  to the WASM engine verbatim. */
 export interface PassageBlock {
   passage: ValidatedPassage;
   verses: ClubVerseLists;
@@ -359,36 +357,6 @@ export function validateSchedule(json: string): SchedulePayloadV2 {
     throw new ScheduleValidationError(`invalid JSON: ${(e as Error).message}`);
   }
   return migrateSchedule(parsed);
-}
-
-/** Serialise a v2 schedule back to the v1 wire shape the WASM engine
- *  understands today (`{ passage, verses } | { passage: null, verses:
- *  null, isReview: true }`). Rejects multi-block weeks — Rust/WASM
- *  support for compound weeks lands in the redesign's phase 6. */
-export function downgradeScheduleToV1WireFormat(v2: SchedulePayloadV2): string {
-  const weeks = v2.weeks.map((w, i) => {
-    if (w.blocks.length > 1) {
-      throw new ScheduleValidationError(
-        `weeks[${i}] has ${w.blocks.length} blocks; multi-passage weeks are not yet supported by the WASM engine`,
-      );
-    }
-    const block = w.blocks[0];
-    return {
-      date: w.date,
-      isReview: w.isReview,
-      passage: block ? block.passage : null,
-      verses: block ? block.verses : null,
-    };
-  });
-  return JSON.stringify({
-    version: 1,
-    materialId: v2.materialId,
-    season: v2.season,
-    title: v2.title,
-    meetingDayOfWeek: v2.meetingDayOfWeek,
-    weeks,
-    meets: v2.meets ?? [],
-  });
 }
 
 /** Field-level validation for the `meets` array. The Phase 3 editor

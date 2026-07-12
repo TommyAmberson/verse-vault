@@ -139,14 +139,11 @@ describe('EngineStore', () => {
     store.clear();
   });
 
-  it('rejects loading a v2 multi-block schedule at the WASM boundary', async () => {
-    // Multi-passage weeks aren't yet supported by the Rust engine (spec
-    // phase 6). Without the downgrade helper on the load path, the raw v2
-    // JSON would deserialise silently (serde ignores the unknown `blocks`
-    // field and drops each week to a review-shape stub), producing a
-    // running-but-wrong engine. This test proves the downgrade helper is
-    // actually wired into EngineStore.load: with the wire present, the
-    // helper rejects the multi-block payload before it reaches WASM.
+  it('loads with a v2 multi-block schedule via the wasm@0.7.0 engine', async () => {
+    // As of contract crate 0.7.0 the WASM engine consumes `blocks[]`
+    // natively — compound weeks (spec §3.3 `|` weeks) surface refs from
+    // every block during Phase 1 memorize fill. Prior to 0.7.0 the API
+    // downgraded to v1 and rejected multi-block schedules at the boundary.
     const test = createTestDb();
     cleanup = test.cleanup;
     seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-cor' });
@@ -185,9 +182,8 @@ describe('EngineStore', () => {
       .run();
 
     const store = new EngineStore(test.db);
-    await expect(store.load({ userId: 'u1', materialId: 'nkjv-cor' })).rejects.toThrow(
-      /multi-passage/,
-    );
+    const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    expect(loaded.snapshotVersion).toBe(1);
     store.clear();
   });
 

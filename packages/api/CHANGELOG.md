@@ -10,6 +10,26 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.31] — 2026-07-11
+
+Phase 6 of the schedule editor redesign — WASM engine consumes v2 schedules natively. PATCH — no
+externally-observable API change; persisted schedules that failed to load under 0.1.30 (multi-block
+weeks) now boot the engine.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — MAJOR. `ScheduleWeek` swaps to `blocks: Vec<PassageBlock>`; algorithm
+  reads across every block; Full-tier derivation is per-block.
+* `verse-vault-wasm@0.7.0` — MAJOR. `parse_schedule` normalises v1 wire form (legacy
+  `passage`/`verses` fields) into `blocks[]` before constructing the engine.
+
+### Changed
+
+* `EngineStore.load` and `EngineStore.rebuildFromEvents` pass schedule JSON verbatim to the WASM
+  engine — the transitional `downgradeScheduleToV1WireFormat` helper is deleted.
+* `packages/api/src/lib/schedules.ts` drops `downgradeScheduleToV1WireFormat`. Callers no longer
+  need it — the WASM engine speaks v2 directly.
+
 ## [0.1.30] — 2026-07-11
 
 Phase 2 of the schedule editor redesign — `PUT /api/materials/:id/schedule` now accepts a v2 payload
