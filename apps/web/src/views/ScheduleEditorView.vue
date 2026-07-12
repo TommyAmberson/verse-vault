@@ -8,6 +8,7 @@ import { invalidateScheduleCache } from '@/lib/badges'
 import {
   DAYS_OF_WEEK,
   type DayOfWeek,
+  type PassageBlock,
   type Schedule,
   type ScheduleMeet,
   type ScheduleWeek,
@@ -168,6 +169,14 @@ const selectedWeek = computed<ScheduleWeek | null>(() => {
   return display.value?.weeks[selection.value.weekIdx] ?? null
 })
 
+/** First passage block of the selected week, or null for review /
+ *  no-selection. Consumer sites here still edit one passage at a time
+ *  (single-passage weeks) — the redesign's phase 3 rewrites the view to
+ *  iterate all blocks. */
+const selectedBlock = computed<PassageBlock | null>(
+  () => selectedWeek.value?.blocks[0] ?? null,
+)
+
 const selectedMeet = computed<ScheduleMeet | null>(() => {
   if (selection.value?.kind !== 'meet') return null
   return display.value?.meets.find((m) => m.id === selection.value!.meetId) ?? null
@@ -195,8 +204,9 @@ watch(
   () => {
     const w = selectedWeek.value
     verseInputError.value = null
-    verseInput150.value = formatVerseList(w?.verses?.club150)
-    verseInput300.value = formatVerseList(w?.verses?.club300)
+    const block = w?.blocks[0]
+    verseInput150.value = formatVerseList(block?.verses.club150)
+    verseInput300.value = formatVerseList(block?.verses.club300)
   },
   { immediate: true },
 )
@@ -214,8 +224,11 @@ function commitVerseInput(tier: 'club150' | 'club300') {
   const idx = selection.value.weekIdx
   const week = draft.value.weeks[idx]
   if (!week) return
-  const nextVerses = { ...(week.verses ?? {}), [tier]: parsed }
-  draft.value.weeks[idx] = { ...week, verses: nextVerses }
+  const block = week.blocks[0]
+  if (!block) return
+  const nextVerses = { ...block.verses, [tier]: parsed }
+  const nextBlocks = [{ ...block, verses: nextVerses }, ...week.blocks.slice(1)]
+  draft.value.weeks[idx] = { ...week, blocks: nextBlocks }
   // Re-format from canonical (sorted, deduped is the parser's
   // responsibility) so the user sees the normalized value after blur.
   if (tier === 'club150') verseInput150.value = formatVerseList(parsed)
@@ -233,11 +246,13 @@ function updatePassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVe
   // Coerce review week toggle: starting a passage edit on a review week
   // implicitly de-reviews it via the dedicated toggle, not by side
   // effect — guard so the editor doesn't silently un-mark.
-  if (week.passage === null) return
-  draft.value.weeks[idx] = {
-    ...week,
-    passage: { ...week.passage, [key]: value },
-  }
+  const block = week.blocks[0]
+  if (!block) return
+  const nextBlocks = [
+    { ...block, passage: { ...block.passage, [key]: value } },
+    ...week.blocks.slice(1),
+  ]
+  draft.value.weeks[idx] = { ...week, blocks: nextBlocks }
 }
 
 function toggleReviewWeek() {
@@ -246,21 +261,25 @@ function toggleReviewWeek() {
   const week = draft.value.weeks[idx]
   if (!week) return
   if (week.isReview) {
-    // De-reviewing: rehydrate empty passage + verses so the editor has
+    // De-reviewing: rehydrate an empty block so the editor has
     // something to bind. The user fills in the actual passage details.
     draft.value.weeks[idx] = {
       ...week,
       isReview: false,
-      passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
-      verses: { club150: [], club300: [] },
+      blocks: [
+        {
+          passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
+          verses: { club150: [], club300: [] },
+        },
+      ],
     }
   } else {
-    draft.value.weeks[idx] = { ...week, isReview: true, passage: null, verses: null }
+    draft.value.weeks[idx] = { ...week, isReview: true, blocks: [] }
   }
   // Re-seed the verse mirrors after the structural change.
-  const next = draft.value.weeks[idx]
-  verseInput150.value = formatVerseList(next.verses?.club150)
-  verseInput300.value = formatVerseList(next.verses?.club300)
+  const nextBlock = draft.value.weeks[idx]?.blocks[0]
+  verseInput150.value = formatVerseList(nextBlock?.verses.club150)
+  verseInput300.value = formatVerseList(nextBlock?.verses.club300)
 }
 
 function addWeekAfterLast() {
@@ -272,8 +291,12 @@ function addWeekAfterLast() {
   const newDate = last ? shiftDate(last.date, 7) : new Date().toISOString().slice(0, 10)
   const blank: ScheduleWeek = {
     date: newDate,
-    passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
-    verses: { club150: [], club300: [] },
+    blocks: [
+      {
+        passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
+        verses: { club150: [], club300: [] },
+      },
+    ],
     isReview: false,
   }
   draft.value = addWeekAt(draft.value, draft.value.weeks.length, blank)
@@ -637,15 +660,17 @@ function backToSettings() {
                   @click="mode === 'edit' ? selectWeek(row.weekIdx) : null"
                 >
                   <td class="cell-date">{{ row.ordinal }}</td>
-                  <td class="cell-passage">{{ formatPassage(row.week.passage) }}</td>
+                  <td class="cell-passage">
+                    {{ formatPassage(row.week.blocks[0]?.passage ?? null) }}
+                  </td>
                   <td class="cell-verses">
-                    <span v-if="row.week.verses?.club150?.length">
-                      {{ formatVerseList(row.week.verses.club150) }}
+                    <span v-if="row.week.blocks[0]?.verses.club150?.length">
+                      {{ formatVerseList(row.week.blocks[0].verses.club150) }}
                     </span>
                   </td>
                   <td class="cell-verses">
-                    <span v-if="row.week.verses?.club300?.length">
-                      {{ formatVerseList(row.week.verses.club300) }}
+                    <span v-if="row.week.blocks[0]?.verses.club300?.length">
+                      {{ formatVerseList(row.week.blocks[0].verses.club300) }}
                     </span>
                   </td>
                 </tr>
@@ -704,14 +729,14 @@ function backToSettings() {
               <span>Review week (no new verses introduced)</span>
             </label>
 
-            <template v-if="!selectedWeek.isReview && selectedWeek.passage">
+            <template v-if="!selectedWeek.isReview && selectedBlock">
               <fieldset class="passage">
                 <legend>Passage</legend>
                 <label class="field passage-book">
                   <span>Book</span>
                   <input
                     type="text"
-                    :value="selectedWeek.passage.book"
+                    :value="selectedBlock.passage.book"
                     @input="updatePassageField('book', ($event.target as HTMLInputElement).value)"
                   />
                 </label>
@@ -720,7 +745,7 @@ function backToSettings() {
                   <input
                     type="number"
                     min="1"
-                    :value="selectedWeek.passage.chapter || ''"
+                    :value="selectedBlock.passage.chapter || ''"
                     @input="updatePassageField('chapter', Number(($event.target as HTMLInputElement).value) || 0)"
                   />
                 </label>
@@ -729,7 +754,7 @@ function backToSettings() {
                   <input
                     type="number"
                     min="1"
-                    :value="selectedWeek.passage.startVerse || ''"
+                    :value="selectedBlock.passage.startVerse || ''"
                     @input="updatePassageField('startVerse', Number(($event.target as HTMLInputElement).value) || 0)"
                   />
                 </label>
@@ -738,7 +763,7 @@ function backToSettings() {
                   <input
                     type="number"
                     min="1"
-                    :value="selectedWeek.passage.endVerse || ''"
+                    :value="selectedBlock.passage.endVerse || ''"
                     @input="updatePassageField('endVerse', Number(($event.target as HTMLInputElement).value) || 0)"
                   />
                 </label>

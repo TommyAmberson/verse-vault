@@ -1,10 +1,15 @@
 /**
  * Schedule data model + pure manipulation helpers for the schedule
- * editor at /schedule/<materialId>. Mirrors the on-disk JSON shape
- * (`data/schedules/<deck>-<season>.json`) and the server-side
- * `SchedulePayload` in `packages/api/src/lib/schedules.ts`. Everything
- * here is data-only — no Vue, no network — so the view can hold a
- * draft, mutate it through these helpers, then PUT it verbatim.
+ * editor at /schedule/<materialId>. Mirrors the canonical v2 shape from
+ * `SchedulePayloadV2` in `packages/api/src/lib/schedules.ts`: each
+ * `Week` carries `blocks: PassageBlock[]` (empty on review, length 1
+ * on today's normal weeks, length ≥2 for future NT-Survey compound
+ * weeks). The wire form the API stores may still be v1 (single-passage)
+ * for pre-migration user rows and for the bundled schedule JSONs;
+ * `migrateSchedule` normalises both into v2 at read time.
+ *
+ * Everything here is data-only — no Vue, no network — so the view can
+ * hold a draft, mutate it through these helpers, then PUT it verbatim.
  *
  * Day-of-week shift semantics: per the Phase 3 design, the user picks
  * the weekly practice day and all weeks move by the signed delta from
@@ -49,6 +54,13 @@ export interface ScheduleVerses {
   club300?: number[]
 }
 
+/** One passage's worth of a week's content. Normal weeks carry a single
+ *  block; compound weeks (e.g. NT Survey's `|` weeks) carry two. */
+export interface PassageBlock {
+  passage: SchedulePassage
+  verses: ScheduleVerses
+}
+
 export interface ScheduleWeek {
   /** ISO `YYYY-MM-DD`. Falls on `meetingDayOfWeek` by construction;
    *  changing the schedule's meeting day shifts all week dates by
@@ -63,11 +75,14 @@ export interface ScheduleWeek {
    *  Deferred — touches the on-disk schedules, the API validator's
    *  per-week loop, and the WASM `parse_schedule` deserialiser. */
   date: string
-  /** Null on Review weeks. */
-  passage: SchedulePassage | null
-  /** Per-tier verse arrays for memorize Phase 1's "this week's primary"
-   *  pull. Null on Review weeks. */
-  verses: ScheduleVerses | null
+  /** Passage blocks for this week. Empty on review weeks; length 1 on
+   *  today's normal weeks; length ≥2 for future compound weeks.
+   *
+   *  Multi-block support (length ≥2) is accepted end-to-end here on
+   *  the client, but the API rejects it at the WASM boundary until
+   *  the Rust contract crate learns to consume it — see the redesign
+   *  spec's phase 6 for the follow-up work. */
+  blocks: PassageBlock[]
   isReview: boolean
 }
 
@@ -80,7 +95,7 @@ export interface ScheduleMeet {
 }
 
 export interface Schedule {
-  version: 1
+  version: 2
   materialId: string
   season: string
   title: string
@@ -158,14 +173,53 @@ export function isoWeekStart(iso: string): string {
 // Schedule helpers (pure)
 // =============================================================================
 
+/** Normalise a schedule payload of either accepted wire version (1 or 2)
+ *  to the v2 in-memory shape. Mirrors
+ *  `packages/api/src/lib/schedules.ts:migrateSchedule` so persisted user
+ *  schedules and bundled JSONs land in the same shape whether they were
+ *  saved before or after the redesign's phase 2. */
+export function migrateSchedule(raw: unknown): Schedule {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error('schedule must be an object')
+  }
+  const obj = raw as Record<string, unknown>
+  const version = obj.version
+  if (version !== 1 && version !== 2) {
+    throw new Error(`unsupported schedule version: ${String(version)}`)
+  }
+  const weeksRaw = obj.weeks
+  if (!Array.isArray(weeksRaw)) throw new Error('missing weeks array')
+  const weeks: ScheduleWeek[] = weeksRaw.map((w) => {
+    const wo = w as Record<string, unknown>
+    const isReview = wo.isReview === true
+    const date = wo.date as string
+    if (version === 2) {
+      const blocks = (wo.blocks as PassageBlock[] | undefined) ?? []
+      return { date, isReview, blocks }
+    }
+    if (isReview) return { date, isReview: true, blocks: [] }
+    const passage = wo.passage as SchedulePassage
+    const verses = (wo.verses as ScheduleVerses | null | undefined) ?? {}
+    return { date, isReview: false, blocks: [{ passage, verses }] }
+  })
+  return {
+    version: 2,
+    materialId: obj.materialId as string,
+    season: obj.season as string,
+    title: obj.title as string,
+    meetingDayOfWeek: obj.meetingDayOfWeek as DayOfWeek,
+    weeks,
+    meets: (obj.meets as ScheduleMeet[] | undefined) ?? [],
+  }
+}
+
 /** Deep-clone a schedule. Uses JSON round-trip rather than
  *  `structuredClone` because the call sites in `ScheduleEditorView`
  *  pass `saved.value` / `draft.value` — Vue wraps ref-held objects
  *  in a reactive Proxy, and `structuredClone` throws
  *  `Proxy object could not be cloned` on those. `JSON.stringify`
  *  walks the proxy's [[Get]] trap correctly and emits the plain
- *  underlying data; `Schedule` carries only string / number / boolean /
- *  null / array / object, so the round-trip is exact. */
+ *  underlying data; nested `blocks[]` arrays round-trip fine. */
 export function cloneSchedule(s: Schedule): Schedule {
   return JSON.parse(JSON.stringify(s)) as Schedule
 }
@@ -266,13 +320,25 @@ export function formatPassage(passage: SchedulePassage | null): string {
   return `${book} ${chapter}:${startVerse}-${endVerse}`
 }
 
-/** Count verses across enabled tiers for a single week. Used by the
- *  timeline pane to show a `5 / 5` summary per week. */
+/** Convenience for consumers still assuming one passage per week. Returns
+ *  the first block or `undefined` on review / empty weeks. The redesign's
+ *  phase 3 (view rewrite) iterates all blocks; call sites left over from
+ *  the single-passage era use this helper as a bridge. */
+export function firstBlock(week: ScheduleWeek): PassageBlock | undefined {
+  return week.blocks[0]
+}
+
+/** Count verses across enabled tiers for a single week, summing every
+ *  passage block. Used by the timeline pane to show a `5 / 5` summary
+ *  per week. */
 export function verseCountsForWeek(week: ScheduleWeek): { club150: number; club300: number } {
-  return {
-    club150: week.verses?.club150?.length ?? 0,
-    club300: week.verses?.club300?.length ?? 0,
+  let club150 = 0
+  let club300 = 0
+  for (const b of week.blocks) {
+    club150 += b.verses.club150?.length ?? 0
+    club300 += b.verses.club300?.length ?? 0
   }
+  return { club150, club300 }
 }
 
 // =============================================================================
