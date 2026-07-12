@@ -909,7 +909,14 @@ fn parse_schedule(
     if trimmed.is_empty() {
         Ok(None)
     } else {
-        serde_json::from_str(trimmed).map(Some)
+        let mut schedule: verse_vault_core::schedule_data::Schedule =
+            serde_json::from_str(trimmed)?;
+        // Fold any legacy `passage`/`verses` week-level fields (v1 wire
+        // shape) into `blocks[]` before the algorithm touches the data —
+        // API 0.1.30+ emits v2 natively, but bundled JSONs and pre-
+        // migration user rows still ship v1.
+        schedule.normalize_v1_weeks();
+        Ok(Some(schedule))
     }
 }
 

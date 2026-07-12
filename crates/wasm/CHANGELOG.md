@@ -22,6 +22,23 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-11
+
+MAJOR bump — schedule editor redesign phase 6. Consumes `verse-vault-core@0.7.0`'s
+`ScheduleWeek::blocks[]` shape end-to-end. `parse_schedule` now folds any legacy v1
+`passage`/`verses` fields into `blocks[]` via `Schedule::normalize_v1_weeks` before the engine
+constructor runs, so schedules serialised at rest as either v1 or v2 wire form both boot the same
+engine.
+
+Consumer effect: single-passage schedules behave identically to 0.6.0. Multi-passage weeks now
+contribute refs from every block during Phase 1 memorize fill; under 0.6.0 the raw v2 wire form
+silently degraded to a review-empty stub because the Rust struct had no `blocks` field.
+
+### Wire format
+
+No new WASM function surface — the `WasmEngine` constructor signature is unchanged. The change is
+entirely in how `schedule_json` deserialises.
+
 ## [0.6.0] — 2026-06-14
 
 MAJOR bump for the schedules + per-club settings rework (Phase 1). The `WasmEngine` constructor

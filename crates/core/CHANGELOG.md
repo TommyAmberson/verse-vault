@@ -22,6 +22,30 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-11
+
+MAJOR bump — schedule editor redesign phase 6. `ScheduleWeek` swaps to `blocks: Vec<PassageBlock>`
+so compound (`|`) weeks carry multiple passages under one date. State semantics change on
+multi-passage weeks: `week_verse_refs` and `cumulative_verse_refs_through_week` now sum across every
+passage block, and Full-tier derivation runs per-block (a verse listed as Club 300 on one passage no
+longer shadows Full on the sibling passage).
+
+The legacy v1 wire fields `passage`/`verses` at the `ScheduleWeek` level remain accepted via serde
+defaults, so pre-migration user rows and bundled JSONs deserialise unchanged. Call
+`Schedule::normalize_v1_weeks()` after `serde_json::from_str` to fold them into `blocks[]` before
+touching the algorithm (`crates/wasm::parse_schedule` does this automatically).
+
+### Migration
+
+* `ScheduleWeek::passage` / `ScheduleWeek::verses` are now
+  `#[serde(skip_serializing_if = "Option::is_none")]` and cleared by `normalize_v1_weeks`. Newly
+  emitted schedules land in v2 wire form (blocks-only).
+* Direct construction of `ScheduleWeek { passage, verses, ... }` no longer compiles — call sites
+  must populate `blocks` (empty on review weeks, one element on single-passage weeks).
+* Algorithm re-runs on the same event log produce identical output when every week is
+  single-passage; multi-passage weeks change output because they now surface refs from every block
+  instead of dropping to a review-empty stub.
+
 ## [0.6.0] — 2026-06-14
 
 MAJOR bump for the schedules + per-club settings rework (Phase 1). The state shape of
