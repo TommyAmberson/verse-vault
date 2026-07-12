@@ -9,6 +9,38 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-11
+
+Phase 3 of the schedule editor redesign — view-mode DOM is now the responsive `.sched`
+container-query layout from spec §6. MINOR — visible UI change on `/schedule/:materialId` in view
+mode; edit mode still shows the legacy table + detail pane until the spec's phase 5 replaces it with
+an expand-in-place editor.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — unchanged.
+* `verse-vault-wasm@0.6.0` — unchanged.
+
+### Responsive view
+
+Three regimes off the `.sched` wrapper's own width (container-query, not viewport):
+
+* **Cards** (< 520px) — each week a self-contained card; pill verse numbers.
+* **Condensed** (520–789px) — narrow date rail on the left, passage + pill verses stacked to its
+  right; date spans every child row via `--wk-rows`.
+* **Ledger** (≥ 790px) — the printable 4-column `DATE · PASSAGE · CLUB 150 · CLUB 300` ledger with
+  comma-list verses (`::after ", "`); multi-passage weeks stack blocks under one date via
+  `--wk-blocks`.
+
+Verse-number `<span>` elements are the same in every regime; only the pill styling and the comma
+`::after` selector differ. Review weeks render "Review" in the passage slot; meet rows become tinted
+full-width bands at every width.
+
+### Editor
+
+Edit mode retains the legacy table + right-side detail pane. Phase 5 rewrites this into the
+expand-in-place editor.
+
 ## [0.5.0] — 2026-07-11
 
 Phase 2 of the schedule editor redesign — data model migration. MINOR — the persisted wire form is
