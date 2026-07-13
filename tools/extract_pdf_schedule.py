@@ -387,14 +387,14 @@ def parse_pdf(pdf_path: Path, facts: ChapterFacts, meeting_day: str) -> tuple[li
 
 
 def infer_meeting_day(weeks: list[Week]) -> str:
-    """Pick the weekday most weeks fall on (schedules are anchored on
-    the practice day)."""
+    """Meeting day = weekday of the first week (schedules are anchored on
+    the practice day and every subsequent week is +7 days, so the first
+    week's weekday is authoritative)."""
     if not weeks:
         return "Mon"
-    for w in weeks:
-        d = date.fromisoformat(w.iso_date)
-        return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.weekday() + 1 if d.weekday() < 6 else 0]
-    return "Mon"
+    # Python's date.weekday() has Mon = 0; project convention has Sun = 0.
+    d = date.fromisoformat(weeks[0].iso_date)
+    return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d.weekday()]
 
 
 def main() -> None:

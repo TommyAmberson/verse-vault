@@ -320,25 +320,12 @@ export function formatPassage(passage: SchedulePassage | null): string {
   return `${book} ${chapter}:${startVerse}-${endVerse}`
 }
 
-/** Convenience for consumers still assuming one passage per week. Returns
- *  the first block or `undefined` on review / empty weeks. The redesign's
- *  phase 3 (view rewrite) iterates all blocks; call sites left over from
- *  the single-passage era use this helper as a bridge. */
-export function firstBlock(week: ScheduleWeek): PassageBlock | undefined {
-  return week.blocks[0]
-}
-
-/** Count verses across enabled tiers for a single week, summing every
- *  passage block. Used by the timeline pane to show a `5 / 5` summary
- *  per week. */
-export function verseCountsForWeek(week: ScheduleWeek): { club150: number; club300: number } {
-  let club150 = 0
-  let club300 = 0
-  for (const b of week.blocks) {
-    club150 += b.verses.club150?.length ?? 0
-    club300 += b.verses.club300?.length ?? 0
-  }
-  return { club150, club300 }
+/** ISO weekday index (0 = Sun) for a `YYYY-MM-DD` date, using
+ *  UTC-anchored parsing so Fri stays Fri regardless of the user's
+ *  local timezone. Shared with the season-range editor's meeting-day
+ *  guard. */
+export function isoWeekday(iso: string): number {
+  return parseIsoDate(iso).getUTCDay()
 }
 
 // =============================================================================
@@ -547,9 +534,3 @@ function sameNumberList(a: readonly number[], b: readonly number[]): boolean {
   return true
 }
 
-/** Human-readable one-line summary of a coverage range: "1 Corinthians
- *  5:1-13", "1 Corinthians 5:7", "2 Corinthians 3". */
-export function formatCoverageRange(r: CoverageRange): string {
-  if (r.startVerse === r.endVerse) return `${r.book} ${r.chapter}:${r.startVerse}`
-  return `${r.book} ${r.chapter}:${r.startVerse}-${r.endVerse}`
-}

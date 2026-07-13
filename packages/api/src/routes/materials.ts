@@ -55,6 +55,48 @@ interface EnrollBody {
   clubTier?: number | null;
 }
 
+/** Per-verse club-tag projection cache. `getMaterialJson` already caches
+ *  the raw JSON string, but re-parsing + re-projecting on every
+ *  `/passages` request is wasted work — the material's verses list is
+ *  bundled per-deck static data. Keyed by materialId; entries live for
+ *  the process's lifetime, invalidated implicitly when the process
+ *  restarts (deploys / rolling restarts pick up new content). */
+const PASSAGES_CACHE = new Map<
+  string,
+  { book: string; chapter: number; verse: number; clubs: number[] }[]
+>();
+
+function getPassagesProjection(
+  materialId: string,
+): { book: string; chapter: number; verse: number; clubs: number[] }[] {
+  const cached = PASSAGES_CACHE.get(materialId);
+  if (cached !== undefined) return cached;
+  let material: {
+    verses?: {
+      book: string;
+      chapter: number;
+      verse: number;
+      clubs?: number[];
+    }[];
+  };
+  try {
+    material = JSON.parse(getMaterialJson(materialId));
+  } catch {
+    // No bundled JSON on this environment — dev without content
+    // pipeline. Don't cache the empty projection: the next request
+    // should re-check disk in case the content lands mid-session.
+    return [];
+  }
+  const passages = (material.verses ?? []).map((v) => ({
+    book: v.book,
+    chapter: v.chapter,
+    verse: v.verse,
+    clubs: v.clubs ?? [],
+  }));
+  PASSAGES_CACHE.set(materialId, passages);
+  return passages;
+}
+
 export function materialsRoutes(deps: MaterialsRoutesDeps) {
   const app = new Hono<{ Variables: SessionVariables }>();
 
@@ -109,26 +151,7 @@ export function materialsRoutes(deps: MaterialsRoutesDeps) {
     if (!MATERIALS.some((m) => m.id === materialId)) {
       return c.json({ error: `Unknown material: ${materialId}` }, 404);
     }
-    let material: {
-      verses?: {
-        book: string;
-        chapter: number;
-        verse: number;
-        clubs?: number[];
-      }[];
-    };
-    try {
-      material = JSON.parse(getMaterialJson(materialId));
-    } catch {
-      return c.json({ passages: [] });
-    }
-    const passages
-      = (material.verses ?? []).map((v) => ({
-        book: v.book,
-        chapter: v.chapter,
-        verse: v.verse,
-        clubs: v.clubs ?? [],
-      }));
+    const passages = getPassagesProjection(materialId);
     return c.json({ passages });
   });
 

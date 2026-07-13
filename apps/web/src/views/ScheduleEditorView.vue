@@ -18,10 +18,11 @@ import {
   cloneSchedule,
   type CoverageResult,
   computeCoverage,
+  dayOfMonth,
   englishOrdinal,
-  formatCoverageRange,
   formatPassage,
   fullDayName,
+  isoWeekday,
   isoWeekStart,
   monthName,
   removeMeet,
@@ -182,7 +183,7 @@ const rows = computed<TableRow[]>(() => {
         key: `week-${it.weekIdx}`,
         weekIdx: it.weekIdx,
         week: it.week,
-        ordinal: englishOrdinal(Number(it.date.slice(8, 10))),
+        ordinal: englishOrdinal(dayOfMonth(it.date)),
         isCurrent: isoWeekStart(it.date) === todayWeekKey,
       })
     } else {
@@ -361,34 +362,13 @@ function cumulativeCount(block: PassageBlock, tier: 'club150' | 'club300' | 'ful
   return endVerse - startVerse + 1
 }
 
-/** Week-level cumulative memorize-scope counts. 150 = |c150| across
- *  every block; 300 = |c150 ∪ c300| per block, summed (verses are
- *  never shared across blocks — different passages, non-overlapping
- *  numeric ranges); Full = sum of every block's passage size. */
-function weekClub150Count(week: ScheduleWeek): number {
+/** Week-level cumulative memorize-scope count for the given tier.
+ *  Sums cumulativeCount across every block (verses are never shared
+ *  across blocks — different passages, non-overlapping numeric ranges),
+ *  so summing per-block union sizes is equivalent to a whole-week union. */
+function weekCount(week: ScheduleWeek, tier: 'club150' | 'club300' | 'full'): number {
   let n = 0
-  for (const b of week.blocks) n += derivedVerseNumbers(b, 150).length
-  return n
-}
-
-function weekClub300Count(week: ScheduleWeek): number {
-  let n = 0
-  for (const b of week.blocks) {
-    const union = new Set<number>([
-      ...derivedVerseNumbers(b, 150),
-      ...derivedVerseNumbers(b, 300),
-    ])
-    n += union.size
-  }
-  return n
-}
-
-function weekFullCount(week: ScheduleWeek): number {
-  let n = 0
-  for (const b of week.blocks) {
-    const { startVerse, endVerse } = b.passage
-    if (startVerse >= 1 && endVerse >= startVerse) n += endVerse - startVerse + 1
-  }
+  for (const b of week.blocks) n += cumulativeCount(b, tier)
   return n
 }
 
@@ -656,13 +636,6 @@ function weeklyDatesBetween(start: string, end: string): string[] {
     cur = shiftDate(cur, 7)
   }
   return out
-}
-
-/** ISO weekday index of an ISO `YYYY-MM-DD` in UTC (0 = Sun). Mirrors
- *  the same UTC-anchored parsing `lib/schedule.ts` uses so a Fri stays
- *  Fri regardless of the user's local timezone. */
-function isoWeekday(iso: string): number {
-  return new Date(`${iso}T00:00:00Z`).getUTCDay()
 }
 
 function weekHasContent(w: ScheduleWeek): boolean {
@@ -946,9 +919,10 @@ async function save() {
   try {
     await api.putSchedule(materialId.value, payload)
     invalidateScheduleCache(materialId.value)
-    saved.value = cloneSchedule(payload)
-    // Draft picks up the cleaned payload so the editor rerenders
-    // without the ghost blocks the user's local session still had.
+    // saved and draft both point at the cleaned payload — draft is
+    // freshly cloned so subsequent edits don't mutate `saved` through
+    // the shared reference. One clone total instead of three.
+    saved.value = payload
     draft.value = cloneSchedule(payload)
     mode.value = 'view'
   } catch (err) {
@@ -1137,13 +1111,13 @@ function backToSettings() {
         <ul v-if="coverageResult.gaps.length" class="coverage-list">
           <li v-for="(g, i) in coverageResult.gaps" :key="`gap-${i}`">
             <span class="coverage-tag coverage-tag-gap">gap</span>
-            {{ formatCoverageRange(g) }}
+            {{ formatPassage(g) }}
           </li>
         </ul>
         <ul v-if="coverageResult.overlaps.length" class="coverage-list">
           <li v-for="(o, i) in coverageResult.overlaps" :key="`over-${i}`">
             <span class="coverage-tag coverage-tag-overlap">overlap</span>
-            {{ formatCoverageRange(o) }}
+            {{ formatPassage(o) }}
             <span class="coverage-weeks">
               (weeks {{ o.weekIdxs.map((w) => w + 1).join(', ') }})
             </span>
@@ -1423,7 +1397,7 @@ function backToSettings() {
                     >
                       <div class="week-summary-row">
                         <span class="week-summary-label club-150">
-                          150 · {{ weekClub150Count(row.week) }}
+                          150 · {{ weekCount(row.week, 'club150') }}
                         </span>
                         <div class="week-summary-vals">
                           <template v-if="row.week.blocks.length === 1">
@@ -1455,7 +1429,7 @@ function backToSettings() {
                       </div>
                       <div class="week-summary-row">
                         <span class="week-summary-label club-300">
-                          300 · {{ weekClub300Count(row.week) }}
+                          300 · {{ weekCount(row.week, 'club300') }}
                         </span>
                         <div class="week-summary-vals">
                           <template v-if="row.week.blocks.length === 1">
@@ -1487,7 +1461,7 @@ function backToSettings() {
                       </div>
                       <div class="week-summary-row week-summary-row-full">
                         <span class="week-summary-label club-full">
-                          Full · {{ weekFullCount(row.week) }}
+                          Full · {{ weekCount(row.week, 'full') }}
                         </span>
                       </div>
                     </div>
