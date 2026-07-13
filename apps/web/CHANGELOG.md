@@ -9,6 +9,29 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-07-13
+
+Passage picker redesign (spec `docs/superpowers/specs/2026-07-13-passage-picker-redesign.md`). MINOR
+— visible UX change on `/schedule/:materialId` edit mode; no wire-format change.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — unchanged.
+* `verse-vault-wasm@0.7.0` — unchanged.
+
+### Editor
+
+* Passage editor: four labelled dropdowns → one inline horizontal row reading
+  `Book | Ch. | Start — End`. Wraps at container widths below 520px (Book on its own row).
+* Multi-passage weeks: fieldset border + PASSAGE legend gone; blocks stack with a small `Passage N`
+  caption + `× remove` and a hairline `border-top` between siblings. Solo blocks render bare.
+* Club summary: moved out of every block into a single week-level row below all blocks.
+  Single-passage weeks keep the flat pill list; multi-passage weeks nest a `Ch N:` sub-row per
+  passage under each club label. Counts stay cumulative (150 / 300 / Full).
+* Review-week toggle removed. Review is now derived: `blocks.length === 0`. Removing the sole
+  passage collapses the wk-form to an italic dashed "This is a review week" message +
+  `+ Add a passage` button; adding a passage clears the state.
+
 ## [0.8.1] — 2026-07-12
 
 Phase 7 of the schedule editor redesign — polish. PATCH — no observable API change, keyboard +
