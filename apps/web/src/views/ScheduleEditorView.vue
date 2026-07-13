@@ -2578,7 +2578,7 @@ fieldset legend {
 }
 
 .passage-field-book {
-  flex: 1 1 12rem;
+  flex: 0 0 auto;
 }
 
 .passage-field-chapter,
