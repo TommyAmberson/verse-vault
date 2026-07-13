@@ -1384,13 +1384,23 @@ function backToSettings() {
                         </template>
                       </div>
                     </template>
-                    <button
-                      type="button"
-                      class="add-block"
-                      @click="addPassageBlock"
-                    >
-                      + Add a passage
-                    </button>
+                    <div class="wk-form-actions">
+                      <button
+                        type="button"
+                        class="add-block"
+                        @click="addPassageBlock"
+                      >
+                        + Add a passage
+                      </button>
+                      <button
+                        v-if="row.week.blocks.length === 1"
+                        type="button"
+                        class="mark-review-button"
+                        @click="removeBlock(0)"
+                      >
+                        Mark as review week
+                      </button>
+                    </div>
                     <div
                       v-if="row.week.blocks.length > 0"
                       class="week-summary"
@@ -2335,10 +2345,16 @@ button.secondary:hover:not(:disabled) {
 }
 
 .week-summary-vals {
+  /* Row-wrap so single-passage pills flow inline instead of stretching
+   * full-width column children. Multi-passage sub-rows below use
+   * `flex: 1 1 100%` to force a new line per passage. */
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 0.3rem;
+  align-items: baseline;
   flex: 1 1 auto;
+  min-width: 0;
 }
 
 .week-summary-passage {
@@ -2346,6 +2362,7 @@ button.secondary:hover:not(:disabled) {
   flex-wrap: wrap;
   gap: 0.3rem;
   align-items: baseline;
+  flex: 1 1 100%;
 }
 
 .passage-prefix {
@@ -2388,6 +2405,32 @@ button.secondary:hover:not(:disabled) {
   color: var(--color-muted);
   font-style: italic;
   text-align: center;
+}
+
+.wk-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mark-review-button {
+  background: none;
+  border: none;
+  padding: 0.35rem 0.5rem;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 2px;
+}
+
+.mark-review-button:hover {
+  color: var(--color-error);
+  text-decoration-color: var(--color-error);
 }
 
 .form-actions {
@@ -2613,8 +2656,17 @@ fieldset legend {
 .passage-block-heading {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   color: var(--color-muted);
+}
+
+/* Solo block: hide the passage heading entirely. The "remove sole
+ * passage → mark as review" action moves to a separate button at the
+ * bottom of the form (see .mark-review-button) so the row doesn't lead
+ * with a floating × orphan. */
+.passage-block:not(.has-siblings) > .passage-block-heading {
+  display: none;
 }
 
 .passage-block-index {
