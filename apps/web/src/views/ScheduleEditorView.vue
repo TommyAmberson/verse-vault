@@ -203,34 +203,33 @@ const selectedMeet = computed<ScheduleMeet | null>(() => {
 // Per-week editor state
 // =============================================================================
 
-/** Club-150 kid's memorize scope for this block: exactly the tagged
- *  Club 150 verses (sorted, deduped). */
-function club150Verses(block: PassageBlock): number[] {
-  return sortedUnique(block.verses.club150 ?? [])
+/** Sorted-unique verse list for a single tier tag. The pills show only
+ *  the tier's own tagged verses (a verse tagged Club 150 shouldn't
+ *  re-appear in the Club 300 pill list — the counts encode cumulative
+ *  scope, the pills encode what's unique to that tier). */
+function tierPills(ns: readonly number[] | undefined): number[] {
+  return Array.from(new Set(ns ?? [])).sort((a, b) => a - b)
 }
 
-/** Club-300 kid's memorize scope for this block: Club 150 ∪ Club 300 —
- *  the tiers are cumulative in memorization scope, so the display
- *  shows what a 300 kid actually memorizes, not just the extra tag. */
-function club300Verses(block: PassageBlock): number[] {
-  return sortedUnique([
-    ...(block.verses.club150 ?? []),
-    ...(block.verses.club300 ?? []),
-  ])
-}
-
-/** Full-tier scope for this block: the entire passage range. A Full
- *  kid memorizes every verse the passage covers (150 and 300 verses
- *  included), so the count is the passage size — no separate list is
- *  useful, hence the template omits it. */
-function fullVerseCount(block: PassageBlock): number {
+/** Cumulative memorize-scope count for a block: 150 = |club150|,
+ *  300 = |club150 ∪ club300|, Full = passage size. Reflects the
+ *  Bible-quiz convention that the tiers stack — a 300 kid memorizes
+ *  both 150 and 300 verses; a Full kid memorizes the whole passage. */
+function cumulativeCount(block: PassageBlock, tier: 'club150' | 'club300' | 'full'): number {
+  const c150 = tierPills(block.verses.club150).length
+  const c300 = tierPills(block.verses.club300).length
+  if (tier === 'club150') return c150
+  if (tier === 'club300') {
+    const union = new Set<number>([
+      ...(block.verses.club150 ?? []),
+      ...(block.verses.club300 ?? []),
+    ])
+    return union.size
+  }
+  // full — everything the passage covers.
   const { startVerse, endVerse } = block.passage
   if (startVerse < 1 || endVerse < startVerse) return 0
-  return endVerse - startVerse + 1
-}
-
-function sortedUnique(ns: readonly number[]): number[] {
-  return Array.from(new Set(ns)).sort((a, b) => a - b)
+  return Math.max(endVerse - startVerse + 1, c150 + c300)
 }
 
 function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVerse'>(
@@ -959,39 +958,39 @@ function backToSettings() {
                       <div class="verses-summary" aria-label="Verse numbers">
                         <div class="verses-row">
                           <span class="verses-label club-150">
-                            150 · {{ club150Verses(block).length }}
+                            150 · {{ cumulativeCount(block, 'club150') }}
                           </span>
                           <div class="verses-vals">
                             <span
-                              v-for="n in club150Verses(block)"
+                              v-for="n in tierPills(block.verses.club150)"
                               :key="n"
                               class="v v-150"
                             >{{ n }}</span>
                             <span
-                              v-if="!club150Verses(block).length"
+                              v-if="!tierPills(block.verses.club150).length"
                               class="verses-empty"
                             >—</span>
                           </div>
                         </div>
                         <div class="verses-row">
                           <span class="verses-label club-300">
-                            300 · {{ club300Verses(block).length }}
+                            300 · {{ cumulativeCount(block, 'club300') }}
                           </span>
                           <div class="verses-vals">
                             <span
-                              v-for="n in club300Verses(block)"
+                              v-for="n in tierPills(block.verses.club300)"
                               :key="n"
                               class="v v-300"
                             >{{ n }}</span>
                             <span
-                              v-if="!club300Verses(block).length"
+                              v-if="!tierPills(block.verses.club300).length"
                               class="verses-empty"
                             >—</span>
                           </div>
                         </div>
                         <div class="verses-row verses-row-full">
                           <span class="verses-label club-full">
-                            Full · {{ fullVerseCount(block) }}
+                            Full · {{ cumulativeCount(block, 'full') }}
                           </span>
                         </div>
                       </div>
@@ -1446,12 +1445,18 @@ button.secondary:hover:not(:disabled) {
   flex: 0 0 1.9rem;
 }
 
+/* Club colour convention — traditional Bible-quiz palette is Club 150 =
+ * yellow highlighter and Club 300 = blue highlighter. This app doesn't
+ * use full-saturation highlighter tones, but the hues are kept on the
+ * correct sides so 300 reads blue-ish and 150 reads warm; the previous
+ * app palette (150 blue, 300 orange) was the direct swap of tradition
+ * and confused users who were used to marking their own Bibles. */
 .sched .c-150 .lbl {
-  color: var(--color-accent);
+  color: var(--color-grade-hard);
 }
 
 .sched .c-300 .lbl {
-  color: var(--color-grade-hard);
+  color: var(--color-grade-easy);
 }
 
 .sched .vals {
@@ -1461,20 +1466,21 @@ button.secondary:hover:not(:disabled) {
 }
 
 .sched .v {
-  /* Pill — the Cards / Condensed appearance. Ledger strips this
-   * styling and swaps in a comma-separated inline flow (see below). */
+  /* Club 150 pill — warm, on the yellow side of the traditional
+   * palette. Ledger strips this styling and swaps in a comma-separated
+   * inline flow (see below). */
   font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
   font-size: 0.78rem;
   padding: 0.1rem 0.4rem;
   border-radius: 5px;
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+  background: var(--color-grade-hard-bg);
+  color: var(--color-grade-hard);
   line-height: 1.25;
 }
 
 .sched .c-300 .v {
-  background: var(--color-grade-hard-bg);
-  color: var(--color-grade-hard);
+  background: var(--color-grade-easy-bg);
+  color: var(--color-grade-easy);
 }
 
 .sched .meet {
@@ -1749,11 +1755,11 @@ button.secondary:hover:not(:disabled) {
 }
 
 .verses-label.club-150 {
-  color: var(--color-accent);
+  color: var(--color-grade-hard);
 }
 
 .verses-label.club-300 {
-  color: var(--color-grade-hard);
+  color: var(--color-grade-easy);
 }
 
 .verses-label.club-full {
@@ -1775,13 +1781,13 @@ button.secondary:hover:not(:disabled) {
 }
 
 .verses-vals .v-150 {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+  background: var(--color-grade-hard-bg);
+  color: var(--color-grade-hard);
 }
 
 .verses-vals .v-300 {
-  background: var(--color-grade-hard-bg);
-  color: var(--color-grade-hard);
+  background: var(--color-grade-easy-bg);
+  color: var(--color-grade-easy);
 }
 
 .verses-empty {
