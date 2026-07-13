@@ -13,7 +13,6 @@ import {
   type ScheduleMeet,
   type ScheduleWeek,
   addMeet,
-  addWeekAt,
   applyMeetingDayShift,
   cloneSchedule,
   englishOrdinal,
@@ -24,7 +23,6 @@ import {
   monthName,
   parseVerseList,
   removeMeet,
-  removeWeekAt,
   shiftDate,
   slugifyMeetId,
   updateMeet,
@@ -340,38 +338,141 @@ function toggleReviewWeek() {
   }
 }
 
-function addWeekAfterLast() {
-  if (draft.value === null) return
-  const last = draft.value.weeks[draft.value.weeks.length - 1]
-  // Default the new week's date to one week after the last existing
-  // week, falling back to today when the schedule has none yet. The
-  // user can pick a passage from the edit form once selected.
-  const newDate = last ? shiftDate(last.date, 7) : new Date().toISOString().slice(0, 10)
-  const blank: ScheduleWeek = {
-    date: newDate,
-    blocks: [
-      {
-        passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
-        verses: { club150: [], club300: [] },
-      },
-    ],
-    isReview: false,
-  }
-  draft.value = addWeekAt(draft.value, draft.value.weeks.length, blank)
-  selectWeek(draft.value.weeks.length - 1)
+// =============================================================================
+// Range editor — chooses which weeks exist by picking a season start / end
+// =============================================================================
+//
+// Per-row remove-week / add-week affordances are gone: middle weeks aren't
+// removable (a gap in dates would break week indexing and the memorize
+// algorithm's cumulative-count math), and the review toggle already handles
+// "this week has no new verses". Season edges are edited via the range
+// picker below — pick first and last week dates aligned to
+// `meetingDayOfWeek`; anything outside is dropped, anything missing inside
+// is materialised as a blank review week.
+
+interface RangePendingState {
+  startDate: string
+  endDate: string
+  weeksToDrop: number[]
+  contentBearingDrops: number[]
 }
 
-function removeSelectedWeek() {
-  if (draft.value === null || selection.value?.kind !== 'week') return
-  const idx = selection.value.weekIdx
-  draft.value = removeWeekAt(draft.value, idx)
-  // Move selection to the previous week if there is one; otherwise drop.
-  if (draft.value.weeks.length === 0) {
-    selection.value = null
-  } else {
-    const nextIdx = Math.min(idx, draft.value.weeks.length - 1)
-    selectWeek(nextIdx)
+type RangeState =
+  | { kind: 'idle' }
+  | { kind: 'editing' }
+  | { kind: 'confirming'; pending: RangePendingState }
+
+const rangeState = ref<RangeState>({ kind: 'idle' })
+const rangeStartInput = ref('')
+const rangeEndInput = ref('')
+const rangeError = ref<string | null>(null)
+
+function openRangeEditor() {
+  if (draft.value === null || draft.value.weeks.length === 0) return
+  rangeStartInput.value = draft.value.weeks[0]!.date
+  rangeEndInput.value = draft.value.weeks[draft.value.weeks.length - 1]!.date
+  rangeError.value = null
+  rangeState.value = { kind: 'editing' }
+}
+
+function cancelRangeEdit() {
+  rangeState.value = { kind: 'idle' }
+  rangeError.value = null
+}
+
+/** Weekly date list from `start` through `end` (inclusive) at 7-day
+ *  strides. Assumes both endpoints already land on
+ *  `meetingDayOfWeek` — the validator upstream enforces that. */
+function weeklyDatesBetween(start: string, end: string): string[] {
+  const out: string[] = []
+  let cur = start
+  while (cur <= end) {
+    out.push(cur)
+    cur = shiftDate(cur, 7)
   }
+  return out
+}
+
+/** ISO weekday index of an ISO `YYYY-MM-DD` in UTC (0 = Sun). Mirrors
+ *  the same UTC-anchored parsing `lib/schedule.ts` uses so a Fri stays
+ *  Fri regardless of the user's local timezone. */
+function isoWeekday(iso: string): number {
+  return new Date(`${iso}T00:00:00Z`).getUTCDay()
+}
+
+function weekHasContent(w: ScheduleWeek): boolean {
+  if (w.isReview) return false
+  return w.blocks.some(
+    (b) =>
+      b.passage.book !== ''
+      || b.passage.chapter !== 0
+      || (b.verses.club150 && b.verses.club150.length > 0)
+      || (b.verses.club300 && b.verses.club300.length > 0),
+  )
+}
+
+function submitRangeEdit() {
+  if (draft.value === null) return
+  rangeError.value = null
+  const start = rangeStartInput.value
+  const end = rangeEndInput.value
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+    rangeError.value = 'Both dates must be YYYY-MM-DD.'
+    return
+  }
+  if (start > end) {
+    rangeError.value = 'Season start must be on or before season end.'
+    return
+  }
+  const dayIdx = DAYS_OF_WEEK.indexOf(draft.value.meetingDayOfWeek)
+  if (isoWeekday(start) !== dayIdx || isoWeekday(end) !== dayIdx) {
+    rangeError.value
+      = `Both dates must fall on a ${fullDayName(draft.value.meetingDayOfWeek)}.`
+    return
+  }
+  const dropIdx: number[] = []
+  const contentDrops: number[] = []
+  draft.value.weeks.forEach((w, i) => {
+    if (w.date < start || w.date > end) {
+      dropIdx.push(i)
+      if (weekHasContent(w)) contentDrops.push(i)
+    }
+  })
+  const pending: RangePendingState = {
+    startDate: start,
+    endDate: end,
+    weeksToDrop: dropIdx,
+    contentBearingDrops: contentDrops,
+  }
+  // Skip the extra confirm step when nothing meaningful is being lost.
+  if (contentDrops.length === 0) {
+    applyRangeEdit(pending)
+    return
+  }
+  rangeState.value = { kind: 'confirming', pending }
+}
+
+function applyRangeEdit(pending: RangePendingState) {
+  if (draft.value === null) return
+  const targetDates = weeklyDatesBetween(pending.startDate, pending.endDate)
+  const byDate = new Map<string, ScheduleWeek>()
+  for (const w of draft.value.weeks) byDate.set(w.date, w)
+  const nextWeeks: ScheduleWeek[] = targetDates.map((d) => {
+    const existing = byDate.get(d)
+    if (existing) return existing
+    return { date: d, blocks: [], isReview: true }
+  })
+  draft.value = { ...draft.value, weeks: nextWeeks }
+  // Selection may now point at a dropped index or a shifted one — drop
+  // it rather than guess which week the user meant.
+  selection.value = null
+  rangeState.value = { kind: 'idle' }
+  rangeError.value = null
+}
+
+function confirmRangeEdit() {
+  if (rangeState.value.kind !== 'confirming') return
+  applyRangeEdit(rangeState.value.pending)
 }
 
 // =============================================================================
@@ -710,10 +811,53 @@ function backToSettings() {
             </option>
           </select>
         </label>
+        <button
+          type="button"
+          class="range-button"
+          @click="openRangeEditor"
+        >
+          Edit season range…
+        </button>
         <p class="day-picker-hint">
           Changing the meeting day shifts every practice week by the same
-          delta. Meet weekends stay on their own dates.
+          delta. Season range picks the first and last week — anything
+          outside is dropped, gaps inside fill in as review weeks.
         </p>
+      </div>
+
+      <div
+        v-if="mode === 'edit' && rangeState.kind === 'editing'"
+        class="range-editor"
+        role="dialog"
+        aria-label="Edit season range"
+      >
+        <div class="range-fields">
+          <label class="field">
+            <span>Season start ({{ fullDayName(display.meetingDayOfWeek) }})</span>
+            <input
+              v-model="rangeStartInput"
+              type="date"
+            />
+          </label>
+          <label class="field">
+            <span>Season end ({{ fullDayName(display.meetingDayOfWeek) }})</span>
+            <input
+              v-model="rangeEndInput"
+              type="date"
+            />
+          </label>
+        </div>
+        <p v-if="rangeError" class="field-error" role="alert">
+          {{ rangeError }}
+        </p>
+        <div class="form-actions">
+          <button type="button" class="secondary" @click="cancelRangeEdit">
+            Cancel
+          </button>
+          <button type="button" class="primary" @click="submitRangeEdit">
+            Apply
+          </button>
+        </div>
       </div>
 
       <section class="editor-body" :class="{ 'is-editing': mode === 'edit' }">
@@ -894,11 +1038,6 @@ function backToSettings() {
                       + Add a passage
                     </button>
                   </template>
-                  <div class="form-actions">
-                    <button type="button" class="danger" @click="removeSelectedWeek">
-                      Remove this week
-                    </button>
-                  </div>
                 </form>
               </template>
               <template v-else-if="row.kind === 'meet'">
@@ -971,9 +1110,6 @@ function backToSettings() {
             </template>
           </div>
           <div v-if="mode === 'edit'" class="add-row">
-            <button type="button" class="add-week" @click="addWeekAfterLast">
-              + Add a week
-            </button>
             <button type="button" class="add-week" @click="addMeetAfterLast">
               + Add a meet
             </button>
@@ -995,6 +1131,22 @@ function backToSettings() {
       <p>
         This discards your customizations for this material and reapplies
         the bundled schedule. Existing memorize progress is unaffected.
+      </p>
+    </ConfirmDialog>
+
+    <ConfirmDialog
+      v-if="rangeState.kind === 'confirming'"
+      title="Drop weeks with content?"
+      confirm-label="Drop them"
+      destructive
+      @confirm="confirmRangeEdit"
+      @cancel="cancelRangeEdit"
+    >
+      <p>
+        The new range removes {{ rangeState.pending.contentBearingDrops.length }}
+        week{{ rangeState.pending.contentBearingDrops.length === 1 ? '' : 's' }}
+        with a passage or verse numbers assigned. You'll lose that data
+        for these weeks.
       </p>
     </ConfirmDialog>
   </div>
@@ -1059,6 +1211,44 @@ function backToSettings() {
   color: var(--color-muted);
   font-style: italic;
 }
+
+.range-button {
+  padding: 0.3rem 0.7rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.range-button:hover {
+  border-color: var(--color-accent);
+}
+
+.range-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent);
+  border-radius: 6px;
+}
+
+.range-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+}
+
+@media (max-width: 480px) {
+  .range-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 .status {
   padding: 2rem;
