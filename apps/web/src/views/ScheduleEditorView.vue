@@ -1267,19 +1267,11 @@ function backToSettings() {
                       :key="bi"
                     >
                       <div class="passage-block" :class="{ 'has-siblings': row.week.blocks.length > 1 }">
-                        <div class="passage-block-heading">
-                          <span
-                            v-if="row.week.blocks.length > 1"
-                            class="passage-block-index"
-                          >Passage {{ bi + 1 }}</span>
-                          <button
-                            type="button"
-                            class="mini-danger"
-                            aria-label="Remove this passage"
-                            @click="removeBlock(bi)"
-                          >
-                            ×
-                          </button>
+                        <div
+                          v-if="row.week.blocks.length > 1"
+                          class="passage-block-heading"
+                        >
+                          <span class="passage-block-index">Passage {{ bi + 1 }}</span>
                         </div>
                         <template v-if="materialBooks.length > 0">
                           <div class="passage-row">
@@ -1343,6 +1335,15 @@ function backToSettings() {
                                 >{{ v }}</option>
                               </select>
                             </label>
+                            <button
+                              type="button"
+                              class="passage-remove"
+                              :aria-label="row.week.blocks.length > 1 ? 'Remove this passage' : 'Remove passage (mark this week as review)'"
+                              :title="row.week.blocks.length > 1 ? 'Remove this passage' : 'Remove passage (mark this week as review)'"
+                              @click="removeBlock(bi)"
+                            >
+                              ×
+                            </button>
                           </div>
                         </template>
                         <template v-else>
@@ -2625,11 +2626,37 @@ fieldset legend {
   color: var(--color-muted);
 }
 
-/* × remove always right-aligned — with siblings it sits opposite the
- * "Passage N" label; solo it right-floats on its own so the picker
- * row below reads without a left-aligned orphan icon. */
-.passage-block-heading .mini-danger {
-  margin-left: auto;
+/* Remove-passage button lives inline at the end of the picker row so
+ * it doesn't float alone on solo blocks. Sized to match dropdown
+ * height + baseline. Muted resting state; error tone on hover so the
+ * destructive action is legible without shouting. */
+.passage-remove {
+  align-self: flex-end;
+  width: 1.9rem;
+  height: 1.9rem;
+  margin-left: 0.25rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.passage-remove:hover {
+  border-color: var(--color-error);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.passage-remove:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
 }
 
 .passage-block-index {
