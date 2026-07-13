@@ -912,14 +912,44 @@ function discard() {
   if (saved.value !== null) draft.value = cloneSchedule(saved.value)
 }
 
+/** True when a block has a real passage — book set, chapter and verses
+ *  ≥ 1, endVerse ≥ startVerse. Half-filled blocks (user in the middle
+ *  of the picker cascade) fail this and are treated as "not there" by
+ *  the save-time strip and the view-mode render. */
+function isNonEmptyBlock(block: PassageBlock): boolean {
+  const { book, chapter, startVerse, endVerse } = block.passage
+  return (
+    book !== ''
+    && chapter >= 1
+    && startVerse >= 1
+    && endVerse >= startVerse
+  )
+}
+
 async function save() {
   if (draft.value === null || saving.value) return
   saving.value = true
   error.value = null
+  // Strip half-filled passage blocks before PUT — a block whose picker
+  // never got a book / chapter / verse range is treated as "not there"
+  // per the design: an empty passage isn't a validator failure to
+  // surface, it's just a block the user abandoned. A week whose only
+  // block was empty collapses to a review week (isReview flips true).
+  const payload = cloneSchedule(draft.value)
+  for (const week of payload.weeks) {
+    const filtered = week.blocks.filter(isNonEmptyBlock)
+    if (filtered.length !== week.blocks.length) {
+      week.blocks = filtered
+      if (filtered.length === 0) week.isReview = true
+    }
+  }
   try {
-    await api.putSchedule(materialId.value, draft.value)
+    await api.putSchedule(materialId.value, payload)
     invalidateScheduleCache(materialId.value)
-    saved.value = cloneSchedule(draft.value)
+    saved.value = cloneSchedule(payload)
+    // Draft picks up the cleaned payload so the editor rerenders
+    // without the ghost blocks the user's local session still had.
+    draft.value = cloneSchedule(payload)
     mode.value = 'view'
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
@@ -1218,11 +1248,11 @@ function backToSettings() {
                   @keydown.enter="mode === 'edit' ? selectWeek(row.weekIdx) : null"
                 >
                   <span class="c-date">- {{ row.ordinal }}</span>
-                  <template v-if="row.week.isReview">
+                  <template v-if="row.week.isReview || row.week.blocks.filter(isNonEmptyBlock).length === 0">
                     <span class="c-pass c-review">Review</span>
                   </template>
                   <template
-                    v-for="(block, bi) in row.week.blocks"
+                    v-for="(block, bi) in row.week.blocks.filter(isNonEmptyBlock)"
                     v-else
                     :key="bi"
                   >
@@ -1267,12 +1297,6 @@ function backToSettings() {
                       :key="bi"
                     >
                       <div class="passage-block" :class="{ 'has-siblings': row.week.blocks.length > 1 }">
-                        <div
-                          v-if="row.week.blocks.length > 1"
-                          class="passage-block-heading"
-                        >
-                          <span class="passage-block-index">Passage {{ bi + 1 }}</span>
-                        </div>
                         <template v-if="materialBooks.length > 0">
                           <div class="passage-row">
                             <label class="passage-field passage-field-book">
@@ -2619,13 +2643,6 @@ fieldset legend {
   margin-top: 0.75rem;
 }
 
-.passage-block-heading {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--color-muted);
-}
-
 /* Remove-passage button lives inline at the end of the picker row so
  * it doesn't float alone on solo blocks. Sized to match dropdown
  * height + baseline. Muted resting state; error tone on hover so the
@@ -2657,13 +2674,6 @@ fieldset legend {
 .passage-remove:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
-}
-
-.passage-block-index {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 fieldset.verses {
