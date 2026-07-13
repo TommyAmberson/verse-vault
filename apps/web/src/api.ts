@@ -124,6 +124,22 @@ export interface ActivityResponse {
   requestedDays: number
 }
 
+/** Per-verse club-tag projection returned by
+ *  `GET /api/materials/:id/passages`. Used by the schedule editor to
+ *  derive Club 150 / 300 pill sets from a passage range. `clubs` is a
+ *  bare-number array: `[150]`, `[300]`, `[150, 300]`, or `[]` (Full
+ *  only). Order is canonical (as bundled on disk); verses within one
+ *  chapter are contiguous and sorted, but callers must not depend on
+ *  a specific chapter ordering. */
+export interface MaterialPassages {
+  passages: {
+    book: string
+    chapter: number
+    verse: number
+    clubs: number[]
+  }[]
+}
+
 export interface StatsResponse {
   materialId: string
   versesLearned: number
@@ -364,6 +380,12 @@ export interface ApiClient {
   /** DELETE /api/materials/:materialId/schedule — drops the user's
    *  override; bundled default reapplies on next read. */
   deleteSchedule(materialId: string): Promise<{ ok: true; fallbackToBundled: boolean }>
+  /** GET /api/materials/:materialId/passages — per-verse club-tag
+   *  projection of the material's bundled `MaterialData`. Used by the
+   *  schedule editor to derive Club 150 / 300 pill sets from a
+   *  passage range without the schedule itself carrying (drift-prone)
+   *  copies of the same info. */
+  getMaterialPassages(materialId: string): Promise<MaterialPassages>
   /** Fat-client sync: snapshot + materialised test states + last
    *  applied event id. Mirrors `/sync/:materialId/state` on the API. */
   getSyncState(materialId: string): Promise<SyncStateResponse>
@@ -462,6 +484,8 @@ export function createApiClient(apiUrl: string): ApiClient {
       request('PUT', `/api/materials/${encodeURIComponent(materialId)}/schedule`, schedule),
     deleteSchedule: (materialId) =>
       request('DELETE', `/api/materials/${encodeURIComponent(materialId)}/schedule`),
+    getMaterialPassages: (materialId) =>
+      request('GET', `/api/materials/${encodeURIComponent(materialId)}/passages`),
     getSyncState: (materialId) =>
       request('GET', `/api/sync/${encodeURIComponent(materialId)}/state`),
     postSyncEvents: (materialId, body) =>

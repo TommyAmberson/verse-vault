@@ -12,7 +12,7 @@ import {
   enrollUser,
   requireEnrollment,
 } from '../lib/enrollment.js';
-import { MATERIALS } from '../lib/materials.js';
+import { MATERIALS, getMaterialJson } from '../lib/materials.js';
 import { type ComposedRender, composeRender } from '../lib/render.js';
 import { DEFAULT_DIALECT, type Dialect } from '../lib/spelling.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
@@ -93,6 +93,43 @@ export function materialsRoutes(deps: MaterialsRoutesDeps) {
       if (err instanceof AlreadyEnrolledError) return c.json({ error: 'Already enrolled' }, 409);
       throw err;
     }
+  });
+
+  /** Per-verse club-tag projection of the material's bundled
+   *  MaterialData. Emitted so the schedule editor can derive
+   *  Club 150 / 300 pill sets from a passage range without the
+   *  schedule itself carrying (drift-prone, hand-editable) copies
+   *  of the same info. Any authenticated user can read it — the
+   *  clubs list is public per-deck knowledge, not user-scoped
+   *  state. Returns an empty array for materials whose bundled
+   *  JSON is missing on this environment (dev without the
+   *  content pipeline). */
+  app.get('/:id/passages', (c) => {
+    const materialId = c.req.param('id');
+    if (!MATERIALS.some((m) => m.id === materialId)) {
+      return c.json({ error: `Unknown material: ${materialId}` }, 404);
+    }
+    let material: {
+      verses?: {
+        book: string;
+        chapter: number;
+        verse: number;
+        clubs?: number[];
+      }[];
+    };
+    try {
+      material = JSON.parse(getMaterialJson(materialId));
+    } catch {
+      return c.json({ passages: [] });
+    }
+    const passages
+      = (material.verses ?? []).map((v) => ({
+        book: v.book,
+        chapter: v.chapter,
+        verse: v.verse,
+        clubs: v.clubs ?? [],
+      }));
+    return c.json({ passages });
   });
 
   app.get('/:id/status', (c) => {

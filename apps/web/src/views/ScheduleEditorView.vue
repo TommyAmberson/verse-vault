@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
-import { api } from '@/api'
+import { api, type MaterialPassages } from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { invalidateScheduleCache } from '@/lib/badges'
 import {
@@ -39,6 +39,22 @@ const mode = ref<Mode>('view')
 const loading = ref(true)
 const saving = ref(false)
 const error = ref<string | null>(null)
+
+/** Per-verse club-tag projection of the material's bundled
+ *  MaterialData. Fetched once per material load and used to derive the
+ *  Club 150 / 300 pill sets on the fly from each block's passage range.
+ *  A `passageClubs` Map keyed by `${book}|${chapter}|${verse}` gives
+ *  O(1) lookup so growing / shrinking a passage doesn't have to walk
+ *  the full projection per re-render. */
+type MaterialPassageEntry = MaterialPassages['passages'][number]
+const materialPassages = ref<MaterialPassageEntry[]>([])
+const passageClubs = computed<Map<string, number[]>>(() => {
+  const m = new Map<string, number[]>()
+  for (const p of materialPassages.value) {
+    m.set(`${p.book}|${p.chapter}|${p.verse}`, p.clubs)
+  }
+  return m
+})
 
 /** Source of truth for both the read-only view and the edit panes.
  *  Reading from `draft` in view mode is fine too (it's a clone of
@@ -203,12 +219,33 @@ const selectedMeet = computed<ScheduleMeet | null>(() => {
 // Per-week editor state
 // =============================================================================
 
-/** Sorted-unique verse list for a single tier tag. The pills show only
- *  the tier's own tagged verses (a verse tagged Club 150 shouldn't
- *  re-appear in the Club 300 pill list — the counts encode cumulative
- *  scope, the pills encode what's unique to that tier). */
-function tierPills(ns: readonly number[] | undefined): number[] {
-  return Array.from(new Set(ns ?? [])).sort((a, b) => a - b)
+/** Derive the verse numbers in a block's passage range that carry a
+ *  given club tag, straight from the material's per-verse club
+ *  projection. This is the single source of truth in the client —
+ *  the schedule doesn't need to (and no longer will, once phase B
+ *  lands) carry its own copy. Falls back to `block.verses` when the
+ *  material projection hasn't loaded yet (offline / dev without the
+ *  content pipeline). */
+function derivedVerseNumbers(
+  block: PassageBlock,
+  club: 150 | 300,
+): number[] {
+  const { book, chapter, startVerse, endVerse } = block.passage
+  if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) return []
+  const clubs = passageClubs.value
+  if (clubs.size === 0) {
+    // Projection not loaded — fall back to whatever the schedule
+    // stored so the display isn't blank on a slow / offline first
+    // paint.
+    const stored = club === 150 ? block.verses.club150 : block.verses.club300
+    return Array.from(new Set(stored ?? [])).sort((a, b) => a - b)
+  }
+  const out: number[] = []
+  for (let v = startVerse; v <= endVerse; v++) {
+    const c = clubs.get(`${book}|${chapter}|${v}`)
+    if (c && c.includes(club)) out.push(v)
+  }
+  return out
 }
 
 /** Cumulative memorize-scope count for a block: 150 = |club150|,
@@ -216,20 +253,17 @@ function tierPills(ns: readonly number[] | undefined): number[] {
  *  Bible-quiz convention that the tiers stack — a 300 kid memorizes
  *  both 150 and 300 verses; a Full kid memorizes the whole passage. */
 function cumulativeCount(block: PassageBlock, tier: 'club150' | 'club300' | 'full'): number {
-  const c150 = tierPills(block.verses.club150).length
-  const c300 = tierPills(block.verses.club300).length
-  if (tier === 'club150') return c150
+  if (tier === 'club150') return derivedVerseNumbers(block, 150).length
   if (tier === 'club300') {
     const union = new Set<number>([
-      ...(block.verses.club150 ?? []),
-      ...(block.verses.club300 ?? []),
+      ...derivedVerseNumbers(block, 150),
+      ...derivedVerseNumbers(block, 300),
     ])
     return union.size
   }
-  // full — everything the passage covers.
   const { startVerse, endVerse } = block.passage
   if (startVerse < 1 || endVerse < startVerse) return 0
-  return Math.max(endVerse - startVerse + 1, c150 + c300)
+  return endVerse - startVerse + 1
 }
 
 function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVerse'>(
@@ -246,38 +280,47 @@ function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | '
   const nextBlocks = week.blocks.map((b, i) => {
     if (i !== blockIdx) return b
     const nextPassage = { ...b.passage, [key]: value }
-    // A passage-range change (start/end verse or chapter) has to prune
-    // tagged verses that fall outside the new range — leaving stale
-    // numbers behind would produce phantom Club 150 / 300 pills for
-    // verses the passage no longer covers, and the server-side memorize
-    // algorithm would reject the row on save. Book edits don't touch
-    // the numeric range so verses stay put.
-    const rangeChanged
-      = key === 'startVerse' || key === 'endVerse' || key === 'chapter'
-    const nextVerses = rangeChanged
-      ? {
-          club150: pruneToPassage(b.verses.club150, nextPassage),
-          club300: pruneToPassage(b.verses.club300, nextPassage),
-        }
-      : b.verses
+    // Re-derive club-tagged verse lists from the material's per-verse
+    // projection every time the passage changes — grow, shrink, or
+    // chapter jump all pick up the correct tags automatically instead
+    // of drifting from what the algorithm will actually see. Falls
+    // back to the previously-stored lists when the projection hasn't
+    // loaded (offline / dev without content pipeline) so save doesn't
+    // silently blank the row.
+    const nextVerses = deriveVersesForPassage(nextPassage, b.verses)
     return { ...b, passage: nextPassage, verses: nextVerses }
   })
   draft.value.weeks[idx] = { ...week, blocks: nextBlocks }
 }
 
-/** Drop verse numbers that fall outside `[passage.startVerse,
- *  passage.endVerse]`. Undefined / not-yet-set passages (start or end
- *  is 0) leave the list alone so the user can type the range without
- *  the pills disappearing mid-edit. */
-function pruneToPassage(
-  ns: number[] | undefined,
+/** Recompute `{ club150, club300 }` for a block from the material's
+ *  verse projection. Any verse in `[startVerse, endVerse]` whose
+ *  material entry tags 150 lands in `club150`; same for 300. Verses
+ *  tagged both (rare but valid on disk) land in both lists. */
+function deriveVersesForPassage(
   passage: PassageBlock['passage'],
-): number[] | undefined {
-  if (!ns || ns.length === 0) return ns
-  const { startVerse, endVerse } = passage
-  if (startVerse < 1 || endVerse < 1) return ns
-  const kept = ns.filter((n) => n >= startVerse && n <= endVerse)
-  return kept.length === ns.length ? ns : kept
+  fallback: PassageBlock['verses'],
+): PassageBlock['verses'] {
+  const { book, chapter, startVerse, endVerse } = passage
+  if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) {
+    return { club150: [], club300: [] }
+  }
+  const clubs = passageClubs.value
+  if (clubs.size === 0) {
+    // Projection not loaded — keep whatever was stored so the row
+    // round-trips through save without a data loss on a slow first
+    // paint.
+    return fallback
+  }
+  const c150: number[] = []
+  const c300: number[] = []
+  for (let v = startVerse; v <= endVerse; v++) {
+    const tags = clubs.get(`${book}|${chapter}|${v}`)
+    if (!tags) continue
+    if (tags.includes(150)) c150.push(v)
+    if (tags.includes(300)) c300.push(v)
+  }
+  return { club150: c150, club300: c300 }
 }
 
 function addPassageBlock() {
@@ -591,9 +634,22 @@ async function refresh() {
   loading.value = true
   error.value = null
   try {
-    const s = await api.getSchedule(materialId.value)
+    // Fire both in parallel — the passage summary is per-material static
+    // data, so a schedule refresh triggered by a save doesn't need to
+    // block on re-fetching it, but it also doesn't cost anything to
+    // re-request thanks to server-side caching.
+    const [s, passages] = await Promise.all([
+      api.getSchedule(materialId.value),
+      api.getMaterialPassages(materialId.value).catch(
+        // A missing / offline passages endpoint shouldn't gate the
+        // whole editor — Full-tier fallback still renders, just without
+        // the derived pill breakdown.
+        () => ({ passages: [] }),
+      ),
+    ])
     saved.value = s
     draft.value = s === null ? null : cloneSchedule(s)
+    materialPassages.value = passages.passages
     // Drop back to view mode after a refresh — a save commits then
     // returns here, and a route change that re-enters the view should
     // never land in edit by surprise.
@@ -893,7 +949,7 @@ function backToSettings() {
                       <span class="lbl">150</span>
                       <div class="vals">
                         <span
-                          v-for="n in block.verses.club150 ?? []"
+                          v-for="n in derivedVerseNumbers(block, 150)"
                           :key="n"
                           class="v"
                         >{{ n }}</span>
@@ -903,7 +959,7 @@ function backToSettings() {
                       <span class="lbl">300</span>
                       <div class="vals">
                         <span
-                          v-for="n in block.verses.club300 ?? []"
+                          v-for="n in derivedVerseNumbers(block, 300)"
                           :key="n"
                           class="v"
                         >{{ n }}</span>
@@ -992,12 +1048,12 @@ function backToSettings() {
                           </span>
                           <div class="verses-vals">
                             <span
-                              v-for="n in tierPills(block.verses.club150)"
+                              v-for="n in derivedVerseNumbers(block, 150)"
                               :key="n"
                               class="v v-150"
                             >{{ n }}</span>
                             <span
-                              v-if="!tierPills(block.verses.club150).length"
+                              v-if="!derivedVerseNumbers(block, 150).length"
                               class="verses-empty"
                             >—</span>
                           </div>
@@ -1008,12 +1064,12 @@ function backToSettings() {
                           </span>
                           <div class="verses-vals">
                             <span
-                              v-for="n in tierPills(block.verses.club300)"
+                              v-for="n in derivedVerseNumbers(block, 300)"
                               :key="n"
                               class="v v-300"
                             >{{ n }}</span>
                             <span
-                              v-if="!tierPills(block.verses.club300).length"
+                              v-if="!derivedVerseNumbers(block, 300).length"
                               class="verses-empty"
                             >—</span>
                           </div>
