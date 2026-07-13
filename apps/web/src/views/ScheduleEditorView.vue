@@ -59,6 +59,57 @@ const passageClubs = computed<Map<string, number[]>>(() => {
   return m
 })
 
+/** Deck's book list in canonical order (first-seen in the projection),
+ *  used to populate the passage picker's Book dropdown. */
+const materialBooks = computed<string[]>(() => {
+  const seen: string[] = []
+  for (const p of materialPassages.value) {
+    if (!seen.includes(p.book)) seen.push(p.book)
+  }
+  return seen
+})
+
+/** book → sorted list of chapter numbers present in the projection. */
+const materialChaptersByBook = computed<Map<string, number[]>>(() => {
+  const m = new Map<string, Set<number>>()
+  for (const p of materialPassages.value) {
+    let s = m.get(p.book)
+    if (s === undefined) {
+      s = new Set()
+      m.set(p.book, s)
+    }
+    s.add(p.chapter)
+  }
+  const out = new Map<string, number[]>()
+  for (const [k, v] of m) out.set(k, [...v].sort((a, b) => a - b))
+  return out
+})
+
+/** (book, chapter) → sorted list of verse numbers present in the
+ *  projection. Used to bound the Start / End verse dropdowns to the
+ *  actual verses the material carries — a passage that references a
+ *  verse the material doesn't have would surface as a coverage gap on
+ *  neighbours but not the invalid passage itself. */
+const materialVersesByChapter = computed<Map<string, number[]>>(() => {
+  const m = new Map<string, number[]>()
+  for (const p of materialPassages.value) {
+    const key = `${p.book}|${p.chapter}`
+    const arr = m.get(key)
+    if (arr === undefined) m.set(key, [p.verse])
+    else arr.push(p.verse)
+  }
+  for (const v of m.values()) v.sort((a, b) => a - b)
+  return m
+})
+
+function chaptersFor(book: string): number[] {
+  return materialChaptersByBook.value.get(book) ?? []
+}
+
+function versesFor(book: string, chapter: number): number[] {
+  return materialVersesByChapter.value.get(`${book}|${chapter}`) ?? []
+}
+
 /** Source of truth for both the read-only view and the edit panes.
  *  Reading from `draft` in view mode is fine too (it's a clone of
  *  saved with no edits), but binding to `saved` while not editing
@@ -314,6 +365,19 @@ function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | '
   key: K,
   value: K extends 'book' ? string : number,
 ) {
+  updateBlockPassage(blockIdx, { [key]: value } as Partial<PassageBlock['passage']>)
+}
+
+/** Apply a multi-field patch to a block's passage. Handles the cascade
+ *  when a higher-level field changes (book → resets chapter + verses;
+ *  chapter → resets verses; startVerse pushing past endVerse → clamps
+ *  endVerse up), so the passage never lands in an internally invalid
+ *  state. Re-derives club-tagged verse lists from the material after
+ *  every change. */
+function updateBlockPassage(
+  blockIdx: number,
+  patch: Partial<PassageBlock['passage']>,
+) {
   if (draft.value === null || selection.value?.kind !== 'week') return
   const idx = selection.value.weekIdx
   const week = draft.value.weeks[idx]
@@ -322,14 +386,21 @@ function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | '
   if (!block) return
   const nextBlocks = week.blocks.map((b, i) => {
     if (i !== blockIdx) return b
-    const nextPassage = { ...b.passage, [key]: value }
-    // Re-derive club-tagged verse lists from the material's per-verse
-    // projection every time the passage changes — grow, shrink, or
-    // chapter jump all pick up the correct tags automatically instead
-    // of drifting from what the algorithm will actually see. Falls
-    // back to the previously-stored lists when the projection hasn't
-    // loaded (offline / dev without content pipeline) so save doesn't
-    // silently blank the row.
+    let nextPassage = { ...b.passage, ...patch }
+    if (patch.book !== undefined && patch.book !== b.passage.book) {
+      nextPassage = { ...nextPassage, chapter: 0, startVerse: 0, endVerse: 0 }
+    }
+    if (patch.chapter !== undefined && patch.chapter !== b.passage.chapter) {
+      nextPassage = { ...nextPassage, startVerse: 0, endVerse: 0 }
+    }
+    if (
+      patch.startVerse !== undefined
+      && nextPassage.startVerse > 0
+      && nextPassage.endVerse > 0
+      && nextPassage.startVerse > nextPassage.endVerse
+    ) {
+      nextPassage = { ...nextPassage, endVerse: nextPassage.startVerse }
+    }
     const nextVerses = deriveVersesForPassage(nextPassage, b.verses)
     return { ...b, passage: nextPassage, verses: nextVerses }
   })
@@ -1094,41 +1165,112 @@ function backToSettings() {
                             ×
                           </button>
                         </legend>
-                        <label class="field passage-book">
-                          <span>Book</span>
-                          <input
-                            type="text"
-                            :value="block.passage.book"
-                            @input="updateBlockPassageField(bi, 'book', ($event.target as HTMLInputElement).value)"
-                          />
-                        </label>
-                        <label class="field passage-chapter">
-                          <span>Chapter</span>
-                          <input
-                            type="number"
-                            min="1"
-                            :value="block.passage.chapter || ''"
-                            @input="updateBlockPassageField(bi, 'chapter', Number(($event.target as HTMLInputElement).value) || 0)"
-                          />
-                        </label>
-                        <label class="field passage-start">
-                          <span>Start verse</span>
-                          <input
-                            type="number"
-                            min="1"
-                            :value="block.passage.startVerse || ''"
-                            @input="updateBlockPassageField(bi, 'startVerse', Number(($event.target as HTMLInputElement).value) || 0)"
-                          />
-                        </label>
-                        <label class="field passage-end">
-                          <span>End verse</span>
-                          <input
-                            type="number"
-                            min="1"
-                            :value="block.passage.endVerse || ''"
-                            @input="updateBlockPassageField(bi, 'endVerse', Number(($event.target as HTMLInputElement).value) || 0)"
-                          />
-                        </label>
+                        <template v-if="materialBooks.length > 0">
+                          <label class="field passage-book">
+                            <span>Book</span>
+                            <select
+                              :value="block.passage.book"
+                              @change="updateBlockPassage(bi, { book: ($event.target as HTMLSelectElement).value })"
+                            >
+                              <option value="">— select —</option>
+                              <option
+                                v-for="b in materialBooks"
+                                :key="b"
+                                :value="b"
+                              >
+                                {{ b }}
+                              </option>
+                            </select>
+                          </label>
+                          <label class="field passage-chapter">
+                            <span>Chapter</span>
+                            <select
+                              :value="block.passage.chapter || ''"
+                              :disabled="!block.passage.book"
+                              @change="updateBlockPassage(bi, { chapter: Number(($event.target as HTMLSelectElement).value) || 0 })"
+                            >
+                              <option value="">— select —</option>
+                              <option
+                                v-for="c in chaptersFor(block.passage.book)"
+                                :key="c"
+                                :value="c"
+                              >
+                                {{ c }}
+                              </option>
+                            </select>
+                          </label>
+                          <label class="field passage-start">
+                            <span>Start verse</span>
+                            <select
+                              :value="block.passage.startVerse || ''"
+                              :disabled="!block.passage.chapter"
+                              @change="updateBlockPassage(bi, { startVerse: Number(($event.target as HTMLSelectElement).value) || 0 })"
+                            >
+                              <option value="">— select —</option>
+                              <option
+                                v-for="v in versesFor(block.passage.book, block.passage.chapter)"
+                                :key="v"
+                                :value="v"
+                              >
+                                {{ v }}
+                              </option>
+                            </select>
+                          </label>
+                          <label class="field passage-end">
+                            <span>End verse</span>
+                            <select
+                              :value="block.passage.endVerse || ''"
+                              :disabled="!block.passage.startVerse"
+                              @change="updateBlockPassage(bi, { endVerse: Number(($event.target as HTMLSelectElement).value) || 0 })"
+                            >
+                              <option value="">— select —</option>
+                              <option
+                                v-for="v in versesFor(block.passage.book, block.passage.chapter).filter((n) => n >= block.passage.startVerse)"
+                                :key="v"
+                                :value="v"
+                              >
+                                {{ v }}
+                              </option>
+                            </select>
+                          </label>
+                        </template>
+                        <template v-else>
+                          <label class="field passage-book">
+                            <span>Book</span>
+                            <input
+                              type="text"
+                              :value="block.passage.book"
+                              @input="updateBlockPassageField(bi, 'book', ($event.target as HTMLInputElement).value)"
+                            />
+                          </label>
+                          <label class="field passage-chapter">
+                            <span>Chapter</span>
+                            <input
+                              type="number"
+                              min="1"
+                              :value="block.passage.chapter || ''"
+                              @input="updateBlockPassageField(bi, 'chapter', Number(($event.target as HTMLInputElement).value) || 0)"
+                            />
+                          </label>
+                          <label class="field passage-start">
+                            <span>Start verse</span>
+                            <input
+                              type="number"
+                              min="1"
+                              :value="block.passage.startVerse || ''"
+                              @input="updateBlockPassageField(bi, 'startVerse', Number(($event.target as HTMLInputElement).value) || 0)"
+                            />
+                          </label>
+                          <label class="field passage-end">
+                            <span>End verse</span>
+                            <input
+                              type="number"
+                              min="1"
+                              :value="block.passage.endVerse || ''"
+                              @input="updateBlockPassageField(bi, 'endVerse', Number(($event.target as HTMLInputElement).value) || 0)"
+                            />
+                          </label>
+                        </template>
                       </fieldset>
                       <div class="verses-summary" aria-label="Verse numbers">
                         <div class="verses-row">
@@ -2179,10 +2321,26 @@ fieldset legend {
   font-size: 0.9rem;
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   outline: 2px solid var(--color-accent);
   outline-offset: -1px;
   border-color: var(--color-accent);
+}
+
+.field select {
+  padding: 0.35rem 0.55rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.field select:disabled {
+  color: var(--color-muted);
+  cursor: not-allowed;
 }
 
 .passage-book {
