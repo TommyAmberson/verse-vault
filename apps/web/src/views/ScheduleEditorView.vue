@@ -17,11 +17,9 @@ import {
   cloneSchedule,
   englishOrdinal,
   formatPassage,
-  formatVerseList,
   fullDayName,
   isoWeekStart,
   monthName,
-  parseVerseList,
   removeMeet,
   shiftDate,
   slugifyMeetId,
@@ -205,75 +203,24 @@ const selectedMeet = computed<ScheduleMeet | null>(() => {
 // Per-week editor state
 // =============================================================================
 
-interface BlockVerseMirror {
-  club150: string
-  club300: string
-}
-
-/** Per-block text mirrors for the two comma-separated verse inputs.
- *  Bound directly via v-model so the user sees what they typed before
- *  the parser runs; on blur we parse + commit into the draft and the
- *  mirror re-syncs from the formatted draft value. Indexed by block
- *  index so multi-passage weeks get one row of inputs per passage
- *  (spec §3.5 "one block per passage"). */
-const verseInputs = ref<BlockVerseMirror[]>([])
-const verseInputError = ref<string | null>(null)
-
-/** Re-seed the mirrors whenever the selected week's blocks change —
- *  swapping selection, toggling review, adding or removing a passage
- *  block. Without this the prior state's text would linger. */
-function reseedVerseInputs() {
-  const w = selectedWeek.value
-  verseInputError.value = null
-  if (!w) {
-    verseInputs.value = []
-    return
+/** Verse numbers in a block's passage range that aren't tagged Club 150
+ *  or Club 300 — the Full-tier remainder. Editors read this to know
+ *  which numbers cover the "everything else in this passage" bucket
+ *  after the tagged sets are subtracted; consumers of the schedule
+ *  compute the same set in the engine (`crates/core` derives it
+ *  per-block from passage minus club150 ∪ club300). Empty passage or
+ *  0-start returns an empty list — the passage isn't real yet. */
+function fullVerseNumbers(block: PassageBlock): number[] {
+  const { startVerse, endVerse } = block.passage
+  if (startVerse < 1 || endVerse < startVerse) return []
+  const tagged = new Set<number>()
+  for (const n of block.verses.club150 ?? []) tagged.add(n)
+  for (const n of block.verses.club300 ?? []) tagged.add(n)
+  const out: number[] = []
+  for (let n = startVerse; n <= endVerse; n++) {
+    if (!tagged.has(n)) out.push(n)
   }
-  verseInputs.value = w.blocks.map((b) => ({
-    club150: formatVerseList(b.verses.club150),
-    club300: formatVerseList(b.verses.club300),
-  }))
-}
-
-watch(
-  () => {
-    const w = selectedWeek.value
-    if (!w) return ''
-    // Fingerprint the current blocks[] shape so the watcher fires on
-    // any structural mutation (add / remove / re-select). Verse-value
-    // edits are committed through the same code path that re-formats
-    // the mirror, so their round-trip doesn't need to fire the watcher.
-    return JSON.stringify(w.blocks.map((b) => b.passage))
-  },
-  reseedVerseInputs,
-  { immediate: true },
-)
-
-function commitBlockVerseInput(blockIdx: number, tier: 'club150' | 'club300') {
-  if (draft.value === null || selection.value?.kind !== 'week') return
-  const mirror = verseInputs.value[blockIdx]
-  if (!mirror) return
-  const raw = mirror[tier]
-  const parsed = parseVerseList(raw)
-  if (parsed === null) {
-    verseInputError.value
-      = 'Verses must be positive whole numbers separated by commas or spaces.'
-    return
-  }
-  verseInputError.value = null
-  const idx = selection.value.weekIdx
-  const week = draft.value.weeks[idx]
-  if (!week) return
-  const block = week.blocks[blockIdx]
-  if (!block) return
-  const nextBlocks = week.blocks.map((b, i) => {
-    if (i !== blockIdx) return b
-    return { ...b, verses: { ...b.verses, [tier]: parsed } }
-  })
-  draft.value.weeks[idx] = { ...week, blocks: nextBlocks }
-  // Re-format from canonical (sorted, deduped is the parser's
-  // responsibility) so the user sees the normalized value after blur.
-  mirror[tier] = formatVerseList(parsed)
+  return out
 }
 
 function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVerse'>(
@@ -999,37 +946,57 @@ function backToSettings() {
                           />
                         </label>
                       </fieldset>
-                      <fieldset class="verses" v-if="verseInputs[bi]">
-                        <legend>Verse numbers</legend>
-                        <label class="field">
-                          <span>Club 150</span>
-                          <input
-                            v-model="verseInputs[bi]!.club150"
-                            type="text"
-                            inputmode="numeric"
-                            placeholder="e.g. 5, 10, 17, 18"
-                            @blur="commitBlockVerseInput(bi, 'club150')"
-                          />
-                        </label>
-                        <label class="field">
-                          <span>Club 300</span>
-                          <input
-                            v-model="verseInputs[bi]!.club300"
-                            type="text"
-                            inputmode="numeric"
-                            placeholder="e.g. 1, 2, 4, 8"
-                            @blur="commitBlockVerseInput(bi, 'club300')"
-                          />
-                        </label>
-                      </fieldset>
+                      <div class="verses-summary" aria-label="Verse numbers">
+                        <div class="verses-row">
+                          <span class="verses-label club-150">
+                            150 · {{ (block.verses.club150 ?? []).length }}
+                          </span>
+                          <div class="verses-vals">
+                            <span
+                              v-for="n in block.verses.club150 ?? []"
+                              :key="n"
+                              class="v v-150"
+                            >{{ n }}</span>
+                            <span
+                              v-if="!(block.verses.club150 ?? []).length"
+                              class="verses-empty"
+                            >—</span>
+                          </div>
+                        </div>
+                        <div class="verses-row">
+                          <span class="verses-label club-300">
+                            300 · {{ (block.verses.club300 ?? []).length }}
+                          </span>
+                          <div class="verses-vals">
+                            <span
+                              v-for="n in block.verses.club300 ?? []"
+                              :key="n"
+                              class="v v-300"
+                            >{{ n }}</span>
+                            <span
+                              v-if="!(block.verses.club300 ?? []).length"
+                              class="verses-empty"
+                            >—</span>
+                          </div>
+                        </div>
+                        <div class="verses-row">
+                          <span class="verses-label club-full">
+                            Full · {{ fullVerseNumbers(block).length }}
+                          </span>
+                          <div class="verses-vals">
+                            <span
+                              v-for="n in fullVerseNumbers(block)"
+                              :key="n"
+                              class="v v-full"
+                            >{{ n }}</span>
+                            <span
+                              v-if="!fullVerseNumbers(block).length"
+                              class="verses-empty"
+                            >—</span>
+                          </div>
+                        </div>
+                      </div>
                     </template>
-                    <p v-if="verseInputError" class="field-error" role="alert">
-                      {{ verseInputError }}
-                    </p>
-                    <p class="field-hint">
-                      Comma- or space-separated verse numbers. Saved to
-                      the draft on blur.
-                    </p>
                     <button
                       type="button"
                       class="add-block"
@@ -1746,6 +1713,84 @@ button.secondary:hover:not(:disabled) {
   font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
   font-size: 0.85rem;
   letter-spacing: 0.04em;
+}
+
+/* Verse numbers block — read-only summary of what's covered by the
+ * passage, split into Club 150 / Club 300 / Full. The engine derives
+ * Full per-block (passage range minus 150 ∪ 300); the editor mirrors
+ * that so the user sees exactly what the algorithm will pick up. */
+.verses-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.verses-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.verses-label {
+  flex: 0 0 5rem;
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.verses-label.club-150 {
+  color: var(--color-accent);
+}
+
+.verses-label.club-300 {
+  color: var(--color-grade-hard);
+}
+
+.verses-label.club-full {
+  color: var(--color-muted);
+}
+
+.verses-vals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.verses-vals .v {
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  line-height: 1.25;
+}
+
+.verses-vals .v-150 {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.verses-vals .v-300 {
+  background: var(--color-grade-hard-bg);
+  color: var(--color-grade-hard);
+}
+
+.verses-vals .v-full {
+  background: var(--color-bg-card);
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+}
+
+.verses-empty {
+  color: var(--color-muted);
+  font-style: italic;
+  font-size: 0.85rem;
 }
 
 .form-actions {
