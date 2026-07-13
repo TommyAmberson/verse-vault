@@ -1400,15 +1400,18 @@ button.secondary:hover:not(:disabled) {
     gap: 0.3rem 1rem;
     align-items: baseline;
     background: transparent;
-    border: none;
-    border-top: 1px solid var(--color-border);
+    /* Explicit `0` on the non-top sides (rather than `border: none`)
+     * so the review override — which sets `border-style` back to
+     * solid to cancel the base-regime dashed card border — can't
+     * silently re-inflate to `medium` (3px) here. */
+    border: 0 solid var(--color-border);
+    border-top-width: 1px;
     border-radius: 0;
     padding: 0.5rem 1rem;
     box-shadow: none;
   }
   .sched .wk.is-review {
     border-style: solid;
-    border-top: 1px solid var(--color-border);
   }
   .sched .wk.is-current {
     background: var(--color-accent-soft);
