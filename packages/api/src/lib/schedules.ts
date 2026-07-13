@@ -134,16 +134,6 @@ function isValidIsoDate(s: string): boolean {
   return m >= 1 && m <= 12 && d >= 1 && d <= 31;
 }
 
-interface SchedulePayload {
-  version: number;
-  materialId: string;
-  season: string;
-  title: string;
-  meetingDayOfWeek: string;
-  weeks: unknown[];
-  meets?: ValidatedMeet[];
-}
-
 /** Spec'd Meet shape from data/schedules/*.json. `id` is a stable slug
  *  the chain UI's `move_to_next` gates may reference; `startDate` and
  *  `endDate` define the major-checkpoint window for those gates. The
@@ -161,29 +151,139 @@ export interface ValidatedMeet {
   location: string;
 }
 
-/** Field-level validation for `weeks[i].passage` on non-Review weeks.
- *  `passage: null` is the valid Review-week shape and is gated above
- *  by the `isReview` check; this helper is only called when the week
- *  is supposed to carry real content. */
-function validateWeekPassage(i: number, raw: unknown): void {
+interface ValidatedPassage {
+  book: string;
+  chapter: number;
+  startVerse: number;
+  endVerse: number;
+}
+
+interface ClubVerseLists {
+  club150: number[];
+  club300: number[];
+}
+
+/** One passage's worth of a week's content: a `(book, chapter,
+ *  start..end)` reference and the per-club verse-number splits within
+ *  that reference. Normal weeks carry one block; NT Survey-style
+ *  compound weeks carry two. `verse-vault-core@0.7.0` / `verse-vault-wasm@0.7.0`
+ *  consume `blocks[]` natively, so persisted v2 schedules pass through
+ *  to the WASM engine verbatim. */
+export interface PassageBlock {
+  passage: ValidatedPassage;
+  verses: ClubVerseLists;
+}
+
+export interface ScheduleWeekV2 {
+  date: string;
+  blocks: PassageBlock[];
+  isReview: boolean;
+}
+
+export interface SchedulePayloadV2 {
+  version: 2;
+  materialId: string;
+  season: string;
+  title: string;
+  meetingDayOfWeek: string;
+  weeks: ScheduleWeekV2[];
+  meets?: ValidatedMeet[];
+}
+
+function validatePassage(label: string, raw: unknown): ValidatedPassage {
   if (typeof raw !== 'object' || raw === null) {
-    throw new ScheduleValidationError(
-      `weeks[${i}].passage must be an object on non-review weeks`,
-    );
+    throw new ScheduleValidationError(`${label} must be an object`);
   }
   const p = raw as Record<string, unknown>;
   if (typeof p.book !== 'string' || p.book.length === 0) {
-    throw new ScheduleValidationError(`weeks[${i}].passage.book must be a non-empty string`);
+    throw new ScheduleValidationError(`${label}.book must be a non-empty string`);
   }
   for (const f of ['chapter', 'startVerse', 'endVerse'] as const) {
     const v = p[f];
     if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) {
-      throw new ScheduleValidationError(`weeks[${i}].passage.${f} must be a positive integer`);
+      throw new ScheduleValidationError(`${label}.${f} must be a positive integer`);
     }
   }
   if ((p.endVerse as number) < (p.startVerse as number)) {
-    throw new ScheduleValidationError(`weeks[${i}].passage.endVerse is before startVerse`);
+    throw new ScheduleValidationError(`${label}.endVerse is before startVerse`);
   }
+  return {
+    book: p.book,
+    chapter: p.chapter as number,
+    startVerse: p.startVerse as number,
+    endVerse: p.endVerse as number,
+  };
+}
+
+function validateClubVerseLists(label: string, raw: unknown): ClubVerseLists {
+  if (raw === undefined || raw === null) return { club150: [], club300: [] };
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new ScheduleValidationError(`${label} must be an object`);
+  }
+  const v = raw as Record<string, unknown>;
+  const arr = (key: 'club150' | 'club300'): number[] => {
+    const val = v[key];
+    if (val === undefined) return [];
+    if (!Array.isArray(val)) {
+      throw new ScheduleValidationError(`${label}.${key} must be an array`);
+    }
+    for (const n of val) {
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) {
+        throw new ScheduleValidationError(`${label}.${key} entries must be positive integers`);
+      }
+    }
+    return val as number[];
+  };
+  return { club150: arr('club150'), club300: arr('club300') };
+}
+
+function validateBlock(label: string, raw: unknown): PassageBlock {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new ScheduleValidationError(`${label} must be an object`);
+  }
+  const b = raw as Record<string, unknown>;
+  return {
+    passage: validatePassage(`${label}.passage`, b.passage),
+    verses: validateClubVerseLists(`${label}.verses`, b.verses),
+  };
+}
+
+function migrateV1Week(i: number, raw: Record<string, unknown>): ScheduleWeekV2 {
+  if (typeof raw.date !== 'string' || !isValidIsoDate(raw.date)) {
+    throw new ScheduleValidationError(`weeks[${i}].date must be a real YYYY-MM-DD`);
+  }
+  const isReview = raw.isReview === true;
+  if (isReview) {
+    return { date: raw.date, isReview: true, blocks: [] };
+  }
+  return {
+    date: raw.date,
+    isReview: false,
+    blocks: [
+      {
+        passage: validatePassage(`weeks[${i}].passage`, raw.passage),
+        verses: validateClubVerseLists(`weeks[${i}].verses`, raw.verses),
+      },
+    ],
+  };
+}
+
+function validateV2Week(i: number, raw: Record<string, unknown>): ScheduleWeekV2 {
+  if (typeof raw.date !== 'string' || !isValidIsoDate(raw.date)) {
+    throw new ScheduleValidationError(`weeks[${i}].date must be a real YYYY-MM-DD`);
+  }
+  const isReview = raw.isReview === true;
+  const blocksRaw = raw.blocks;
+  if (!Array.isArray(blocksRaw)) {
+    throw new ScheduleValidationError(`weeks[${i}].blocks must be an array`);
+  }
+  const blocks = blocksRaw.map((b, j) => validateBlock(`weeks[${i}].blocks[${j}]`, b));
+  if (!isReview && blocks.length === 0) {
+    throw new ScheduleValidationError(
+      `weeks[${i}] non-review week must have at least one block`,
+    );
+  }
+  return { date: raw.date, isReview, blocks };
 }
 
 /** Pull a non-empty string field off a record. Shared by the top-level
@@ -203,65 +303,43 @@ function requireNonEmptyStr(
   return v;
 }
 
-export function validateSchedule(json: string): SchedulePayload {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch (e) {
-    throw new ScheduleValidationError(`invalid JSON: ${(e as Error).message}`);
-  }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+/** Normalise a schedule payload of either accepted wire version (1 or 2)
+ *  to the v2 in-memory shape (`week.blocks[]`). Throws
+ *  `ScheduleValidationError` on any structural violation.
+ *
+ *  This is the single source of truth for schedule shape at the API
+ *  boundary — `validateSchedule` (raw JSON) and `EngineStore.load`
+ *  (persisted DB rows / bundled JSON files) both call this to converge
+ *  on v2 before further processing. */
+export function migrateSchedule(raw: unknown): SchedulePayloadV2 {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new ScheduleValidationError('schedule must be an object');
   }
-  const obj = parsed as Record<string, unknown>;
+  const obj = raw as Record<string, unknown>;
+  const version = obj.version;
+  if (version !== 1 && version !== 2) {
+    throw new ScheduleValidationError(`unsupported schedule version: ${String(version)}`);
+  }
   const requireStr = (k: string): string =>
     requireNonEmptyStr(obj, k, () => `missing string field: ${k}`);
-  const requireNum = (k: string): number => {
-    const v = obj[k];
-    if (typeof v !== 'number' || !Number.isFinite(v)) {
-      throw new ScheduleValidationError(`missing numeric field: ${k}`);
-    }
-    return v;
-  };
-  const requireArr = (k: string): unknown[] => {
-    const v = obj[k];
-    if (!Array.isArray(v)) {
-      throw new ScheduleValidationError(`missing array field: ${k}`);
-    }
-    return v;
-  };
-  const version = requireNum('version');
-  if (version !== 1) {
-    throw new ScheduleValidationError(`unsupported schedule version: ${version}`);
-  }
   const materialId = requireStr('materialId');
   const season = requireStr('season');
   const title = requireStr('title');
   const meetingDayOfWeek = requireStr('meetingDayOfWeek');
-  const weeks = requireArr('weeks');
-  for (let i = 0; i < weeks.length; i++) {
-    const w = weeks[i];
+  const weeksRaw = obj.weeks;
+  if (!Array.isArray(weeksRaw)) {
+    throw new ScheduleValidationError('missing array field: weeks');
+  }
+  const weeks: ScheduleWeekV2[] = weeksRaw.map((w, i) => {
     if (typeof w !== 'object' || w === null) {
       throw new ScheduleValidationError(`weeks[${i}] must be an object`);
     }
     const wo = w as Record<string, unknown>;
-    if (typeof wo.date !== 'string' || !isValidIsoDate(wo.date)) {
-      throw new ScheduleValidationError(`weeks[${i}].date must be a real YYYY-MM-DD`);
-    }
-    // Non-review weeks must carry a usable passage. Without this,
-    // the Phase 3 editor's de-review toggle could save zeroed
-    // placeholder values ({book: '', chapter: 0, startVerse: 0,
-    // endVerse: 0}) that the WASM engine then trips over. The
-    // editor's user flow asks for these fields immediately after
-    // de-review, but a save before they're filled in needs to fail
-    // here rather than silently corrupt the schedule.
-    if (wo.isReview === false || wo.isReview === undefined) {
-      validateWeekPassage(i, wo.passage);
-    }
-  }
+    return version === 1 ? migrateV1Week(i, wo) : validateV2Week(i, wo);
+  });
   const meets = validateMeets(obj.meets);
   return {
-    version,
+    version: 2,
     materialId,
     season,
     title,
@@ -269,6 +347,16 @@ export function validateSchedule(json: string): SchedulePayload {
     weeks,
     meets,
   };
+}
+
+export function validateSchedule(json: string): SchedulePayloadV2 {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch (e) {
+    throw new ScheduleValidationError(`invalid JSON: ${(e as Error).message}`);
+  }
+  return migrateSchedule(parsed);
 }
 
 /** Field-level validation for the `meets` array. The Phase 3 editor

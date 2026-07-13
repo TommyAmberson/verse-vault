@@ -1,10 +1,15 @@
 /**
  * Schedule data model + pure manipulation helpers for the schedule
- * editor at /schedule/<materialId>. Mirrors the on-disk JSON shape
- * (`data/schedules/<deck>-<season>.json`) and the server-side
- * `SchedulePayload` in `packages/api/src/lib/schedules.ts`. Everything
- * here is data-only — no Vue, no network — so the view can hold a
- * draft, mutate it through these helpers, then PUT it verbatim.
+ * editor at /schedule/<materialId>. Mirrors the canonical v2 shape from
+ * `SchedulePayloadV2` in `packages/api/src/lib/schedules.ts`: each
+ * `Week` carries `blocks: PassageBlock[]` (empty on review, length 1
+ * on today's normal weeks, length ≥2 for future NT-Survey compound
+ * weeks). The wire form the API stores may still be v1 (single-passage)
+ * for pre-migration user rows and for the bundled schedule JSONs;
+ * `migrateSchedule` normalises both into v2 at read time.
+ *
+ * Everything here is data-only — no Vue, no network — so the view can
+ * hold a draft, mutate it through these helpers, then PUT it verbatim.
  *
  * Day-of-week shift semantics: per the Phase 3 design, the user picks
  * the weekly practice day and all weeks move by the signed delta from
@@ -19,6 +24,24 @@ export const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as
 
 export type DayOfWeek = (typeof DAYS_OF_WEEK)[number]
 
+const DAY_NAMES_LONG = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const
+
+/** Full day name (e.g. `Wednesday`) for a 3-letter `DayOfWeek` (e.g.
+ *  `Wed`). The `${abbrev}days` shorthand silently produces "Tuedays" /
+ *  "Weddays" / "Thudays" / "Satdays" — use this when rendering to the
+ *  user. */
+export function fullDayName(day: DayOfWeek): string {
+  return DAY_NAMES_LONG[DAYS_OF_WEEK.indexOf(day)]
+}
+
 export interface SchedulePassage {
   book: string
   chapter: number
@@ -29,6 +52,13 @@ export interface SchedulePassage {
 export interface ScheduleVerses {
   club150?: number[]
   club300?: number[]
+}
+
+/** One passage's worth of a week's content. Normal weeks carry a single
+ *  block; compound weeks (e.g. NT Survey's `|` weeks) carry two. */
+export interface PassageBlock {
+  passage: SchedulePassage
+  verses: ScheduleVerses
 }
 
 export interface ScheduleWeek {
@@ -45,11 +75,14 @@ export interface ScheduleWeek {
    *  Deferred — touches the on-disk schedules, the API validator's
    *  per-week loop, and the WASM `parse_schedule` deserialiser. */
   date: string
-  /** Null on Review weeks. */
-  passage: SchedulePassage | null
-  /** Per-tier verse arrays for memorize Phase 1's "this week's primary"
-   *  pull. Null on Review weeks. */
-  verses: ScheduleVerses | null
+  /** Passage blocks for this week. Empty on review weeks; length 1 on
+   *  today's normal weeks; length ≥2 for future compound weeks.
+   *
+   *  Multi-block support (length ≥2) is accepted end-to-end here on
+   *  the client, but the API rejects it at the WASM boundary until
+   *  the Rust contract crate learns to consume it — see the redesign
+   *  spec's phase 6 for the follow-up work. */
+  blocks: PassageBlock[]
   isReview: boolean
 }
 
@@ -62,7 +95,7 @@ export interface ScheduleMeet {
 }
 
 export interface Schedule {
-  version: 1
+  version: 2
   materialId: string
   season: string
   title: string
@@ -97,13 +130,98 @@ export function shiftDate(iso: string, deltaDays: number): string {
   return formatIsoDate(d)
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const
+
+/** Full month name (e.g. `September`) for a `YYYY-MM-DD` date. */
+export function monthName(iso: string): string {
+  return MONTH_NAMES[parseIsoDate(iso).getUTCMonth()]
+}
+
+/** Day of month from `YYYY-MM-DD`. */
+export function dayOfMonth(iso: string): number {
+  return parseIsoDate(iso).getUTCDate()
+}
+
+/** English ordinal suffix: 1st, 2nd, 3rd, 4th, …, 21st, 22nd, 23rd, 24th…
+ *  Used for the table-date column ("- 11th") in the schedule view,
+ *  which lays out the season under month headers and so leaves only
+ *  the ordinal day-of-month to scan against the printable schedule. */
+export function englishOrdinal(day: number): string {
+  const mod100 = day % 100
+  if (mod100 >= 11 && mod100 <= 13) return `${day}th`
+  const mod10 = day % 10
+  if (mod10 === 1) return `${day}st`
+  if (mod10 === 2) return `${day}nd`
+  if (mod10 === 3) return `${day}rd`
+  return `${day}th`
+}
+
+/** Sunday-anchored week-key for an ISO date — the Sunday of the
+ *  Sun-Sat week containing the date. Two dates share a week iff they
+ *  produce the same key. Sunday-first to match the project-wide
+ *  convention (see `applyMeetingDayShift`'s docstring). */
+export function isoWeekStart(iso: string): string {
+  const d = parseIsoDate(iso)
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay())
+  return formatIsoDate(d)
+}
+
 // =============================================================================
 // Schedule helpers (pure)
 // =============================================================================
 
-/** Deep-clone a schedule. Pure data shape so structuredClone is sound. */
+/** Normalise a schedule payload of either accepted wire version (1 or 2)
+ *  to the v2 in-memory shape. Mirrors
+ *  `packages/api/src/lib/schedules.ts:migrateSchedule` so persisted user
+ *  schedules and bundled JSONs land in the same shape whether they were
+ *  saved before or after the redesign's phase 2. */
+export function migrateSchedule(raw: unknown): Schedule {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error('schedule must be an object')
+  }
+  const obj = raw as Record<string, unknown>
+  const version = obj.version
+  if (version !== 1 && version !== 2) {
+    throw new Error(`unsupported schedule version: ${String(version)}`)
+  }
+  const weeksRaw = obj.weeks
+  if (!Array.isArray(weeksRaw)) throw new Error('missing weeks array')
+  const weeks: ScheduleWeek[] = weeksRaw.map((w) => {
+    const wo = w as Record<string, unknown>
+    const isReview = wo.isReview === true
+    const date = wo.date as string
+    if (version === 2) {
+      const blocks = (wo.blocks as PassageBlock[] | undefined) ?? []
+      return { date, isReview, blocks }
+    }
+    if (isReview) return { date, isReview: true, blocks: [] }
+    const passage = wo.passage as SchedulePassage
+    const verses = (wo.verses as ScheduleVerses | null | undefined) ?? {}
+    return { date, isReview: false, blocks: [{ passage, verses }] }
+  })
+  return {
+    version: 2,
+    materialId: obj.materialId as string,
+    season: obj.season as string,
+    title: obj.title as string,
+    meetingDayOfWeek: obj.meetingDayOfWeek as DayOfWeek,
+    weeks,
+    meets: (obj.meets as ScheduleMeet[] | undefined) ?? [],
+  }
+}
+
+/** Deep-clone a schedule. Uses JSON round-trip rather than
+ *  `structuredClone` because the call sites in `ScheduleEditorView`
+ *  pass `saved.value` / `draft.value` — Vue wraps ref-held objects
+ *  in a reactive Proxy, and `structuredClone` throws
+ *  `Proxy object could not be cloned` on those. `JSON.stringify`
+ *  walks the proxy's [[Get]] trap correctly and emits the plain
+ *  underlying data; nested `blocks[]` arrays round-trip fine. */
 export function cloneSchedule(s: Schedule): Schedule {
-  return structuredClone(s)
+  return JSON.parse(JSON.stringify(s)) as Schedule
 }
 
 /** Shift every week's date to land on `newDay` within the same
@@ -202,13 +320,12 @@ export function formatPassage(passage: SchedulePassage | null): string {
   return `${book} ${chapter}:${startVerse}-${endVerse}`
 }
 
-/** Count verses across enabled tiers for a single week. Used by the
- *  timeline pane to show a `5 / 5` summary per week. */
-export function verseCountsForWeek(week: ScheduleWeek): { club150: number; club300: number } {
-  return {
-    club150: week.verses?.club150?.length ?? 0,
-    club300: week.verses?.club300?.length ?? 0,
-  }
+/** ISO weekday index (0 = Sun) for a `YYYY-MM-DD` date, using
+ *  UTC-anchored parsing so Fri stays Fri regardless of the user's
+ *  local timezone. Shared with the season-range editor's meeting-day
+ *  guard. */
+export function isoWeekday(iso: string): number {
+  return parseIsoDate(iso).getUTCDay()
 }
 
 // =============================================================================
@@ -236,3 +353,184 @@ export function parseVerseList(input: string): number[] | null {
 export function formatVerseList(verses: readonly number[] | undefined): string {
   return verses ? verses.join(', ') : ''
 }
+
+// =============================================================================
+// Coverage validation — does the schedule cover every verse in the material,
+// exactly once?
+// =============================================================================
+
+/** A contiguous verse range within a single chapter. */
+export interface CoverageRange {
+  book: string
+  chapter: number
+  startVerse: number
+  endVerse: number
+}
+
+/** A stretch of material verses no week's block covers — the user's
+ *  season leaves these verses unscheduled. */
+export interface CoverageGap extends CoverageRange {}
+
+/** A stretch of material verses covered by more than one block. Each
+ *  covering week's index is listed so the UI can jump to them. */
+export interface CoverageOverlap extends CoverageRange {
+  weekIdxs: number[]
+}
+
+export interface CoverageResult {
+  gaps: CoverageGap[]
+  overlaps: CoverageOverlap[]
+  /** True when the material's expected verse set is empty (the
+   *  `/passages` endpoint returned no verses — e.g. dev environment
+   *  without the content pipeline). Consumers should suppress the
+   *  gap/overlap UI in that case since neither list means anything. */
+  materialEmpty: boolean
+}
+
+/** One entry per material verse — book/chapter/verse plus the deck's
+ *  club tags. Mirrors the `/api/materials/:id/passages` response. */
+export interface MaterialVerseEntry {
+  book: string
+  chapter: number
+  verse: number
+  clubs: number[]
+}
+
+/** Compute per-verse coverage of the material by the schedule's week
+ *  blocks: gaps (verses in the material with no block covering them)
+ *  and overlaps (verses covered by two or more blocks). Both lists are
+ *  collapsed into contiguous ranges keyed by `(book, chapter)` for a
+ *  compact display; an overlap range is only merged when every verse in
+ *  it shares the same covering-week set.
+ *
+ *  The material entry set defines what "must be covered" — verses a
+ *  block references that don't appear in the material (a typo in
+ *  chapter or verse) do NOT surface here. Callers can catch those via
+ *  the API's shape validator on save. */
+export function computeCoverage(
+  schedule: Schedule,
+  material: readonly MaterialVerseEntry[],
+): CoverageResult {
+  if (material.length === 0) {
+    return { gaps: [], overlaps: [], materialEmpty: true }
+  }
+  const expected = new Set<string>()
+  const byKey = new Map<string, { book: string; chapter: number; verse: number }>()
+  for (const v of material) {
+    const key = `${v.book}|${v.chapter}|${v.verse}`
+    expected.add(key)
+    byKey.set(key, { book: v.book, chapter: v.chapter, verse: v.verse })
+  }
+  // For each material verse, which week indices cover it. Zero coverers
+  // → gap; two or more → overlap.
+  const coverers = new Map<string, number[]>()
+  schedule.weeks.forEach((w, weekIdx) => {
+    for (const block of w.blocks) {
+      const { book, chapter, startVerse, endVerse } = block.passage
+      if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) continue
+      for (let v = startVerse; v <= endVerse; v++) {
+        const key = `${book}|${chapter}|${v}`
+        // Only track coverers for verses the material knows about —
+        // out-of-material verses aren't a coverage problem.
+        if (!expected.has(key)) continue
+        const list = coverers.get(key)
+        if (list === undefined) coverers.set(key, [weekIdx])
+        else if (!list.includes(weekIdx)) list.push(weekIdx)
+      }
+    }
+  })
+  const gapVerses: { book: string; chapter: number; verse: number }[] = []
+  const overlapVerses: {
+    book: string
+    chapter: number
+    verse: number
+    weekIdxs: number[]
+  }[] = []
+  for (const key of expected) {
+    const list = coverers.get(key)
+    const meta = byKey.get(key)!
+    if (list === undefined || list.length === 0) {
+      gapVerses.push(meta)
+    } else if (list.length > 1) {
+      overlapVerses.push({ ...meta, weekIdxs: [...list].sort((a, b) => a - b) })
+    }
+  }
+  // Sort by (book, chapter, verse) for stable ordering AND range
+  // collapse. Books stay in the order the material listed them — but
+  // since the material set is a Map iterated by insertion, sorting here
+  // by (book, chapter, verse) is enough for compact output.
+  const byBookChapterVerse = (
+    a: { book: string; chapter: number; verse: number },
+    b: { book: string; chapter: number; verse: number },
+  ) => {
+    if (a.book !== b.book) return a.book.localeCompare(b.book)
+    if (a.chapter !== b.chapter) return a.chapter - b.chapter
+    return a.verse - b.verse
+  }
+  gapVerses.sort(byBookChapterVerse)
+  overlapVerses.sort(byBookChapterVerse)
+  return {
+    gaps: collapseGapRanges(gapVerses),
+    overlaps: collapseOverlapRanges(overlapVerses),
+    materialEmpty: false,
+  }
+}
+
+function collapseGapRanges(
+  verses: readonly { book: string; chapter: number; verse: number }[],
+): CoverageGap[] {
+  const out: CoverageGap[] = []
+  for (const v of verses) {
+    const last = out[out.length - 1]
+    if (
+      last
+      && last.book === v.book
+      && last.chapter === v.chapter
+      && last.endVerse + 1 === v.verse
+    ) {
+      last.endVerse = v.verse
+    } else {
+      out.push({ book: v.book, chapter: v.chapter, startVerse: v.verse, endVerse: v.verse })
+    }
+  }
+  return out
+}
+
+function collapseOverlapRanges(
+  verses: readonly {
+    book: string
+    chapter: number
+    verse: number
+    weekIdxs: number[]
+  }[],
+): CoverageOverlap[] {
+  const out: CoverageOverlap[] = []
+  for (const v of verses) {
+    const last = out[out.length - 1]
+    if (
+      last
+      && last.book === v.book
+      && last.chapter === v.chapter
+      && last.endVerse + 1 === v.verse
+      && sameNumberList(last.weekIdxs, v.weekIdxs)
+    ) {
+      last.endVerse = v.verse
+    } else {
+      out.push({
+        book: v.book,
+        chapter: v.chapter,
+        startVerse: v.verse,
+        endVerse: v.verse,
+        weekIdxs: v.weekIdxs,
+      })
+    }
+  }
+  return out
+}
+
+function sameNumberList(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
+}
+

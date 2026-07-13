@@ -9,6 +9,163 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-07-13
+
+Passage picker redesign (spec `docs/superpowers/specs/2026-07-13-passage-picker-redesign.md`). MINOR
+— visible UX change on `/schedule/:materialId` edit mode; no wire-format change.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — unchanged.
+* `verse-vault-wasm@0.7.0` — unchanged.
+
+### Editor
+
+* Passage editor: four labelled dropdowns → one inline horizontal row reading
+  `Book | Ch. | Start — End`. Wraps at container widths below 520px (Book on its own row).
+* Multi-passage weeks: fieldset border + PASSAGE legend gone; blocks stack with a small `Passage N`
+  caption + `× remove` and a hairline `border-top` between siblings. Solo blocks render bare.
+* Club summary: moved out of every block into a single week-level row below all blocks.
+  Single-passage weeks keep the flat pill list; multi-passage weeks nest a `Ch N:` sub-row per
+  passage under each club label. Counts stay cumulative (150 / 300 / Full).
+* Review-week toggle removed. Review is now derived: `blocks.length === 0`. Removing the sole
+  passage collapses the wk-form to an italic dashed "This is a review week" message +
+  `+ Add a passage` button; adding a passage clears the state.
+
+## [0.8.1] — 2026-07-12
+
+Phase 7 of the schedule editor redesign — polish. PATCH — no observable API change, keyboard +
+focus + animation refinements only.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — unchanged.
+* `verse-vault-wasm@0.7.0` — unchanged.
+
+### Editor
+
+* **Esc dismisses the expanded form.** A window-level `keydown` listener clears `selection` when Esc
+  fires in edit mode, collapsing the inline form.
+* **First input autofocuses on select.** After a week or meet row is picked, a `nextTick` watcher
+  focuses the first input in the paired `.wk-form` / `.meet-form` so Tab / Enter work without a
+  click.
+* **Slide-in on expand.** The form animates in with a 140ms opacity + scaleY fade; disabled under
+  `prefers-reduced-motion`.
+* Auto-scroll to the current week now targets the `.sched .wk.is-current` selector — the pre-
+  phase-5 selector (`.week-row.is-current`) no longer exists.
+
+## [0.8.0] — 2026-07-11
+
+Phase 6 of the schedule editor redesign — multi-passage editor. MINOR — the schedule editor now
+iterates every passage block on the selected week; NT-Survey-style compound weeks (`|` weeks) are
+first-class in view and edit alike.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — MAJOR. Consumes `ScheduleWeek.blocks[]` natively.
+* `verse-vault-wasm@0.7.0` — MAJOR. Normalises v1 wire form into `blocks[]` in `parse_schedule`
+  before constructing the engine.
+
+### Editor
+
+* The per-week inline form renders one `<fieldset class="passage">` + `<fieldset class="verses">`
+  pair per block. When more than one block exists each `<legend>` numbers the block and shows a
+  remove-passage `×` button.
+* **+ Add a passage** at the bottom of the form appends a fresh block. **× remove** on a passage
+  legend removes it (guarded to keep at least one block).
+* `verseInputs` state is now a `BlockVerseMirror[]` indexed by block idx; the watcher re-seeds it
+  whenever the selected week's block shape changes (selection, review toggle, add / remove passage).
+
+### View
+
+Multi-passage weeks already rendered under one shared date in the view-mode `.sched` (phases 3, 5);
+this release makes them editable end-to-end.
+
+Phase 5 of the schedule editor redesign — expand-in-place editor. MINOR — visible UX change on
+`/schedule/:materialId`: edit mode no longer opens a side pane, so nothing overflows at any
+container width.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — unchanged.
+* `verse-vault-wasm@0.6.0` — unchanged.
+
+### Editor
+
+* Clicking a week or meet in edit mode expands the row inline. The form sits between rows in the
+  same responsive `.sched` container, with an accent left rule + tinted background so the expansion
+  reads at every regime (Cards / Condensed / Ledger).
+* Legacy `<table class="schedule-table">` and the `<aside class="detail">` side pane are removed
+  along with their CSS. Edit mode now shares the exact DOM/CSS of view mode with a small extra form
+  block per selected row.
+* Add-week / Add-meet buttons live at the bottom of the body in edit mode.
+
+### Deferred (phase 6 alongside the Rust/WASM multi-passage contract bump)
+
+* Chip-based verse-number editor (spec §3.5 "Club 150 / 300 chips"). Today the form still uses the
+  comma-parsed text input on blur.
+* Per-block add/remove-passage affordance for compound weeks. Bundled schedules ship one passage per
+  week, so this doesn't gate today's UX; multi-passage editing lands with phase 6.
+
+## [0.6.0] — 2026-07-11
+
+Phase 3 of the schedule editor redesign — view-mode DOM is now the responsive `.sched`
+container-query layout from spec §6. MINOR — visible UI change on `/schedule/:materialId` in view
+mode; edit mode still shows the legacy table + detail pane until the spec's phase 5 replaces it with
+an expand-in-place editor.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — unchanged.
+* `verse-vault-wasm@0.6.0` — unchanged.
+
+### Responsive view
+
+Three regimes off the `.sched` wrapper's own width (container-query, not viewport):
+
+* **Cards** (< 520px) — each week a self-contained card; pill verse numbers.
+* **Condensed** (520–789px) — narrow date rail on the left, passage + pill verses stacked to its
+  right; date spans every child row via `--wk-rows`.
+* **Ledger** (≥ 790px) — the printable 4-column `DATE · PASSAGE · CLUB 150 · CLUB 300` ledger with
+  comma-list verses (`::after ", "`); multi-passage weeks stack blocks under one date via
+  `--wk-blocks`.
+
+Verse-number `<span>` elements are the same in every regime; only the pill styling and the comma
+`::after` selector differ. Review weeks render "Review" in the passage slot; meet rows become tinted
+full-width bands at every width.
+
+### Editor
+
+Edit mode retains the legacy table + right-side detail pane. Phase 5 rewrites this into the
+expand-in-place editor.
+
+## [0.5.0] — 2026-07-11
+
+Phase 2 of the schedule editor redesign — data model migration. MINOR — the persisted wire form is
+unchanged (bundled JSONs and existing user rows stay v1) so the change isn't user-visible, but the
+in-memory `Schedule` shape breaks previous consumers and warrants a versioned release.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.6.0` — unchanged.
+* `verse-vault-wasm@0.6.0` — unchanged.
+
+### Changed
+
+* `ScheduleWeek` now carries `blocks: PassageBlock[]` (empty on review weeks, length 1 on today's
+  normal weeks, length ≥2 reserved for future NT-Survey-style compound weeks) instead of the flat
+  `passage` + `verses` fields. `PassageBlock` = `{ passage, verses }`.
+* New `migrateSchedule(raw)` normalises v1 wire payloads (bundled schedule JSONs, pre-migration user
+  rows) into the v2 in-memory shape at read time — the API still emits v1, and the client converges
+  on v2 before any consumer sees it.
+* `verseCountsForWeek` sums across every block; badge math (`badges.ts`) does the same.
+* `cloneSchedule` unchanged (JSON round-trip handles nested `blocks[]` uniformly).
+
+### Editor
+
+* `ScheduleEditorView.vue` reads/writes via `blocks[0]` — one passage per week, matching current
+  bundled schedules. Multi-passage editing lands in the redesign's phase 3 view rewrite.
+
 ## [0.4.0] — 2026-06-17
 
 Phase 3 — the schedule editor at `/schedule/<materialId>`. MINOR — additive UI surface on top of the

@@ -1251,7 +1251,7 @@ mod tests {
     use crate::material_config::{
         CatchUp, ClubMemorizeConfig, MaterialConfig, MoveToNextConfig, MoveToNextGate, TierScope,
     };
-    use crate::schedule_data::{ClubVerseLists, Passage, Schedule, ScheduleWeek};
+    use crate::schedule_data::{ClubVerseLists, Passage, PassageBlock, Schedule, ScheduleWeek};
 
     fn make_two_club_schedule() -> Schedule {
         // Single passage covering both fixture verses: John 3:16 (Club150)
@@ -1265,16 +1265,20 @@ mod tests {
             meeting_day_of_week: "Mon".into(),
             weeks: vec![ScheduleWeek {
                 date: "2025-09-08".into(),
-                passage: Some(Passage {
-                    book: "John".into(),
-                    chapter: 3,
-                    start_verse: 16,
-                    end_verse: 17,
-                }),
-                verses: Some(ClubVerseLists {
-                    club150: vec![16],
-                    club300: vec![17],
-                }),
+                blocks: vec![PassageBlock {
+                    passage: Passage {
+                        book: "John".into(),
+                        chapter: 3,
+                        start_verse: 16,
+                        end_verse: 17,
+                    },
+                    verses: ClubVerseLists {
+                        club150: vec![16],
+                        club300: vec![17],
+                    },
+                }],
+                passage: None,
+                verses: None,
                 is_review: false,
             }],
             meets: vec![],
@@ -1404,16 +1408,20 @@ mod tests {
             meeting_day_of_week: "Mon".into(),
             weeks: vec![ScheduleWeek {
                 date: "2025-09-08".into(),
-                passage: Some(Passage {
-                    book: "John".into(),
-                    chapter: 3,
-                    start_verse: 16,
-                    end_verse: 17,
-                }),
-                verses: Some(ClubVerseLists {
-                    club150: vec![],
-                    club300: vec![],
-                }),
+                blocks: vec![PassageBlock {
+                    passage: Passage {
+                        book: "John".into(),
+                        chapter: 3,
+                        start_verse: 16,
+                        end_verse: 17,
+                    },
+                    verses: ClubVerseLists {
+                        club150: vec![],
+                        club300: vec![],
+                    },
+                }],
+                passage: None,
+                verses: None,
                 is_review: false,
             }],
             meets: vec![],
@@ -1447,16 +1455,20 @@ mod tests {
 
         let mk_week = |date: &str, start: u16, end: u16| ScheduleWeek {
             date: date.into(),
-            passage: Some(Passage {
-                book: "John".into(),
-                chapter: 3,
-                start_verse: start,
-                end_verse: end,
-            }),
-            verses: Some(ClubVerseLists {
-                club150: vec![],
-                club300: vec![],
-            }),
+            blocks: vec![PassageBlock {
+                passage: Passage {
+                    book: "John".into(),
+                    chapter: 3,
+                    start_verse: start,
+                    end_verse: end,
+                },
+                verses: ClubVerseLists {
+                    club150: vec![],
+                    club300: vec![],
+                },
+            }],
+            passage: None,
+            verses: None,
             is_review: false,
         };
         let sched = Schedule {

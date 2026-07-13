@@ -34,16 +34,37 @@ pub struct Schedule {
 pub struct ScheduleWeek {
     /// ISO `YYYY-MM-DD`.
     pub date: String,
-    /// `None` on Review weeks (no new verses introduced).
+    /// Passage blocks contributed by this week. Empty on Review weeks;
+    /// length 1 on today's normal weeks; length ≥2 on compound weeks
+    /// (spec §3.3 `|` weeks from NT Survey). Every consumer iterates
+    /// this field; the legacy `passage`/`verses` fields below are the
+    /// v1 wire shape that `Schedule::normalize_v1_weeks` folds into
+    /// `blocks` before the algorithm touches anything.
+    #[serde(default)]
+    pub blocks: Vec<PassageBlock>,
+    /// Legacy v1 wire field. Migrated into `blocks` by
+    /// `Schedule::normalize_v1_weeks`; readers should never look here
+    /// directly. Skipped on serialize so re-emitted schedules land in
+    /// v2 shape.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub passage: Option<Passage>,
-    /// `None` on Review weeks. When present, lists the verse numbers (within
-    /// `passage`) that each club introduces this week. Verses in
-    /// `verses.club300` are the Club 300-tagged *additional* verses — Club
-    /// 150's set is not duplicated. The implicit Full tier covers any verse
-    /// in `passage` that's listed in neither.
+    /// Legacy v1 wire field paired with `passage`; see the docstring
+    /// above.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub verses: Option<ClubVerseLists>,
     #[serde(default)]
     pub is_review: bool,
+}
+
+/// One passage's worth of a week's content. Normal weeks carry a single
+/// block; compound weeks (`|`) carry two, each with its own Club 150 /
+/// 300 verse-number splits.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PassageBlock {
+    pub passage: Passage,
+    #[serde(default)]
+    pub verses: ClubVerseLists,
 }
 
 /// Structured passage range. Each row in the SK PDF spans a single chapter,
@@ -60,7 +81,7 @@ pub struct Passage {
     pub end_verse: u16,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClubVerseLists {
     #[serde(default)]
@@ -157,11 +178,35 @@ impl ClubVerseLists {
 pub type VerseRef = (String, u16, u16);
 
 impl Schedule {
+    /// Normalise legacy v1 wire shapes into the v2 in-memory shape.
+    ///
+    /// Persisted user schedules and bundled JSONs may still carry
+    /// `passage`/`verses` at the `ScheduleWeek` level rather than under
+    /// `blocks[]`. Serde deserialises both fields; this pass folds the
+    /// legacy pair into a single-element `blocks` vector so every
+    /// downstream reader iterates `blocks` uniformly. Idempotent: weeks
+    /// that already carry `blocks` are left alone.
+    pub fn normalize_v1_weeks(&mut self) {
+        for week in &mut self.weeks {
+            if !week.blocks.is_empty() {
+                week.passage = None;
+                week.verses = None;
+                continue;
+            }
+            if let Some(passage) = week.passage.take() {
+                let verses = week.verses.take().unwrap_or_default();
+                week.blocks.push(PassageBlock { passage, verses });
+            }
+        }
+    }
+
     /// Resolve the verse numbers a given `tier` introduces in `week_idx`
-    /// into `(book, chapter, verse)` refs. Returns an empty vector for
-    /// Review weeks, for out-of-range indices, and for weeks with no
-    /// `passage`. `Full`-tier refs are derived as `passage`'s verse range
-    /// minus the explicitly-listed `club150 ∪ club300` numbers.
+    /// into `(book, chapter, verse)` refs. Iterates every passage block
+    /// on the week; compound weeks return refs from both passages in
+    /// block order. Returns an empty vector for Review weeks, out-of-
+    /// range indices, and weeks with no blocks. `Full`-tier refs are
+    /// derived per-block as `passage`'s verse range minus the
+    /// explicitly-listed `club150 ∪ club300` numbers for that block.
     ///
     /// Does **not** consult the engine — pure schedule-level resolution.
     /// Callers map the refs to `verse_id`s via a lookup built from the
@@ -170,14 +215,13 @@ impl Schedule {
         let Some(week) = self.weeks.get(week_idx) else {
             return Vec::new();
         };
-        let Some(passage) = &week.passage else {
-            return Vec::new();
-        };
-        let numbers = self.verse_numbers_for_tier(week, tier);
-        numbers
-            .into_iter()
-            .map(|n| (passage.book.clone(), passage.chapter, n))
-            .collect()
+        let mut out: Vec<VerseRef> = Vec::new();
+        for block in &week.blocks {
+            for n in block_verse_numbers_for_tier(block, tier) {
+                out.push((block.passage.book.clone(), block.passage.chapter, n));
+            }
+        }
+        out
     }
 
     /// All verse refs cumulatively introduced for `tier` across weeks
@@ -200,17 +244,17 @@ impl Schedule {
         out
     }
 
-    /// Count of verses scheduled for `tier` in the single row at
-    /// `week_idx`. Skips the owned-`VerseRef` construction the gate hot
-    /// path doesn't need.
+    /// Count of verses scheduled for `tier` in the row at `week_idx`,
+    /// summed across every passage block. Skips the owned-`VerseRef`
+    /// construction the gate hot path doesn't need.
     fn week_verse_count(&self, week_idx: usize, tier: ClubTier) -> usize {
         let Some(week) = self.weeks.get(week_idx) else {
             return 0;
         };
-        if week.passage.is_none() {
-            return 0;
-        }
-        self.verse_numbers_for_tier(week, tier).len()
+        week.blocks
+            .iter()
+            .map(|b| block_verse_numbers_for_tier(b, tier).len())
+            .sum()
     }
 
     /// Total count of unique verses scheduled for `tier` from week 0
@@ -274,27 +318,24 @@ impl Schedule {
         }
         self.cumulative_count_through_week(idx - 1, tier)
     }
+}
 
-    /// Internal: verse numbers for `tier` in this single row. `Full` is
-    /// derived from `passage` minus `club150 ∪ club300`.
-    fn verse_numbers_for_tier(&self, week: &ScheduleWeek, tier: ClubTier) -> Vec<u16> {
-        let Some(passage) = &week.passage else {
-            return Vec::new();
-        };
-        let Some(verses) = &week.verses else {
-            return Vec::new();
-        };
-        match tier {
-            ClubTier::Club150 => verses.club150.clone(),
-            ClubTier::Club300 => verses.club300.clone(),
-            ClubTier::Full => {
-                let mut excluded: std::collections::HashSet<u16> = std::collections::HashSet::new();
-                excluded.extend(verses.club150.iter().copied());
-                excluded.extend(verses.club300.iter().copied());
-                (passage.start_verse..=passage.end_verse)
-                    .filter(|n| !excluded.contains(n))
-                    .collect()
-            }
+/// Verse numbers a single passage block contributes for `tier`. `Full`
+/// is derived from the block's passage range minus the explicitly-listed
+/// `club150 ∪ club300` numbers on the same block — multi-passage weeks
+/// keep Full derivation local to each block so a verse listed as
+/// Club 300 on one passage doesn't silently shadow Full on the other.
+fn block_verse_numbers_for_tier(block: &PassageBlock, tier: ClubTier) -> Vec<u16> {
+    match tier {
+        ClubTier::Club150 => block.verses.club150.clone(),
+        ClubTier::Club300 => block.verses.club300.clone(),
+        ClubTier::Full => {
+            let mut excluded: std::collections::HashSet<u16> = std::collections::HashSet::new();
+            excluded.extend(block.verses.club150.iter().copied());
+            excluded.extend(block.verses.club300.iter().copied());
+            (block.passage.start_verse..=block.passage.end_verse)
+                .filter(|n| !excluded.contains(n))
+                .collect()
         }
     }
 }
@@ -353,34 +394,43 @@ mod tests {
             weeks: vec![
                 ScheduleWeek {
                     date: "2025-09-08".into(),
-                    passage: Some(Passage {
-                        book: "1 Corinthians".into(),
-                        chapter: 1,
-                        start_verse: 1,
-                        end_verse: 31,
-                    }),
-                    verses: Some(ClubVerseLists {
-                        club150: vec![5, 10, 17, 18, 21, 25, 27],
-                        club300: vec![1, 2, 4, 8, 9, 19, 23],
-                    }),
+                    blocks: vec![PassageBlock {
+                        passage: Passage {
+                            book: "1 Corinthians".into(),
+                            chapter: 1,
+                            start_verse: 1,
+                            end_verse: 31,
+                        },
+                        verses: ClubVerseLists {
+                            club150: vec![5, 10, 17, 18, 21, 25, 27],
+                            club300: vec![1, 2, 4, 8, 9, 19, 23],
+                        },
+                    }],
+                    passage: None,
+                    verses: None,
                     is_review: false,
                 },
                 ScheduleWeek {
                     date: "2025-09-15".into(),
-                    passage: Some(Passage {
-                        book: "1 Corinthians".into(),
-                        chapter: 2,
-                        start_verse: 1,
-                        end_verse: 16,
-                    }),
-                    verses: Some(ClubVerseLists {
-                        club150: vec![4, 9, 12, 14, 16],
-                        club300: vec![5, 7, 10, 11, 13],
-                    }),
+                    blocks: vec![PassageBlock {
+                        passage: Passage {
+                            book: "1 Corinthians".into(),
+                            chapter: 2,
+                            start_verse: 1,
+                            end_verse: 16,
+                        },
+                        verses: ClubVerseLists {
+                            club150: vec![4, 9, 12, 14, 16],
+                            club300: vec![5, 7, 10, 11, 13],
+                        },
+                    }],
+                    passage: None,
+                    verses: None,
                     is_review: false,
                 },
                 ScheduleWeek {
                     date: "2025-11-17".into(),
+                    blocks: vec![],
                     passage: None,
                     verses: None,
                     is_review: true,
@@ -514,12 +564,13 @@ mod tests {
         let back: Schedule = serde_json::from_str(&j).expect("deserialise");
         assert_eq!(back.weeks.len(), s.weeks.len());
         assert_eq!(back.meets.len(), s.meets.len());
+        assert_eq!(back.weeks[0].blocks.len(), 1);
         assert_eq!(
-            back.weeks[0].verses.as_ref().unwrap().club150,
+            back.weeks[0].blocks[0].verses.club150,
             vec![5, 10, 17, 18, 21, 25, 27]
         );
         assert!(back.weeks[2].is_review);
-        assert!(back.weeks[2].passage.is_none());
+        assert!(back.weeks[2].blocks.is_empty());
     }
 
     #[test]
@@ -631,10 +682,75 @@ mod tests {
                 }
             ]
         }"#;
-        let s: Schedule = serde_json::from_str(raw).expect("parse");
+        let mut s: Schedule = serde_json::from_str(raw).expect("parse");
+        // parse_external_json_shape covers the v1 wire form still emitted
+        // by pre-migration user schedules and the bundled JSONs — the
+        // fields land on the legacy `passage`/`verses` slots and get
+        // folded into `blocks` by `normalize_v1_weeks`. The algorithm
+        // paths never observe the legacy slots.
+        s.normalize_v1_weeks();
         assert_eq!(s.weeks.len(), 1);
         assert!(!s.weeks[0].is_review);
-        assert_eq!(s.weeks[0].passage.as_ref().unwrap().end_verse, 31);
+        assert_eq!(s.weeks[0].blocks.len(), 1);
+        assert_eq!(s.weeks[0].blocks[0].passage.end_verse, 31);
+        assert_eq!(s.weeks[0].blocks[0].verses.club150, vec![5, 10]);
+        // Legacy slots are cleared by the migration.
+        assert!(s.weeks[0].passage.is_none());
+        assert!(s.weeks[0].verses.is_none());
         assert_eq!(s.meets[0].end_date, None);
+    }
+
+    #[test]
+    fn parses_v2_blocks_wire_shape() {
+        // v2 wire — API 0.1.30+ and future bundled JSONs — carries
+        // `blocks[]` at the week level. Serde populates it directly; the
+        // migration pass is a no-op.
+        let raw = r#"{
+            "version": 2,
+            "materialId": "test",
+            "season": "2025-26",
+            "title": "Compound",
+            "meetingDayOfWeek": "Mon",
+            "weeks": [
+                {
+                    "date": "2025-09-08",
+                    "blocks": [
+                        {
+                            "passage": { "book": "John", "chapter": 3, "startVerse": 16, "endVerse": 17 },
+                            "verses": { "club150": [16], "club300": [17] }
+                        },
+                        {
+                            "passage": { "book": "John", "chapter": 4, "startVerse": 1, "endVerse": 2 },
+                            "verses": { "club150": [1], "club300": [2] }
+                        }
+                    ]
+                }
+            ]
+        }"#;
+        let mut s: Schedule = serde_json::from_str(raw).expect("parse");
+        s.normalize_v1_weeks();
+        assert_eq!(s.weeks[0].blocks.len(), 2);
+        // Both blocks contribute refs — Club 150 has one verse each.
+        let refs150 = s.week_verse_refs(0, ClubTier::Club150);
+        assert_eq!(refs150.len(), 2);
+        assert_eq!(refs150[0], ("John".into(), 3, 16));
+        assert_eq!(refs150[1], ("John".into(), 4, 1));
+        // Full derives per block: John 3:16-17 minus {16, 17} → empty;
+        // John 4:1-2 minus {1, 2} → empty. Total 0.
+        let refs_full = s.week_verse_refs(0, ClubTier::Full);
+        assert_eq!(refs_full.len(), 0);
+    }
+
+    #[test]
+    fn normalize_v1_weeks_is_idempotent() {
+        let mut s = schedule_fixture();
+        let blocks_before = s.weeks[0].blocks.clone();
+        s.normalize_v1_weeks();
+        s.normalize_v1_weeks();
+        assert_eq!(s.weeks[0].blocks.len(), blocks_before.len());
+        assert_eq!(
+            s.weeks[0].blocks[0].verses.club150,
+            blocks_before[0].verses.club150
+        );
     }
 }

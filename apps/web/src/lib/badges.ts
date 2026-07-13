@@ -80,10 +80,12 @@ function cumulativeThroughWeek(
 ): number {
   let sum = 0
   for (let i = 0; i <= currentIdx; i++) {
-    const w = weeks[i]?.verses
-    if (!w) continue
-    for (const club of enabledClubs) {
-      sum += w[club]?.length ?? 0
+    const week = weeks[i]
+    if (!week) continue
+    for (const block of week.blocks) {
+      for (const club of enabledClubs) {
+        sum += block.verses[club]?.length ?? 0
+      }
     }
   }
   return sum

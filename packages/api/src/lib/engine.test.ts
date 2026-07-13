@@ -2,7 +2,11 @@ import { and, eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { DB } from '../db/client.js';
-import { graphSnapshots, testStates as testStatesTable } from '../db/schema.js';
+import {
+  graphSnapshots,
+  materialSchedules,
+  testStates as testStatesTable,
+} from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import { enrollUser } from './enrollment.js';
@@ -81,6 +85,105 @@ describe('EngineStore', () => {
     const a = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
     const b = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
     expect(a.engine).toBe(b.engine);
+    store.clear();
+  });
+
+  it('loads with a v2-shape single-block user schedule', async () => {
+    // A user's persisted schedule row can now be either the v1 wire form
+    // (single passage per week) or the v2 wire form (week.blocks[]) — the
+    // API PUT route accepts both. The WASM engine still speaks v1, so
+    // EngineStore.load must migrate + downgrade before handing the JSON
+    // to the constructor; a v2-shape row must not blow up.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-cor' });
+    const v2 = JSON.stringify({
+      version: 2,
+      materialId: 'nkjv-cor',
+      season: '2025-26',
+      title: 'v2-shaped user copy',
+      meetingDayOfWeek: 'Mon',
+      weeks: [
+        {
+          date: '2025-09-08',
+          isReview: false,
+          blocks: [
+            {
+              passage: {
+                book: '1 Corinthians',
+                chapter: 1,
+                startVerse: 1,
+                endVerse: 31,
+              },
+              verses: { club150: [5, 10], club300: [1, 2] },
+            },
+          ],
+        },
+        { date: '2025-11-17', isReview: true, blocks: [] },
+      ],
+      meets: [],
+    });
+    test.db
+      .insert(materialSchedules)
+      .values({
+        userId: 'u1',
+        materialId: 'nkjv-cor',
+        scheduleJson: v2,
+        updatedAt: 1_700_000_000,
+      })
+      .run();
+
+    const store = new EngineStore(test.db);
+    const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    expect(loaded.snapshotVersion).toBe(1);
+    store.clear();
+  });
+
+  it('loads with a v2 multi-block schedule via the wasm@0.7.0 engine', async () => {
+    // As of contract crate 0.7.0 the WASM engine consumes `blocks[]`
+    // natively — compound weeks (spec §3.3 `|` weeks) surface refs from
+    // every block during Phase 1 memorize fill. Prior to 0.7.0 the API
+    // downgraded to v1 and rejected multi-block schedules at the boundary.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-cor' });
+    const passage = {
+      book: '1 Corinthians',
+      chapter: 1,
+      startVerse: 1,
+      endVerse: 31,
+    };
+    const v2 = JSON.stringify({
+      version: 2,
+      materialId: 'nkjv-cor',
+      season: '2025-26',
+      title: 'multi-passage',
+      meetingDayOfWeek: 'Mon',
+      weeks: [
+        {
+          date: '2025-09-08',
+          isReview: false,
+          blocks: [
+            { passage, verses: { club150: [], club300: [] } },
+            { passage, verses: { club150: [], club300: [] } },
+          ],
+        },
+      ],
+      meets: [],
+    });
+    test.db
+      .insert(materialSchedules)
+      .values({
+        userId: 'u1',
+        materialId: 'nkjv-cor',
+        scheduleJson: v2,
+        updatedAt: 1_700_000_000,
+      })
+      .run();
+
+    const store = new EngineStore(test.db);
+    const loaded = await store.load({ userId: 'u1', materialId: 'nkjv-cor' });
+    expect(loaded.snapshotVersion).toBe(1);
     store.clear();
   });
 

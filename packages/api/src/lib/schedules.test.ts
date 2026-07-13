@@ -3,11 +3,35 @@ import { describe, expect, it } from 'vitest';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import * as schema from '../db/schema.js';
 import {
+  migrateSchedule,
   ScheduleValidationError,
   loadBundledSchedule,
   loadSchedule,
   validateSchedule,
 } from './schedules.js';
+
+const V1_SCHEDULE = {
+  version: 1,
+  materialId: '3-corinthians',
+  season: '2025-26',
+  title: 'Test',
+  meetingDayOfWeek: 'Mon',
+  weeks: [
+    {
+      date: '2025-09-08',
+      passage: { book: '1 Corinthians', chapter: 1, startVerse: 1, endVerse: 31 },
+      verses: { club150: [5, 10], club300: [1, 2] },
+      isReview: false,
+    },
+    {
+      date: '2025-11-17',
+      passage: null,
+      verses: null,
+      isReview: true,
+    },
+  ],
+  meets: [],
+};
 
 describe('loadBundledSchedule', () => {
   it('returns the shipped 3-corinthians-2025-26 schedule for nkjv-cor', () => {
@@ -285,3 +309,106 @@ describe('validateSchedule', () => {
     expect(() => validateSchedule(bad)).toThrow(/duplicated/);
   });
 });
+
+describe('migrateSchedule', () => {
+  it('turns a v1 non-review week into a single-block v2 week', () => {
+    const out = migrateSchedule(V1_SCHEDULE);
+    expect(out.version).toBe(2);
+    expect(out.weeks[0]!.blocks).toHaveLength(1);
+    expect(out.weeks[0]!.blocks[0]!.passage.book).toBe('1 Corinthians');
+    expect(out.weeks[0]!.blocks[0]!.verses.club150).toEqual([5, 10]);
+    expect(out.weeks[0]!.isReview).toBe(false);
+  });
+
+  it('turns a v1 review week into an empty-blocks v2 week', () => {
+    const out = migrateSchedule(V1_SCHEDULE);
+    expect(out.weeks[1]!.blocks).toEqual([]);
+    expect(out.weeks[1]!.isReview).toBe(true);
+  });
+
+  it('is a no-op on a v2 shape', () => {
+    const v2 = migrateSchedule(V1_SCHEDULE);
+    const again = migrateSchedule(v2);
+    expect(again).toEqual(v2);
+  });
+
+  it('rejects unknown versions', () => {
+    expect(() => migrateSchedule({ ...V1_SCHEDULE, version: 3 })).toThrow(
+      ScheduleValidationError,
+    );
+  });
+});
+
+describe('validateSchedule v2', () => {
+  it('accepts v2 wire form with a single block and returns v2 shape', () => {
+    const v2 = {
+      ...V1_SCHEDULE,
+      version: 2,
+      weeks: [
+        {
+          date: '2025-09-08',
+          isReview: false,
+          blocks: [
+            {
+              passage: { book: '1 Corinthians', chapter: 1, startVerse: 1, endVerse: 31 },
+              verses: { club150: [5], club300: [1] },
+            },
+          ],
+        },
+      ],
+    };
+    const out = validateSchedule(JSON.stringify(v2));
+    expect(out.version).toBe(2);
+    expect(out.weeks[0]!.blocks[0]!.verses.club150).toEqual([5]);
+  });
+
+  it('accepts v2 wire form with two blocks (multi-passage week)', () => {
+    const v2 = {
+      ...V1_SCHEDULE,
+      version: 2,
+      weeks: [
+        {
+          date: '2025-09-08',
+          isReview: false,
+          blocks: [
+            {
+              passage: { book: '1 Corinthians', chapter: 1, startVerse: 1, endVerse: 31 },
+              verses: { club150: [5], club300: [1] },
+            },
+            {
+              passage: { book: '1 Corinthians', chapter: 2, startVerse: 1, endVerse: 16 },
+              verses: { club150: [4], club300: [7] },
+            },
+          ],
+        },
+      ],
+    };
+    const out = validateSchedule(JSON.stringify(v2));
+    expect(out.weeks[0]!.blocks).toHaveLength(2);
+  });
+
+  it('rejects v2 weeks with malformed blocks', () => {
+    const bad = {
+      ...V1_SCHEDULE,
+      version: 2,
+      weeks: [{ date: '2025-09-08', isReview: false, blocks: [{}] }],
+    };
+    expect(() => validateSchedule(JSON.stringify(bad))).toThrow(ScheduleValidationError);
+  });
+
+  it('rejects a non-review v2 week with zero blocks', () => {
+    const bad = {
+      ...V1_SCHEDULE,
+      version: 2,
+      weeks: [{ date: '2025-09-08', isReview: false, blocks: [] }],
+    };
+    expect(() => validateSchedule(JSON.stringify(bad))).toThrow(ScheduleValidationError);
+  });
+
+  it('returns v2 shape when parsing v1 payload', () => {
+    const out = validateSchedule(JSON.stringify(V1_SCHEDULE));
+    expect(out.version).toBe(2);
+    expect(out.weeks[0]!.blocks[0]!.passage.chapter).toBe(1);
+  });
+});
+
