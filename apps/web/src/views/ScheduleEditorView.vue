@@ -10,6 +10,7 @@ import {
   type DayOfWeek,
   type PassageBlock,
   type Schedule,
+  type SchedulePassage,
   type ScheduleMeet,
   type ScheduleWeek,
   addMeet,
@@ -358,6 +359,51 @@ function cumulativeCount(block: PassageBlock, tier: 'club150' | 'club300' | 'ful
   const { startVerse, endVerse } = block.passage
   if (startVerse < 1 || endVerse < startVerse) return 0
   return endVerse - startVerse + 1
+}
+
+/** Week-level cumulative memorize-scope counts. 150 = |c150| across
+ *  every block; 300 = |c150 ∪ c300| per block, summed (verses are
+ *  never shared across blocks — different passages, non-overlapping
+ *  numeric ranges); Full = sum of every block's passage size. */
+function weekClub150Count(week: ScheduleWeek): number {
+  let n = 0
+  for (const b of week.blocks) n += derivedVerseNumbers(b, 150).length
+  return n
+}
+
+function weekClub300Count(week: ScheduleWeek): number {
+  let n = 0
+  for (const b of week.blocks) {
+    const union = new Set<number>([
+      ...derivedVerseNumbers(b, 150),
+      ...derivedVerseNumbers(b, 300),
+    ])
+    n += union.size
+  }
+  return n
+}
+
+function weekFullCount(week: ScheduleWeek): number {
+  let n = 0
+  for (const b of week.blocks) {
+    const { startVerse, endVerse } = b.passage
+    if (startVerse >= 1 && endVerse >= startVerse) n += endVerse - startVerse + 1
+  }
+  return n
+}
+
+/** One entry per block whose `tier` list is non-empty, in block order.
+ *  Powers the multi-passage grouped display in the week summary. */
+function perBlockTierPills(
+  week: ScheduleWeek,
+  tier: 150 | 300,
+): { blockIdx: number; passage: SchedulePassage; verses: number[] }[] {
+  const out: { blockIdx: number; passage: SchedulePassage; verses: number[] }[] = []
+  week.blocks.forEach((b, blockIdx) => {
+    const verses = derivedVerseNumbers(b, tier)
+    if (verses.length > 0) out.push({ blockIdx, passage: b.passage, verses })
+  })
+  return out
 }
 
 function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVerse'>(
