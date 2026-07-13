@@ -203,24 +203,34 @@ const selectedMeet = computed<ScheduleMeet | null>(() => {
 // Per-week editor state
 // =============================================================================
 
-/** Verse numbers in a block's passage range that aren't tagged Club 150
- *  or Club 300 — the Full-tier remainder. Editors read this to know
- *  which numbers cover the "everything else in this passage" bucket
- *  after the tagged sets are subtracted; consumers of the schedule
- *  compute the same set in the engine (`crates/core` derives it
- *  per-block from passage minus club150 ∪ club300). Empty passage or
- *  0-start returns an empty list — the passage isn't real yet. */
-function fullVerseNumbers(block: PassageBlock): number[] {
+/** Club-150 kid's memorize scope for this block: exactly the tagged
+ *  Club 150 verses (sorted, deduped). */
+function club150Verses(block: PassageBlock): number[] {
+  return sortedUnique(block.verses.club150 ?? [])
+}
+
+/** Club-300 kid's memorize scope for this block: Club 150 ∪ Club 300 —
+ *  the tiers are cumulative in memorization scope, so the display
+ *  shows what a 300 kid actually memorizes, not just the extra tag. */
+function club300Verses(block: PassageBlock): number[] {
+  return sortedUnique([
+    ...(block.verses.club150 ?? []),
+    ...(block.verses.club300 ?? []),
+  ])
+}
+
+/** Full-tier scope for this block: the entire passage range. A Full
+ *  kid memorizes every verse the passage covers (150 and 300 verses
+ *  included), so the count is the passage size — no separate list is
+ *  useful, hence the template omits it. */
+function fullVerseCount(block: PassageBlock): number {
   const { startVerse, endVerse } = block.passage
-  if (startVerse < 1 || endVerse < startVerse) return []
-  const tagged = new Set<number>()
-  for (const n of block.verses.club150 ?? []) tagged.add(n)
-  for (const n of block.verses.club300 ?? []) tagged.add(n)
-  const out: number[] = []
-  for (let n = startVerse; n <= endVerse; n++) {
-    if (!tagged.has(n)) out.push(n)
-  }
-  return out
+  if (startVerse < 1 || endVerse < startVerse) return 0
+  return endVerse - startVerse + 1
+}
+
+function sortedUnique(ns: readonly number[]): number[] {
+  return Array.from(new Set(ns)).sort((a, b) => a - b)
 }
 
 function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | 'endVerse'>(
@@ -949,51 +959,40 @@ function backToSettings() {
                       <div class="verses-summary" aria-label="Verse numbers">
                         <div class="verses-row">
                           <span class="verses-label club-150">
-                            150 · {{ (block.verses.club150 ?? []).length }}
+                            150 · {{ club150Verses(block).length }}
                           </span>
                           <div class="verses-vals">
                             <span
-                              v-for="n in block.verses.club150 ?? []"
+                              v-for="n in club150Verses(block)"
                               :key="n"
                               class="v v-150"
                             >{{ n }}</span>
                             <span
-                              v-if="!(block.verses.club150 ?? []).length"
+                              v-if="!club150Verses(block).length"
                               class="verses-empty"
                             >—</span>
                           </div>
                         </div>
                         <div class="verses-row">
                           <span class="verses-label club-300">
-                            300 · {{ (block.verses.club300 ?? []).length }}
+                            300 · {{ club300Verses(block).length }}
                           </span>
                           <div class="verses-vals">
                             <span
-                              v-for="n in block.verses.club300 ?? []"
+                              v-for="n in club300Verses(block)"
                               :key="n"
                               class="v v-300"
                             >{{ n }}</span>
                             <span
-                              v-if="!(block.verses.club300 ?? []).length"
+                              v-if="!club300Verses(block).length"
                               class="verses-empty"
                             >—</span>
                           </div>
                         </div>
-                        <div class="verses-row">
+                        <div class="verses-row verses-row-full">
                           <span class="verses-label club-full">
-                            Full · {{ fullVerseNumbers(block).length }}
+                            Full · {{ fullVerseCount(block) }}
                           </span>
-                          <div class="verses-vals">
-                            <span
-                              v-for="n in fullVerseNumbers(block)"
-                              :key="n"
-                              class="v v-full"
-                            >{{ n }}</span>
-                            <span
-                              v-if="!fullVerseNumbers(block).length"
-                              class="verses-empty"
-                            >—</span>
-                          </div>
                         </div>
                       </div>
                     </template>
@@ -1612,7 +1611,11 @@ button.secondary:hover:not(:disabled) {
   .sched .vals {
     display: block;
   }
-  .sched .v {
+  /* Scope to view-mode `.vals` explicitly so the edit-form's
+   * `.verses-summary .v` pills keep their pill styling — the flat
+   * `.sched .v` selector previously stripped the background and
+   * injected commas everywhere .sched wrapped, including the form. */
+  .sched .vals .v {
     /* Strip pill styling → inline comma list. `::after ", "` gives
      * the PDF-faithful comma separator without breaking the mono grid. */
     background: transparent;
@@ -1620,11 +1623,11 @@ button.secondary:hover:not(:disabled) {
     color: var(--color-text);
     font-size: 0.8rem;
   }
-  .sched .c-300 .v {
+  .sched .c-300 .vals .v {
     background: transparent;
     color: var(--color-text);
   }
-  .sched .v:not(:last-child)::after {
+  .sched .vals .v:not(:last-child)::after {
     content: ', ';
     white-space: pre;
   }
@@ -1779,12 +1782,6 @@ button.secondary:hover:not(:disabled) {
 .verses-vals .v-300 {
   background: var(--color-grade-hard-bg);
   color: var(--color-grade-hard);
-}
-
-.verses-vals .v-full {
-  background: var(--color-bg-card);
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
 }
 
 .verses-empty {
