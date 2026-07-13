@@ -1292,11 +1292,13 @@ function backToSettings() {
                       v-for="(block, bi) in row.week.blocks"
                       :key="bi"
                     >
-                      <fieldset class="passage">
-                        <legend>
-                          Passage {{ row.week.blocks.length > 1 ? bi + 1 : '' }}
+                      <div class="passage-block" :class="{ 'has-siblings': row.week.blocks.length > 1 }">
+                        <div
+                          v-if="row.week.blocks.length > 1"
+                          class="passage-block-heading"
+                        >
+                          <span class="passage-block-index">Passage {{ bi + 1 }}</span>
                           <button
-                            v-if="row.week.blocks.length > 1"
                             type="button"
                             class="mini-danger"
                             aria-label="Remove this passage"
@@ -1304,7 +1306,7 @@ function backToSettings() {
                           >
                             ×
                           </button>
-                        </legend>
+                        </div>
                         <template v-if="materialBooks.length > 0">
                           <div class="passage-row">
                             <label class="passage-field passage-field-book">
@@ -1406,7 +1408,7 @@ function backToSettings() {
                             />
                           </label>
                         </template>
-                      </fieldset>
+                      </div>
                       <div class="verses-summary" aria-label="Verse numbers">
                         <div class="verses-row">
                           <span class="verses-label club-150">
@@ -2414,7 +2416,6 @@ button.secondary:hover:not(:disabled) {
   accent-color: var(--color-accent);
 }
 
-fieldset.passage,
 fieldset.verses,
 fieldset.meet-fields {
   border: 1px solid var(--color-border);
@@ -2547,6 +2548,32 @@ fieldset legend {
   .passage-field-book {
     flex: 0 0 100%;
   }
+}
+
+.passage-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.passage-block.has-siblings + .passage-block.has-siblings {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  margin-top: 0.75rem;
+}
+
+.passage-block-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-muted);
+}
+
+.passage-block-index {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 fieldset.verses {
