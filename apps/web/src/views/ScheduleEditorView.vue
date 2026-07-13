@@ -1409,45 +1409,6 @@ function backToSettings() {
                           </label>
                         </template>
                       </div>
-                      <div class="verses-summary" aria-label="Verse numbers">
-                        <div class="verses-row">
-                          <span class="verses-label club-150">
-                            150 · {{ cumulativeCount(block, 'club150') }}
-                          </span>
-                          <div class="verses-vals">
-                            <span
-                              v-for="n in derivedVerseNumbers(block, 150)"
-                              :key="n"
-                              class="v v-150"
-                            >{{ n }}</span>
-                            <span
-                              v-if="!derivedVerseNumbers(block, 150).length"
-                              class="verses-empty"
-                            >—</span>
-                          </div>
-                        </div>
-                        <div class="verses-row">
-                          <span class="verses-label club-300">
-                            300 · {{ cumulativeCount(block, 'club300') }}
-                          </span>
-                          <div class="verses-vals">
-                            <span
-                              v-for="n in derivedVerseNumbers(block, 300)"
-                              :key="n"
-                              class="v v-300"
-                            >{{ n }}</span>
-                            <span
-                              v-if="!derivedVerseNumbers(block, 300).length"
-                              class="verses-empty"
-                            >—</span>
-                          </div>
-                        </div>
-                        <div class="verses-row verses-row-full">
-                          <span class="verses-label club-full">
-                            Full · {{ cumulativeCount(block, 'full') }}
-                          </span>
-                        </div>
-                      </div>
                     </template>
                     <button
                       type="button"
@@ -1456,6 +1417,81 @@ function backToSettings() {
                     >
                       + Add a passage
                     </button>
+                    <div
+                      v-if="row.week.blocks.length > 0"
+                      class="week-summary"
+                      aria-label="Week verse summary"
+                    >
+                      <div class="week-summary-row">
+                        <span class="week-summary-label club-150">
+                          150 · {{ weekClub150Count(row.week) }}
+                        </span>
+                        <div class="week-summary-vals">
+                          <template v-if="row.week.blocks.length === 1">
+                            <span
+                              v-for="n in derivedVerseNumbers(row.week.blocks[0]!, 150)"
+                              :key="n"
+                              class="v v-150"
+                            >{{ n }}</span>
+                            <span
+                              v-if="!derivedVerseNumbers(row.week.blocks[0]!, 150).length"
+                              class="verses-empty"
+                            >—</span>
+                          </template>
+                          <template v-else>
+                            <div
+                              v-for="group in perBlockTierPills(row.week, 150)"
+                              :key="`c150-${group.blockIdx}`"
+                              class="week-summary-passage"
+                            >
+                              <span class="passage-prefix">Ch {{ group.passage.chapter }}:</span>
+                              <span
+                                v-for="n in group.verses"
+                                :key="`c150-${group.blockIdx}-${n}`"
+                                class="v v-150"
+                              >{{ n }}</span>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                      <div class="week-summary-row">
+                        <span class="week-summary-label club-300">
+                          300 · {{ weekClub300Count(row.week) }}
+                        </span>
+                        <div class="week-summary-vals">
+                          <template v-if="row.week.blocks.length === 1">
+                            <span
+                              v-for="n in derivedVerseNumbers(row.week.blocks[0]!, 300)"
+                              :key="n"
+                              class="v v-300"
+                            >{{ n }}</span>
+                            <span
+                              v-if="!derivedVerseNumbers(row.week.blocks[0]!, 300).length"
+                              class="verses-empty"
+                            >—</span>
+                          </template>
+                          <template v-else>
+                            <div
+                              v-for="group in perBlockTierPills(row.week, 300)"
+                              :key="`c300-${group.blockIdx}`"
+                              class="week-summary-passage"
+                            >
+                              <span class="passage-prefix">Ch {{ group.passage.chapter }}:</span>
+                              <span
+                                v-for="n in group.verses"
+                                :key="`c300-${group.blockIdx}-${n}`"
+                                class="v v-300"
+                              >{{ n }}</span>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                      <div class="week-summary-row week-summary-row-full">
+                        <span class="week-summary-label club-full">
+                          Full · {{ weekFullCount(row.week) }}
+                        </span>
+                      </div>
+                    </div>
                   </template>
                 </form>
               </template>
@@ -2270,11 +2306,10 @@ button.secondary:hover:not(:disabled) {
   letter-spacing: 0.04em;
 }
 
-/* Verse numbers block — read-only summary of what's covered by the
- * passage, split into Club 150 / Club 300 / Full. The engine derives
- * Full per-block (passage range minus 150 ∪ 300); the editor mirrors
- * that so the user sees exactly what the algorithm will pick up. */
-.verses-summary {
+/* Week-level verse summary — aggregates across every block. Split
+ * into Club 150 / Club 300 / Full. Multi-passage weeks nest a
+ * `Ch N:` sub-row per passage under each club label. */
+.week-summary {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -2282,16 +2317,17 @@ button.secondary:hover:not(:disabled) {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: 6px;
+  margin-top: 0.75rem;
 }
 
-.verses-row {
+.week-summary-row {
   display: flex;
   gap: 0.6rem;
   align-items: baseline;
   flex-wrap: wrap;
 }
 
-.verses-label {
+.week-summary-label {
   flex: 0 0 5rem;
   font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
   font-size: 0.7rem;
@@ -2300,25 +2336,40 @@ button.secondary:hover:not(:disabled) {
   text-transform: uppercase;
 }
 
-.verses-label.club-150 {
+.week-summary-label.club-150 {
   color: var(--color-grade-hard);
 }
 
-.verses-label.club-300 {
+.week-summary-label.club-300 {
   color: var(--color-grade-easy);
 }
 
-.verses-label.club-full {
+.week-summary-label.club-full {
   color: var(--color-muted);
 }
 
-.verses-vals {
+.week-summary-vals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1 1 auto;
+}
+
+.week-summary-passage {
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem;
+  align-items: baseline;
 }
 
-.verses-vals .v {
+.passage-prefix {
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  flex: 0 0 auto;
+}
+
+.week-summary .v {
   font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
   font-size: 0.78rem;
   padding: 0.1rem 0.4rem;
@@ -2326,12 +2377,12 @@ button.secondary:hover:not(:disabled) {
   line-height: 1.25;
 }
 
-.verses-vals .v-150 {
+.week-summary .v-150 {
   background: var(--color-grade-hard-bg);
   color: var(--color-grade-hard);
 }
 
-.verses-vals .v-300 {
+.week-summary .v-300 {
   background: var(--color-grade-easy-bg);
   color: var(--color-grade-easy);
 }
