@@ -15,7 +15,10 @@ import {
   addMeet,
   applyMeetingDayShift,
   cloneSchedule,
+  type CoverageResult,
+  computeCoverage,
   englishOrdinal,
+  formatCoverageRange,
   formatPassage,
   fullDayName,
   isoWeekStart,
@@ -208,6 +211,46 @@ function weekGridStyle(week: ScheduleWeek): Record<string, string> {
 const selectedWeek = computed<ScheduleWeek | null>(() => {
   if (selection.value?.kind !== 'week') return null
   return display.value?.weeks[selection.value.weekIdx] ?? null
+})
+
+/** Live per-week coverage report against the material's canonical
+ *  verse set. Reads from `draft` in edit mode and `saved` otherwise so
+ *  the report matches whatever the display is showing. Legit
+ *  out-of-order schedules (e.g. OT Survey's every-other-week Psalms
+ *  chapter) don't trip the check — the algorithm only flags verses no
+ *  block covers (gaps) or verses two or more blocks cover (overlap),
+ *  never the order they're memorised in. */
+const coverageResult = computed<CoverageResult>(() => {
+  const s = display.value
+  if (s === null) return { gaps: [], overlaps: [], materialEmpty: true }
+  return computeCoverage(s, materialPassages.value)
+})
+
+/** Week indices flagged by the coverage checker — every week that
+ *  contributes to at least one overlap range. Rendered as a red
+ *  left-rule on the affected week rows so the user can see what to
+ *  fix without hunting through the coverage banner list. */
+const coverageIssueWeeks = computed<Set<number>>(() => {
+  const s = new Set<number>()
+  for (const o of coverageResult.value.overlaps) {
+    for (const i of o.weekIdxs) s.add(i)
+  }
+  return s
+})
+
+const coverageTotalIssues = computed(
+  () =>
+    coverageResult.value.gaps.length + coverageResult.value.overlaps.length,
+)
+
+const coverageBadgeAria = computed(() => {
+  if (coverageResult.value.materialEmpty) {
+    return 'Coverage check unavailable — no material data loaded'
+  }
+  if (coverageTotalIssues.value === 0) return 'Schedule covers every material verse exactly once'
+  const g = coverageResult.value.gaps.length
+  const o = coverageResult.value.overlaps.length
+  return `Coverage has ${g} gap range${g === 1 ? '' : 's'} and ${o} overlap range${o === 1 ? '' : 's'}`
 })
 
 const selectedMeet = computed<ScheduleMeet | null>(() => {
@@ -795,11 +838,11 @@ function backToSettings() {
           <div class="title-block">
             <h2>{{ display.title }}</h2>
             <p class="subtitle">
-              {{ display.season }} · meets {{
+              {{ display.season }} · practices {{
                 fullDayName(display.meetingDayOfWeek)
               }}s ·
               {{ display.weeks.length }} weeks ·
-              {{ display.meets.length }} meets
+              {{ display.meets.length }} quiz {{ display.meets.length === 1 ? 'meet' : 'meets' }}
             </p>
           </div>
         </div>
@@ -819,6 +862,24 @@ function backToSettings() {
             </button>
           </template>
           <template v-else>
+            <div
+              class="coverage-badge"
+              :class="{
+                'coverage-ok': coverageTotalIssues === 0 && !coverageResult.materialEmpty,
+                'coverage-bad': coverageTotalIssues > 0,
+                'coverage-unknown': coverageResult.materialEmpty,
+              }"
+              role="status"
+              :aria-label="coverageBadgeAria"
+              :title="coverageBadgeAria"
+            >
+              <template v-if="coverageResult.materialEmpty">? no material data</template>
+              <template v-else-if="coverageTotalIssues === 0">✓ covers material</template>
+              <template v-else>
+                ⚠ {{ coverageTotalIssues }}
+                coverage {{ coverageTotalIssues === 1 ? 'issue' : 'issues' }}
+              </template>
+            </div>
             <button
               type="button"
               class="secondary"
@@ -841,9 +902,35 @@ function backToSettings() {
 
       <p v-if="resetBanner" class="banner banner-info">{{ resetBanner }}</p>
 
+      <details
+        v-if="mode === 'edit' && coverageTotalIssues > 0"
+        class="coverage-detail"
+      >
+        <summary>
+          {{ coverageTotalIssues }}
+          {{ coverageTotalIssues === 1 ? 'coverage issue' : 'coverage issues' }}
+          — click to expand
+        </summary>
+        <ul v-if="coverageResult.gaps.length" class="coverage-list">
+          <li v-for="(g, i) in coverageResult.gaps" :key="`gap-${i}`">
+            <span class="coverage-tag coverage-tag-gap">gap</span>
+            {{ formatCoverageRange(g) }}
+          </li>
+        </ul>
+        <ul v-if="coverageResult.overlaps.length" class="coverage-list">
+          <li v-for="(o, i) in coverageResult.overlaps" :key="`over-${i}`">
+            <span class="coverage-tag coverage-tag-overlap">overlap</span>
+            {{ formatCoverageRange(o) }}
+            <span class="coverage-weeks">
+              (weeks {{ o.weekIdxs.map((w) => w + 1).join(', ') }})
+            </span>
+          </li>
+        </ul>
+      </details>
+
       <div v-if="mode === 'edit'" class="day-picker">
         <label>
-          <span>Meets on</span>
+          <span>Practices on</span>
           <select
             :value="display.meetingDayOfWeek"
             @change="onMeetingDayChange(($event.target as HTMLSelectElement).value as DayOfWeek)"
@@ -861,9 +948,10 @@ function backToSettings() {
           Edit season range…
         </button>
         <p class="day-picker-hint">
-          Changing the meeting day shifts every practice week by the same
-          delta. Season range picks the first and last week — anything
-          outside is dropped, gaps inside fill in as review weeks.
+          Changing the practice day shifts every practice week by the
+          same delta. Quiz meets keep their own weekend dates. Season
+          range picks the first and last week — anything outside is
+          dropped, gaps inside fill in as review weeks.
         </p>
       </div>
 
@@ -928,6 +1016,7 @@ function backToSettings() {
                     'is-review': row.week.isReview,
                     'is-selected': mode === 'edit' && isWeekRowSelected(row.weekIdx),
                     'is-editable': mode === 'edit',
+                    'is-issue': mode === 'edit' && coverageIssueWeeks.has(row.weekIdx),
                   }"
                   :style="weekGridStyle(row.week)"
                   :aria-current="row.isCurrent ? 'date' : undefined"
@@ -1357,6 +1446,98 @@ function backToSettings() {
 .mode-controls {
   display: inline-flex;
   gap: 0.5rem;
+  align-items: center;
+}
+
+/* Coverage badge sits beside Discard / Save so the user sees the
+ * coverage state without scrolling. The banner below carries the
+ * detail; the badge is the summary. */
+.coverage-badge {
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.coverage-badge.coverage-ok {
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.coverage-badge.coverage-bad {
+  border-color: var(--color-error);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.coverage-badge.coverage-unknown {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.coverage-detail {
+  padding: 0.6rem 0.9rem;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  color: var(--color-error);
+}
+
+.coverage-detail > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.coverage-list {
+  list-style: none;
+  padding: 0.5rem 0 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--color-text);
+  font-size: 0.85rem;
+}
+
+.coverage-list li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.coverage-tag {
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+}
+
+.coverage-tag-gap {
+  background: var(--color-error);
+  color: var(--color-on-accent);
+}
+
+.coverage-tag-overlap {
+  background: var(--color-grade-hard);
+  color: var(--color-on-accent);
+}
+
+.coverage-weeks {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.sched .wk.is-issue {
+  box-shadow: inset 3px 0 0 var(--color-error);
 }
 
 button.primary {

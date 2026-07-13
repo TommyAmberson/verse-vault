@@ -366,3 +366,190 @@ export function parseVerseList(input: string): number[] | null {
 export function formatVerseList(verses: readonly number[] | undefined): string {
   return verses ? verses.join(', ') : ''
 }
+
+// =============================================================================
+// Coverage validation — does the schedule cover every verse in the material,
+// exactly once?
+// =============================================================================
+
+/** A contiguous verse range within a single chapter. */
+export interface CoverageRange {
+  book: string
+  chapter: number
+  startVerse: number
+  endVerse: number
+}
+
+/** A stretch of material verses no week's block covers — the user's
+ *  season leaves these verses unscheduled. */
+export interface CoverageGap extends CoverageRange {}
+
+/** A stretch of material verses covered by more than one block. Each
+ *  covering week's index is listed so the UI can jump to them. */
+export interface CoverageOverlap extends CoverageRange {
+  weekIdxs: number[]
+}
+
+export interface CoverageResult {
+  gaps: CoverageGap[]
+  overlaps: CoverageOverlap[]
+  /** True when the material's expected verse set is empty (the
+   *  `/passages` endpoint returned no verses — e.g. dev environment
+   *  without the content pipeline). Consumers should suppress the
+   *  gap/overlap UI in that case since neither list means anything. */
+  materialEmpty: boolean
+}
+
+/** One entry per material verse — book/chapter/verse plus the deck's
+ *  club tags. Mirrors the `/api/materials/:id/passages` response. */
+export interface MaterialVerseEntry {
+  book: string
+  chapter: number
+  verse: number
+  clubs: number[]
+}
+
+/** Compute per-verse coverage of the material by the schedule's week
+ *  blocks: gaps (verses in the material with no block covering them)
+ *  and overlaps (verses covered by two or more blocks). Both lists are
+ *  collapsed into contiguous ranges keyed by `(book, chapter)` for a
+ *  compact display; an overlap range is only merged when every verse in
+ *  it shares the same covering-week set.
+ *
+ *  The material entry set defines what "must be covered" — verses a
+ *  block references that don't appear in the material (a typo in
+ *  chapter or verse) do NOT surface here. Callers can catch those via
+ *  the API's shape validator on save. */
+export function computeCoverage(
+  schedule: Schedule,
+  material: readonly MaterialVerseEntry[],
+): CoverageResult {
+  if (material.length === 0) {
+    return { gaps: [], overlaps: [], materialEmpty: true }
+  }
+  const expected = new Set<string>()
+  const byKey = new Map<string, { book: string; chapter: number; verse: number }>()
+  for (const v of material) {
+    const key = `${v.book}|${v.chapter}|${v.verse}`
+    expected.add(key)
+    byKey.set(key, { book: v.book, chapter: v.chapter, verse: v.verse })
+  }
+  // For each material verse, which week indices cover it. Zero coverers
+  // → gap; two or more → overlap.
+  const coverers = new Map<string, number[]>()
+  schedule.weeks.forEach((w, weekIdx) => {
+    for (const block of w.blocks) {
+      const { book, chapter, startVerse, endVerse } = block.passage
+      if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) continue
+      for (let v = startVerse; v <= endVerse; v++) {
+        const key = `${book}|${chapter}|${v}`
+        // Only track coverers for verses the material knows about —
+        // out-of-material verses aren't a coverage problem.
+        if (!expected.has(key)) continue
+        const list = coverers.get(key)
+        if (list === undefined) coverers.set(key, [weekIdx])
+        else if (!list.includes(weekIdx)) list.push(weekIdx)
+      }
+    }
+  })
+  const gapVerses: { book: string; chapter: number; verse: number }[] = []
+  const overlapVerses: {
+    book: string
+    chapter: number
+    verse: number
+    weekIdxs: number[]
+  }[] = []
+  for (const key of expected) {
+    const list = coverers.get(key)
+    const meta = byKey.get(key)!
+    if (list === undefined || list.length === 0) {
+      gapVerses.push(meta)
+    } else if (list.length > 1) {
+      overlapVerses.push({ ...meta, weekIdxs: [...list].sort((a, b) => a - b) })
+    }
+  }
+  // Sort by (book, chapter, verse) for stable ordering AND range
+  // collapse. Books stay in the order the material listed them — but
+  // since the material set is a Map iterated by insertion, sorting here
+  // by (book, chapter, verse) is enough for compact output.
+  const byBookChapterVerse = (
+    a: { book: string; chapter: number; verse: number },
+    b: { book: string; chapter: number; verse: number },
+  ) => {
+    if (a.book !== b.book) return a.book.localeCompare(b.book)
+    if (a.chapter !== b.chapter) return a.chapter - b.chapter
+    return a.verse - b.verse
+  }
+  gapVerses.sort(byBookChapterVerse)
+  overlapVerses.sort(byBookChapterVerse)
+  return {
+    gaps: collapseGapRanges(gapVerses),
+    overlaps: collapseOverlapRanges(overlapVerses),
+    materialEmpty: false,
+  }
+}
+
+function collapseGapRanges(
+  verses: readonly { book: string; chapter: number; verse: number }[],
+): CoverageGap[] {
+  const out: CoverageGap[] = []
+  for (const v of verses) {
+    const last = out[out.length - 1]
+    if (
+      last
+      && last.book === v.book
+      && last.chapter === v.chapter
+      && last.endVerse + 1 === v.verse
+    ) {
+      last.endVerse = v.verse
+    } else {
+      out.push({ book: v.book, chapter: v.chapter, startVerse: v.verse, endVerse: v.verse })
+    }
+  }
+  return out
+}
+
+function collapseOverlapRanges(
+  verses: readonly {
+    book: string
+    chapter: number
+    verse: number
+    weekIdxs: number[]
+  }[],
+): CoverageOverlap[] {
+  const out: CoverageOverlap[] = []
+  for (const v of verses) {
+    const last = out[out.length - 1]
+    if (
+      last
+      && last.book === v.book
+      && last.chapter === v.chapter
+      && last.endVerse + 1 === v.verse
+      && sameNumberList(last.weekIdxs, v.weekIdxs)
+    ) {
+      last.endVerse = v.verse
+    } else {
+      out.push({
+        book: v.book,
+        chapter: v.chapter,
+        startVerse: v.verse,
+        endVerse: v.verse,
+        weekIdxs: v.weekIdxs,
+      })
+    }
+  }
+  return out
+}
+
+function sameNumberList(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
+}
+
+/** Human-readable one-line summary of a coverage range: "1 Corinthians
+ *  5:1-13", "1 Corinthians 5:7", "2 Corinthians 3". */
+export function formatCoverageRange(r: CoverageRange): string {
+  if (r.startVerse === r.endVerse) return `${r.book} ${r.chapter}:${r.startVerse}`
+  return `${r.book} ${r.chapter}:${r.startVerse}-${r.endVerse}`
+}
