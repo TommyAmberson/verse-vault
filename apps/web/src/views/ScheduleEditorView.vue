@@ -1306,73 +1306,68 @@ function backToSettings() {
                           </button>
                         </legend>
                         <template v-if="materialBooks.length > 0">
-                          <label class="field passage-book">
-                            <span>Book</span>
-                            <select
-                              :value="block.passage.book"
-                              @change="updateBlockPassage(bi, { book: ($event.target as HTMLSelectElement).value })"
-                            >
-                              <option value="">— select —</option>
-                              <option
-                                v-for="b in materialBooks"
-                                :key="b"
-                                :value="b"
+                          <div class="passage-row">
+                            <label class="passage-field passage-field-book">
+                              <span>Book</span>
+                              <select
+                                :value="block.passage.book"
+                                @change="updateBlockPassage(bi, { book: ($event.target as HTMLSelectElement).value })"
                               >
-                                {{ b }}
-                              </option>
-                            </select>
-                          </label>
-                          <label class="field passage-chapter">
-                            <span>Chapter</span>
-                            <select
-                              :value="block.passage.chapter || ''"
-                              :disabled="!block.passage.book"
-                              @change="updateBlockPassage(bi, { chapter: Number(($event.target as HTMLSelectElement).value) || 0 })"
-                            >
-                              <option value="">— select —</option>
-                              <option
-                                v-for="c in chaptersFor(block.passage.book)"
-                                :key="c"
-                                :value="c"
+                                <option value="">— select —</option>
+                                <option
+                                  v-for="b in materialBooks"
+                                  :key="b"
+                                  :value="b"
+                                >{{ b }}</option>
+                              </select>
+                            </label>
+                            <label class="passage-field passage-field-chapter">
+                              <span>Ch.</span>
+                              <select
+                                :value="block.passage.chapter || ''"
+                                :disabled="!block.passage.book"
+                                @change="updateBlockPassage(bi, { chapter: Number(($event.target as HTMLSelectElement).value) || 0 })"
                               >
-                                {{ c }}
-                              </option>
-                            </select>
-                          </label>
-                          <label class="field passage-start">
-                            <span>Start verse</span>
-                            <select
-                              :value="block.passage.startVerse || ''"
-                              :disabled="!block.passage.chapter"
-                              @change="updateBlockPassage(bi, { startVerse: Number(($event.target as HTMLSelectElement).value) || 0 })"
-                            >
-                              <option value="">— select —</option>
-                              <option
-                                v-for="v in versesFor(block.passage.book, block.passage.chapter)"
-                                :key="v"
-                                :value="v"
+                                <option value="">—</option>
+                                <option
+                                  v-for="c in chaptersFor(block.passage.book)"
+                                  :key="c"
+                                  :value="c"
+                                >{{ c }}</option>
+                              </select>
+                            </label>
+                            <label class="passage-field passage-field-start">
+                              <span>Start</span>
+                              <select
+                                :value="block.passage.startVerse || ''"
+                                :disabled="!block.passage.chapter"
+                                @change="updateBlockPassage(bi, { startVerse: Number(($event.target as HTMLSelectElement).value) || 0 })"
                               >
-                                {{ v }}
-                              </option>
-                            </select>
-                          </label>
-                          <label class="field passage-end">
-                            <span>End verse</span>
-                            <select
-                              :value="block.passage.endVerse || ''"
-                              :disabled="!block.passage.startVerse"
-                              @change="updateBlockPassage(bi, { endVerse: Number(($event.target as HTMLSelectElement).value) || 0 })"
-                            >
-                              <option value="">— select —</option>
-                              <option
-                                v-for="v in versesFor(block.passage.book, block.passage.chapter).filter((n) => n >= block.passage.startVerse)"
-                                :key="v"
-                                :value="v"
+                                <option value="">—</option>
+                                <option
+                                  v-for="v in versesFor(block.passage.book, block.passage.chapter)"
+                                  :key="v"
+                                  :value="v"
+                                >{{ v }}</option>
+                              </select>
+                            </label>
+                            <span class="passage-dash" aria-hidden="true">—</span>
+                            <label class="passage-field passage-field-end">
+                              <span>End</span>
+                              <select
+                                :value="block.passage.endVerse || ''"
+                                :disabled="!block.passage.startVerse"
+                                @change="updateBlockPassage(bi, { endVerse: Number(($event.target as HTMLSelectElement).value) || 0 })"
                               >
-                                {{ v }}
-                              </option>
-                            </select>
-                          </label>
+                                <option value="">—</option>
+                                <option
+                                  v-for="v in versesFor(block.passage.book, block.passage.chapter).filter((n) => n >= block.passage.startVerse)"
+                                  :key="v"
+                                  :value="v"
+                                >{{ v }}</option>
+                              </select>
+                            </label>
+                          </div>
                         </template>
                         <template v-else>
                           <label class="field passage-book">
@@ -2485,6 +2480,73 @@ fieldset legend {
 
 .passage-book {
   grid-column: 1 / -1;
+}
+
+.passage-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.5rem;
+}
+
+.passage-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.passage-field > span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.passage-field select {
+  padding: 0.3rem 0.5rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.passage-field select:disabled {
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.passage-field-book {
+  flex: 1 1 12rem;
+}
+
+.passage-field-chapter,
+.passage-field-start,
+.passage-field-end {
+  flex: 0 0 auto;
+}
+
+.passage-field-chapter select,
+.passage-field-start select,
+.passage-field-end select {
+  min-width: 3.5rem;
+}
+
+.passage-dash {
+  align-self: flex-end;
+  padding: 0 0.15rem 0.35rem;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+@container (max-width: 519px) {
+  .passage-field-book {
+    flex: 0 0 100%;
+  }
 }
 
 fieldset.verses {
