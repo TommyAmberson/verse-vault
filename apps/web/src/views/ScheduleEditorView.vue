@@ -245,9 +245,39 @@ function updateBlockPassageField<K extends 'book' | 'chapter' | 'startVerse' | '
   if (!block) return
   const nextBlocks = week.blocks.map((b, i) => {
     if (i !== blockIdx) return b
-    return { ...b, passage: { ...b.passage, [key]: value } }
+    const nextPassage = { ...b.passage, [key]: value }
+    // A passage-range change (start/end verse or chapter) has to prune
+    // tagged verses that fall outside the new range — leaving stale
+    // numbers behind would produce phantom Club 150 / 300 pills for
+    // verses the passage no longer covers, and the server-side memorize
+    // algorithm would reject the row on save. Book edits don't touch
+    // the numeric range so verses stay put.
+    const rangeChanged
+      = key === 'startVerse' || key === 'endVerse' || key === 'chapter'
+    const nextVerses = rangeChanged
+      ? {
+          club150: pruneToPassage(b.verses.club150, nextPassage),
+          club300: pruneToPassage(b.verses.club300, nextPassage),
+        }
+      : b.verses
+    return { ...b, passage: nextPassage, verses: nextVerses }
   })
   draft.value.weeks[idx] = { ...week, blocks: nextBlocks }
+}
+
+/** Drop verse numbers that fall outside `[passage.startVerse,
+ *  passage.endVerse]`. Undefined / not-yet-set passages (start or end
+ *  is 0) leave the list alone so the user can type the range without
+ *  the pills disappearing mid-edit. */
+function pruneToPassage(
+  ns: number[] | undefined,
+  passage: PassageBlock['passage'],
+): number[] | undefined {
+  if (!ns || ns.length === 0) return ns
+  const { startVerse, endVerse } = passage
+  if (startVerse < 1 || endVerse < 1) return ns
+  const kept = ns.filter((n) => n >= startVerse && n <= endVerse)
+  return kept.length === ns.length ? ns : kept
 }
 
 function addPassageBlock() {
