@@ -391,7 +391,20 @@ function updateBlockPassage(
       nextPassage = { ...nextPassage, chapter: 0, startVerse: 0, endVerse: 0 }
     }
     if (patch.chapter !== undefined && patch.chapter !== b.passage.chapter) {
-      nextPassage = { ...nextPassage, startVerse: 0, endVerse: 0 }
+      // Auto-fill Start / End to the full chapter — the common case
+      // is memorising a whole chapter, and requiring the user to
+      // click Start and End every time turned 2 clicks into 4. Override
+      // is one click away when the passage really is a subset.
+      const verses = versesFor(nextPassage.book, nextPassage.chapter)
+      if (verses.length > 0) {
+        nextPassage = {
+          ...nextPassage,
+          startVerse: verses[0]!,
+          endVerse: verses[verses.length - 1]!,
+        }
+      } else {
+        nextPassage = { ...nextPassage, startVerse: 0, endVerse: 0 }
+      }
     }
     if (
       patch.startVerse !== undefined
@@ -442,11 +455,89 @@ function addPassageBlock() {
   const idx = selection.value.weekIdx
   const week = draft.value.weeks[idx]
   if (!week) return
+  const defaultPassage = nextPassageAfter(idx)
   const newBlock: PassageBlock = {
-    passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
-    verses: { club150: [], club300: [] },
+    passage: defaultPassage,
+    verses: deriveVersesForPassage(defaultPassage, { club150: [], club300: [] }),
   }
   draft.value.weeks[idx] = { ...week, blocks: [...week.blocks, newBlock] }
+}
+
+/** Guess a sensible default passage for a new block being appended to
+ *  week `idx`: pick up right after the previous non-empty block (either
+ *  same week or an earlier week). Same-chapter continuation when there's
+ *  room; jump to the next chapter of the same book when the previous
+ *  ended at the chapter's last verse; jump to the next book when the
+ *  previous ended at the book's last chapter. Falls back to a blank
+ *  passage when there's no previous or the material projection is
+ *  empty. */
+function nextPassageAfter(weekIdx: number): PassageBlock['passage'] {
+  const blank = { book: '', chapter: 0, startVerse: 0, endVerse: 0 }
+  if (draft.value === null) return blank
+  const prev = findPreviousBlockPassage(weekIdx)
+  if (prev === null) return blank
+  if (materialBooks.value.length === 0) return blank
+  const chapterVerses = versesFor(prev.book, prev.chapter)
+  const lastVerseOfChapter = chapterVerses[chapterVerses.length - 1]
+  if (lastVerseOfChapter !== undefined && prev.endVerse < lastVerseOfChapter) {
+    // Continue the same chapter from the next verse to its end.
+    return {
+      book: prev.book,
+      chapter: prev.chapter,
+      startVerse: prev.endVerse + 1,
+      endVerse: lastVerseOfChapter,
+    }
+  }
+  // Chapter finished — walk to the next chapter of the same book, or
+  // the next book's first chapter.
+  const bookChapters = chaptersFor(prev.book)
+  const chapIdx = bookChapters.indexOf(prev.chapter)
+  const nextChap = chapIdx >= 0 ? bookChapters[chapIdx + 1] : undefined
+  if (nextChap !== undefined) {
+    const vs = versesFor(prev.book, nextChap)
+    if (vs.length > 0) {
+      return { book: prev.book, chapter: nextChap, startVerse: vs[0]!, endVerse: vs[vs.length - 1]! }
+    }
+  }
+  const bookIdx = materialBooks.value.indexOf(prev.book)
+  const nextBook = bookIdx >= 0 ? materialBooks.value[bookIdx + 1] : undefined
+  if (nextBook !== undefined) {
+    const cs = chaptersFor(nextBook)
+    const firstChap = cs[0]
+    if (firstChap !== undefined) {
+      const vs = versesFor(nextBook, firstChap)
+      if (vs.length > 0) {
+        return { book: nextBook, chapter: firstChap, startVerse: vs[0]!, endVerse: vs[vs.length - 1]! }
+      }
+    }
+  }
+  // Wrapped past the end of the material — nothing sensible to suggest.
+  return blank
+}
+
+/** Walk backwards from `weekIdx` looking for the most recent block with
+ *  a real passage. Same-week later blocks (blocks after the current
+ *  append point) count — a user adding a second block wants it right
+ *  after the first. */
+function findPreviousBlockPassage(weekIdx: number): PassageBlock['passage'] | null {
+  const s = draft.value
+  if (s === null) return null
+  const currentWeek = s.weeks[weekIdx]
+  if (currentWeek !== undefined) {
+    for (let bi = currentWeek.blocks.length - 1; bi >= 0; bi--) {
+      const p = currentWeek.blocks[bi]?.passage
+      if (p && p.book && p.chapter > 0 && p.startVerse > 0 && p.endVerse > 0) return p
+    }
+  }
+  for (let i = weekIdx - 1; i >= 0; i--) {
+    const w = s.weeks[i]
+    if (!w) continue
+    for (let bi = w.blocks.length - 1; bi >= 0; bi--) {
+      const p = w.blocks[bi]?.passage
+      if (p && p.book && p.chapter > 0 && p.startVerse > 0 && p.endVerse > 0) return p
+    }
+  }
+  return null
 }
 
 function removeBlock(blockIdx: number) {
@@ -464,15 +555,18 @@ function toggleReviewWeek() {
   const week = draft.value.weeks[idx]
   if (!week) return
   if (week.isReview) {
-    // De-reviewing: rehydrate an empty block so the editor has
-    // something to bind. The user fills in the actual passage details.
+    // De-reviewing: rehydrate a block continuing right after the
+    // previous week's last passage — the common case is filling in a
+    // gap in the sequence, and defaulting to the next-passage saves
+    // the user a full picker walk.
+    const defaultPassage = nextPassageAfter(idx)
     draft.value.weeks[idx] = {
       ...week,
       isReview: false,
       blocks: [
         {
-          passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 },
-          verses: { club150: [], club300: [] },
+          passage: defaultPassage,
+          verses: deriveVersesForPassage(defaultPassage, { club150: [], club300: [] }),
         },
       ],
     }
