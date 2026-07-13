@@ -130,11 +130,22 @@ const rows = computed<TableRow[]>(() => {
   return result
 })
 
+/** Click-to-toggle: a second click on the already-open row collapses
+ *  the inline form (matches Esc). Any click on a different row swaps
+ *  selection to that row. */
 function selectWeek(weekIdx: number) {
+  if (selection.value?.kind === 'week' && selection.value.weekIdx === weekIdx) {
+    selection.value = null
+    return
+  }
   selection.value = { kind: 'week', weekIdx }
 }
 
 function selectMeet(meetId: string) {
+  if (selection.value?.kind === 'meet' && selection.value.meetId === meetId) {
+    selection.value = null
+    return
+  }
   selection.value = { kind: 'meet', meetId }
 }
 
