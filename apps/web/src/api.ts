@@ -11,6 +11,7 @@ import type {
   SyncStateResponse,
 } from './lib/engine/types'
 import type { Schedule } from './lib/schedule'
+import { migrateSchedule } from './lib/schedule'
 
 export type { Schedule } from './lib/schedule'
 
@@ -449,20 +450,13 @@ export function createApiClient(apiUrl: string): ApiClient {
       ) {
         return null
       }
-      // The API's SchedulePayload types `meets` as optional and weeks
-      // are present-but-passed-verbatim. The web's Schedule shape
-      // declares `meets: ScheduleMeet[]` and `weeks: ScheduleWeek[]`
-      // as required arrays — the editor iterates and reads `.length`
-      // off both unconditionally. Bundled JSONs older than Phase 3
-      // (or future ones written without a `meets` block) would crash
-      // the editor on `undefined.forEach`. Backfill the arrays here
-      // so the type assertion at the boundary holds.
-      if (body !== null && typeof body === 'object') {
-        const obj = body as Record<string, unknown>
-        if (!Array.isArray(obj.meets)) obj.meets = []
-        if (!Array.isArray(obj.weeks)) obj.weeks = []
-      }
-      return body as Schedule | null
+      // The GET route returns the persisted wire form verbatim — v1
+      // (bundled JSONs, pre-migration user rows) or v2 (post-editor
+      // saves). Run migrateSchedule so callers always see the canonical
+      // v2 in-memory shape (weeks[].blocks[]). migrateSchedule also
+      // backfills missing meets[] and weeks[] arrays.
+      if (body === null || typeof body !== 'object') return null
+      return migrateSchedule(body)
     },
     putSchedule: (materialId, schedule) =>
       request('PUT', `/api/materials/${encodeURIComponent(materialId)}/schedule`, schedule),
