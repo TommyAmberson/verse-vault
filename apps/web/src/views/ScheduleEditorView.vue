@@ -506,7 +506,11 @@ function addPassageBlock() {
     passage: defaultPassage,
     verses: deriveVersesForPassage(defaultPassage, { club150: [], club300: [] }),
   }
-  draft.value.weeks[idx] = { ...week, blocks: [...week.blocks, newBlock] }
+  draft.value.weeks[idx] = {
+    ...week,
+    isReview: false,
+    blocks: [...week.blocks, newBlock],
+  }
 }
 
 /** Guess a sensible default passage for a new block being appended to
@@ -590,34 +594,12 @@ function removeBlock(blockIdx: number) {
   if (draft.value === null || selection.value?.kind !== 'week') return
   const idx = selection.value.weekIdx
   const week = draft.value.weeks[idx]
-  if (!week || week.blocks.length <= 1) return
-  const nextBlocks = week.blocks.filter((_, i) => i !== blockIdx)
-  draft.value.weeks[idx] = { ...week, blocks: nextBlocks }
-}
-
-function toggleReviewWeek() {
-  if (draft.value === null || selection.value?.kind !== 'week') return
-  const idx = selection.value.weekIdx
-  const week = draft.value.weeks[idx]
   if (!week) return
-  if (week.isReview) {
-    // De-reviewing: rehydrate a block continuing right after the
-    // previous week's last passage — the common case is filling in a
-    // gap in the sequence, and defaulting to the next-passage saves
-    // the user a full picker walk.
-    const defaultPassage = nextPassageAfter(idx)
-    draft.value.weeks[idx] = {
-      ...week,
-      isReview: false,
-      blocks: [
-        {
-          passage: defaultPassage,
-          verses: deriveVersesForPassage(defaultPassage, { club150: [], club300: [] }),
-        },
-      ],
-    }
-  } else {
-    draft.value.weeks[idx] = { ...week, isReview: true, blocks: [] }
+  const nextBlocks = week.blocks.filter((_, i) => i !== blockIdx)
+  draft.value.weeks[idx] = {
+    ...week,
+    isReview: nextBlocks.length === 0,
+    blocks: nextBlocks,
   }
 }
 
@@ -1279,25 +1261,17 @@ function backToSettings() {
                   <p class="detail-date">
                     {{ formatTimelineDate(row.week.date) }}
                   </p>
-                  <label class="toggle">
-                    <input
-                      type="checkbox"
-                      :checked="row.week.isReview"
-                      @change="toggleReviewWeek"
-                    />
-                    <span>Review week (no new verses introduced)</span>
-                  </label>
-                  <template v-if="!row.week.isReview">
+                  <template v-if="row.week.blocks.length > 0">
                     <template
                       v-for="(block, bi) in row.week.blocks"
                       :key="bi"
                     >
                       <div class="passage-block" :class="{ 'has-siblings': row.week.blocks.length > 1 }">
-                        <div
-                          v-if="row.week.blocks.length > 1"
-                          class="passage-block-heading"
-                        >
-                          <span class="passage-block-index">Passage {{ bi + 1 }}</span>
+                        <div class="passage-block-heading">
+                          <span
+                            v-if="row.week.blocks.length > 1"
+                            class="passage-block-index"
+                          >Passage {{ bi + 1 }}</span>
                           <button
                             type="button"
                             class="mini-danger"
@@ -1492,6 +1466,18 @@ function backToSettings() {
                         </span>
                       </div>
                     </div>
+                  </template>
+                  <template v-else>
+                    <p class="review-empty">
+                      This is a review week — no verses introduced.
+                    </p>
+                    <button
+                      type="button"
+                      class="add-block"
+                      @click="addPassageBlock"
+                    >
+                      + Add a passage
+                    </button>
                   </template>
                 </form>
               </template>
@@ -2391,6 +2377,17 @@ button.secondary:hover:not(:disabled) {
   color: var(--color-muted);
   font-style: italic;
   font-size: 0.85rem;
+}
+
+.review-empty {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  background: var(--color-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  color: var(--color-muted);
+  font-style: italic;
+  text-align: center;
 }
 
 .form-actions {
