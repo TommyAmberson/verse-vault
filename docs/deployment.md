@@ -24,7 +24,7 @@ Worker (existing)            │                       Pages (existing)
      (cloudflared on VPS)               (verse-vault-web)
              │
      ┌───────┴─────────┐
-     │ Hetzner CX23    │
+     │ DO droplet tor1 │
      │ node dist/…     │  → /var/lib/verse-vault/verse-vault.db
      │ better-sqlite3  │  → Litestream → Backblaze B2
      │ Litestream      │
@@ -44,15 +44,15 @@ Why this shape:
 
 ## Host sizing
 
-A Hetzner CX23 (€4.49/mo, 2 vCPU / 4 GB / 40 GB SSD, EU region) is plenty for single-user + a
-handful of friends and the cheapest VPS that comfortably runs the Rust + wasm-pack build on the box.
-The bottleneck is per-user `WasmEngine` cache memory (a few MB each), not request CPU. The ARM
-equivalent (CAX11, Ampere, €4.99/mo) also works — all our deps have arm64 builds — but x86 is the
-more boring choice for the first deploy.
+Production runs on a DigitalOcean `s-1vcpu-512mb-10gb` droplet in `tor1` (Toronto), $4/mo. Builds
+happen in CI (see `.github/workflows/deploy-api.yml`) and the box only rsyncs the pre-built
+`dist/` + `node_modules/` bundle, so it never needs a Rust toolchain or the memory to run
+`wasm-pack`. Per-user `WasmEngine` cache memory (a few MB each) is the sizing bottleneck, not
+request CPU — 512 MB comfortably handles single-user + a handful of friends.
 
-EU location adds ~100ms latency vs a Toronto provider but it's invisible for flashcard review — the
-slowest network round-trip a user hits is OAuth sign-in (once per session), and even that's well
-under a second. Migration to a Canadian host later is a few hours via `litestream restore`.
+Toronto location keeps sign-in latency low for CA users; the flashcard review path is fully local
+after the initial API round-trip. Migration to a different provider is a few hours via
+`litestream restore`.
 
 Debian 12 or Ubuntu 24.04. Instructions assume `apt`.
 
@@ -390,7 +390,7 @@ setup, but adequate for now.
 
 ## Costs (May 2026)
 
-* Hetzner CX23 (EU): €4.49/mo (~$4.85 USD / ~$6.70 CAD).
+* DigitalOcean s-1vcpu-512mb-10gb (tor1): $4/mo USD (~$5.50 CAD).
 * CF Pages + Workers + Tunnel: free at this scale.
 * Backblaze B2 (Litestream): cents per month.
 * Total: ~$5/mo on top of existing domain.

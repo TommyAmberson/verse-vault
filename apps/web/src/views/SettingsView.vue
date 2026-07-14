@@ -27,7 +27,7 @@ const activeSection = computed<string>(() => {
   const byPath = SECTIONS.find(
     (s) => route.path === s.path || route.path.startsWith(s.path + '/'),
   )
-  return byPath?.name ?? SECTIONS[0].name
+  return byPath?.name ?? SECTIONS[0]!.name
 })
 
 const activeLabel = computed(

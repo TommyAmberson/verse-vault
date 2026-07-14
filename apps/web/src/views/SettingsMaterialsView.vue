@@ -449,15 +449,15 @@ onBeforeRouteLeave((_to, _from, next) => {
                 v-if="
                   idx < CLUBS.length - 1
                     && selected.draft.memorize[club].enabled
-                    && selected.draft.memorize[CLUBS[idx + 1]].enabled
+                    && selected.draft.memorize[CLUBS[idx + 1]!].enabled
                 "
                 class="chain-gate"
               >
                 <span class="chain-gate-label">
-                  Move to {{ CLUB_LABELS[CLUBS[idx + 1]] }} when:
+                  Move to {{ CLUB_LABELS[CLUBS[idx + 1]!] }} when:
                 </span>
                 <select
-                  v-model="selected.draft.moveToNext[GATE_FIELDS[idx]]"
+                  v-model="selected.draft.moveToNext[GATE_FIELDS[idx]!]"
                   :disabled="selected.saving"
                 >
                   <option v-for="opt in GATE_OPTIONS" :key="opt.value" :value="opt.value">

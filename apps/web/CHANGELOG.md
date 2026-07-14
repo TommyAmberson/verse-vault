@@ -9,6 +9,31 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-07-14
+
+PATCH — deployability fix. 0.9.0 landed on master with 11 `vue-tsc` type errors that broke the web
+deploy pipeline (`type-check` gate in `.github/workflows/deploy-web.yml`), so the corresponding CF
+Pages build never shipped. This release fixes the type errors and adds a PR-CI `ts` job so the same
+slip can't happen again.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — unchanged.
+* `verse-vault-wasm@0.7.0` — unchanged.
+
+### Fixed
+
+* `apps/web/src/lib/badges.ts`: `currentWeekIndex` and `cumulativeThroughWeek` now guard array
+  indexing under `noUncheckedIndexedAccess`; the badge cumulative sum skips the `'full'` tier
+  explicitly, since schedules only carry per-week verse lists for `club150` / `club300`.
+* `apps/web/src/lib/schedule.ts`: `fullDayName` / `monthName` assert the constant-array lookups are
+  defined.
+* `apps/web/src/views/ScheduleEditorView.vue`: hoist `selection.value` into a local const so the
+  discriminated-union narrowing (`kind === 'meet'`) survives across the closure boundary in
+  `selectedMeet` and `updateMeetField`.
+* `apps/web/src/views/SettingsMaterialsView.vue`, `apps/web/src/views/SettingsView.vue`: assert
+  bounded array lookups (`CLUBS[idx + 1]`, `GATE_FIELDS[idx]`, `SECTIONS[0]`).
+
 ## [0.9.0] — 2026-07-13
 
 Passage picker redesign (spec `docs/superpowers/specs/2026-07-13-passage-picker-redesign.md`). MINOR

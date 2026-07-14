@@ -38,3 +38,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dprint/check@v2.2
+
+  # TypeScript build + type-check for the workspace's TS packages. Mirrors
+  # the deploy workflows' pre-rsync build so a broken type-check surfaces
+  # on the PR, not at deploy time. Requires the WASM crate to be built
+  # first because `apps/web` depends on the bundler target and
+  # `packages/api` depends on the nodejs target — without those, pnpm
+  # install errors out with ERR_PNPM_WORKSPACE_PKG_NOT_FOUND.
+  ts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/wasm
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install wasm-pack
+        run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+
+      - name: Build WASM (nodejs target)
+        run: wasm-pack build crates/wasm --target nodejs --out-dir pkg
+
+      - name: Build WASM (bundler target)
+        run: bash tools/build-wasm-web.sh
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check + build API
+        run: pnpm --filter @verse-vault/api... build
+
+      - name: Type-check + build web
+        run: pnpm --filter @verse-vault/web build

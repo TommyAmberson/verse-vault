@@ -307,8 +307,9 @@ const coverageBadgeAria = computed(() => {
 })
 
 const selectedMeet = computed<ScheduleMeet | null>(() => {
-  if (selection.value?.kind !== 'meet') return null
-  return display.value?.meets.find((m) => m.id === selection.value!.meetId) ?? null
+  const sel = selection.value
+  if (sel?.kind !== 'meet') return null
+  return display.value?.meets.find((m) => m.id === sel.meetId) ?? null
 })
 
 // =============================================================================
@@ -726,8 +727,9 @@ function updateMeetField<K extends 'name' | 'startDate' | 'endDate' | 'location'
   key: K,
   value: string,
 ) {
-  if (draft.value === null || selection.value?.kind !== 'meet') return
-  const meet = draft.value.meets.find((m) => m.id === selection.value!.meetId)
+  const sel = selection.value
+  if (draft.value === null || sel?.kind !== 'meet') return
+  const meet = draft.value.meets.find((m) => m.id === sel.meetId)
   if (!meet) return
   const next: ScheduleMeet = { ...meet, [key]: value }
   // Inline endDate sanity check — surfaced as a hint, not a hard block,
