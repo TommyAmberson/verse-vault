@@ -65,7 +65,9 @@ export function invalidateScheduleCache(materialId?: string): void {
 function currentWeekIndex(weeks: readonly ScheduleWeek[], today: string): number {
   let idx = -1
   for (let i = 0; i < weeks.length; i++) {
-    if (weeks[i].date <= today) idx = i
+    const week = weeks[i]
+    if (!week) break
+    if (week.date <= today) idx = i
     else break
   }
   return idx
@@ -84,6 +86,10 @@ function cumulativeThroughWeek(
     if (!week) continue
     for (const block of week.blocks) {
       for (const club of enabledClubs) {
+        // Schedules only carry per-tier verse lists (club150 / club300).
+        // A user enrolled in the 'full' tier memorises the whole passage
+        // and doesn't have a per-week schedule contribution here.
+        if (club === 'full') continue
         sum += block.verses[club]?.length ?? 0
       }
     }

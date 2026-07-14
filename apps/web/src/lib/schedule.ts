@@ -39,7 +39,7 @@ const DAY_NAMES_LONG = [
  *  "Weddays" / "Thudays" / "Satdays" — use this when rendering to the
  *  user. */
 export function fullDayName(day: DayOfWeek): string {
-  return DAY_NAMES_LONG[DAYS_OF_WEEK.indexOf(day)]
+  return DAY_NAMES_LONG[DAYS_OF_WEEK.indexOf(day)]!
 }
 
 export interface SchedulePassage {
@@ -137,7 +137,7 @@ const MONTH_NAMES = [
 
 /** Full month name (e.g. `September`) for a `YYYY-MM-DD` date. */
 export function monthName(iso: string): string {
-  return MONTH_NAMES[parseIsoDate(iso).getUTCMonth()]
+  return MONTH_NAMES[parseIsoDate(iso).getUTCMonth()]!
 }
 
 /** Day of month from `YYYY-MM-DD`. */
