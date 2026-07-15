@@ -9,6 +9,25 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.4] — 2026-07-15
+
+PATCH — ships the #107 scheduling fixes by bundling the new algorithm contract. No web-side code
+change.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.1` — relearn-lane per-test coldness gate (#107 A/B) and cooldown-aware
+  `due_review_count` / `due_verse_count` (#107 C).
+* `verse-vault-wasm@0.7.1` — no wire-format change.
+
+### Fixed
+
+* Grading a card Again no longer re-serves the same card (or an overlapping sibling) seconds later —
+  the relearning lane now waits out the 30-minute sibling cooldown before re-drilling a lapse.
+* The client engine's due counts now exclude cooldown-masked cards, so "N to review" stops
+  advertising reviews the session refuses to serve right after a session ("1 to review" → "Session
+  complete").
+
 ## [0.9.3] — 2026-07-15
 
 PATCH — the remaining tail of #107 symptom C. No wire-format change; no contract crate bump.
