@@ -10,6 +10,23 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.33] — 2026-07-15
+
+PATCH — ships the #107 scheduling fixes by bundling the new algorithm contract. No API-surface
+change.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.1` — relearn-lane per-test coldness gate (#107 A/B) and cooldown-aware
+  `due_review_count` / `due_verse_count` (#107 C).
+* `verse-vault-wasm@0.7.1` — no wire-format change.
+
+### Fixed
+
+* `/stats`'s `reviewsDueCount` and `versesDueCount` (via the bundled engine) no longer count
+  cooldown-masked cards, so the "N to review" badge agrees with what a session will actually serve
+  right after reviewing.
+
 ## [0.1.32] — 2026-07-15
 
 PATCH — data repair for years predating the event-sourced graduation log (#111). No API-surface
