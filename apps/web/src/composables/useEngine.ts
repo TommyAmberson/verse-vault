@@ -184,6 +184,14 @@ export function useEngine() {
     active.delete(id)
   }
 
+  /** Whether `init(id)` succeeded for this material. `init` swallows
+   *  its own failures (surfacing them on `error`), so multi-material
+   *  callers need this to tell a booted year from a failed one without
+   *  probing engine calls for "no session" throws. */
+  function isActive(id: string): boolean {
+    return active.has(id)
+  }
+
   // --- Public surface ---
 
   async function submitGrade(materialId: string, cardId: number, grade: Grade) {
@@ -302,6 +310,7 @@ export function useEngine() {
     staleSummary,
     init,
     invalidate,
+    isActive,
     submitGrade,
     submitGraduation,
     submitCardGraduation,
