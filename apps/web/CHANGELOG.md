@@ -9,6 +9,33 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.2] — 2026-07-14
+
+PATCH — fix for #107 symptom C (client badge/review-queue divergence from the server). No
+wire-format change; no contract crate bump.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — unchanged.
+* `verse-vault-wasm@0.7.0` — unchanged.
+
+### Fixed
+
+* The browser WASM engine was being constructed with the legacy flat `WireMaterialConfig` shape
+  (`new_scope`, `review_scope`), while the server had moved to the per-club shape in Phase 1. Rust's
+  `MaterialConfigRaw` still accepted the legacy fields, but that path derived per-club `enabled` +
+  `desiredRetention` from the scope-ladder fallback instead of the user's actual per-club
+  configuration. That divergence is the leading suspect for #107 symptom C ("35 to review" server
+  badge vs "session complete" from the client engine).
+  * `apps/web/src/lib/engine/types.ts`: `WireMaterialConfig` now matches the per-club JSON blob the
+    API's `readMaterialConfigJson` emits (per-club `memorize`, `review`, `moveToNext`).
+  * `apps/web/src/views/ReviewView.vue`, `apps/web/src/views/MemorizeView.vue`: enrolment gates read
+    per-club `memorize`/`review` `enabled` maps; the engine constructor receives `y.perClub` instead
+    of `y.settings`; `lessonBatchSize` reads off `y.perClub`.
+
+#107 symptoms A (relearn lane bypass letting a just-lapsed card resurface immediately) and B
+(heading re-served) are Rust-core follow-ups and remain open.
+
 ## [0.9.1] — 2026-07-14
 
 PATCH — deployability fix. 0.9.0 landed on master with 11 `vue-tsc` type errors that broke the web
