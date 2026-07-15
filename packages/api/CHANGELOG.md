@@ -10,6 +10,37 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.32] — 2026-07-15
+
+PATCH — data repair for years predating the event-sourced graduation log (#111). No API-surface
+change.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — unchanged.
+* `verse-vault-wasm@0.7.0` — unchanged.
+
+### Fixed
+
+* Migration `0024_backfill_graduated_verses` inserts a `graduated_verses` row for every
+  `(user, material, verse)` holding at least one **reviewed** `PhraseFromContext` test state. Years
+  migrated from the pre-event-log flow carried test states but no graduation rows, so every card
+  rebuilt as `New` and the year was silently unreviewable on both server and client engines (live
+  case: `nkjv-cor`). Two conditions gate the evidence:
+  * Kind: only the verse's own content cards emit `PhraseFromContext`; multi-verse kinds
+    (`VerseHeading`/`VerseClub`) are excluded because HeadingPassage/ChapterClubList cards write
+    rows carrying other verses' ids.
+  * Reviewed, not merely seeded: `enrollUser` (and `rebuildFromEvents`) persist the engine's full
+    test-state catalogue — pristine `TestState::new_unseen` rows (stability 1.0, difficulty 5.0, all
+    timestamps at enrollment − 365 d) for every verse before the first review. Those exact seed
+    signatures are excluded; FSRS never reproduces them on a graded row. Without this the backfill
+    would graduate every verse of every enrolled material for every user.
+
+  Existing graduation rows win (`ON CONFLICT DO NOTHING`); re-runs are no-ops; rows whose user was
+  deleted out-of-band are skipped rather than aborting boot. Per-card graduations
+  (`graduated_cards`) are not backfilled — affected HP/CCL/conditional cards resurface in the
+  memorize queue and re-graduate organically.
+
 ## [0.1.31] — 2026-07-11
 
 Phase 6 of the schedule editor redesign — WASM engine consumes v2 schedules natively. PATCH — no
