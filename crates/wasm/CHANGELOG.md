@@ -22,6 +22,12 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-07-15
+
+PATCH bump — no wire-format change. Consumes `verse-vault-core@0.7.1` (relearn-lane coldness gate +
+cooldown-aware due counts, #107); `next_review_card`, `due_review_count`, and `due_verse_count`
+docstrings updated to match the new semantics.
+
 ## [0.7.0] — 2026-07-11
 
 MAJOR bump — schedule editor redesign phase 6. Consumes `verse-vault-core@0.7.0`'s
