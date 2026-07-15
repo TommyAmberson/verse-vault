@@ -9,6 +9,29 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.3] — 2026-07-15
+
+PATCH — the remaining tail of #107 symptom C. No wire-format change; no contract crate bump.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.0` — unchanged.
+* `verse-vault-wasm@0.7.0` — unchanged.
+
+### Fixed
+
+* `/review` served only the **first** enrolled year with a review club enabled, while the home-page
+  badge sums due counts across **every** year. A first-matched year with an empty local queue (e.g.
+  a legacy year with test states but no graduations in the event log, so every card is still `New`
+  client-side) rendered "Session complete" even when a later year held the entire due queue. The
+  session now boots an engine per enrolled year (parallel init, mirroring MemorizeView) and drains
+  each year's queue in `/years` order, routing grades to the engine that produced the card.
+
+Diagnosed live: `nkjv-cor` (4784 test states, 0 graduations — queue always empty) matched first and
+masked `nkjv-john`'s ~40 due cards. The 0.9.2 config-shape fix was real but didn't cover this path.
+Known follow-up: legacy years with test states but no graduation log entries are unreviewable on
+every client until graduations are backfilled server-side.
+
 ## [0.9.2] — 2026-07-14
 
 PATCH — fix for #107 symptom C (client badge/review-queue divergence from the server). No
