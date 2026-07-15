@@ -9,7 +9,7 @@ import {
 import CardPrompt from '@/components/CardPrompt.vue'
 import StaleMergeModal from '@/components/StaleMergeModal.vue'
 import { useEngine } from '@/composables/useEngine'
-import { buildMaterialConfig } from '@/lib/engine/types'
+import type { WireMaterialConfig } from '@/lib/engine/types'
 
 // useEngine is bound synchronously at setup so its lifecycle hooks
 // register correctly; init(materialId) defers the actual engine load
@@ -17,7 +17,7 @@ import { buildMaterialConfig } from '@/lib/engine/types'
 const engine = useEngine()
 
 const materialId = ref<string | null>(null)
-const materialConfig = shallowRef<ReturnType<typeof buildMaterialConfig> | null>(null)
+const materialConfig = shallowRef<WireMaterialConfig | null>(null)
 const card = ref<CardRender | null>(null)
 const revealed = ref(false)
 const done = ref(false)
@@ -30,10 +30,17 @@ async function resolveMaterial() {
   // engine's next_review_card returns null when nothing's due, which
   // the view handles as the "session complete" state below.
   const res = await api.getYears()
-  const target = res.years.find((y) => y.enrolled && y.settings.reviewScope !== 'off')
+  // Pick the first enrolled year with any review club enabled. Reading
+  // per-club `review.{club}.enabled` matches what the engine actually
+  // uses to gate reviews — the legacy `settings.reviewScope` is a
+  // derived mirror kept for backward compat but is authoritative only
+  // for pre-Phase-1 rows.
+  const target = res.years.find(
+    (y) => y.enrolled && Object.values(y.perClub.review).some((c) => c.enabled),
+  )
   if (target) {
     materialId.value = target.materialId
-    materialConfig.value = buildMaterialConfig(target.settings)
+    materialConfig.value = target.perClub
     return true
   }
   return false

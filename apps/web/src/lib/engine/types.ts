@@ -7,49 +7,26 @@
  * server and client can't drift.
  */
 
+import type { PerClubYearSettings } from '../../api'
+
 /** FSRS rating: 1=Again, 2=Hard, 3=Good, 4=Easy. Duplicated from
  *  `api.ts` to avoid a circular import — both files reference this
  *  shape, and api.ts depends on this module for the sync types. */
 export type Grade = 1 | 2 | 3 | 4
 
 /** Wire-format MaterialConfig consumed by the WASM engine's
- *  constructor. Mirrors `packages/api/src/lib/engine.ts`
- *  `readMaterialConfigJson` output — snake_case to match the core's
- *  `#[serde(rename_all = "camelCase")]` enum values combined with
- *  snake_case struct field names. */
-export interface WireMaterialConfig {
-  heading_card: boolean
-  heading_passage_card: boolean
-  ftv: boolean
-  new_scope: 'off' | 'up150' | 'up300' | 'all'
-  review_scope: 'off' | 'up150' | 'up300' | 'all'
-  club_card_scope: 'off' | 'up150' | 'up300' | 'all'
-  chapter_list_scope: 'off' | 'up150' | 'up300'
-}
-
-/** Convert a client-side `YearSettings` (camelCase) to the wire
- *  format the WASM engine expects. The values themselves don't
- *  translate — `off`, `up150`, `up300`, `all` are camelCase already
- *  per the Rust serde rename — only the field names change. */
-export function buildMaterialConfig(s: {
-  headingCard: boolean
-  headingPassageCard: boolean
-  ftv: boolean
-  newScope: 'off' | 'up150' | 'up300' | 'all'
-  reviewScope: 'off' | 'up150' | 'up300' | 'all'
-  clubCardScope: 'off' | 'up150' | 'up300' | 'all'
-  chapterListScope: 'off' | 'up150' | 'up300'
-}): WireMaterialConfig {
-  return {
-    heading_card: s.headingCard,
-    heading_passage_card: s.headingPassageCard,
-    ftv: s.ftv,
-    new_scope: s.newScope,
-    review_scope: s.reviewScope,
-    club_card_scope: s.clubCardScope,
-    chapter_list_scope: s.chapterListScope,
-  }
-}
+ *  constructor. Structurally identical to the API's per-club
+ *  `PerClubYearSettings` (`api.ts`), which mirrors the server's
+ *  `configJson` blob (`packages/api/src/lib/engine.ts`
+ *  `readMaterialConfigJson`) and `crates/core::MaterialConfigRaw`.
+ *  Aliased rather than re-declared so the engine-wire shape can't
+ *  drift from the shape the API returns — that drift was the root
+ *  cause of #107 symptom C. Field names are camelCase; Rust accepts
+ *  them as aliases for the underlying snake_case struct.
+ *
+ *  The `api.ts` ↔ this-module import is mutual but type-only, so it
+ *  compiles away with no runtime cycle. */
+export type WireMaterialConfig = PerClubYearSettings
 
 /** Snapshot of one `(TestKind, ElementId)` pair from the WASM engine.
  *  Mirrors `verse-vault-wasm` `TestStateEntry`. The `element` field is

@@ -5,7 +5,6 @@ import { type CardRender, type MemorizeSessionVerse, api } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 import StaleMergeModal from '@/components/StaleMergeModal.vue'
 import { useEngine } from '@/composables/useEngine'
-import { buildMaterialConfig } from '@/lib/engine/types'
 
 // MemorizeView spans every enrolled year with new cards. useEngine
 // supports multiple materials in one session — each year's verses get
@@ -91,20 +90,28 @@ async function buildSession() {
   // Reading walkthroughs stay in collection order so opening + closing
   // reads expose items in the same shape.
   const yearsRes = await api.getYears()
+  // Enrolment gate reads per-club memorize enablement — the engine
+  // consults the same per-club map, so filtering on legacy
+  // `settings.newScope` here would let a year with `newScope: off` but
+  // an enabled per-club memorize slip through (or vice versa) and
+  // disagree with what the engine reports.
   const eligibleYears = yearsRes.years.filter(
-    (y) => y.enrolled && y.settings.newScope !== 'off' && y.newCardCount > 0,
+    (y) =>
+      y.enrolled
+      && Object.values(y.perClub.memorize).some((c) => c.enabled)
+      && y.newCardCount > 0,
   )
   // Boot the engine for every eligible year in parallel, then compute
-  // each year's session payload locally. Settings pass through so the
-  // engine respects per-year scope toggles + per-club retention; the
-  // schedule (bundled default or user override) drives Phase 1 of the
-  // memorize_session_v2 canonical fill — null falls through to pure-
-  // Sequential, matching pre-Phase-1 behaviour for materials that
-  // don't ship a schedule.
+  // each year's session payload locally. Per-club config passes through
+  // so the engine respects per-club memorize/review enablement and per-
+  // club desired retention; the schedule (bundled default or user
+  // override) drives Phase 1 of the memorize_session_v2 canonical fill —
+  // null falls through to pure-Sequential, matching pre-Phase-1
+  // behaviour for materials that don't ship a schedule.
   await Promise.all(
     eligibleYears.map(async (y) => {
       const schedule = await api.getSchedule(y.materialId)
-      await engine.init(y.materialId, buildMaterialConfig(y.settings), schedule ?? '')
+      await engine.init(y.materialId, y.perClub, schedule ?? '')
     }),
   )
   const sessions: {
@@ -112,7 +119,7 @@ async function buildSession() {
     verses: MemorizeSessionVerse[]
     orphans: number[]
   }[] = eligibleYears.map((y) => {
-    const s = engine.memorizeSession(y.materialId, y.settings.lessonBatchSize)
+    const s = engine.memorizeSession(y.materialId, y.perClub.lessonBatchSize)
     return { materialId: y.materialId, verses: s.verses, orphans: s.orphans }
   })
   // Flatten the session into reading items: each verse anchors its
