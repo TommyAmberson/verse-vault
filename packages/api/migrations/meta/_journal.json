@@ -169,6 +169,13 @@
       "when": 1781481700000,
       "tag": "0023_user_year_settings_per_club",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1784100000000,
+      "tag": "0024_backfill_graduated_verses",
+      "breakpoints": true
     }
   ]
 }
