@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 import {
   type CardRender,
@@ -9,15 +9,21 @@ import {
 import CardPrompt from '@/components/CardPrompt.vue'
 import StaleMergeModal from '@/components/StaleMergeModal.vue'
 import { useEngine } from '@/composables/useEngine'
-import type { WireMaterialConfig } from '@/lib/engine/types'
 
 // useEngine is bound synchronously at setup so its lifecycle hooks
 // register correctly; init(materialId) defers the actual engine load
-// until we know which year to review.
+// until we know which years to review.
 const engine = useEngine()
 
-const materialId = ref<string | null>(null)
-const materialConfig = shallowRef<WireMaterialConfig | null>(null)
+// Every enrolled year with any review club enabled and a booted
+// engine, in /years order. The session drains them in order: one
+// year's queue empties before the next year's first card surfaces
+// (a single-material pick here was the tail of #107 symptom C — see
+// CHANGELOG 0.9.3).
+const materialIds = ref<string[]>([])
+// The year the on-screen card belongs to — grades must route to the
+// engine that produced the card.
+const currentMaterialId = ref<string | null>(null)
 const card = ref<CardRender | null>(null)
 const revealed = ref(false)
 const done = ref(false)
@@ -25,64 +31,46 @@ const error = ref<string | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
 
-async function resolveMaterial() {
-  // Pick the first enrolled year with review turned on. The local
-  // engine's next_review_card returns null when nothing's due, which
-  // the view handles as the "session complete" state below.
-  const res = await api.getYears()
-  // Pick the first enrolled year with any review club enabled. Reading
-  // per-club `review.{club}.enabled` matches what the engine actually
-  // uses to gate reviews — the legacy `settings.reviewScope` is a
-  // derived mirror kept for backward compat but is authoritative only
-  // for pre-Phase-1 rows.
-  const target = res.years.find(
-    (y) => y.enrolled && Object.values(y.perClub.review).some((c) => c.enabled),
-  )
-  if (target) {
-    materialId.value = target.materialId
-    materialConfig.value = target.perClub
-    return true
+/** First due card across every booted year, in `materialIds` order.
+ *  Rescans from the top on every call — "drained" isn't monotonic
+ *  (an earlier year's card can come out of sibling cooldown or lapse
+ *  mid-session), so earlier years reclaim priority when they re-fill. */
+function nextDueCard(): { materialId: string; cardId: number } | null {
+  for (const id of materialIds.value) {
+    const cardId = engine.nextReviewCard(id)
+    if (cardId !== null) return { materialId: id, cardId }
   }
-  return false
+  return null
 }
 
-async function loadNext() {
-  if (!engine.ready.value || !materialId.value) return
-  loading.value = true
-  error.value = null
-  try {
-    const cardId = engine.nextReviewCard(materialId.value)
-    if (cardId === null) {
-      card.value = null
-      done.value = true
-    } else {
-      card.value = await engine.getCardRender(materialId.value, cardId)
-      revealed.value = false
-      done.value = false
-    }
-  } catch (err) {
-    error.value = formatError(err)
-  } finally {
-    loading.value = false
+async function advance() {
+  const next = nextDueCard()
+  if (next === null) {
+    currentMaterialId.value = null
+    card.value = null
+    done.value = true
+    return
   }
+  // Render before assigning: `card` and `currentMaterialId` must swap
+  // together. Setting the id first would, on a failed render, leave
+  // the previous card on screen tagged with the next card's material —
+  // and the next grade would route to the wrong engine.
+  const render = await engine.getCardRender(next.materialId, next.cardId)
+  currentMaterialId.value = next.materialId
+  card.value = render
+  revealed.value = false
+  done.value = false
 }
 
 async function submit(grade: Grade) {
-  if (!engine.ready.value || !card.value || submitting.value || !materialId.value) return
+  if (!engine.ready.value || !card.value || submitting.value || !currentMaterialId.value) return
   submitting.value = true
   error.value = null
   try {
-    await engine.submitGrade(materialId.value, card.value.cardId, grade)
+    await engine.submitGrade(currentMaterialId.value, card.value.cardId, grade)
     // Engine pick + render happen locally now; the network sync
     // catches up in the background. No spinner between cards.
-    const nextId = engine.nextReviewCard(materialId.value)
-    if (nextId === null) {
-      card.value = null
-      done.value = true
-    } else {
-      card.value = await engine.getCardRender(materialId.value, nextId)
-      revealed.value = false
-    }
+    await advance()
   } catch (err) {
     error.value = formatError(err)
   } finally {
@@ -98,18 +86,45 @@ function formatError(err: unknown): string {
 onMounted(async () => {
   try {
     loading.value = true
-    const found = await resolveMaterial()
-    if (!found || !materialId.value) {
+    // Reading per-club `review.{club}.enabled` matches what the engine
+    // actually uses to gate reviews — the legacy `settings.reviewScope`
+    // is a derived mirror kept for backward compat but is authoritative
+    // only for pre-Phase-1 rows.
+    const res = await api.getYears()
+    const targets = res.years.filter(
+      (y) => y.enrolled && Object.values(y.perClub.review).some((c) => c.enabled),
+    )
+    if (targets.length === 0) {
       done.value = true
       return
     }
-    // Pull the schedule alongside settings so the engine ctor receives
-    // it on the first call. /review doesn't actually use Phase 1 of the
-    // memorize fill, but the engine is shared with /memorize via the
-    // session cache — a later /memorize visit gets the schedule too.
-    const schedule = await api.getSchedule(materialId.value)
-    await engine.init(materialId.value, materialConfig.value ?? undefined, schedule ?? '')
-    await loadNext()
+    // Boot every year's engine in parallel. The schedule rides along so
+    // the engine ctor receives it on the first call — /review doesn't
+    // use Phase 1 of the memorize fill, but the engine is shared with
+    // /memorize via the session cache, so a later /memorize visit gets
+    // the schedule too. A failed schedule fetch degrades that one year
+    // to no-schedule (pure-Sequential memorize fill) instead of
+    // wedging the whole multi-year session.
+    await Promise.all(
+      targets.map(async (y) => {
+        const schedule = await api.getSchedule(y.materialId).catch(() => null)
+        await engine.init(y.materialId, y.perClub, schedule ?? '')
+      }),
+    )
+    // Serve only years whose engine actually booted. `init` swallows
+    // its own failures, so a failed year must be excluded here — and
+    // must surface as an error, not fold into "Session complete"
+    // (which would recreate the badge-vs-session mismatch this view
+    // exists to avoid).
+    materialIds.value = targets.map((y) => y.materialId).filter((id) => engine.isActive(id))
+    if (materialIds.value.length === 0) {
+      error.value = 'Failed to load the review engine — try reloading the page.'
+      return
+    }
+    if (materialIds.value.length < targets.length) {
+      error.value = 'Some years failed to load; reviewing the rest.'
+    }
+    await advance()
   } catch (err) {
     error.value = formatError(err)
   } finally {
