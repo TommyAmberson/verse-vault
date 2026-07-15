@@ -75,18 +75,41 @@ PhraseFill that grades a phrase the Recitation just touched is wasted effort.
 scheduler filters those out. `last_seen_secs` is advanced by every update — root or sub — so
 cooldown captures any recent activity on the test, regardless of which card drove it.
 
+Every review surface honours the cooldown (#107): `next_card` filters masked cards, the due counts
+(`due_review_count`, `due_verse_count`) exclude them so the "N to review" badge never advertises
+reviews the session refuses to serve, and the relearning lane applies a per-test coldness gate (see
+below).
+
+## Relearning lane
+
+`next_relearn_card` runs before `next_card` in the session's pick order. It surfaces any `Active`
+card with a test that (a) has `pending_relearn = true` (sticky after an Again grade), (b) is past
+its FSRS-computed due time, and (c) was last touched longer than the sibling cooldown ago.
+
+Condition (c) is a **per-test** coldness gate, not the card-level `is_in_cooldown` check. Grading
+Again advances `last_seen_secs` on every marked test, so without the gate the lane re-serves the
+just-lapsed card (or a sibling sharing the test) seconds later — the learner just saw the answer, so
+the re-drill teaches nothing (#107 A/B). Gating on the test's own last touch still lets a cold lapse
+surface when its card is cooldown-masked via some _other_ shared test — the lane's designed purpose.
+
+Ties break by earliest due time: the lapse the learner has been kept waiting longest clears first.
+
 ## next_card
 
 ```rust
 pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
     engine.cards.iter()
+        .filter(|c| matches!(c.state, CardState::Active))
         .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
-        .filter_map(|c| Some((c.id, engine.card_min_r(c, now_secs)?)))
-        .filter(|(_, r)| *r < engine.schedule_params.target_retention)
-        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-        .map(|(id, _)| id)
+        .filter_map(|c| Some((c, engine.card_min_r(c, now_secs)?)))
+        .filter(|(c, r)| *r < engine.target_r_for_verse(c.verse_id))
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .map(|(c, _)| c.id)
 }
 ```
+
+Descending-R pick order (highest retrievability first) follows the FSRS-author recommendation for
+capacity-limited sessions — see the docstring on `next_card` for the rationale.
 
 Linear scan over the card list. At the few-thousand-card scale this engine is designed for, the scan
 is well under a millisecond and avoids the write-amplification of maintaining a cached priority
@@ -117,7 +140,7 @@ will this hit the target the scheduler is using?"_ without an extra plumbing arg
 
 The old priority score combined a "cost of delay" (how much momentum is about to be lost) with a
 "review cost" exponent and a reinforcement bonus for cards whose shown-side covers other due edges.
-None of that is implemented here — the new scheduler picks the most-overdue card and stops.
+None of that is implemented here — the new scheduler picks a due card (highest-R first) and stops.
 
 That is sufficient because:
 

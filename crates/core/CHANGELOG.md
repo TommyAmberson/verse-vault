@@ -22,6 +22,25 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-07-15
+
+PATCH bump — scheduling-query bug fixes for #107. No state-semantics or wire change: event replay
+under 0.7.1 produces byte-identical state to 0.7.0; only the read-side scheduling surfaces change
+behaviour.
+
+### Fixed
+
+* **Relearning lane re-served just-lapsed cards** (#107 A/B). `next_relearn_card` now applies a
+  per-test coldness gate: a `pending_relearn` test only qualifies once its own `last_seen_secs` is
+  older than `sibling_cooldown_secs`. Grading Again advances `last_seen_secs` on every marked test,
+  so the lane previously surfaced the same card (or a sibling sharing the test) seconds after the
+  lapse — a re-drill of an answer the learner just saw. A cold lapse still surfaces even when its
+  card is cooldown-masked via some other shared test, which was the lane's designed purpose.
+* **Badge/session disagreement fresh off a session** (#107 C). `due_review_count` and
+  `due_verse_count` now honour the sibling cooldown, matching `next_card`'s eligibility exactly.
+  They previously counted cooldown-masked cards, so the "N to review" badge advertised reviews the
+  session refused to serve ("1 to review" → "Session complete") until the cooldown lapsed.
+
 ## [0.7.0] — 2026-07-11
 
 MAJOR bump — schedule editor redesign phase 6. `ScheduleWeek` swaps to `blocks: Vec<PassageBlock>`

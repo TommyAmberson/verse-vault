@@ -105,11 +105,12 @@ impl Session {
 
     /// Pick the next card to review. Priority order:
     ///
-    /// 1. **Relearning lane** — any `Active` card whose any test has
-    ///    `pending_relearn = true` and whose FSRS sub-day due time has
-    ///    elapsed. Bypasses the sibling cooldown so a freshly-lapsed card
-    ///    is re-drilled even when another card in the session just touched
-    ///    a shared test.
+    /// 1. **Relearning lane** — any `Active` card with a test that has
+    ///    `pending_relearn = true`, an elapsed FSRS sub-day due time, and
+    ///    a last touch older than the sibling cooldown. The per-test
+    ///    coldness gate keeps a just-lapsed card from re-serving
+    ///    immediately while still surfacing a cold lapse whose card is
+    ///    cooldown-masked via some other shared test (#107).
     /// 2. **Regular schedule** — `schedule::next_card`, the descending-R
     ///    review queue with cooldown enforcement.
     ///

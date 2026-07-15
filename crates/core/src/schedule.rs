@@ -178,8 +178,8 @@ pub fn new_verse_count(engine: &ReviewEngine) -> u32 {
 
 /// Count distinct verses with at least one due card — the
 /// review-queue's verse footprint. Mirrors `due_review_count`'s
-/// eligibility (active + below-target, ignoring cooldown) and
-/// applies the same verse-content filter as `new_verse_count`.
+/// eligibility (active + below-target + out of cooldown, see #107 C)
+/// and applies the same verse-content filter as `new_verse_count`.
 pub fn due_verse_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
     let mut seen: HashSet<u32> = HashSet::new();
     for card in &engine.cards {
@@ -187,6 +187,9 @@ pub fn due_verse_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
             continue;
         }
         if !is_verse_content_card(&card.kind) {
+            continue;
+        }
+        if engine.is_in_cooldown(card.id, now_secs) {
             continue;
         }
         let target = engine.target_r_for_verse(card.verse_id);
@@ -250,17 +253,19 @@ pub fn learned_verse_count(engine: &ReviewEngine, threshold_days: f32) -> u32 {
 /// `target_retention` at `now_secs` — the "reviews waiting" queue
 /// the user sees as actionable.
 ///
-/// Mirrors `next_card`'s eligibility (active + below-target) but
-/// drops the sibling-cooldown filter: cooldown is a session-only
-/// suppression heuristic, and a UI surfacing this number between
-/// sessions shouldn't have it wobble in the seconds after a review.
-/// The count is what FSRS would *eventually* serve, not what
-/// `next_card` would surface in this exact moment.
+/// Mirrors `next_card`'s full eligibility, sibling cooldown included
+/// (#107 C). The count used to drop the cooldown filter so it
+/// wouldn't wobble in the seconds after a review — but that let the
+/// badge advertise reviews `next_card` refuses to serve ("35 to
+/// review" → "session complete"). The wobble is honest: the user
+/// just reviewed overlapping material, so "waiting" dropping is
+/// accurate, and the number recovers when the cooldown lapses.
 pub fn due_review_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
     engine
         .cards
         .iter()
         .filter(|c| matches!(c.state, CardState::Active))
+        .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
         .filter_map(|c| Some((c, engine.card_min_r(c, now_secs)?)))
         .filter(|(c, r)| *r < engine.target_r_for_verse(c.verse_id))
         .count() as u32
@@ -601,13 +606,19 @@ pub fn new_card_count(engine: &ReviewEngine) -> u32 {
 
 /// Pick a card from the relearning priority lane: any `Active` card that has
 /// at least one test with `pending_relearn = true` whose FSRS-computed due
-/// time has elapsed. Bypasses the sibling cooldown — a freshly-lapsed card
-/// is exactly what we want the user re-drilling, even if another card in the
-/// session just touched a shared test.
+/// time has elapsed AND whose own last touch is past the sibling cooldown.
+///
+/// The per-test coldness gate replaces the lane's old card-level cooldown
+/// bypass (#107): a just-lapsed test (graded seconds ago) re-serving its
+/// card teaches nothing — the learner just saw the answer. Gating on the
+/// *test's* `last_seen_secs` still lets a cold lapse surface even when a
+/// sibling card has the whole card in `is_in_cooldown` via some other
+/// shared test.
 ///
 /// Returns `None` when no lane card is due. Ties broken by earliest due time
 /// (the lapse a learner has been kept waiting longest gets cleared first).
 pub fn next_relearn_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
+    let cd = engine.schedule_params.sibling_cooldown_secs;
     engine
         .cards
         .iter()
@@ -621,6 +632,9 @@ pub fn next_relearn_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId>
                 .filter_map(|tk| {
                     let state = engine.tests.get(&tk)?;
                     if !state.pending_relearn {
+                        return None;
+                    }
+                    if now_secs - state.last_seen_secs < cd {
                         return None;
                     }
                     let due = engine.fsrs.due_at(state, target);
@@ -1026,28 +1040,59 @@ mod tests {
     }
 
     #[test]
-    fn relearn_lane_bypasses_sibling_cooldown() {
-        // Lapse a card, wait past the FSRS sub-day due time, then re-touch
-        // one of its shared tests so the cooldown filter would mask it. The
-        // lane must still surface it — defeating that mask is the lane's
-        // only job.
+    fn relearn_lane_serves_lapsed_card_masked_by_shared_test_touch() {
+        // Lapse Recitation yesterday; a Citation review a minute ago
+        // freshens the shared citation test, putting Recitation in
+        // card-level cooldown. The lane's per-test gate must still surface
+        // the lapse: its phrase tests are pending, cold, and past due.
         let m = sample_material_one_verse();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
         engine.graduate_all();
         let now = 86400 * 365;
-        let pf_id = engine
+        let recit_id = engine
             .cards
             .iter()
-            .find(|c| matches!(c.kind, CardKind::PhraseFill { .. }))
+            .find(|c| matches!(c.kind, CardKind::Recitation))
             .unwrap()
             .id;
-        engine.review(pf_id, Grade::Again, now);
+        engine.review(recit_id, Grade::Again, now);
         let later = now + 86400;
-        let touched_test = engine.card(pf_id).unwrap().tests(&engine.atoms_for(0))[0];
-        engine.tests.get_mut(&touched_test).unwrap().last_seen_secs = later - 60;
-        assert!(engine.is_in_cooldown(pf_id, later));
-        assert_eq!(next_relearn_card(&engine, later), Some(pf_id));
+        let cit_test = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::Citation))
+            .map(|c| c.tests(&engine.atoms_for(0))[0])
+            .unwrap();
+        let cit_state = engine.tests.get_mut(&cit_test).unwrap();
+        cit_state.last_seen_secs = later - 60;
+        cit_state.pending_relearn = false;
+        assert!(engine.is_in_cooldown(recit_id, later));
+        let picked = next_relearn_card(&engine, later).expect("lane must serve the cold lapse");
+        assert_eq!(engine.card(picked).unwrap().verse_id, 0);
+    }
+
+    #[test]
+    fn relearn_lane_masks_just_lapsed_card_until_cooldown() {
+        // #107 A/B: grading Again advances last_seen on every marked test,
+        // so immediately re-serving the same content teaches nothing ("I
+        // just saw it so I know it"). The lane must wait out the sibling
+        // cooldown before re-serving a just-lapsed card or its siblings.
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        engine.graduate_all();
+        let now = 86400 * 365;
+        let recit_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::Recitation))
+            .unwrap()
+            .id;
+        engine.review(recit_id, Grade::Again, now);
+        assert_eq!(next_relearn_card(&engine, now + 60), None);
+        // Once cold (and past the FSRS sub-day due), the lapse re-surfaces.
+        assert!(next_relearn_card(&engine, now + 86400).is_some());
     }
 
     #[test]
@@ -1232,6 +1277,52 @@ mod tests {
         let engine = ReviewEngine::new(r, 0.9);
         // No graduation = no Active cards = nothing to be due.
         assert_eq!(due_verse_count(&engine, 86400 * 365), 0);
+    }
+
+    #[test]
+    fn due_counts_exclude_cards_in_cooldown() {
+        // #107 C: badge and session must agree. Build the split's
+        // real-world shape — a composite card due via a stale test whose
+        // atomic owners aren't Active, masked via fresh sibling tests:
+        // Recitation stays the only Active card, its citation test stays
+        // stale (due) while every other test was touched a minute ago
+        // (cooldown). Badge and session must both read "nothing now".
+        let m = sample_material_one_verse();
+        let r = crate::builder::build(&m, 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        engine.graduate_all();
+        let t = 86400 * 365;
+        let cit_test = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::Citation))
+            .map(|c| c.tests(&engine.atoms_for(0))[0])
+            .unwrap();
+        let recit_id = engine
+            .cards
+            .iter()
+            .find(|c| matches!(c.kind, CardKind::Recitation))
+            .unwrap()
+            .id;
+        for card in engine.cards.iter_mut() {
+            if card.id != recit_id {
+                card.state = CardState::New;
+            }
+        }
+        for (key, state) in engine.tests.iter_mut() {
+            if *key != cit_test {
+                state.last_seen_secs = t - 60;
+            }
+        }
+        assert!(engine.is_in_cooldown(recit_id, t));
+        assert!(next_card(&engine, t).is_none());
+        assert_eq!(due_review_count(&engine, t), 0);
+        assert_eq!(due_verse_count(&engine, t), 0);
+        // Cooldown expiry: badge and session flip together.
+        let after = t + engine.schedule_params.sibling_cooldown_secs;
+        assert_eq!(next_card(&engine, after), Some(recit_id));
+        assert_eq!(due_review_count(&engine, after), 1);
+        assert_eq!(due_verse_count(&engine, after), 1);
     }
 
     #[test]
