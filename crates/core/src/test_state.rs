@@ -30,8 +30,9 @@ pub struct TestState {
     pub last_root_secs: i64,
     /// Set to `true` when this test was last graded `Again` and the
     /// learner hasn't passed it since. The session-level relearning lane
-    /// surfaces such tests' cards once their FSRS due time elapses,
-    /// bypassing the sibling cooldown. Cleared on any non-Again grade.
+    /// surfaces such tests' cards once their FSRS due time elapses and the
+    /// test itself has gone cold (past the sibling cooldown). Cleared on
+    /// any non-Again grade.
     #[serde(default)]
     pub pending_relearn: bool,
 }
@@ -57,6 +58,15 @@ impl TestState {
     /// so future-dated timestamps don't yield negative elapsed.
     pub fn elapsed_days(&self, now_secs: i64) -> f32 {
         ((now_secs - self.last_seen_secs).max(0) as f64 / 86400.0) as f32
+    }
+
+    /// True once this test's last touch is at least `cooldown_secs` old —
+    /// i.e. past the sibling-cooldown window. The seconds-domain sibling of
+    /// [`elapsed_days`](Self::elapsed_days); the single definition of "cold"
+    /// shared by the card-level cooldown check and the relearning lane's
+    /// per-test gate.
+    pub fn is_cold(&self, now_secs: i64, cooldown_secs: i64) -> bool {
+        now_secs - self.last_seen_secs >= cooldown_secs
     }
 }
 

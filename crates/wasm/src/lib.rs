@@ -364,9 +364,10 @@ impl WasmEngine {
     }
 
     /// Pick the next card to review at `now_secs`, or `None` if no Active
-    /// card is due. Consults the relearning lane first (freshly-lapsed
-    /// cards past their FSRS sub-day due time, bypassing sibling cooldown)
-    /// then the regular descending-R schedule.
+    /// card is due. Consults the relearning lane first (lapsed cards past
+    /// their FSRS sub-day due time whose tests are cold — see the per-test
+    /// coldness gate on `core::schedule::next_relearn_card`) then the
+    /// regular descending-R schedule.
     pub fn next_review_card(&self, now_secs: i64) -> Option<u32> {
         if let Some(id) = next_relearn_card(&self.engine, now_secs) {
             return Some(id.0);
@@ -375,9 +376,10 @@ impl WasmEngine {
     }
 
     /// Count of active cards whose retrievability is below target at
-    /// `now_secs`. Mirrors `next_review_card`'s eligibility minus the
-    /// session-only cooldown filter — see `core::schedule::due_review_count`
-    /// for why. Dashboard surfaces this as the "reviews waiting" number.
+    /// `now_secs`. Mirrors `next_review_card`'s eligibility exactly,
+    /// sibling cooldown included (#107 C) — see
+    /// `core::schedule::due_review_count`. Dashboard surfaces this as
+    /// the "reviews waiting" number.
     pub fn due_review_count(&self, now_secs: i64) -> u32 {
         schedule_due_review_count(&self.engine, now_secs)
     }
