@@ -54,9 +54,30 @@ export function useEngine() {
   const syncing = ref(false)
   const pendingCount = ref(0)
   const orphanCount = ref(0)
-  /** Set by `flushAll` when any active material returns `needsConfirm`.
-   *  The view reads this to show the stale-merge confirmation modal. */
+  /** The stale-merge prompt currently shown to the user — the head of
+   *  `pendingStale`. The view reads this to show the confirmation modal. */
   const staleSummary = shallowRef<StaleSummary | null>(null)
+  /** Every material awaiting a stale-merge decision, in arrival order.
+   *  A single `staleSummary` slot only ever held the last writer, so when
+   *  two materials went stale in one flush the first one's modal was lost:
+   *  confirming the second cleared its gate, the next flush short-circuited
+   *  the first on engineStore's staleGate and returned no `needsConfirm`,
+   *  and flushAll nulled the slot — the first material's events never
+   *  flushed until a page reload (#112). Queue them and promote the next
+   *  after each resolution instead. */
+  const pendingStale = new Map<string, StaleSummary>()
+
+  /** Mirror `staleSummary` to the head of the queue, or null when empty. */
+  function surfaceNextStale() {
+    const next = pendingStale.values().next().value as StaleSummary | undefined
+    staleSummary.value = next ?? null
+  }
+
+  /** Clear one material's pending prompt and promote the next. */
+  function resolveStale(materialId: string) {
+    pendingStale.delete(materialId)
+    surfaceNextStale()
+  }
 
   const active = new Set<string>()
   let debounceHandle: ReturnType<typeof setTimeout> | null = null
@@ -85,8 +106,15 @@ export function useEngine() {
   async function flushOne(materialId: string): Promise<FlushResult> {
     const result = await engineStore.flush(materialId, nowSecs())
     if (result.needsConfirm) {
-      staleSummary.value = { materialId, ...result.needsConfirm }
+      pendingStale.set(materialId, { materialId, ...result.needsConfirm })
+    } else if (!engineStore.isStaleGated(materialId)) {
+      // Flushed clean (or nothing queued) and no longer gated — any prior
+      // prompt for this material is resolved. A still-gated material (its
+      // flush short-circuited on the gate) stays queued so its modal
+      // re-surfaces instead of being silently dropped (#112).
+      pendingStale.delete(materialId)
     }
+    surfaceNextStale()
     return result
   }
 
@@ -97,9 +125,8 @@ export function useEngine() {
       // Parallel per-material: the server's per-(user, material) lock
       // serialises writes that actually collide, and different materials
       // never do. Engine-store coalesces same-material races to a single
-      // round-trip already.
-      const results = await Promise.all([...active].map(flushOne))
-      if (!results.some((r) => r.needsConfirm)) staleSummary.value = null
+      // round-trip already. staleSummary is kept in sync by flushOne.
+      await Promise.all([...active].map(flushOne))
     } catch (e) {
       error.value = e
       throw e
@@ -240,10 +267,14 @@ export function useEngine() {
   async function confirmMerge() {
     const stale = staleSummary.value
     if (!stale) return
-    staleSummary.value = null
     syncing.value = true
     try {
       await engineStore.flush(stale.materialId, nowSecs(), { confirmMerge: true })
+      // Only drop the prompt once the merge actually went through (which
+      // clears the gate server-side). If the confirm flush throws, the
+      // prompt stays up so the user can retry — dropping it optimistically
+      // would leave the material gated but invisible, the #112 wedge.
+      resolveStale(stale.materialId)
     } catch (e) {
       error.value = e
       throw e
@@ -260,7 +291,7 @@ export function useEngine() {
     const stale = staleSummary.value
     if (!stale) return
     engineStore.clearStaleGate(stale.materialId)
-    staleSummary.value = null
+    resolveStale(stale.materialId)
   }
 
   /** Drop the queued events the server flagged stale on the affected
@@ -302,7 +333,7 @@ export function useEngine() {
     engineStore.clearStaleGate(stale.materialId)
     await engineStore.invalidateSession(stale.materialId)
     await idb.deleteSnapshot(stale.materialId)
-    staleSummary.value = null
+    resolveStale(stale.materialId)
     await refreshCounts()
     await engineStore.loadEngine(
       stale.materialId,
