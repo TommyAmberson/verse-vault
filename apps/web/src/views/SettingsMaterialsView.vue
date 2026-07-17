@@ -18,13 +18,13 @@ import {
   type YearView,
   api,
 } from '@/api'
+import { CLUBS, hasEnabledClub } from '@/lib/clubs'
 import { invalidateSession } from '@/lib/engine/engineStore'
 import { bulkPutRenders, clearRenders, newestRenderFetchedAt } from '@/lib/engine/persistence'
 
 const SECS_PER_DAY = 86400
 
 const CLUB_TIERS: ClubTier[] = ['150', '300', 'full']
-const CLUBS: Club[] = ['club150', 'club300', 'full']
 
 const TIER_LABELS: Record<ClubTier, string> = {
   '150': 'Club 150',
@@ -136,7 +136,7 @@ const selected = computed<YearCard | null>(() => {
  *  never-touched: no enrolled marker, no card counts. */
 function isStudying(c: YearCard): boolean {
   if (!c.view.enrolled) return false
-  return CLUBS.some((k) => c.view.perClub.memorize[k].enabled || c.view.perClub.review[k].enabled)
+  return hasEnabledClub(c.view.perClub.memorize) || hasEnabledClub(c.view.perClub.review)
 }
 
 /** Clone a per-club settings object for the editable draft. The shape

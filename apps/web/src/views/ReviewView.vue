@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-import {
-  type CardRender,
-  type Grade,
-  api,
-} from '@/api'
+import type { CardRender, Grade } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 import StaleMergeModal from '@/components/StaleMergeModal.vue'
 import { useEngine } from '@/composables/useEngine'
@@ -86,31 +82,11 @@ function formatError(err: unknown): string {
 onMounted(async () => {
   try {
     loading.value = true
-    // Reading per-club `review.{club}.enabled` matches what the engine
-    // actually uses to gate reviews — the legacy `settings.reviewScope`
-    // is a derived mirror kept for backward compat but is authoritative
-    // only for pre-Phase-1 rows.
-    const res = await api.getYears()
-    const targets = res.years.filter(
-      (y) => y.enrolled && Object.values(y.perClub.review).some((c) => c.enabled),
-    )
+    const targets = await engine.initEligibleYears('review')
     if (targets.length === 0) {
       done.value = true
       return
     }
-    // Boot every year's engine in parallel. The schedule rides along so
-    // the engine ctor receives it on the first call — /review doesn't
-    // use Phase 1 of the memorize fill, but the engine is shared with
-    // /memorize via the session cache, so a later /memorize visit gets
-    // the schedule too. A failed schedule fetch degrades that one year
-    // to no-schedule (pure-Sequential memorize fill) instead of
-    // wedging the whole multi-year session.
-    await Promise.all(
-      targets.map(async (y) => {
-        const schedule = await api.getSchedule(y.materialId).catch(() => null)
-        await engine.init(y.materialId, y.perClub, schedule ?? '')
-      }),
-    )
     // Serve only years whose engine actually booted. `init` swallows
     // its own failures, so a failed year must be excluded here — and
     // must surface as an error, not fold into "Session complete"

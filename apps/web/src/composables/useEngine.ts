@@ -29,7 +29,9 @@
 
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
 
-import type { CardRender, Grade } from '../api'
+import { api, type CardRender, type Grade, type YearView } from '../api'
+import { getCachedSchedule } from '../lib/badges'
+import { hasEnabledClub } from '../lib/clubs'
 import * as engineStore from '../lib/engine/engineStore'
 import type { FlushResult } from '../lib/engine/engineStore'
 import * as idb from '../lib/engine/persistence'
@@ -202,6 +204,40 @@ export function useEngine() {
     }
   }
 
+  /** Fetch every year, keep the enrolled ones with an enabled tier in
+   *  `perClub[club]` (plus an optional `extra` predicate — e.g.
+   *  MemorizeView's `newCardCount > 0`), and boot each in parallel with
+   *  its per-club config + schedule. The schedule rides the engine ctor
+   *  so a later visit to the other tab reuses it via the session cache;
+   *  fetches route through the shared schedule cache so the same
+   *  navigation's badge doesn't refetch. A failed schedule fetch degrades
+   *  that one year to no-schedule (pure-Sequential) rather than wedging
+   *  the whole multi-year boot.
+   *
+   *  Returns the eligible years in request order. `init` swallows its own
+   *  failures, so callers that must exclude a year that failed to boot
+   *  filter the result by `isActive(materialId)`.
+   *
+   *  Reading `perClub[club]` (not the legacy flat `reviewScope`/`newScope`)
+   *  matches what the engine actually gates on — the flat settings are a
+   *  derived mirror authoritative only for pre-Phase-1 rows. */
+  async function initEligibleYears(
+    club: 'review' | 'memorize',
+    extra?: (year: YearView) => boolean,
+  ): Promise<YearView[]> {
+    const res = await api.getYears()
+    const eligible = res.years.filter(
+      (y) => y.enrolled && hasEnabledClub(y.perClub[club]) && (extra?.(y) ?? true),
+    )
+    await Promise.all(
+      eligible.map(async (y) => {
+        const schedule = await getCachedSchedule(y.materialId, api.getSchedule).catch(() => null)
+        await init(y.materialId, y.perClub, schedule ?? '')
+      }),
+    )
+    return eligible
+  }
+
   /** Drop the cached engine + render cache for one material — used
    *  after settings change so the next view trigger reloads the engine
    *  with fresh `MaterialConfig` and refetches renders that may
@@ -351,6 +387,7 @@ export function useEngine() {
     orphanCount,
     staleSummary,
     init,
+    initEligibleYears,
     invalidate,
     isActive,
     submitGrade,
