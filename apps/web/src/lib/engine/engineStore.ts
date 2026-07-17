@@ -64,6 +64,15 @@ function requireSession(materialId: string, caller: string): EngineSession {
 
 const sessions = new Map<string, EngineSession>()
 const inflightFlushes = new Map<string, Promise<FlushResult>>()
+/** Per-(materialId) coalescing for `loadEngine`, mirroring
+ *  `inflightFlushes`. `loadEngine` is check-then-set across several
+ *  awaits (IDB read, `GET /state`, `createEngine`); two concurrent calls
+ *  for the same material — e.g. navigating /memorize → /review while the
+ *  first init is still in flight — would both miss the `sessions.get`
+ *  check, build two `WasmEngine`s, and the second `sessions.set` would
+ *  orphan the first without `.free()`ing it (leaked Rust linear memory).
+ *  Concurrent callers await the same `Promise<EngineSession>` instead. */
+const inflightLoads = new Map<string, Promise<EngineSession>>()
 /** Per-(materialId) serialisation chain for `persistLocalGraduation`. The
  *  snapshot read-modify-write window in `persistLocalGraduation` runs as
  *  two separate IDB operations, so concurrent fire-and-forget calls (e.g.
@@ -131,7 +140,24 @@ export async function loadEngine(
 ): Promise<EngineSession> {
   const existing = sessions.get(materialId)
   if (existing) return existing
+  const inflight = inflightLoads.get(materialId)
+  if (inflight) return inflight
 
+  const promise = buildSession(materialId, nowSecs, materialConfig, schedule)
+  inflightLoads.set(materialId, promise)
+  try {
+    return await promise
+  } finally {
+    inflightLoads.delete(materialId)
+  }
+}
+
+async function buildSession(
+  materialId: string,
+  nowSecs: number,
+  materialConfig: WireMaterialConfig | undefined,
+  schedule: unknown | '',
+): Promise<EngineSession> {
   let snapshot = await idb.getSnapshot(materialId)
   let testStates: TestStateEntry[] = []
 
@@ -609,7 +635,8 @@ export async function invalidateSession(materialId: string): Promise<void> {
  *  stale-merge gate from profile A would silently no-op every flush
  *  in profile B (or the same user's next session). Does not touch IDB.
  *
- *  **Asynchronous and must be awaited.** Any in-flight flush or
+ *  **Asynchronous and must be awaited.** Any in-flight flush, engine
+ *  load (cold path writes the fetched snapshot + testStates), or
  *  graduation persist runs `await idb.<op>(materialId, ...)` against
  *  `openDb()`, which reads the global active profile id. If the
  *  caller swaps the active profile (`setActiveProfile(B)`) before
@@ -623,6 +650,7 @@ export async function clearAllSessions(): Promise<void> {
   // settle() doesn't race with new entries appearing in either map.
   const pending: Promise<unknown>[] = [
     ...inflightFlushes.values(),
+    ...inflightLoads.values(),
     ...persistGraduationChains.values(),
   ]
   // Drain — allSettled because a single failure shouldn't block the
@@ -634,6 +662,7 @@ export async function clearAllSessions(): Promise<void> {
   for (const session of sessions.values()) session.engine.free()
   sessions.clear()
   inflightFlushes.clear()
+  inflightLoads.clear()
   staleGate.clear()
   persistGraduationChains.clear()
 }
