@@ -288,6 +288,12 @@ export function useEngine() {
   async function discardStale() {
     const stale = staleSummary.value
     if (!stale) return
+    // Capture the live session's config + schedule BEFORE invalidating —
+    // the reload below must re-pass them, or the rebuilt engine falls back
+    // to the wasm-side all-clubs-enabled-at-legacy-retention default and
+    // serves cards from disabled clubs at the wrong retention for the rest
+    // of the session (the hazard loadEngine documents).
+    const cached = engineStore.sessionConfig(stale.materialId)
     const queued = await idb.getQueuedEvents(stale.materialId)
     await idb.deleteQueuedEvents(queued.map((q) => q.clientEventId))
     // Re-open the flush path: the gate was set on the needsConfirm
@@ -298,7 +304,12 @@ export function useEngine() {
     await idb.deleteSnapshot(stale.materialId)
     staleSummary.value = null
     await refreshCounts()
-    await engineStore.loadEngine(stale.materialId, nowSecs())
+    await engineStore.loadEngine(
+      stale.materialId,
+      nowSecs(),
+      cached?.materialConfig,
+      cached?.schedule ?? '',
+    )
   }
 
   return {

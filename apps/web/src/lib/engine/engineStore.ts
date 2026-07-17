@@ -92,6 +92,20 @@ export function isStaleGated(materialId: string): boolean {
   return staleGate.has(materialId)
 }
 
+/** The `materialConfig` + `schedule` a live session was built with, or
+ *  `undefined` if no session is cached. Rebuild paths that drop and
+ *  reload a session (e.g. `useEngine.discardStale`) read this *before*
+ *  invalidating so the reload preserves per-club enables + retention +
+ *  schedule instead of falling back to the wasm-side all-clubs-enabled
+ *  default (see `loadEngine`'s `materialConfig` note). */
+export function sessionConfig(
+  materialId: string,
+): { materialConfig: WireMaterialConfig | undefined; schedule: unknown | '' } | undefined {
+  const session = sessions.get(materialId)
+  if (!session) return undefined
+  return { materialConfig: session.materialConfig, schedule: session.schedule }
+}
+
 export function clearStaleGate(materialId: string): void {
   staleGate.delete(materialId)
 }
