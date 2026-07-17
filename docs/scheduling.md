@@ -96,13 +96,22 @@ Ties break by earliest due time: the lapse the learner has been kept waiting lon
 
 ## next_card
 
+`next_card` and the two due-count queries (`due_review_count`, `due_verse_count`) all draw from one
+eligibility predicate — `eligible_due_cards` — so the "N to review" badge can never advertise a card
+the session then refuses to serve (#107 C). Each card is `Active`, out of sibling cooldown, and
+below its verse's target retention:
+
 ```rust
-pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
+fn eligible_due_cards(engine: &ReviewEngine, now_secs: i64) -> impl Iterator<Item = (&Card, f32)> {
     engine.cards.iter()
-        .filter(|c| matches!(c.state, CardState::Active))
-        .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
-        .filter_map(|c| Some((c, engine.card_min_r(c, now_secs)?)))
-        .filter(|(c, r)| *r < engine.target_r_for_verse(c.verse_id))
+        .filter(move |c| matches!(c.state, CardState::Active))
+        .filter(move |c| !engine.is_card_in_cooldown(c, now_secs))
+        .filter_map(move |c| Some((c, engine.card_min_r(c, now_secs)?)))
+        .filter(move |(c, r)| *r < engine.target_r_for_verse(c.verse_id))
+}
+
+pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
+    eligible_due_cards(engine, now_secs)
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .map(|(c, _)| c.id)
 }

@@ -65,18 +65,24 @@ impl ReviewEngine {
     /// True when any test this card grades was touched (directly or via
     /// propagation) within `schedule_params.sibling_cooldown_secs`.
     /// Used to suppress reviews of overlapping cards inside one session.
+    ///
+    /// Resolves `card_id` by scan; callers already iterating `cards` should
+    /// use [`is_card_in_cooldown`](Self::is_card_in_cooldown) to skip the
+    /// re-lookup.
     pub fn is_in_cooldown(&self, card_id: CardId, now_secs: i64) -> bool {
-        let card = match self.card(card_id) {
-            Some(c) => c,
-            None => return false,
-        };
+        self.card(card_id)
+            .is_some_and(|c| self.is_card_in_cooldown(c, now_secs))
+    }
+
+    /// [`is_in_cooldown`](Self::is_in_cooldown) for a card ref already in
+    /// hand — no `card_id` scan. Cooldown holds while any of the card's
+    /// tests is still within the sibling-cooldown window (i.e. not yet cold).
+    pub fn is_card_in_cooldown(&self, card: &Card, now_secs: i64) -> bool {
         let atoms = self.atoms_for(card.verse_id);
         let cd = self.schedule_params.sibling_cooldown_secs;
-        card.tests(&atoms).iter().any(|tk| {
-            self.tests
-                .get(tk)
-                .is_some_and(|s| now_secs - s.last_seen_secs < cd)
-        })
+        card.tests(&atoms)
+            .iter()
+            .any(|tk| self.tests.get(tk).is_some_and(|s| !s.is_cold(now_secs, cd)))
     }
 
     /// The minimum predicted retrievability across this card's tests, at
@@ -99,6 +105,21 @@ impl ReviewEngine {
     }
 }
 
+/// The cards the review queue is willing to serve at `now_secs`, each paired
+/// with its weakest test's retrievability: `Active`, out of sibling cooldown,
+/// and below the verse's target retention. The single source of "eligible to
+/// review" — `next_card` picks the highest-R of these, and the due counts
+/// tally them, so badge and session can't disagree (#107 C).
+fn eligible_due_cards(engine: &ReviewEngine, now_secs: i64) -> impl Iterator<Item = (&Card, f32)> {
+    engine
+        .cards
+        .iter()
+        .filter(move |c| matches!(c.state, CardState::Active))
+        .filter(move |c| !engine.is_card_in_cooldown(c, now_secs))
+        .filter_map(move |c| Some((c, engine.card_min_r(c, now_secs)?)))
+        .filter(move |(c, r)| *r < engine.target_r_for_verse(c.verse_id))
+}
+
 /// Pick the next due card, ordered by **descending retrievability** of the
 /// card's weakest test. Cards at or above `schedule_params.target_retention`
 /// are skipped (not yet due); cards in sibling cooldown are skipped. Returns
@@ -112,13 +133,7 @@ impl ReviewEngine {
 ///
 /// See `docs/scheduling.md` for the full per-test FSRS scheduling story.
 pub fn next_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
-    engine
-        .cards
-        .iter()
-        .filter(|c| matches!(c.state, CardState::Active))
-        .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
-        .filter_map(|c| Some((c, engine.card_min_r(c, now_secs)?)))
-        .filter(|(c, r)| *r < engine.target_r_for_verse(c.verse_id))
+    eligible_due_cards(engine, now_secs)
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .map(|(c, _)| c.id)
 }
@@ -176,30 +191,16 @@ pub fn new_verse_count(engine: &ReviewEngine) -> u32 {
     seen.len() as u32
 }
 
-/// Count distinct verses with at least one due card — the
-/// review-queue's verse footprint. Mirrors `due_review_count`'s
-/// eligibility (active + below-target + out of cooldown, see #107 C)
-/// and applies the same verse-content filter as `new_verse_count`.
+/// Count distinct verses with at least one due card — the review-queue's
+/// verse footprint. Shares `eligible_due_cards` with `next_card`/
+/// `due_review_count` (#107 C) and keeps only the verse-content cards, the
+/// same filter as `new_verse_count`.
 pub fn due_verse_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
-    let mut seen: HashSet<u32> = HashSet::new();
-    for card in &engine.cards {
-        if !matches!(card.state, CardState::Active) {
-            continue;
-        }
-        if !is_verse_content_card(&card.kind) {
-            continue;
-        }
-        if engine.is_in_cooldown(card.id, now_secs) {
-            continue;
-        }
-        let target = engine.target_r_for_verse(card.verse_id);
-        if let Some(r) = engine.card_min_r(card, now_secs)
-            && r < target
-        {
-            seen.insert(card.verse_id);
-        }
-    }
-    seen.len() as u32
+    eligible_due_cards(engine, now_secs)
+        .filter(|(c, _)| is_verse_content_card(&c.kind))
+        .map(|(c, _)| c.verse_id)
+        .collect::<HashSet<u32>>()
+        .len() as u32
 }
 
 /// Map each verse to its weakest verse-content card's test stability.
@@ -253,22 +254,15 @@ pub fn learned_verse_count(engine: &ReviewEngine, threshold_days: f32) -> u32 {
 /// `target_retention` at `now_secs` — the "reviews waiting" queue
 /// the user sees as actionable.
 ///
-/// Mirrors `next_card`'s full eligibility, sibling cooldown included
-/// (#107 C). The count used to drop the cooldown filter so it
-/// wouldn't wobble in the seconds after a review — but that let the
-/// badge advertise reviews `next_card` refuses to serve ("35 to
-/// review" → "session complete"). The wobble is honest: the user
-/// just reviewed overlapping material, so "waiting" dropping is
-/// accurate, and the number recovers when the cooldown lapses.
+/// Counts `eligible_due_cards`, so it mirrors `next_card`'s eligibility
+/// exactly — sibling cooldown included (#107 C). The count used to drop the
+/// cooldown filter so it wouldn't wobble in the seconds after a review — but
+/// that let the badge advertise reviews `next_card` refuses to serve ("35 to
+/// review" → "session complete"). The wobble is honest: the user just
+/// reviewed overlapping material, so "waiting" dropping is accurate, and the
+/// number recovers when the cooldown lapses.
 pub fn due_review_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
-    engine
-        .cards
-        .iter()
-        .filter(|c| matches!(c.state, CardState::Active))
-        .filter(|c| !engine.is_in_cooldown(c.id, now_secs))
-        .filter_map(|c| Some((c, engine.card_min_r(c, now_secs)?)))
-        .filter(|(c, r)| *r < engine.target_r_for_verse(c.verse_id))
-        .count() as u32
+    eligible_due_cards(engine, now_secs).count() as u32
 }
 
 /// Pick the next card from the memorize queue: any `New` card. Returns one
@@ -634,7 +628,7 @@ pub fn next_relearn_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId>
                     if !state.pending_relearn {
                         return None;
                     }
-                    if now_secs - state.last_seen_secs < cd {
+                    if !state.is_cold(now_secs, cd) {
                         return None;
                     }
                     let due = engine.fsrs.due_at(state, target);
