@@ -29,6 +29,8 @@ Unchanged from [0.9.4]:
 * Two materials going stale in one flush no longer wedge the second: stale-merge prompts queue per
   material and re-surface after each confirm/discard instead of the last writer overwriting the slot
   (#112).
+* A year whose engine fails to boot no longer hard-errors the whole multi-year memorize session —
+  MemorizeView now skips un-booted years, matching /review.
 
 ### Changed
 

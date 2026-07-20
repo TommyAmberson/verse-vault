@@ -95,14 +95,20 @@ async function buildSession() {
     'memorize',
     (y) => y.newCardCount > 0,
   )
+  // Serve only years whose engine actually booted. `init` swallows its
+  // own failures, so a year that failed to load isn't in `active` and
+  // calling `memorizeSession` on it would throw "no session" and abort
+  // the whole multi-year session. Mirrors ReviewView's isActive filter.
   const sessions: {
     materialId: string
     verses: MemorizeSessionVerse[]
     orphans: number[]
-  }[] = eligibleYears.map((y) => {
-    const s = engine.memorizeSession(y.materialId, y.perClub.lessonBatchSize)
-    return { materialId: y.materialId, verses: s.verses, orphans: s.orphans }
-  })
+  }[] = eligibleYears
+    .filter((y) => engine.isActive(y.materialId))
+    .map((y) => {
+      const s = engine.memorizeSession(y.materialId, y.perClub.lessonBatchSize)
+      return { materialId: y.materialId, verses: s.verses, orphans: s.orphans }
+    })
   // Flatten the session into reading items: each verse anchors its
   // own item with HP / CCL items appended after it; top-level orphan
   // cards (the verse-less standalone overflow) follow at the end of
