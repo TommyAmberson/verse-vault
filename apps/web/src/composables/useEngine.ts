@@ -9,6 +9,11 @@
  * the same composable instance can drive several engines side-by-side.
  * Listener cleanup + flushes operate over every initialised material.
  *
+ * Also the multi-year boot orchestrator: `initEligibleYears` fetches the
+ * user's years (`api`), filters eligibility (`lib/clubs`), and boots each
+ * with its per-club config + schedule (`lib/badges`' shared cache) — the
+ * shape ReviewView and MemorizeView both drive their sessions from.
+ *
  * Behavioural contract:
  *   - On init: triggers `loadEngine(materialId)`, adds the id to the
  *     active set, kicks off a background flush to drain leftovers.
@@ -305,12 +310,18 @@ export function useEngine() {
     if (!stale) return
     syncing.value = true
     try {
-      await engineStore.flush(stale.materialId, nowSecs(), { confirmMerge: true })
+      const result = await engineStore.flush(stale.materialId, nowSecs(), { confirmMerge: true })
       // Only drop the prompt once the merge actually went through (which
-      // clears the gate server-side). If the confirm flush throws, the
-      // prompt stays up so the user can retry — dropping it optimistically
-      // would leave the material gated but invisible, the #112 wedge.
-      resolveStale(stale.materialId)
+      // clears the gate server-side). A thrown flush lands in catch and
+      // leaves it queued+gated; a server that still returns needsConfirm
+      // to a confirmMerge:true flush (contract violation) keeps it queued
+      // rather than dropping a gated material into invisibility — the
+      // #112 wedge.
+      if (result.needsConfirm) {
+        pendingStale.set(stale.materialId, { materialId: stale.materialId, ...result.needsConfirm })
+      } else {
+        resolveStale(stale.materialId)
+      }
     } catch (e) {
       error.value = e
       throw e
