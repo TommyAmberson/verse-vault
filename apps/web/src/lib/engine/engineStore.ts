@@ -73,6 +73,26 @@ const inflightFlushes = new Map<string, Promise<FlushResult>>()
  *  orphan the first without `.free()`ing it (leaked Rust linear memory).
  *  Concurrent callers await the same `Promise<EngineSession>` instead. */
 const inflightLoads = new Map<string, Promise<EngineSession>>()
+
+/** Coalesce concurrent same-key async work: the first call runs `produce`
+ *  and registers its promise; concurrent callers await that same promise;
+ *  the entry evicts itself once settled (so a rejection doesn't pin a
+ *  failed promise). Shared by the flush and engine-load paths — callers
+ *  keep their own pre-checks (e.g. `sessions.get`, the stale gate) in
+ *  front and wrap only the in-flight portion. `persistGraduationChains`
+ *  is deliberately NOT built on this — it's a serialisation chain, not a
+ *  shared result. */
+function coalesce<T>(
+  map: Map<string, Promise<T>>,
+  key: string,
+  produce: () => Promise<T>,
+): Promise<T> {
+  const existing = map.get(key)
+  if (existing) return existing
+  const promise = produce()
+  map.set(key, promise)
+  return promise.finally(() => map.delete(key))
+}
 /** Per-(materialId) serialisation chain for `persistLocalGraduation`. The
  *  snapshot read-modify-write window in `persistLocalGraduation` runs as
  *  two separate IDB operations, so concurrent fire-and-forget calls (e.g.
@@ -154,16 +174,8 @@ export async function loadEngine(
 ): Promise<EngineSession> {
   const existing = sessions.get(materialId)
   if (existing) return existing
-  const inflight = inflightLoads.get(materialId)
-  if (inflight) return inflight
-
-  const promise = buildSession(materialId, nowSecs, materialConfig, schedule)
-  inflightLoads.set(materialId, promise)
-  try {
-    return await promise
-  } finally {
-    inflightLoads.delete(materialId)
-  }
+  return coalesce(inflightLoads, materialId, () =>
+    buildSession(materialId, nowSecs, materialConfig, schedule))
 }
 
 async function buildSession(
@@ -502,16 +514,8 @@ export async function flush(
   if (!opts.confirmMerge && staleGate.has(materialId)) {
     return { accepted: 0, duplicates: 0, rebuilt: false }
   }
-  const existing = inflightFlushes.get(materialId)
-  if (existing) return existing
-
-  const promise = doFlush(materialId, nowSecs, opts.confirmMerge ?? false)
-  inflightFlushes.set(materialId, promise)
-  try {
-    return await promise
-  } finally {
-    inflightFlushes.delete(materialId)
-  }
+  return coalesce(inflightFlushes, materialId, () =>
+    doFlush(materialId, nowSecs, opts.confirmMerge ?? false))
 }
 
 async function doFlush(
