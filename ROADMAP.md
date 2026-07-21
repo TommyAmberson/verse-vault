@@ -138,6 +138,11 @@ picks them up.
   splitter + judge, FTV finder, keyword auditor) help maintain them but don't replace human review.
   The eight year decks in `data/` ARE the canonical store. Ongoing quality work on phrase splits and
   multi-translation accuracy happens via PR on those files; nothing in enrollment depends on it.
+* ✅ **Anki user migration** — a maintainer can seed an account from years of Anki history:
+  `tools/anki_to_export.py` converts a `.colpkg` backup to the v1 account-export JSON that
+  `POST /api/import` ingests and the Settings → Account page uploads (shipped late May, converter
+  fixes in #86/#88). Remaining: an in-browser `.colpkg` parse so non-technical users skip the local
+  CLI step (#124).
 
 ## Future
 
@@ -156,4 +161,3 @@ Long-horizon ideas; not filed as issues yet.
 * Multiple translations (ESV, NIV — with licensing)
 * Team features for QuizMeet teams
 * Customizable learning flow
-* Import from Anki
