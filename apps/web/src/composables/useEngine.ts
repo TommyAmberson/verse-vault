@@ -24,12 +24,12 @@
  *     flush across every active material so queued events don't leak
  *     across navigations.
  *
- * Stale-merge prompt: when any material's flush returns a `needsConfirm`
- * envelope, the composable stores it on `staleSummary` with the
- * material id. The view shows the modal and calls `confirmMerge()` or
- * `discardStale()` based on the user's choice. (Modal UI lands with the
- * SettingsView attribution work; the composable surface is in place now
- * so the wiring is clean.)
+ * Stale-merge prompt: engineStore's stale gate owns which materials are
+ * awaiting confirmation (with their summaries, in arrival order); the
+ * composable projects `staleSummary` off its head after each flush and
+ * the view shows the modal, calling `confirmMerge()` / `discardStale()` /
+ * `cancelStale()` on the user's choice. Multiple simultaneously-stale
+ * materials queue and surface one at a time.
  */
 
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
@@ -47,13 +47,10 @@ import type { WireMaterialConfig } from '../lib/engine/types'
  *  a casual session syncs within seconds. */
 const FLUSH_DEBOUNCE_MS = 5_000
 
-export interface StaleSummary {
-  materialId: string
-  queuedCount: number
-  serverEventsSince: number
-  oldestQueuedTs: number
-  newestServerTs: number
-}
+/** The stale-merge prompt shape the view binds to. Owned by engineStore
+ *  (its stale gate is the single source of truth); re-exported here so
+ *  the view keeps importing it from the composable. */
+export type StaleSummary = engineStore.StalePrompt
 
 export function useEngine() {
   const ready = ref(false)
@@ -62,28 +59,20 @@ export function useEngine() {
   const pendingCount = ref(0)
   const orphanCount = ref(0)
   /** The stale-merge prompt currently shown to the user — the head of
-   *  `pendingStale`. The view reads this to show the confirmation modal. */
+   *  engineStore's stale gate, which owns membership + payload + arrival
+   *  order. A reactive projection refreshed after every flush / confirm /
+   *  discard so the modal tracks the gate and can't drift from it: when
+   *  two materials go stale in one flush both stay queued (#112), and a
+   *  gate reset like `clearAllSessions` on profile switch clears the modal
+   *  too instead of stranding it (#119). */
   const staleSummary = shallowRef<StaleSummary | null>(null)
-  /** Every material awaiting a stale-merge decision, in arrival order.
-   *  A single `staleSummary` slot only ever held the last writer, so when
-   *  two materials went stale in one flush the first one's modal was lost:
-   *  confirming the second cleared its gate, the next flush short-circuited
-   *  the first on engineStore's staleGate and returned no `needsConfirm`,
-   *  and flushAll nulled the slot — the first material's events never
-   *  flushed until a page reload (#112). Queue them and promote the next
-   *  after each resolution instead. */
-  const pendingStale = new Map<string, StaleSummary>()
 
-  /** Mirror `staleSummary` to the head of the queue, or null when empty. */
-  function surfaceNextStale() {
-    const next = pendingStale.values().next().value as StaleSummary | undefined
-    staleSummary.value = next ?? null
-  }
-
-  /** Clear one material's pending prompt and promote the next. */
-  function resolveStale(materialId: string) {
-    pendingStale.delete(materialId)
-    surfaceNextStale()
+  /** Re-project `staleSummary` from the head of engineStore's stale gate.
+   *  Returns the gate's own stored object, so re-projecting after an
+   *  unrelated material's flush yields the same reference and doesn't
+   *  churn the modal. */
+  function refreshStale() {
+    staleSummary.value = engineStore.stalePrompts()[0] ?? null
   }
 
   const active = new Set<string>()
@@ -111,17 +100,12 @@ export function useEngine() {
   }
 
   async function flushOne(materialId: string): Promise<FlushResult> {
+    // engineStore's flush maintains the gate itself (sets it on a
+    // needsConfirm response, clears it on a clean merge), so a still-gated
+    // material stays queued and a resolved one drops — we just re-project
+    // the modal off the gate head afterward.
     const result = await engineStore.flush(materialId, nowSecs())
-    if (result.needsConfirm) {
-      pendingStale.set(materialId, { materialId, ...result.needsConfirm })
-    } else if (!engineStore.isStaleGated(materialId)) {
-      // Flushed clean (or nothing queued) and no longer gated — any prior
-      // prompt for this material is resolved. A still-gated material (its
-      // flush short-circuited on the gate) stays queued so its modal
-      // re-surfaces instead of being silently dropped (#112).
-      pendingStale.delete(materialId)
-    }
-    surfaceNextStale()
+    refreshStale()
     return result
   }
 
@@ -310,23 +294,17 @@ export function useEngine() {
     if (!stale) return
     syncing.value = true
     try {
-      const result = await engineStore.flush(stale.materialId, nowSecs(), { confirmMerge: true })
-      // Only drop the prompt once the merge actually went through (which
-      // clears the gate server-side). A thrown flush lands in catch and
-      // leaves it queued+gated; a server that still returns needsConfirm
-      // to a confirmMerge:true flush (contract violation) keeps it queued
-      // rather than dropping a gated material into invisibility — the
-      // #112 wedge.
-      if (result.needsConfirm) {
-        pendingStale.set(stale.materialId, { materialId: stale.materialId, ...result.needsConfirm })
-      } else {
-        resolveStale(stale.materialId)
-      }
+      await engineStore.flush(stale.materialId, nowSecs(), { confirmMerge: true })
     } catch (e) {
       error.value = e
       throw e
     } finally {
+      // engineStore clears the gate on a clean merge and keeps it on a
+      // throw or a re-issued needsConfirm, so re-projecting the head here
+      // promotes the next prompt on success and leaves this one up
+      // otherwise — no #112 wedge, no manual reconciliation.
       syncing.value = false
+      refreshStale()
       await refreshCounts()
     }
   }
@@ -338,7 +316,7 @@ export function useEngine() {
     const stale = staleSummary.value
     if (!stale) return
     engineStore.clearStaleGate(stale.materialId)
-    resolveStale(stale.materialId)
+    refreshStale()
   }
 
   /** Drop the queued events the server flagged stale on the affected
@@ -380,7 +358,7 @@ export function useEngine() {
     engineStore.clearStaleGate(stale.materialId)
     await engineStore.invalidateSession(stale.materialId)
     await idb.deleteSnapshot(stale.materialId)
-    resolveStale(stale.materialId)
+    refreshStale()
     await refreshCounts()
     await engineStore.loadEngine(
       stale.materialId,

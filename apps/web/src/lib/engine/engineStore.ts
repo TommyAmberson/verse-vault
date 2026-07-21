@@ -100,16 +100,37 @@ function coalesce<T>(
  *  would each see the same pre-mutation snapshot and overwrite each
  *  other's ids. Chaining onto the previous promise serialises them. */
 const persistGraduationChains = new Map<string, Promise<void>>()
-/** Materials the server has flagged with a stale-merge `needsConfirm`.
- *  Flush calls for these no-op until either `confirmMerge: true` is
- *  passed (which bypasses the gate and clears it on success) or
- *  `clearStaleGate` is called explicitly (the discard path). Prevents
- *  the per-grade debounce + visibilitychange listeners from looping the
- *  same stale batch through the server endlessly. */
-const staleGate = new Set<string>()
+/** A material the server flagged with a stale-merge `needsConfirm`, with
+ *  the summary payload the confirmation modal shows. */
+export interface StalePrompt {
+  materialId: string
+  queuedCount: number
+  serverEventsSince: number
+  oldestQueuedTs: number
+  newestServerTs: number
+}
+
+/** Materials the server has flagged with a stale-merge `needsConfirm`,
+ *  keyed by materialId in the order they were flagged, each carrying its
+ *  summary payload. Flush calls for a gated material no-op until either
+ *  `confirmMerge: true` is passed (which bypasses the gate and clears it
+ *  on success) or `clearStaleGate` is called explicitly (the discard
+ *  path). Prevents the per-grade debounce + visibilitychange listeners
+ *  from looping the same stale batch through the server endlessly.
+ *
+ *  Single source of truth for the pending-prompt queue: `useEngine`
+ *  projects its modal off the head rather than keeping a parallel map,
+ *  so `clearAllSessions` emptying this also empties the UI (#119). */
+const staleGate = new Map<string, StalePrompt>()
 
 export function isStaleGated(materialId: string): boolean {
   return staleGate.has(materialId)
+}
+
+/** Every stale-gated material with its summary, in the order the server
+ *  flagged them. `useEngine` shows the head as the active modal. */
+export function stalePrompts(): StalePrompt[] {
+  return [...staleGate.values()]
 }
 
 /** The `materialConfig` + `schedule` a live session was built with, or
@@ -579,7 +600,7 @@ async function doFlush(
   }
 
   if ('needsConfirm' in response && response.needsConfirm) {
-    staleGate.add(materialId)
+    staleGate.set(materialId, { materialId, ...response.staleSummary })
     return {
       accepted: 0,
       duplicates: 0,
