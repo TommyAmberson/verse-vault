@@ -103,17 +103,22 @@ export interface SyncEventsRequest {
   confirmMerge?: boolean
 }
 
+/** The stale-merge preflight summary the server returns when a batch is
+ *  too far behind to auto-merge (see the sync route's
+ *  `STALE_MERGE_THRESHOLD`). Drives the confirmation modal. */
+export interface StaleMergeSummary {
+  queuedCount: number
+  serverEventsSince: number
+  oldestQueuedTs: number
+  newestServerTs: number
+}
+
 /** POST /api/sync/:materialId/events response. Two shapes: the normal
  *  merge result, or the stale-merge preflight envelope. */
 export type SyncEventsResponse =
   | {
       needsConfirm: true
-      staleSummary: {
-        queuedCount: number
-        serverEventsSince: number
-        oldestQueuedTs: number
-        newestServerTs: number
-      }
+      staleSummary: StaleMergeSummary
     }
   | {
       needsConfirm?: false

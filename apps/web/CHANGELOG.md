@@ -9,6 +9,24 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.6] — 2026-07-21
+
+PATCH — internal: unify stale-merge gate ownership. Client-only; no server or wire change.
+
+### Bundled algorithm contract
+
+Unchanged from [0.9.4]:
+
+* `verse-vault-core@0.7.1`
+* `verse-vault-wasm@0.7.1`
+
+### Changed
+
+* The stale-merge prompt queue now has a single owner: `engineStore`'s stale gate holds membership,
+  payload, and arrival order, and `useEngine` projects the modal off its head instead of maintaining
+  a parallel map (#119). Removes the hand-reconciliation between the two; a gate reset (e.g. on
+  profile switch) can no longer strand a prompt.
+
 ## [0.9.5] — 2026-07-17
 
 PATCH — engine-session lifecycle hardening + boot refactor. Client-only; no server or wire change.

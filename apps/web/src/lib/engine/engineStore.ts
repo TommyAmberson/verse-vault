@@ -30,6 +30,7 @@ import { createEngine, type WasmEngine } from './engineLoader'
 import * as idb from './persistence'
 import type {
   Grade,
+  StaleMergeSummary,
   SyncEventUpload,
   SyncEventsResponse,
   TestStateEntry,
@@ -100,16 +101,30 @@ function coalesce<T>(
  *  would each see the same pre-mutation snapshot and overwrite each
  *  other's ids. Chaining onto the previous promise serialises them. */
 const persistGraduationChains = new Map<string, Promise<void>>()
-/** Materials the server has flagged with a stale-merge `needsConfirm`.
- *  Flush calls for these no-op until either `confirmMerge: true` is
- *  passed (which bypasses the gate and clears it on success) or
- *  `clearStaleGate` is called explicitly (the discard path). Prevents
- *  the per-grade debounce + visibilitychange listeners from looping the
- *  same stale batch through the server endlessly. */
-const staleGate = new Set<string>()
+/** A material the server flagged with a stale-merge `needsConfirm`: its
+ *  id plus the summary payload the confirmation modal shows. */
+export interface StalePrompt extends StaleMergeSummary {
+  materialId: string
+}
 
-export function isStaleGated(materialId: string): boolean {
-  return staleGate.has(materialId)
+/** Materials the server has flagged with a stale-merge `needsConfirm`,
+ *  keyed by materialId in the order they were flagged, each carrying its
+ *  summary payload. Flush calls for a gated material no-op until either
+ *  `confirmMerge: true` is passed (which bypasses the gate and clears it
+ *  on success) or `clearStaleGate` is called explicitly (the discard
+ *  path). Prevents the per-grade debounce + visibilitychange listeners
+ *  from looping the same stale batch through the server endlessly.
+ *
+ *  Single source of truth for the pending-prompt queue: `useEngine`
+ *  projects its modal off the head rather than keeping a parallel map,
+ *  so `clearAllSessions` emptying this also empties the UI (#119). */
+const staleGate = new Map<string, StalePrompt>()
+
+/** The oldest still-unresolved stale-merge prompt (the head of the gate,
+ *  in server-flag order), or `null` when nothing is gated. `useEngine`
+ *  projects the active modal off this. */
+export function firstStalePrompt(): StalePrompt | null {
+  return staleGate.values().next().value ?? null
 }
 
 /** The `materialConfig` + `schedule` a live session was built with, or
@@ -130,9 +145,9 @@ export function clearStaleGate(materialId: string): void {
   staleGate.delete(materialId)
 }
 
-/** Outcome of a flush attempt. Surfaced to callers (the useEngine
- *  composable) so the UI can show stale-merge prompts or
- *  rebuilt-state indicators. */
+/** Outcome of a flush attempt. Stale-merge prompts are NOT surfaced here
+ *  — a `needsConfirm` response registers the prompt in the stale gate
+ *  (`firstStalePrompt`), which the UI reads directly. */
 export interface FlushResult {
   /** Events successfully merged into the server log. */
   accepted: number
@@ -142,15 +157,6 @@ export interface FlushResult {
   /** True when the server triggered a full-log rebuild — the client
    *  already adopted the rebuilt testStates. */
   rebuilt: boolean
-  /** Stale-merge confirmation envelope. When present, the queued events
-   *  were NOT applied; the UI should prompt the user before retrying
-   *  with `confirmMerge: true`. */
-  needsConfirm?: {
-    queuedCount: number
-    serverEventsSince: number
-    oldestQueuedTs: number
-    newestServerTs: number
-  }
 }
 
 /** Boot or recover the engine for `materialId`. IDB-first; falls back to
@@ -579,13 +585,8 @@ async function doFlush(
   }
 
   if ('needsConfirm' in response && response.needsConfirm) {
-    staleGate.add(materialId)
-    return {
-      accepted: 0,
-      duplicates: 0,
-      rebuilt: false,
-      needsConfirm: response.staleSummary,
-    }
+    staleGate.set(materialId, { materialId, ...response.staleSummary })
+    return { accepted: 0, duplicates: 0, rebuilt: false }
   }
   // The union narrows here: the `needsConfirm` arm returned above, so
   // the rest of this function sees only the merged-response shape.
