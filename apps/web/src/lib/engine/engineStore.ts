@@ -30,6 +30,7 @@ import { createEngine, type WasmEngine } from './engineLoader'
 import * as idb from './persistence'
 import type {
   Grade,
+  StaleMergeSummary,
   SyncEventUpload,
   SyncEventsResponse,
   TestStateEntry,
@@ -100,14 +101,10 @@ function coalesce<T>(
  *  would each see the same pre-mutation snapshot and overwrite each
  *  other's ids. Chaining onto the previous promise serialises them. */
 const persistGraduationChains = new Map<string, Promise<void>>()
-/** A material the server flagged with a stale-merge `needsConfirm`, with
- *  the summary payload the confirmation modal shows. */
-export interface StalePrompt {
+/** A material the server flagged with a stale-merge `needsConfirm`: its
+ *  id plus the summary payload the confirmation modal shows. */
+export interface StalePrompt extends StaleMergeSummary {
   materialId: string
-  queuedCount: number
-  serverEventsSince: number
-  oldestQueuedTs: number
-  newestServerTs: number
 }
 
 /** Materials the server has flagged with a stale-merge `needsConfirm`,
@@ -123,14 +120,11 @@ export interface StalePrompt {
  *  so `clearAllSessions` emptying this also empties the UI (#119). */
 const staleGate = new Map<string, StalePrompt>()
 
-export function isStaleGated(materialId: string): boolean {
-  return staleGate.has(materialId)
-}
-
-/** Every stale-gated material with its summary, in the order the server
- *  flagged them. `useEngine` shows the head as the active modal. */
-export function stalePrompts(): StalePrompt[] {
-  return [...staleGate.values()]
+/** The oldest still-unresolved stale-merge prompt (the head of the gate,
+ *  in server-flag order), or `null` when nothing is gated. `useEngine`
+ *  projects the active modal off this. */
+export function firstStalePrompt(): StalePrompt | null {
+  return staleGate.values().next().value ?? null
 }
 
 /** The `materialConfig` + `schedule` a live session was built with, or
@@ -151,9 +145,9 @@ export function clearStaleGate(materialId: string): void {
   staleGate.delete(materialId)
 }
 
-/** Outcome of a flush attempt. Surfaced to callers (the useEngine
- *  composable) so the UI can show stale-merge prompts or
- *  rebuilt-state indicators. */
+/** Outcome of a flush attempt. Stale-merge prompts are NOT surfaced here
+ *  — a `needsConfirm` response registers the prompt in the stale gate
+ *  (`firstStalePrompt`), which the UI reads directly. */
 export interface FlushResult {
   /** Events successfully merged into the server log. */
   accepted: number
@@ -163,15 +157,6 @@ export interface FlushResult {
   /** True when the server triggered a full-log rebuild — the client
    *  already adopted the rebuilt testStates. */
   rebuilt: boolean
-  /** Stale-merge confirmation envelope. When present, the queued events
-   *  were NOT applied; the UI should prompt the user before retrying
-   *  with `confirmMerge: true`. */
-  needsConfirm?: {
-    queuedCount: number
-    serverEventsSince: number
-    oldestQueuedTs: number
-    newestServerTs: number
-  }
 }
 
 /** Boot or recover the engine for `materialId`. IDB-first; falls back to
@@ -601,12 +586,7 @@ async function doFlush(
 
   if ('needsConfirm' in response && response.needsConfirm) {
     staleGate.set(materialId, { materialId, ...response.staleSummary })
-    return {
-      accepted: 0,
-      duplicates: 0,
-      rebuilt: false,
-      needsConfirm: response.staleSummary,
-    }
+    return { accepted: 0, duplicates: 0, rebuilt: false }
   }
   // The union narrows here: the `needsConfirm` arm returned above, so
   // the rest of this function sees only the merged-response shape.

@@ -60,11 +60,14 @@ export function useEngine() {
   const orphanCount = ref(0)
   /** The stale-merge prompt currently shown to the user — the head of
    *  engineStore's stale gate, which owns membership + payload + arrival
-   *  order. A reactive projection refreshed after every flush / confirm /
-   *  discard so the modal tracks the gate and can't drift from it: when
-   *  two materials go stale in one flush both stay queued (#112), and a
-   *  gate reset like `clearAllSessions` on profile switch clears the modal
-   *  too instead of stranding it (#119). */
+   *  order (#119). A pull projection: refreshed after every flush /
+   *  confirm / discard, so when two materials go stale in one flush both
+   *  stay queued and surface one at a time (#112). It self-heals rather
+   *  than staying live — a gate reset the composable doesn't drive
+   *  (`clearAllSessions` on profile switch) isn't reflected until the next
+   *  `refreshStale`, but every resolution path ends in one, so the modal
+   *  is reconciled on the next action or on unmount, never permanently
+   *  stranded. */
   const staleSummary = shallowRef<StaleSummary | null>(null)
 
   /** Re-project `staleSummary` from the head of engineStore's stale gate.
@@ -72,7 +75,7 @@ export function useEngine() {
    *  unrelated material's flush yields the same reference and doesn't
    *  churn the modal. */
   function refreshStale() {
-    staleSummary.value = engineStore.stalePrompts()[0] ?? null
+    staleSummary.value = engineStore.firstStalePrompt()
   }
 
   const active = new Set<string>()
