@@ -60,21 +60,31 @@ function redirectTarget(): string {
   return safeRedirect(route.query.redirect)
 }
 
+// Token missing or rejected — re-authenticate. A Google profile goes
+// straight back through the OAuth flow (the callbackURL is the current
+// URL, so the router guard forwards to `redirect` on return); an email
+// profile drops into the sign-in form prefilled with its address. A
+// profile with no recorded provider (legacy row) falls back to the form.
+function reauth(profile: ProfileRow) {
+  if (profile.provider === 'google') {
+    signInSocial('google')
+    return
+  }
+  prefillEmail.value = profile.email
+  mode.value = 'add'
+}
+
 async function onCardEnter(profile: ProfileRow) {
   const result = await enterProfile(profile.profileId)
   if (result.ok) {
     await router.replace(redirectTarget())
     return
   }
-  // Token missing or rejected — drop into the sign-in form prefilled
-  // with this profile's email so the user can re-auth in one step.
-  prefillEmail.value = profile.email
-  mode.value = 'add'
+  reauth(profile)
 }
 
 function onCardReauth(profile: ProfileRow) {
-  prefillEmail.value = profile.email
-  mode.value = 'add'
+  reauth(profile)
 }
 
 async function onCardSignOut(profile: ProfileRow) {

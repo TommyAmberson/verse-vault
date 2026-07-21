@@ -1,7 +1,7 @@
 import { computed, ref, watch } from 'vue'
 
 import { invalidateScheduleCache, invalidateYearsCache } from '@/lib/apiCache'
-import { createAppAuthClient } from '@/lib/authClient'
+import { createAppAuthClient, readPendingProvider } from '@/lib/authClient'
 import { clearAllSessions } from '@/lib/engine/engineStore'
 import { migrateLegacyDb } from '@/lib/engine/migrate-legacy'
 import { deleteIdb, profileDbName, setActiveProfile } from '@/lib/engine/persistence'
@@ -228,6 +228,7 @@ export async function signInComplete(
     image?: string | null
   },
   sessionToken: string | null = null,
+  provider?: registry.AuthProvider,
 ): Promise<void> {
   // A different-id but same-email sign-in is the "I deleted my account
   // and just made a new one" path (common after dev-DB wipes). The
@@ -278,6 +279,9 @@ export async function signInComplete(
     // the existing row so a re-entry without a new token (e.g. an
     // idempotent watcher fire) doesn't blow away a valid stored one.
     sessionToken: sessionToken ?? existing?.sessionToken ?? null,
+    // Same fallback for the method: a restored-session watcher fire
+    // carries no provider, so keep whatever the first sign-in recorded.
+    provider: provider ?? existing?.provider,
   }
   await registry.upsertProfile(row)
   await registry.setLastActiveProfileId(user.id)
@@ -475,7 +479,11 @@ watch(
       }
       return
     }
-    void signInComplete(user, sessionToken)
+    // A fresh sign-in for a new user id. If it's the return leg of a
+    // social OAuth redirect, the provider was stashed before we left;
+    // otherwise (a restored session) this is undefined and the row keeps
+    // its prior provider.
+    void signInComplete(user, sessionToken, readPendingProvider())
   },
 )
 
@@ -522,14 +530,14 @@ export function useAuth() {
   async function signInEmail(email: string, password: string) {
     const result = await factoryShape.signInEmail(email, password)
     const user = extractUser(result)
-    if (user) await signInComplete(user, extractSessionToken(result))
+    if (user) await signInComplete(user, extractSessionToken(result), 'email')
     return result
   }
 
   async function signUpEmail(email: string, password: string) {
     const result = await factoryShape.signUpEmail(email, password)
     const user = extractUser(result)
-    if (user) await signInComplete(user, extractSessionToken(result))
+    if (user) await signInComplete(user, extractSessionToken(result), 'email')
     return result
   }
 
