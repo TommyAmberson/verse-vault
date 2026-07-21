@@ -9,6 +9,11 @@
  * the same composable instance can drive several engines side-by-side.
  * Listener cleanup + flushes operate over every initialised material.
  *
+ * Also the multi-year boot orchestrator: `initEligibleYears` fetches the
+ * user's years (`api`), filters eligibility (`lib/clubs`), and boots each
+ * with its per-club config + schedule (`lib/badges`' shared cache) — the
+ * shape ReviewView and MemorizeView both drive their sessions from.
+ *
  * Behavioural contract:
  *   - On init: triggers `loadEngine(materialId)`, adds the id to the
  *     active set, kicks off a background flush to drain leftovers.
@@ -29,7 +34,9 @@
 
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
 
-import type { CardRender, Grade } from '../api'
+import { api, type CardRender, type Grade, type YearView } from '../api'
+import { getCachedSchedule } from '../lib/badges'
+import { hasEnabledClub } from '../lib/clubs'
 import * as engineStore from '../lib/engine/engineStore'
 import type { FlushResult } from '../lib/engine/engineStore'
 import * as idb from '../lib/engine/persistence'
@@ -54,9 +61,30 @@ export function useEngine() {
   const syncing = ref(false)
   const pendingCount = ref(0)
   const orphanCount = ref(0)
-  /** Set by `flushAll` when any active material returns `needsConfirm`.
-   *  The view reads this to show the stale-merge confirmation modal. */
+  /** The stale-merge prompt currently shown to the user — the head of
+   *  `pendingStale`. The view reads this to show the confirmation modal. */
   const staleSummary = shallowRef<StaleSummary | null>(null)
+  /** Every material awaiting a stale-merge decision, in arrival order.
+   *  A single `staleSummary` slot only ever held the last writer, so when
+   *  two materials went stale in one flush the first one's modal was lost:
+   *  confirming the second cleared its gate, the next flush short-circuited
+   *  the first on engineStore's staleGate and returned no `needsConfirm`,
+   *  and flushAll nulled the slot — the first material's events never
+   *  flushed until a page reload (#112). Queue them and promote the next
+   *  after each resolution instead. */
+  const pendingStale = new Map<string, StaleSummary>()
+
+  /** Mirror `staleSummary` to the head of the queue, or null when empty. */
+  function surfaceNextStale() {
+    const next = pendingStale.values().next().value as StaleSummary | undefined
+    staleSummary.value = next ?? null
+  }
+
+  /** Clear one material's pending prompt and promote the next. */
+  function resolveStale(materialId: string) {
+    pendingStale.delete(materialId)
+    surfaceNextStale()
+  }
 
   const active = new Set<string>()
   let debounceHandle: ReturnType<typeof setTimeout> | null = null
@@ -85,8 +113,15 @@ export function useEngine() {
   async function flushOne(materialId: string): Promise<FlushResult> {
     const result = await engineStore.flush(materialId, nowSecs())
     if (result.needsConfirm) {
-      staleSummary.value = { materialId, ...result.needsConfirm }
+      pendingStale.set(materialId, { materialId, ...result.needsConfirm })
+    } else if (!engineStore.isStaleGated(materialId)) {
+      // Flushed clean (or nothing queued) and no longer gated — any prior
+      // prompt for this material is resolved. A still-gated material (its
+      // flush short-circuited on the gate) stays queued so its modal
+      // re-surfaces instead of being silently dropped (#112).
+      pendingStale.delete(materialId)
     }
+    surfaceNextStale()
     return result
   }
 
@@ -97,9 +132,8 @@ export function useEngine() {
       // Parallel per-material: the server's per-(user, material) lock
       // serialises writes that actually collide, and different materials
       // never do. Engine-store coalesces same-material races to a single
-      // round-trip already.
-      const results = await Promise.all([...active].map(flushOne))
-      if (!results.some((r) => r.needsConfirm)) staleSummary.value = null
+      // round-trip already. staleSummary is kept in sync by flushOne.
+      await Promise.all([...active].map(flushOne))
     } catch (e) {
       error.value = e
       throw e
@@ -175,6 +209,40 @@ export function useEngine() {
     }
   }
 
+  /** Fetch every year, keep the enrolled ones with an enabled tier in
+   *  `perClub[club]` (plus an optional `extra` predicate — e.g.
+   *  MemorizeView's `newCardCount > 0`), and boot each in parallel with
+   *  its per-club config + schedule. The schedule rides the engine ctor
+   *  so a later visit to the other tab reuses it via the session cache;
+   *  fetches route through the shared schedule cache so the same
+   *  navigation's badge doesn't refetch. A failed schedule fetch degrades
+   *  that one year to no-schedule (pure-Sequential) rather than wedging
+   *  the whole multi-year boot.
+   *
+   *  Returns the eligible years in request order. `init` swallows its own
+   *  failures, so callers that must exclude a year that failed to boot
+   *  filter the result by `isActive(materialId)`.
+   *
+   *  Reading `perClub[club]` (not the legacy flat `reviewScope`/`newScope`)
+   *  matches what the engine actually gates on — the flat settings are a
+   *  derived mirror authoritative only for pre-Phase-1 rows. */
+  async function initEligibleYears(
+    club: 'review' | 'memorize',
+    extra?: (year: YearView) => boolean,
+  ): Promise<YearView[]> {
+    const res = await api.getYears()
+    const eligible = res.years.filter(
+      (y) => y.enrolled && hasEnabledClub(y.perClub[club]) && (extra?.(y) ?? true),
+    )
+    await Promise.all(
+      eligible.map(async (y) => {
+        const schedule = await getCachedSchedule(y.materialId, api.getSchedule).catch(() => null)
+        await init(y.materialId, y.perClub, schedule ?? '')
+      }),
+    )
+    return eligible
+  }
+
   /** Drop the cached engine + render cache for one material — used
    *  after settings change so the next view trigger reloads the engine
    *  with fresh `MaterialConfig` and refetches renders that may
@@ -240,10 +308,20 @@ export function useEngine() {
   async function confirmMerge() {
     const stale = staleSummary.value
     if (!stale) return
-    staleSummary.value = null
     syncing.value = true
     try {
-      await engineStore.flush(stale.materialId, nowSecs(), { confirmMerge: true })
+      const result = await engineStore.flush(stale.materialId, nowSecs(), { confirmMerge: true })
+      // Only drop the prompt once the merge actually went through (which
+      // clears the gate server-side). A thrown flush lands in catch and
+      // leaves it queued+gated; a server that still returns needsConfirm
+      // to a confirmMerge:true flush (contract violation) keeps it queued
+      // rather than dropping a gated material into invisibility — the
+      // #112 wedge.
+      if (result.needsConfirm) {
+        pendingStale.set(stale.materialId, { materialId: stale.materialId, ...result.needsConfirm })
+      } else {
+        resolveStale(stale.materialId)
+      }
     } catch (e) {
       error.value = e
       throw e
@@ -260,7 +338,7 @@ export function useEngine() {
     const stale = staleSummary.value
     if (!stale) return
     engineStore.clearStaleGate(stale.materialId)
-    staleSummary.value = null
+    resolveStale(stale.materialId)
   }
 
   /** Drop the queued events the server flagged stale on the affected
@@ -288,6 +366,12 @@ export function useEngine() {
   async function discardStale() {
     const stale = staleSummary.value
     if (!stale) return
+    // Capture the live session's config + schedule BEFORE invalidating —
+    // the reload below must re-pass them, or the rebuilt engine falls back
+    // to the wasm-side all-clubs-enabled-at-legacy-retention default and
+    // serves cards from disabled clubs at the wrong retention for the rest
+    // of the session (the hazard loadEngine documents).
+    const cached = engineStore.sessionConfig(stale.materialId)
     const queued = await idb.getQueuedEvents(stale.materialId)
     await idb.deleteQueuedEvents(queued.map((q) => q.clientEventId))
     // Re-open the flush path: the gate was set on the needsConfirm
@@ -296,9 +380,14 @@ export function useEngine() {
     engineStore.clearStaleGate(stale.materialId)
     await engineStore.invalidateSession(stale.materialId)
     await idb.deleteSnapshot(stale.materialId)
-    staleSummary.value = null
+    resolveStale(stale.materialId)
     await refreshCounts()
-    await engineStore.loadEngine(stale.materialId, nowSecs())
+    await engineStore.loadEngine(
+      stale.materialId,
+      nowSecs(),
+      cached?.materialConfig,
+      cached?.schedule ?? '',
+    )
   }
 
   return {
@@ -309,6 +398,7 @@ export function useEngine() {
     orphanCount,
     staleSummary,
     init,
+    initEligibleYears,
     invalidate,
     isActive,
     submitGrade,

@@ -64,6 +64,35 @@ function requireSession(materialId: string, caller: string): EngineSession {
 
 const sessions = new Map<string, EngineSession>()
 const inflightFlushes = new Map<string, Promise<FlushResult>>()
+/** Per-(materialId) coalescing for `loadEngine`, mirroring
+ *  `inflightFlushes`. `loadEngine` is check-then-set across several
+ *  awaits (IDB read, `GET /state`, `createEngine`); two concurrent calls
+ *  for the same material — e.g. navigating /memorize → /review while the
+ *  first init is still in flight — would both miss the `sessions.get`
+ *  check, build two `WasmEngine`s, and the second `sessions.set` would
+ *  orphan the first without `.free()`ing it (leaked Rust linear memory).
+ *  Concurrent callers await the same `Promise<EngineSession>` instead. */
+const inflightLoads = new Map<string, Promise<EngineSession>>()
+
+/** Coalesce concurrent same-key async work: the first call runs `produce`
+ *  and registers its promise; concurrent callers await that same promise;
+ *  the entry evicts itself once settled (so a rejection doesn't pin a
+ *  failed promise). Shared by the flush and engine-load paths — callers
+ *  keep their own pre-checks (e.g. `sessions.get`, the stale gate) in
+ *  front and wrap only the in-flight portion. `persistGraduationChains`
+ *  is deliberately NOT built on this — it's a serialisation chain, not a
+ *  shared result. */
+function coalesce<T>(
+  map: Map<string, Promise<T>>,
+  key: string,
+  produce: () => Promise<T>,
+): Promise<T> {
+  const existing = map.get(key)
+  if (existing) return existing
+  const promise = produce()
+  map.set(key, promise)
+  return promise.finally(() => map.delete(key))
+}
 /** Per-(materialId) serialisation chain for `persistLocalGraduation`. The
  *  snapshot read-modify-write window in `persistLocalGraduation` runs as
  *  two separate IDB operations, so concurrent fire-and-forget calls (e.g.
@@ -81,6 +110,20 @@ const staleGate = new Set<string>()
 
 export function isStaleGated(materialId: string): boolean {
   return staleGate.has(materialId)
+}
+
+/** The `materialConfig` + `schedule` a live session was built with, or
+ *  `undefined` if no session is cached. Rebuild paths that drop and
+ *  reload a session (e.g. `useEngine.discardStale`) read this *before*
+ *  invalidating so the reload preserves per-club enables + retention +
+ *  schedule instead of falling back to the wasm-side all-clubs-enabled
+ *  default (see `loadEngine`'s `materialConfig` note). */
+export function sessionConfig(
+  materialId: string,
+): { materialConfig: WireMaterialConfig | undefined; schedule: unknown | '' } | undefined {
+  const session = sessions.get(materialId)
+  if (!session) return undefined
+  return { materialConfig: session.materialConfig, schedule: session.schedule }
 }
 
 export function clearStaleGate(materialId: string): void {
@@ -131,7 +174,16 @@ export async function loadEngine(
 ): Promise<EngineSession> {
   const existing = sessions.get(materialId)
   if (existing) return existing
+  return coalesce(inflightLoads, materialId, () =>
+    buildSession(materialId, nowSecs, materialConfig, schedule))
+}
 
+async function buildSession(
+  materialId: string,
+  nowSecs: number,
+  materialConfig: WireMaterialConfig | undefined,
+  schedule: unknown | '',
+): Promise<EngineSession> {
   let snapshot = await idb.getSnapshot(materialId)
   let testStates: TestStateEntry[] = []
 
@@ -462,16 +514,8 @@ export async function flush(
   if (!opts.confirmMerge && staleGate.has(materialId)) {
     return { accepted: 0, duplicates: 0, rebuilt: false }
   }
-  const existing = inflightFlushes.get(materialId)
-  if (existing) return existing
-
-  const promise = doFlush(materialId, nowSecs, opts.confirmMerge ?? false)
-  inflightFlushes.set(materialId, promise)
-  try {
-    return await promise
-  } finally {
-    inflightFlushes.delete(materialId)
-  }
+  return coalesce(inflightFlushes, materialId, () =>
+    doFlush(materialId, nowSecs, opts.confirmMerge ?? false))
 }
 
 async function doFlush(
@@ -609,7 +653,8 @@ export async function invalidateSession(materialId: string): Promise<void> {
  *  stale-merge gate from profile A would silently no-op every flush
  *  in profile B (or the same user's next session). Does not touch IDB.
  *
- *  **Asynchronous and must be awaited.** Any in-flight flush or
+ *  **Asynchronous and must be awaited.** Any in-flight flush, engine
+ *  load (cold path writes the fetched snapshot + testStates), or
  *  graduation persist runs `await idb.<op>(materialId, ...)` against
  *  `openDb()`, which reads the global active profile id. If the
  *  caller swaps the active profile (`setActiveProfile(B)`) before
@@ -623,6 +668,7 @@ export async function clearAllSessions(): Promise<void> {
   // settle() doesn't race with new entries appearing in either map.
   const pending: Promise<unknown>[] = [
     ...inflightFlushes.values(),
+    ...inflightLoads.values(),
     ...persistGraduationChains.values(),
   ]
   // Drain — allSettled because a single failure shouldn't block the
@@ -634,6 +680,7 @@ export async function clearAllSessions(): Promise<void> {
   for (const session of sessions.values()) session.engine.free()
   sessions.clear()
   inflightFlushes.clear()
+  inflightLoads.clear()
   staleGate.clear()
   persistGraduationChains.clear()
 }

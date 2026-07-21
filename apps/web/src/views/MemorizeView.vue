@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-import { type CardRender, type MemorizeSessionVerse, api } from '@/api'
+import type { CardRender, MemorizeSessionVerse } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 import StaleMergeModal from '@/components/StaleMergeModal.vue'
 import { useEngine } from '@/composables/useEngine'
@@ -88,40 +88,27 @@ function shuffle<T>(arr: T[]): T[] {
 async function buildSession() {
   // Each enrolled year contributes up to its lessonBatchSize verses.
   // Reading walkthroughs stay in collection order so opening + closing
-  // reads expose items in the same shape.
-  const yearsRes = await api.getYears()
-  // Enrolment gate reads per-club memorize enablement — the engine
-  // consults the same per-club map, so filtering on legacy
-  // `settings.newScope` here would let a year with `newScope: off` but
-  // an enabled per-club memorize slip through (or vice versa) and
-  // disagree with what the engine reports.
-  const eligibleYears = yearsRes.years.filter(
-    (y) =>
-      y.enrolled
-      && Object.values(y.perClub.memorize).some((c) => c.enabled)
-      && y.newCardCount > 0,
+  // reads expose items in the same shape. Boot every eligible year's
+  // engine (enrolled + an enabled memorize tier + new cards to serve);
+  // each year's session payload is computed locally below.
+  const eligibleYears = await engine.initEligibleYears(
+    'memorize',
+    (y) => y.newCardCount > 0,
   )
-  // Boot the engine for every eligible year in parallel, then compute
-  // each year's session payload locally. Per-club config passes through
-  // so the engine respects per-club memorize/review enablement and per-
-  // club desired retention; the schedule (bundled default or user
-  // override) drives Phase 1 of the memorize_session_v2 canonical fill —
-  // null falls through to pure-Sequential, matching pre-Phase-1
-  // behaviour for materials that don't ship a schedule.
-  await Promise.all(
-    eligibleYears.map(async (y) => {
-      const schedule = await api.getSchedule(y.materialId)
-      await engine.init(y.materialId, y.perClub, schedule ?? '')
-    }),
-  )
+  // Serve only years whose engine actually booted. `init` swallows its
+  // own failures, so a year that failed to load isn't in `active` and
+  // calling `memorizeSession` on it would throw "no session" and abort
+  // the whole multi-year session. Mirrors ReviewView's isActive filter.
   const sessions: {
     materialId: string
     verses: MemorizeSessionVerse[]
     orphans: number[]
-  }[] = eligibleYears.map((y) => {
-    const s = engine.memorizeSession(y.materialId, y.perClub.lessonBatchSize)
-    return { materialId: y.materialId, verses: s.verses, orphans: s.orphans }
-  })
+  }[] = eligibleYears
+    .filter((y) => engine.isActive(y.materialId))
+    .map((y) => {
+      const s = engine.memorizeSession(y.materialId, y.perClub.lessonBatchSize)
+      return { materialId: y.materialId, verses: s.verses, orphans: s.orphans }
+    })
   // Flatten the session into reading items: each verse anchors its
   // own item with HP / CCL items appended after it; top-level orphan
   // cards (the verse-less standalone overflow) follow at the end of

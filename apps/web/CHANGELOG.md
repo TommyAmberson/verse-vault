@@ -9,6 +9,36 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.5] — 2026-07-17
+
+PATCH — engine-session lifecycle hardening + boot refactor. Client-only; no server or wire change.
+
+### Bundled algorithm contract
+
+Unchanged from [0.9.4]:
+
+* `verse-vault-core@0.7.1`
+* `verse-vault-wasm@0.7.1`
+
+### Fixed
+
+* Concurrent same-material engine loads (e.g. navigating /memorize → /review while the first init is
+  still in flight) no longer build and leak a second WASM engine (#114).
+* Discarding a stale-merge batch mid-session no longer rebuilds the engine with all clubs enabled at
+  the legacy retention — the rebuild reuses the session's cached per-club config + schedule (#113).
+* Two materials going stale in one flush no longer wedge the second: stale-merge prompts queue per
+  material and re-surface after each confirm/discard instead of the last writer overwriting the slot
+  (#112).
+* A year whose engine fails to boot no longer hard-errors the whole multi-year memorize session —
+  MemorizeView now skips un-booted years, matching /review.
+
+### Changed
+
+* Extracted the duplicated multi-year engine boot into `useEngine.initEligibleYears`, routed the
+  badge + boot through a shared schedule cache, and folded the enabled-club check into
+  `lib/clubs.ts` (#115). MemorizeView now degrades a failed schedule fetch to pure-Sequential rather
+  than failing the whole session.
+
 ## [0.9.4] — 2026-07-15
 
 PATCH — ships the #107 scheduling fixes by bundling the new algorithm contract. No web-side code
