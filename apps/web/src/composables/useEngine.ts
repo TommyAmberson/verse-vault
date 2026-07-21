@@ -11,8 +11,8 @@
  *
  * Also the multi-year boot orchestrator: `initEligibleYears` fetches the
  * user's years (`api`), filters eligibility (`lib/clubs`), and boots each
- * with its per-club config + schedule (`lib/badges`' shared cache) — the
- * shape ReviewView and MemorizeView both drive their sessions from.
+ * with its per-club config + schedule (`lib/apiCache`'s shared caches) —
+ * the shape ReviewView and MemorizeView both drive their sessions from.
  *
  * Behavioural contract:
  *   - On init: triggers `loadEngine(materialId)`, adds the id to the
@@ -35,7 +35,7 @@
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
 
 import { api, type CardRender, type Grade, type YearView } from '../api'
-import { getCachedSchedule } from '../lib/badges'
+import { getCachedSchedule, getCachedYears } from '../lib/apiCache'
 import { hasEnabledClub } from '../lib/clubs'
 import * as engineStore from '../lib/engine/engineStore'
 import type { FlushResult } from '../lib/engine/engineStore'
@@ -217,7 +217,7 @@ export function useEngine() {
     club: 'review' | 'memorize',
     extra?: (year: YearView) => boolean,
   ): Promise<YearView[]> {
-    const res = await api.getYears()
+    const res = await getCachedYears(api.getYears)
     const eligible = res.years.filter(
       (y) => y.enrolled && hasEnabledClub(y.perClub[club]) && (extra?.(y) ?? true),
     )

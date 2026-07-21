@@ -4,7 +4,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import { api, type MaterialPassages } from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { invalidateScheduleCache } from '@/lib/badges'
+import { invalidateScheduleCache } from '@/lib/apiCache'
 import {
   DAYS_OF_WEEK,
   type DayOfWeek,

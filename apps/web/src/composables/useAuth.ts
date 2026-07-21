@@ -1,7 +1,7 @@
 import { computed, ref, watch } from 'vue'
 
+import { invalidateScheduleCache, invalidateYearsCache } from '@/lib/apiCache'
 import { createAppAuthClient } from '@/lib/authClient'
-import { invalidateScheduleCache } from '@/lib/badges'
 import { clearAllSessions } from '@/lib/engine/engineStore'
 import { migrateLegacyDb } from '@/lib/engine/migrate-legacy'
 import { deleteIdb, profileDbName, setActiveProfile } from '@/lib/engine/persistence'
@@ -13,6 +13,7 @@ import * as registry from '@/lib/engine/registry'
 async function clearProfileCaches(): Promise<void> {
   await clearAllSessions()
   invalidateScheduleCache()
+  invalidateYearsCache()
 }
 
 // Better Auth's client auto-appends `/api/auth` to baseURL only when the

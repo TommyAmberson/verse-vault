@@ -9,6 +9,25 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.7] — 2026-07-21
+
+PATCH — internal: consolidate client-side fetch caching. Client-only; no server or wire change.
+
+### Bundled algorithm contract
+
+Unchanged from [0.9.4]:
+
+* `verse-vault-core@0.7.1`
+* `verse-vault-wasm@0.7.1`
+
+### Changed
+
+* Moved the schedule cache out of `badges.ts` into a dedicated `lib/apiCache.ts` so the engine-boot
+  path no longer imports the badge module for a cache utility (#120).
+* Added an in-flight coalescer for `getYears` so the sidebar badge and the mounting view share one
+  round-trip per navigation instead of fetching the year list twice; the resolved value is dropped
+  on settle so counts are never served stale (#121).
+
 ## [0.9.6] — 2026-07-21
 
 PATCH — internal: unify stale-merge gate ownership. Client-only; no server or wire change.

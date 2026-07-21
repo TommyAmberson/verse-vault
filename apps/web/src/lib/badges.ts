@@ -35,49 +35,9 @@
  */
 
 import type { Club, YearView } from '@/api'
+import { getCachedSchedule } from '@/lib/apiCache'
 import { CLUBS, hasEnabledClub } from '@/lib/clubs'
 import type { Schedule, ScheduleWeek } from '@/lib/schedule'
-
-/** Module-level cache for the schedule fetches `memorizeBadgeCount`
- *  fires on every navigation. Schedules are essentially static within
- *  a tab session — they only change via PUT/DELETE
- *  `/api/materials/:id/schedule` (the Phase 3 editor invalidates here
- *  after each write). Without this cache, every nav re-fetches one
- *  schedule per enrolled year, multiplying the per-route badge cost
- *  N+1 times.
- *
- *  Caches the in-flight promise so concurrent calls (e.g. two
- *  fast back-to-back nav events) share one round-trip rather than
- *  racing two. Exported so callers can invalidate per-material on
- *  schedule writes or per-profile on profile transitions (#100). */
-const scheduleCache = new Map<string, Promise<unknown | null>>()
-
-export function invalidateScheduleCache(materialId?: string): void {
-  if (materialId === undefined) scheduleCache.clear()
-  else scheduleCache.delete(materialId)
-}
-
-/** Fetch a material's schedule through the module cache: cache hit
- *  returns the shared (possibly in-flight) promise; miss fetches once
- *  and caches it. A rejected fetch evicts itself so a transient failure
- *  doesn't pin a rejected promise for the session — the rejection still
- *  propagates, so callers that want a soft fallback add their own
- *  `.catch`. Shared by `memorizeBadgeCount` and the engine-boot helper
- *  (`useEngine.initEligibleYears`) so one navigation's schedule fetches
- *  aren't duplicated across the badge and the boot. */
-export function getCachedSchedule(
-  materialId: string,
-  fetch: (id: string) => Promise<unknown | null>,
-): Promise<unknown | null> {
-  const cached = scheduleCache.get(materialId)
-  if (cached !== undefined) return cached
-  const pending = fetch(materialId).catch((err) => {
-    scheduleCache.delete(materialId)
-    throw err
-  })
-  scheduleCache.set(materialId, pending)
-  return pending
-}
 
 /** Return the index of the latest week whose date is on or before
  *  `today`, or -1 when today is before week 0. `weeks` is assumed
