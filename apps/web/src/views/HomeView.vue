@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { type ActivityDay, type ActivityResponse, type StatsResponse, api } from '@/api'
+import { getCachedYears } from '@/lib/apiCache'
 import ActivityHeatmap from '@/components/ActivityHeatmap.vue'
 
 interface YearAgg {
@@ -87,7 +88,7 @@ onMounted(async () => {
   try {
     const emptyActivity: ActivityResponse = { reviews: [], memorize: [], requestedDays: 1825 }
     const [yearsRes, activityRes] = await Promise.all([
-      api.getYears(),
+      getCachedYears(api.getYears),
       api.getActivity(1825).catch(() => emptyActivity),
     ])
     activityReviews.value = activityRes.reviews

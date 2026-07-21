@@ -18,6 +18,7 @@ import {
   type YearView,
   api,
 } from '@/api'
+import { getCachedYears } from '@/lib/apiCache'
 import { CLUBS, hasEnabledClub } from '@/lib/clubs'
 import { invalidateSession } from '@/lib/engine/engineStore'
 import { bulkPutRenders, clearRenders, newestRenderFetchedAt } from '@/lib/engine/persistence'
@@ -152,7 +153,7 @@ async function refresh() {
   loading.value = true
   error.value = null
   try {
-    const res = await api.getYears()
+    const res = await getCachedYears(api.getYears)
     const enriched = await Promise.all(
       res.years.map(async (view) => ({
         view,

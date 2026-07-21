@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import MobileTabBar from '@/components/MobileTabBar.vue'
 import OfflineBanner from '@/components/OfflineBanner.vue'
 import { useAuth } from '@/composables/useAuth'
+import { getCachedYears } from '@/lib/apiCache'
 import { memorizeBadgeCount } from '@/lib/badges'
 
 const { activeProfile, conflict, acceptPendingSignIn, cancelPendingSignIn } = useAuth()
@@ -28,7 +29,7 @@ const newToMemorize = ref<number>(0)
 async function refreshMemorizeCount() {
   if (!user.value) return
   try {
-    const res = await api.getYears()
+    const res = await getCachedYears(api.getYears)
     const todayIso = new Date().toISOString().slice(0, 10)
     newToMemorize.value = await memorizeBadgeCount(res.years, api.getSchedule, todayIso)
   } catch {

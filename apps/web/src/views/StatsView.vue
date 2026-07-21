@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { type StatsResponse, api } from '@/api'
+import { getCachedYears } from '@/lib/apiCache'
 
 interface YearStats {
   materialId: string
@@ -37,7 +38,7 @@ onMounted(async () => {
   try {
     // Stats are per-year. Show every year the user is enrolled in; sort by
     // total reviews so the most-worked year leads.
-    const yearsRes = await api.getYears()
+    const yearsRes = await getCachedYears(api.getYears)
     const enrolled = yearsRes.years.filter((y) => y.enrolled)
     // allSettled so one bad year (stale enrollment 404, transient 5xx)
     // doesn't blank the entire page — surface a small "N years failed
