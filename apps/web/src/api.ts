@@ -405,6 +405,18 @@ export interface ApiClient {
   deleteAllProgress(): Promise<ProgressDeletionSummary>
 }
 
+let onUnauthorized: (() => void) | null = null
+
+/** Register a callback fired whenever an authenticated API call returns
+ *  401 — the session cookie expired or was revoked server-side while a
+ *  local profile is still active. `main.ts` wires this to redirect to the
+ *  profile picker so the user re-authenticates instead of being stranded
+ *  on an error banner. The `ApiError` is still thrown afterward so the
+ *  calling view's own loading/catch flow unwinds. */
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  onUnauthorized = fn
+}
+
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
  *  so the Better Auth session cookie flows through on every call. */
 export function createApiClient(apiUrl: string): ApiClient {
@@ -422,6 +434,7 @@ export function createApiClient(apiUrl: string): ApiClient {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
     if (!res.ok) {
+      if (res.status === 401) onUnauthorized?.()
       const text = await res.text().catch(() => '')
       throw new ApiError(res.status, text || res.statusText)
     }

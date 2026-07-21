@@ -28,7 +28,17 @@ const prefillEmail = ref<string | undefined>(undefined)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)
 
-const banner = ref<string | null>(null)
+// Populated when we arrive here from a redirect: an expired/revoked
+// session (`reason=expired`, set by the 401 handler in main.ts) or a
+// plain unauthenticated navigation the router guard bounced (a
+// `redirect` target but no reason).
+const banner = ref<string | null>(
+  route.query.reason === 'expired'
+    ? 'Your session expired — sign in again to pick up where you left off.'
+    : route.query.redirect
+      ? 'Please sign in to continue.'
+      : null,
+)
 
 // Keep mode in sync with the shared profiles list (reconcile, sign-in
 // from another flow, etc.). Skip when the user is mid-add — don't
