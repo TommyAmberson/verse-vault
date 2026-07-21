@@ -60,6 +60,23 @@ function redirectTarget(): string {
   return safeRedirect(route.query.redirect)
 }
 
+/** Absolute same-origin URL for the destination, for OAuth callbackURLs.
+ *  `router.resolve(...).href` re-applies the history base
+ *  (`VITE_BASE_PATH=/vv/` in production) that router paths strip —
+ *  `origin + redirectTarget()` alone would 302 to `/review` instead of
+ *  `/vv/review`, landing outside the SPA. */
+function redirectCallbackUrl(): string {
+  return window.location.origin + router.resolve(redirectTarget()).href
+}
+
+/** Social sign-in from this picker returns to the destination, matching
+ *  the email path's `router.replace(redirectTarget())` — the default
+ *  callbackURL (current href) would land back on this force=1 picker,
+ *  which the guard deliberately doesn't forward off. */
+function signInSocialToDestination(provider: Parameters<typeof signInSocial>[0]) {
+  signInSocial(provider, redirectCallbackUrl())
+}
+
 // Token missing or rejected — re-authenticate. A Google profile goes
 // straight back through the OAuth flow (the callbackURL is the current
 // URL, so the router guard forwards to `redirect` on return); an email
@@ -67,7 +84,9 @@ function redirectTarget(): string {
 // profile with no recorded provider (legacy row) falls back to the form.
 function reauth(profile: ProfileRow) {
   if (profile.provider === 'google') {
-    signInSocial('google')
+    // Land the OAuth round-trip on the destination, not back on this
+    // force=1 picker (the guard won't forward off a force=1 picker).
+    signInSocialToDestination('google')
     return
   }
   prefillEmail.value = profile.email
@@ -159,7 +178,7 @@ async function onSignInSuccess() {
 
     <template v-else>
       <SignInForm
-        :sign-in-social="signInSocial"
+        :sign-in-social="signInSocialToDestination"
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
         :prefill-email="prefillEmail"

@@ -54,9 +54,13 @@ export function createAppAuthClient(baseURL: string) {
   function useAuth() {
     const session = authClient.useSession()
 
-    function signInSocial(provider: SocialProvider) {
+    // `callbackURL` defaults to the current page (fresh sign-in returns
+    // where it started). Re-auth passes an explicit destination so the
+    // OAuth round-trip lands past the force=1 picker on the page the user
+    // was headed to, rather than bouncing back onto the picker.
+    function signInSocial(provider: SocialProvider, callbackURL: string = window.location.href) {
       stashPendingProvider(provider)
-      authClient.signIn.social({ provider, callbackURL: window.location.href })
+      authClient.signIn.social({ provider, callbackURL })
     }
 
     async function signInEmail(email: string, password: string) {

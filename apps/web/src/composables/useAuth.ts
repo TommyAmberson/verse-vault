@@ -94,6 +94,7 @@ interface ConflictState {
   expectedEmail: string
   pendingUser: UserPayload
   pendingSessionToken: string | null
+  pendingProvider?: registry.AuthProvider
 }
 const conflict = ref<ConflictState | null>(null)
 
@@ -168,7 +169,7 @@ export async function acceptPendingSignIn(): Promise<void> {
   }
   activeProfile.value = null
   activeProfileLoaded = false
-  await signInComplete(pending.pendingUser, pending.pendingSessionToken)
+  await signInComplete(pending.pendingUser, pending.pendingSessionToken, pending.pendingProvider)
 }
 
 /** Decline the new session: revoke its token, keep the previous active
@@ -252,6 +253,7 @@ export async function signInComplete(
       expectedEmail: activeProfile.value.email,
       pendingUser: user,
       pendingSessionToken: sessionToken,
+      pendingProvider: provider,
     }
     return
   }
@@ -472,6 +474,13 @@ watch(
   (data) => {
     const user = data?.user
     if (!user) return
+    // Consume the OAuth provider stash on ANY resolved-user fire. A
+    // same-account re-auth return lands in the token-refresh branch
+    // below and would otherwise strand 'google' in sessionStorage to
+    // mislabel a later sign-in (#2). Reading after the `!user` guard
+    // keeps a null fire from eating it before the real one. Undefined on
+    // a restored session, so the row then keeps its prior provider.
+    const pendingProvider = readPendingProvider()
     const sessionToken = data?.session?.token ?? null
     if (activeProfile.value?.profileId === user.id) {
       if (sessionToken && activeProfile.value.sessionToken !== sessionToken) {
@@ -479,11 +488,7 @@ watch(
       }
       return
     }
-    // A fresh sign-in for a new user id. If it's the return leg of a
-    // social OAuth redirect, the provider was stashed before we left;
-    // otherwise (a restored session) this is undefined and the row keeps
-    // its prior provider.
-    void signInComplete(user, sessionToken, readPendingProvider())
+    void signInComplete(user, sessionToken, pendingProvider)
   },
 )
 
