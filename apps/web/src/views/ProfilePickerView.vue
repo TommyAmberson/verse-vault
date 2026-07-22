@@ -28,7 +28,17 @@ const prefillEmail = ref<string | undefined>(undefined)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)
 
-const banner = ref<string | null>(null)
+// Populated when we arrive here from a redirect: an expired/revoked
+// session (`reason=expired`, set by the 401 handler in main.ts) or a
+// plain unauthenticated navigation the router guard bounced (a
+// `redirect` target but no reason).
+const banner = ref<string | null>(
+  route.query.reason === 'expired'
+    ? 'Your session expired — sign in again to pick up where you left off.'
+    : route.query.redirect
+      ? 'Please sign in to continue.'
+      : null,
+)
 
 // Keep mode in sync with the shared profiles list (reconcile, sign-in
 // from another flow, etc.). Skip when the user is mid-add — don't
@@ -50,21 +60,50 @@ function redirectTarget(): string {
   return safeRedirect(route.query.redirect)
 }
 
+/** Absolute same-origin URL for the destination, for OAuth callbackURLs.
+ *  `router.resolve(...).href` re-applies the history base
+ *  (`VITE_BASE_PATH=/vv/` in production) that router paths strip —
+ *  `origin + redirectTarget()` alone would 302 to `/review` instead of
+ *  `/vv/review`, landing outside the SPA. */
+function redirectCallbackUrl(): string {
+  return window.location.origin + router.resolve(redirectTarget()).href
+}
+
+/** Social sign-in from this picker returns to the destination, matching
+ *  the email path's `router.replace(redirectTarget())` — the default
+ *  callbackURL (current href) would land back on this force=1 picker,
+ *  which the guard deliberately doesn't forward off. */
+function signInSocialToDestination(provider: Parameters<typeof signInSocial>[0]) {
+  signInSocial(provider, redirectCallbackUrl())
+}
+
+// Token missing or rejected — re-authenticate. A Google profile goes
+// straight back through the OAuth flow (the callbackURL is the current
+// URL, so the router guard forwards to `redirect` on return); an email
+// profile drops into the sign-in form prefilled with its address. A
+// profile with no recorded provider (legacy row) falls back to the form.
+function reauth(profile: ProfileRow) {
+  if (profile.provider === 'google') {
+    // Land the OAuth round-trip on the destination, not back on this
+    // force=1 picker (the guard won't forward off a force=1 picker).
+    signInSocialToDestination('google')
+    return
+  }
+  prefillEmail.value = profile.email
+  mode.value = 'add'
+}
+
 async function onCardEnter(profile: ProfileRow) {
   const result = await enterProfile(profile.profileId)
   if (result.ok) {
     await router.replace(redirectTarget())
     return
   }
-  // Token missing or rejected — drop into the sign-in form prefilled
-  // with this profile's email so the user can re-auth in one step.
-  prefillEmail.value = profile.email
-  mode.value = 'add'
+  reauth(profile)
 }
 
 function onCardReauth(profile: ProfileRow) {
-  prefillEmail.value = profile.email
-  mode.value = 'add'
+  reauth(profile)
 }
 
 async function onCardSignOut(profile: ProfileRow) {
@@ -139,7 +178,7 @@ async function onSignInSuccess() {
 
     <template v-else>
       <SignInForm
-        :sign-in-social="signInSocial"
+        :sign-in-social="signInSocialToDestination"
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
         :prefill-email="prefillEmail"

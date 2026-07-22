@@ -9,6 +9,30 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.8] — 2026-07-21
+
+PATCH — session-expiry redirect + OAuth-aware re-auth. Client-only; no server or wire change.
+
+### Bundled algorithm contract
+
+Unchanged from [0.9.4]:
+
+* `verse-vault-core@0.7.1`
+* `verse-vault-wasm@0.7.1`
+
+### Fixed
+
+* A protected API call returning 401 (server session expired or revoked while a local profile is
+  still active) now redirects to the profile picker with a "session expired" banner, instead of
+  stranding the view on an error banner with no way forward.
+
+### Changed
+
+* The picker records each profile's sign-in method and re-authenticates a returning OAuth (Google)
+  profile straight through the OAuth flow, instead of dropping it into the email/password form —
+  OAuth users are no longer prompted for a password they never set. Email and legacy (unrecorded)
+  profiles keep the prefilled sign-in form.
+
 ## [0.9.7] — 2026-07-21
 
 PATCH — internal: consolidate client-side fetch caching. Client-only; no server or wire change.

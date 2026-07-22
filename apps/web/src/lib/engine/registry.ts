@@ -23,6 +23,13 @@ const STORE = {
 /** Singleton key the `meta` store uses — there is only ever one row. */
 const META_KEY = 'singleton'
 
+/** How the user last authenticated this profile. Drives the picker's
+ *  re-auth: a `'google'` profile whose stored token is dead re-auths
+ *  straight through the OAuth flow rather than the email/password form.
+ *  `undefined` on rows written before this was tracked — treated as
+ *  unknown, falling back to the email form. */
+export type AuthProvider = 'google' | 'email'
+
 export interface ProfileRow {
   /** Server-side `userId`; doubles as the per-profile DB suffix. */
   profileId: string
@@ -37,6 +44,9 @@ export interface ProfileRow {
    *  uses this to drive the signed-in/out chip and to call
    *  `multiSession.setActive` / `multiSession.revoke` by token. */
   sessionToken: string | null
+  /** Sign-in method last used for this profile; `undefined` on legacy
+   *  rows written before it was tracked. */
+  provider?: AuthProvider
 }
 
 interface MetaRow {

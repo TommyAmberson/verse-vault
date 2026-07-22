@@ -1,7 +1,7 @@
 import { computed, ref, watch } from 'vue'
 
 import { invalidateScheduleCache, invalidateYearsCache } from '@/lib/apiCache'
-import { createAppAuthClient } from '@/lib/authClient'
+import { createAppAuthClient, readPendingProvider } from '@/lib/authClient'
 import { clearAllSessions } from '@/lib/engine/engineStore'
 import { migrateLegacyDb } from '@/lib/engine/migrate-legacy'
 import { deleteIdb, profileDbName, setActiveProfile } from '@/lib/engine/persistence'
@@ -94,6 +94,7 @@ interface ConflictState {
   expectedEmail: string
   pendingUser: UserPayload
   pendingSessionToken: string | null
+  pendingProvider?: registry.AuthProvider
 }
 const conflict = ref<ConflictState | null>(null)
 
@@ -168,7 +169,7 @@ export async function acceptPendingSignIn(): Promise<void> {
   }
   activeProfile.value = null
   activeProfileLoaded = false
-  await signInComplete(pending.pendingUser, pending.pendingSessionToken)
+  await signInComplete(pending.pendingUser, pending.pendingSessionToken, pending.pendingProvider)
 }
 
 /** Decline the new session: revoke its token, keep the previous active
@@ -228,6 +229,7 @@ export async function signInComplete(
     image?: string | null
   },
   sessionToken: string | null = null,
+  provider?: registry.AuthProvider,
 ): Promise<void> {
   // A different-id but same-email sign-in is the "I deleted my account
   // and just made a new one" path (common after dev-DB wipes). The
@@ -251,6 +253,7 @@ export async function signInComplete(
       expectedEmail: activeProfile.value.email,
       pendingUser: user,
       pendingSessionToken: sessionToken,
+      pendingProvider: provider,
     }
     return
   }
@@ -278,6 +281,9 @@ export async function signInComplete(
     // the existing row so a re-entry without a new token (e.g. an
     // idempotent watcher fire) doesn't blow away a valid stored one.
     sessionToken: sessionToken ?? existing?.sessionToken ?? null,
+    // Same fallback for the method: a restored-session watcher fire
+    // carries no provider, so keep whatever the first sign-in recorded.
+    provider: provider ?? existing?.provider,
   }
   await registry.upsertProfile(row)
   await registry.setLastActiveProfileId(user.id)
@@ -468,6 +474,13 @@ watch(
   (data) => {
     const user = data?.user
     if (!user) return
+    // Consume the OAuth provider stash on ANY resolved-user fire. A
+    // same-account re-auth return lands in the token-refresh branch
+    // below and would otherwise strand 'google' in sessionStorage to
+    // mislabel a later sign-in (#2). Reading after the `!user` guard
+    // keeps a null fire from eating it before the real one. Undefined on
+    // a restored session, so the row then keeps its prior provider.
+    const pendingProvider = readPendingProvider()
     const sessionToken = data?.session?.token ?? null
     if (activeProfile.value?.profileId === user.id) {
       if (sessionToken && activeProfile.value.sessionToken !== sessionToken) {
@@ -475,7 +488,7 @@ watch(
       }
       return
     }
-    void signInComplete(user, sessionToken)
+    void signInComplete(user, sessionToken, pendingProvider)
   },
 )
 
@@ -522,14 +535,14 @@ export function useAuth() {
   async function signInEmail(email: string, password: string) {
     const result = await factoryShape.signInEmail(email, password)
     const user = extractUser(result)
-    if (user) await signInComplete(user, extractSessionToken(result))
+    if (user) await signInComplete(user, extractSessionToken(result), 'email')
     return result
   }
 
   async function signUpEmail(email: string, password: string) {
     const result = await factoryShape.signUpEmail(email, password)
     const user = extractUser(result)
-    if (user) await signInComplete(user, extractSessionToken(result))
+    if (user) await signInComplete(user, extractSessionToken(result), 'email')
     return result
   }
 
