@@ -9,6 +9,25 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.9] — 2026-07-22
+
+PATCH — close a boot-time token-clear race. Client-only; no server or wire change.
+
+### Bundled algorithm contract
+
+Unchanged from [0.9.4]:
+
+* `verse-vault-core@0.7.1`
+* `verse-vault-wasm@0.7.1`
+
+### Fixed
+
+* On an OAuth-return boot, the once-per-launch device-session reconcile could null a profile's
+  freshly-issued token if the session watcher wrote it in the gap between the reconcile's stale
+  judgement and its write — briefly flashing the profile card as signed-out until the next
+  navigation. The reconcile now compares-and-clears: it nulls the token only when the row still
+  holds the exact token it judged stale.
+
 ## [0.9.8] — 2026-07-21
 
 PATCH — session-expiry redirect + OAuth-aware re-auth. Client-only; no server or wire change.
