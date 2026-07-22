@@ -30,30 +30,55 @@ pub struct Schedule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", from = "ScheduleWeekRaw")]
 pub struct ScheduleWeek {
     /// ISO `YYYY-MM-DD`.
     pub date: String,
     /// Passage blocks contributed by this week. Empty on Review weeks;
     /// length 1 on today's normal weeks; length ≥2 on compound weeks
     /// (spec §3.3 `|` weeks from NT Survey). Every consumer iterates
-    /// this field; the legacy `passage`/`verses` fields below are the
-    /// v1 wire shape that `Schedule::normalize_v1_weeks` folds into
-    /// `blocks` before the algorithm touches anything.
-    #[serde(default)]
+    /// this field — see `ScheduleWeekRaw` for how a v1 payload reaches it.
     pub blocks: Vec<PassageBlock>,
-    /// Legacy v1 wire field. Migrated into `blocks` by
-    /// `Schedule::normalize_v1_weeks`; readers should never look here
-    /// directly. Skipped on serialize so re-emitted schedules land in
-    /// v2 shape.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub passage: Option<Passage>,
-    /// Legacy v1 wire field paired with `passage`; see the docstring
-    /// above.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub verses: Option<ClubVerseLists>,
-    #[serde(default)]
     pub is_review: bool,
+}
+
+/// Deserialize-only mirror of `ScheduleWeek` accepting both wire
+/// versions: v2's `blocks[]` and v1's week-level `passage`/`verses` pair.
+/// `From<ScheduleWeekRaw>` folds v1 into `blocks[]`, so the public
+/// `ScheduleWeek` only ever exists in normalised v2 form — the migration
+/// runs at parse time and no consumer can forget to invoke it. Same
+/// adapter pattern as `MaterialConfigRaw` in `material_config.rs`.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScheduleWeekRaw {
+    date: String,
+    #[serde(default)]
+    blocks: Vec<PassageBlock>,
+    #[serde(default)]
+    passage: Option<Passage>,
+    #[serde(default)]
+    verses: Option<ClubVerseLists>,
+    #[serde(default)]
+    is_review: bool,
+}
+
+impl From<ScheduleWeekRaw> for ScheduleWeek {
+    fn from(raw: ScheduleWeekRaw) -> Self {
+        let mut blocks = raw.blocks;
+        // A week carrying both shapes keeps `blocks` and ignores the
+        // legacy pair.
+        if blocks.is_empty()
+            && let Some(passage) = raw.passage
+        {
+            let verses = raw.verses.unwrap_or_default();
+            blocks.push(PassageBlock { passage, verses });
+        }
+        ScheduleWeek {
+            date: raw.date,
+            blocks,
+            is_review: raw.is_review,
+        }
+    }
 }
 
 /// One passage's worth of a week's content. Normal weeks carry a single
@@ -178,28 +203,6 @@ impl ClubVerseLists {
 pub type VerseRef = (String, u16, u16);
 
 impl Schedule {
-    /// Normalise legacy v1 wire shapes into the v2 in-memory shape.
-    ///
-    /// Persisted user schedules and bundled JSONs may still carry
-    /// `passage`/`verses` at the `ScheduleWeek` level rather than under
-    /// `blocks[]`. Serde deserialises both fields; this pass folds the
-    /// legacy pair into a single-element `blocks` vector so every
-    /// downstream reader iterates `blocks` uniformly. Idempotent: weeks
-    /// that already carry `blocks` are left alone.
-    pub fn normalize_v1_weeks(&mut self) {
-        for week in &mut self.weeks {
-            if !week.blocks.is_empty() {
-                week.passage = None;
-                week.verses = None;
-                continue;
-            }
-            if let Some(passage) = week.passage.take() {
-                let verses = week.verses.take().unwrap_or_default();
-                week.blocks.push(PassageBlock { passage, verses });
-            }
-        }
-    }
-
     /// Resolve the verse numbers a given `tier` introduces in `week_idx`
     /// into `(book, chapter, verse)` refs. Iterates every passage block
     /// on the week; compound weeks return refs from both passages in
@@ -406,8 +409,6 @@ mod tests {
                             club300: vec![1, 2, 4, 8, 9, 19, 23],
                         },
                     }],
-                    passage: None,
-                    verses: None,
                     is_review: false,
                 },
                 ScheduleWeek {
@@ -424,15 +425,11 @@ mod tests {
                             club300: vec![5, 7, 10, 11, 13],
                         },
                     }],
-                    passage: None,
-                    verses: None,
                     is_review: false,
                 },
                 ScheduleWeek {
                     date: "2025-11-17".into(),
                     blocks: vec![],
-                    passage: None,
-                    verses: None,
                     is_review: true,
                 },
             ],
@@ -682,29 +679,25 @@ mod tests {
                 }
             ]
         }"#;
-        let mut s: Schedule = serde_json::from_str(raw).expect("parse");
-        // parse_external_json_shape covers the v1 wire form still emitted
-        // by pre-migration user schedules and the bundled JSONs — the
-        // fields land on the legacy `passage`/`verses` slots and get
-        // folded into `blocks` by `normalize_v1_weeks`. The algorithm
-        // paths never observe the legacy slots.
-        s.normalize_v1_weeks();
+        // v1 wire form — still emitted by pre-migration user schedules and
+        // older bundled JSONs — carries a week-level `passage`/`verses`
+        // pair. Deserialize folds it into `blocks[]` via `ScheduleWeekWire`;
+        // there is no explicit normalisation pass and the legacy slots no
+        // longer exist on the public `ScheduleWeek`.
+        let s: Schedule = serde_json::from_str(raw).expect("parse");
         assert_eq!(s.weeks.len(), 1);
         assert!(!s.weeks[0].is_review);
         assert_eq!(s.weeks[0].blocks.len(), 1);
         assert_eq!(s.weeks[0].blocks[0].passage.end_verse, 31);
         assert_eq!(s.weeks[0].blocks[0].verses.club150, vec![5, 10]);
-        // Legacy slots are cleared by the migration.
-        assert!(s.weeks[0].passage.is_none());
-        assert!(s.weeks[0].verses.is_none());
         assert_eq!(s.meets[0].end_date, None);
     }
 
     #[test]
     fn parses_v2_blocks_wire_shape() {
         // v2 wire — API 0.1.30+ and future bundled JSONs — carries
-        // `blocks[]` at the week level. Serde populates it directly; the
-        // migration pass is a no-op.
+        // `blocks[]` at the week level. Deserialize populates it directly,
+        // with no v1 fold to run.
         let raw = r#"{
             "version": 2,
             "materialId": "test",
@@ -727,8 +720,7 @@ mod tests {
                 }
             ]
         }"#;
-        let mut s: Schedule = serde_json::from_str(raw).expect("parse");
-        s.normalize_v1_weeks();
+        let s: Schedule = serde_json::from_str(raw).expect("parse");
         assert_eq!(s.weeks[0].blocks.len(), 2);
         // Both blocks contribute refs — Club 150 has one verse each.
         let refs150 = s.week_verse_refs(0, ClubTier::Club150);
@@ -742,15 +734,35 @@ mod tests {
     }
 
     #[test]
-    fn normalize_v1_weeks_is_idempotent() {
-        let mut s = schedule_fixture();
-        let blocks_before = s.weeks[0].blocks.clone();
-        s.normalize_v1_weeks();
-        s.normalize_v1_weeks();
-        assert_eq!(s.weeks[0].blocks.len(), blocks_before.len());
+    fn v1_and_v2_wire_deserialize_to_identical_week() {
+        // The same week expressed in v1 (week-level passage/verses) and v2
+        // (blocks[]) must deserialize to a byte-identical `ScheduleWeek` —
+        // the fold is the whole point of the wire migration. Comparing the
+        // re-serialised weeks also proves a v1-parsed week round-trips to
+        // canonical v2 output, with no legacy week-level fields surviving.
+        let v1 = r#"{
+            "date": "2025-09-08",
+            "passage": { "book": "John", "chapter": 3, "startVerse": 16, "endVerse": 18 },
+            "verses": { "club150": [16], "club300": [17] }
+        }"#;
+        let v2 = r#"{
+            "date": "2025-09-08",
+            "blocks": [{
+                "passage": { "book": "John", "chapter": 3, "startVerse": 16, "endVerse": 18 },
+                "verses": { "club150": [16], "club300": [17] }
+            }]
+        }"#;
+        let from_v1: ScheduleWeek = serde_json::from_str(v1).expect("v1 parse");
+        let from_v2: ScheduleWeek = serde_json::from_str(v2).expect("v2 parse");
+        // Assert the fold produced a block before comparing: two empty
+        // `blocks` would serialise identically and satisfy the equality
+        // below without the fold ever running.
+        assert_eq!(from_v1.blocks.len(), 1);
+        // Equal to the authored-v2 week's serialisation, so the v1 week
+        // round-trips to canonical v2 output with no legacy fields left.
         assert_eq!(
-            s.weeks[0].blocks[0].verses.club150,
-            blocks_before[0].verses.club150
+            serde_json::to_string(&from_v1).unwrap(),
+            serde_json::to_string(&from_v2).unwrap(),
         );
     }
 }
