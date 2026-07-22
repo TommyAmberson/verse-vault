@@ -492,11 +492,28 @@ watch(
   },
 )
 
+/** Clear a token judged stale by the boot reconcile, but only if the
+ *  row still holds that exact token. A concurrent watcher fire may have
+ *  written a freshly-issued token between the snapshot that judged it
+ *  stale and this write (#127); the compare-and-clear skips the null in
+ *  that case. Mirrors the change into `activeProfile.value` like
+ *  `setProfileToken` does. */
+async function clearStaleProfileToken(
+  profileId: string,
+  staleToken: string,
+): Promise<void> {
+  const updated = await registry.clearSessionTokenIfMatches(profileId, staleToken)
+  if (updated && activeProfile.value?.profileId === profileId) {
+    activeProfile.value = updated
+  }
+  await refreshProfilesList()
+}
+
 /** Ask the server which device sessions are still alive and clear
  *  stored tokens on any registry row whose token isn't in the
  *  response. Fire-and-forget from the router boot; results land on
- *  the picker reactively via `setProfileToken` → `refreshProfilesList`,
- *  no remount needed. */
+ *  the picker reactively via `clearStaleProfileToken` →
+ *  `refreshProfilesList`, no remount needed. */
 export async function reconcileDeviceSessions(): Promise<void> {
   try {
     const result = await authClient.multiSession.listDeviceSessions()
@@ -508,9 +525,10 @@ export async function reconcileDeviceSessions(): Promise<void> {
     )
     const profiles = await registry.listProfiles()
     const stale = profiles.filter(
-      (p) => p.sessionToken && !liveTokens.has(p.sessionToken),
+      (p): p is registry.ProfileRow & { sessionToken: string } =>
+        p.sessionToken != null && !liveTokens.has(p.sessionToken),
     )
-    await Promise.all(stale.map((p) => setProfileToken(p.profileId, null)))
+    await Promise.all(stale.map((p) => clearStaleProfileToken(p.profileId, p.sessionToken)))
   } catch {
     // Offline — leave stored tokens alone; next boot will retry.
   }

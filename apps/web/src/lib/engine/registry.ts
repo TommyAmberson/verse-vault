@@ -186,3 +186,34 @@ export async function updateProfileSessionToken(
   await upsertProfile(updated)
   return updated
 }
+
+/** Compare-and-clear: null the profile's session token only if it still
+ *  holds `expectedToken`. Returns the updated row when the clear applied,
+ *  or null when the row is gone or its token has since changed. The boot
+ *  reconciliation pass judges a token stale from a snapshot, then writes
+ *  the null asynchronously; a concurrent session-watcher fire can write a
+ *  freshly-issued token in that gap, and an unconditional null would wipe
+ *  it (see #127). Guarding on the exact token judged stale skips that
+ *  write. The get and the put share one transaction — issuing the put
+ *  synchronously from `onsuccess` — so the check and clear can't
+ *  interleave (an `await` between them would let the transaction
+ *  auto-commit before the put). */
+export async function clearSessionTokenIfMatches(
+  profileId: string,
+  expectedToken: string,
+): Promise<ProfileRow | null> {
+  const db = await openRegistry()
+  const tx = db.transaction(STORE.Profiles, 'readwrite')
+  const store = tx.objectStore(STORE.Profiles)
+  let updated: ProfileRow | null = null
+  const getReq = store.get(profileId)
+  getReq.onsuccess = () => {
+    const existing = getReq.result as ProfileRow | undefined
+    if (existing && existing.sessionToken === expectedToken) {
+      updated = { ...existing, sessionToken: null }
+      store.put(updated)
+    }
+  }
+  await transactionComplete(tx)
+  return updated
+}
