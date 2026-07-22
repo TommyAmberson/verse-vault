@@ -201,6 +201,22 @@ export async function cancelPendingSignIn(): Promise<void> {
   }
 }
 
+/** Mirror a registry row change into the reactive `activeProfile` when
+ *  the write targeted the active profile. Returns whether a change
+ *  landed (i.e. the registry write produced a row) so batch callers can
+ *  skip a picker refresh when nothing moved. Does NOT refresh the picker
+ *  list itself — the caller owns that so a fan-out can batch one refresh. */
+function applyProfileRowUpdate(
+  profileId: string,
+  updated: registry.ProfileRow | null,
+): boolean {
+  if (!updated) return false
+  if (activeProfile.value?.profileId === profileId) {
+    activeProfile.value = updated
+  }
+  return true
+}
+
 /** Wraps `registry.updateProfileSessionToken` and mirrors the change
  *  into `activeProfile.value` when the target is the active profile,
  *  so callers don't repeat the if-active-then-refresh dance. */
@@ -208,10 +224,10 @@ async function setProfileToken(
   profileId: string,
   sessionToken: string | null,
 ): Promise<void> {
-  const updated = await registry.updateProfileSessionToken(profileId, sessionToken)
-  if (updated && activeProfile.value?.profileId === profileId) {
-    activeProfile.value = updated
-  }
+  applyProfileRowUpdate(
+    profileId,
+    await registry.updateProfileSessionToken(profileId, sessionToken),
+  )
   await refreshProfilesList()
 }
 
@@ -496,26 +512,31 @@ watch(
  *  row still holds that exact token. A concurrent watcher fire may have
  *  written a freshly-issued token between the snapshot that judged it
  *  stale and this write (#127); the compare-and-clear skips the null in
- *  that case. Mirrors the change into `activeProfile.value` like
- *  `setProfileToken` does. */
+ *  that case. Returns whether the token was actually cleared so the
+ *  caller can batch a single picker refresh; does not refresh itself. */
 async function clearStaleProfileToken(
   profileId: string,
   staleToken: string,
-): Promise<void> {
-  const updated = await registry.clearSessionTokenIfMatches(profileId, staleToken)
-  if (updated && activeProfile.value?.profileId === profileId) {
-    activeProfile.value = updated
-  }
-  await refreshProfilesList()
+): Promise<boolean> {
+  return applyProfileRowUpdate(
+    profileId,
+    await registry.clearSessionTokenIfMatches(profileId, staleToken),
+  )
 }
 
 /** Ask the server which device sessions are still alive and clear
  *  stored tokens on any registry row whose token isn't in the
- *  response. Fire-and-forget from the router boot; results land on
- *  the picker reactively via `clearStaleProfileToken` →
- *  `refreshProfilesList`, no remount needed. */
+ *  response. Fire-and-forget from the router boot; a single
+ *  `refreshProfilesList` after the batch lands the changes on the
+ *  picker reactively, no remount needed. */
 export async function reconcileDeviceSessions(): Promise<void> {
   try {
+    // Snapshot the rows before asking the server which sessions are live,
+    // so `liveTokens` is at least as fresh as the rows judged against it.
+    // The reverse order leaves a gap where a token written live after the
+    // liveness read but present in an older row snapshot gets judged
+    // stale and wiped — the same freshly-issued-token hazard as #127.
+    const profiles = await registry.listProfiles()
     const result = await authClient.multiSession.listDeviceSessions()
     const sessions = result?.data ?? []
     const liveTokens = new Set(
@@ -523,12 +544,14 @@ export async function reconcileDeviceSessions(): Promise<void> {
         .map((entry: { session?: { token?: string } }) => entry.session?.token)
         .filter((t): t is string => typeof t === 'string'),
     )
-    const profiles = await registry.listProfiles()
     const stale = profiles.filter(
       (p): p is registry.ProfileRow & { sessionToken: string } =>
         p.sessionToken != null && !liveTokens.has(p.sessionToken),
     )
-    await Promise.all(stale.map((p) => clearStaleProfileToken(p.profileId, p.sessionToken)))
+    const cleared = await Promise.all(
+      stale.map((p) => clearStaleProfileToken(p.profileId, p.sessionToken)),
+    )
+    if (cleared.some(Boolean)) await refreshProfilesList()
   } catch {
     // Offline — leave stored tokens alone; next boot will retry.
   }
