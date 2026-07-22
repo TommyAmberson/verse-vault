@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { SchedulePayloadV2 } from '../lib/schedules.js';
 import { createTestApp, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-cor';
@@ -74,6 +75,49 @@ describe('schedules routes', () => {
     expect(get.status).toBe(200);
     const body = (await get.json()) as { title: string };
     expect(body.title).toBe('My Edited Schedule');
+  });
+
+  it('PUT of a v1 body persists canonical v2 (no wire drift)', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    const v1 = {
+      version: 1,
+      materialId: 'nkjv-cor',
+      season: '2025-26',
+      title: 'V1 Upload',
+      meetingDayOfWeek: 'Mon',
+      weeks: [
+        {
+          date: '2025-09-08',
+          passage: { book: '1 Corinthians', chapter: 1, startVerse: 1, endVerse: 31 },
+          verses: { club150: [5, 10], club300: [1] },
+        },
+      ],
+      meets: [],
+    };
+    const put = await test.app.request(
+      `/api/materials/${MATERIAL_ID}/schedule`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify(v1),
+      },
+    );
+    expect(put.status).toBe(200);
+
+    const get = await test.app.request(
+      `/api/materials/${MATERIAL_ID}/schedule`,
+      { headers: { cookie } },
+    );
+    const body = (await get.json()) as SchedulePayloadV2;
+    // Stored form is migrated: version bumped to 2, the v1 week-level
+    // passage/verses folded into blocks[], and no legacy week-level
+    // passage field survives the round-trip.
+    expect(body.version).toBe(2);
+    expect(body.weeks[0]!.blocks).toHaveLength(1);
+    expect(body.weeks[0]!.blocks[0]!.passage.endVerse).toBe(31);
+    expect(body.weeks[0]).not.toHaveProperty('passage');
   });
 
   it('PUT 400s when body materialId mismatches URL materialId', async () => {
