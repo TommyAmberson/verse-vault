@@ -326,6 +326,29 @@ describe('migrateSchedule', () => {
     expect(out.weeks[1]!.isReview).toBe(true);
   });
 
+  it('keeps a passage a v1 review week does carry', () => {
+    // The canonical form is written back to storage (#103), so folding
+    // has to match core's `ScheduleWeekRaw`, which ignores `isReview`.
+    // Dropping the block here would delete verses the engine had been
+    // introducing from that week.
+    const withPassage = {
+      ...V1_SCHEDULE,
+      weeks: [
+        {
+          date: '2025-11-17',
+          passage: { book: '1 Corinthians', chapter: 1, startVerse: 1, endVerse: 9 },
+          verses: { club150: [1, 2], club300: [] },
+          isReview: true,
+        },
+      ],
+    };
+    const out = migrateSchedule(withPassage);
+    expect(out.weeks[0]!.isReview).toBe(true);
+    expect(out.weeks[0]!.blocks).toHaveLength(1);
+    expect(out.weeks[0]!.blocks[0]!.passage.endVerse).toBe(9);
+    expect(out.weeks[0]!.blocks[0]!.verses.club150).toEqual([1, 2]);
+  });
+
   it('is a no-op on a v2 shape', () => {
     const v2 = migrateSchedule(V1_SCHEDULE);
     const again = migrateSchedule(v2);

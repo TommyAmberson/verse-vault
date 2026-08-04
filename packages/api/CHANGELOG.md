@@ -10,6 +10,18 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### Fixed
+
+* Schedule writes now persist the canonical v2 form instead of the raw request body (#103). Both
+  writers to `material_schedules.scheduleJson` — `PUT /api/materials/:id/schedule` and the account
+  import — go through `canonicaliseSchedule`, so a v1 payload is stored migrated rather than
+  surviving indefinitely for every reader to re-fold. Rows written before this stay v1 until their
+  next save; readers still accept both.
+* `migrateSchedule` no longer drops a passage carried by a v1 week marked `isReview`. It previously
+  returned an empty `blocks[]` for any review week, which was harmless while the raw body was stored
+  (the engine's own fold kept the passage) but would have deleted content now that the migrated form
+  is what lands on disk.
+
 ## [0.1.33] — 2026-07-15
 
 PATCH — ships the #107 scheduling fixes by bundling the new algorithm contract. No API-surface

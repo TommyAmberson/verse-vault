@@ -254,12 +254,17 @@ function migrateV1Week(i: number, raw: Record<string, unknown>): ScheduleWeekV2 
     throw new ScheduleValidationError(`weeks[${i}].date must be a real YYYY-MM-DD`);
   }
   const isReview = raw.isReview === true;
-  if (isReview) {
+  // v1 review weeks carry `"passage": null`, which folds to no blocks. A
+  // review week that does carry a passage keeps it: core's
+  // `ScheduleWeekRaw` folds regardless of `isReview`, so dropping it here
+  // would make the canonical form written back by #103 lose content the
+  // engine previously saw.
+  if (isReview && (raw.passage === undefined || raw.passage === null)) {
     return { date: raw.date, isReview: true, blocks: [] };
   }
   return {
     date: raw.date,
-    isReview: false,
+    isReview,
     blocks: [
       {
         passage: validatePassage(`weeks[${i}].passage`, raw.passage),
