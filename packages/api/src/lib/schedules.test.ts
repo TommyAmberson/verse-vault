@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createTestDb, createTestUser } from '../test-utils.js';
 import * as schema from '../db/schema.js';
+import { V1_SCHEDULE } from '../test-fixtures.js';
 import {
   migrateSchedule,
   ScheduleValidationError,
@@ -9,29 +10,6 @@ import {
   loadSchedule,
   validateSchedule,
 } from './schedules.js';
-
-const V1_SCHEDULE = {
-  version: 1,
-  materialId: '3-corinthians',
-  season: '2025-26',
-  title: 'Test',
-  meetingDayOfWeek: 'Mon',
-  weeks: [
-    {
-      date: '2025-09-08',
-      passage: { book: '1 Corinthians', chapter: 1, startVerse: 1, endVerse: 31 },
-      verses: { club150: [5, 10], club300: [1, 2] },
-      isReview: false,
-    },
-    {
-      date: '2025-11-17',
-      passage: null,
-      verses: null,
-      isReview: true,
-    },
-  ],
-  meets: [],
-};
 
 describe('loadBundledSchedule', () => {
   it('returns the shipped 3-corinthians-2025-26 schedule for nkjv-cor', () => {

@@ -176,6 +176,13 @@
       "when": 1784100000000,
       "tag": "0024_backfill_graduated_verses",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1785600000000,
+      "tag": "0025_canonicalise_schedules",
+      "breakpoints": true
     }
   ]
 }

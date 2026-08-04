@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
+import Database from 'better-sqlite3';
 import { expect } from 'vitest';
 
 import { createApp } from './app.js';
@@ -90,6 +91,28 @@ export function createTestUser(db: DB, userId: string): void {
       updatedAt: new Date(now * 1000),
     })
     .run();
+}
+
+/** Re-applies one migration's SQL against an already-migrated test DB.
+ *
+ *  `createTestDb` runs every migration before a test can seed anything,
+ *  so a data migration can't be exercised by inserting pre-migration
+ *  rows and calling the migrator again — drizzle has already recorded it
+ *  as applied. Replaying the file directly runs the same statements the
+ *  deploy-time pass runs, against rows they can actually see.
+ *
+ *  Goes through `better-sqlite3`'s `exec`, not drizzle's `run`: `run`
+ *  prepares a single statement, so a migration with more than one
+ *  `--> statement-breakpoint` section would fail here for reasons that
+ *  have nothing to do with the migration. */
+export function applyMigration(dbPath: string, tag: string): void {
+  const sql = readFileSync(resolve(import.meta.dirname, '../migrations', `${tag}.sql`), 'utf8');
+  const sqlite = new Database(dbPath);
+  try {
+    sqlite.exec(sql);
+  } finally {
+    sqlite.close();
+  }
 }
 
 /** Creates a user via Better Auth's email sign-up and returns the session cookie + user id. */

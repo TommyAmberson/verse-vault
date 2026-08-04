@@ -1,10 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createTestDb, createTestUser } from '../test-utils.js';
+import { applyMigration, createTestDb, createTestUser } from '../test-utils.js';
 import { graduatedVerses, testStates } from './schema.js';
 
 // Migration 0024 backfills `graduated_verses` from PhraseFromContext
@@ -12,18 +8,8 @@ import { graduatedVerses, testStates } from './schema.js';
 // database, so these tests re-apply the migration's SQL after seeding
 // pre-migration-shaped rows — same statement, same semantics as the
 // deploy-time run against live data.
-const MIGRATION_SQL = readFileSync(
-  resolve(import.meta.dirname, '../../migrations/0024_backfill_graduated_verses.sql'),
-  'utf8',
-);
-
 function applyBackfill(dbPath: string): void {
-  const sqlite = new Database(dbPath);
-  try {
-    sqlite.exec(MIGRATION_SQL);
-  } finally {
-    sqlite.close();
-  }
+  applyMigration(dbPath, '0024_backfill_graduated_verses');
 }
 
 // A reviewed row: FSRS-updated stability/difficulty never reproduce
