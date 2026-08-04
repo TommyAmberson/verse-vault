@@ -250,18 +250,18 @@ function validateBlock(label: string, raw: unknown): PassageBlock {
 }
 
 function migrateV1Week(i: number, raw: Record<string, unknown>): ScheduleWeekV2 {
+  // Existing blocks win over the legacy pair — same precedence as core's
+  // `ScheduleWeekRaw` and the 0025 backfill. The check lives here rather
+  // than at the version dispatch because the two versions still differ
+  // on the empty case: a v1 week with no blocks folds to `[]`, while a
+  // declared-v2 non-review week with none is an error.
+  if (Array.isArray(raw.blocks) && raw.blocks.length > 0) {
+    return validateV2Week(i, raw);
+  }
   if (typeof raw.date !== 'string' || !isValidIsoDate(raw.date)) {
     throw new ScheduleValidationError(`weeks[${i}].date must be a real YYYY-MM-DD`);
   }
   const isReview = raw.isReview === true;
-  // A v1 week that already carries blocks keeps them and the legacy pair
-  // is ignored — same precedence as core's `ScheduleWeekRaw` and the
-  // 0025 backfill. No shipped client emits this, but the canonical form
-  // is written back to storage (#103), so a fold that disagreed with the
-  // engine would delete content rather than just render it differently.
-  if (Array.isArray(raw.blocks) && raw.blocks.length > 0) {
-    return validateV2Week(i, raw);
-  }
   // v1 review weeks carry `"passage": null`, which folds to no blocks. A
   // review week that does carry a passage keeps it: core folds
   // regardless of `isReview`, so dropping it here would lose content the

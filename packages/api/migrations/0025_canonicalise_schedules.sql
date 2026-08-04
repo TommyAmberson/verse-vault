@@ -24,13 +24,23 @@
 --
 -- Per-week guard: a week that isn't an object, or whose `passage` /
 -- `verses` is some type the fold can't consume (a bare string, say),
--- disqualifies its whole row. Those payloads are rare but reachable —
+-- disqualifies its whole row. `blocks` needs no such check — a
+-- non-array one simply fails the first CASE arm and the week folds from
+-- its passage, which is what `migrateV1Week`'s `Array.isArray` does too. Those payloads are rare but reachable —
 -- review weeks went unvalidated on PUT until 0.1.34, and the route
 -- stored request bodies verbatim before it. Skipping keeps such a row
 -- exactly as it was: it is already unreadable to the engine, and the
 -- alternative is `json()` raising `malformed JSON` mid-statement, which
 -- aborts the migration, kills boot, and repeats on every restart —
 -- turning one user's bad row into a dead API for everyone.
+--
+-- To find what was left behind, mind that the obvious query trips over
+-- the same rows this skips: `json_extract` raises on the invalid-JSON
+-- ones. Guard it:
+--
+--   SELECT user_id, material_id FROM material_schedules
+--   WHERE NOT json_valid(schedule_json)
+--      OR json_extract(schedule_json, '$.version') <> 2;
 UPDATE `material_schedules`
 SET `schedule_json` = json_set(
   `schedule_json`,
@@ -42,6 +52,11 @@ SET `schedule_json` = json_set(
       json_remove(
         json_set(
           `w`.`value`,
+          -- A v1 week may omit `isReview`; every reader defaults it to
+          -- false, so write it explicitly rather than leaving the
+          -- canonical form dependent on that default.
+          '$.isReview',
+          CASE WHEN json_extract(`w`.`value`, '$.isReview') = 1 THEN json('true') ELSE json('false') END,
           '$.blocks',
           CASE
             WHEN json_type(`w`.`value`, '$.blocks') = 'array'
@@ -84,7 +99,6 @@ WHERE json_valid(`schedule_json`)
       WHEN `bad`.`type` = 'object' THEN
         json_type(`bad`.`value`, '$.passage') NOT IN ('object', 'null')
         OR json_type(`bad`.`value`, '$.verses') NOT IN ('object', 'null')
-        OR json_type(`bad`.`value`, '$.blocks') NOT IN ('array', 'null')
       ELSE 1
     END
   );

@@ -4,10 +4,7 @@ import { applyMigration, createTestDb, createTestUser } from '../test-utils.js';
 import { graduatedVerses, testStates } from './schema.js';
 
 // Migration 0024 backfills `graduated_verses` from PhraseFromContext
-// evidence (#111). `createTestDb` runs the migration against an empty
-// database, so these tests re-apply the migration's SQL after seeding
-// pre-migration-shaped rows — same statement, same semantics as the
-// deploy-time run against live data.
+// evidence (#111).
 function applyBackfill(dbPath: string): void {
   applyMigration(dbPath, '0024_backfill_graduated_verses');
 }

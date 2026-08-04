@@ -40,8 +40,7 @@ stored verbatim.
   so the column converges instead of waiting on each user to re-save. Mixed storage is what let the
   server's and browser's folds disagree in the first place. The SQL fold matches `migrateV1Week` and
   core's `ScheduleWeekRaw` — existing non-empty `blocks` win, otherwise a week's passage folds into
-  a one-entry `blocks[]` regardless of `isReview`, and a week with neither gets `blocks: []`. A test
-  asserts the rewritten row equals `migrateSchedule`'s output rather than spot-checking it.
+  a one-entry `blocks[]` regardless of `isReview`, and a week with neither gets `blocks: []`.
 * The backfill skips a row rather than rewriting it when the row isn't valid JSON, `weeks` isn't an
   array, or any week is a non-object or carries a `passage`/`verses`/`blocks` of a type the fold
   can't consume. That last guard is load-bearing: those payloads reached storage on released

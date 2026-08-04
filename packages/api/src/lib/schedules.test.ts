@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { createTestDb, createTestUser } from '../test-utils.js';
 import * as schema from '../db/schema.js';
-import { V1_SCHEDULE } from '../test-fixtures.js';
+import {
+  V1_REVIEW_WEEK_WITH_PASSAGE,
+  V1_SCHEDULE,
+  V1_WEEK_WITH_BOTH_SHAPES,
+} from '../test-schedules.js';
 import {
   migrateSchedule,
   ScheduleValidationError,
@@ -309,22 +313,24 @@ describe('migrateSchedule', () => {
     // has to match core's `ScheduleWeekRaw`, which ignores `isReview`.
     // Dropping the block here would delete verses the engine had been
     // introducing from that week.
-    const withPassage = {
-      ...V1_SCHEDULE,
-      weeks: [
-        {
-          date: '2025-11-17',
-          passage: { book: '1 Corinthians', chapter: 1, startVerse: 1, endVerse: 9 },
-          verses: { club150: [1, 2], club300: [] },
-          isReview: true,
-        },
-      ],
-    };
-    const out = migrateSchedule(withPassage);
+    const out = migrateSchedule(V1_REVIEW_WEEK_WITH_PASSAGE);
     expect(out.weeks[0]!.isReview).toBe(true);
     expect(out.weeks[0]!.blocks).toHaveLength(1);
-    expect(out.weeks[0]!.blocks[0]!.passage.endVerse).toBe(9);
-    expect(out.weeks[0]!.blocks[0]!.verses.club150).toEqual([1, 2]);
+    expect(out.weeks[0]!.blocks[0]!.passage.endVerse).toBe(5);
+    // `verses` was absent on the v1 week; the fold supplies empty lists
+    // rather than leaving the key off.
+    expect(out.weeks[0]!.blocks[0]!.verses).toEqual({ club150: [], club300: [] });
+  });
+
+  it('prefers a v1 week existing blocks over its legacy pair', () => {
+    // Core's `ScheduleWeekRaw` and migration 0025 both resolve the
+    // collision this way. No shipped client emits it, but the migrated
+    // form is what lands on disk, so a fold that picked the legacy pair
+    // would delete the blocks rather than just render them differently.
+    const out = migrateSchedule(V1_WEEK_WITH_BOTH_SHAPES);
+    expect(out.weeks[0]!.blocks).toHaveLength(1);
+    expect(out.weeks[0]!.blocks[0]!.passage.chapter).toBe(2);
+    expect(out.weeks[0]!.blocks[0]!.verses.club150).toEqual([3]);
   });
 
   it('is a no-op on a v2 shape', () => {

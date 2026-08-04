@@ -8,7 +8,7 @@ import { expect } from 'vitest';
 import { createApp } from './app.js';
 import { type DB, createDb } from './db/client.js';
 import { user } from './db/schema.js';
-import { runMigrations } from './db/migrate.js';
+import { MIGRATIONS_FOLDER, runMigrations } from './db/migrate.js';
 import type { ObservabilityOptions } from './middleware/observability.js';
 
 export const TEST_AUTH_ENV = {
@@ -101,15 +101,19 @@ export function createTestUser(db: DB, userId: string): void {
  *  as applied. Replaying the file directly runs the same statements the
  *  deploy-time pass runs, against rows they can actually see.
  *
- *  Goes through `better-sqlite3`'s `exec`, not drizzle's `run`: `run`
- *  prepares a single statement, so a migration with more than one
- *  `--> statement-breakpoint` section would fail here for reasons that
- *  have nothing to do with the migration. */
+ *  Splits on `--> statement-breakpoint` and prepares each chunk
+ *  separately, which is what drizzle's migrator does. `exec` would run
+ *  the whole file regardless, so a migration that forgot its breakpoints
+ *  would pass here and then die at boot on better-sqlite3's
+ *  one-statement-per-prepare rule — see CLAUDE.md's gotchas. */
 export function applyMigration(dbPath: string, tag: string): void {
-  const sql = readFileSync(resolve(import.meta.dirname, '../migrations', `${tag}.sql`), 'utf8');
+  const sql = readFileSync(resolve(MIGRATIONS_FOLDER, `${tag}.sql`), 'utf8');
   const sqlite = new Database(dbPath);
   try {
-    sqlite.exec(sql);
+    for (const statement of sql.split('--> statement-breakpoint')) {
+      if (statement.trim() === '') continue;
+      sqlite.prepare(statement).run();
+    }
   } finally {
     sqlite.close();
   }
