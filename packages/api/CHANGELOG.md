@@ -10,6 +10,18 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.34] — 2026-08-03
+
+PATCH — schedule wire-form canonicalisation (#103, #104) plus a one-shot backfill of the rows
+written before it. No API-surface change: a v1 body is still accepted on PUT, it's just no longer
+stored verbatim.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.2` — `ScheduleWeek` folds v1 weeks at deserialize; `normalize_v1_weeks`
+  removed. No state-semantics change.
+* `verse-vault-wasm@0.7.2` — no wire-format change.
+
 ### Fixed
 
 * Schedule writes now persist the canonical v2 form instead of the raw request body (#103). Both
@@ -21,6 +33,25 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
   returned an empty `blocks[]` for any review week, which was harmless while the raw body was stored
   (the engine's own fold kept the passage) but would have deleted content now that the migrated form
   is what lands on disk.
+
+### Added
+
+* Migration `0025_canonicalise_schedules` rewrites every stored v1 `material_schedules` row into v2,
+  so the column converges instead of waiting on each user to re-save. Mixed storage is what let the
+  server's and browser's folds disagree in the first place. The SQL fold matches `migrateV1Week` and
+  core's `ScheduleWeekRaw` — existing non-empty `blocks` win, otherwise a week's passage folds into
+  a one-entry `blocks[]` regardless of `isReview`, and a week with neither gets `blocks: []`. A test
+  asserts the rewritten row equals `migrateSchedule`'s output rather than spot-checking it.
+* The backfill skips a row rather than rewriting it when the row isn't valid JSON, `weeks` isn't an
+  array, or any week is a non-object or carries a `passage`/`verses`/`blocks` of a type the fold
+  can't consume. That last guard is load-bearing: those payloads reached storage on released
+  versions (review weeks went unvalidated on PUT until this release, and the route stored request
+  bodies verbatim), and `json()` raising `malformed JSON` mid-statement would abort the migration,
+  kill boot, and repeat on every restart — one user's bad row taking the API down for everyone.
+  Re-runs match nothing because the first pass sets `version` to 2.
+* `migrateV1Week` now prefers a v1 week's existing `blocks` over its legacy `passage`/`verses` pair,
+  matching core and the backfill. No shipped client emits that combination, but the migrated form is
+  what lands on disk, so a fold that disagreed with the engine would delete the blocks.
 
 ## [0.1.33] — 2026-07-15
 

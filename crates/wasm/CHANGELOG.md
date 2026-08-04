@@ -22,6 +22,10 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-08-03
+
+PATCH bump — no wire-format change. Consumes `verse-vault-core@0.7.2`.
+
 ### Changed
 
 * `parse_schedule` drops its explicit `normalize_v1_weeks` pass — the v1→v2 week fold now happens in

@@ -9,6 +9,25 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.10] — 2026-08-03
+
+PATCH — align the browser's schedule fold with the server's. Client-only; no server or wire change.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.2` — `ScheduleWeek` folds v1 weeks at deserialize. No state-semantics
+  change.
+* `verse-vault-wasm@0.7.2` — no wire-format change.
+
+### Fixed
+
+* `migrateSchedule` dropped the passage of any v1 week flagged `isReview`, so a review week that
+  carried real content contributed nothing to the browser engine and showed no passage in the
+  editor's expanded week form — while the server engine, whose fold ignores `isReview`, still saw
+  it. The fold now keys off the presence of a passage, matching both the API and core. The collapsed
+  timeline row still renders such a week as "Review": it short-circuits on `isReview` before
+  consulting blocks. Only reachable for rows saved before api 0.1.34 canonicalised them.
+
 ## [0.9.9] — 2026-07-22
 
 PATCH — close a boot-time token-clear race. Client-only; no server or wire change.
