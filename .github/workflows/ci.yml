@@ -79,3 +79,13 @@ jobs:
 
       - name: Type-check + build web
         run: pnpm --filter @verse-vault/web build
+
+      # Both suites ran local-only until now — the job built the packages
+      # but never executed their tests, so a green CI said nothing about
+      # them. The web suite pins `migrateSchedule` against the API's
+      # shared fixtures, which is the point of running them in one job.
+      - name: Test API
+        run: pnpm --filter @verse-vault/api test
+
+      - name: Test web
+        run: pnpm --filter @verse-vault/web test
