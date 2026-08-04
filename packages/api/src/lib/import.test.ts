@@ -11,6 +11,7 @@ import { EngineStore } from './engine.js';
 import type { AccountExport, CardRef } from './export-format.js';
 import { buildAccountExport } from './export.js';
 import { applyAccountImport, ImportValidationError } from './import.js';
+import { type SchedulePayloadV2, loadSchedule } from './schedules.js';
 
 const MATERIAL_ID = 'nkjv-cor';
 const NOW = 1_700_000_000;
@@ -218,6 +219,69 @@ describe('applyAccountImport', () => {
     expect(summary.eventsInserted).toBe(0);
     expect(summary.eventsSkipped).toBe(1);
     engines.clear();
+  });
+
+  it('stores an imported v1 schedule in canonical v2 form', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: MATERIAL_ID });
+    const engines = new EngineStore(test.db);
+
+    // An export taken before #103 can still carry a v1 schedule; the
+    // import path canonicalises it the same way the PUT route does.
+    const payload = await buildAccountExport(test.db, engines, 'u1', NOW);
+    payload.materials[0]!.schedule = {
+      updatedAt: NOW,
+      scheduleJson: JSON.stringify({
+        version: 1,
+        materialId: MATERIAL_ID,
+        season: '2025-26',
+        title: 'V1 Import',
+        meetingDayOfWeek: 'Mon',
+        weeks: [
+          {
+            date: '2025-09-08',
+            passage: { book: '1 Corinthians', chapter: 1, startVerse: 1, endVerse: 31 },
+            verses: { club150: [5, 10], club300: [1] },
+          },
+        ],
+        meets: [],
+      }),
+    };
+
+    try {
+      await applyAccountImport(test.db, engines, 'u1', payload, NOW);
+      const stored = JSON.parse(
+        loadSchedule(test.db, 'u1', MATERIAL_ID),
+      ) as SchedulePayloadV2;
+      expect(stored.version).toBe(2);
+      expect(stored.weeks[0]!.blocks).toHaveLength(1);
+      expect(stored.weeks[0]!.blocks[0]!.passage.endVerse).toBe(31);
+      expect(stored.weeks[0]).not.toHaveProperty('passage');
+    } finally {
+      engines.clear();
+    }
+  });
+
+  it('rejects an import whose schedule is malformed', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: MATERIAL_ID });
+    const engines = new EngineStore(test.db);
+
+    const payload = await buildAccountExport(test.db, engines, 'u1', NOW);
+    payload.materials[0]!.schedule = {
+      updatedAt: NOW,
+      scheduleJson: JSON.stringify({ not: 'a schedule' }),
+    };
+
+    try {
+      await expect(applyAccountImport(test.db, engines, 'u1', payload, NOW)).rejects.toThrow(
+        ImportValidationError,
+      );
+    } finally {
+      engines.clear();
+    }
   });
 
   it('counts unresolved cardRefs without rejecting the import', async () => {

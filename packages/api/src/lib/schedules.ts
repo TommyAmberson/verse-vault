@@ -10,8 +10,9 @@ import type { DB } from '../db/client.js';
  *
  * Schedules ship as `data/schedules/<deck>-<season>.json` (e.g.
  * `3-corinthians-2025-26.json`). The user's customised copy lives in
- * `material_schedules` and overrides the bundled default. The TS layer
- * doesn't inspect the body — it's passed verbatim to the WASM engine.
+ * `material_schedules` and overrides the bundled default. Reads hand the
+ * stored string to the WASM engine verbatim; writes go through
+ * `canonicaliseSchedule` so the column only ever gains v2 rows.
  *
  * Returning `''` for a material with no bundled schedule and no user
  * row is intentional: the WASM constructor accepts empty `schedule_json`
@@ -253,12 +254,17 @@ function migrateV1Week(i: number, raw: Record<string, unknown>): ScheduleWeekV2 
     throw new ScheduleValidationError(`weeks[${i}].date must be a real YYYY-MM-DD`);
   }
   const isReview = raw.isReview === true;
-  if (isReview) {
+  // v1 review weeks carry `"passage": null`, which folds to no blocks. A
+  // review week that does carry a passage keeps it: core's
+  // `ScheduleWeekRaw` folds regardless of `isReview`, so dropping it here
+  // would make the canonical form written back by #103 lose content the
+  // engine previously saw.
+  if (isReview && (raw.passage === undefined || raw.passage === null)) {
     return { date: raw.date, isReview: true, blocks: [] };
   }
   return {
     date: raw.date,
-    isReview: false,
+    isReview,
     blocks: [
       {
         passage: validatePassage(`weeks[${i}].passage`, raw.passage),
@@ -308,9 +314,10 @@ function requireNonEmptyStr(
  *  `ScheduleValidationError` on any structural violation.
  *
  *  This is the single source of truth for schedule shape at the API
- *  boundary — `validateSchedule` (raw JSON) and `EngineStore.load`
- *  (persisted DB rows / bundled JSON files) both call this to converge
- *  on v2 before further processing. */
+ *  boundary: every write path reaches it via `validateSchedule`. The
+ *  engine path doesn't — `EngineStore.load` passes the stored string
+ *  straight to WASM, where core's `ScheduleWeek` does the equivalent
+ *  fold at deserialize time. */
 export function migrateSchedule(raw: unknown): SchedulePayloadV2 {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new ScheduleValidationError('schedule must be an object');
@@ -357,6 +364,23 @@ export function validateSchedule(json: string): SchedulePayloadV2 {
     throw new ScheduleValidationError(`invalid JSON: ${(e as Error).message}`);
   }
   return migrateSchedule(parsed);
+}
+
+/** Validate a candidate schedule and produce the form that belongs in
+ *  `material_schedules.scheduleJson`. Every writer to that column goes
+ *  through here so a v1 body is stored migrated rather than verbatim
+ *  (#103) — otherwise the v1 shape survives indefinitely and each reader
+ *  re-folds it.
+ *
+ *  Returns the parsed payload alongside the string because the PUT route
+ *  needs to cross-check `materialId` and shouldn't parse twice. Throws
+ *  `ScheduleValidationError` on any structural violation. */
+export function canonicaliseSchedule(json: string): {
+  schedule: SchedulePayloadV2;
+  canonicalJson: string;
+} {
+  const schedule = validateSchedule(json);
+  return { schedule, canonicalJson: JSON.stringify(schedule) };
 }
 
 /** Field-level validation for the `meets` array. The Phase 3 editor

@@ -22,6 +22,14 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+### Changed
+
+* `ScheduleWeek` folds the legacy v1 `passage`/`verses` week-level pair into `blocks[]` at
+  deserialize time via `#[serde(from = "ScheduleWeekWire")]`; the two legacy fields and the
+  `Schedule::normalize_v1_weeks` pass are removed. Pure refactor with no observable effect — v2 wire
+  output is byte-identical and v1 payloads still parse to the same normalised `blocks[]`, so replay
+  and every consumer are unaffected. The win is that no consumer can forget to normalise. (#104)
+
 ## [0.7.1] — 2026-07-15
 
 PATCH bump — scheduling-query bug fixes for #107. No state-semantics or wire change: event replay

@@ -30,7 +30,7 @@ import {
   validateYearSettings,
   type YearSettings,
 } from './year-settings.js';
-import { ScheduleValidationError, validateSchedule } from './schedules.js';
+import { ScheduleValidationError, canonicaliseSchedule } from './schedules.js';
 
 const SUPPORTED_EXPORT_VERSION = 1;
 
@@ -316,8 +316,11 @@ function applySchedule(
   material: MaterialExport,
 ): void {
   if (!material.schedule) return;
+  let scheduleJson: string;
   try {
-    validateSchedule(material.schedule.scheduleJson);
+    // An export taken before #103 may still carry a v1 schedule; store it
+    // in the same canonical form the PUT route writes.
+    scheduleJson = canonicaliseSchedule(material.schedule.scheduleJson).canonicalJson;
   } catch (err) {
     if (err instanceof ScheduleValidationError) {
       throw new ImportValidationError(`schedule for ${key.materialId}: ${err.message}`);
@@ -339,7 +342,7 @@ function applySchedule(
   const row = {
     userId: key.userId,
     materialId: key.materialId,
-    scheduleJson: material.schedule.scheduleJson,
+    scheduleJson,
     updatedAt: material.schedule.updatedAt,
   };
   if (existing) {

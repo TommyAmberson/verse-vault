@@ -1362,8 +1362,6 @@ mod tests {
                         club300: vec![17],
                     },
                 }],
-                passage: None,
-                verses: None,
                 is_review: false,
             }],
             meets: vec![],
@@ -1505,8 +1503,6 @@ mod tests {
                         club300: vec![],
                     },
                 }],
-                passage: None,
-                verses: None,
                 is_review: false,
             }],
             meets: vec![],
@@ -1552,8 +1548,6 @@ mod tests {
                     club300: vec![],
                 },
             }],
-            passage: None,
-            verses: None,
             is_review: false,
         };
         let sched = Schedule {

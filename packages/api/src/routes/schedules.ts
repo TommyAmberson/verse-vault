@@ -7,9 +7,9 @@ import type { EngineStore } from '../lib/engine.js';
 import { MATERIALS } from '../lib/materials.js';
 import {
   ScheduleValidationError,
+  canonicaliseSchedule,
   loadBundledSchedule,
   loadSchedule,
-  validateSchedule,
 } from '../lib/schedules.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
@@ -27,9 +27,9 @@ export interface SchedulesRoutesDeps {
  *             the bundled default. Returns `{ schedule: null }` when
  *             neither exists (the material ships without one — engine
  *             collapses to pure-Sequential).
- *   PUT     → validates the body's shape, upserts into
- *             material_schedules, invalidates the cached engine so the
- *             next request rebuilds against the new schedule.
+ *   PUT     → validates the body's shape, upserts its canonical v2 form
+ *             into material_schedules, invalidates the cached engine so
+ *             the next request rebuilds against the new schedule.
  *   DELETE  → drops the user's override; bundled default reapplies.
  *             Same engine-cache invalidation as PUT.
  *
@@ -64,34 +64,40 @@ export function schedulesRoutes(deps: SchedulesRoutesDeps) {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
     const text = await c.req.text();
+    // Storing the canonical v2 form rather than the raw body keeps a v1
+    // PUT from leaving a v1 row behind (#103). Rows written before this
+    // shipped are still v1 until their next save, so readers keep
+    // tolerating both.
+    let canonical: ReturnType<typeof canonicaliseSchedule>;
     try {
-      const parsed = validateSchedule(text);
-      // Cross-check the body's materialId against the URL so a user
-      // can't accidentally (or deliberately) store nkjv-john's schedule
-      // under nkjv-cor's row — the WASM engine wouldn't crash, but
-      // book/chapter refs in the schedule wouldn't match any verse in
-      // the running engine, silently producing an empty Phase 1.
-      if (parsed.materialId !== materialId) {
-        return c.json(
-          {
-            error: `body materialId (${parsed.materialId}) does not match URL materialId (${materialId})`,
-          },
-          400,
-        );
-      }
+      canonical = canonicaliseSchedule(text);
     } catch (err) {
       if (err instanceof ScheduleValidationError) {
         return c.json({ error: err.message }, 400);
       }
       throw err;
     }
+    // Cross-check the body's materialId against the URL so a user can't
+    // accidentally (or deliberately) store nkjv-john's schedule under
+    // nkjv-cor's row — the WASM engine wouldn't crash, but book/chapter
+    // refs in the schedule wouldn't match any verse in the running
+    // engine, silently producing an empty Phase 1.
+    const { schedule, canonicalJson: scheduleJson } = canonical;
+    if (schedule.materialId !== materialId) {
+      return c.json(
+        {
+          error: `body materialId (${schedule.materialId}) does not match URL materialId (${materialId})`,
+        },
+        400,
+      );
+    }
     const updatedAt = now();
     deps.db
       .insert(schema.materialSchedules)
-      .values({ userId: user.id, materialId, scheduleJson: text, updatedAt })
+      .values({ userId: user.id, materialId, scheduleJson, updatedAt })
       .onConflictDoUpdate({
         target: [schema.materialSchedules.userId, schema.materialSchedules.materialId],
-        set: { scheduleJson: text, updatedAt },
+        set: { scheduleJson, updatedAt },
       })
       .run();
     deps.engines.invalidate({ userId: user.id, materialId });

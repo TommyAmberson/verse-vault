@@ -22,6 +22,11 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+### Changed
+
+* `parse_schedule` drops its explicit `normalize_v1_weeks` pass — the v1→v2 week fold now happens in
+  `core`'s `ScheduleWeek` deserialize. No wire-format change. (#104)
+
 ## [0.7.1] — 2026-07-15
 
 PATCH bump — no wire-format change. Consumes `verse-vault-core@0.7.1` (relearn-lane coldness gate +
