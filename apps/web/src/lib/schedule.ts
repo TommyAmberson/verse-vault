@@ -197,10 +197,12 @@ export function migrateSchedule(raw: unknown): Schedule {
       const blocks = (wo.blocks as PassageBlock[] | undefined) ?? []
       return { date, isReview, blocks }
     }
-    if (isReview) return { date, isReview: true, blocks: [] }
-    const passage = wo.passage as SchedulePassage
+    // Fold on the presence of a passage, not on `isReview` — the API's
+    // `migrateV1Week` and core's `ScheduleWeekRaw` both do, and this is
+    // the copy that reads rows written before #103 canonicalised them.
+    const passage = wo.passage as SchedulePassage | null | undefined
     const verses = (wo.verses as ScheduleVerses | null | undefined) ?? {}
-    return { date, isReview: false, blocks: [{ passage, verses }] }
+    return { date, isReview, blocks: passage ? [{ passage, verses }] : [] }
   })
   return {
     version: 2,
