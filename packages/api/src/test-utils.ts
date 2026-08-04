@@ -1,13 +1,14 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
+import Database from 'better-sqlite3';
 import { expect } from 'vitest';
 
 import { createApp } from './app.js';
 import { type DB, createDb } from './db/client.js';
 import { user } from './db/schema.js';
-import { runMigrations } from './db/migrate.js';
+import { MIGRATIONS_FOLDER, runMigrations } from './db/migrate.js';
 import type { ObservabilityOptions } from './middleware/observability.js';
 
 export const TEST_AUTH_ENV = {
@@ -90,6 +91,32 @@ export function createTestUser(db: DB, userId: string): void {
       updatedAt: new Date(now * 1000),
     })
     .run();
+}
+
+/** Re-applies one migration's SQL against an already-migrated test DB.
+ *
+ *  `createTestDb` runs every migration before a test can seed anything,
+ *  so a data migration can't be exercised by inserting pre-migration
+ *  rows and calling the migrator again — drizzle has already recorded it
+ *  as applied. Replaying the file directly runs the same statements the
+ *  deploy-time pass runs, against rows they can actually see.
+ *
+ *  Splits on `--> statement-breakpoint` and prepares each chunk
+ *  separately, which is what drizzle's migrator does. `exec` would run
+ *  the whole file regardless, so a migration that forgot its breakpoints
+ *  would pass here and then die at boot on better-sqlite3's
+ *  one-statement-per-prepare rule — see CLAUDE.md's gotchas. */
+export function applyMigration(dbPath: string, tag: string): void {
+  const sql = readFileSync(resolve(MIGRATIONS_FOLDER, `${tag}.sql`), 'utf8');
+  const sqlite = new Database(dbPath);
+  try {
+    for (const statement of sql.split('--> statement-breakpoint')) {
+      if (statement.trim() === '') continue;
+      sqlite.prepare(statement).run();
+    }
+  } finally {
+    sqlite.close();
+  }
 }
 
 /** Creates a user via Better Auth's email sign-up and returns the session cookie + user id. */

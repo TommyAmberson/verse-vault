@@ -193,14 +193,18 @@ export function migrateSchedule(raw: unknown): Schedule {
     const wo = w as Record<string, unknown>
     const isReview = wo.isReview === true
     const date = wo.date as string
-    if (version === 2) {
-      const blocks = (wo.blocks as PassageBlock[] | undefined) ?? []
+    // Precedence matches the API's `migrateV1Week`, core's
+    // `ScheduleWeekRaw`, and migration 0025: existing blocks win, then a
+    // week-level passage folds into one block regardless of `isReview`,
+    // then nothing. This is the copy that reads rows written before #103
+    // canonicalised them.
+    const blocks = (wo.blocks as PassageBlock[] | undefined) ?? []
+    if (version === 2 || blocks.length > 0) {
       return { date, isReview, blocks }
     }
-    if (isReview) return { date, isReview: true, blocks: [] }
-    const passage = wo.passage as SchedulePassage
+    const passage = wo.passage as SchedulePassage | null | undefined
     const verses = (wo.verses as ScheduleVerses | null | undefined) ?? {}
-    return { date, isReview: false, blocks: [{ passage, verses }] }
+    return { date, isReview, blocks: passage ? [{ passage, verses }] : [] }
   })
   return {
     version: 2,

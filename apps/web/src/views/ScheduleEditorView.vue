@@ -639,8 +639,12 @@ function weeklyDatesBetween(start: string, end: string): string[] {
   return out
 }
 
+// Keyed on blocks, not `isReview`: a review week can legitimately carry
+// one. Legacy v1 rows stored a passage alongside `isReview: true`, and
+// every fold now preserves it (#103), so short-circuiting on the flag
+// would let a range edit silently drop that content — `contentDrops`
+// comes straight from here and is what gates the confirm dialog.
 function weekHasContent(w: ScheduleWeek): boolean {
-  if (w.isReview) return false
   return w.blocks.some(
     (b) =>
       b.passage.book !== ''

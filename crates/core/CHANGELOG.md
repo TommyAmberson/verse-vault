@@ -22,13 +22,17 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-08-03
+
+PATCH bump — pure refactor. Event replay under 0.7.2 produces byte-identical state to 0.7.1, and no
+wire shape changes; the version moves only so consumers can name which build they ship.
+
 ### Changed
 
 * `ScheduleWeek` folds the legacy v1 `passage`/`verses` week-level pair into `blocks[]` at
-  deserialize time via `#[serde(from = "ScheduleWeekWire")]`; the two legacy fields and the
-  `Schedule::normalize_v1_weeks` pass are removed. Pure refactor with no observable effect — v2 wire
-  output is byte-identical and v1 payloads still parse to the same normalised `blocks[]`, so replay
-  and every consumer are unaffected. The win is that no consumer can forget to normalise. (#104)
+  deserialize time via `#[serde(from = "ScheduleWeekRaw")]`; the two legacy fields and the
+  `Schedule::normalize_v1_weeks` pass are removed. Precedence is unchanged from that pass — a week
+  carrying both shapes keeps `blocks`. The win is that no consumer can forget to normalise. (#104)
 
 ## [0.7.1] — 2026-07-15
 

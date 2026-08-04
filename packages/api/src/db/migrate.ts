@@ -6,7 +6,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 
 // Resolved relative to this file so it works from both src/ (tsx dev) and
 // dist/ (built).
-const MIGRATIONS_FOLDER = resolve(import.meta.dirname, '../../migrations');
+export const MIGRATIONS_FOLDER = resolve(import.meta.dirname, '../../migrations');
 
 export function runMigrations(dbPath: string) {
   const sqlite = new Database(dbPath);

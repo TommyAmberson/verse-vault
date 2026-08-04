@@ -81,7 +81,6 @@ dprint check          # formatting for docs (also runs via lint-staged)
 * Commits must be atomic and single-responsibility — one logical change per commit.
 * Commit as you go: after each logical chunk compiles and tests pass, commit it — don't batch at the
   end.
-* Do not add `Co-Authored-By` lines.
 * Work on feature branches, not directly on master.
 
 ### Merging PRs

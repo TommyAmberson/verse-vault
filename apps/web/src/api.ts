@@ -485,11 +485,12 @@ export function createApiClient(apiUrl: string): ApiClient {
       ) {
         return null
       }
-      // The GET route returns the persisted wire form verbatim — v1
-      // (bundled JSONs, pre-migration user rows) or v2 (post-editor
-      // saves). Run migrateSchedule so callers always see the canonical
-      // v2 in-memory shape (weeks[].blocks[]). migrateSchedule also
-      // backfills missing meets[] and weeks[] arrays.
+      // The GET route returns the persisted wire form verbatim. Bundled
+      // JSONs and stored rows are v2 as of api 0.1.34 (writes
+      // canonicalise, migration 0025 converged the rest), but rows that
+      // migration had to skip can still be v1. Run migrateSchedule so
+      // callers always see the canonical v2 in-memory shape
+      // (weeks[].blocks[]); it also backfills missing meets[]/weeks[].
       if (body === null || typeof body !== 'object') return null
       return migrateSchedule(body)
     },
