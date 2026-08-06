@@ -45,6 +45,12 @@ cargo test             # run all tests
 cargo run -p verse-vault-sim   # run simulation
 ```
 
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full toolchain setup and the git conventions
+(conventional commits, branch and merge policy, contract-crate versioning) — all of which are
+enforced by git hooks and CI.
+
 ## Third-party content
 
 The `LICENSE` file (MIT) covers source code only. The NKJV scripture text the app displays is
