@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "tauri": "tauri",
     "tauri:linux-x11": "WEBKIT_DISABLE_DMABUF_RENDERER=1 GDK_BACKEND=x11 tauri"
   },
@@ -32,6 +34,7 @@
     "vite": "^7.3.1",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.6.0",
+    "vitest": "^3.0.0",
     "vue-tsc": "^3.2.4"
   }
 }

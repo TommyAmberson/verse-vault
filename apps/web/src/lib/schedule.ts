@@ -336,11 +336,12 @@ export function isoWeekday(iso: string): number {
 // Verse-list parsing (comma-text editor input → number[])
 // =============================================================================
 
-/** Parse a comma- or space-separated verse list string into an array of
- *  positive integers, dropping invalid tokens. Used by the per-week
- *  editor when the user blurs a text input. Returns null when the input
- *  is non-empty but contains no valid tokens, so the caller can decide
- *  whether to keep the old value or accept the empty list. */
+/** Parse a comma- or space-separated verse list string into a sorted
+ *  array of positive integers. Used by the per-week editor when the user
+ *  blurs a text input. All-or-nothing: returns null if *any* token isn't
+ *  a positive integer, so the caller can keep the old value rather than
+ *  silently accepting a partial list the user didn't mean. Whitespace
+ *  alone is an empty list, not an error. */
 export function parseVerseList(input: string): number[] | null {
   const tokens = input.split(/[\s,]+/).filter((t) => t.length > 0)
   if (tokens.length === 0) return []

@@ -79,3 +79,12 @@ jobs:
 
       - name: Type-check + build web
         run: pnpm --filter @verse-vault/web build
+
+      # One job for both: the web suite pins `migrateSchedule` against the
+      # API package's shared fixtures, so splitting them would build the
+      # API twice.
+      - name: Test API
+        run: pnpm --filter @verse-vault/api test
+
+      - name: Test web
+        run: pnpm --filter @verse-vault/web test
