@@ -13,11 +13,15 @@ import {
 } from '../../../../packages/api/src/test-schedules'
 
 import {
+  type PassageBlock,
   type Schedule,
+  type ScheduleWeek,
   applyMeetingDayShift,
   cloneSchedule,
+  contentBlocks,
   isoWeekday,
   migrateSchedule,
+  normaliseForSave,
   parseVerseList,
   shiftDate,
   slugifyMeetId,
@@ -165,6 +169,84 @@ describe('cloneSchedule', () => {
     copy.meets[0]!.name = 'changed'
     expect(before.weeks[0]!.blocks[0]!.verses.club150).toEqual([16])
     expect(before.meets[0]!.name).toBe('A')
+  })
+})
+
+// Shared by the `contentBlocks` and `normaliseForSave` describes — one
+// tests the predicate, the other its delegator, so they must see the
+// same shapes.
+const real = {
+  passage: { book: 'John', chapter: 3, startVerse: 16, endVerse: 18 },
+  verses: {},
+}
+const half = { passage: { book: 'John', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} }
+
+describe('contentBlocks', () => {
+  function week(blocks: PassageBlock[], isReview = false): ScheduleWeek {
+    return { date: '2025-09-08', isReview, blocks }
+  }
+
+  it('keeps blocks carrying a real passage', () => {
+    expect(contentBlocks(week([real]))).toEqual([real])
+  })
+
+  it('skips every half-filled shape the picker cascade produces', () => {
+    // Choosing a book resets chapter and both verse fields to 0, so each
+    // of these is a state the user passes through while editing.
+    const halves: PassageBlock[] = [
+      half,
+      { passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} },
+      { passage: { book: 'John', chapter: 3, startVerse: 0, endVerse: 0 }, verses: {} },
+      // endVerse below startVerse — reachable by typing End before Start.
+      { passage: { book: 'John', chapter: 3, startVerse: 16, endVerse: 15 }, verses: {} },
+    ]
+    for (const half of halves) {
+      expect(contentBlocks(week([half])), JSON.stringify(half.passage)).toEqual([])
+    }
+  })
+
+  it('preserves order when mixing real and half-filled blocks', () => {
+    const second = {
+      passage: { book: 'John', chapter: 4, startVerse: 1, endVerse: 2 },
+      verses: {},
+    }
+    expect(contentBlocks(week([real, half, second]))).toEqual([real, second])
+  })
+})
+
+describe('normaliseForSave', () => {
+  it('drops half-filled blocks and keeps the week a content week', () => {
+    const input = {
+      ...schedule(['2025-09-08']),
+      weeks: [{ date: '2025-09-08', isReview: false, blocks: [real, half] }],
+    }
+    const out = normaliseForSave(input)
+    expect(out.weeks[0]!.blocks).toEqual([real])
+    expect(out.weeks[0]!.isReview).toBe(false)
+    // The input draft is untouched — save must not mutate the editor
+    // state it is serialising.
+    expect(input.weeks[0]!.blocks).toHaveLength(2)
+  })
+
+  it('collapses a week whose only block was abandoned to a review week', () => {
+    const input = {
+      ...schedule(['2025-09-08']),
+      weeks: [{ date: '2025-09-08', isReview: false, blocks: [half] }],
+    }
+    const out = normaliseForSave(input)
+    expect(out.weeks[0]!.blocks).toEqual([])
+    expect(out.weeks[0]!.isReview).toBe(true)
+  })
+
+  it('leaves clean schedules identical', () => {
+    const input = {
+      ...schedule(['2025-09-08', '2025-09-15']),
+      weeks: [
+        { date: '2025-09-08', isReview: false, blocks: [real] },
+        { date: '2025-09-15', isReview: true, blocks: [] },
+      ],
+    }
+    expect(normaliseForSave(input)).toEqual(input)
   })
 })
 

@@ -18,13 +18,17 @@ import {
   cloneSchedule,
   type CoverageResult,
   computeCoverage,
+  contentBlocks,
   dayOfMonth,
   englishOrdinal,
   formatPassage,
   fullDayName,
+  isCompletePassage,
+  isNonEmptyBlock,
   isoWeekday,
   isoWeekStart,
   monthName,
+  normaliseForSave,
   removeMeet,
   shiftDate,
   slugifyMeetId,
@@ -254,7 +258,7 @@ function formatMeetDateRange(meet: ScheduleMeet): string {
  *  Cards regime ignores both — the date is a badge above the block(s)
  *  rather than a rail alongside them. */
 function weekGridStyle(week: ScheduleWeek): Record<string, string> {
-  const blocks = week.isReview ? 1 : Math.max(1, week.blocks.length)
+  const blocks = week.isReview ? 1 : Math.max(1, contentBlocks(week).length)
   return {
     '--wk-blocks': String(blocks),
     '--wk-rows': String(blocks * 3),
@@ -327,8 +331,8 @@ function derivedVerseNumbers(
   block: PassageBlock,
   club: 150 | 300,
 ): number[] {
+  if (!isNonEmptyBlock(block)) return []
   const { book, chapter, startVerse, endVerse } = block.passage
-  if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) return []
   const clubs = passageClubs.value
   if (clubs.size === 0) {
     // Projection not loaded — fall back to whatever the schedule
@@ -455,10 +459,10 @@ function deriveVersesForPassage(
   passage: PassageBlock['passage'],
   fallback: PassageBlock['verses'],
 ): PassageBlock['verses'] {
-  const { book, chapter, startVerse, endVerse } = passage
-  if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) {
+  if (!isCompletePassage(passage)) {
     return { club150: [], club300: [] }
   }
+  const { book, chapter, startVerse, endVerse } = passage
   const clubs = passageClubs.value
   if (clubs.size === 0) {
     // Projection not loaded — keep whatever was stored so the row
@@ -891,37 +895,12 @@ function discard() {
   if (saved.value !== null) draft.value = cloneSchedule(saved.value)
 }
 
-/** True when a block has a real passage — book set, chapter and verses
- *  ≥ 1, endVerse ≥ startVerse. Half-filled blocks (user in the middle
- *  of the picker cascade) fail this and are treated as "not there" by
- *  the save-time strip and the view-mode render. */
-function isNonEmptyBlock(block: PassageBlock): boolean {
-  const { book, chapter, startVerse, endVerse } = block.passage
-  return (
-    book !== ''
-    && chapter >= 1
-    && startVerse >= 1
-    && endVerse >= startVerse
-  )
-}
-
 async function save() {
   if (draft.value === null || saving.value) return
   saving.value = true
   error.value = null
-  // Strip half-filled passage blocks before PUT — a block whose picker
-  // never got a book / chapter / verse range is treated as "not there"
-  // per the design: an empty passage isn't a validator failure to
-  // surface, it's just a block the user abandoned. A week whose only
-  // block was empty collapses to a review week (isReview flips true).
-  const payload = cloneSchedule(draft.value)
-  for (const week of payload.weeks) {
-    const filtered = week.blocks.filter(isNonEmptyBlock)
-    if (filtered.length !== week.blocks.length) {
-      week.blocks = filtered
-      if (filtered.length === 0) week.isReview = true
-    }
-  }
+  // Also serves as the one clone between draft and payload.
+  const payload = normaliseForSave(draft.value)
   try {
     await api.putSchedule(materialId.value, payload)
     invalidateScheduleCache(materialId.value)
@@ -1228,11 +1207,11 @@ function backToSettings() {
                   @keydown.enter="mode === 'edit' ? selectWeek(row.weekIdx) : null"
                 >
                   <span class="c-date">- {{ row.ordinal }}</span>
-                  <template v-if="row.week.isReview || row.week.blocks.filter(isNonEmptyBlock).length === 0">
+                  <template v-if="row.week.isReview || contentBlocks(row.week).length === 0">
                     <span class="c-pass c-review">Review</span>
                   </template>
                   <template
-                    v-for="(block, bi) in row.week.blocks.filter(isNonEmptyBlock)"
+                    v-for="(block, bi) in contentBlocks(row.week)"
                     v-else
                     :key="bi"
                   >

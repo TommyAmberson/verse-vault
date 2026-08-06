@@ -78,6 +78,10 @@ export interface ScheduleWeek {
   /** Passage blocks for this week. Empty on review weeks; length 1 on
    *  today's normal weeks; length ≥2 for future compound weeks.
    *
+   *  While the editor holds a draft, a block may be half-filled — read
+   *  through `contentBlocks`; only edit UIs iterate this field raw. See
+   *  `normaliseForSave` for the full invariant.
+   *
    *  Multi-block support (length ≥2) is accepted end-to-end here on
    *  the client, but the API rejects it at the WASM boundary until
    *  the Rust contract crate learns to consume it — see the redesign
@@ -315,6 +319,49 @@ export function removeMeet(s: Schedule, id: string): Schedule {
 // Display helpers
 // =============================================================================
 
+/** True when a passage is fully specified — book set, chapter and
+ *  verses ≥ 1, `endVerse` ≥ `startVerse`. The editor's picker cascade
+ *  passes through incomplete states on purpose (choosing a book resets
+ *  chapter and verses to 0), so incompleteness is transient edit state,
+ *  not a data defect — see `normaliseForSave` for the consequences. */
+export function isCompletePassage(p: SchedulePassage): boolean {
+  return p.book !== '' && p.chapter >= 1 && p.startVerse >= 1 && p.endVerse >= p.startVerse
+}
+
+/** True when a block carries a complete passage. */
+export function isNonEmptyBlock(block: PassageBlock): boolean {
+  return isCompletePassage(block.passage)
+}
+
+/** The blocks a week actually shows. Every read-side consumer — the
+ *  rendered ledger, the row-height math, the save-time strip — wants
+ *  this rather than `week.blocks`, and they have to agree: counting a
+ *  half-filled block the template then declines to render leaves a gap
+ *  in the grid. */
+export function contentBlocks(week: ScheduleWeek): PassageBlock[] {
+  return week.blocks.filter(isNonEmptyBlock)
+}
+
+/** Save-time normalisation: returns a deep copy with half-filled blocks
+ *  dropped and any week whose blocks all vanished collapsed back to a
+ *  review week.
+ *
+ *  This is deliberate UX, not defensive coding: a block the user
+ *  abandoned mid-picker is treated as "not there" rather than surfaced
+ *  as a validation error or — worse — auto-filled with a guess they
+ *  never made. Abandoning an edit must never commit data. */
+export function normaliseForSave(s: Schedule): Schedule {
+  const out = cloneSchedule(s)
+  for (const week of out.weeks) {
+    const filtered = contentBlocks(week)
+    if (filtered.length !== week.blocks.length) {
+      week.blocks = filtered
+      if (filtered.length === 0) week.isReview = true
+    }
+  }
+  return out
+}
+
 /** Pretty passage label, e.g. "1 Corinthians 5:1-13". Returns "Review"
  *  for review weeks (passage === null). */
 export function formatPassage(passage: SchedulePassage | null): string {
@@ -430,9 +477,8 @@ export function computeCoverage(
   // → gap; two or more → overlap.
   const coverers = new Map<string, number[]>()
   schedule.weeks.forEach((w, weekIdx) => {
-    for (const block of w.blocks) {
+    for (const block of contentBlocks(w)) {
       const { book, chapter, startVerse, endVerse } = block.passage
-      if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) continue
       for (let v = startVerse; v <= endVerse; v++) {
         const key = `${book}|${chapter}|${v}`
         // Only track coverers for verses the material knows about —
