@@ -26,6 +26,7 @@ import {
   isoWeekday,
   isoWeekStart,
   monthName,
+  normaliseForSave,
   removeMeet,
   shiftDate,
   slugifyMeetId,
@@ -896,19 +897,11 @@ async function save() {
   if (draft.value === null || saving.value) return
   saving.value = true
   error.value = null
-  // Strip half-filled passage blocks before PUT — a block whose picker
-  // never got a book / chapter / verse range is treated as "not there"
-  // per the design: an empty passage isn't a validator failure to
-  // surface, it's just a block the user abandoned. A week whose only
-  // block was empty collapses to a review week (isReview flips true).
-  const payload = cloneSchedule(draft.value)
-  for (const week of payload.weeks) {
-    const filtered = contentBlocks(week)
-    if (filtered.length !== week.blocks.length) {
-      week.blocks = filtered
-      if (filtered.length === 0) week.isReview = true
-    }
-  }
+  // Drops abandoned half-filled blocks and collapses emptied weeks to
+  // review — see `normaliseForSave`'s docstring for why that's the
+  // intended UX, not defensive coding. Also serves as the one clone
+  // between draft and payload.
+  const payload = normaliseForSave(draft.value)
   try {
     await api.putSchedule(materialId.value, payload)
     invalidateScheduleCache(materialId.value)

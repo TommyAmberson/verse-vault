@@ -21,6 +21,7 @@ import {
   contentBlocks,
   isoWeekday,
   migrateSchedule,
+  normaliseForSave,
   parseVerseList,
   shiftDate,
   slugifyMeetId,
@@ -207,6 +208,50 @@ describe('contentBlocks', () => {
     }
     const half = { passage: { book: 'John', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} }
     expect(contentBlocks(week([real, half, second]))).toEqual([real, second])
+  })
+})
+
+describe('normaliseForSave', () => {
+  const real = {
+    passage: { book: 'John', chapter: 3, startVerse: 16, endVerse: 18 },
+    verses: {},
+  }
+  const half = { passage: { book: 'John', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} }
+
+  it('drops half-filled blocks and keeps the week a content week', () => {
+    const input = {
+      ...schedule(['2025-09-08']),
+      weeks: [{ date: '2025-09-08', isReview: false, blocks: [real, half] }],
+    }
+    const out = normaliseForSave(input)
+    expect(out.weeks[0]!.blocks).toEqual([real])
+    expect(out.weeks[0]!.isReview).toBe(false)
+    // The input draft is untouched — save must not mutate the editor
+    // state it is serialising.
+    expect(input.weeks[0]!.blocks).toHaveLength(2)
+  })
+
+  it('collapses a week whose only block was abandoned to a review week', () => {
+    // Abandoning an edit must never commit data: a block left mid-picker
+    // vanishes rather than surfacing as a validation error or a guess.
+    const input = {
+      ...schedule(['2025-09-08']),
+      weeks: [{ date: '2025-09-08', isReview: false, blocks: [half] }],
+    }
+    const out = normaliseForSave(input)
+    expect(out.weeks[0]!.blocks).toEqual([])
+    expect(out.weeks[0]!.isReview).toBe(true)
+  })
+
+  it('leaves clean schedules identical', () => {
+    const input = {
+      ...schedule(['2025-09-08', '2025-09-15']),
+      weeks: [
+        { date: '2025-09-08', isReview: false, blocks: [real] },
+        { date: '2025-09-15', isReview: true, blocks: [] },
+      ],
+    }
+    expect(normaliseForSave(input)).toEqual(input)
   })
 })
 

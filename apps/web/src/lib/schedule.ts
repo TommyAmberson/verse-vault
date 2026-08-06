@@ -78,6 +78,12 @@ export interface ScheduleWeek {
   /** Passage blocks for this week. Empty on review weeks; length 1 on
    *  today's normal weeks; length ≥2 for future compound weeks.
    *
+   *  Invariant caveat: while the editor holds a draft, a block may be
+   *  half-filled (picker cascade mid-flight). Read-side consumers go
+   *  through `contentBlocks` so they agree on what counts; the save
+   *  path runs `normaliseForSave` so a half-filled block never reaches
+   *  the API. Only edit UIs iterate this field raw.
+   *
    *  Multi-block support (length ≥2) is accepted end-to-end here on
    *  the client, but the API rejects it at the WASM boundary until
    *  the Rust contract crate learns to consume it — see the redesign
@@ -335,6 +341,26 @@ export function isNonEmptyBlock(block: PassageBlock): boolean {
  *  in the grid. */
 export function contentBlocks(week: ScheduleWeek): PassageBlock[] {
   return week.blocks.filter(isNonEmptyBlock)
+}
+
+/** Save-time normalisation: returns a deep copy with half-filled blocks
+ *  dropped and any week whose blocks all vanished collapsed back to a
+ *  review week.
+ *
+ *  This is deliberate UX, not defensive coding: a block the user
+ *  abandoned mid-picker is treated as "not there" rather than surfaced
+ *  as a validation error or — worse — auto-filled with a guess they
+ *  never made. Abandoning an edit must never commit data. */
+export function normaliseForSave(s: Schedule): Schedule {
+  const out = cloneSchedule(s)
+  for (const week of out.weeks) {
+    const filtered = contentBlocks(week)
+    if (filtered.length !== week.blocks.length) {
+      week.blocks = filtered
+      if (filtered.length === 0) week.isReview = true
+    }
+  }
+  return out
 }
 
 /** Pretty passage label, e.g. "1 Corinthians 5:1-13". Returns "Review"
