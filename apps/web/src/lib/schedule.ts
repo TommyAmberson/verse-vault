@@ -315,6 +315,28 @@ export function removeMeet(s: Schedule, id: string): Schedule {
 // Display helpers
 // =============================================================================
 
+/** True when a block carries a real passage — book set, chapter and
+ *  verses ≥ 1, `endVerse` ≥ `startVerse`.
+ *
+ *  A block is half-filled for as long as the user is mid-cascade in the
+ *  editor's picker: choosing a book resets chapter and both verse fields
+ *  to 0 on purpose, so "empty" is a transient edit state rather than a
+ *  data defect. That's why the read side skips such blocks instead of
+ *  refusing to store them. */
+export function isNonEmptyBlock(block: PassageBlock): boolean {
+  const { book, chapter, startVerse, endVerse } = block.passage
+  return book !== '' && chapter >= 1 && startVerse >= 1 && endVerse >= startVerse
+}
+
+/** The blocks a week actually shows. Every read-side consumer — the
+ *  rendered ledger, the row-height math, the save-time strip — wants
+ *  this rather than `week.blocks`, and they have to agree: counting a
+ *  half-filled block the template then declines to render leaves a gap
+ *  in the grid. */
+export function contentBlocks(week: ScheduleWeek): PassageBlock[] {
+  return week.blocks.filter(isNonEmptyBlock)
+}
+
 /** Pretty passage label, e.g. "1 Corinthians 5:1-13". Returns "Review"
  *  for review weeks (passage === null). */
 export function formatPassage(passage: SchedulePassage | null): string {

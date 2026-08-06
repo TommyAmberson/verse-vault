@@ -13,9 +13,12 @@ import {
 } from '../../../../packages/api/src/test-schedules'
 
 import {
+  type PassageBlock,
   type Schedule,
+  type ScheduleWeek,
   applyMeetingDayShift,
   cloneSchedule,
+  contentBlocks,
   isoWeekday,
   migrateSchedule,
   parseVerseList,
@@ -165,6 +168,45 @@ describe('cloneSchedule', () => {
     copy.meets[0]!.name = 'changed'
     expect(before.weeks[0]!.blocks[0]!.verses.club150).toEqual([16])
     expect(before.meets[0]!.name).toBe('A')
+  })
+})
+
+describe('contentBlocks', () => {
+  const real = {
+    passage: { book: 'John', chapter: 3, startVerse: 16, endVerse: 18 },
+    verses: {},
+  }
+
+  function week(blocks: PassageBlock[], isReview = false): ScheduleWeek {
+    return { date: '2025-09-08', isReview, blocks }
+  }
+
+  it('keeps blocks carrying a real passage', () => {
+    expect(contentBlocks(week([real]))).toEqual([real])
+  })
+
+  it('skips every half-filled shape the picker cascade produces', () => {
+    // Choosing a book resets chapter and both verse fields to 0, so each
+    // of these is a state the user passes through while editing.
+    const halves: PassageBlock[] = [
+      { passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} },
+      { passage: { book: 'John', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} },
+      { passage: { book: 'John', chapter: 3, startVerse: 0, endVerse: 0 }, verses: {} },
+      // endVerse below startVerse — reachable by typing End before Start.
+      { passage: { book: 'John', chapter: 3, startVerse: 16, endVerse: 15 }, verses: {} },
+    ]
+    for (const half of halves) {
+      expect(contentBlocks(week([half])), JSON.stringify(half.passage)).toEqual([])
+    }
+  })
+
+  it('preserves order when mixing real and half-filled blocks', () => {
+    const second = {
+      passage: { book: 'John', chapter: 4, startVerse: 1, endVerse: 2 },
+      verses: {},
+    }
+    const half = { passage: { book: 'John', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} }
+    expect(contentBlocks(week([real, half, second]))).toEqual([real, second])
   })
 })
 

@@ -18,6 +18,7 @@ import {
   cloneSchedule,
   type CoverageResult,
   computeCoverage,
+  contentBlocks,
   dayOfMonth,
   englishOrdinal,
   formatPassage,
@@ -254,7 +255,7 @@ function formatMeetDateRange(meet: ScheduleMeet): string {
  *  Cards regime ignores both — the date is a badge above the block(s)
  *  rather than a rail alongside them. */
 function weekGridStyle(week: ScheduleWeek): Record<string, string> {
-  const blocks = week.isReview ? 1 : Math.max(1, week.blocks.length)
+  const blocks = Math.max(1, week.isReview ? 0 : contentBlocks(week).length)
   return {
     '--wk-blocks': String(blocks),
     '--wk-rows': String(blocks * 3),
@@ -891,20 +892,6 @@ function discard() {
   if (saved.value !== null) draft.value = cloneSchedule(saved.value)
 }
 
-/** True when a block has a real passage — book set, chapter and verses
- *  ≥ 1, endVerse ≥ startVerse. Half-filled blocks (user in the middle
- *  of the picker cascade) fail this and are treated as "not there" by
- *  the save-time strip and the view-mode render. */
-function isNonEmptyBlock(block: PassageBlock): boolean {
-  const { book, chapter, startVerse, endVerse } = block.passage
-  return (
-    book !== ''
-    && chapter >= 1
-    && startVerse >= 1
-    && endVerse >= startVerse
-  )
-}
-
 async function save() {
   if (draft.value === null || saving.value) return
   saving.value = true
@@ -916,7 +903,7 @@ async function save() {
   // block was empty collapses to a review week (isReview flips true).
   const payload = cloneSchedule(draft.value)
   for (const week of payload.weeks) {
-    const filtered = week.blocks.filter(isNonEmptyBlock)
+    const filtered = contentBlocks(week)
     if (filtered.length !== week.blocks.length) {
       week.blocks = filtered
       if (filtered.length === 0) week.isReview = true
@@ -1228,11 +1215,11 @@ function backToSettings() {
                   @keydown.enter="mode === 'edit' ? selectWeek(row.weekIdx) : null"
                 >
                   <span class="c-date">- {{ row.ordinal }}</span>
-                  <template v-if="row.week.isReview || row.week.blocks.filter(isNonEmptyBlock).length === 0">
+                  <template v-if="row.week.isReview || contentBlocks(row.week).length === 0">
                     <span class="c-pass c-review">Review</span>
                   </template>
                   <template
-                    v-for="(block, bi) in row.week.blocks.filter(isNonEmptyBlock)"
+                    v-for="(block, bi) in contentBlocks(row.week)"
                     v-else
                     :key="bi"
                   >
