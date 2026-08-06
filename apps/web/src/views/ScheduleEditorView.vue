@@ -23,6 +23,8 @@ import {
   englishOrdinal,
   formatPassage,
   fullDayName,
+  isCompletePassage,
+  isNonEmptyBlock,
   isoWeekday,
   isoWeekStart,
   monthName,
@@ -256,7 +258,7 @@ function formatMeetDateRange(meet: ScheduleMeet): string {
  *  Cards regime ignores both — the date is a badge above the block(s)
  *  rather than a rail alongside them. */
 function weekGridStyle(week: ScheduleWeek): Record<string, string> {
-  const blocks = Math.max(1, week.isReview ? 0 : contentBlocks(week).length)
+  const blocks = week.isReview ? 1 : Math.max(1, contentBlocks(week).length)
   return {
     '--wk-blocks': String(blocks),
     '--wk-rows': String(blocks * 3),
@@ -329,8 +331,8 @@ function derivedVerseNumbers(
   block: PassageBlock,
   club: 150 | 300,
 ): number[] {
+  if (!isNonEmptyBlock(block)) return []
   const { book, chapter, startVerse, endVerse } = block.passage
-  if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) return []
   const clubs = passageClubs.value
   if (clubs.size === 0) {
     // Projection not loaded — fall back to whatever the schedule
@@ -457,10 +459,10 @@ function deriveVersesForPassage(
   passage: PassageBlock['passage'],
   fallback: PassageBlock['verses'],
 ): PassageBlock['verses'] {
-  const { book, chapter, startVerse, endVerse } = passage
-  if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) {
+  if (!isCompletePassage(passage)) {
     return { club150: [], club300: [] }
   }
+  const { book, chapter, startVerse, endVerse } = passage
   const clubs = passageClubs.value
   if (clubs.size === 0) {
     // Projection not loaded — keep whatever was stored so the row
@@ -897,10 +899,7 @@ async function save() {
   if (draft.value === null || saving.value) return
   saving.value = true
   error.value = null
-  // Drops abandoned half-filled blocks and collapses emptied weeks to
-  // review — see `normaliseForSave`'s docstring for why that's the
-  // intended UX, not defensive coding. Also serves as the one clone
-  // between draft and payload.
+  // Also serves as the one clone between draft and payload.
   const payload = normaliseForSave(draft.value)
   try {
     await api.putSchedule(materialId.value, payload)

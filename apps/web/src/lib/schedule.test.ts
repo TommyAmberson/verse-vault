@@ -172,12 +172,16 @@ describe('cloneSchedule', () => {
   })
 })
 
-describe('contentBlocks', () => {
-  const real = {
-    passage: { book: 'John', chapter: 3, startVerse: 16, endVerse: 18 },
-    verses: {},
-  }
+// Shared by the `contentBlocks` and `normaliseForSave` describes — one
+// tests the predicate, the other its delegator, so they must see the
+// same shapes.
+const real = {
+  passage: { book: 'John', chapter: 3, startVerse: 16, endVerse: 18 },
+  verses: {},
+}
+const half = { passage: { book: 'John', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} }
 
+describe('contentBlocks', () => {
   function week(blocks: PassageBlock[], isReview = false): ScheduleWeek {
     return { date: '2025-09-08', isReview, blocks }
   }
@@ -190,8 +194,8 @@ describe('contentBlocks', () => {
     // Choosing a book resets chapter and both verse fields to 0, so each
     // of these is a state the user passes through while editing.
     const halves: PassageBlock[] = [
+      half,
       { passage: { book: '', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} },
-      { passage: { book: 'John', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} },
       { passage: { book: 'John', chapter: 3, startVerse: 0, endVerse: 0 }, verses: {} },
       // endVerse below startVerse — reachable by typing End before Start.
       { passage: { book: 'John', chapter: 3, startVerse: 16, endVerse: 15 }, verses: {} },
@@ -206,18 +210,11 @@ describe('contentBlocks', () => {
       passage: { book: 'John', chapter: 4, startVerse: 1, endVerse: 2 },
       verses: {},
     }
-    const half = { passage: { book: 'John', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} }
     expect(contentBlocks(week([real, half, second]))).toEqual([real, second])
   })
 })
 
 describe('normaliseForSave', () => {
-  const real = {
-    passage: { book: 'John', chapter: 3, startVerse: 16, endVerse: 18 },
-    verses: {},
-  }
-  const half = { passage: { book: 'John', chapter: 0, startVerse: 0, endVerse: 0 }, verses: {} }
-
   it('drops half-filled blocks and keeps the week a content week', () => {
     const input = {
       ...schedule(['2025-09-08']),
@@ -232,8 +229,6 @@ describe('normaliseForSave', () => {
   })
 
   it('collapses a week whose only block was abandoned to a review week', () => {
-    // Abandoning an edit must never commit data: a block left mid-picker
-    // vanishes rather than surfacing as a validation error or a guess.
     const input = {
       ...schedule(['2025-09-08']),
       weeks: [{ date: '2025-09-08', isReview: false, blocks: [half] }],

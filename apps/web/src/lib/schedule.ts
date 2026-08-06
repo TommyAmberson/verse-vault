@@ -78,11 +78,9 @@ export interface ScheduleWeek {
   /** Passage blocks for this week. Empty on review weeks; length 1 on
    *  today's normal weeks; length ≥2 for future compound weeks.
    *
-   *  Invariant caveat: while the editor holds a draft, a block may be
-   *  half-filled (picker cascade mid-flight). Read-side consumers go
-   *  through `contentBlocks` so they agree on what counts; the save
-   *  path runs `normaliseForSave` so a half-filled block never reaches
-   *  the API. Only edit UIs iterate this field raw.
+   *  While the editor holds a draft, a block may be half-filled — read
+   *  through `contentBlocks`; only edit UIs iterate this field raw. See
+   *  `normaliseForSave` for the full invariant.
    *
    *  Multi-block support (length ≥2) is accepted end-to-end here on
    *  the client, but the API rejects it at the WASM boundary until
@@ -321,17 +319,18 @@ export function removeMeet(s: Schedule, id: string): Schedule {
 // Display helpers
 // =============================================================================
 
-/** True when a block carries a real passage — book set, chapter and
- *  verses ≥ 1, `endVerse` ≥ `startVerse`.
- *
- *  A block is half-filled for as long as the user is mid-cascade in the
- *  editor's picker: choosing a book resets chapter and both verse fields
- *  to 0 on purpose, so "empty" is a transient edit state rather than a
- *  data defect. That's why the read side skips such blocks instead of
- *  refusing to store them. */
+/** True when a passage is fully specified — book set, chapter and
+ *  verses ≥ 1, `endVerse` ≥ `startVerse`. The editor's picker cascade
+ *  passes through incomplete states on purpose (choosing a book resets
+ *  chapter and verses to 0), so incompleteness is transient edit state,
+ *  not a data defect — see `normaliseForSave` for the consequences. */
+export function isCompletePassage(p: SchedulePassage): boolean {
+  return p.book !== '' && p.chapter >= 1 && p.startVerse >= 1 && p.endVerse >= p.startVerse
+}
+
+/** True when a block carries a complete passage. */
 export function isNonEmptyBlock(block: PassageBlock): boolean {
-  const { book, chapter, startVerse, endVerse } = block.passage
-  return book !== '' && chapter >= 1 && startVerse >= 1 && endVerse >= startVerse
+  return isCompletePassage(block.passage)
 }
 
 /** The blocks a week actually shows. Every read-side consumer — the
@@ -478,9 +477,8 @@ export function computeCoverage(
   // → gap; two or more → overlap.
   const coverers = new Map<string, number[]>()
   schedule.weeks.forEach((w, weekIdx) => {
-    for (const block of w.blocks) {
+    for (const block of contentBlocks(w)) {
       const { book, chapter, startVerse, endVerse } = block.passage
-      if (!book || chapter < 1 || startVerse < 1 || endVerse < startVerse) continue
       for (let v = startVerse; v <= endVerse; v++) {
         const key = `${book}|${chapter}|${v}`
         // Only track coverers for verses the material knows about —

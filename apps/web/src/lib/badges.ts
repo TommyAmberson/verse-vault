@@ -37,7 +37,7 @@
 import type { Club, YearView } from '@/api'
 import { getCachedSchedule } from '@/lib/apiCache'
 import { CLUBS, hasEnabledClub } from '@/lib/clubs'
-import type { Schedule, ScheduleWeek } from '@/lib/schedule'
+import { type Schedule, type ScheduleWeek, contentBlocks } from '@/lib/schedule'
 
 /** Return the index of the latest week whose date is on or before
  *  `today`, or -1 when today is before week 0. `weeks` is assumed
@@ -65,7 +65,7 @@ function cumulativeThroughWeek(
   for (let i = 0; i <= currentIdx; i++) {
     const week = weeks[i]
     if (!week) continue
-    for (const block of week.blocks) {
+    for (const block of contentBlocks(week)) {
       for (const club of enabledClubs) {
         // Schedules only carry per-tier verse lists (club150 / club300).
         // A user enrolled in the 'full' tier memorises the whole passage
