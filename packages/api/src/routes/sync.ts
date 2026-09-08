@@ -14,6 +14,7 @@ import {
   readTestStateEntries,
 } from '../lib/engine.js';
 import { getMaterialJson } from '../lib/materials.js';
+import { computeStateRev } from '../lib/state-rev.js';
 import {
   existingEventIds,
   type Grade,
@@ -126,6 +127,12 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       // `graduate_card` for HP / CCL / conditional kinds.
       graduatedVerseIds: readGraduatedVerseIds(deps.db, key),
       graduatedCardIds: readGraduatedCardIds(deps.db, key),
+      // Fingerprint of the logs this response was built from. The client
+      // stores it beside the cached state and compares against the value
+      // /api/years serves on later boots — mismatch means the server's
+      // state moved (another device, or an operator repair) and the
+      // cache must be refetched.
+      stateRev: computeStateRev(deps.db, user.id, materialId),
     });
   });
 
