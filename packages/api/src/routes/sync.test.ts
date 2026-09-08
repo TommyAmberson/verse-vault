@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { graduatedCards, graduatedVerses, reviewEvents, testStates } from '../db/schema.js';
-import { seedUserWithFixture } from '../test-fixtures.js';
+import { seedEnrolledUser } from '../test-fixtures.js';
 import { type TestApp, createTestApp, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-cor';
@@ -36,9 +36,7 @@ interface UploadResponse {
 }
 
 async function enroll(test: TestApp, email: string): Promise<{ cookie: string; userId: string }> {
-  const { cookie, userId } = await signUpTestUser(test, email);
-  seedUserWithFixture({ db: test.db, userId, materialId: MATERIAL_ID, createUser: false });
-  return { cookie, userId };
+  return seedEnrolledUser(test, email, MATERIAL_ID);
 }
 
 function event(overrides: Partial<UploadEvent> = {}): UploadEvent {

@@ -1,6 +1,6 @@
 import type { DB } from './db/client.js';
 import { enrollUser } from './lib/enrollment.js';
-import { createTestUser } from './test-utils.js';
+import { type TestApp, createTestUser, signUpTestUser } from './test-utils.js';
 
 export interface SeedOptions {
   db: DB;
@@ -22,4 +22,17 @@ export function seedUserWithFixture(opts: SeedOptions): { snapshotId: string; ve
   if (opts.createUser ?? true) createTestUser(db, userId);
 
   return enrollUser({ db, userId, materialId, now: () => now });
+}
+
+/** Signs up a user via Better Auth and seeds their enrollment — the
+ *  boot shape the sync-flavoured suites share. Returns the session
+ *  cookie + user id. */
+export async function seedEnrolledUser(
+  test: TestApp,
+  email: string,
+  materialId: string,
+): Promise<{ cookie: string; userId: string }> {
+  const { cookie, userId } = await signUpTestUser(test, email);
+  seedUserWithFixture({ db: test.db, userId, materialId, createUser: false });
+  return { cookie, userId };
 }
