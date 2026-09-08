@@ -9,6 +9,32 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.11] — 2026-09-08
+
+PATCH — stale-cache detection plus two boot-robustness fixes surfaced by the #126 cleanup.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.2` — unchanged.
+* `verse-vault-wasm@0.7.2` — unchanged.
+
+### Added
+
+* The engine boot compares the server's new `stateRev` fingerprint (api 0.1.35, threaded through the
+  `/api/years` row) against the value stored with the cached IndexedDB snapshot and refetches the
+  sync state on mismatch. Server-side changes this client never made — another device syncing, an
+  operator repair — previously stayed invisible until a snapshot-version bump or a manual site-data
+  wipe. Snapshots written before the field existed upgrade via one forced refetch on their first
+  boot.
+
+### Fixed
+
+* Home no longer renders the "This codex is empty" enrollment CTA when every per-year stats fetch
+  failed (e.g. a 429 burst after clearing site data) — that state now shows an error banner with a
+  retry hint instead of impersonating an unenrolled account.
+* Rate-limited GETs retry once after the server's `Retry-After` (capped at 10 s) instead of
+  surfacing the first 429 straight to the view.
+
 ## [0.9.10] — 2026-08-03
 
 PATCH — align the browser's schedule fold with the server's. Client-only; no server or wire change.

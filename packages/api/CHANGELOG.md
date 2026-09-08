@@ -10,6 +10,24 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.35] — 2026-09-08
+
+PATCH — additive `stateRev` fingerprint so cached clients can detect server-side state changes. No
+behavioural change for clients that ignore the new field.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.2` — unchanged.
+* `verse-vault-wasm@0.7.2` — unchanged.
+
+### Added
+
+* `stateRev` on `GET /api/sync/:materialId/state` and on each enrolled row of `GET /api/years`: an
+  opaque fingerprint (count + max + sum) of the review-event and graduation logs. The web client
+  stores it beside its cached IndexedDB snapshot and refetches on mismatch — previously a
+  server-side change the client never made (another device syncing, an operator repair such as the
+  #126 cleanup) stayed invisible until a snapshot-version bump or a manual site-data wipe.
+
 ## [0.1.34] — 2026-08-03
 
 PATCH — schedule wire-form canonicalisation (#103, #104) plus a one-shot backfill of the rows
