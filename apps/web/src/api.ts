@@ -432,31 +432,33 @@ export function createApiClient(apiUrl: string): ApiClient {
   ): Promise<T> {
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
+    const doFetch = () =>
+      fetch(`${apiUrl}${path}`, {
+        method,
+        headers,
+        credentials: 'include',
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      })
+    let res = await doFetch()
     // One retry for rate-limited GETs. A boot with cold caches fires a
     // burst that can drain the server's token bucket; the 429 carries
     // Retry-After and GETs are safe to re-issue. Writes are never
     // retried here — their idempotency is the sync layer's business —
     // and a wait beyond the cap surfaces as the usual error rather
     // than hanging the UI.
-    for (let attempt = 0; ; attempt += 1) {
-      const res = await fetch(`${apiUrl}${path}`, {
-        method,
-        headers,
-        credentials: 'include',
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-      })
-      if (res.ok) return res.json() as Promise<T>
-      if (res.status === 401) onUnauthorized?.()
-      if (res.status === 429 && method === 'GET' && attempt === 0) {
-        const retryAfterSec = Number(res.headers.get('Retry-After'))
-        if (Number.isFinite(retryAfterSec) && retryAfterSec > 0 && retryAfterSec <= 10) {
-          await new Promise((resolve) => setTimeout(resolve, retryAfterSec * 1000))
-          continue
-        }
+    if (res.status === 429 && method === 'GET') {
+      const retryAfterSec = Number(res.headers.get('Retry-After'))
+      if (Number.isFinite(retryAfterSec) && retryAfterSec > 0 && retryAfterSec <= 10) {
+        await new Promise((resolve) => setTimeout(resolve, retryAfterSec * 1000))
+        res = await doFetch()
       }
+    }
+    if (!res.ok) {
+      if (res.status === 401) onUnauthorized?.()
       const text = await res.text().catch(() => '')
       throw new ApiError(res.status, text || res.statusText)
     }
+    return res.json() as Promise<T>
   }
 
   return {
