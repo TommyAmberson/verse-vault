@@ -33,6 +33,7 @@ import type {
   StaleMergeSummary,
   SyncEventUpload,
   SyncEventsResponse,
+  SyncStateResponse,
   TestStateEntry,
   TestUpdateWire,
   WireMaterialConfig,
@@ -215,17 +216,20 @@ async function buildSession(
     testStates = await idb.getAllTestStates(materialId)
   } else {
     const fetched = await api.getSyncState(materialId)
-    snapshot = {
-      materialId,
-      version: fetched.snapshot.version,
-      materialData: fetched.snapshot.materialData,
-      fetchedAt: nowSecs,
-      graduatedVerseIds: fetched.graduatedVerseIds,
-      graduatedCardIds: fetched.graduatedCardIds,
-      // Store the fingerprint the state was actually built from (not the
-      // years-row value the staleness check used) so the next boot
-      // compares against what this cache truly contains.
-      stateRev: fetched.stateRev,
+    snapshot = snapshotRowFromFetched(materialId, fetched, nowSecs)
+    // Queued-but-unflushed graduations are local truth the server
+    // doesn't know yet — `persistLocalGraduation` promised they survive
+    // a reload. A refetch (cache miss, or the staleness discard above)
+    // must fold them back in or the engine re-offers a verse the user
+    // already finished; the queue drains right after boot and the
+    // server dedupes, so the union is at worst briefly ahead.
+    const queued = await idb.getQueuedEvents(materialId)
+    for (const q of queued) {
+      if (q.kind === 'graduate') {
+        snapshot.graduatedVerseIds = union(snapshot.graduatedVerseIds, q.verseId)
+      } else if (q.kind === 'graduateCard') {
+        snapshot.graduatedCardIds = union(snapshot.graduatedCardIds, q.cardId)
+      }
     }
     testStates = fetched.testStates
     await idb.putSnapshot(snapshot)
@@ -252,20 +256,38 @@ async function buildSession(
   return session
 }
 
-/** Pull a fresh sync state from the server and replace local cache +
- *  engine. Used when the snapshot version has drifted or after a flush
- *  rebuild. Caller must already hold the session. */
-async function refetchSyncState(session: EngineSession, nowSecs: number): Promise<void> {
-  const fetched = await api.getSyncState(session.materialId)
-  await idb.putSnapshot({
-    materialId: session.materialId,
+/** The IDB snapshot row for a fresh `GET /state` response. Shared by
+ *  the cold boot path and `refetchSyncState` so a new field lands in
+ *  both with one edit. Stores the fingerprint the state was actually
+ *  built from (not the years-row value a staleness check used), so the
+ *  next boot compares against what this cache truly contains. */
+function snapshotRowFromFetched(
+  materialId: string,
+  fetched: SyncStateResponse,
+  nowSecs: number,
+): idb.SnapshotRow {
+  return {
+    materialId,
     version: fetched.snapshot.version,
     materialData: fetched.snapshot.materialData,
     fetchedAt: nowSecs,
     graduatedVerseIds: fetched.graduatedVerseIds,
     graduatedCardIds: fetched.graduatedCardIds,
     stateRev: fetched.stateRev,
-  })
+  }
+}
+
+function union(ids: number[] | undefined, id: number): number[] {
+  const out = ids ?? []
+  return out.includes(id) ? out : [...out, id]
+}
+
+/** Pull a fresh sync state from the server and replace local cache +
+ *  engine. Used when the snapshot version has drifted or after a flush
+ *  rebuild. Caller must already hold the session. */
+async function refetchSyncState(session: EngineSession, nowSecs: number): Promise<void> {
+  const fetched = await api.getSyncState(session.materialId)
+  await idb.putSnapshot(snapshotRowFromFetched(session.materialId, fetched, nowSecs))
   await idb.replaceAllTestStates(session.materialId, fetched.testStates)
   // Snapshot version moved — invalidate the render cache wholesale; the
   // composed HTML the server emits depends on materialData structure.
@@ -402,6 +424,26 @@ async function persistLocalGraduation(
   // doesn't poison every subsequent write on the same material — the
   // failure still surfaces through the returned `next` to the original
   // caller's `.catch`.
+  persistGraduationChains.set(
+    materialId,
+    next.catch(() => {}),
+  )
+  return next
+}
+
+/** Record the post-merge server fingerprint on the snapshot row after a
+ *  flush. Serialised through the same per-material chain as the
+ *  graduation writes so it can't clobber a concurrent
+ *  `persistLocalGraduation`'s read-modify-write. Without this write,
+ *  every flush leaves the cached fingerprint behind the server's and
+ *  the next boot discards the cache it was meant to keep. */
+async function persistSnapshotStateRev(materialId: string, stateRev: string): Promise<void> {
+  const prev = persistGraduationChains.get(materialId) ?? Promise.resolve()
+  const next = prev.then(async () => {
+    const snapshot = await idb.getSnapshot(materialId)
+    if (!snapshot || snapshot.stateRev === stateRev) return
+    await idb.putSnapshot({ ...snapshot, stateRev })
+  })
   persistGraduationChains.set(
     materialId,
     next.catch(() => {}),
@@ -648,6 +690,10 @@ async function doFlush(
   }
 
   await idb.deleteQueuedEvents(queued.map((q) => q.clientEventId))
+
+  if (response.stateRev != null) {
+    await persistSnapshotStateRev(materialId, response.stateRev)
+  }
 
   return {
     accepted: response.accepted,

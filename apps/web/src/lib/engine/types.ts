@@ -132,4 +132,8 @@ export type SyncEventsResponse =
       rebuilt: boolean
       testStates: TestStateEntry[]
       lastEventId: string | null
+      /** Post-merge state fingerprint — the flush stores it on the
+       *  cached snapshot so its own write doesn't read as staleness on
+       *  the next boot. Optional so an older API keeps working. */
+      stateRev?: string
     }

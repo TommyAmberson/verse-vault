@@ -233,9 +233,6 @@ export function useEngine() {
     await Promise.all(
       eligible.map(async (y) => {
         const schedule = await getCachedSchedule(y.materialId, api.getSchedule).catch(() => null)
-        // `stateRev` rides along so a cached snapshot that no longer
-        // matches the server's state (another device, server-side
-        // repair) is refetched instead of trusted.
         await init(y.materialId, y.perClub, schedule ?? '', y.stateRev)
       }),
     )
