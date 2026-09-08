@@ -76,8 +76,16 @@ const stages = computed(() => {
 
 const stagesShown = computed(() => stages.value.some((s) => s.cards > 0 || s.verses > 0))
 
+// "Empty" must mean "verifiably not enrolled anywhere" — when every
+// per-year stats fetch failed (rate limit, flaky network) the years
+// list is empty too, and showing the enrollment CTA over real data
+// reads as data loss. Route that case to `allFailed` instead.
 const empty = computed(
-  () => !loading.value && years.value.length === 0 && !error.value,
+  () =>
+    !loading.value && years.value.length === 0 && !error.value && partialFailed.value === 0,
+)
+const allFailed = computed(
+  () => !loading.value && years.value.length === 0 && partialFailed.value > 0,
 )
 
 function pct(value: number | null): string {
@@ -131,6 +139,9 @@ onMounted(async () => {
     <p v-if="error" class="page-banner page-banner-error">{{ error }}</p>
     <p v-else-if="loading" class="page-banner page-banner-quiet">
       <em>reading the codex…</em>
+    </p>
+    <p v-else-if="allFailed" class="page-banner page-banner-error">
+      Couldn't load your years. Refresh to retry.
     </p>
     <template v-else-if="empty">
       <section class="empty">
