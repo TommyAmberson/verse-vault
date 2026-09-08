@@ -25,13 +25,16 @@ PATCH — stale-cache detection plus two boot-robustness fixes surfaced by the #
   sync state on mismatch. Server-side changes this client never made — another device syncing, an
   operator repair — previously stayed invisible until a snapshot-version bump or a manual site-data
   wipe. Snapshots written before the field existed upgrade via one forced refetch on their first
-  boot.
+  boot. A flush stores the merge response's post-merge fingerprint on the snapshot so the client's
+  own writes never read as staleness, and a staleness refetch folds queued-but-unflushed graduation
+  events back into the fetched snapshot, preserving the reload guarantee `persistLocalGraduation`
+  documents.
 
 ### Fixed
 
-* Home no longer renders the "This codex is empty" enrollment CTA when every per-year stats fetch
-  failed (e.g. a 429 burst after clearing site data) — that state now shows an error banner with a
-  retry hint instead of impersonating an unenrolled account.
+* Home and Stats no longer render their empty-state ("This codex is empty" / "No enrolled years
+  yet") when every per-year stats fetch failed (e.g. a 429 burst after clearing site data) — that
+  state now shows an error banner with a retry hint instead of impersonating an unenrolled account.
 * Rate-limited GETs retry once after the server's `Retry-After` (capped at 10 s) instead of
   surfacing the first 429 straight to the view.
 

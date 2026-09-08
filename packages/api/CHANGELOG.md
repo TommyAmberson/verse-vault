@@ -22,11 +22,18 @@ behavioural change for clients that ignore the new field.
 
 ### Added
 
-* `stateRev` on `GET /api/sync/:materialId/state` and on each enrolled row of `GET /api/years`: an
-  opaque fingerprint (count + max + sum) of the review-event and graduation logs. The web client
-  stores it beside its cached IndexedDB snapshot and refetches on mismatch — previously a
-  server-side change the client never made (another device syncing, an operator repair such as the
-  #126 cleanup) stayed invisible until a snapshot-version bump or a manual site-data wipe.
+* `stateRev` on `GET /api/sync/:materialId/state`, on each enrolled row of `GET /api/years`, and on
+  the `POST /api/sync/:materialId/events` merge response: an opaque fingerprint (count + max + sum)
+  of the review-event and graduation logs. The web client stores it beside its cached IndexedDB
+  snapshot and refetches on mismatch — previously a server-side change the client never made
+  (another device syncing, an operator repair such as the #126 cleanup) stayed invisible until a
+  snapshot-version bump or a manual site-data wipe. The merge response carries the post-merge value
+  so a client's own flush doesn't read as staleness on its next boot. The events sum folds in
+  `card_id + grade`, so in-place UPDATE repairs and same-timestamp replacements move the fingerprint
+  too.
+* Migration `0026_state_rev_covering_index`: five-column index on `review_events` so the
+  fingerprint's per-navigation aggregate is a covering scan instead of one rowid seek per event (~4x
+  measured at 10k events, and the gap grows with the append-only log).
 
 ## [0.1.34] — 2026-08-03
 
