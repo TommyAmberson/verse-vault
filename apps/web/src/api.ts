@@ -275,6 +275,11 @@ export interface YearView {
   clubs: Record<ClubTier, ClubView>
   /** Total `New` cards in the engine — drives the "N to memorize" pill. */
   newCardCount: number
+  /** Server state fingerprint for this material — compared against the
+   *  value cached with the IDB snapshot so a server-side change this
+   *  client never saw forces a sync-state refetch. Absent for
+   *  unenrolled years (and from pre-fingerprint servers). */
+  stateRev?: string
 }
 
 export interface YearsResponse {

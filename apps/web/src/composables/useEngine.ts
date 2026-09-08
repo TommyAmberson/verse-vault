@@ -176,10 +176,19 @@ export function useEngine() {
    *  `schedule` is the per-(user, material) memorize schedule (bundled
    *  default or user override) — wasm@0.6.0's schedule-aware Phase 1 of
    *  the memorize fill reads it. Empty string skips it; behaviour
-   *  collapses to pure-Sequential, matching pre-Phase-1. */
-  async function init(id: string, config?: WireMaterialConfig, schedule: unknown | '' = '') {
+   *  collapses to pure-Sequential, matching pre-Phase-1.
+   *
+   *  `stateRev` is the server's state fingerprint from the years row —
+   *  see `engineStore.loadEngine`. Omit when unknown; the cached
+   *  snapshot is then trusted unconditionally. */
+  async function init(
+    id: string,
+    config?: WireMaterialConfig,
+    schedule: unknown | '' = '',
+    stateRev?: string,
+  ) {
     try {
-      await engineStore.loadEngine(id, nowSecs(), config, schedule)
+      await engineStore.loadEngine(id, nowSecs(), config, schedule, stateRev)
       active.add(id)
       await refreshCounts()
       ready.value = true
@@ -224,7 +233,10 @@ export function useEngine() {
     await Promise.all(
       eligible.map(async (y) => {
         const schedule = await getCachedSchedule(y.materialId, api.getSchedule).catch(() => null)
-        await init(y.materialId, y.perClub, schedule ?? '')
+        // `stateRev` rides along so a cached snapshot that no longer
+        // matches the server's state (another device, server-side
+        // repair) is refetched instead of trusted.
+        await init(y.materialId, y.perClub, schedule ?? '', y.stateRev)
       }),
     )
     return eligible

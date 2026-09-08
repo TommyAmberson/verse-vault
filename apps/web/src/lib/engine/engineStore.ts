@@ -171,17 +171,25 @@ export interface FlushResult {
  *
  *  `schedule` is the per-(user, material) memorize schedule (bundled
  *  default or user override). Empty string skips schedule-aware Phase 1
- *  of the memorize fill — pure-Sequential behaviour. */
+ *  of the memorize fill — pure-Sequential behaviour.
+ *
+ *  `stateRev` is the server's current state fingerprint for this
+ *  material (from the /api/years row). When it doesn't match the value
+ *  stored with the cached snapshot, the server's state moved without
+ *  this client — another device synced, or rows were repaired
+ *  server-side — and the cache is refetched instead of trusted. Omit
+ *  when unknown (old server); the cache is then trusted as before. */
 export async function loadEngine(
   materialId: string,
   nowSecs: number,
   materialConfig?: WireMaterialConfig,
   schedule: unknown | '' = '',
+  stateRev?: string,
 ): Promise<EngineSession> {
   const existing = sessions.get(materialId)
   if (existing) return existing
   return coalesce(inflightLoads, materialId, () =>
-    buildSession(materialId, nowSecs, materialConfig, schedule))
+    buildSession(materialId, nowSecs, materialConfig, schedule, stateRev))
 }
 
 async function buildSession(
@@ -189,9 +197,19 @@ async function buildSession(
   nowSecs: number,
   materialConfig: WireMaterialConfig | undefined,
   schedule: unknown | '',
+  stateRev?: string,
 ): Promise<EngineSession> {
   let snapshot = await idb.getSnapshot(materialId)
   let testStates: TestStateEntry[] = []
+
+  // A cached snapshot whose stored fingerprint disagrees with the
+  // server's current one (or predates fingerprints entirely) is stale:
+  // fall through to the cold path below and refetch. Only applies when
+  // the caller knows the server's value — without it the cache is
+  // trusted, matching the pre-fingerprint behaviour.
+  if (snapshot && stateRev != null && snapshot.stateRev !== stateRev) {
+    snapshot = undefined
+  }
 
   if (snapshot) {
     testStates = await idb.getAllTestStates(materialId)
@@ -204,6 +222,10 @@ async function buildSession(
       fetchedAt: nowSecs,
       graduatedVerseIds: fetched.graduatedVerseIds,
       graduatedCardIds: fetched.graduatedCardIds,
+      // Store the fingerprint the state was actually built from (not the
+      // years-row value the staleness check used) so the next boot
+      // compares against what this cache truly contains.
+      stateRev: fetched.stateRev,
     }
     testStates = fetched.testStates
     await idb.putSnapshot(snapshot)
@@ -242,6 +264,7 @@ async function refetchSyncState(session: EngineSession, nowSecs: number): Promis
     fetchedAt: nowSecs,
     graduatedVerseIds: fetched.graduatedVerseIds,
     graduatedCardIds: fetched.graduatedCardIds,
+    stateRev: fetched.stateRev,
   })
   await idb.replaceAllTestStates(session.materialId, fetched.testStates)
   // Snapshot version moved — invalidate the render cache wholesale; the

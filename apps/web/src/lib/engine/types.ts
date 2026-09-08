@@ -68,6 +68,11 @@ export interface SyncStateResponse {
    *  conditional verse-bound kinds. Applied via `engine.graduate_card`
    *  alongside the verse-bulk replay. */
   graduatedCardIds: number[]
+  /** Fingerprint of the event + graduation logs this response was built
+   *  from. Stored with the cached snapshot; compared against the
+   *  /api/years value on later boots to detect server-side changes.
+   *  Optional so an older API keeps working. */
+  stateRev?: string
 }
 
 /** One queued event in `POST /api/sync/:materialId/events`. Mirrors the
