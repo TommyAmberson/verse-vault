@@ -9,6 +9,19 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.13] — 2026-09-09
+
+PATCH surface, MAJOR contract — rebuilt on core/wasm 0.8.0's content-stable card ids (#141). No
+web-side logic change: card ids remain opaque numbers end to end, and the api 0.1.36 boot
+translation plus the `stateRev` refetch replace cached IndexedDB state (including
+`graduatedCardIds`) with stable-id values on the first load after deploy.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.8.0` — content-stable `CardId`; a settings change can no longer surface wrong
+  cards from remapped history (the 2026-09-09 John 7:29 incident).
+* `verse-vault-wasm@0.8.0` — every `cardId` changes value; bundler build rebuilt.
+
 ## [0.9.12] — 2026-09-09
 
 PATCH — close the review-complete badge race and retarget the done-screen link.
