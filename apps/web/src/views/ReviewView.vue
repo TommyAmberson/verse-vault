@@ -154,7 +154,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
     <div v-else-if="done" class="done">
       <h2>Session complete</h2>
       <p>Nothing else is due right now.</p>
-      <RouterLink to="/stats" class="link-button">View stats →</RouterLink>
+      <RouterLink to="/" class="link-button">Back home →</RouterLink>
     </div>
 
     <div v-else-if="card" class="card">
