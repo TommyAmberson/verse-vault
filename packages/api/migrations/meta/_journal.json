@@ -190,6 +190,13 @@
       "when": 1788480000000,
       "tag": "0026_state_rev_covering_index",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1788570000000,
+      "tag": "0027_data_migrations_table",
+      "breakpoints": true
     }
   ]
 }

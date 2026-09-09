@@ -271,9 +271,8 @@ pub fn due_review_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
 /// and then graduate the verse via [`ReviewEngine::graduate_verse`].
 ///
 /// Cooldown and FSRS due time don't apply — `New` cards have never been
-/// reviewed. Ties broken by `CardId` (insertion order), which means the
-/// memorize queue surfaces cards in the same order the builder emitted
-/// them (early verses first).
+/// reviewed. Ties broken by ascending verse id (the batch fill sorts
+/// picked verses), so the memorize queue surfaces early verses first.
 pub fn next_memorize_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
     // Thin wrapper around the two-phase batch; the existing single-card
     // surface is preserved for callers (the wasm `next_memorize_card`

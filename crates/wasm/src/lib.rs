@@ -893,6 +893,16 @@ impl WasmEngine {
             .map_err(|e| JsError::new(&format!("serialise error: {e}")))
     }
 
+    /// Emission-order index → stable card id, as a JSON `number[]`,
+    /// under this engine's config. Index i holds the id a pre-#141
+    /// build assigned as card i — the translation table the API's
+    /// one-time data migration uses to rewrite persisted legacy ids
+    /// (`graduated_cards`, `review_events`) into stable ids.
+    pub fn legacy_card_id_map(&self) -> Result<String, JsError> {
+        let ids: Vec<u32> = self.engine.legacy_card_id_map.iter().map(|c| c.0).collect();
+        serde_json::to_string(&ids).map_err(|e| JsError::new(&format!("serialise error: {e}")))
+    }
+
     /// Render data for every card in the deck, in card-id order. Returns
     /// JSON of `CardRenderWire[]`. The server uses this on the bulk
     /// `GET /materials/:id/renders` path to compose every card's HTML in
@@ -970,7 +980,8 @@ impl WasmEngine {
     /// — silently skipping would deliver a partial deck to the
     /// offline-mode client with no signal.
     fn all_card_renders_inner(&self) -> Vec<CardRenderWire> {
-        self.engine
+        let mut renders: Vec<CardRenderWire> = self
+            .engine
             .cards
             .iter()
             .map(|card| {
@@ -985,7 +996,12 @@ impl WasmEngine {
                     verse: VerseRenderWire::from(verse),
                 }
             })
-            .collect()
+            .collect();
+        // Emission order coincided with id order before ids became
+        // content-derived; sort so the documented "card-id order" stays
+        // a guarantee rather than an accident of deck layout.
+        renders.sort_by_key(|r| r.card_id);
+        renders
     }
 
     /// Native-Rust shim for `all_card_renders`. Mirrors the

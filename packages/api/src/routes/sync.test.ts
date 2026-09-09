@@ -207,6 +207,25 @@ describe('sync routes', () => {
     expect(stateBody.lastEventId).toBe(newerId);
   });
 
+  it('rejects events carrying card ids the engine does not know', async () => {
+    // A stale tab from before a card-id-space change must not persist
+    // unreplayable rows — the out-of-order path commits before replay,
+    // so one unknown id would brick rebuildFromEvents permanently.
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'unknown-card@example.com');
+
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [event({ cardId: 999_999_999 })] }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/Unknown card ids/);
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(0);
+  });
+
   it('rejects batches larger than MAX_BATCH_SIZE with 413', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;

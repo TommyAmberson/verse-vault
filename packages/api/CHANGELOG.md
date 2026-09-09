@@ -10,6 +10,29 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.36] — 2026-09-09
+
+PATCH surface, MAJOR contract — ships core/wasm 0.8.0's content-stable card ids (#141) with a
+one-time boot translation of persisted ids. Card ids in API responses change value; no shape
+changes.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.8.0` — `CardId` derives from content identity
+  (`verse_id << 16 | kind << 12 | position`); config changes can no longer rebind persisted ids to
+  different cards.
+* `verse-vault-wasm@0.8.0` — new `legacy_card_id_map()` export; every `cardId` crossing the boundary
+  changes value.
+
+### Added
+
+* Migration `0027_data_migrations_table` + `lib/data-migrations.ts`: a marker-gated TS-side data
+  migration runs at boot after the SQL migrations, translating every user-material's
+  `graduated_cards` and `review_events` ids from legacy emission indices to stable ids via the
+  engine's `legacy_card_id_map`. Unbuildable pairs are skipped loudly and retried next boot (the
+  marker stays unwritten); an id outside the legacy table aborts rather than guessing. Translated
+  events move `stateRev`, so cached clients refetch automatically.
+
 ## [0.1.35] — 2026-09-08
 
 PATCH — additive `stateRev` fingerprint so cached clients can detect server-side state changes. No

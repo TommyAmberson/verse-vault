@@ -89,6 +89,11 @@ pub struct ReviewEngine {
     /// `new_scope` / `review_scope` at request time without callers
     /// re-threading the config.
     pub material_config: MaterialConfig,
+    /// Emission-order index → stable card id, under this build's config.
+    /// The translation table for card ids persisted by pre-#141
+    /// releases (whose ids were emission indices). See
+    /// `BuildResult::legacy_card_id_map`.
+    pub legacy_card_id_map: Vec<CardId>,
 }
 
 impl ReviewEngine {
@@ -105,6 +110,7 @@ impl ReviewEngine {
             verse_atoms_data: b.verse_atoms_data,
             verse_render_data: b.verse_render_data,
             material_config: b.material_config,
+            legacy_card_id_map: b.legacy_card_id_map,
         }
     }
 

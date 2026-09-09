@@ -168,6 +168,27 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       }
     }
 
+    // Reject card ids the engine doesn't know BEFORE anything persists.
+    // Without this a stale tab from before a card-id-space change (the
+    // #141 migration) can commit unreplayable rows: the out-of-order
+    // path persists first and replays later, so one unknown id would
+    // permanently brick rebuildFromEvents for this material, and
+    // unknown graduateCard ids would sit in graduated_cards as junk.
+    const unknownCardIds = [
+      ...new Set(
+        events
+          .filter((e) => eventKind(e) !== 'graduate')
+          .map((e) => (e as { cardId: number }).cardId)
+          .filter((id) => !loaded.engine.has_card(id)),
+      ),
+    ];
+    if (unknownCardIds.length > 0) {
+      return c.json(
+        { error: `Unknown card ids: ${unknownCardIds.join(', ')} — re-fetch state before syncing` },
+        400,
+      );
+    }
+
     const seen = existingEventIds(
       deps.db,
       user.id,
