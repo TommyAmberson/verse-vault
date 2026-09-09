@@ -275,6 +275,11 @@ export interface YearView {
   clubs: Record<ClubTier, ClubView>
   /** Total `New` cards in the engine — drives the "N to memorize" pill. */
   newCardCount: number
+  /** Server state fingerprint for this material — compared against the
+   *  value cached with the IDB snapshot so a server-side change this
+   *  client never saw forces a sync-state refetch. Absent for
+   *  unenrolled years (and from pre-fingerprint servers). */
+  stateRev?: string
 }
 
 export interface YearsResponse {
@@ -427,12 +432,27 @@ export function createApiClient(apiUrl: string): ApiClient {
   ): Promise<T> {
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
-    const res = await fetch(`${apiUrl}${path}`, {
-      method,
-      headers,
-      credentials: 'include',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
+    const doFetch = () =>
+      fetch(`${apiUrl}${path}`, {
+        method,
+        headers,
+        credentials: 'include',
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      })
+    let res = await doFetch()
+    // One retry for rate-limited GETs. A boot with cold caches fires a
+    // burst that can drain the server's token bucket; the 429 carries
+    // Retry-After and GETs are safe to re-issue. Writes are never
+    // retried here — their idempotency is the sync layer's business —
+    // and a wait beyond the cap surfaces as the usual error rather
+    // than hanging the UI.
+    if (res.status === 429 && method === 'GET') {
+      const retryAfterSec = Number(res.headers.get('Retry-After'))
+      if (Number.isFinite(retryAfterSec) && retryAfterSec > 0 && retryAfterSec <= 10) {
+        await new Promise((resolve) => setTimeout(resolve, retryAfterSec * 1000))
+        res = await doFetch()
+      }
+    }
     if (!res.ok) {
       if (res.status === 401) onUnauthorized?.()
       const text = await res.text().catch(() => '')

@@ -38,6 +38,7 @@ describe('indexes', () => {
         'idx_apibible_sections_fetched_at',
         'idx_graph_snapshots_user_material',
         'idx_material_schedules_user',
+        'idx_review_events_state_rev',
         'idx_review_events_user_material_time',
         'idx_verification_identifier',
       ].sort(),

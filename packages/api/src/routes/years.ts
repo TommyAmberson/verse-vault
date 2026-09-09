@@ -24,6 +24,7 @@ import {
   validatePerClubYearSettings,
   type YearSettings,
 } from '../lib/year-settings.js';
+import { computeStateRev } from '../lib/state-rev.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface YearsRoutesDeps {
@@ -82,6 +83,12 @@ interface YearView {
   /** Count of cards still in `CardState::New` — drives the
    *  "N to memorize" nudge in the web nav. */
   newCardCount: number;
+  /** Fingerprint of the server-side engine state (event + graduation
+   *  logs). Clients compare it against the value stored with their
+   *  cached sync state and refetch on mismatch — the only way a repair
+   *  made directly on the server ever reaches a client that already
+   *  holds a cache. Absent for unenrolled years. */
+  stateRev?: string;
 }
 
 interface SettingsBody {
@@ -303,6 +310,9 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         perClub,
         clubs,
         newCardCount,
+        ...(enrolled
+          ? { stateRev: computeStateRev(deps.db, user.id, material.id) }
+          : {}),
       });
     }
 

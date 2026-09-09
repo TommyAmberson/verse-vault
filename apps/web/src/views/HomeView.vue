@@ -113,6 +113,12 @@ onMounted(async () => {
     succeeded.sort((a, b) => b.stats.totalGrades - a.stats.totalGrades)
     years.value = succeeded
     partialFailed.value = failed
+    // Every enrolled year failed (a 429 burst, a flaky network): the
+    // `empty` computed's `!error` guard must keep the enrollment CTA
+    // from impersonating an unenrolled account over real data.
+    if (failed > 0 && succeeded.length === 0) {
+      error.value = "Couldn't load your years. Refresh to retry."
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err)
   } finally {

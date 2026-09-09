@@ -170,6 +170,13 @@ export interface SnapshotRow {
    *  verse-bound kinds since `verse-vault-core@0.5.0`. Same lifecycle
    *  + back-compat treatment as `graduatedVerseIds`. */
   graduatedCardIds?: number[]
+  /** Server state fingerprint this snapshot was fetched under (the
+   *  `stateRev` on GET /sync/:id/state). `loadEngine` compares it
+   *  against the /api/years value to detect server-side changes this
+   *  client never saw. Absent on rows written before the field existed
+   *  — treated as a mismatch, forcing one refetch that upgrades the
+   *  row. */
+  stateRev?: string
 }
 
 export async function getSnapshot(materialId: string): Promise<SnapshotRow | undefined> {

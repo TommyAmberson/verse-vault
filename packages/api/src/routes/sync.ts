@@ -14,6 +14,7 @@ import {
   readTestStateEntries,
 } from '../lib/engine.js';
 import { getMaterialJson } from '../lib/materials.js';
+import { computeStateRev } from '../lib/state-rev.js';
 import {
   existingEventIds,
   type Grade,
@@ -126,6 +127,9 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       // `graduate_card` for HP / CCL / conditional kinds.
       graduatedVerseIds: readGraduatedVerseIds(deps.db, key),
       graduatedCardIds: readGraduatedCardIds(deps.db, key),
+      // Fingerprint of the logs this response was built from — see
+      // `computeStateRev` for what it detects and why.
+      stateRev: computeStateRev(deps.db, user.id, materialId),
     });
   });
 
@@ -398,6 +402,11 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         // (or wholesale-replaced inside rebuildFromEvents).
         testStates: resultStates,
         lastEventId: latestEventId(deps.db, user.id, materialId),
+        // Post-merge fingerprint. The flush that just moved the server's
+        // state stores this beside its cached snapshot — without it,
+        // every boot after any synced session would see the years-row
+        // fingerprint ahead of the cached one and needlessly refetch.
+        stateRev: computeStateRev(deps.db, user.id, materialId),
       });
     });
   });
@@ -417,6 +426,7 @@ function unchangedResponse(
     rebuilt: false,
     testStates: readTestStateEntries(db, key),
     lastEventId: latestEventId(db, key.userId, key.materialId),
+    stateRev: computeStateRev(db, key.userId, key.materialId),
   };
 }
 

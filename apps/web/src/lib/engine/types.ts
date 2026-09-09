@@ -68,6 +68,11 @@ export interface SyncStateResponse {
    *  conditional verse-bound kinds. Applied via `engine.graduate_card`
    *  alongside the verse-bulk replay. */
   graduatedCardIds: number[]
+  /** Fingerprint of the event + graduation logs this response was built
+   *  from. Stored with the cached snapshot; compared against the
+   *  /api/years value on later boots to detect server-side changes.
+   *  Optional so an older API keeps working. */
+  stateRev?: string
 }
 
 /** One queued event in `POST /api/sync/:materialId/events`. Mirrors the
@@ -127,4 +132,8 @@ export type SyncEventsResponse =
       rebuilt: boolean
       testStates: TestStateEntry[]
       lastEventId: string | null
+      /** Post-merge state fingerprint — the flush stores it on the
+       *  cached snapshot so its own write doesn't read as staleness on
+       *  the next boot. Optional so an older API keeps working. */
+      stateRev?: string
     }
