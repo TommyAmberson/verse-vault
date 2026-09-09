@@ -5,6 +5,7 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
 import { createDb } from './db/client.js';
 import { runMigrations } from './db/migrate.js';
+import { runDataMigrations } from './lib/data-migrations.js';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -44,8 +45,9 @@ runMigrations(dbPath);
 const authedPerMin = rateLimitPerMin('RATE_LIMIT_AUTHED_PER_MIN', 120);
 const unauthedPerMin = rateLimitPerMin('RATE_LIMIT_UNAUTHED_PER_MIN', 10);
 
+const db = createDb(dbPath);
 const { app, engines } = createApp({
-  db: createDb(dbPath),
+  db,
   authEnv,
   // BIBLE_API_KEY (or API_BIBLE_KEY) gates the api.bible cache. Without
   // it, GET /api/cards/:id returns the structural metadata only (composed:
@@ -70,6 +72,11 @@ const { app, engines } = createApp({
 // spin up many short-lived apps via createTestApp and don't want a
 // 60 s setInterval accumulating per call.
 engines.start();
+
+// Engine-dependent data rewrites (e.g. #141's card-id translation) run
+// after the SQL migrations and before serving, so no request ever sees
+// half-translated rows.
+await runDataMigrations(db, engines);
 
 const port = Number(process.env.PORT ?? 3000);
 serve({ fetch: app.fetch, port }, (info) => {

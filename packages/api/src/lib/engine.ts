@@ -574,7 +574,15 @@ export class EngineStore {
       engine.graduate_verse(verseId);
     }
     for (const cardId of readGraduatedCardIds(this.db, key)) {
-      engine.graduate_card(cardId);
+      // `false` on an already-Active card is normal; on an id the
+      // engine doesn't know it's a silent un-graduation — the one place
+      // a card-id-space drift (#141) would otherwise vanish without a
+      // trace, so make it loud.
+      if (!engine.graduate_card(cardId) && !engine.has_card(cardId)) {
+        console.error(
+          `EngineStore: graduated card ${cardId} unknown to the engine for ${key.userId}/${key.materialId}`,
+        );
+      }
     }
 
     return this.cacheInsert(k, { engine, snapshotVersion: snapshot.version, refcount: 0 });
@@ -641,7 +649,15 @@ export class EngineStore {
       engine.graduate_verse(verseId);
     }
     for (const cardId of readGraduatedCardIds(this.db, key)) {
-      engine.graduate_card(cardId);
+      // `false` on an already-Active card is normal; on an id the
+      // engine doesn't know it's a silent un-graduation — the one place
+      // a card-id-space drift (#141) would otherwise vanish without a
+      // trace, so make it loud.
+      if (!engine.graduate_card(cardId) && !engine.has_card(cardId)) {
+        console.error(
+          `EngineStore: graduated card ${cardId} unknown to the engine for ${key.userId}/${key.materialId}`,
+        );
+      }
     }
 
     // Chronological replay. Tiebreak on clientEventId so two events with

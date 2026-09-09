@@ -367,3 +367,10 @@ export const apibibleSections = sqliteTable(
     fetchedAtIdx: index('idx_apibible_sections_fetched_at').on(t.fetchedAt),
   }),
 );
+
+// Marker rows for TS-side data migrations (lib/data-migrations.ts) —
+// engine-dependent data rewrites that pure SQL migrations can't express.
+export const dataMigrations = sqliteTable('data_migrations', {
+  id: text('id').primaryKey(),
+  appliedAt: integer('applied_at').notNull(),
+});
