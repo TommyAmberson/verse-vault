@@ -22,6 +22,21 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-09
+
+MAJOR — rides core 0.8.0's content-stable card ids: every `cardId` crossing the boundary changes
+value. Consumers must migrate persisted ids (see core 0.8.0) and rebuild.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.8.0` — content-stable `CardId`; see its entry for the id layout.
+
+### Added
+
+* `legacy_card_id_map()` — JSON `number[]`; index i holds the stable id a 0.7.x build assigned as
+  card i under this engine's config. Drives the API's one-time translation of `graduated_cards` and
+  `review_events`.
+
 ## [0.7.2] — 2026-08-03
 
 PATCH bump — no wire-format change. Consumes `verse-vault-core@0.7.2`.

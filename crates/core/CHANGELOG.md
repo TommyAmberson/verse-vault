@@ -22,6 +22,33 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-09
+
+MAJOR — content-stable card ids (#141). `CardId` values change for every card; persisted ids from
+0.7.x require the consumer-side data migration below.
+
+### Changed
+
+* `CardId` is now derived from the card's content identity —
+  `verse_id << 16 | kind_slot << 12 | position` — instead of the builder's emission counter.
+  Persisted card ids (`graduated_cards`, `review_events`) previously rebound to different cards
+  whenever a config change altered the emitted card set (live incidents 2026-06-30 and 2026-09-09);
+  a card's id now survives any config toggle, append-shaped deck growth, or kind addition. Ids are
+  sparse, not contiguous; nothing may index by id. Caveat inherited from test states: `verse_id` is
+  still the `verses_with_content()` enumeration index, so inserting or content-filling a verse
+  mid-file (or reordering books) renumbers everything downstream — deck edits must stay append-only.
+* Pseudo verse ids are content-anchored: HeadingPassage pseudos at `30000 + heading_idx`,
+  ChapterClubList pseudos at `40000 + book_idx * 384 + chapter * 2 + tier_slot` (book_idx =
+  first-appearance order in `verses_with_content()`), replacing sequential allocation after the
+  reals. Real verse ids must stay below 30000; discriminators are bounds-asserted.
+
+### Added
+
+* `BuildResult::legacy_card_id_map` (also retained on `ReviewEngine`): emission-order index → stable
+  id. Because the emission walk is unchanged, index i is exactly the id a 0.7.x build assigned as
+  `CardId(i)` under the same config — the complete translation table for migrating persisted legacy
+  ids.
+
 ## [0.7.2] — 2026-08-03
 
 PATCH bump — pure refactor. Event replay under 0.7.2 produces byte-identical state to 0.7.1, and no

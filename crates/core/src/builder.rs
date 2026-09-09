@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::card::{Card, CardKind, CardState, VerseAtoms};
+use crate::card::{Card, CardKind, CardState, VerseAtoms, stable_card_id};
 use crate::content::{HeadingData, MaterialData};
 use crate::element::ClubTier;
 use crate::material_config::MaterialConfig;
@@ -15,6 +15,57 @@ const FTV_MAX_WORDS: usize = 5;
 /// Upper bound on verses per chapter (Psalm 119 has 176). Used by the heading
 /// lookup when a heading spans multiple chapters.
 const MAX_VERSES_PER_CHAPTER: u16 = 200;
+
+/// Stable pseudo-verse anchors. Pseudo verse ids used to be allocated
+/// sequentially after the reals, which made them — and every card id
+/// derived from them — depend on which verses the config included
+/// (#141). Anchoring them on content identity keeps card ids stable
+/// across config changes. Real verse ids must stay below
+/// `HP_PSEUDO_VERSE_BASE`; the CCL space must top out under the
+/// `stable_card_id` 16-bit verse field.
+const HP_PSEUDO_VERSE_BASE: u32 = 30_000;
+const CCL_PSEUDO_VERSE_BASE: u32 = 40_000;
+/// Per-book stride in the CCL pseudo space: `chapter * 2 + tier_slot`
+/// must fit under it (chapters ≤ 176 → 352 < 384).
+const CCL_BOOK_STRIDE: u32 = 384;
+
+/// Stable pseudo verse id for a chapter-club-list card. `book_idx` is
+/// the book's first-appearance index in `verses_with_content()` order —
+/// content-derived, config-independent.
+fn ccl_pseudo_verse_id(book_idx: u32, chapter: u16, tier: ClubTier) -> u32 {
+    let tier_slot = tier.id_slot();
+    // Full's slot 2 would collide with the next chapter's slot 0 — but
+    // Full never emits chapter lists (`ChapterListScope` has no Full),
+    // so reaching here with it is a violated invariant, not a case.
+    assert!(tier_slot < 2, "Full tier emits no chapter-list cards");
+    let intra = (chapter as u32) * 2 + tier_slot;
+    // A chapter high enough to spill the stride would alias into the
+    // next book's range without tripping the 16-bit assert below.
+    assert!(
+        intra < CCL_BOOK_STRIDE,
+        "chapter {chapter} overflows the CCL book stride"
+    );
+    let id = CCL_PSEUDO_VERSE_BASE + book_idx * CCL_BOOK_STRIDE + intra;
+    assert!(
+        id < 1 << 16,
+        "CCL pseudo verse id {id} overflows CardId field"
+    );
+    id
+}
+
+/// Mint a card's stable id, record it in emission order, and push the
+/// card. Every emission site funnels through here so the legacy map
+/// can't miss (or double-count) a card.
+fn push_card(cards: &mut Vec<Card>, legacy: &mut Vec<CardId>, verse_id: u32, kind: CardKind) {
+    let id = stable_card_id(verse_id, &kind);
+    legacy.push(id);
+    cards.push(Card {
+        id,
+        kind,
+        verse_id,
+        state: CardState::New,
+    });
+}
 
 /// Build result from content data.
 #[derive(Debug, Default)]
@@ -37,6 +88,13 @@ pub struct BuildResult {
     /// per-tier `new_scope` / `review_scope` at request time without
     /// requiring callers to thread it through every call.
     pub material_config: MaterialConfig,
+    /// Emission-order (legacy) index → stable card id. Before #141 a
+    /// card's id WAS its emission index, so this vec is exactly the
+    /// translation table from ids persisted by older releases to the
+    /// stable ids above — under the same config the rows were minted
+    /// with. Consumed by the API's one-time data migration via the wasm
+    /// `legacy_card_id_map` export.
+    pub legacy_card_id_map: Vec<CardId>,
 }
 
 /// Parse a raw tier list (as written in `VerseData.clubs`) into the
@@ -66,17 +124,17 @@ fn parse_tiers(raw: &[u16]) -> Vec<ClubTier> {
     tiers
 }
 
-/// Allocate pseudo verse_ids and emit `ChapterClubList` cards. Pseudo
-/// ids start one past the largest real verse_id so existing real-verse
-/// `TestState`s keyed by `ElementId` are unaffected. The pseudo's
-/// `VerseAtoms` carries the chapter's members so `Card::tests` can
-/// expand without consulting the engine.
+/// Emit `ChapterClubList` cards on content-anchored pseudo verse ids
+/// (`ccl_pseudo_verse_id`). The pseudo's `VerseAtoms` carries the
+/// chapter's members so `Card::tests` can expand without consulting the
+/// engine.
 fn emit_chapter_club_list_cards(
     cards: &mut Vec<Card>,
-    next_card_id: &mut u32,
+    legacy_card_id_map: &mut Vec<CardId>,
     verse_atoms_by_id: &mut HashMap<u32, VerseAtoms>,
     verse_render_by_id: &mut HashMap<u32, VerseRender>,
     config: &MaterialConfig,
+    book_index: &HashMap<String, u32>,
 ) {
     // Group included real verses by (book, chapter), tracking each
     // verse's most-specific tier so we can compute "tier T or below"
@@ -96,9 +154,6 @@ fn emit_chapter_club_list_cards(
             .or_default()
             .push((*vid, tier));
     }
-
-    let mut next_pseudo_verse_id: u32 =
-        verse_atoms_by_id.keys().copied().max().map_or(0, |m| m + 1);
 
     let mut chapter_keys: Vec<(String, u16)> = by_chapter.keys().cloned().collect();
     chapter_keys.sort();
@@ -125,8 +180,10 @@ fn emit_chapter_club_list_cards(
                 continue;
             }
 
-            let pseudo_id = next_pseudo_verse_id;
-            next_pseudo_verse_id += 1;
+            let book_idx = *book_index
+                .get(&chapter_key.0)
+                .expect("chapter grouped from verses whose book is indexed");
+            let pseudo_id = ccl_pseudo_verse_id(book_idx, chapter_key.1, card_tier);
 
             // Resolve each member's verse_id to a human verse number so
             // the client can render the back-of-card list without
@@ -167,13 +224,12 @@ fn emit_chapter_club_list_cards(
                     chapter_members: member_numbers,
                 },
             );
-            cards.push(Card {
-                id: CardId(*next_card_id),
-                kind: CardKind::ChapterClubList { tier: card_tier },
-                verse_id: pseudo_id,
-                state: CardState::New,
-            });
-            *next_card_id += 1;
+            push_card(
+                cards,
+                legacy_card_id_map,
+                pseudo_id,
+                CardKind::ChapterClubList { tier: card_tier },
+            );
         }
     }
 }
@@ -182,19 +238,16 @@ fn emit_chapter_club_list_cards(
 /// heading whose range covers at least one included real verse. The
 /// pseudo's `VerseAtoms.heading_members` carries the member verse_ids
 /// in ascending order so `Card::tests` can grade each member's
-/// `VerseHeadingBinding`. Same pseudo-id contract as
-/// `emit_chapter_club_list_cards`: ids start one past the current
-/// max so real-verse TestStates aren't disturbed.
+/// `VerseHeadingBinding`. Pseudo verse ids are content-anchored at
+/// `HP_PSEUDO_VERSE_BASE + heading_idx`, mirroring
+/// `emit_chapter_club_list_cards`'s anchor scheme.
 fn emit_heading_passage_cards(
     cards: &mut Vec<Card>,
-    next_card_id: &mut u32,
+    legacy_card_id_map: &mut Vec<CardId>,
     verse_atoms_by_id: &mut HashMap<u32, VerseAtoms>,
     verse_render_by_id: &mut HashMap<u32, VerseRender>,
     headings_data: &[HeadingData],
 ) {
-    let mut next_pseudo_verse_id: u32 =
-        verse_atoms_by_id.keys().copied().max().map_or(0, |m| m + 1);
-
     for (h_idx, heading) in headings_data.iter().enumerate() {
         let heading_idx = h_idx as u16;
         let mut members: Vec<u32> = verse_render_by_id
@@ -229,8 +282,13 @@ fn emit_heading_passage_cards(
             continue;
         }
 
-        let pseudo_id = next_pseudo_verse_id;
-        next_pseudo_verse_id += 1;
+        let pseudo_id = HP_PSEUDO_VERSE_BASE + heading_idx as u32;
+        // Tighter than the CCL_PSEUDO_VERSE_BASE ceiling: the packed
+        // id's 12-bit position field caps heading_idx first.
+        assert!(
+            (heading_idx as u32) < 1 << 12,
+            "heading_idx {heading_idx} overflows the HP pseudo space"
+        );
 
         verse_atoms_by_id.insert(
             pseudo_id,
@@ -266,13 +324,12 @@ fn emit_heading_passage_cards(
                 chapter_members: Vec::new(),
             },
         );
-        cards.push(Card {
-            id: CardId(*next_card_id),
-            kind: CardKind::HeadingPassage { heading_idx },
-            verse_id: pseudo_id,
-            state: CardState::New,
-        });
-        *next_card_id += 1;
+        push_card(
+            cards,
+            legacy_card_id_map,
+            pseudo_id,
+            CardKind::HeadingPassage { heading_idx },
+        );
     }
 }
 
@@ -341,11 +398,20 @@ pub fn build_with_config(
 
     let mut verse_index = VerseIndex::new();
     let mut cards: Vec<Card> = Vec::new();
-    let mut next_card_id: u32 = 0;
+    // Emission-order record of the stable ids — index = the id a
+    // pre-#141 build would have assigned. The walk order below must not
+    // change, or this stops being the legacy translation table.
+    let mut legacy_card_id_map: Vec<CardId> = Vec::new();
     // Per-verse VerseAtoms so we can compute `card.tests(...)` after all cards
     // are emitted and feed them into the test-state seed map.
     let mut verse_atoms_by_id: HashMap<u32, VerseAtoms> = HashMap::new();
     let mut verse_render_by_id: HashMap<u32, VerseRender> = HashMap::new();
+    // First-appearance index per book, for the CCL pseudo anchor.
+    let mut book_index: HashMap<String, u32> = HashMap::new();
+    for verse in data.verses_with_content() {
+        let next = book_index.len() as u32;
+        book_index.entry(verse.book.clone()).or_insert(next);
+    }
 
     for (verse_id_usize, verse) in data.verses_with_content().enumerate() {
         let verse_id = verse_id_usize as u32;
@@ -377,50 +443,35 @@ pub fn build_with_config(
         );
 
         // ---- Emit cards ----
-        let push_card = |kind: CardKind, cards: &mut Vec<Card>, next: &mut u32| {
-            cards.push(Card {
-                id: CardId(*next),
-                kind,
-                verse_id,
-                state: CardState::New,
-            });
-            *next += 1;
-        };
+        assert!(
+            verse_id < HP_PSEUDO_VERSE_BASE,
+            "real verse id {verse_id} collides with the pseudo-verse space"
+        );
+        let mut push =
+            |kind: CardKind| push_card(&mut cards, &mut legacy_card_id_map, verse_id, kind);
 
         // Atomic: PhraseFill (one per phrase).
         for &p in &phrases {
-            push_card(
-                CardKind::PhraseFill { position: p },
-                &mut cards,
-                &mut next_card_id,
-            );
+            push(CardKind::PhraseFill { position: p });
         }
 
         // Atomic: per-verse bindings
-        push_card(CardKind::VerseAtVerseRef, &mut cards, &mut next_card_id);
-        push_card(CardKind::VerseInChapter, &mut cards, &mut next_card_id);
-        push_card(CardKind::VerseInBook, &mut cards, &mut next_card_id);
+        push(CardKind::VerseAtVerseRef);
+        push(CardKind::VerseInChapter);
+        push(CardKind::VerseInBook);
         if config.heading_card {
             for &h_idx in &headings {
-                push_card(
-                    CardKind::VerseInHeading { heading_idx: h_idx },
-                    &mut cards,
-                    &mut next_card_id,
-                );
+                push(CardKind::VerseInHeading { heading_idx: h_idx });
             }
         }
         for &tier in &clubs {
             if config.club_card_scope.includes(tier) {
-                push_card(
-                    CardKind::VerseInClub { tier },
-                    &mut cards,
-                    &mut next_card_id,
-                );
+                push(CardKind::VerseInClub { tier });
             }
         }
 
-        push_card(CardKind::Recitation, &mut cards, &mut next_card_id);
-        push_card(CardKind::Citation, &mut cards, &mut next_card_id);
+        push(CardKind::Recitation);
+        push(CardKind::Citation);
 
         // Composite: Ftv. Eligibility: verse has phrases, the FTV
         // prompt is at least one word long, short enough overall, and
@@ -459,13 +510,9 @@ pub fn build_with_config(
             && (ftv_words as usize) <= FTV_MAX_WORDS
             && ftv_words <= phrase_zero_word_count
         {
-            push_card(
-                CardKind::Ftv {
-                    with_citation: true,
-                },
-                &mut cards,
-                &mut next_card_id,
-            );
+            push(CardKind::Ftv {
+                with_citation: true,
+            });
         }
 
         let heading_renders: Vec<HeadingRender> = headings
@@ -515,7 +562,7 @@ pub fn build_with_config(
     if config.heading_passage_card {
         emit_heading_passage_cards(
             &mut cards,
-            &mut next_card_id,
+            &mut legacy_card_id_map,
             &mut verse_atoms_by_id,
             &mut verse_render_by_id,
             &data.headings,
@@ -524,10 +571,11 @@ pub fn build_with_config(
 
     emit_chapter_club_list_cards(
         &mut cards,
-        &mut next_card_id,
+        &mut legacy_card_id_map,
         &mut verse_atoms_by_id,
         &mut verse_render_by_id,
         config,
+        &book_index,
     );
 
     // Seed `TestState::new_unseen` for every TestKey reachable from any card.
@@ -552,6 +600,7 @@ pub fn build_with_config(
         verse_atoms_data: verse_atoms_by_id,
         verse_render_data: verse_render_by_id,
         material_config: *config,
+        legacy_card_id_map,
     }
 }
 
@@ -1158,5 +1207,75 @@ mod tests {
         assert!(kinds.contains(&TestKind::VerseBook));
         assert!(kinds.contains(&TestKind::VerseHeading));
         assert!(kinds.contains(&TestKind::VerseClub));
+    }
+
+    /// #141's contract: a card's id derives from its content identity,
+    /// so changing which OTHER cards the config includes must not move
+    /// it. Build the same material under a narrow and a wide config and
+    /// require every shared card to carry the identical id.
+    #[test]
+    fn card_ids_stable_across_configs() {
+        let data: MaterialData = serde_json::from_str(
+            r#"{
+                "year": 3,
+                "books": ["John"],
+                "chapters": [{"book": "John", "number": 1, "start_verse": 1, "end_verse": 3}],
+                "verses": [
+                    {"book": "John", "chapter": 1, "verse": 1,
+                     "phraseWordCounts": [2, 2], "annotations": [],
+                     "ftvWordCount": 2, "clubs": [150]},
+                    {"book": "John", "chapter": 1, "verse": 2,
+                     "phraseWordCounts": [3], "annotations": [],
+                     "ftvWordCount": null, "clubs": []},
+                    {"book": "John", "chapter": 1, "verse": 3,
+                     "phraseWordCounts": [2, 2, 2], "annotations": [],
+                     "ftvWordCount": 2, "clubs": [300]}
+                ],
+                "headings": [
+                    {"book": "John", "title": "Prologue",
+                     "startChapter": 1, "startVerse": 1,
+                     "endChapter": 1, "endVerse": 3}
+                ]
+            }"#,
+        )
+        .unwrap();
+        use crate::material_config::TierScope;
+        let narrow = build_with_config(
+            &data,
+            &MaterialConfig::from_scopes(TierScope::Up150, TierScope::Up150),
+            0,
+        );
+        let wide = build_with_config(&data, &MaterialConfig::all_clubs_enabled(0.9), 0);
+        assert!(
+            wide.cards.len() > narrow.cards.len(),
+            "wide config must add cards for the test to mean anything"
+        );
+        for c in &narrow.cards {
+            let twin = wide
+                .cards
+                .iter()
+                .find(|w| w.id == c.id)
+                .unwrap_or_else(|| panic!("card {:?} missing from wide build", c.id));
+            assert_eq!(twin.kind, c.kind, "id {:?} bound to a different kind", c.id);
+            assert_eq!(twin.verse_id, c.verse_id, "id {:?} moved verses", c.id);
+        }
+        // Ids are unique within a build.
+        for r in [&narrow, &wide] {
+            let mut seen = HashSet::new();
+            for c in &r.cards {
+                assert!(seen.insert(c.id), "duplicate card id {:?}", c.id);
+            }
+        }
+    }
+
+    /// The legacy map is the emission-order record — index i holds the
+    /// id that a pre-#141 build assigned as CardId(i).
+    #[test]
+    fn legacy_map_matches_emission_order() {
+        let r = build(&material_one_verse_simple(), 0);
+        assert_eq!(r.legacy_card_id_map.len(), r.cards.len());
+        for (i, c) in r.cards.iter().enumerate() {
+            assert_eq!(r.legacy_card_id_map[i], c.id);
+        }
     }
 }

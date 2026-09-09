@@ -16,6 +16,19 @@ pub enum ClubTier {
     Full,
 }
 
+impl ClubTier {
+    /// Stable ordinal used inside persisted card-id layouts
+    /// (`stable_card_id`'s position field, the CCL pseudo-verse anchor).
+    /// Renumbering is a data migration.
+    pub fn id_slot(&self) -> u32 {
+        match self {
+            ClubTier::Club150 => 0,
+            ClubTier::Club300 => 1,
+            ClubTier::Full => 2,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum ElementId {

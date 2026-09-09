@@ -75,6 +75,69 @@ pub enum CardKind {
     Reading,
 }
 
+impl CardKind {
+    /// Stable discriminant for the packed [`stable_card_id`]. Appending
+    /// new kinds is safe; renumbering existing ones changes every
+    /// persisted card id and needs a data migration.
+    pub fn id_slot(&self) -> u32 {
+        match self {
+            CardKind::PhraseFill { .. } => 0,
+            CardKind::VerseAtVerseRef => 1,
+            CardKind::VerseInChapter => 2,
+            CardKind::VerseInBook => 3,
+            CardKind::VerseInHeading { .. } => 4,
+            CardKind::VerseInClub { .. } => 5,
+            CardKind::Recitation => 6,
+            CardKind::Citation => 7,
+            CardKind::Ftv { .. } => 8,
+            CardKind::ChapterClubList { .. } => 9,
+            CardKind::HeadingPassage { .. } => 10,
+            CardKind::Reading => 11,
+        }
+    }
+
+    /// The kind's intra-verse discriminator for the packed id — phrase
+    /// position, heading index, or club-tier slot. Zero for kinds that
+    /// occur at most once per verse. `Ftv`'s `with_citation` flag is
+    /// deliberately excluded: only the `true` variant is ever emitted,
+    /// and if the other ever ships it should share this id (same memory,
+    /// different presentation).
+    pub fn id_position(&self) -> u32 {
+        match self {
+            CardKind::PhraseFill { position } => *position as u32,
+            CardKind::VerseInHeading { heading_idx } => *heading_idx as u32,
+            CardKind::HeadingPassage { heading_idx } => *heading_idx as u32,
+            CardKind::VerseInClub { tier } | CardKind::ChapterClubList { tier } => tier.id_slot(),
+            _ => 0,
+        }
+    }
+}
+
+/// Content-stable card id: `verse_id << 16 | kind_slot << 12 | position`.
+///
+/// Card ids are persisted forever (`graduated_cards`, `review_events`),
+/// so they must survive any change to which cards the builder emits —
+/// config toggles, deck growth, kind additions. Deriving the id from the
+/// card's content identity (instead of the emission counter this
+/// replaced) makes the id independent of every other card's existence.
+/// Pseudo verses get stable anchored ids too (see the builder's
+/// `HP_PSEUDO_VERSE_BASE` / `ccl_pseudo_verse_id`).
+///
+/// Panics when a component exceeds its field — that's a deck outside the
+/// design envelope (verse_id ≥ 65 536 or a discriminator ≥ 4 096), not a
+/// recoverable state.
+pub fn stable_card_id(verse_id: u32, kind: &CardKind) -> CardId {
+    let slot = kind.id_slot();
+    let pos = kind.id_position();
+    assert!(
+        verse_id < 1 << 16,
+        "verse_id {verse_id} overflows CardId field"
+    );
+    assert!(slot < 1 << 4, "kind slot {slot} overflows CardId field");
+    assert!(pos < 1 << 12, "kind position {pos} overflows CardId field");
+    CardId(verse_id << 16 | slot << 12 | pos)
+}
+
 /// One reviewable item, scoped to a single verse. The `(kind, verse_id)`
 /// pair plus the verse's `VerseAtoms` fully determines which tests this
 /// card grades (`Card::tests`).
