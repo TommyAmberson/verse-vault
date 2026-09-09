@@ -45,6 +45,12 @@ async function advance() {
     currentMaterialId.value = null
     card.value = null
     done.value = true
+    // Flush now rather than waiting out the grade debounce: in-app
+    // navigation fires none of the flush triggers, so without this the
+    // Home badge (server stats) counts the final cards of this session
+    // as still due for the next few seconds — "9 to review" right
+    // after "Session complete".
+    void engine.flush().catch(() => {})
     return
   }
   // Render before assigning: `card` and `currentMaterialId` must swap
