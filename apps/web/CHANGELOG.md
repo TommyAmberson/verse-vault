@@ -9,6 +9,26 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.12] — 2026-09-09
+
+PATCH — close the review-complete badge race and retarget the done-screen link.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.7.2` — unchanged.
+* `verse-vault-wasm@0.7.2` — unchanged.
+
+### Fixed
+
+* Review and Memorize flush the event queue the moment their completion screen shows. In-app
+  navigation fires none of the flush triggers (only tab-hide/close and a 5 s debounce do), so the
+  Home badge — computed from server stats — counted the session's final cards as still due for a few
+  seconds after "Session complete", reading as "9 to review" right after finishing everything.
+
+### Changed
+
+* The review done screen links back to Home instead of Stats.
+
 ## [0.9.11] — 2026-09-08
 
 PATCH — stale-cache detection plus two boot-robustness fixes surfaced by the #126 cleanup.

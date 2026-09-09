@@ -45,6 +45,12 @@ async function advance() {
     currentMaterialId.value = null
     card.value = null
     done.value = true
+    // Flush now rather than waiting out the grade debounce: in-app
+    // navigation fires none of the flush triggers, so without this the
+    // Home badge (server stats) counts the final cards of this session
+    // as still due for the next few seconds — "9 to review" right
+    // after "Session complete".
+    void engine.flush().catch(() => {})
     return
   }
   // Render before assigning: `card` and `currentMaterialId` must swap
@@ -148,7 +154,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
     <div v-else-if="done" class="done">
       <h2>Session complete</h2>
       <p>Nothing else is due right now.</p>
-      <RouterLink to="/stats" class="link-button">View stats →</RouterLink>
+      <RouterLink to="/" class="link-button">Back home →</RouterLink>
     </div>
 
     <div v-else-if="card" class="card">

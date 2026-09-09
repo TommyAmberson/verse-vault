@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import type { CardRender, MemorizeSessionVerse } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
@@ -61,6 +61,12 @@ const drillRevealed = ref(false)
 const error = ref<string | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
+
+// Three paths reach 'done'; flush from one place — same badge race
+// ReviewView flushes away on its done screen.
+watch(phase, (p) => {
+  if (p === 'done') void engine.flush().catch(() => {})
+})
 
 const empty = computed(() => phase.value !== 'done' && items.value.length === 0)
 const totalItems = computed(() => items.value.length)
