@@ -37,7 +37,7 @@ describe('schedules routes', () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'alice@example.com');
-    const res = await test.app.request(`/api/materials/nkjv-john/schedule`, {
+    const res = await test.app.request(`/api/materials/nkjv-hp/schedule`, {
       headers: { cookie },
     });
     expect(res.status).toBe(200);

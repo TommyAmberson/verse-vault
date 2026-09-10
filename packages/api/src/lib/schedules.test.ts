@@ -1,6 +1,11 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
+import { WasmEngine } from 'verse-vault-wasm';
 
 import { createTestDb, createTestUser } from '../test-utils.js';
+import { getMaterialJson } from './materials.js';
 import * as schema from '../db/schema.js';
 import {
   V1_REVIEW_WEEK_WITH_PASSAGE,
@@ -26,9 +31,32 @@ describe('loadBundledSchedule', () => {
     expect(parsed.meets.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('returns the John 2026-27 season', () => {
+    const parsed = JSON.parse(loadBundledSchedule('nkjv-john'));
+    expect(parsed.materialId).toBe('nkjv-john');
+    expect(parsed.season).toBe('2026-27');
+  });
+
+  // The loader hands the file to the WASM engine verbatim, so a bundled
+  // schedule serde rejects would throw on every cold engine load for that
+  // material in production. Prove each shipped file constructs an engine.
+  it('every bundled schedule validates and builds an engine', () => {
+    const dir = resolve(import.meta.dirname, '../../../..', 'data', 'schedules');
+    const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const json = readFileSync(resolve(dir, file), 'utf8');
+      const schedule = validateSchedule(json);
+      expect(loadBundledSchedule(schedule.materialId), file).not.toBe('');
+      const build = () =>
+        new WasmEngine(getMaterialJson(schedule.materialId), '', json, '[]', BigInt(0));
+      expect(build, file).not.toThrow();
+    }
+  });
+
   it('returns empty string when no schedule ships for the material', () => {
-    // Decks beyond 3-corinthians have no bundled schedule in Phase 1.
-    expect(loadBundledSchedule('nkjv-john')).toBe('');
+    // Decks beyond 4-john have no bundled schedule yet.
+    expect(loadBundledSchedule('nkjv-hp')).toBe('');
   });
 
   it('returns empty string for an unknown material id', () => {
@@ -81,7 +109,7 @@ describe('loadSchedule', () => {
     const test = createTestDb();
     try {
       createTestUser(test.db, 'u1');
-      expect(loadSchedule(test.db, 'u1', 'nkjv-john')).toBe('');
+      expect(loadSchedule(test.db, 'u1', 'nkjv-hp')).toBe('');
     } finally {
       test.cleanup();
     }
