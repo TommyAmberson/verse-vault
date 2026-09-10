@@ -74,8 +74,6 @@ const stages = computed(() => {
   }))
 })
 
-const stagesShown = computed(() => stages.value.some((s) => s.cards > 0 || s.verses > 0))
-
 const empty = computed(
   () => !loading.value && years.value.length === 0 && !error.value,
 )
@@ -210,7 +208,7 @@ onMounted(async () => {
         </RouterLink>
       </section>
 
-      <section v-if="stagesShown" class="stages-section">
+      <section class="stages-section">
         <h2 class="rule-heading"><span>stability</span></h2>
         <ol class="stages">
           <li
@@ -237,15 +235,16 @@ onMounted(async () => {
         </ol>
       </section>
 
-      <section
-        v-if="activityReviews.length > 0 || activityMemorize.length > 0"
-        class="activity-section"
-      >
+      <section class="activity-section">
         <h2 class="rule-heading"><span>activity</span></h2>
         <ActivityHeatmap :reviews="activityReviews" :memorize="activityMemorize" />
       </section>
 
-      <RouterLink class="rule-heading rule-heading-link" to="/stats">
+      <!-- The per-year breakdown and the ledger both read review history,
+           so they arrive together on the first graded card. Until then the
+           rule would head an empty page. Stability and activity stay put
+           at zero — they show a new codex what it will fill in. -->
+      <RouterLink v-if="totalReviews > 0" class="rule-heading rule-heading-link" to="/stats">
         <span>by year →</span>
       </RouterLink>
 

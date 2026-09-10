@@ -36,7 +36,7 @@ import { onBeforeUnmount, ref, shallowRef } from 'vue'
 
 import { api, type CardRender, type Grade, type YearView } from '../api'
 import { getCachedSchedule, getCachedYears } from '../lib/apiCache'
-import { hasEnabledClub } from '../lib/clubs'
+import { hasEnabledClub, hasReviewableClub } from '../lib/clubs'
 import * as engineStore from '../lib/engine/engineStore'
 import type { FlushResult } from '../lib/engine/engineStore'
 import * as idb from '../lib/engine/persistence'
@@ -219,17 +219,23 @@ export function useEngine() {
    *  failures, so callers that must exclude a year that failed to boot
    *  filter the result by `isActive(materialId)`.
    *
-   *  Reading `perClub[club]` (not the legacy flat `reviewScope`/`newScope`)
+   *  Reading `perClub` (not the legacy flat `reviewScope`/`newScope`)
    *  matches what the engine actually gates on — the flat settings are a
-   *  derived mirror authoritative only for pre-Phase-1 rows. */
+   *  derived mirror authoritative only for pre-Phase-1 rows.
+   *
+   *  Memorize wants `memorize.{tier}.enabled` — the switch for introducing
+   *  new verses. Review wants the wider "not Paused" test on the payload's
+   *  own per-tier status, because that is what decides whether cards exist
+   *  at all: `builder.rs` emits nothing for a paused tier, and treats
+   *  memorize-only as Active. */
   async function initEligibleYears(
     club: 'review' | 'memorize',
     extra?: (year: YearView) => boolean,
   ): Promise<YearView[]> {
     const res = await getCachedYears(api.getYears)
-    const eligible = res.years.filter(
-      (y) => y.enrolled && hasEnabledClub(y.perClub[club]) && (extra?.(y) ?? true),
-    )
+    const covers = (y: YearView) =>
+      club === 'review' ? hasReviewableClub(y.clubs) : hasEnabledClub(y.perClub.memorize)
+    const eligible = res.years.filter((y) => y.enrolled && covers(y) && (extra?.(y) ?? true))
     await Promise.all(
       eligible.map(async (y) => {
         const schedule = await getCachedSchedule(y.materialId, api.getSchedule).catch(() => null)
