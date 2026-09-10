@@ -87,9 +87,9 @@ const CATCH_UP_OPTIONS: { value: CatchUp; label: string }[] = [
 
 const GATE_OPTIONS: { value: MoveToNextGate; label: string }[] = [
   { value: 'fullyMemorized', label: 'Fully memorized' },
-  { value: 'afterMajorCheckpoint', label: 'After major checkpoint (meet)' },
-  { value: 'afterMinorCheckpoint', label: 'After minor checkpoint (this week)' },
-  { value: 'caughtUp', label: 'Caught up to last week' },
+  { value: 'afterMajorCheckpoint', label: 'Caught up to next quizmeet' },
+  { value: 'afterMinorCheckpoint', label: 'Caught up to this week' },
+  { value: 'caughtUp', label: 'Caught up to last week (not behind)' },
   { value: 'always', label: 'Always (no gate)' },
 ]
 
