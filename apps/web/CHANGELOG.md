@@ -9,6 +9,31 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.16] — 2026-09-10
+
+MINOR — chapter club-list cards can be typed out and checked.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.8.0` — unchanged.
+* `verse-vault-wasm@0.8.0` — unchanged.
+
+### Added
+
+* `ChapterClubList` cards ("which verses are in this club?") take the same optional type-out that
+  `Recitation` and `Ftv` already have (#138): a textarea on the front, a word-level diff against the
+  chapter's members on the back. Grading stays the 1–4 self-assessment — the diff informs it, as on
+  the other typed cards — so typing remains optional on every card.
+* Answers are order-insensitive. Both sides run through `parseVerseList`, which sorts, so recalling
+  `16, 3, 1` reads as three matches rather than three errors. Input `parseVerseList` rejects (a
+  stray word, a malformed number) falls through raw so the diff still shows what was typed.
+
+### Changed
+
+* The club-gate dropdown in year settings names its options after the state they describe rather
+  than the mechanism: "Caught up to next quizmeet", "Caught up to this week", and "Caught up to last
+  week (not behind)" replace the checkpoint wording.
+
 ## [0.9.15] — 2026-09-10
 
 MINOR — Home tells the truth before the first review, and about what is due.
