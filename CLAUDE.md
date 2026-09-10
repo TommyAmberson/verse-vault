@@ -60,6 +60,10 @@ not the code.
 * `docs/server-api.md` — HTTP API contract: routes, payloads, status codes
 * `docs/persistence.md` — database schema + event sourcing
 * `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
+* `docs/decks.md` — deck inventory + phrase-split provenance, one row per `data/<N>-*.json`
+* `docs/web-nav.md` — web client information architecture and route inventory
+* `docs/test-scenarios.md` — manual smoke checklist for sync + offline behaviours
+* `docs/unspecced.md` — shipped features with no design doc yet; the documentation backlog
 * `docs/archive/` — historical audits (FSRS-6 + per-deck keyword-markup snapshots)
 * `.specify/memory/constitution.md` — project constitution: the principles the `speckit-*` commands
   gate against

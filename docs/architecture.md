@@ -103,4 +103,7 @@ limits for larger verse sets). See `docs/deployment.md`.
 * `docs/server-api.md` — HTTP API contract (routes, payloads, status codes)
 * `docs/persistence.md` — database schema + event sourcing
 * `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
+* `docs/decks.md` — deck inventory and phrase-split provenance
+* `docs/web-nav.md` — web client information architecture and route inventory
+* `docs/unspecced.md` — shipped features that still have no design doc
 * `docs/archive/audit-fsrs6-2026-04-28.md` — historical audit notes folded into the HSRS migration
