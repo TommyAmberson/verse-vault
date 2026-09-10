@@ -52,6 +52,10 @@ interface CachedEntry {
 
 const cache = new Map<string, CachedEntry>();
 
+/** Set once the missing-directory warning has fired — the loader runs on
+ *  every engine build, and one line in the log is enough. */
+let warnedNoScheduleDir = false;
+
 /** Bundled-default schedule JSON for a material. Returns `''` when no
  *  schedule ships for this material. The result is cached in process
  *  keyed by file mtime so dev edits pick up automatically.
@@ -65,6 +69,17 @@ const cache = new Map<string, CachedEntry>();
 export function loadBundledSchedule(materialId: string): string {
   const prefix = SCHEDULE_FILE_PREFIXES[materialId];
   if (prefix === undefined) return '';
+
+  // A deck with no schedule and a bundle with no schedules directory both
+  // return '' — the latter is a deploy regression (no bundle before 0.1.38
+  // had the directory) and deserves a log line.
+  if (!warnedNoScheduleDir && !SCHEDULE_DIRS.some((dir) => existsSync(dir))) {
+    warnedNoScheduleDir = true;
+    console.warn(
+      `no bundled schedules directory found (looked in ${SCHEDULE_DIRS.join(', ')}); ` +
+        'every material falls back to the schedule-less memorize algorithm',
+    );
+  }
 
   for (const dir of SCHEDULE_DIRS) {
     if (!existsSync(dir)) continue;
