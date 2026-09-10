@@ -45,15 +45,6 @@ interface ClubView {
    *  enable flags via `POST /api/years/:id/settings`. */
   status: ClubStatus;
   cardCount: number;
-  // TODO(phase-3): expose per-club `graduated` count here. The web
-  // client's Memorize-tab badge in apps/web/src/lib/badges.ts is
-  // approximating `max(0, cumulative_through_current_week - memorized)`
-  // by `min(newCardCount, cumulative)` because there's no per-club
-  // graduated count on this response. The engine already knows the
-  // value via `WasmEngine.card_count_by_club()` plus a graduated-set
-  // filter; surfacing it lets the badge match the spec formula
-  // exactly. Spec: docs/superpowers/specs/2026-06-14-schedules-and-settings-design.md
-  // §"Memorize tab badge".
 }
 
 interface YearView {
@@ -81,15 +72,27 @@ interface YearView {
    *  round-trip them without dropping the user's selections. */
   perClub: PerClubYearSettings;
   clubs: Record<ClubTier, ClubView>;
-  /** Count of cards still in `CardState::New` — drives the
-   *  "N to memorize" nudge in the web nav. */
+  /** Count of cards still in `CardState::New` — the whole remaining
+   *  pool, schedule or no schedule. */
   newCardCount: number;
+  /** Schedule-aware memorize backlog: un-memorized verses the schedule
+   *  introduced in weeks `0..=current_week` plus the `New` cards they
+   *  carry. Drives the "N to memorize" nudge in the web nav and the
+   *  home hero, so a schedule-bound year advertises this week's work
+   *  instead of the whole season. Falls back to the full pool when the
+   *  year has no schedule or its season hasn't started. */
+  memorizeDebt: MemorizeDebt;
   /** Fingerprint of the server-side engine state (event + graduation
    *  logs). Clients compare it against the value stored with their
    *  cached sync state and refetch on mismatch — the only way a repair
    *  made directly on the server ever reaches a client that already
    *  holds a cache. Absent for unenrolled years. */
   stateRev?: string;
+}
+
+interface MemorizeDebt {
+  verses: number;
+  cards: number;
 }
 
 interface SettingsBody {
@@ -272,11 +275,13 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
       // enables a scope (which auto-enrolls on save).
       let counts: ClubCounts = {};
       let newCardCount = 0;
+      let memorizeDebt: MemorizeDebt = { verses: 0, cards: 0 };
       if (enrolled) {
         try {
           using loaded = await deps.engines.load({ userId: user.id, materialId: material.id });
           counts = JSON.parse(loaded.engine.card_count_by_club()) as ClubCounts;
           newCardCount = loaded.engine.new_card_count();
+          memorizeDebt = JSON.parse(loaded.engine.memorize_debt(BigInt(now()))) as MemorizeDebt;
         } catch (err) {
           // Don't fail the whole picker render if one year's engine can't
           // build — degrade that row to zero counts and log so it's
@@ -313,6 +318,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         perClub,
         clubs,
         newCardCount,
+        memorizeDebt,
         ...(enrolled
           ? { stateRev: computeStateRev(deps.db, user.id, material.id) }
           : {}),
