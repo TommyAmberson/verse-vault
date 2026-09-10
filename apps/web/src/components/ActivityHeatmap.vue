@@ -2,6 +2,14 @@
 import { computed, ref } from 'vue'
 
 import type { ActivityDay } from '@/api'
+import {
+  ACADEMIC_YEAR_START_MONTH,
+  type HeatmapCell,
+  academicYearStart,
+  buildGrid,
+  isoDate,
+  monthRuns,
+} from '@/lib/heatmap'
 
 const props = withDefaults(
   defineProps<{
@@ -15,33 +23,6 @@ const props = withDefaults(
   { cellSize: 11, gap: 2 },
 )
 
-// Academic year runs Sep 1 → Aug 31; anchored on September to match the
-// curriculum cadence.
-const ACADEMIC_YEAR_START_MONTH = 8 // September (0-indexed)
-const MS_PER_DAY = 86_400_000
-
-function academicYearStart(date: Date): Date {
-  const calYear = date.getUTCMonth() < ACADEMIC_YEAR_START_MONTH
-    ? date.getUTCFullYear() - 1
-    : date.getUTCFullYear()
-  return new Date(Date.UTC(calYear, ACADEMIC_YEAR_START_MONTH, 1))
-}
-
-function academicYearEnd(start: Date): Date {
-  // Inclusive Aug 31 of the calendar year after `start`.
-  return new Date(Date.UTC(start.getUTCFullYear() + 1, ACADEMIC_YEAR_START_MONTH - 1, 31))
-}
-
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
-}
-
-function addDays(d: Date, n: number): Date {
-  const out = new Date(d)
-  out.setUTCDate(d.getUTCDate() + n)
-  return out
-}
-
 const today = new Date()
 const currentYearStart = academicYearStart(today)
 
@@ -49,7 +30,6 @@ type Series = 'reviews' | 'memorize'
 const activeSeries = ref<Series>('reviews')
 const yearStart = ref<Date>(currentYearStart)
 
-const yearEnd = computed(() => academicYearEnd(yearStart.value))
 const yearLabel = computed(() => {
   const startYear = yearStart.value.getUTCFullYear()
   return `${startYear}–20${String((startYear + 1) % 100).padStart(2, '0')}`
@@ -96,54 +76,13 @@ const activeData = computed(() =>
   activeSeries.value === 'reviews' ? props.reviews : props.memorize,
 )
 
-interface Cell {
-  date: string
-  count: number
-  row: number
-  col: number
-  month: number
-  inWindow: boolean
-}
-
-// Cells outside the [yearStart, min(yearEnd, today)] window render blank
-// so the grid's Sunday/Saturday edges align cleanly.
-const grid = computed(() => {
-  const startIso = isoDate(yearStart.value)
-  const endDate = yearEnd.value.getTime() < today.getTime() ? yearEnd.value : today
-  const endIso = isoDate(endDate)
-
-  const byDate = new Map(activeData.value.map((d) => [d.date, d.count]))
-
-  const leftAnchor = addDays(yearStart.value, -yearStart.value.getUTCDay())
-  const rightAnchor = addDays(endDate, 6 - endDate.getUTCDay())
-
-  const cells: Cell[] = []
-  const totalDays = Math.round((rightAnchor.getTime() - leftAnchor.getTime()) / MS_PER_DAY) + 1
-  for (let i = 0; i < totalDays; i += 1) {
-    const cellDate = addDays(leftAnchor, i)
-    const iso = isoDate(cellDate)
-    const inWindow = iso >= startIso && iso <= endIso
-    cells.push({
-      date: iso,
-      count: inWindow ? (byDate.get(iso) ?? 0) : 0,
-      row: cellDate.getUTCDay(),
-      col: Math.floor(i / 7),
-      month: cellDate.getUTCMonth(),
-      inWindow,
-    })
-  }
-  return cells
-})
-
-const cellsByCol = computed(() => {
-  const map = new Map<number, Cell[]>()
-  for (const c of grid.value) {
-    const arr = map.get(c.col)
-    if (arr) arr.push(c)
-    else map.set(c.col, [c])
-  }
-  return map
-})
+const grid = computed(() =>
+  buildGrid(
+    yearStart.value,
+    today,
+    new Map(activeData.value.map((d) => [d.date, d.count])),
+  ),
+)
 
 const inWindowCells = computed(() => grid.value.filter((c) => c.inWindow))
 
@@ -211,62 +150,16 @@ interface MonthLabel {
   x: number
 }
 
-const monthLabels = computed<MonthLabel[]>(() => {
-  // Per-column dominant month (the month that owns 4+ of its 7 days),
-  // then collapse contiguous same-month runs and centre one label per
-  // run. The dominant-month rule avoids the Aug-then-Sep collision at
-  // the academic-year edge — column 0 of a Sep-anchored year contains
-  // 1 Aug day + 6 Sep days, so Sep wins and Aug never gets a label
-  // unless it owns a column of its own later.
-  const colMonths: number[] = []
-  for (let col = 0; col < totalCols.value; col += 1) {
-    const colCells = cellsByCol.value.get(col)
-    if (!colCells || colCells.length === 0) {
-      colMonths.push(-1)
-      continue
-    }
-    const monthCounts = new Map<number, number>()
-    for (const c of colCells) {
-      monthCounts.set(c.month, (monthCounts.get(c.month) ?? 0) + 1)
-    }
-    let dominantMonth = -1
-    let dominantCount = 0
-    for (const [m, count] of monthCounts) {
-      if (count > dominantCount) {
-        dominantMonth = m
-        dominantCount = count
-      }
-    }
-    colMonths.push(dominantMonth)
-  }
-
-  const out: MonthLabel[] = []
-  let i = 0
-  while (i < colMonths.length) {
-    const m = colMonths[i]
-    if (m === undefined || m === -1) {
-      i += 1
-      continue
-    }
-    let j = i
-    while (j < colMonths.length && colMonths[j] === m) j += 1
-    const runStart = i
-    const runEnd = j - 1
-    const sample = cellsByCol.value.get(runStart)?.find((c) => c.month === m)
-    if (sample) {
-      out.push({
-        text: new Date(sample.date + 'T00:00:00Z').toLocaleString('en-CA', {
-          month: 'short',
-          timeZone: 'UTC',
-        }),
-        // +cellSize/2 anchors on the middle of the centre cell.
-        x: ((runStart + runEnd) / 2) * cellStride.value + props.cellSize / 2,
-      })
-    }
-    i = j
-  }
-  return out
-})
+const monthLabels = computed<MonthLabel[]>(() =>
+  monthRuns(grid.value).map((run) => ({
+    text: new Date(run.sampleDate + 'T00:00:00Z').toLocaleString('en-CA', {
+      month: 'short',
+      timeZone: 'UTC',
+    }),
+    // +cellSize/2 anchors on the middle of the centre cell.
+    x: ((run.startCol + run.endCol) / 2) * cellStride.value + props.cellSize / 2,
+  })),
+)
 
 const dayLabels = [
   { text: 'S', row: 0 },
@@ -278,8 +171,7 @@ const dayLabels = [
   { text: 'S', row: 6 },
 ]
 
-function cellTitle(c: Cell): string {
-  if (!c.inWindow) return ''
+function cellTitle(c: HeatmapCell): string {
   const noun = activeSeries.value === 'reviews' ? 'review' : 'verse memorised'
   const plural = activeSeries.value === 'reviews' ? 'reviews' : 'verses memorised'
   if (c.count === 0) return `${c.date} — no activity`
@@ -383,20 +275,21 @@ const captionParts = computed<CaptionPart[]>(() => {
         :y="d.row * cellStride + cellSize - 2"
         text-anchor="end"
       >{{ d.text }}</text>
-      <g v-for="c in grid" :key="`${c.col}-${c.row}-${c.date}`">
-        <rect
-          v-if="c.inWindow"
-          :class="['cell', `cell-l${level(c.count)}`, `series-${activeSeries}`]"
-          :x="c.col * cellStride"
-          :y="c.row * cellStride"
-          :width="cellSize"
-          :height="cellSize"
-          rx="2"
-          ry="2"
-        >
-          <title>{{ cellTitle(c) }}</title>
-        </rect>
-      </g>
+      <!-- Out-of-window days hold the grid's shape but draw nothing, so
+           only the in-window ones reach the DOM. -->
+      <rect
+        v-for="c in inWindowCells"
+        :key="c.date"
+        :class="['cell', `cell-l${level(c.count)}`, `series-${activeSeries}`]"
+        :x="c.col * cellStride"
+        :y="c.row * cellStride"
+        :width="cellSize"
+        :height="cellSize"
+        rx="2"
+        ry="2"
+      >
+        <title>{{ cellTitle(c) }}</title>
+      </rect>
     </svg>
     <div class="heatmap-legend">
       <span class="legend-label">less</span>
