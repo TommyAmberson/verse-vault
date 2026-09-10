@@ -14,9 +14,17 @@ Where:
 
 The extractor shells out to `pdftotext -layout` and then parses the
 laid-out text against a fixed row grammar. Compound weeks (passage
-column contains `&` or a chapter-jumping `Ch - Ch:V` form; verse columns
-carry a `|` separator) become multi-block weeks per spec §7. Meets are
-parsed from the italicised weekend rows.
+column contains `&`, or spans chapters as `Ch - Ch:V` / `Ch:V - Ch:V`;
+verse columns carry a `|` separator, optional when every verse in the
+column sits in one passage) become multi-block weeks per spec §7. Meets
+are parsed from the italicised weekend rows.
+
+The printables are hand-made and occasionally inconsistent — a week
+dated off the meeting day, say. The extractor reports oddities on stderr
+rather than guessing; fix the emitted JSON by hand only once a human has
+ruled, and record the edit in the commit. Not every oddity is an error:
+when a chapter is split across weeks the club lists are balanced by
+count, not by passage, so verses outside the block's range are normal.
 
 The material JSON at `data/<deck-name>.json` is consulted for two
 things: the canonical book-name spellings and the number of verses per
@@ -49,6 +57,7 @@ BOOK_ABBREV = {
     "2 tim": "2 Timothy",
     "titus": "Titus",
     "philem": "Philemon",
+    "john": "John",
     "1 john": "1 John",
     "2 john": "2 John",
     "3 john": "3 John",
@@ -173,6 +182,7 @@ def parse_passage_column(raw: str, facts: ChapterFacts) -> list[Passage]:
     Handles:
         "1 Cor. 1:1-31"                     → single
         "1 Cor. 4 - 5:13"                   → 1 Cor 4 whole + 1 Cor 5:1-13
+        "John 4:39-5:15"                    → John 4:39-54 + John 5:1-15
         "Matt. 1 & 2"                       → Matt 1 whole + Matt 2 whole
         "Matt 13 & 16"                      → non-adjacent whole chapters
         "1 Tim. 4 & 2 Tim. 3"               → cross-book
@@ -194,18 +204,21 @@ def parse_passage_column(raw: str, facts: ChapterFacts) -> list[Passage]:
         else:
             right_p = _parse_book_chapter_partial(right, facts, default_book=left_p[0].book)
         return left_p + right_p
-    # Chapter-jumping shape: "1 Cor. 4 - 5:13" or "2 Cor. 2 - 3:18".
+    # Chapter-spanning shape: "1 Cor. 4 - 5:13" (whole first chapter) or
+    # "John 4:39-5:15" (first chapter from a verse). Either way the span
+    # runs to the end of the first chapter and restarts at verse 1.
     m = re.match(
-        r"^([\w\s]+?\.?)\s*(\d+)\s*[-–]\s*(\d+)\s*:\s*(\d+)$",
+        r"^([\w\s]+?\.?)\s*(\d+)(?:\s*:\s*(\d+))?\s*[-–]\s*(\d+)\s*:\s*(\d+)$",
         raw,
     )
     if m:
         book = canonical_book(m.group(1))
         c1 = int(m.group(2))
-        c2 = int(m.group(3))
-        end2 = int(m.group(4))
-        first = Passage(book=book, chapter=c1, start_verse=1, end_verse=facts.last_verse(book, c1))
-        second = Passage(book=book, chapter=c2, start_verse=1, end_verse=end2)
+        v1 = int(m.group(3)) if m.group(3) else 1
+        c2 = int(m.group(4))
+        v2 = int(m.group(5))
+        first = Passage(book=book, chapter=c1, start_verse=v1, end_verse=facts.last_verse(book, c1))
+        second = Passage(book=book, chapter=c2, start_verse=1, end_verse=v2)
         return [first, second]
     return _parse_book_chapter_partial(raw, facts, default_book=None)
 
@@ -327,6 +340,49 @@ def split_row(rest: str) -> tuple[str, str, str]:
     return parts[0], parts[1], " ".join(parts[2:])
 
 
+def distribute_verses(groups: list[list[int]], passages: list[Passage], iso: str) -> list[list[int]]:
+    """A column may skip the `|` when every verse sits in one passage
+    (John 4:39-5:15 with Club 300 all in ch. 4). Split such a lone group
+    across the compound passages by verse-range containment; anything
+    already piped passes through, and so does a blank column so the
+    count check below still catches a shifted row. Refuses ambiguity: a
+    verse inside two ranges (or none) can't be placed without the `|`."""
+    if not (len(groups) == 1 < len(passages)) or not groups[0]:
+        return groups
+    out: list[list[int]] = [[] for _ in passages]
+    for v in groups[0]:
+        hits = [i for i, p in enumerate(passages) if p.start_verse <= v <= p.end_verse]
+        if len(hits) != 1:
+            raise ValueError(
+                f"Verse {v} on {iso} fits {len(hits)} of the compound passages; "
+                f"column needs an explicit `|` split ({groups[0]!r})"
+            )
+        out[hits[0]].append(v)
+    return out
+
+
+def warn_anomalies(weeks: list[Week]) -> None:
+    """Flag rows worth a human look: a week not on the meeting day, or a
+    club verse outside its block's passage (usually deliberate — see the
+    module docstring). Nothing is auto-corrected."""
+    if not weeks:
+        return
+    meeting_weekday = date.fromisoformat(weeks[0].iso_date).weekday()
+    for w in weeks:
+        d = date.fromisoformat(w.iso_date)
+        if d.weekday() != meeting_weekday:
+            print(f"warning: {w.iso_date} is a {d.strftime('%A')}, not the meeting day", file=sys.stderr)
+        for b in w.blocks:
+            p = b.passage
+            stray = [v for v in b.club150 + b.club300 if not (p.start_verse <= v <= p.end_verse)]
+            if stray:
+                print(
+                    f"warning: {w.iso_date} {p.book} {p.chapter}:{p.start_verse}-{p.end_verse} "
+                    f"lists club verses outside the passage (fine if the chapter is split): {stray}",
+                    file=sys.stderr,
+                )
+
+
 def parse_pdf(pdf_path: Path, facts: ChapterFacts, meeting_day: str) -> tuple[list[Week], list[Meet], int, int, str]:
     text = subprocess.check_output(["pdftotext", "-layout", str(pdf_path), "-"]).decode()
     lines = [ln.rstrip() for ln in text.splitlines()]
@@ -364,13 +420,15 @@ def parse_pdf(pdf_path: Path, facts: ChapterFacts, meeting_day: str) -> tuple[li
                 weeks.append(Week(iso_date=iso, blocks=[], is_review=True))
                 continue
             passages = parse_passage_column(passage_col, facts)
-            c150_groups = [g.strip() for g in c150_col.split("|")]
-            c300_groups = [g.strip() for g in c300_col.split("|")]
+            c150_groups = [parse_verse_list(g) for g in c150_col.split("|")]
+            c300_groups = [parse_verse_list(g) for g in c300_col.split("|")]
             # Non-compound rows: single group in each column.
             if len(passages) == 1 and len(c150_groups) == 1 and len(c300_groups) == 1:
-                blocks = [Block(passage=passages[0], club150=parse_verse_list(c150_groups[0]), club300=parse_verse_list(c300_groups[0]))]
+                blocks = [Block(passage=passages[0], club150=c150_groups[0], club300=c300_groups[0])]
             else:
                 # Compound: verse groups should line up with passages.
+                c150_groups = distribute_verses(c150_groups, passages, iso)
+                c300_groups = distribute_verses(c300_groups, passages, iso)
                 if not (len(passages) == len(c150_groups) == len(c300_groups)):
                     raise ValueError(
                         f"Passage / verse group count mismatch on {iso}: "
@@ -378,7 +436,7 @@ def parse_pdf(pdf_path: Path, facts: ChapterFacts, meeting_day: str) -> tuple[li
                         f"({passage_col!r} | {c150_col!r} | {c300_col!r})"
                     )
                 blocks = [
-                    Block(passage=p, club150=parse_verse_list(a), club300=parse_verse_list(b))
+                    Block(passage=p, club150=a, club300=b)
                     for p, a, b in zip(passages, c150_groups, c300_groups)
                 ]
             weeks.append(Week(iso_date=iso, blocks=blocks, is_review=False))
@@ -412,6 +470,7 @@ def main() -> None:
     facts = ChapterFacts.load(material_json)
     weeks, meets, y1, y2, title = parse_pdf(pdf_path, facts, meeting_day="Mon")
     meeting_day = infer_meeting_day(weeks)
+    warn_anomalies(weeks)
     payload = {
         "version": 2,
         "materialId": material_id,
