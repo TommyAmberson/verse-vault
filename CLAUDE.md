@@ -30,6 +30,14 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 * `apps/` (planned) — Vue web app, Tauri desktop, CLI.
 * `tools/` — Python scripts for content pipeline (Anki parsing, verse chunking).
 * `docs/` — design docs. See list below.
+* `docs/superpowers/` — read-only history. Specs and plans from the superseded superpowers workflow.
+  Source comments and changelog entries still cite these paths, so they stay put; new spec work goes
+  in `specs/`.
+* `specs/` — spec-driven development artefacts, one `NNN-slug/` directory per feature holding
+  `spec.md`, `plan.md`, and `tasks.md`.
+* `.specify/` — Spec Kit scaffolding: templates, shell helpers, and the project constitution.
+  Vendored by the Specify CLI, which rewrites `scripts/` and `templates/*.md` on every refresh —
+  customise through `.specify/templates/overrides/<name>.md` rather than editing them in place.
 * `data/` — gitignored. Local content files (NKJV text, chunked JSON). Not committed.
 * Other branches (`django-vue*`, `laravel*`, `express-vue`, etc.) are abandoned spikes. Do not merge
   from them.
@@ -52,6 +60,8 @@ not the code.
 * `docs/persistence.md` — database schema + event sourcing
 * `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
 * `docs/archive/` — historical audits (FSRS-6 + per-deck keyword-markup snapshots)
+* `.specify/memory/constitution.md` — project constitution: the principles the `speckit-*` commands
+  gate against
 
 Per-package CHANGELOGs (`apps/web/CHANGELOG.md`, `packages/api/CHANGELOG.md`,
 `deploy/vv-router/CHANGELOG.md`) plus contract crate CHANGELOGs (`crates/core/CHANGELOG.md`,
@@ -107,6 +117,19 @@ adding a `CHANGELOG.md` entry is mandatory when their `src/` changes, and
 [CONTRIBUTING.md](./CONTRIBUTING.md#contract-crate-versioning) for the semver rules and the release
 promotion steps.
 
+## Spec-driven development
+
+Feature-sized work runs through the `speckit-*` skills — `/speckit-specify` → `/speckit-plan` →
+`/speckit-tasks` → `/speckit-implement` — writing into `specs/<NNN-slug>/`. `/speckit-analyze`
+cross-checks the three artefacts before implementation starts.
+
+Those commands gate against `.specify/memory/constitution.md`. It states principles;
+`CONTRIBUTING.md` holds the mechanics they compile down to, and this file holds the runtime guidance
+for agents. Where they disagree, fix the operational file rather than working around it.
+
+Spec Kit is branch-agnostic: `create-new-feature.sh` invokes git nowhere, and its `NNN-slug` string
+names the `specs/` directory rather than a branch. Keep using `type/short-slug` branches.
+
 ## Other conventions
 
 * Slight preference for writing tests before features.
@@ -151,5 +174,10 @@ from the code or design docs.
   with `The supplied SQL string contains more than one statement` unless each `;` is followed by
   `--> statement-breakpoint` on its own line. See `migrations/0013_relearn_and_wipe.sql` for the
   shape.
+* **Vendored Spec Kit files are exempt from dprint and typos, narrowly.** `typos` skips
+  `.specify/scripts/` and `dprint` skips `.specify/templates/*.md` and `.claude/skills/speckit-*/`,
+  because the Specify CLI rewrites all of them on refresh and any fix would be undone. The globs are
+  deliberately tight: `.specify/memory/constitution.md` and `.specify/templates/overrides/` are
+  project-authored and stay linted. Don't widen either to `.specify/**`.
 * **Abandoned branches.** `django-vue*`, `laravel*`, `express-vue`, and similar are spike
   experiments that were superseded. Don't merge from them; treat as read-only history.
