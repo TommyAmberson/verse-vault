@@ -9,6 +9,49 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.15] — 2026-09-10
+
+MINOR — Home tells the truth before the first review, and about what is due.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.8.0` — unchanged. Both fixes below align the client with what core already
+  models; no scheduling or builder change was needed.
+* `verse-vault-wasm@0.8.0` — unchanged.
+
+### Changed
+
+* Enabling memorize for a club enables review for it, and the review toggle locks on while memorize
+  covers the club. The invariant itself lives on the server (api 0.1.37's `coupleReviewToMemorize`,
+  applied on read and write); the settings page only keeps the checkbox honest while an edit is
+  still in the draft. Replaces the warning that used to flag the gap instead of closing it.
+
+### Fixed
+
+* Home counted cards due that `/review` then refused to serve, showing "29 to review" beside a
+  "Session complete" screen. The badge sums the server engine's `due_review_count`, while
+  `ReviewView` first filtered years through `initEligibleYears('review')`, which required an enabled
+  tier in `perClub.review`. With review left at its default, that filter returned nothing and the
+  view declared itself done without asking the engine. The engine was right: `builder.rs` skips
+  paused verses outright, so a memorized club's cards exist and come due whatever the review flag
+  says. Review eligibility now reads the per-tier `status` the years payload already carries and
+  asks whether any tier is non-Paused. This was the default path — enable memorize, graduate a
+  verse, and the badge starts counting cards the queue would not serve.
+
+### Internal
+
+* `hasReviewableClub` reads `YearView.clubs[tier].status` rather than re-deriving
+  Active/Maintenance/ Paused from the memorize/review pair. Core owns that rule and the API mirrors
+  it once; a third copy in the client is what let the review gate drift from the engine in the first
+  place. `isStudying` in the settings view collapses onto the same predicate.
+
+* Home's stability and activity sections render at zero instead of disappearing, and the "by year →"
+  rule hides until there is review history behind it. A newly-enrolled user previously saw the two
+  hero panels followed by that rule and nothing else — and because it carries the same
+  `.rule-heading` styling as the section headings above it, it read as a header for content that
+  wasn't there. The existing empty state only covers having no enrolled years;
+  enrolled-but-untouched fell through to the full layout minus three of its five sections.
+
 ## [0.9.14] — 2026-09-10
 
 MINOR — club tier on the card back, and a heatmap that keeps its shape early in a season.

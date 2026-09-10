@@ -10,6 +10,31 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.37] — 2026-09-10
+
+MINOR — memorizing a club now implies reviewing it, on both the read and write settings paths.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.8.0` — unchanged.
+* `verse-vault-wasm@0.8.0` — unchanged.
+
+### Changed
+
+* `GET /api/years` and `POST /api/years/:materialId/settings` run per-club settings through
+  `coupleReviewToMemorize`: wherever `memorize.{tier}.enabled` is true, `review.{tier}.enabled` is
+  reported and stored as true. Core has no state for the other combination — `effective_status` maps
+  (memorize ✓, review ✗) to `Active`, identical to both being on — so a stored `false` there
+  described something that never happened, and the tier's verses came due regardless. The review
+  flag keeps the meaning it has: carry on reviewing a club after you stop memorizing it.
+* Applying this on read as well as write is what repairs rows saved before the invariant existed,
+  without a migration, for every client rather than whichever page a user happens to open. It also
+  keeps the settings page's dirty check honest — that check diffs its draft against this payload, so
+  coupling only one side would mark an untouched year unsaved.
+* Consequence for the legacy mirror: `settings.reviewScope` now collapses at least as far as
+  `newScope` does. A row with memorize up to Club 300 and review only on Club 150 previously
+  reported `reviewScope: 'up150'` and now reports `'up300'`.
+
 ## [0.1.36] — 2026-09-09
 
 PATCH surface, MAJOR contract — ships core/wasm 0.8.0's content-stable card ids (#141) with a
