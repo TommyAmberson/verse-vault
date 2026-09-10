@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 
 import { type CardRender, formatCardTier } from '@/api'
 import { type DiffItem, normalize, wordDiff } from '@/lib/diff/wordDiff'
+import { parseVerseList } from '@/lib/schedule'
 
 const props = defineProps<{
   card: CardRender
@@ -215,11 +216,18 @@ const chapterMembersHtml = computed(() => {
   return members.map(verseNumberSpan).join(', ')
 })
 
+/** The chapter's member verses as the diff's canonical answer — ascending,
+ *  comma-separated, so each number is one token to `wordDiff`. */
+const chapterMembersText = computed(() =>
+  [...(props.card.verse.chapterMembers ?? [])].sort((a, b) => a - b).join(', '),
+)
+
 /** Plain-text canonical answer for the type-to-recite diff. Strips
  *  the api.bible + keyword-annotation HTML to a flat string. For Ftv
  *  the prefix shown on screen is dropped so the diff only checks the
  *  continuation the user actually had to recall. */
 const expectedText = computed(() => {
+  if (props.card.kind === 'ChapterClubList') return chapterMembersText.value
   const full = stripHtmlToText(phraseHtml.value.join(' '))
   if (props.card.kind === 'Ftv') {
     const skip = props.card.verse.ftvWordCount ?? 0
@@ -259,6 +267,14 @@ function stripLeadingPrefix(input: string, prefix: string): string {
 }
 
 const userInputForDiff = computed(() => {
+  // A club list is a set, so the order it was recalled in shouldn't read
+  // as wrong. Sorting both sides through the same parse makes the
+  // word-level diff order-insensitive without a second diff engine.
+  // Unparsable input (a stray word, a typo'd number) falls through raw
+  // so the diff still shows what was typed rather than nothing.
+  if (props.card.kind === 'ChapterClubList') {
+    return parseVerseList(userInput.value)?.join(', ') ?? userInput.value
+  }
   if (props.card.kind !== 'Ftv') return userInput.value
   const prefix = props.card.composed?.ftvHtml ? stripHtmlToText(props.card.composed.ftvHtml) : ''
   return stripLeadingPrefix(userInput.value, prefix)
@@ -447,18 +463,34 @@ const diffHtml = computed(() => {
       <!-- Pseudo-verse card anchored to a chapter+tier; the verse=0
            sentinel keeps the card-level stripe off while each verse
            number in the answer list still gets its own colour. -->
+      <!-- The answer is a closed set of verse numbers, so it takes the
+           same optional type-out as Recitation and Ftv: the diff on the
+           back checks the recall, the 1-4 grade stays the user's. -->
       <div v-else-if="card.kind === 'ChapterClubList'" class="centered">
         <div class="ref" v-html="chapterClubRefHtml" />
-        <hr v-if="revealed" class="type" />
-        <hr v-else />
-        <div
-          v-if="revealed"
-          class="verse-text"
-          v-html="chapterMembersHtml"
-        />
-        <div v-else class="placeholder">
-          …recite the {{ formatCardTier(card.tier) }} verses in this chapter…
-        </div>
+        <template v-if="!revealed">
+          <hr />
+          <textarea
+            ref="typeInput"
+            v-model="userInput"
+            class="type-input"
+            rows="2"
+            inputmode="numeric"
+            placeholder="Type the verse numbers, or just recite aloud and flip"
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+          />
+          <div class="placeholder">
+            …recite the {{ formatCardTier(card.tier) }} verses in this chapter…
+          </div>
+        </template>
+        <template v-else>
+          <hr class="type" />
+          <div v-if="diffItems" class="verse-text diff" v-html="diffHtml" />
+          <div v-else class="verse-text" v-html="chapterMembersHtml" />
+        </template>
       </div>
 
       <div v-else-if="card.kind === 'Reading'" class="centered">
