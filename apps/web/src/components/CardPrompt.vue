@@ -15,9 +15,9 @@ function stripHtmlToText(html: string): string {
 }
 
 const userInput = ref('')
-// Shared template ref across the Recitation + Ftv textareas — they're
-// in mutually-exclusive v-else-if branches so only one is ever
-// mounted; null on every other kind.
+// Shared template ref across the Recitation, Ftv and ChapterClubList
+// textareas — they're in mutually-exclusive v-else-if branches so only
+// one is ever mounted; null on every other kind.
 const typeInput = ref<HTMLTextAreaElement | null>(null)
 
 // Reset per card swap. Ftv cards pre-fill the textarea with the
