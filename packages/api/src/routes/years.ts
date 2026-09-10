@@ -90,7 +90,7 @@ interface YearView {
   stateRev?: string;
 }
 
-interface MemorizeDebt {
+export interface MemorizeDebt {
   verses: number;
   cards: number;
 }

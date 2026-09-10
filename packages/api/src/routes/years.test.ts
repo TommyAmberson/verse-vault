@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { userYearSettings } from '../db/schema.js';
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
+import type { MemorizeDebt } from './years.js';
 
 const MATERIAL_ID = 'nkjv-cor';
 
@@ -58,7 +59,7 @@ interface YearsResponse {
     perClub: PerClubSettings;
     clubs: Record<'150' | '300' | 'full', { status: ClubStatus; cardCount: number }>;
     newCardCount: number;
-    memorizeDebt: { verses: number; cards: number };
+    memorizeDebt: MemorizeDebt;
   }>;
 }
 

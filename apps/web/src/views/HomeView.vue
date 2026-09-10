@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { type ActivityDay, type ActivityResponse, type StatsResponse, api } from '@/api'
+import { type ActivityDay, type ActivityResponse, type StatsResponse, type YearView, api } from '@/api'
 import { getCachedYears } from '@/lib/apiCache'
 import ActivityHeatmap from '@/components/ActivityHeatmap.vue'
 
@@ -10,7 +10,7 @@ interface YearAgg {
   title: string
   /** Schedule-aware backlog, not the whole New pool: the hero promises
    *  work the memorize queue would actually hand out this week. */
-  memorizeDebt: { verses: number; cards: number }
+  memorizeDebt: YearView['memorizeDebt']
   /** Whole un-memorized pool. Only used to tell "caught up with more of
    *  the season ahead" apart from "the deck is finished". */
   newCardCount: number
@@ -169,17 +169,17 @@ onMounted(async () => {
             <span class="numeral">{{ totalNewToMemorize }}</span>
           </p>
           <p class="hero-sub">
-            <template v-if="totalNewToMemorize === 0 && totalUnmemorized > 0">
-              caught up on this week's schedule — memorize to work ahead.
-            </template>
-            <template v-else-if="totalNewToMemorize === 0">
-              caught up — nothing new is waiting.
-            </template>
-            <template v-else>
+            <template v-if="totalNewToMemorize > 0">
               fresh card{{ totalNewToMemorize === 1 ? '' : 's' }}
               from {{ totalNewVerses }} verse{{ totalNewVerses === 1 ? '' : 's' }}<template
                 v-if="years.length > 1"
               > across {{ years.length }} years</template>.
+            </template>
+            <template v-else-if="totalUnmemorized > 0">
+              caught up on this week's schedule — memorize to work ahead.
+            </template>
+            <template v-else>
+              caught up — nothing new is waiting.
             </template>
           </p>
           <p class="hero-arrow">

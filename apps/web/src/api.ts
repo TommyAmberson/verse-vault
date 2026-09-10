@@ -255,6 +255,13 @@ export interface ClubView {
   cardCount: number
 }
 
+/** Un-memorized verses the schedule has asked for so far, and the `New`
+ *  cards they carry. Server-computed; see `core::schedule::memorize_debt`. */
+export interface MemorizeDebt {
+  verses: number
+  cards: number
+}
+
 export interface YearView {
   materialId: string
   title: string
@@ -281,7 +288,7 @@ export interface YearView {
    *  carry. Drives the "N to memorize" pill and the home hero. Equals
    *  the whole pool for years with no schedule or no season under way,
    *  and is zero for unenrolled years. */
-  memorizeDebt: { verses: number; cards: number }
+  memorizeDebt: MemorizeDebt
   /** Server state fingerprint for this material — compared against the
    *  value cached with the IDB snapshot so a server-side change this
    *  client never saw forces a sync-state refetch. Absent for
