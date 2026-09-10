@@ -166,6 +166,20 @@ const headingTitle = computed(() => props.card.composed?.headings[0]?.title ?? n
 const clubLabel = computed(() =>
   formatCardTier(props.card.tier ?? props.card.verse.clubs[0]),
 )
+
+/** Corner club tag, answer side only — on the front it would leak the
+ *  answer for VerseInClub ("What club?").
+ *
+ *  A card carrying its own `tier` is one whose kind already names a tier
+ *  (VerseInClub and ChapterClubList are the only two, on both sides of
+ *  the wasm boundary), so the answer or the ref has said it already and
+ *  the corner would only repeat it. Empty label = Full-tier verse or a
+ *  pseudo-verse with no clubs, and no tag renders. */
+const clubTag = computed(() => {
+  if (!props.revealed) return ''
+  if (props.card.tier !== undefined) return ''
+  return clubLabel.value
+})
 const composedMissing = computed(() => props.card.composed === null)
 
 /** Sentinel `verse === 0` marks a pseudo-verse card (ChapterClubList,
@@ -286,6 +300,7 @@ const diffHtml = computed(() => {
     :style="{ '--active-verse-colour': verseColour }"
   >
     <div class="deck">{{ promptLabel }}</div>
+    <div v-if="clubTag" class="club-tag">{{ clubTag }}</div>
 
     <div v-if="composedMissing" class="placeholder">
       Canonical text unavailable. Set <code>BIBLE_API_KEY</code> on the server to render NKJV verses.
@@ -515,18 +530,32 @@ const diffHtml = computed(() => {
 }
 
 /* Anki's `.deck { float: right; font-size: 10px; }`, restated with
-   absolute positioning so it sits in the top-right corner of the card
-   surface without disrupting the centred content flow. Uppercased +
-   tracked so it reads as a label, not a sentence. */
-.deck {
+   absolute positioning so the corner labels sit on the card surface
+   without disrupting the centred content flow. Uppercased + tracked so
+   they read as labels, not sentences. One rule for both corners keeps
+   the label voice from drifting between them. */
+.deck,
+.club-tag {
   position: absolute;
-  top: 0.65rem;
   right: 0.85rem;
   font-size: 0.65rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-muted);
   font-family: Arial, Helvetica, system-ui, sans-serif;
+}
+
+.deck {
+  top: 0.65rem;
+}
+
+/* The verse's club tier, shown only once the back is revealed. Its line
+   box has to fit inside `.card-box`'s bottom padding or it overlaps the
+   last line of content — at the 1.5rem mobile padding the inherited 1.6
+   line-height overflows by ~3px, so the label sets its own. */
+.club-tag {
+  bottom: 0.65rem;
+  line-height: 1;
 }
 
 /* PhraseFill blanks (and their reveal-side counterpart) render inline
