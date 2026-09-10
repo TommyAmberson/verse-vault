@@ -9,6 +9,49 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.14] — 2026-09-10
+
+MINOR — club tier on the card back, and a heatmap that keeps its shape early in a season.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.8.0` — unchanged.
+* `verse-vault-wasm@0.8.0` — unchanged.
+
+### Added
+
+* Review and memorize cards name the verse's club tier in the bottom-right corner, in the same label
+  voice as the top-right kind label. Answer side only — on the front it would give away the
+  `VerseInClub` answer — and suppressed on any card whose kind already carries a tier
+  (`VerseInClub`, `ChapterClubList`), where the answer or the ref has said it already. Full-tier
+  verses and pseudo-verse cards show nothing. `verse.clubs` already rode every render, so this is
+  display-only.
+
+### Fixed
+
+* The Home activity heatmap no longer blows up during a young academic year (#137). The grid clamped
+  its right edge at `min(yearEnd, today)`, so eight days into a season it was two columns wide; the
+  `viewBox` shrank with it and `width: 100%` stretched those columns across the container, scaling
+  cells and 8px month labels roughly 17×. The grid now spans the full year unconditionally (~53
+  columns) with future cells blank.
+* The heatmap labelled thirteen months, repeating September at the far right. Column months were
+  tallied over every day in the column, and the grid's last column runs past Aug 31 into the next
+  academic year's September — which, months carrying no year, read as the same month as the first
+  column. Only days inside the academic year now count towards a column's month. Previously this
+  showed only when paging back to an elapsed year; spanning the full year brought it to the default
+  view.
+* The club tier tag no longer overlaps the last line of card content on narrow screens. Its line box
+  stood ~3px taller than `.card-box`'s 1.5rem mobile bottom padding.
+
+### Internal
+
+* Heatmap grid geometry and month-run derivation moved from `ActivityHeatmap.vue` into
+  `lib/heatmap.ts`. Both were reachable only by mounting the component, and this package tests plain
+  TypeScript units — `vitest.config.ts` deliberately skips the wasm-bundling vite config — so
+  extracting them is what lets the young-season and duplicate-label cases be pinned by tests.
+* The heatmap renders only in-window cells instead of a `<g>` per day of the year, restoring the
+  pre-change DOM size now that the grid always spans ~371 days.
+
 ## [0.9.13] — 2026-09-09
 
 PATCH surface, MAJOR contract — rebuilt on core/wasm 0.8.0's content-stable card ids (#141). No
