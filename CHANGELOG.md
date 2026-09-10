@@ -29,10 +29,12 @@ ships and the version the server runs is a real compatibility signal.
   means same JSON shapes across the WASM boundary.
 
 Deployable packages that bundle the contract crates reference them in a "Bundled algorithm contract"
-subsection of their changelog entries. Today this is only `packages/api` — the web SPA is a thin
-client (no embedded WASM) and `vv-router` is pure TypeScript edge code. When fat clients ship
-(browser-side WASM in `apps/web`, Tauri, CLI), each will add the same subsection naming the contract
-versions it bundles, and a mismatch with the server's versions becomes a real compatibility signal.
+subsection of their changelog entries. Today that is `packages/api` and `apps/web` — the web SPA
+runs the engine in-browser as a fat client, and the Tauri desktop shell ships the same bundle.
+`vv-router` is pure TypeScript edge code and bundles nothing.
+`tools/check-contract-versions.sh --ci <api|web>` enforces the subsection at deploy time, so a
+mismatch between the version a client ships and the version the server runs stays a real
+compatibility signal.
 
 ## Not separately versioned
 

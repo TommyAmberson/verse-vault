@@ -61,8 +61,11 @@ fn card_min_r(card, now_secs) -> Option<f32> {
 If any of a Recitation card's phrase tests has decayed past the target, the whole Recitation
 surfaces.
 
-A card is **due** when `card_min_r < schedule_params.target_retention`. The default target is `0.9`,
-matching the FSRS-6 default desired retention.
+A card is **due** when `card_min_r` falls below its verse's target retention. Since
+`crates/core@0.6.0` that target is per-club, not global: `ReviewEngine::target_r_for_verse` reads
+the verse's most-specific tier and looks it up in `MaterialConfig::target_r_for(tier)`. Per-club
+retention ranges over `[0.5, 0.9]` and defaults to `0.8`. `schedule_params.target_retention` (0.9)
+is only the fallback for pseudo-verses that have no tier.
 
 ## Sibling cooldown
 
@@ -137,13 +140,15 @@ stateless across sessions; the session layer adds short-lived in-memory queueing
 
 ```rust
 pub struct ScheduleParams {
-    pub target_retention: f32,        // default 0.9
+    pub target_retention: f32,        // default 0.9; tierless fallback only
     pub sibling_cooldown_secs: i64,   // default 30 * 60
 }
 ```
 
 `target_retention` is also fed into `FsrsBridge::desired_retention` so that `due_at` answers _"when
-will this hit the target the scheduler is using?"_ without an extra plumbing argument.
+will this hit the target the scheduler is using?"_ without an extra plumbing argument. For a verse
+with a tier the per-club value from `MaterialConfig` takes precedence — this field is what
+`target_r_for_verse` falls back to when there is no tier to look up.
 
 ## What this gives up vs. the old design
 

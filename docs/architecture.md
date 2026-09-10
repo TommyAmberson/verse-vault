@@ -21,13 +21,15 @@ verse-vault is structured as:
 * **Simulation binary (`crates/sim/`)** — offline validation tool. Runs a synthetic learner against
   the core to benchmark behavior.
 * **Server (`packages/api/`)** — Hono + Better Auth + Drizzle + better-sqlite3. Hosts the engine,
-  handles persistence, auth, and multi-user state. Five route groups under `/api/`: `cards`, `sync`,
-  `materials`, `years`, `stats`.
+  handles persistence, auth, and multi-user state. Route groups under `/api/`: `cards`, `sync`,
+  `materials` (which also carries the season-schedule routes), `years`, `stats`, `activity`, and the
+  account surface (`export`, `import`, `account/progress`).
 * **Web client (`apps/web/`)** — Vue 3 + Vite SPA running the WASM engine in-browser. Each grade
   replays locally; an IndexedDB-backed event queue ships batches to `/api/sync/*` on a 5 s
   debounce + on tab hide. Ships as a fat client today; the thin `/api/cards/*` surface is kept for
   tests + transitional callers.
-* **Desktop / CLI** — planned, not yet started.
+* **Desktop (`apps/web/src-tauri/`)** — Tauri v2 shell wrapping the same Vue + WASM bundle as the
+  browser build. **CLI** — planned, not yet started.
 
 The core is the single source of truth for memory modeling. Every platform (server, browser,
 desktop) runs the same compiled Rust.
@@ -68,7 +70,11 @@ through the same per-(user, material) lock and share the `review_events` audit t
   older than `STALE_MERGE_THRESHOLD` recent server events return a `needsConfirm` envelope so the
   user can review before merging.
 * **Thin client** (`/api/cards/*`): legacy per-grade round-trip surface. UI asks the server for the
-  next card and submits one grade at a time. _Kept for tests + ad-hoc tooling; no view uses it now._
+  next card and submits one grade at a time. _The scheduling and grading endpoints are unused by any
+  view — `apps/web/src/api.ts` still exports wrappers for them, but nothing calls them._ One
+  endpoint on this surface is not legacy: `GET /api/cards/:cardId` backs `getCardRender`, which
+  `engineStore` hits on every render-cache miss. Rendering stays server-side because it needs the
+  api.bible passage text, so the fat client computes scheduling locally and still fetches HTML.
 
 Both modes use the same compiled core. The server's event log is the source of truth; a client that
 goes offline and submits events later has its events merged by timestamp (or replayed from baseline

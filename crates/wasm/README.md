@@ -1,7 +1,8 @@
 # verse-vault-wasm
 
-WebAssembly bindings for the verse-vault core engine. Exposes `ReviewEngine` and `Session` to
-JavaScript so they can run in Node.js (server-side) and in the browser (offline mode).
+WebAssembly bindings for the verse-vault core engine. Exposes a single `WasmEngine` class to
+JavaScript so the same compiled algorithm runs in Node.js (the API) and in the browser (the Vue fat
+client and the Tauri desktop shell).
 
 ## Build
 
@@ -9,10 +10,11 @@ JavaScript so they can run in Node.js (server-side) and in the browser (offline 
 wasm-pack build crates/wasm --target nodejs --out-dir pkg
 ```
 
-For the browser:
+For the browser — note this is the `bundler` target into a **separate** output directory, so it
+doesn't clobber the nodejs build:
 
 ```
-wasm-pack build crates/wasm --target web --out-dir pkg
+bash tools/build-wasm-web.sh   # wasm-pack build --target bundler --out-dir pkg-web
 ```
 
 ## Usage
@@ -20,19 +22,26 @@ wasm-pack build crates/wasm --target web --out-dir pkg
 ```js
 import { WasmEngine } from './pkg/verse_vault_wasm.js';
 
-// graph/cards/states are JSON strings; see docs/wasm-api.md for shape.
-const engine = new WasmEngine(graphJson, cardsJson, edgeStatesJson, cardStatesJson, 0.9);
+const nowSecs = BigInt(Math.floor(Date.now() / 1000));
 
-engine.start_session(BigInt(Date.now() / 1000 | 0), newVersesJson, '');
+// Every argument is a JSON string; see docs/wasm-api.md for the shapes.
+const engine = new WasmEngine(
+  materialJson,        // MaterialData
+  materialConfigJson,  // MaterialConfig; '' for defaults
+  scheduleJson,        // season schedule; '' when the material has none
+  persistedStatesJson, // '' or '[]' for fresh state
+  nowSecs,
+);
 
-while (!engine.session_is_done()) {
-  const card = JSON.parse(engine.session_next());
-  const grades = /* user input */ [];
-  const outcome = JSON.parse(engine.session_review(JSON.stringify(grades), nowSecs));
+// Pick the next due card, render it, replay the grade.
+const cardId = engine.next_review_card(nowSecs);
+if (cardId !== undefined) {
+  const render = JSON.parse(engine.get_card_render(cardId));
+  const outcome = JSON.parse(engine.replay_event(cardId, grade, nowSecs));
 }
 
-const edgeStates = JSON.parse(engine.export_edge_states());
-const cardStates = JSON.parse(engine.export_card_states());
+// Persist the updated per-test memory states.
+const testStates = JSON.parse(engine.export_test_states());
 ```
 
 ## Smoke test

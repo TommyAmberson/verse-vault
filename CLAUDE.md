@@ -26,8 +26,9 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
   minimal FSRS-6 inference.
 * `crates/sim/` — simulation binary. Uses core to validate algorithm against synthetic data.
 * `crates/wasm/` — wasm-bindgen wrappers around core for JS consumers (server + browser).
-* `packages/api/` (planned) — Hono + Better Auth + Drizzle + SQLite server.
-* `apps/` (planned) — Vue web app, Tauri desktop, CLI.
+* `packages/api/` — Hono + Better Auth + Drizzle + better-sqlite3 server.
+* `apps/web/` — Vue 3 + Vite SPA running the WASM engine in-browser; `src-tauri/` wraps the same
+  bundle as a Tauri v2 desktop app. A CLI is planned, not started.
 * `tools/` — Python scripts for content pipeline (Anki parsing, verse chunking).
 * `docs/` — design docs. See list below.
 * `docs/superpowers/` — read-only history. Specs and plans from the superseded superpowers workflow.
