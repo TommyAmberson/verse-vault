@@ -16,9 +16,9 @@ use verse_vault_core::render::{HeadingRender, VerseRender};
 use verse_vault_core::schedule::{
     card_stability_histogram as schedule_card_stability_histogram,
     due_review_count as schedule_due_review_count, due_verse_count as schedule_due_verse_count,
-    learned_verse_count as schedule_learned_verse_count, new_card_count as schedule_new_card_count,
-    new_verse_count as schedule_new_verse_count, next_card,
-    next_memorize_card as schedule_next_memorize_card, next_relearn_card,
+    learned_verse_count as schedule_learned_verse_count, memorize_debt as schedule_memorize_debt,
+    new_card_count as schedule_new_card_count, new_verse_count as schedule_new_verse_count,
+    next_card, next_memorize_card as schedule_next_memorize_card, next_relearn_card,
     verse_stability_histogram as schedule_verse_stability_histogram,
 };
 use verse_vault_core::test_kind::{TestKey, TestKind};
@@ -408,6 +408,17 @@ impl WasmEngine {
     /// memorize queue's verse footprint. Pseudo verses excluded.
     pub fn new_verse_count(&self) -> u32 {
         schedule_new_verse_count(&self.engine)
+    }
+
+    /// JSON `{ verses, cards }` for the un-memorized work the bound
+    /// schedule has already asked for, through the current week. Falls
+    /// back to the whole eligible pool when no schedule is bound or the
+    /// season hasn't started, so a caller can render one number without
+    /// branching on whether a schedule exists. See
+    /// `core::schedule::memorize_debt`.
+    pub fn memorize_debt(&self, now_secs: i64) -> Result<String, JsError> {
+        let debt = schedule_memorize_debt(&self.engine, self.schedule.as_ref(), now_secs);
+        serde_json::to_string(&debt).map_err(|e| JsError::new(&e.to_string()))
     }
 
     /// Count of distinct verses with at least one due card at

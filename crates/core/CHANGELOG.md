@@ -22,6 +22,30 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-10
+
+MINOR — adds `memorize_debt`, the schedule-aware "how much is still owed" count the dashboards
+render. Purely additive; no existing behaviour or state semantics change.
+
+### Added
+
+* `schedule::memorize_debt(engine, schedule, now_secs) -> MemorizeDebt` — un-memorized verses (and
+  the `New` cards they carry) that the schedule introduced in weeks `0..=current_week`, for the
+  clubs `compute_eligible_clubs` currently admits. Counts the whole backlog through this week, not
+  just this week's row, so a learner who missed a fortnight sees the debt rather than a flat weekly
+  quota. Falls back to every eligible un-memorized verse when there's no schedule or the season
+  hasn't reached week 0 — with no calendar bounding the work, the full pool is the honest answer.
+
+  The week bound is deliberately stricter than `next_memorize_batch`'s, which week-bounds only its
+  `CalendarCascade` phase: zero debt means "on plan", not "queue empty". That's the badge spec.
+
+  Scheduled verses are unioned across the eligible tiers before the pools are tested, because a
+  verse's deck club tag and the tier its week's row files it under can differ — on the John
+  printable, 1:17-18 are Club 150 verses that week 0's row leaves inside Full's derived range.
+* `Schedule::for_each_cumulative_ref` — visits the `(book, chapter, verse)` triples a tier
+  introduces through a given week, borrowing each book name instead of cloning it per verse like
+  `cumulative_verse_refs_through_week`. For membership tests on request paths.
+
 ## [0.8.0] — 2026-09-09
 
 MAJOR — content-stable card ids (#141). `CardId` values change for every card; persisted ids from

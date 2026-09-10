@@ -405,6 +405,99 @@ pub fn anchor_card_for_verse(engine: &ReviewEngine, verse_id: u32) -> Option<Car
         .map(|c| c.id)
 }
 
+/// How much memorizing the schedule still expects, as of `now_secs`.
+///
+/// `verses` counts un-memorized verses the schedule introduced in weeks
+/// `0..=current_week` for the clubs eligible right now; `cards` counts
+/// the `New` cards those verses carry. Dashboards pair the two ("N
+/// fresh cards from M verses").
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct MemorizeDebt {
+    pub verses: u32,
+    pub cards: u32,
+}
+
+/// Un-memorized work the schedule has already asked for — the whole
+/// backlog through this week, not just this week's row, so a learner who
+/// skipped a fortnight sees the debt rather than a flat weekly quota.
+///
+/// Falls back to every eligible un-memorized verse when there's no
+/// schedule or the season hasn't reached week 0: with no calendar to
+/// bound the work, the full pool is the honest answer (and matches what
+/// the dashboards showed before schedules existed).
+///
+/// Club eligibility runs through the same `compute_eligible_clubs` gates
+/// as [`next_memorize_batch`], so a club held back by an unmet
+/// `move_to_next` gate contributes nothing.
+///
+/// The *week* bound, though, is deliberately stricter than the queue's:
+/// this counts weeks `0..=current_week` for every eligible club, while
+/// [`next_memorize_batch`] week-bounds only its `CalendarCascade` Phase 1
+/// and lets Phase 2 run into next week's verses. That's the badge spec —
+/// `max(0, cumulative_through_current_week − memorized)` — and it means
+/// zero debt does not mean an empty memorize queue: a learner on plan can
+/// still work ahead. Callers rendering the zero state must say so.
+pub fn memorize_debt(
+    engine: &ReviewEngine,
+    schedule: Option<&Schedule>,
+    now_secs: i64,
+) -> MemorizeDebt {
+    let eligible = compute_eligible_clubs(engine, schedule, now_secs);
+    if eligible.is_empty() {
+        return MemorizeDebt::default();
+    }
+    let unmemorized = unmemorized_verses_by_tier(engine, &eligible);
+
+    let mut verses: HashSet<u32> = HashSet::new();
+    match schedule.and_then(|s| Some((s, s.current_week_index(now_secs)?))) {
+        Some((sched, week_idx)) => {
+            // One union across every eligible tier, not a set per tier. A
+            // verse's deck club tag and the tier the *schedule* files it
+            // under can differ: on the John printable, 1:17-18 are tagged
+            // Club 150 (so they sit in that pool) but week 0's row lists
+            // neither, which leaves them in Full's derived range. Matching
+            // pool-tier against same-tier refs drops such verses from both
+            // sides and undercounts the week.
+            //
+            // Testing the pools against the schedule's own strings also
+            // avoids `build_verse_lookup`, which clones a book name per
+            // verse in the *whole deck* — this runs on every `/api/years`
+            // request, and the pools hold only un-memorized verses.
+            let mut scheduled: HashSet<(&str, u16, u16)> = HashSet::new();
+            for &club in &eligible {
+                sched.for_each_cumulative_ref(week_idx, club, |book, chapter, verse| {
+                    scheduled.insert((book, chapter, verse));
+                });
+            }
+            for pool in unmemorized.values() {
+                for &vid in pool {
+                    let Some(render) = engine.verse_render(vid) else {
+                        continue;
+                    };
+                    if scheduled.contains(&(render.book.as_str(), render.chapter, render.verse)) {
+                        verses.insert(vid);
+                    }
+                }
+            }
+        }
+        None => {
+            for pool in unmemorized.values() {
+                verses.extend(pool.iter().copied());
+            }
+        }
+    }
+
+    let cards = engine
+        .cards
+        .iter()
+        .filter(|c| matches!(c.state, CardState::New) && verses.contains(&c.verse_id))
+        .count();
+    MemorizeDebt {
+        verses: verses.len() as u32,
+        cards: cards as u32,
+    }
+}
+
 /// Apply the per-pair cross-club gates and return the enabled clubs in
 /// priority order [Club150, Club300, Full] that actually contribute to
 /// the memorize fill at `now_secs`.
@@ -1456,7 +1549,7 @@ mod tests {
         };
         let sched = make_two_club_schedule();
         // ts=2025-09-08 (week 0's date) — converted to unix secs.
-        let now = crate::schedule_data::parse_iso_date("2025-09-08").unwrap() * 86400;
+        let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
         let verse_ids = batch_verse_ids(&engine, batch);
         // Phase 1 contributes verse 16 (Club150 this-week). Soft cap on
@@ -1507,13 +1600,132 @@ mod tests {
             meets: vec![],
         };
 
-        let now = crate::schedule_data::parse_iso_date("2025-09-08").unwrap() * 86400;
+        let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
         let verse_ids = batch_verse_ids(&engine, batch);
         // Soft cap on Phase 1: both Full verses surface even though
         // batch_size=1.
         assert_eq!(verse_ids.len(), 2);
         assert_eq!(verse_ids, vec![0, 1]);
+    }
+
+    /// John 3:16 in week 0, 3:17 in week 1 — the two verses
+    /// `sample_material_two_verses` builds, one per week, with no club
+    /// lists so both land in the Full tier.
+    fn two_week_john_schedule() -> Schedule {
+        let mk_week = |date: &str, verse: u16| ScheduleWeek {
+            date: date.into(),
+            blocks: vec![PassageBlock {
+                passage: Passage {
+                    book: "John".into(),
+                    chapter: 3,
+                    start_verse: verse,
+                    end_verse: verse,
+                },
+                verses: ClubVerseLists {
+                    club150: vec![],
+                    club300: vec![],
+                },
+            }],
+            is_review: false,
+        };
+        Schedule {
+            version: 1,
+            material_id: "t".into(),
+            season: "x".into(),
+            title: "t".into(),
+            meeting_day_of_week: "Mon".into(),
+            weeks: vec![mk_week("2025-09-08", 16), mk_week("2025-09-15", 17)],
+            meets: vec![],
+        }
+    }
+
+    /// Engine over that deck with every club enabled, paired with the
+    /// schedule. `all_clubs_enabled` already puts the Full tier on
+    /// Sequential, which is all `memorize_debt` needs — it ignores
+    /// `catch_up` entirely, unlike `next_memorize_batch`.
+    fn debt_fixture() -> (ReviewEngine, Schedule) {
+        let m = sample_material_two_verses();
+        let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
+        (ReviewEngine::new(r, 0.9), two_week_john_schedule())
+    }
+
+    fn day_secs(iso: &str) -> i64 {
+        crate::schedule_data::parse_iso_date(iso).unwrap() * 86400
+    }
+
+    #[test]
+    fn memorize_debt_stops_at_the_current_week() {
+        let (engine, sched) = debt_fixture();
+        let debt = memorize_debt(&engine, Some(&sched), day_secs("2025-09-08"));
+        // Week 1's verse 17 is lookahead, not debt.
+        assert_eq!(debt.verses, 1);
+        // Every New card on John 3:16: two PhraseFills, Recitation,
+        // Citation, VerseAtVerseRef, VerseInBook, VerseInChapter. The
+        // count pairs with `verses` in the dashboards' "N cards from M
+        // verses", so it counts the whole card fan-out, not just the
+        // bulk-graduable anchors.
+        assert_eq!(debt.cards, 7);
+
+        let later = memorize_debt(&engine, Some(&sched), day_secs("2025-09-15"));
+        assert_eq!(later.verses, 2);
+    }
+
+    #[test]
+    fn memorize_debt_counts_verses_the_schedule_files_under_another_tier() {
+        // Deck tags verse 16 Club150 and verse 17 Club300, but the week's
+        // row lists neither, so the schedule introduces both through Full's
+        // derived range. This is the John printable's shape — 1:17-18 are
+        // Club 150 verses the week-0 row leaves to Full — and pairing each
+        // pool with only its own tier's refs would count zero.
+        let m = sample_material_mixed_tiers();
+        let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        engine.material_config.move_to_next = MoveToNextConfig {
+            p150_to_300: MoveToNextGate::Always,
+            p300_to_full: MoveToNextGate::Always,
+        };
+        let sched = Schedule {
+            weeks: vec![ScheduleWeek {
+                date: "2025-09-08".into(),
+                blocks: vec![PassageBlock {
+                    passage: Passage {
+                        book: "John".into(),
+                        chapter: 3,
+                        start_verse: 16,
+                        end_verse: 17,
+                    },
+                    verses: ClubVerseLists {
+                        club150: vec![],
+                        club300: vec![],
+                    },
+                }],
+                is_review: false,
+            }],
+            ..two_week_john_schedule()
+        };
+        let debt = memorize_debt(&engine, Some(&sched), day_secs("2025-09-08"));
+        assert_eq!(debt.verses, 2);
+    }
+
+    #[test]
+    fn memorize_debt_drops_memorized_verses() {
+        let (mut engine, sched) = debt_fixture();
+        engine.graduate_verse(0);
+        let debt = memorize_debt(&engine, Some(&sched), day_secs("2025-09-15"));
+        assert_eq!(debt.verses, 1);
+    }
+
+    #[test]
+    fn memorize_debt_falls_back_to_the_whole_pool() {
+        let (engine, sched) = debt_fixture();
+        // No schedule at all, and a schedule whose season hasn't started,
+        // both mean "no week bounds the work" → every eligible verse.
+        assert_eq!(memorize_debt(&engine, None, 0).verses, 2);
+        assert_eq!(
+            memorize_debt(&engine, Some(&sched), day_secs("2025-09-01")).verses,
+            2
+        );
     }
 
     #[test]
@@ -1533,32 +1745,8 @@ mod tests {
         let r = crate::builder::build_with_config(&m, &config, 0);
         let engine = ReviewEngine::new(r, 0.9);
 
-        let mk_week = |date: &str, start: u16, end: u16| ScheduleWeek {
-            date: date.into(),
-            blocks: vec![PassageBlock {
-                passage: Passage {
-                    book: "John".into(),
-                    chapter: 3,
-                    start_verse: start,
-                    end_verse: end,
-                },
-                verses: ClubVerseLists {
-                    club150: vec![],
-                    club300: vec![],
-                },
-            }],
-            is_review: false,
-        };
-        let sched = Schedule {
-            version: 1,
-            material_id: "t".into(),
-            season: "x".into(),
-            title: "t".into(),
-            meeting_day_of_week: "Mon".into(),
-            weeks: vec![mk_week("2025-09-08", 16, 16), mk_week("2025-09-15", 17, 17)],
-            meets: vec![],
-        };
-        let now = crate::schedule_data::parse_iso_date("2025-09-08").unwrap() * 86400;
+        let sched = two_week_john_schedule();
+        let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 5);
         let verse_ids = batch_verse_ids(&engine, batch);
         // Phase 1 takes verse 16 (this week's Full); Phase 2 picks up

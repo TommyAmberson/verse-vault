@@ -10,6 +10,28 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.39] — 2026-09-10
+
+MINOR — `/api/years` now reports a schedule-aware memorize backlog per year.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.9.0` — adds `memorize_debt`.
+* `verse-vault-wasm@0.9.0` — exposes it as `memorize_debt(now_secs)`.
+
+### Added
+
+* `memorizeDebt: { verses, cards }` on every `YearView` — the un-memorized verses the year's
+  schedule introduced through the current week and the `New` cards they carry. `newCardCount` stays
+  on the response as the whole-pool number. Years with no schedule (or whose season hasn't started)
+  report the full pool, so clients can render the field unconditionally.
+
+### Removed
+
+* The `TODO(phase-3)` on `ClubView` asking for per-club graduated counts. It existed so the web
+  Memorize badge could stop approximating the spec formula; `memorizeDebt` computes the exact value
+  engine-side instead.
+
 ## [0.1.38] — 2026-09-10
 
 PATCH — bundles the John 2026-27 schedule and fixes the deploy so bundled schedules actually reach

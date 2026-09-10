@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { userYearSettings } from '../db/schema.js';
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
+import type { MemorizeDebt } from './years.js';
 
 const MATERIAL_ID = 'nkjv-cor';
 
@@ -57,6 +58,8 @@ interface YearsResponse {
     };
     perClub: PerClubSettings;
     clubs: Record<'150' | '300' | 'full', { status: ClubStatus; cardCount: number }>;
+    newCardCount: number;
+    memorizeDebt: MemorizeDebt;
   }>;
 }
 
@@ -102,6 +105,24 @@ describe('years routes', () => {
     expect(unenrolled).toBeDefined();
     expect(unenrolled!.enrolled).toBe(false);
     expect(unenrolled!.clubs['150'].cardCount).toBe(0);
+  });
+
+  it('reports a memorize backlog no bigger than the whole New pool', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID, 150);
+
+    const res = await test.app.request('/api/years', { headers: { cookie } });
+    const body = (await res.json()) as YearsResponse;
+    const year = body.years.find((y) => y.materialId === MATERIAL_ID)!;
+    expect(year.memorizeDebt.cards).toBeGreaterThan(0);
+    expect(year.memorizeDebt.verses).toBeGreaterThan(0);
+    // The schedule can only ever ask for work that's still un-memorized.
+    expect(year.memorizeDebt.cards).toBeLessThanOrEqual(year.newCardCount);
+    // Unenrolled years have no engine, so no backlog.
+    const unenrolled = body.years.find((y) => !y.enrolled)!;
+    expect(unenrolled.memorizeDebt).toEqual({ verses: 0, cards: 0 });
   });
 
   it('returns default scopes that derive Active per tier when enrolled', async () => {
