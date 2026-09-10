@@ -10,6 +10,37 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.38] — 2026-09-10
+
+PATCH — bundles the John 2026-27 schedule and fixes the deploy so bundled schedules actually reach
+the VPS.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.8.0` — unchanged.
+* `verse-vault-wasm@0.8.0` — unchanged.
+
+### Added
+
+* `data/schedules/4-john-2026-27.json` — SK John 2026-27 season, extracted from the printable PDF
+  (32 weeks, 3 meets, 3 compound weeks). `loadBundledSchedule('nkjv-john')` now returns it. One hand
+  edit over the printable: the Sept 26 (Saturday) row ships as Mon Sept 28. The John 1 club lists
+  are kept as printed even though they straddle the 1:1-18 / 1:19-51 split — the printable balances
+  a split chapter's club verses by count across its weeks.
+* `loadBundledSchedule` logs a one-time warning when neither candidate `data/schedules` directory
+  exists, so a bundle-layout regression shows up in the API log instead of as silently missing
+  schedules.
+
+### Fixed
+
+* `deploy-api.yml` staged only the deck JSONs into the bundle, never `data/schedules/`, so every
+  bundled schedule resolved to `''` in production and users saw no default schedule until they
+  imported one. The staging step now copies the schedules directory too. Note this also ships the
+  three finished-season schedules (GEPC 2023-24, NT Survey 2024-25, Corinthians 2025-26) to
+  production for the first time: a user of those decks with no `material_schedules` row goes from no
+  schedule to a fully-elapsed one, so the default `caughtUp` cross-club gates now require the whole
+  season's Club 150 list before Club 300 / Full verses surface.
+
 ## [0.1.37] — 2026-09-10
 
 MINOR — memorizing a club now implies reviewing it, on both the read and write settings paths.
