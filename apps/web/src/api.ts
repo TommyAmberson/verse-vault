@@ -273,8 +273,15 @@ export interface YearView {
    *  `catchUp` and `moveToNext` choices round-trip cleanly. */
   perClub: PerClubYearSettings
   clubs: Record<ClubTier, ClubView>
-  /** Total `New` cards in the engine — drives the "N to memorize" pill. */
+  /** Total `New` cards in the engine — the whole remaining pool,
+   *  regardless of what the schedule has asked for yet. */
   newCardCount: number
+  /** Schedule-aware backlog: un-memorized verses the schedule
+   *  introduced through the current week, and the `New` cards they
+   *  carry. Drives the "N to memorize" pill and the home hero. Equals
+   *  the whole pool for years with no schedule or no season under way,
+   *  and is zero for unenrolled years. */
+  memorizeDebt: { verses: number; cards: number }
   /** Server state fingerprint for this material — compared against the
    *  value cached with the IDB snapshot so a server-side change this
    *  client never saw forces a sync-state refetch. Absent for

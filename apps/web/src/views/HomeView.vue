@@ -8,6 +8,11 @@ import ActivityHeatmap from '@/components/ActivityHeatmap.vue'
 interface YearAgg {
   materialId: string
   title: string
+  /** Schedule-aware backlog, not the whole New pool: the hero promises
+   *  work the memorize queue would actually hand out this week. */
+  memorizeDebt: { verses: number; cards: number }
+  /** Whole un-memorized pool. Only used to tell "caught up with more of
+   *  the season ahead" apart from "the deck is finished". */
   newCardCount: number
   stats: StatsResponse
 }
@@ -24,8 +29,9 @@ function sumOver(pick: (y: YearAgg) => number) {
   return computed(() => years.value.reduce((sum, y) => sum + pick(y), 0))
 }
 
-const totalNewToMemorize = sumOver((y) => y.newCardCount)
-const totalNewVerses = sumOver((y) => y.stats.newVerseCount)
+const totalNewToMemorize = sumOver((y) => y.memorizeDebt.cards)
+const totalNewVerses = sumOver((y) => y.memorizeDebt.verses)
+const totalUnmemorized = sumOver((y) => y.newCardCount)
 const totalVersesDue = sumOver((y) => y.stats.versesDueCount)
 const totalVersesHeld = sumOver((y) => y.stats.versesLearned)
 const totalReviewsDue = sumOver((y) => y.stats.reviewsDueCount)
@@ -97,6 +103,7 @@ onMounted(async () => {
       enrolled.map(async (y): Promise<YearAgg> => ({
         materialId: y.materialId,
         title: y.title,
+        memorizeDebt: y.memorizeDebt,
         newCardCount: y.newCardCount,
         stats: await api.getStats(y.materialId),
       })),
@@ -162,7 +169,10 @@ onMounted(async () => {
             <span class="numeral">{{ totalNewToMemorize }}</span>
           </p>
           <p class="hero-sub">
-            <template v-if="totalNewToMemorize === 0">
+            <template v-if="totalNewToMemorize === 0 && totalUnmemorized > 0">
+              caught up on this week's schedule — memorize to work ahead.
+            </template>
+            <template v-else-if="totalNewToMemorize === 0">
               caught up — nothing new is waiting.
             </template>
             <template v-else>

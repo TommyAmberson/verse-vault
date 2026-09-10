@@ -30,8 +30,7 @@ async function refreshMemorizeCount() {
   if (!user.value) return
   try {
     const res = await getCachedYears(api.getYears)
-    const todayIso = new Date().toISOString().slice(0, 10)
-    newToMemorize.value = await memorizeBadgeCount(res.years, api.getSchedule, todayIso)
+    newToMemorize.value = memorizeBadgeCount(res.years)
   } catch {
     // Don't fail nav rendering on a count fetch error; leave at 0.
   }

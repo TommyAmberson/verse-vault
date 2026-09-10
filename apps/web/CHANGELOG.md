@@ -9,6 +9,29 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.17] — 2026-09-10
+
+MINOR — the home hero and the Memorize pill both count this week's schedule, not the whole season.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.9.0` — adds `memorize_debt`, the count both surfaces now read.
+* `verse-vault-wasm@0.9.0` — exposes it.
+
+### Changed
+
+* Home's "to memorize" hero read the entire `New` pool, so an enrolled year announced its whole
+  season on day one ("1397 fresh cards from 147 verses"). It now reads `YearView.memorizeDebt` —
+  verses the schedule introduced through the current week that aren't memorized yet, plus their
+  cards. A year with no schedule still shows its full pool.
+* At zero, the hero distinguishes "caught up on this week's schedule — memorize to work ahead" from
+  "caught up — nothing new is waiting". The memorize queue still hands out lookahead verses once
+  you're on plan, so the old copy would have promised nothing while the button still had work.
+* The Memorize pill drops its client-side approximation of the badge spec
+  (`min(newCardCount, cumulative)` over a per-year schedule fetch, which mixed card counts with
+  verse counts and skipped the Full tier) for the server's exact verse count. `memorizeBadgeCount`
+  is now synchronous and makes no network calls of its own.
+
 ## [0.9.16] — 2026-09-10
 
 MINOR — chapter club-list cards can be typed out and checked.
