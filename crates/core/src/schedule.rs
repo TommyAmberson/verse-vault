@@ -451,19 +451,25 @@ pub fn memorize_debt(
     let mut verses: HashSet<u32> = HashSet::new();
     match schedule.and_then(|s| Some((s, s.current_week_index(now_secs)?))) {
         Some((sched, week_idx)) => {
+            // One union across every eligible tier, not a set per tier. A
+            // verse's deck club tag and the tier the *schedule* files it
+            // under can differ: on the John printable, 1:17-18 are tagged
+            // Club 150 (so they sit in that pool) but week 0's row lists
+            // neither, which leaves them in Full's derived range. Matching
+            // pool-tier against same-tier refs drops such verses from both
+            // sides and undercounts the week.
+            //
+            // Testing the pools against the schedule's own strings also
+            // avoids `build_verse_lookup`, which clones a book name per
+            // verse in the *whole deck* — this runs on every `/api/years`
+            // request, and the pools hold only un-memorized verses.
+            let mut scheduled: HashSet<(&str, u16, u16)> = HashSet::new();
             for &club in &eligible {
-                let Some(pool) = unmemorized.get(&club) else {
-                    continue;
-                };
-                // Test the pool against the schedule's own strings rather
-                // than resolving refs through `build_verse_lookup`: the
-                // pool holds only un-memorized verses, while the lookup
-                // clones a book name per verse in the *whole deck* — and
-                // this runs on every `/api/years` request.
-                let mut scheduled: HashSet<(&str, u16, u16)> = HashSet::new();
                 sched.for_each_cumulative_ref(week_idx, club, |book, chapter, verse| {
                     scheduled.insert((book, chapter, verse));
                 });
+            }
+            for pool in unmemorized.values() {
                 for &vid in pool {
                     let Some(render) = engine.verse_render(vid) else {
                         continue;
@@ -1663,6 +1669,43 @@ mod tests {
 
         let later = memorize_debt(&engine, Some(&sched), day_secs("2025-09-15"));
         assert_eq!(later.verses, 2);
+    }
+
+    #[test]
+    fn memorize_debt_counts_verses_the_schedule_files_under_another_tier() {
+        // Deck tags verse 16 Club150 and verse 17 Club300, but the week's
+        // row lists neither, so the schedule introduces both through Full's
+        // derived range. This is the John printable's shape — 1:17-18 are
+        // Club 150 verses the week-0 row leaves to Full — and pairing each
+        // pool with only its own tier's refs would count zero.
+        let m = sample_material_mixed_tiers();
+        let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        engine.material_config.move_to_next = MoveToNextConfig {
+            p150_to_300: MoveToNextGate::Always,
+            p300_to_full: MoveToNextGate::Always,
+        };
+        let sched = Schedule {
+            weeks: vec![ScheduleWeek {
+                date: "2025-09-08".into(),
+                blocks: vec![PassageBlock {
+                    passage: Passage {
+                        book: "John".into(),
+                        chapter: 3,
+                        start_verse: 16,
+                        end_verse: 17,
+                    },
+                    verses: ClubVerseLists {
+                        club150: vec![],
+                        club300: vec![],
+                    },
+                }],
+                is_review: false,
+            }],
+            ..two_week_john_schedule()
+        };
+        let debt = memorize_debt(&engine, Some(&sched), day_secs("2025-09-08"));
+        assert_eq!(debt.verses, 2);
     }
 
     #[test]

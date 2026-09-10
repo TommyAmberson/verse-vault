@@ -38,6 +38,10 @@ render. Purely additive; no existing behaviour or state semantics change.
 
   The week bound is deliberately stricter than `next_memorize_batch`'s, which week-bounds only its
   `CalendarCascade` phase: zero debt means "on plan", not "queue empty". That's the badge spec.
+
+  Scheduled verses are unioned across the eligible tiers before the pools are tested, because a
+  verse's deck club tag and the tier its week's row files it under can differ — on the John
+  printable, 1:17-18 are Club 150 verses that week 0's row leaves inside Full's derived range.
 * `Schedule::for_each_cumulative_ref` — visits the `(book, chapter, verse)` triples a tier
   introduces through a given week, borrowing each book name instead of cloning it per verse like
   `cumulative_verse_refs_through_week`. For membership tests on request paths.
