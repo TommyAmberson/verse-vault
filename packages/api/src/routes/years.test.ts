@@ -354,11 +354,56 @@ describe('years routes', () => {
     const year = body.years.find((y) => y.materialId === MATERIAL_ID)!;
     // perClubToLegacy collapses memorize.{150,300}.enabled → up300.
     expect(year.settings.newScope).toBe('up300');
-    // Only review.club150 enabled → up150.
-    expect(year.settings.reviewScope).toBe('up150');
+    // Club 300 was posted with review off, but memorizing a club reviews
+    // it — coupleReviewToMemorize turns it on, so the collapse reaches
+    // up300 too rather than stopping at club150's up150.
+    expect(year.settings.reviewScope).toBe('up300');
+    expect(year.perClub.review.club300.enabled).toBe(true);
+    expect(year.perClub.review.full.enabled).toBe(false);
     expect(year.settings.lessonBatchSize).toBe(1);
     // desiredRetention picks club150's value.
     expect(year.settings.desiredRetention).toBe(0.85);
+  });
+
+  it('reports a stored memorize-without-review row as reviewed', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID, 150);
+
+    // Save anything to materialise the settings row, then rewrite its
+    // configJson to the pre-coupling shape — memorize on, review
+    // untouched — the way rows sat in the DB before this invariant
+    // existed. The engine already treats that tier as Active, so /years
+    // has to say so: the settings page diffs its draft against this
+    // payload, and a mismatch marks an untouched year unsaved.
+    const save = await test.app.request(`/api/years/${MATERIAL_ID}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ chapterListScope: 'up150' }),
+    });
+    expect(save.status).toBe(200);
+
+    const row = test.db
+      .select()
+      .from(userYearSettings)
+      .where(eq(userYearSettings.materialId, MATERIAL_ID))
+      .get()!;
+    const stored = JSON.parse(row.configJson!) as PerClubSettings;
+    stored.memorize.club150.enabled = true;
+    stored.review.club150.enabled = false;
+    test.db
+      .update(userYearSettings)
+      .set({ configJson: JSON.stringify(stored) })
+      .where(eq(userYearSettings.materialId, MATERIAL_ID))
+      .run();
+
+    const get = await test.app.request('/api/years', { headers: { cookie } });
+    const body = (await get.json()) as YearsResponse;
+    const year = body.years.find((y) => y.materialId === MATERIAL_ID)!;
+
+    expect(year.perClub.review.club150.enabled).toBe(true);
+    expect(year.clubs['150'].status).toBe('active');
   });
 
   it('rejects per-club retention out of [0.5, 0.9]', async () => {

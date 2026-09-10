@@ -332,6 +332,31 @@ export function validatePerClubYearSettings(raw: {
   };
 }
 
+/** Memorizing a club implies reviewing it.
+ *
+ *  Core has no state for the other combination: `effective_status` maps
+ *  (memorize ✓, review ✗) to `Active`, the same as having both on, so a
+ *  stored `review.enabled: false` under an enabled memorize describes
+ *  something that never happens — the tier's verses come due either way.
+ *
+ *  Applied on read as well as write, so rows saved before this existed
+ *  report what they actually do. Read-side coupling is what keeps the
+ *  settings page honest: its dirty check diffs the draft against the
+ *  fetched row, so repairing only the draft would mark an untouched year
+ *  unsaved and prompt on the way out.
+ *
+ *  The review flag keeps the meaning it has: carry on reviewing a club
+ *  after you stop memorizing it. */
+export function coupleReviewToMemorize(perClub: PerClubYearSettings): PerClubYearSettings {
+  const review = { ...perClub.review };
+  for (const club of ['club150', 'club300', 'full'] as const) {
+    if (perClub.memorize[club].enabled && !review[club].enabled) {
+      review[club] = { ...review[club], enabled: true };
+    }
+  }
+  return { ...perClub, review };
+}
+
 /** Heuristic: does the payload look like the new per-club shape? True
  *  if it has either a `memorize` object or a `review` object (the two
  *  required top-level fields unique to PerClubYearSettings). Used by

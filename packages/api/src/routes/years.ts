@@ -14,6 +14,7 @@ import {
   ensureBoolean,
   ensureEnum,
   ensureRetention,
+  coupleReviewToMemorize,
   legacyToNew,
   looksLikePerClub,
   type PerClubYearSettings,
@@ -234,7 +235,9 @@ function readSettingsBundle(
     row?.configJson != null && row.configJson !== ''
       ? (JSON.parse(row.configJson) as PerClubYearSettings)
       : legacyToNew(legacy);
-  return { legacy, perClub };
+  // Rows stored before the coupling existed still carry memorize-without-
+  // review, which the engine ignores. Report what they actually do.
+  return { legacy, perClub: coupleReviewToMemorize(perClub) };
 }
 
 export function yearsRoutes(deps: YearsRoutesDeps) {
@@ -359,17 +362,19 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         // YearSettings via perClubToLegacy. The legacy columns get the
         // lossy collapse; the configJson stores the verbatim per-club
         // shape that the engine reads on load (commit 8).
-        const perClub = validatePerClubYearSettings({
-          headingCard: bodyObj.headingCard,
-          headingPassageCard: bodyObj.headingPassageCard,
-          ftv: bodyObj.ftv,
-          clubCardScope: bodyObj.clubCardScope,
-          chapterListScope: bodyObj.chapterListScope,
-          memorize: bodyObj.memorize,
-          review: bodyObj.review,
-          moveToNext: bodyObj.moveToNext,
-          lessonBatchSize: bodyObj.lessonBatchSize,
-        });
+        const perClub = coupleReviewToMemorize(
+          validatePerClubYearSettings({
+            headingCard: bodyObj.headingCard,
+            headingPassageCard: bodyObj.headingPassageCard,
+            ftv: bodyObj.ftv,
+            clubCardScope: bodyObj.clubCardScope,
+            chapterListScope: bodyObj.chapterListScope,
+            memorize: bodyObj.memorize,
+            review: bodyObj.review,
+            moveToNext: bodyObj.moveToNext,
+            lessonBatchSize: bodyObj.lessonBatchSize,
+          }),
+        );
         next = perClubToLegacy(perClub);
         configJson = JSON.stringify(perClub);
       } else {
@@ -399,7 +404,7 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
           lessonBatchSize: pick('lessonBatchSize', ensureBatchSize),
           desiredRetention: pick('desiredRetention', ensureRetention),
         };
-        configJson = JSON.stringify(legacyToNew(next));
+        configJson = JSON.stringify(coupleReviewToMemorize(legacyToNew(next)));
       }
     } catch (err) {
       if (err instanceof ValidationError) return c.json({ error: err.message }, 400);

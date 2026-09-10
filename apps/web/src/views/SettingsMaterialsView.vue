@@ -19,7 +19,7 @@ import {
   api,
 } from '@/api'
 import { getCachedYears } from '@/lib/apiCache'
-import { CLUBS, hasEnabledClub } from '@/lib/clubs'
+import { CLUBS, hasReviewableClub } from '@/lib/clubs'
 import { invalidateSession } from '@/lib/engine/engineStore'
 import { bulkPutRenders, clearRenders, newestRenderFetchedAt } from '@/lib/engine/persistence'
 
@@ -131,13 +131,12 @@ const selected = computed<YearCard | null>(() => {
   return cards.value.find((c) => c.view.materialId === id) ?? null
 })
 
-/** "Studying" iff enrolled AND any club is enabled for memorize OR
- *  review. Provisioned-but-everything-off years (e.g. the user touched
- *  the year once then disabled every club) read the same as
- *  never-touched: no enrolled marker, no card counts. */
+/** "Studying" iff enrolled AND any club is unpaused. Provisioned-but-
+ *  everything-off years (e.g. the user touched the year once then
+ *  disabled every club) read the same as never-touched: no enrolled
+ *  marker, no card counts. */
 function isStudying(c: YearCard): boolean {
-  if (!c.view.enrolled) return false
-  return hasEnabledClub(c.view.perClub.memorize) || hasEnabledClub(c.view.perClub.review)
+  return c.view.enrolled && hasReviewableClub(c.view.clubs)
 }
 
 /** Clone a per-club settings object for the editable draft. The shape
@@ -188,11 +187,16 @@ function tabTitle(full: string): string {
   return full.replace(/\s*\(NKJV\)\s*$/, '')
 }
 
-/** True when the chain has a "memorize this club but don't review it"
- *  gap — the user is introducing verses that won't re-surface in
- *  /review. Almost always an oversight rather than intent. */
-function memorizeBehindReview(draft: PerClubYearSettings): boolean {
-  return CLUBS.some((k) => draft.memorize[k].enabled && !draft.review[k].enabled)
+/** Memorizing a club implies reviewing it — see `coupleReviewToMemorize`
+ *  on the server, which owns the invariant for stored rows on both read
+ *  and write. This keeps the checkbox honest while the edit is still in
+ *  the draft, before any save has happened.
+ *
+ *  Only fires on the toggle the user actually moved. Repairing the whole
+ *  draft on open would diverge it from the fetched row and mark an
+ *  untouched year unsaved. */
+function onMemorizeToggled(card: YearCard, club: Club) {
+  if (card.draft.memorize[club].enabled) card.draft.review[club].enabled = true
 }
 
 async function onSave(card: YearCard) {
@@ -258,12 +262,11 @@ function memorizedFor(card: YearCard, club: Club): number {
   return card.view.clubs[CLUB_TO_TIER[club]].cardCount
 }
 
-/** Status chip variant for the per-club card. Memorize-on (with or
- *  without review) reads as Active — the club is actively introducing
- *  verses, and the `memorizeBehindReview` warning calls out the
- *  memorize-without-review oversight separately so the status chip
- *  doesn't need a fourth state. Review-only reads as Maintenance,
- *  matching the legacy semantics. Neither enabled reads as Paused. */
+/** Status chip variant for the per-club card, mirroring core's
+ *  `effective_status`. Memorize-on reads as Active — the club is actively
+ *  introducing verses, and reviewing them follows. Review-only reads as
+ *  Maintenance, matching the legacy semantics. Neither enabled reads as
+ *  Paused, and the builder emits no cards for it. */
 function clubStatusFor(
   memorize: ClubMemorizeConfig,
   review: ClubReviewConfig,
@@ -420,6 +423,7 @@ onBeforeRouteLeave((_to, _from, next) => {
                       type="checkbox"
                       :disabled="selected.saving"
                       :aria-label="`Enable memorize for ${CLUB_LABELS[club]}`"
+                      @change="onMemorizeToggled(selected, club)"
                     />
                     <span class="chain-card-name">{{ CLUB_LABELS[club] }}</span>
                   </label>
@@ -479,10 +483,13 @@ onBeforeRouteLeave((_to, _from, next) => {
             >
               <header class="chain-card-header">
                 <label class="chain-enable">
+                  <!-- Locked on while memorize covers the club: the engine
+                       reviews an Active tier regardless, so an unchecked box
+                       here would describe a state that doesn't exist. -->
                   <input
                     v-model="selected.draft.review[club].enabled"
                     type="checkbox"
-                    :disabled="selected.saving"
+                    :disabled="selected.saving || selected.draft.memorize[club].enabled"
                     :aria-label="`Enable review for ${CLUB_LABELS[club]}`"
                   />
                   <span class="chain-card-name">
@@ -515,8 +522,8 @@ onBeforeRouteLeave((_to, _from, next) => {
               </label>
             </article>
           </div>
-          <p v-if="memorizeBehindReview(selected.draft)" class="scope-warning" role="alert">
-            One or more clubs are set to memorize but not review — newly-introduced verses won't re-surface in /review.
+          <p class="scope-fineprint">
+            Memorizing a club reviews it too. Turn memorize off to leave a club on review only.
           </p>
           <p class="scope-fineprint">
             Higher target → more reviews + stronger recall. Lower → fewer reviews + more lapses.
@@ -935,16 +942,6 @@ onBeforeRouteLeave((_to, _from, next) => {
   font-size: 0.78rem;
   color: var(--color-muted);
   font-style: italic;
-}
-
-.scope-warning {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--color-grade-hard);
-  background: var(--color-grade-hard-bg);
-  border-left: 3px solid var(--color-grade-hard);
-  border-radius: 3px;
-  padding: 0.35rem 0.6rem;
 }
 
 .number-row {
