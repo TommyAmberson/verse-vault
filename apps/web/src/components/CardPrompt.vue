@@ -2,8 +2,8 @@
 import { computed, nextTick, ref, watch } from 'vue'
 
 import { type CardRender, formatCardTier } from '@/api'
+import { normaliseClubListAnswer } from '@/lib/diff/clubList'
 import { type DiffItem, normalize, wordDiff } from '@/lib/diff/wordDiff'
-import { parseVerseList } from '@/lib/schedule'
 
 const props = defineProps<{
   card: CardRender
@@ -210,17 +210,21 @@ const chapterClubRefHtml = computed(() => {
   return `${book} ${props.card.verse.chapter} · ${formatCardTier(props.card.tier)}`
 })
 
+/** The chapter's member verses, ascending — core builds them in
+ *  verse-id order. The rendered answer and the diff's canonical side
+ *  both read from here so they can't disagree about order; `wordDiff` is
+ *  LCS-based, so a divergence would mark a correct answer wrong. */
+const chapterMemberNumbers = computed(() => props.card.verse.chapterMembers ?? [])
+
 const chapterMembersHtml = computed(() => {
-  const members = props.card.verse.chapterMembers ?? []
+  const members = chapterMemberNumbers.value
   if (members.length === 0) return '—'
   return members.map(verseNumberSpan).join(', ')
 })
 
-/** The chapter's member verses as the diff's canonical answer — ascending,
- *  comma-separated, so each number is one token to `wordDiff`. */
-const chapterMembersText = computed(() =>
-  [...(props.card.verse.chapterMembers ?? [])].sort((a, b) => a - b).join(', '),
-)
+/** The same members as the diff's canonical answer — comma-separated, so
+ *  each number is one token to `wordDiff`. */
+const chapterMembersText = computed(() => chapterMemberNumbers.value.join(', '))
 
 /** Plain-text canonical answer for the type-to-recite diff. Strips
  *  the api.bible + keyword-annotation HTML to a flat string. For Ftv
@@ -267,14 +271,7 @@ function stripLeadingPrefix(input: string, prefix: string): string {
 }
 
 const userInputForDiff = computed(() => {
-  // A club list is a set, so the order it was recalled in shouldn't read
-  // as wrong. Sorting both sides through the same parse makes the
-  // word-level diff order-insensitive without a second diff engine.
-  // Unparsable input (a stray word, a typo'd number) falls through raw
-  // so the diff still shows what was typed rather than nothing.
-  if (props.card.kind === 'ChapterClubList') {
-    return parseVerseList(userInput.value)?.join(', ') ?? userInput.value
-  }
+  if (props.card.kind === 'ChapterClubList') return normaliseClubListAnswer(userInput.value)
   if (props.card.kind !== 'Ftv') return userInput.value
   const prefix = props.card.composed?.ftvHtml ? stripHtmlToText(props.card.composed.ftvHtml) : ''
   return stripLeadingPrefix(userInput.value, prefix)
