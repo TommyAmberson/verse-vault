@@ -3,6 +3,7 @@ extend-exclude = [
     "crates/wasm/pkg/",
     "data/",
     "docs/decks.md", # commit-SHA tables trigger false positives (e.g. `ba` inside `64a4ba6`)
+    ".specify/scripts/", # vendored by the Specify CLI; rewritten on every refresh
 ]
 
 [default]

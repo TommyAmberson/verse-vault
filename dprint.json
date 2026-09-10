@@ -11,7 +11,9 @@
   "excludes": [
     "submodules/**",
     "data/*.toml",
-    "third-party/**"
+    "third-party/**",
+    ".specify/templates/*.md",
+    ".claude/skills/speckit-*/**"
   ],
   "plugins": [
     "https://plugins.dprint.dev/toml-0.6.2.wasm",
