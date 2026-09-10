@@ -22,6 +22,20 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-10
+
+MINOR — adds `memorize_debt`, the schedule-aware "how much is still owed" count the dashboards
+render. Purely additive; no existing behaviour or state semantics change.
+
+### Added
+
+* `schedule::memorize_debt(engine, schedule, now_secs) -> MemorizeDebt` — un-memorized verses (and
+  the `New` cards they carry) that the schedule introduced in weeks `0..=current_week`, for the
+  clubs `compute_eligible_clubs` currently admits. Counts the whole backlog through this week, not
+  just this week's row, so a learner who missed a fortnight sees the debt rather than a flat weekly
+  quota. Falls back to every eligible un-memorized verse when there's no schedule or the season
+  hasn't reached week 0 — with no calendar bounding the work, the full pool is the honest answer.
+
 ## [0.8.0] — 2026-09-09
 
 MAJOR — content-stable card ids (#141). `CardId` values change for every card; persisted ids from

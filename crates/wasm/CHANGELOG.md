@@ -22,6 +22,21 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-10
+
+MINOR — exposes core 0.9.0's schedule-aware memorize count over the boundary.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.9.0` — adds `memorize_debt`; no state-semantics change.
+
+### Added
+
+* `memorize_debt(now_secs)` — JSON `{ verses, cards }` for the un-memorized work the bound schedule
+  has already asked for, through the current week. Uses the engine's own schedule, so callers don't
+  branch on whether one exists: with no schedule (or before week 0) it reports the whole eligible
+  pool, matching `new_verse_count` / `new_card_count`.
+
 ## [0.8.0] — 2026-09-09
 
 MAJOR — rides core 0.8.0's content-stable card ids: every `cardId` crossing the boundary changes

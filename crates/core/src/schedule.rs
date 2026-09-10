@@ -405,6 +405,78 @@ pub fn anchor_card_for_verse(engine: &ReviewEngine, verse_id: u32) -> Option<Car
         .map(|c| c.id)
 }
 
+/// How much memorizing the schedule still expects, as of `now_secs`.
+///
+/// `verses` counts un-memorized verses the schedule introduced in weeks
+/// `0..=current_week` for the clubs eligible right now; `cards` counts
+/// the `New` cards those verses carry. Dashboards pair the two ("N
+/// fresh cards from M verses").
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct MemorizeDebt {
+    pub verses: u32,
+    pub cards: u32,
+}
+
+/// Un-memorized work the schedule has already asked for — the whole
+/// backlog through this week, not just this week's row, so a learner who
+/// skipped a fortnight sees the debt rather than a flat weekly quota.
+///
+/// Falls back to every eligible un-memorized verse when there's no
+/// schedule or the season hasn't reached week 0: with no calendar to
+/// bound the work, the full pool is the honest answer (and matches what
+/// the dashboards showed before schedules existed).
+///
+/// Club eligibility runs through the same `compute_eligible_clubs` gates
+/// as [`next_memorize_batch`], so a club held back by an unmet
+/// `move_to_next` gate contributes nothing — the count only ever
+/// promises work the memorize queue would actually serve.
+pub fn memorize_debt(
+    engine: &ReviewEngine,
+    schedule: Option<&Schedule>,
+    now_secs: i64,
+) -> MemorizeDebt {
+    let eligible = compute_eligible_clubs(engine, schedule, now_secs);
+    if eligible.is_empty() {
+        return MemorizeDebt::default();
+    }
+    let unmemorized = unmemorized_verses_by_tier(engine, &eligible);
+
+    let scheduled_week = schedule.and_then(|s| s.current_week_index(now_secs).map(|idx| (s, idx)));
+    let mut verses: HashSet<u32> = HashSet::new();
+    match scheduled_week {
+        Some((sched, week_idx)) => {
+            let lookup = build_verse_lookup(engine);
+            for &club in &eligible {
+                let pool = unmemorized.get(&club).map(Vec::as_slice).unwrap_or(&[]);
+                for vref in sched.cumulative_verse_refs_through_week(week_idx, club) {
+                    let Some(&vid) = lookup.get(&vref) else {
+                        continue;
+                    };
+                    if pool.binary_search(&vid).is_ok() {
+                        verses.insert(vid);
+                    }
+                }
+            }
+        }
+        None => {
+            for pool in unmemorized.values() {
+                verses.extend(pool.iter().copied());
+            }
+        }
+    }
+    verses.retain(|&vid| engine.verse_active_for_memorize(vid));
+
+    let cards = engine
+        .cards
+        .iter()
+        .filter(|c| matches!(c.state, CardState::New) && verses.contains(&c.verse_id))
+        .count();
+    MemorizeDebt {
+        verses: verses.len() as u32,
+        cards: cards as u32,
+    }
+}
+
 /// Apply the per-pair cross-club gates and return the enabled clubs in
 /// priority order [Club150, Club300, Full] that actually contribute to
 /// the memorize fill at `now_secs`.
@@ -1514,6 +1586,87 @@ mod tests {
         // batch_size=1.
         assert_eq!(verse_ids.len(), 2);
         assert_eq!(verse_ids, vec![0, 1]);
+    }
+
+    /// Two-verse Full-tier deck on a two-week schedule: John 3:16 in
+    /// week 0, 3:17 in week 1. Shared by the `memorize_debt` tests.
+    fn debt_fixture() -> (ReviewEngine, Schedule) {
+        let m = sample_material_two_verses();
+        let mut config = MaterialConfig::all_clubs_enabled(0.9);
+        config.memorize.full = ClubMemorizeConfig {
+            enabled: true,
+            catch_up: CatchUp::Sequential,
+        };
+        let r = crate::builder::build_with_config(&m, &config, 0);
+        let engine = ReviewEngine::new(r, 0.9);
+
+        let mk_week = |date: &str, verse: u16| ScheduleWeek {
+            date: date.into(),
+            blocks: vec![PassageBlock {
+                passage: Passage {
+                    book: "John".into(),
+                    chapter: 3,
+                    start_verse: verse,
+                    end_verse: verse,
+                },
+                verses: ClubVerseLists {
+                    club150: vec![],
+                    club300: vec![],
+                },
+            }],
+            is_review: false,
+        };
+        let sched = Schedule {
+            version: 1,
+            material_id: "t".into(),
+            season: "x".into(),
+            title: "t".into(),
+            meeting_day_of_week: "Mon".into(),
+            weeks: vec![mk_week("2025-09-08", 16), mk_week("2025-09-15", 17)],
+            meets: vec![],
+        };
+        (engine, sched)
+    }
+
+    fn day_secs(iso: &str) -> i64 {
+        crate::schedule_data::parse_iso_date(iso).unwrap() * 86400
+    }
+
+    #[test]
+    fn memorize_debt_stops_at_the_current_week() {
+        let (engine, sched) = debt_fixture();
+        let debt = memorize_debt(&engine, Some(&sched), day_secs("2025-09-08"));
+        // Week 1's verse 17 is lookahead, not debt.
+        assert_eq!(debt.verses, 1);
+        let expected_cards = engine
+            .cards
+            .iter()
+            .filter(|c| c.verse_id == 0 && matches!(c.state, CardState::New))
+            .count() as u32;
+        assert_eq!(debt.cards, expected_cards);
+
+        let later = memorize_debt(&engine, Some(&sched), day_secs("2025-09-15"));
+        assert_eq!(later.verses, 2);
+    }
+
+    #[test]
+    fn memorize_debt_drops_memorized_verses() {
+        let (mut engine, sched) = debt_fixture();
+        engine.graduate_verse(0);
+        let debt = memorize_debt(&engine, Some(&sched), day_secs("2025-09-15"));
+        assert_eq!(debt.verses, 1);
+    }
+
+    #[test]
+    fn memorize_debt_falls_back_to_the_whole_pool() {
+        let (engine, sched) = debt_fixture();
+        // No schedule at all, and a schedule whose season hasn't started,
+        // both mean "no week bounds the work" → every eligible verse.
+        assert_eq!(memorize_debt(&engine, None, 0).verses, 2);
+        assert_eq!(
+            memorize_debt(&engine, Some(&sched), day_secs("2025-09-01")).verses,
+            2
+        );
     }
 
     #[test]
