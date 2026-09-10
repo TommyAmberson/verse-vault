@@ -247,6 +247,31 @@ impl Schedule {
         out
     }
 
+    /// Visit every `(book, chapter, verse)` that `tier` introduces in
+    /// weeks `0..=through_week_idx`, borrowing each book name from the
+    /// schedule rather than cloning it per verse. The allocation-light
+    /// counterpart to `cumulative_verse_refs_through_week` for callers
+    /// that only need a membership test — see `schedule::memorize_debt`,
+    /// which runs on every `/api/years` request.
+    pub fn for_each_cumulative_ref<'a>(
+        &'a self,
+        through_week_idx: usize,
+        tier: ClubTier,
+        mut visit: impl FnMut(&'a str, u16, u16),
+    ) {
+        if self.weeks.is_empty() {
+            return;
+        }
+        let cap = through_week_idx.min(self.weeks.len() - 1);
+        for week in &self.weeks[..=cap] {
+            for block in &week.blocks {
+                for n in block_verse_numbers_for_tier(block, tier) {
+                    visit(&block.passage.book, block.passage.chapter, n);
+                }
+            }
+        }
+    }
+
     /// Count of verses scheduled for `tier` in the row at `week_idx`,
     /// summed across every passage block. Skips the owned-`VerseRef`
     /// construction the gate hot path doesn't need.

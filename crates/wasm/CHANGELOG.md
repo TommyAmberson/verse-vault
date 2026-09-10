@@ -34,8 +34,9 @@ MINOR — exposes core 0.9.0's schedule-aware memorize count over the boundary.
 
 * `memorize_debt(now_secs)` — JSON `{ verses, cards }` for the un-memorized work the bound schedule
   has already asked for, through the current week. Uses the engine's own schedule, so callers don't
-  branch on whether one exists: with no schedule (or before week 0) it reports the whole eligible
-  pool, matching `new_verse_count` / `new_card_count`.
+  branch on whether one exists: with no schedule (or before week 0) it reports the whole pool of
+  un-memorized verses in the clubs the cross-club gates admit — close to `new_verse_count` /
+  `new_card_count`, but club-gated where those aren't.
 
 ## [0.8.0] — 2026-09-09
 

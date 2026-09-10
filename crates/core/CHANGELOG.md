@@ -36,6 +36,12 @@ render. Purely additive; no existing behaviour or state semantics change.
   quota. Falls back to every eligible un-memorized verse when there's no schedule or the season
   hasn't reached week 0 — with no calendar bounding the work, the full pool is the honest answer.
 
+  The week bound is deliberately stricter than `next_memorize_batch`'s, which week-bounds only its
+  `CalendarCascade` phase: zero debt means "on plan", not "queue empty". That's the badge spec.
+* `Schedule::for_each_cumulative_ref` — visits the `(book, chapter, verse)` triples a tier
+  introduces through a given week, borrowing each book name instead of cloning it per verse like
+  `cumulative_verse_refs_through_week`. For membership tests on request paths.
+
 ## [0.8.0] — 2026-09-09
 
 MAJOR — content-stable card ids (#141). `CardId` values change for every card; persisted ids from

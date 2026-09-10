@@ -428,8 +428,15 @@ pub struct MemorizeDebt {
 ///
 /// Club eligibility runs through the same `compute_eligible_clubs` gates
 /// as [`next_memorize_batch`], so a club held back by an unmet
-/// `move_to_next` gate contributes nothing — the count only ever
-/// promises work the memorize queue would actually serve.
+/// `move_to_next` gate contributes nothing.
+///
+/// The *week* bound, though, is deliberately stricter than the queue's:
+/// this counts weeks `0..=current_week` for every eligible club, while
+/// [`next_memorize_batch`] week-bounds only its `CalendarCascade` Phase 1
+/// and lets Phase 2 run into next week's verses. That's the badge spec —
+/// `max(0, cumulative_through_current_week − memorized)` — and it means
+/// zero debt does not mean an empty memorize queue: a learner on plan can
+/// still work ahead. Callers rendering the zero state must say so.
 pub fn memorize_debt(
     engine: &ReviewEngine,
     schedule: Option<&Schedule>,
@@ -441,18 +448,27 @@ pub fn memorize_debt(
     }
     let unmemorized = unmemorized_verses_by_tier(engine, &eligible);
 
-    let scheduled_week = schedule.and_then(|s| s.current_week_index(now_secs).map(|idx| (s, idx)));
     let mut verses: HashSet<u32> = HashSet::new();
-    match scheduled_week {
+    match schedule.and_then(|s| Some((s, s.current_week_index(now_secs)?))) {
         Some((sched, week_idx)) => {
-            let lookup = build_verse_lookup(engine);
             for &club in &eligible {
-                let pool = unmemorized.get(&club).map(Vec::as_slice).unwrap_or(&[]);
-                for vref in sched.cumulative_verse_refs_through_week(week_idx, club) {
-                    let Some(&vid) = lookup.get(&vref) else {
+                let Some(pool) = unmemorized.get(&club) else {
+                    continue;
+                };
+                // Test the pool against the schedule's own strings rather
+                // than resolving refs through `build_verse_lookup`: the
+                // pool holds only un-memorized verses, while the lookup
+                // clones a book name per verse in the *whole deck* — and
+                // this runs on every `/api/years` request.
+                let mut scheduled: HashSet<(&str, u16, u16)> = HashSet::new();
+                sched.for_each_cumulative_ref(week_idx, club, |book, chapter, verse| {
+                    scheduled.insert((book, chapter, verse));
+                });
+                for &vid in pool {
+                    let Some(render) = engine.verse_render(vid) else {
                         continue;
                     };
-                    if pool.binary_search(&vid).is_ok() {
+                    if scheduled.contains(&(render.book.as_str(), render.chapter, render.verse)) {
                         verses.insert(vid);
                     }
                 }
@@ -464,7 +480,6 @@ pub fn memorize_debt(
             }
         }
     }
-    verses.retain(|&vid| engine.verse_active_for_memorize(vid));
 
     let cards = engine
         .cards
@@ -1528,7 +1543,7 @@ mod tests {
         };
         let sched = make_two_club_schedule();
         // ts=2025-09-08 (week 0's date) — converted to unix secs.
-        let now = crate::schedule_data::parse_iso_date("2025-09-08").unwrap() * 86400;
+        let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
         let verse_ids = batch_verse_ids(&engine, batch);
         // Phase 1 contributes verse 16 (Club150 this-week). Soft cap on
@@ -1579,7 +1594,7 @@ mod tests {
             meets: vec![],
         };
 
-        let now = crate::schedule_data::parse_iso_date("2025-09-08").unwrap() * 86400;
+        let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
         let verse_ids = batch_verse_ids(&engine, batch);
         // Soft cap on Phase 1: both Full verses surface even though
@@ -1588,18 +1603,10 @@ mod tests {
         assert_eq!(verse_ids, vec![0, 1]);
     }
 
-    /// Two-verse Full-tier deck on a two-week schedule: John 3:16 in
-    /// week 0, 3:17 in week 1. Shared by the `memorize_debt` tests.
-    fn debt_fixture() -> (ReviewEngine, Schedule) {
-        let m = sample_material_two_verses();
-        let mut config = MaterialConfig::all_clubs_enabled(0.9);
-        config.memorize.full = ClubMemorizeConfig {
-            enabled: true,
-            catch_up: CatchUp::Sequential,
-        };
-        let r = crate::builder::build_with_config(&m, &config, 0);
-        let engine = ReviewEngine::new(r, 0.9);
-
+    /// John 3:16 in week 0, 3:17 in week 1 — the two verses
+    /// `sample_material_two_verses` builds, one per week, with no club
+    /// lists so both land in the Full tier.
+    fn two_week_john_schedule() -> Schedule {
         let mk_week = |date: &str, verse: u16| ScheduleWeek {
             date: date.into(),
             blocks: vec![PassageBlock {
@@ -1616,7 +1623,7 @@ mod tests {
             }],
             is_review: false,
         };
-        let sched = Schedule {
+        Schedule {
             version: 1,
             material_id: "t".into(),
             season: "x".into(),
@@ -1624,8 +1631,17 @@ mod tests {
             meeting_day_of_week: "Mon".into(),
             weeks: vec![mk_week("2025-09-08", 16), mk_week("2025-09-15", 17)],
             meets: vec![],
-        };
-        (engine, sched)
+        }
+    }
+
+    /// Engine over that deck with every club enabled, paired with the
+    /// schedule. `all_clubs_enabled` already puts the Full tier on
+    /// Sequential, which is all `memorize_debt` needs — it ignores
+    /// `catch_up` entirely, unlike `next_memorize_batch`.
+    fn debt_fixture() -> (ReviewEngine, Schedule) {
+        let m = sample_material_two_verses();
+        let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
+        (ReviewEngine::new(r, 0.9), two_week_john_schedule())
     }
 
     fn day_secs(iso: &str) -> i64 {
@@ -1638,12 +1654,12 @@ mod tests {
         let debt = memorize_debt(&engine, Some(&sched), day_secs("2025-09-08"));
         // Week 1's verse 17 is lookahead, not debt.
         assert_eq!(debt.verses, 1);
-        let expected_cards = engine
-            .cards
-            .iter()
-            .filter(|c| c.verse_id == 0 && matches!(c.state, CardState::New))
-            .count() as u32;
-        assert_eq!(debt.cards, expected_cards);
+        // Every New card on John 3:16: two PhraseFills, Recitation,
+        // Citation, VerseAtVerseRef, VerseInBook, VerseInChapter. The
+        // count pairs with `verses` in the dashboards' "N cards from M
+        // verses", so it counts the whole card fan-out, not just the
+        // bulk-graduable anchors.
+        assert_eq!(debt.cards, 7);
 
         let later = memorize_debt(&engine, Some(&sched), day_secs("2025-09-15"));
         assert_eq!(later.verses, 2);
@@ -1686,32 +1702,8 @@ mod tests {
         let r = crate::builder::build_with_config(&m, &config, 0);
         let engine = ReviewEngine::new(r, 0.9);
 
-        let mk_week = |date: &str, start: u16, end: u16| ScheduleWeek {
-            date: date.into(),
-            blocks: vec![PassageBlock {
-                passage: Passage {
-                    book: "John".into(),
-                    chapter: 3,
-                    start_verse: start,
-                    end_verse: end,
-                },
-                verses: ClubVerseLists {
-                    club150: vec![],
-                    club300: vec![],
-                },
-            }],
-            is_review: false,
-        };
-        let sched = Schedule {
-            version: 1,
-            material_id: "t".into(),
-            season: "x".into(),
-            title: "t".into(),
-            meeting_day_of_week: "Mon".into(),
-            weeks: vec![mk_week("2025-09-08", 16, 16), mk_week("2025-09-15", 17, 17)],
-            meets: vec![],
-        };
-        let now = crate::schedule_data::parse_iso_date("2025-09-08").unwrap() * 86400;
+        let sched = two_week_john_schedule();
+        let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 5);
         let verse_ids = batch_verse_ids(&engine, batch);
         // Phase 1 takes verse 16 (this week's Full); Phase 2 picks up

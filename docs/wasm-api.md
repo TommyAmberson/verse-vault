@@ -122,9 +122,13 @@ memorize_debt(now_secs: bigint): string // { verses: number, cards: number }
 `memorize_debt` counts what the bound schedule has already asked for and the user hasn't memorized:
 un-memorized verses introduced in weeks `0..=current_week` for the clubs the cross-club gates admit,
 plus the `New` cards those verses carry. The whole backlog through this week, not one week's quota.
-With no schedule bound (or before week 0) it reports the entire eligible pool, matching
-`new_verse_count` / `new_card_count` — callers render one number without branching. Drives the API's
-per-year `memorizeDebt` and, through it, the web home hero and Memorize pill.
+With no schedule bound (or before week 0) it reports the entire eligible pool, so callers render one
+number without branching. Drives the API's per-year `memorizeDebt` and, through it, the web home
+hero and Memorize pill.
+
+The week bound is stricter than the memorize queue's: `next_memorize_batch` week-bounds only its
+`CalendarCascade` phase and lets the sequential phase run into next week. Zero debt therefore means
+"on plan", not "queue empty" — a caller rendering the zero state should say so.
 
 ### Rendering a card
 
