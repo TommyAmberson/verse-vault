@@ -286,9 +286,14 @@ export interface YearView {
   /** Schedule-aware backlog: un-memorized verses the schedule
    *  introduced through the current week, and the `New` cards they
    *  carry. Drives the "N to memorize" pill and the home hero. Equals
-   *  the whole pool for years with no schedule or no season under way,
-   *  and is zero for unenrolled years. */
-  memorizeDebt: MemorizeDebt
+   *  the whole eligible pool for years with no schedule or no season
+   *  under way, and is zero for unenrolled years.
+   *
+   *  Optional because web and api deploy independently off the same
+   *  master push: a browser on web 0.9.17 can talk to an api still on
+   *  0.1.38 for the length of one rsync. Callers fall back to
+   *  `newCardCount`, which is what the surfaces showed before. */
+  memorizeDebt?: MemorizeDebt
   /** Server state fingerprint for this material — compared against the
    *  value cached with the IDB snapshot so a server-side change this
    *  client never saw forces a sync-state refetch. Absent for

@@ -24,5 +24,10 @@ import type { YearView } from '@/api'
 /** Schedule-aware Memorize badge count: verses the schedule has already
  *  asked for and the user hasn't memorized yet, across every year. */
 export function memorizeBadgeCount(years: readonly YearView[]): number {
-  return years.reduce((sum, year) => sum + year.memorizeDebt.verses, 0)
+  // `memorizeDebt` is absent on an api older than 0.1.39, which web can
+  // outrun by one deploy; `newCardCount` is what the pill counted then.
+  return years.reduce(
+    (sum, year) => sum + (year.memorizeDebt?.verses ?? year.newCardCount),
+    0,
+  )
 }

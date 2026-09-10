@@ -321,24 +321,42 @@ material-picker UI.
       "title": "1 Corinthians",
       "description": "...",
       "enrolled": true,
+      "offlineMode": false,
       "settings": {
-        "headings": true,
-        "ftv": false,
+        "headingCard": false,
+        "headingPassageCard": true,
+        "ftv": true,
         "newScope": "up300",
         "reviewScope": "all",
         "clubCardScope": "up300",
         "chapterListScope": "up150",
-        "lessonBatchSize": 5
+        "lessonBatchSize": 5,
+        "desiredRetention": 0.8
+      },
+      "perClub": {
+        "memorize": { "150": { "enabled": true, "catchUp": "sequential" }, "...": {} },
+        "review": { "150": { "enabled": true, "desiredRetention": 0.8 }, "...": {} },
+        "moveToNext": { "p150To300": "caughtUp", "p300ToFull": "caughtUp" }
       },
       "clubs": {
-        "Club150": { "status": "active", "totalVerses": 312, "newVerses": 42 },
-        "Club300": { "status": "maintenance", "totalVerses": 580, "newVerses": 0 }
+        "150": { "status": "active", "cardCount": 312 },
+        "300": { "status": "maintenance", "cardCount": 580 },
+        "full": { "status": "paused", "cardCount": 0 }
       },
-      "newCardCount": 87
+      "newCardCount": 87,
+      "memorizeDebt": { "verses": 13, "cards": 124 },
+      "stateRev": "a1b2c3d4"
     }
   ]
 }
 ```
+
+`newCardCount` is every card still in `New` — the whole remaining pool. `memorizeDebt` is the
+schedule-aware slice of it: un-memorized verses the year's schedule introduced in weeks
+`0..=current_week`, plus the cards they carry (`core::schedule::memorize_debt`). Years with no
+schedule, or whose season hasn't started, report their whole eligible pool; unenrolled years report
+zeroes. Added in api 0.1.39 — clients that may reach an older server should fall back to
+`newCardCount`.
 
 ### `POST /api/years/:materialId/settings`
 

@@ -9,8 +9,9 @@ interface YearAgg {
   materialId: string
   title: string
   /** Schedule-aware backlog, not the whole New pool: the hero promises
-   *  work the memorize queue would actually hand out this week. */
-  memorizeDebt: YearView['memorizeDebt']
+   *  work the memorize queue would actually hand out this week.
+   *  Non-optional here — the loader fills the pre-0.1.39 fallback in. */
+  memorizeDebt: NonNullable<YearView['memorizeDebt']>
   /** Whole un-memorized pool. Only used to tell "caught up with more of
    *  the season ahead" apart from "the deck is finished". */
   newCardCount: number
@@ -100,13 +101,19 @@ onMounted(async () => {
     const enrolled = yearsRes.years.filter((y) => y.enrolled)
 
     const settled = await Promise.allSettled(
-      enrolled.map(async (y): Promise<YearAgg> => ({
-        materialId: y.materialId,
-        title: y.title,
-        memorizeDebt: y.memorizeDebt,
-        newCardCount: y.newCardCount,
-        stats: await api.getStats(y.materialId),
-      })),
+      enrolled.map(async (y): Promise<YearAgg> => {
+        const stats = await api.getStats(y.materialId)
+        return {
+          materialId: y.materialId,
+          title: y.title,
+          // An api still on 0.1.38 sends no memorizeDebt; degrade to the
+          // whole-pool numbers rather than rendering a bogus zero.
+          memorizeDebt: y.memorizeDebt
+            ?? { verses: stats.newVerseCount, cards: y.newCardCount },
+          newCardCount: y.newCardCount,
+          stats,
+        }
+      }),
     )
     const succeeded: YearAgg[] = []
     let failed = 0
