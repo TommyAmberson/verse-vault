@@ -179,6 +179,12 @@ from the code or design docs.
   with `The supplied SQL string contains more than one statement` unless each `;` is followed by
   `--> statement-breakpoint` on its own line. See `migrations/0013_relearn_and_wipe.sql` for the
   shape.
+* **dprint rewrites Spec Kit's checkboxes, so `specs/**/tasks.md` and `specs/**/checklists/` are
+  excluded.** `unorderedListKind: "asterisks"` turns `- [ ]` into `* [ ]`, and Spec Kit mandates the
+  hyphen form — `/speckit-implement` and `/speckit-converge` both read task state from those
+  checkboxes. The rewrite is silent and the resulting markdown still renders fine, so the damage
+  only shows up when a speckit command finds no tasks. Prose artifacts in `specs/` (`spec.md`,
+  `plan.md`, `research.md`, `data-model.md`, `quickstart.md`) carry no checkboxes and stay linted.
 * **Vendored Spec Kit files are exempt from dprint and typos, narrowly.** `typos` skips
   `.specify/scripts/` and `dprint` skips `.specify/templates/*.md` and `.claude/skills/speckit-*/`,
   because the Specify CLI rewrites all of them on refresh and any fix would be undone. The globs are
