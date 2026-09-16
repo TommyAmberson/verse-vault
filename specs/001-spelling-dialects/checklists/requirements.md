@@ -12,7 +12,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -34,7 +34,7 @@ All items pass. The specification is ready for `/speckit-plan`.
 
 Two questions were resolved during specification rather than deferred:
 
-**FR-011 (dialect scope)** — per-reader is the intent. The current deployment-wide setting is
+**FR-008 (dialect scope)** — per-reader is the intent. The current deployment-wide setting is
 recorded in Assumptions as an acknowledged shortfall rather than a design, which makes this spec
 deliberately ahead of the implementation. Expect `/speckit-converge` to surface per-reader
 preference as unbuilt work.

@@ -52,11 +52,17 @@ end state — the default is right and only the substitution path needs removing
 
 **⚠️ No story work begins until this phase completes.**
 
-- [ ] T003 Add `resolveDialect(value: unknown): Dialect` to `packages/api/src/lib/spelling.ts`,
-      mapping any value outside the enumeration `'american' | 'british' | 'canadian'` to
-      `'american'` per FR-010, and unit-test it in `packages/api/src/lib/spelling.test.ts`
-- [ ] T004 Route `RENDER_DIALECT` parsing in `packages/api/src/index.ts` through `resolveDialect`,
-      replacing the inline `.includes()` check so a bad value cannot reach rendering
+- [ ] T003 Add `resolveDialect(value: unknown, fallback: Dialect): Dialect` to
+      `packages/api/src/lib/spelling.ts`, mapping any value outside the enumeration
+      `'american' | 'british' | 'canadian'` to **the supplied fallback**, not to a hard-coded
+      `'american'` — FR-010 says an unrecognised value resolves to *the default*, and
+      `RENDER_DIALECT` can make that default `british` or `canadian`. Unit-test in
+      `packages/api/src/lib/spelling.test.ts`
+- [ ] T004 Route `RENDER_DIALECT` parsing in `packages/api/src/index.ts` through `resolveDialect`.
+      This means replacing **both** halves of the current expression at `index.ts:60-62` — the
+      inline `.includes()` check *and* the `: 'canadian'` fallback literal. The literal is the one
+      that matters: it is what an unconfigured deployment actually gets, and it bypasses
+      `DEFAULT_DIALECT` entirely
 
 **Checkpoint**: Dialect values are validated in exactly one place.
 
@@ -102,12 +108,21 @@ open a verse containing `labor` and see `labor`, with no modification notice.
 
 ### Implementation for User Story 3
 
-- [ ] T011 [US3] Change `DEFAULT_DIALECT` in `packages/api/src/lib/spelling.ts` from `'canadian'` to
-      `'american'` per FR-009, so an unconfigured deployment serves the published text
-- [ ] T012 [US3] Verify no caller of `composeRender` in
-      `packages/api/src/routes/{cards,materials}.ts` supplies a hard-coded dialect that would defeat
-      T011
-- [ ] T013 [US3] Add a `packages/api/CHANGELOG.md` `[Unreleased]` entry recording that the default
+- [ ] T011 [US3] Change the unconfigured-deployment dialect to `american` per FR-009. This takes
+      **two** edits, and the second is the load-bearing one: `DEFAULT_DIALECT` in
+      `packages/api/src/lib/spelling.ts`, **and** the `: 'canadian'` fallback at
+      `packages/api/src/index.ts:62`. Routes read `deps.dialect ?? DEFAULT_DIALECT`
+      (`cards.ts:133`, `materials.ts:219`), and `deps.dialect` is always set by `index.ts`, so
+      `DEFAULT_DIALECT` is never reached in a running server — changing it alone is a no-op and
+      leaves FR-009 and SC-009 failing while T009 still passes
+- [ ] T012 [US3] Verify no caller supplies a dialect that defeats T011 — check `composeRender`
+      callers in `packages/api/src/routes/{cards,materials}.ts` **and** the `deps.dialect`
+      construction in `packages/api/src/index.ts`
+- [ ] T013 [US3] Change `RENDER_DIALECT=canadian` to `RENDER_DIALECT=american` in
+      `deploy/provision.sh:300` and `docs/deployment.md:142`. Without this the MVP is unobservable
+      in production: provisioning pins the dialect, so the live deployment keeps serving substituted
+      text under the unqualified publisher attribution — the exposure FR-009 exists to close
+- [ ] T014 [US3] Add a `packages/api/CHANGELOG.md` `[Unreleased]` entry recording that the default
       rendering dialect changed and that an unconfigured deployment now serves the published text
 
 **Checkpoint**: US3 complete. Shippable on its own. If licensing forbids substitution, stop here and
@@ -127,34 +142,39 @@ with `realize` unchanged and the disclosure showing.
 
 ### Tests for User Story 1
 
-- [ ] T014 [P] [US1] Port the characterisation tests from T001 to
+- [ ] T015 [P] [US1] Port the characterisation tests from T001 to
       `apps/web/src/lib/spelling/spelling.test.ts`, unchanged in substance, so the relocated
       implementation is held to the same behaviour
-- [ ] T015 [P] [US1] Add a test asserting the derived Canadian dictionary contains `labor`→`labour`
+- [ ] T016 [P] [US1] Add a test asserting the derived Canadian dictionary contains `labor`→`labour`
       and does **not** contain `realize`, in `apps/web/src/lib/spelling/dictionary.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Add a build-time dictionary derivation step producing one JSON artifact per target
+- [ ] T017 [US1] Add a build-time dictionary derivation step producing one JSON artifact per target
       dialect from `varcon@1.0.1`'s `A.json`, applying the four derivation rules in `data-model.md`
       verbatim: key on the lowercased American form; drop entries whose American key contains a
       space; drop entries whose target variant contains a space; drop entries whose target variant
       equals the American form
-- [ ] T017 [US1] Create `apps/web/src/lib/spelling/index.ts` exporting
+- [ ] T018 [US1] Create `apps/web/src/lib/spelling/index.ts` exporting
       `applyDialect(text: string, dialect: Dialect): string`, moved from
       `packages/api/src/lib/spelling.ts` with behaviour unchanged, loading its dictionary lazily so
       `american` fetches nothing (research R2)
-- [ ] T018 [US1] Remove dialect application from `packages/api/src/lib/render.ts` — `composeRender`
+- [ ] T019 [US1] Remove dialect application from `packages/api/src/lib/render.ts` — `composeRender`
       stops taking a `dialect` argument and always emits the published text (research R1, contract
       "Render payload — a removal")
-- [ ] T019 [US1] Drop the now-unused `dialect` threading from
+- [ ] T020 [US1] Drop the now-unused `dialect` threading from
       `packages/api/src/routes/{cards,materials}.ts` and `packages/api/src/app.ts`
-- [ ] T020 [US1] Apply the reader's dialect at display time in
+- [ ] T021 [US1] Invalidate the IndexedDB `renders` store as part of the cutover — bump
+      `DB_VERSION` in `apps/web/src/lib/engine/persistence.ts` or clear the store on upgrade.
+      Existing entries hold HTML the *server* already substituted, and `applyDialect` cannot undo
+      that: a cached `labour` is not an American dictionary key, so a reader switching to
+      `american` would keep seeing `labour` forever, breaking FR-009 and quickstart Scenario 1
+- [ ] T022 [US1] Apply the reader's dialect at display time in
       `apps/web/src/lib/engine/engineStore.ts` after the IDB `renders` cache read, so cached
       payloads stay dialect-free (research R1)
-- [ ] T021 [US1] Pass the reader's effective dialect into `ScriptureAttribution.vue` so the
+- [ ] T023 [US1] Pass the reader's effective dialect into `ScriptureAttribution.vue` so the
       disclosure from Phase 3 appears whenever substitution is active (FR-014)
-- [ ] T022 [US1] Add a `packages/api/CHANGELOG.md` `[Unreleased]` entry recording that rendered HTML
+- [ ] T024 [US1] Add a `packages/api/CHANGELOG.md` `[Unreleased]` entry recording that rendered HTML
       from the API is now always the published text, same shape, changed guarantee
 
 **Checkpoint**: A reader can see a dialect, and the server no longer emits altered scripture.
@@ -172,29 +192,29 @@ after reload.
 
 ### Tests for User Story 2
 
-- [ ] T023 [P] [US2] Add contract tests in `packages/api/src/routes/account.test.ts` for
+- [ ] T025 [P] [US2] Add contract tests in `packages/api/src/routes/account.test.ts` for
       `GET /api/preferences` and `PUT /api/preferences` per `contracts/dialect-preference.md`,
       including the deliberate asymmetry: a bad **write** returns `400`, a bad **stored** value
       resolves to the default rather than failing the read
-- [ ] T024 [P] [US2] Add a test asserting `GET /api/preferences` returns `effectiveDialect` as a
+- [ ] T026 [P] [US2] Add a test asserting `GET /api/preferences` returns `effectiveDialect` as a
       non-null member of the enumeration even when `dialect` is null
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Add a `user_preferences` table to `packages/api/src/db/schema.ts`: `user_id` text
+- [ ] T027 [US2] Add a `user_preferences` table to `packages/api/src/db/schema.ts`: `user_id` text
       primary key referencing `user.id` with cascade delete, `dialect` text **nullable** (null means
       no preference expressed), `updated_at` integer unix seconds — per `data-model.md`
-- [ ] T026 [US2] Write the Drizzle migration in `packages/api/migrations/`, remembering
+- [ ] T028 [US2] Write the Drizzle migration in `packages/api/migrations/`, remembering
       `--> statement-breakpoint` between statements per the CLAUDE.md gotcha
-- [ ] T027 [US2] Implement `packages/api/src/lib/user-preferences.ts` with read and write helpers
+- [ ] T029 [US2] Implement `packages/api/src/lib/user-preferences.ts` with read and write helpers
       that resolve an absent row and a null `dialect` identically to the deployment default
-- [ ] T028 [US2] Add `GET /api/preferences` and `PUT /api/preferences` to
+- [ ] T030 [US2] Add `GET /api/preferences` and `PUT /api/preferences` to
       `packages/api/src/routes/account.ts` per the contract
-- [ ] T029 [US2] Add the dialect selector to `apps/web/src/views/SettingsPreferencesView.vue`,
+- [ ] T031 [US2] Add the dialect selector to `apps/web/src/views/SettingsPreferencesView.vue`,
       offering all three values and labelling the default
-- [ ] T030 [US2] Create `apps/web/src/composables/useDialect.ts` exposing the reader's effective
-      dialect, fetched once on boot, and point T020's display-time substitution at it
-- [ ] T031 [US2] Route both the displayed text and the recitation diff's canonical side in
+- [ ] T032 [US2] Create `apps/web/src/composables/useDialect.ts` exposing the reader's effective
+      dialect, fetched once on boot, and point T022's display-time substitution at it
+- [ ] T033 [US2] Route both the displayed text and the recitation diff's canonical side in
       `apps/web/src/components/CardPrompt.vue` through a **single** `applyDialect` call site, so
       FR-013 holds by construction rather than by two call sites agreeing
 
@@ -204,15 +224,15 @@ after reload.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T032 [P] Update the `## Spelling dialects` entry in `docs/unspecced.md` to point at
+- [ ] T034 [P] Update the `## Spelling dialects` entry in `docs/unspecced.md` to point at
       `specs/001-spelling-dialects/`, satisfying the Constitution Principle I action recorded in
       `plan.md`
-- [ ] T033 [P] Remove the now-dead `toCanadian` convenience alias from the relocated spelling module
+- [ ] T035 [P] Remove the now-dead `toCanadian` convenience alias from the relocated spelling module
       if nothing calls it
-- [ ] T034 Run every scenario in [quickstart.md](./quickstart.md), especially Scenario 3 (two
+- [ ] T036 Run every scenario in [quickstart.md](./quickstart.md), especially Scenario 3 (two
       readers, no cache crossover) and Scenario 7 (server serves published text) — those two are the
       regression tests for research decision R1
-- [ ] T035 Confirm `pnpm test`, `cargo clippy --all-targets -- -D warnings`, `dprint check`, and
+- [ ] T037 Confirm `pnpm test`, `cargo clippy --all-targets -- -D warnings`, `dprint check`, and
       `typos` all pass per Constitution Principle IV
 
 ---
@@ -231,7 +251,8 @@ after reload.
 
 ### Critical sequencing note
 
-T018 (server stops substituting) and T020 (client starts substituting) **must land together**.
+T019 (server stops substituting), T021 (cache invalidation) and T022 (client starts
+substituting) **must land together**.
 Between them, readers on a non-default dialect see American spelling — a visible regression. Treat
 them as one commit or one PR, not two.
 
@@ -240,9 +261,9 @@ them as one commit or one PR, not two.
 * T001 and T002 in Setup
 * T005 (attribution tests) alongside Phase 2
 * T009 and T010 in Phase 4
-* T014 and T015 in Phase 5
-* T023 and T024 in Phase 6
-* T032 and T033 in Polish
+* T015 and T016 in Phase 5
+* T025 and T026 in Phase 6
+* T034 and T035 in Polish
 
 ---
 

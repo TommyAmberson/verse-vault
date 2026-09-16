@@ -179,6 +179,11 @@ from the code or design docs.
   with `The supplied SQL string contains more than one statement` unless each `;` is followed by
   `--> statement-breakpoint` on its own line. See `migrations/0013_relearn_and_wipe.sql` for the
   shape.
+* **A fresh clone cannot resume a committed Spec Kit feature.** `.specify/feature.json` is the only
+  feature-context source the scripts accept, and Spec Kit gitignores it as machine-local state. So
+  `specs/001-spelling-dialects/` is committed but every speckit command fails with "Feature
+  directory not found" until you `export SPECIFY_FEATURE_DIRECTORY=specs/<NNN-slug>` or re-run
+  `/speckit-specify`. Set the env var when picking up someone else's feature.
 * **dprint rewrites Spec Kit's checkboxes, so `specs/**/tasks.md` and `specs/**/checklists/` are
   excluded.** `unorderedListKind: "asterisks"` turns `- [ ]` into `* [ ]`, and Spec Kit mandates the
   hyphen form — `/speckit-implement` and `/speckit-converge` both read task state from those

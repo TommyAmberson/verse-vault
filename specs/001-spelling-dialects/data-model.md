@@ -12,9 +12,10 @@ A closed enumeration of three values. Not stored as free text anywhere.
 | `british`  | VarCon `B` column.                                         | 15,747 entries |
 | `canadian` | VarCon `C` column.                                         | 4,864 entries  |
 
-**Validation**: any value outside the enumeration resolves to `american` rather than erroring
-(FR-010). This applies to the stored preference, the deployment default, and anything read from
-configuration.
+**Validation**: any value outside the enumeration resolves to the **deployment default** rather than
+erroring — which is `american` out of the box but is whatever `RENDER_DIALECT` names. Do not
+hard-code the fallback to `american`; resolution takes the default as a parameter (FR-010). This
+applies to the stored preference, the deployment default, and anything read from configuration.
 
 **Note on authorship**: the project defines the enumeration but not its contents. Which words differ
 and how is VarCon's judgement — see the Assumptions section of `spec.md`.

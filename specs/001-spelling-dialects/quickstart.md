@@ -20,7 +20,7 @@ to substitute.
 ```
 pnpm test                  # api + web suites
 pnpm --filter @verse-vault/api test -- spelling     # substitution rules
-pnpm --filter web test -- spelling                  # client substitution + disclosure
+pnpm --filter @verse-vault/web test -- spelling                  # client substitution + disclosure
 ```
 
 The existing `packages/api/src/lib/spelling.test.ts` covers substitution behaviour and should keep

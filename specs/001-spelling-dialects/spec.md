@@ -141,7 +141,8 @@ reader starts in. See Licensing Constraints.
   pass through unchanged.
 * **Proper nouns and transliterated names.** Scripture is dense with names that must never be
   altered by a general-purpose dictionary.
-* **Unknown dialect configuration.** Covered in User Story 2.
+* **Unknown dialect configuration.** No user story covers this; the behaviour is FR-010, exercised
+  by quickstart Scenario 6.
 
 ## Requirements _(mandatory)_
 
@@ -165,14 +166,6 @@ reader starts in. See Licensing Constraints.
 * **FR-009**: The default dialect MUST be the source dialect. A reader who has expressed no
   preference MUST be shown the publisher's text unaltered. Substitution is always something a reader
   opts into, never a state they arrive in.
-* **FR-014**: Whenever a reader is shown substituted text, the product MUST disclose it alongside
-  the scripture attribution. The disclosure MUST name the dialect applied, attribute the change to
-  the product rather than to the publisher, and state that the text shown is not the published
-  wording.
-* **FR-015**: The disclosure MUST NOT appear when no substitution is in effect, so that a reader on
-  the source dialect sees the publisher's attribution exactly as required and nothing more.
-* **FR-016**: The disclosure MUST follow the reader whose view it describes. With per-reader
-  dialects, two readers on one deployment may need different disclosures for the same verse.
 * **FR-010**: An unrecognised dialect value, from either source, MUST resolve to the default rather
   than failing to start or rendering inconsistently.
 * **FR-011**: The dialect vocabulary MUST come from a maintained external source rather than a
@@ -183,6 +176,14 @@ reader starts in. See Licensing Constraints.
 * **FR-013**: Where the product compares a reader's typed recitation against expected text, both
   sides MUST be in the same dialect. A reader who types exactly what they were shown MUST NOT be
   marked wrong because the comparison's canonical side was drawn from un-substituted source text.
+* **FR-014**: Whenever a reader is shown substituted text, the product MUST disclose it alongside
+  the scripture attribution. The disclosure MUST name the dialect applied, attribute the change to
+  the product rather than to the publisher, and state that the text shown is not the published
+  wording.
+* **FR-015**: The disclosure MUST NOT appear when no substitution is in effect, so that a reader on
+  the source dialect sees the publisher's attribution exactly as required and nothing more.
+* **FR-016**: The disclosure MUST follow the reader whose view it describes. With per-reader
+  dialects, two readers on one deployment may need different disclosures for the same verse.
 
 ### Key Entities
 

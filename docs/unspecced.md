@@ -116,7 +116,9 @@ Card ids are emission-index based, so a config change can renumber them and corr
 Server-side backfills that run once against user data, distinct from Drizzle schema migrations.
 
 * **Surface:** `packages/api/src/lib/data-migrations.ts`, the `data_migrations` table (migration
-  `0027`), backfills such as `0024_backfill_graduated_verses` and `0025_canonicalise_schedules`
+  `0027`), and the marker rows it writes — today `STABLE_CARD_IDS_MIGRATION`
+  (`'stable-card-ids-core-0.8'`) plus its per-pair markers. Not to be confused with the numbered
+  Drizzle `.sql` migrations, which are schema changes applied by a different mechanism
 * **Coverage:** none. `docs/persistence.md` covers the schema but not this mechanism
 
 ## Enrollment

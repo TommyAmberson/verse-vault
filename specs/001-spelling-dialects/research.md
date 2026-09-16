@@ -10,12 +10,12 @@ browser applies their dialect at display time.
 
 **Rationale**: Three independent arguments converge.
 
-_The cache forces it._ Rendered verse HTML is cached in two places — `PASSAGES_CACHE` in
-`routes/materials.ts` and the IndexedDB `renders` store — and both key on card identity, not on
-reader. A per-reader dialect applied server-side would either serve one reader another's spelling
-from cache, or require the dialect in every cache key, tripling entries for a preference that
-changes nothing about the underlying scripture. Client-side substitution keeps one cached artifact
-per card and applies the reader's dialect after the cache, where it belongs.
+_The cache forces it._ Rendered verse HTML is cached in two places, neither keyed on the reader:
+`PASSAGES_CACHE` in `routes/materials.ts` holds one entry per `materialId`, and the IndexedDB
+`renders` store holds one per card. A per-reader dialect applied server-side would either serve one
+reader another's spelling from cache, or require the dialect in every cache key, tripling entries
+for a preference that changes nothing about the underlying scripture. Client-side substitution keeps
+one cached artifact per card and applies the reader's dialect after the cache, where it belongs.
 
 _It makes FR-013 structural._ The displayed text and the recitation diff's canonical side both live
 in the client. Substituting there means both derive from one dialect application, so "a reader who
