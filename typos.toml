@@ -4,6 +4,8 @@ extend-exclude = [
     "data/",
     "docs/decks.md", # commit-SHA tables trigger false positives (e.g. `ba` inside `64a4ba6`)
     ".specify/scripts/", # vendored by the Specify CLI; rewritten on every refresh
+    ".specify/templates/", # same — the CLI rewrites these on refresh
+    ".claude/skills/speckit-", # same — regenerated skills
 ]
 
 [default]
