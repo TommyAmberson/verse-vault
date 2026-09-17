@@ -26,10 +26,19 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
   minimal FSRS-6 inference.
 * `crates/sim/` — simulation binary. Uses core to validate algorithm against synthetic data.
 * `crates/wasm/` — wasm-bindgen wrappers around core for JS consumers (server + browser).
-* `packages/api/` (planned) — Hono + Better Auth + Drizzle + SQLite server.
-* `apps/` (planned) — Vue web app, Tauri desktop, CLI.
+* `packages/api/` — Hono + Better Auth + Drizzle + better-sqlite3 server.
+* `apps/web/` — Vue 3 + Vite SPA running the WASM engine in-browser; `src-tauri/` wraps the same
+  bundle as a Tauri v2 desktop app. A CLI is planned, not started.
 * `tools/` — Python scripts for content pipeline (Anki parsing, verse chunking).
 * `docs/` — design docs. See list below.
+* `docs/superpowers/` — read-only history. Specs and plans from the superseded superpowers workflow.
+  Source comments and changelog entries still cite these paths, so they stay put; new spec work goes
+  in `specs/`.
+* `specs/` — spec-driven development artefacts, one `NNN-slug/` directory per feature holding
+  `spec.md`, `plan.md`, and `tasks.md`.
+* `.specify/` — Spec Kit scaffolding: templates, shell helpers, and the project constitution.
+  Vendored by the Specify CLI, which rewrites `scripts/` and `templates/*.md` on every refresh —
+  customise through `.specify/templates/overrides/<name>.md` rather than editing them in place.
 * `data/` — gitignored. Local content files (NKJV text, chunked JSON). Not committed.
 * Other branches (`django-vue*`, `laravel*`, `express-vue`, etc.) are abandoned spikes. Do not merge
   from them.
@@ -51,7 +60,13 @@ not the code.
 * `docs/server-api.md` — HTTP API contract: routes, payloads, status codes
 * `docs/persistence.md` — database schema + event sourcing
 * `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
+* `docs/decks.md` — deck inventory + phrase-split provenance, one row per `data/<N>-*.json`
+* `docs/web-nav.md` — web client information architecture and route inventory
+* `docs/test-scenarios.md` — manual smoke checklist for sync + offline behaviours
+* `docs/unspecced.md` — shipped features with no design doc yet; the documentation backlog
 * `docs/archive/` — historical audits (FSRS-6 + per-deck keyword-markup snapshots)
+* `.specify/memory/constitution.md` — project constitution: the principles the `speckit-*` commands
+  gate against
 
 Per-package CHANGELOGs (`apps/web/CHANGELOG.md`, `packages/api/CHANGELOG.md`,
 `deploy/vv-router/CHANGELOG.md`) plus contract crate CHANGELOGs (`crates/core/CHANGELOG.md`,
@@ -107,6 +122,19 @@ adding a `CHANGELOG.md` entry is mandatory when their `src/` changes, and
 [CONTRIBUTING.md](./CONTRIBUTING.md#contract-crate-versioning) for the semver rules and the release
 promotion steps.
 
+## Spec-driven development
+
+Feature-sized work runs through the `speckit-*` skills — `/speckit-specify` → `/speckit-plan` →
+`/speckit-tasks` → `/speckit-implement` — writing into `specs/<NNN-slug>/`. `/speckit-analyze`
+cross-checks the three artefacts before implementation starts.
+
+Those commands gate against `.specify/memory/constitution.md`. It states principles;
+`CONTRIBUTING.md` holds the mechanics they compile down to, and this file holds the runtime guidance
+for agents. Where they disagree, fix the operational file rather than working around it.
+
+Spec Kit is branch-agnostic: `create-new-feature.sh` invokes git nowhere, and its `NNN-slug` string
+names the `specs/` directory rather than a branch. Keep using `type/short-slug` branches.
+
 ## Other conventions
 
 * Slight preference for writing tests before features.
@@ -151,5 +179,21 @@ from the code or design docs.
   with `The supplied SQL string contains more than one statement` unless each `;` is followed by
   `--> statement-breakpoint` on its own line. See `migrations/0013_relearn_and_wipe.sql` for the
   shape.
+* **A fresh clone cannot resume a committed Spec Kit feature.** `.specify/feature.json` is the only
+  feature-context source the scripts accept, and Spec Kit gitignores it as machine-local state. So
+  `specs/001-spelling-dialects/` is committed but every speckit command fails with "Feature
+  directory not found" until you `export SPECIFY_FEATURE_DIRECTORY=specs/<NNN-slug>` or re-run
+  `/speckit-specify`. Set the env var when picking up someone else's feature.
+* **dprint rewrites Spec Kit's checkboxes, so `specs/**/tasks.md` and `specs/**/checklists/` are
+  excluded.** `unorderedListKind: "asterisks"` turns `- [ ]` into `* [ ]`, and Spec Kit mandates the
+  hyphen form — `/speckit-implement` and `/speckit-converge` both read task state from those
+  checkboxes. The rewrite is silent and the resulting markdown still renders fine, so the damage
+  only shows up when a speckit command finds no tasks. Prose artifacts in `specs/` (`spec.md`,
+  `plan.md`, `research.md`, `data-model.md`, `quickstart.md`) carry no checkboxes and stay linted.
+* **Vendored Spec Kit files are exempt from dprint and typos, narrowly.** `typos` skips
+  `.specify/scripts/` and `dprint` skips `.specify/templates/*.md` and `.claude/skills/speckit-*/`,
+  because the Specify CLI rewrites all of them on refresh and any fix would be undone. The globs are
+  deliberately tight: `.specify/memory/constitution.md` and `.specify/templates/overrides/` are
+  project-authored and stay linted. Don't widen either to `.specify/**`.
 * **Abandoned branches.** `django-vue*`, `laravel*`, `express-vue`, and similar are spike
   experiments that were superseded. Don't merge from them; treat as read-only history.

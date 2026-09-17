@@ -5,9 +5,11 @@ covered) by automated tests. Most are manual browser smokes that need DevTools +
 where a unit test exists already it's linked so the manual run is a sanity check, not the primary
 signal.
 
-The automated suite lives in `packages/api/src/routes/*.test.ts` (vitest) and `cargo test`. As of
-this writing apps/web has no client-side tests — anything in the "manual smoke" column below is the
-authoritative test for that behaviour until that infrastructure lands.
+The automated suite lives in `packages/api/src/routes/*.test.ts` (vitest),
+`apps/web/src/**/*.test.ts` (vitest), and `cargo test`. Client-side coverage is still thin — it
+reaches the pure helpers (`heatmap`, `schedule`, `clubs`, `diff/clubList`) rather than the sync and
+offline paths below — so anything in the "manual smoke" column remains the authoritative test for
+that behaviour.
 
 ## Sync protocol
 

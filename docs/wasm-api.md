@@ -39,8 +39,8 @@ tests and the `roundtrip` integration smoke without needing `wasm-pack`.
 new WasmEngine(
   material_json: string,           // MaterialData JSON
   material_config_json: string,    // MaterialConfig JSON; '' for defaults
+  schedule_json: string,           // season schedule JSON; '' when none
   persisted_states_json: string,   // '' or '[]' for fresh state
-  desired_retention: number,       // e.g. 0.9
   now_secs: bigint,                // unix seconds; seeds unseen TestStates
 )
 ```
@@ -48,7 +48,14 @@ new WasmEngine(
 The constructor parses `material_json` into `MaterialData`, calls `build` to derive the cards and
 seeded `TestState` table, then overlays any persisted entries (so the JS layer can resume a user's
 progress from the database). `material_config_json` controls per-user scope toggles (headings, FTV,
-new/review/club/chapter-list scopes); pass `''` to use `MaterialConfig::default()`.
+new/review/club/chapter-list scopes); pass `''` to use `MaterialConfig::default()`. `schedule_json`
+carries the material's season schedule; pass `''` when the material has none.
+
+There is no `desired_retention` parameter — `crates/wasm@0.6.0` removed it. The constructor passes a
+fixed `0.9` to `ReviewEngine::new`, which now only seeds the fallback for pseudo-verses with no
+tier; real target retention is per-club, read from `MaterialConfig.review.{club}.desired_retention`
+(range `[0.5, 0.9]`, default `0.8`). See `docs/scheduling.md` for how `target_r_for_verse` resolves
+it.
 
 `now_secs` is used to seed every fresh `TestState::new_unseen` — the seeded states have
 `last_base_secs = now_secs - 365 days`, which puts them well below the target retention so the
