@@ -214,6 +214,26 @@ Validation rejects (400) with these conditions:
   events at arbitrary positions in the timeline).
 * `clientEventId` missing/empty, `snapshotVersion < 1`, `cardId < 0`, `grade ∉ {1,2,3,4}`,
   `verseId < 0`, or an unknown `kind`.
+* A `review` or `graduateCard` event naming a `cardId` the engine doesn't know. Persisting one would
+  brick replay for that material, since the out-of-order path commits before it replays. This
+  rejection carries the ids as well as the prose:
+
+  ```json
+  {
+    "error": "Unknown card ids: 15, 39 — re-fetch state before syncing",
+    "unknownCardIds": [15, 39]
+  }
+  ```
+
+  Nothing in the batch is persisted. Retrying it verbatim can never succeed when the ids belong to a
+  retired id space, so a client must set those events aside and flush the rest, rather than leaving
+  them to wedge its queue. Added in api 0.1.40; older servers send only `error`.
+
+  Rejecting the whole batch for one bad member is a known deviation from constitution principle VI
+  ("No Client Can Get Stuck"), which requires per-item rejection. It stands only because
+  `rebuildFromEvents` throws on an unreplayable stored row. Tracked in
+  [#151](https://github.com/TommyAmberson/verse-vault/issues/151) with
+  [#152](https://github.com/TommyAmberson/verse-vault/issues/152) as the prerequisite.
 
 Response — normal merge:
 

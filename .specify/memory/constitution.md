@@ -65,6 +65,34 @@ after a commit lands on it.
 Rationale: the target is that `git blame` on any line lands on a commit whose message explains that
 line. Squashing and batching both destroy that.
 
+### VI. No Client Can Get Stuck
+
+A client MUST always have a path back to a working state using only what the server tells it. A user
+MUST NOT have to clear site data, open a console, or reinstall to resume syncing, and a support path
+that requires any of those is a defect in the protocol, not a runbook entry.
+
+Four obligations follow, and each MUST hold independently:
+
+* **Rejections are per item.** One unacceptable item MUST NOT block acceptable ones. A batch
+  endpoint accepts what it can and reports what it refused; it MUST NOT fail a whole batch for one
+  bad member, because the client's only recourse is to resend the same batch forever.
+* **Refusals are machine-readable.** A rejection MUST name what was refused in a field the client
+  can act on. Prose is for humans; a client that has to parse an error message to recover is already
+  broken.
+* **Load and replay are total.** Reading persisted state MUST NOT be able to throw on a row that
+  state already contains. An unresolvable row degrades (skipped, logged loudly) and never bricks the
+  path that reads it. Anything else turns one bad row into permanent, silent data loss.
+* **Identifier changes carry a migration.** Changing an id space MUST come with a translation or
+  invalidation path for state already held by clients, not only for rows held server-side. State in
+  a browser outlives any deploy.
+
+Rationale: a stuck client is invisible from both ends. The server sees a 4xx it does not record, the
+user sees "it just doesn't save", and the gap between the two is measured in weeks of lost work. On
+2026-09-23 one account had synced nothing from one browser since 2026-09-09 because eight queued
+events carried ids from a retired space; the same account synced normally in another browser, and
+diagnosis required reading a response body out of devtools. Every individual decision in that chain
+was defensible. The system still ate a fortnight of reviews.
+
 ## Technology and Content Constraints
 
 The stack is fixed by the architecture and MUST NOT be forked casually: a Rust workspace
@@ -112,4 +140,4 @@ the principles above. Added complexity — a new crate, a new package, an except
 MUST carry its justification in the pull request body, and an exception that outlives its
 justification is a defect to be removed.
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-09-10
+**Version**: 1.1.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-09-23
