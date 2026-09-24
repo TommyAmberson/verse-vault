@@ -221,8 +221,11 @@ describe('sync routes', () => {
       body: JSON.stringify({ events: [event({ cardId: 999_999_999 })] }),
     });
     expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string };
+    const body = (await res.json()) as { error: string; unknownCardIds: number[] };
     expect(body.error).toMatch(/Unknown card ids/);
+    // Structured so the client can quarantine exactly these events
+    // rather than re-parsing the prose — see lib/engine/syncErrors.
+    expect(body.unknownCardIds).toEqual([999_999_999]);
     expect(test.db.select().from(reviewEvents).all()).toHaveLength(0);
   });
 

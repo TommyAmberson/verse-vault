@@ -21,7 +21,7 @@ import {
   type ReviewEventInput,
   persistEngineState,
 } from '../lib/review-log.js';
-import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
+import { type AppVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface SyncRoutesDeps {
   db: DB;
@@ -81,7 +81,7 @@ function eventKind(e: SyncEventUpload): 'review' | 'graduate' | 'graduateCard' {
 }
 
 export function syncRoutes(deps: SyncRoutesDeps) {
-  const app = new Hono<{ Variables: SessionVariables }>();
+  const app = new Hono<{ Variables: AppVariables }>();
   const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
 
   app.use('*', requireAuth());
@@ -175,16 +175,38 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     // permanently brick rebuildFromEvents for this material, and
     // unknown graduateCard ids would sit in graduated_cards as junk.
     const unknownCardIds = [
+      // Dedup before probing, not after: a 500-event batch drilling a
+      // dozen cards would otherwise cross the wasm boundary 500 times
+      // for the same dozen answers, on the hot sync path.
       ...new Set(
         events
           .filter((e) => eventKind(e) !== 'graduate')
-          .map((e) => (e as { cardId: number }).cardId)
-          .filter((id) => !loaded.engine.has_card(id)),
+          .map((e) => (e as { cardId: number }).cardId),
       ),
-    ];
+    ].filter((id) => !loaded.engine.has_card(id));
     if (unknownCardIds.length > 0) {
+      // Log it: this rejection is the one 4xx a user can sit behind for
+      // days (the client cannot invent replaceable ids), and until now
+      // the reason lived only in a response body nobody keeps. Same
+      // one-JSON-line-per-event shape the request logger emits, with
+      // the requestId, so `journalctl | jq` can join the two.
+      console.warn(
+        JSON.stringify({
+          requestId: c.get('requestId'),
+          event: 'sync.unknown_card_ids',
+          userId: user.id,
+          materialId,
+          unknownCardIds,
+        }),
+      );
       return c.json(
-        { error: `Unknown card ids: ${unknownCardIds.join(', ')} — re-fetch state before syncing` },
+        {
+          error: `Unknown card ids: ${unknownCardIds.join(', ')} — re-fetch state before syncing`,
+          // Structured so the client can act on exactly these ids and
+          // flush the rest; parsing the prose above would break the
+          // moment the wording changes.
+          unknownCardIds,
+        },
         400,
       );
     }

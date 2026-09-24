@@ -10,6 +10,29 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.40] — 2026-09-23
+
+MINOR — the unknown-card-id rejection is now machine-readable, and it gets logged.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.9.0` — unchanged.
+* `verse-vault-wasm@0.9.0` — unchanged.
+
+### Added
+
+* The 400 from `POST /sync/:materialId/events` carries `unknownCardIds: number[]` beside the prose
+  `error`. The client quarantines exactly those events instead of re-parsing the message.
+* That rejection now logs a warning naming the user, material and ids. It is the one 4xx a user can
+  sit behind for days, and the reason previously existed only in a response body nobody retains, so
+  diagnosing it needed the user to open DevTools.
+
+### Why
+
+A device whose queue holds events from a retired card-id space (the #141 migration left some behind
+in client IndexedDB) had every batch refused, including the good reviews queued behind them. The
+server was right to refuse; it just gave the client nothing to act on.
+
 ## [0.1.39] — 2026-09-10
 
 MINOR — `/api/years` now reports a schedule-aware memorize backlog per year.
