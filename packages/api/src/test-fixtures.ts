@@ -1,5 +1,8 @@
+import { WasmEngine, max_emission_config_json } from 'verse-vault-wasm';
+
 import type { DB } from './db/client.js';
 import { enrollUser } from './lib/enrollment.js';
+import { getMaterialJson } from './lib/materials.js';
 import { type TestApp, createTestUser, signUpTestUser } from './test-utils.js';
 
 export interface SeedOptions {
@@ -35,4 +38,19 @@ export async function seedEnrolledUser(
   const { cookie, userId } = await signUpTestUser(test, email);
   seedUserWithFixture({ db: test.db, userId, materialId, createUser: false });
   return { cookie, userId };
+}
+
+/** A card id the material's max-emission config produces but `current`
+ *  does not: the shape of a card the learner switched off. Throws if the
+ *  deck has none, so a test relying on one cannot pass vacuously. */
+export function switchedOffCardId(current: WasmEngine, materialId: string): number {
+  const max = new WasmEngine(getMaterialJson(materialId), max_emission_config_json(), '', '[]', 0n);
+  try {
+    const renders = JSON.parse(max.all_card_renders()) as { cardId: number }[];
+    const off = renders.find((r) => !current.has_card(r.cardId));
+    if (off) return off.cardId;
+  } finally {
+    max.free();
+  }
+  throw new Error(`${materialId} has no card its current config switches off`);
 }

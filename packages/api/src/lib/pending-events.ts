@@ -68,6 +68,29 @@ export function take(
   return result.changes;
 }
 
+/** Which of `clientEventIds` this account already holds here, in any
+ *  status. The upload route unions this with review_events so a retry
+ *  of an event that is waiting is a duplicate, not a second row. */
+export function heldClientEventIds(
+  db: DB,
+  key: UserMaterial,
+  clientEventIds: string[],
+): Set<string> {
+  if (clientEventIds.length === 0) return new Set();
+  const rows = db
+    .select({ clientEventId: pendingEvents.clientEventId })
+    .from(pendingEvents)
+    .where(
+      and(
+        eq(pendingEvents.userId, key.userId),
+        eq(pendingEvents.materialId, key.materialId),
+        inArray(pendingEvents.clientEventId, clientEventIds),
+      ),
+    )
+    .all();
+  return new Set(rows.map((r) => r.clientEventId).filter((id): id is string => id !== null));
+}
+
 function promotableWhere(key: UserMaterial, codes: PendingReasonCode[]) {
   return and(
     eq(pendingEvents.userId, key.userId),

@@ -5,6 +5,7 @@ import { createTestDb, createTestUser } from '../test-utils.js';
 import {
   countForOperator,
   hasPromotable,
+  heldClientEventIds,
   markDiscarded,
   promote,
   summariseAwaitingConfirmation,
@@ -59,6 +60,19 @@ describe('pending-events', () => {
     expect(rows[0].receivedAt).toBe(NOW);
   });
 
+  it('reports which client ids are already held, in any status', () => {
+    const db = setup();
+    take(db, KEY, [
+      input({ clientEventId: 'a' }),
+      input({ clientEventId: 'b', status: 'unusable', reasonCode: 'card-unknown' }),
+      input({ clientEventId: null, reasonCode: 'malformed', status: 'unusable' }),
+    ], NOW);
+    take(db, { ...KEY, materialId: 'other' }, [input({ clientEventId: 'c' })], NOW);
+
+    expect(heldClientEventIds(db, KEY, ['a', 'b', 'c', 'd'])).toEqual(new Set(['a', 'b']));
+    expect(heldClientEventIds(db, KEY, [])).toEqual(new Set());
+  });
+
   it('treats re-taking the same clientEventId as a no-op', () => {
     const db = setup();
     take(db, KEY, [input()], NOW);
@@ -93,10 +107,17 @@ describe('pending-events', () => {
     ], NOW);
     take(db, { userId: 'u2', materialId: 'nkjv-john' }, [input({ clientEventId: 'a' })], NOW);
 
+    const row = (userId: string, status: string, reasonCode: string, count: number) => ({
+      userId,
+      materialId: 'nkjv-john',
+      status,
+      reasonCode,
+      count,
+    });
     expect(countForOperator(db)).toEqual([
-      { userId: 'u1', materialId: 'nkjv-john', status: 'pending', reasonCode: 'card-not-emitted', count: 2 },
-      { userId: 'u1', materialId: 'nkjv-john', status: 'unusable', reasonCode: 'card-unknown', count: 1 },
-      { userId: 'u2', materialId: 'nkjv-john', status: 'pending', reasonCode: 'card-not-emitted', count: 1 },
+      row('u1', 'pending', 'card-not-emitted', 2),
+      row('u1', 'unusable', 'card-unknown', 1),
+      row('u2', 'pending', 'card-not-emitted', 1),
     ]);
   });
 

@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
+import type { PendingReasonCode } from '../db/schema.js';
 import {
   EngineStore,
   changedStatesFromUpdates,
@@ -14,6 +15,7 @@ import {
   readTestStateEntries,
 } from '../lib/engine.js';
 import { getMaterialJson } from '../lib/materials.js';
+import { heldClientEventIds, take, type TakeInput } from '../lib/pending-events.js';
 import { computeStateRev } from '../lib/state-rev.js';
 import {
   existingEventIds,
@@ -21,7 +23,7 @@ import {
   type ReviewEventInput,
   persistEngineState,
 } from '../lib/review-log.js';
-import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
+import { type AppVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface SyncRoutesDeps {
   db: DB;
@@ -81,7 +83,7 @@ function eventKind(e: SyncEventUpload): 'review' | 'graduate' | 'graduateCard' {
 }
 
 export function syncRoutes(deps: SyncRoutesDeps) {
-  const app = new Hono<{ Variables: SessionVariables }>();
+  const app = new Hono<{ Variables: AppVariables }>();
   const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
 
   app.use('*', requireAuth());
@@ -138,66 +140,161 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     const materialId = c.req.param('materialId');
     const key = { userId: user.id, materialId };
 
+    // The only refusals left strand nothing: a body that is not a list
+    // of events carries nothing to take, 413 is a page size, and 409
+    // below is a stale stamp the client fixes itself. Every event in a
+    // readable list is taken (spec FR-001) and gets a disposition.
     let body: UploadBody;
     try {
       body = await c.req.json<UploadBody>();
     } catch {
       return c.json({ error: 'invalid JSON body' }, 400);
     }
-    const events = body.events;
+    const events: unknown[] = body?.events;
     if (!Array.isArray(events)) return c.json({ error: 'events required' }, 400);
     if (events.length > MAX_BATCH_SIZE) {
       return c.json({ error: `Batch too large — max ${MAX_BATCH_SIZE} events per request` }, 413);
     }
     const nowSecs = now();
-    for (const e of events) {
-      const problem = validateUpload(e, nowSecs);
-      if (problem) return c.json({ error: problem }, 400);
-    }
 
-    if (events.length === 0) {
-      return c.json(unchangedResponse(deps.db, key, 0, 0));
-    }
+    const dispositions: Disposition[] = new Array(events.length);
+    const notApplied: { index: number; take: TakeInput }[] = [];
+    const setAside = (
+      index: number,
+      parsed: UploadIds,
+      status: TakeInput['status'],
+      reasonCode: PendingReasonCode,
+      reason: string,
+    ) => {
+      dispositions[index] = {
+        index,
+        clientEventId: parsed.clientEventId,
+        disposition: status,
+        reasonCode,
+        reason,
+      };
+      notApplied.push({
+        index,
+        take: {
+          clientEventId: parsed.clientEventId,
+          kind: parsed.kind,
+          timestampSecs: parsed.timestampSecs,
+          payload: events[index] ?? null,
+          status,
+          reasonCode,
+          reason,
+        },
+      });
+    };
+
+    const wellFormed: { index: number; event: SyncEventUpload }[] = [];
+    events.forEach((raw, index) => {
+      const parsed = parseUpload(raw, nowSecs);
+      if (parsed.event) wellFormed.push({ index, event: parsed.event });
+      else setAside(index, parsed, 'unusable', 'malformed', parsed.problem);
+    });
 
     const raw = await deps.engines.tryLoad(key);
-    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    if (raw === null) {
+      // Not enrolled. Refusing would strand these on the device for
+      // good; hold them until the account enrols in this material.
+      const held = heldClientEventIds(
+        deps.db,
+        key,
+        wellFormed.map((w) => w.event.clientEventId),
+      );
+      let duplicates = 0;
+      for (const { index, event } of wellFormed) {
+        if (held.has(event.clientEventId)) {
+          dispositions[index] = duplicateOf(index, event);
+          duplicates += 1;
+        } else {
+          held.add(event.clientEventId);
+          setAside(
+            index,
+            uploadIds(event),
+            'pending',
+            'not-enrolled',
+            `not enrolled in ${materialId}`,
+          );
+        }
+      }
+      takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
+      return c.json({
+        accepted: 0,
+        duplicates,
+        rebuilt: false,
+        testStates: [],
+        lastEventId: null,
+        stateRev: computeStateRev(deps.db, user.id, materialId),
+        dispositions,
+      });
+    }
     using loaded = raw;
-    for (const e of events) {
-      if (e.snapshotVersion !== loaded.snapshotVersion) {
+    for (const { event } of wellFormed) {
+      if (event.snapshotVersion !== loaded.snapshotVersion) {
         return c.json({ error: 'Snapshot version mismatch — re-fetch state before syncing' }, 409);
       }
     }
 
-    // Reject card ids the engine doesn't know BEFORE anything persists.
-    // Without this a stale tab from before a card-id-space change (the
-    // #141 migration) can commit unreplayable rows: the out-of-order
-    // path persists first and replays later, so one unknown id would
-    // permanently brick rebuildFromEvents for this material, and
-    // unknown graduateCard ids would sit in graduated_cards as junk.
-    const unknownCardIds = [
-      ...new Set(
-        events
-          .filter((e) => eventKind(e) !== 'graduate')
-          .map((e) => (e as { cardId: number }).cardId)
-          .filter((id) => !loaded.engine.has_card(id)),
-      ),
-    ];
-    if (unknownCardIds.length > 0) {
-      return c.json(
-        { error: `Unknown card ids: ${unknownCardIds.join(', ')} — re-fetch state before syncing` },
-        400,
-      );
-    }
+    // Already taken, into either table, or earlier in this same request.
+    const ids = wellFormed.map((w) => w.event.clientEventId);
+    const seen = existingEventIds(deps.db, user.id, materialId, ids);
+    for (const id of heldClientEventIds(deps.db, key, ids)) seen.add(id);
 
-    const seen = existingEventIds(
-      deps.db,
-      user.id,
-      materialId,
-      events.map((e) => e.clientEventId),
+    // Classify card ids before anything persists. An id the learner's
+    // engine lacks never reaches review_events or graduated_cards, where
+    // replay would have to cope with it forever. Core's max-emission
+    // config says whether it is a card they switched off (it waits) or
+    // one nothing produces (unusable).
+    const classes = deps.engines.classifyCardIds(
+      key,
+      loaded,
+      wellFormed
+        .filter((w) => eventKind(w.event) !== 'graduate')
+        .map((w) => (w.event as { cardId: number }).cardId),
     );
 
-    const fresh = events
-      .filter((e) => !seen.has(e.clientEventId))
+    let duplicates = 0;
+    const applicable: { index: number; event: SyncEventUpload }[] = [];
+    for (const w of wellFormed) {
+      const { index, event } = w;
+      if (seen.has(event.clientEventId)) {
+        dispositions[index] = duplicateOf(index, event);
+        duplicates += 1;
+        continue;
+      }
+      seen.add(event.clientEventId);
+      if (eventKind(event) !== 'graduate') {
+        const cardId = (event as { cardId: number }).cardId;
+        const cls = classes.get(cardId);
+        if (cls === 'not-emitted') {
+          setAside(
+            index,
+            uploadIds(event),
+            'pending',
+            'card-not-emitted',
+            `card id ${cardId} is not emitted by the current config`,
+          );
+          continue;
+        }
+        if (cls === 'unknown') {
+          setAside(
+            index,
+            uploadIds(event),
+            'unusable',
+            'card-unknown',
+            `card id ${cardId} is not produced by any config for this deck`,
+          );
+          continue;
+        }
+      }
+      dispositions[index] = { index, clientEventId: event.clientEventId, disposition: 'applied' };
+      applicable.push(w);
+    }
+
+    const fresh = applicable
+      .map((w) => w.event)
       .sort((a, b) =>
         a.timestampSecs !== b.timestampSecs
           ? a.timestampSecs - b.timestampSecs
@@ -205,7 +302,8 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       );
 
     if (fresh.length === 0) {
-      return c.json(unchangedResponse(deps.db, key, 0, events.length));
+      takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
+      return c.json({ ...unchangedResponse(deps.db, key, 0, duplicates), dispositions });
     }
 
     // Stale-merge preflight: if the batch's oldest event predates more
@@ -233,6 +331,8 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         .get();
       const serverEventsSince = sinceRow?.count ?? 0;
       if (serverEventsSince > STALE_MERGE_THRESHOLD) {
+        // What cannot apply anyway is taken now; only the merge waits.
+        takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
         const newestRow = deps.db
           .select({ ts: sql<number>`MAX(${schema.reviewEvents.timestampSecs})` })
           .from(schema.reviewEvents)
@@ -358,6 +458,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
       try {
         deps.db.transaction((tx) => {
+          takeNotApplied(tx, key, notApplied, nowSecs, c.get('requestId'));
           persistEngineState(tx, {
             userId: user.id,
             materialId,
@@ -416,7 +517,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
       return c.json({
         accepted: fresh.length - graduateNoops,
-        duplicates: events.length - fresh.length + graduateNoops,
+        duplicates: duplicates + graduateNoops,
         rebuilt: outOfOrder,
         // Send the full state so fat clients can replace their cache in one
         // shot; DB writes were filtered above to just the touched keys
@@ -428,6 +529,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         // every boot after any synced session would see the years-row
         // fingerprint ahead of the cached one and needlessly refetch.
         stateRev: computeStateRev(deps.db, user.id, materialId),
+        dispositions,
       });
     });
   });
@@ -467,38 +569,97 @@ function latestEventId(db: DB, userId: string, materialId: string): string | nul
   return latest?.id ?? null;
 }
 
-function validateUpload(e: SyncEventUpload, nowSecs: number): string | null {
-  if (typeof e.clientEventId !== 'string' || !e.clientEventId) return 'clientEventId required';
-  if (!Number.isInteger(e.timestampSecs) || e.timestampSecs < 0) {
-    return 'timestampSecs must be a non-negative integer';
+/** One event's outcome, reported back to the client by position. */
+interface Disposition {
+  index: number;
+  clientEventId: string | null;
+  disposition: 'applied' | 'duplicate' | 'pending' | 'unusable';
+  reasonCode?: PendingReasonCode;
+  reason?: string;
+}
+
+function duplicateOf(index: number, event: SyncEventUpload): Disposition {
+  return { index, clientEventId: event.clientEventId, disposition: 'duplicate' };
+}
+
+/** The identifying fields of an upload, as far as they can be read. A
+ *  malformed event may have none of them, and is taken anyway. */
+interface UploadIds {
+  clientEventId: string | null;
+  kind: string | null;
+  timestampSecs: number | null;
+}
+
+type ParsedUpload =
+  | (UploadIds & { event: SyncEventUpload; problem?: undefined })
+  | (UploadIds & { event?: undefined; problem: string });
+
+function uploadIds(e: SyncEventUpload): UploadIds {
+  return { clientEventId: e.clientEventId, kind: eventKind(e), timestampSecs: e.timestampSecs };
+}
+
+/** Store what was taken but not applied, and log it: until this feature
+ *  the reason an event did not land lived only in a response body
+ *  nobody keeps. One JSON line per request, with the requestId, in the
+ *  shape the request logger emits so `journalctl | jq` can join them. */
+function takeNotApplied(
+  db: Parameters<typeof take>[0],
+  key: { userId: string; materialId: string },
+  notApplied: { index: number; take: TakeInput }[],
+  nowSecs: number,
+  requestId: string | undefined,
+): void {
+  if (notApplied.length === 0) return;
+  take(db, key, notApplied.map((n) => n.take), nowSecs);
+  console.warn(
+    JSON.stringify({
+      requestId,
+      event: 'sync.events_not_applied',
+      userId: key.userId,
+      materialId: key.materialId,
+      events: notApplied.map((n) => ({
+        index: n.index,
+        clientEventId: n.take.clientEventId,
+        status: n.take.status,
+        reasonCode: n.take.reasonCode,
+        reason: n.take.reason,
+      })),
+    }),
+  );
+}
+
+/** Read one uploaded event. Anything that fails is still taken, as
+ *  `unusable` / `malformed`, with the problem as its reason. */
+function parseUpload(raw: unknown, nowSecs: number): ParsedUpload {
+  const obj = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+  const clientEventId =
+    typeof obj.clientEventId === 'string' && obj.clientEventId ? obj.clientEventId : null;
+  const kind = obj.kind === undefined ? 'review' : typeof obj.kind === 'string' ? obj.kind : null;
+  const timestampSecs = Number.isInteger(obj.timestampSecs) ? (obj.timestampSecs as number) : null;
+  const ids: UploadIds = { clientEventId, kind, timestampSecs };
+  const fail = (problem: string): ParsedUpload => ({ ...ids, problem });
+
+  if (typeof raw !== 'object' || raw === null) return fail('event must be an object');
+  if (clientEventId === null) return fail('clientEventId must be a non-empty string');
+  if (timestampSecs === null || timestampSecs < 0) {
+    return fail('timestampSecs must be a non-negative integer');
   }
-  if (e.timestampSecs > nowSecs + CLOCK_SKEW_TOLERANCE_SECS) {
-    return 'timestampSecs more than 24h in the future — check device clock';
+  if (timestampSecs > nowSecs + CLOCK_SKEW_TOLERANCE_SECS) {
+    return fail('timestampSecs more than 24h in the future — check device clock');
   }
-  if (!Number.isInteger(e.snapshotVersion) || e.snapshotVersion < 1) {
-    return 'snapshotVersion must be a positive integer';
+  if (!Number.isInteger(obj.snapshotVersion) || (obj.snapshotVersion as number) < 1) {
+    return fail('snapshotVersion must be a positive integer');
   }
-  const kind = eventKind(e);
+  const nonNegativeInt = (v: unknown) => Number.isInteger(v) && (v as number) >= 0;
   if (kind === 'review') {
-    const re = e as ReviewEventUpload;
-    if (!Number.isInteger(re.cardId) || re.cardId < 0) {
-      return 'cardId must be a non-negative integer';
-    }
-    if (![1, 2, 3, 4].includes(re.grade)) {
-      return 'grade must be 1..=4';
-    }
+    if (!nonNegativeInt(obj.cardId)) return fail('cardId must be a non-negative integer');
+    if (![1, 2, 3, 4].includes(obj.grade as number)) return fail('grade must be 1..=4');
   } else if (kind === 'graduate') {
-    const ge = e as GraduateEventUpload;
-    if (!Number.isInteger(ge.verseId) || ge.verseId < 0) {
-      return 'verseId must be a non-negative integer';
-    }
+    if (!nonNegativeInt(obj.verseId)) return fail('verseId must be a non-negative integer');
   } else if (kind === 'graduateCard') {
-    const gc = e as GraduateCardEventUpload;
-    if (!Number.isInteger(gc.cardId) || gc.cardId < 0) {
-      return 'cardId must be a non-negative integer';
-    }
+    if (!nonNegativeInt(obj.cardId)) return fail('cardId must be a non-negative integer');
   } else {
-    return `unknown event kind: ${String((e as { kind: unknown }).kind)}`;
+    return fail(`unknown event kind: ${String(obj.kind)}`);
   }
-  return null;
+  return { ...ids, event: raw as SyncEventUpload };
 }

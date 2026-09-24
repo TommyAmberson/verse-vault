@@ -1,6 +1,5 @@
 import { and, eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { WasmEngine, max_emission_config_json } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import {
@@ -9,10 +8,9 @@ import {
   reviewEvents,
   testStates as testStatesTable,
 } from '../db/schema.js';
-import { seedUserWithFixture } from '../test-fixtures.js';
+import { seedUserWithFixture, switchedOffCardId } from '../test-fixtures.js';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import { enrollUser } from './enrollment.js';
-import { getMaterialJson } from './materials.js';
 import {
   EngineStore,
   NotEnrolledError,
@@ -568,31 +566,6 @@ describe('EngineStore.classifyCardIds', () => {
 
   const key = { userId: 'u1', materialId: 'nkjv-cor' };
 
-  /** A card id the max-emission config produces but the learner's
-   *  current config does not: the shape of a card they switched off. */
-  function switchedOffCardId(current: WasmEngine): number {
-    const max = new WasmEngine(
-      getMaterialJson(key.materialId),
-      max_emission_config_json(),
-      '',
-      '[]',
-      0n,
-    );
-    try {
-      for (let verse = 0; verse < 64; verse++) {
-        for (let slot = 0; slot < 12; slot++) {
-          for (let pos = 0; pos < 4; pos++) {
-            const id = (verse << 16) | (slot << 12) | pos;
-            if (max.has_card(id) && !current.has_card(id)) return id;
-          }
-        }
-      }
-    } finally {
-      max.free();
-    }
-    throw new Error('fixture has no switched-off card');
-  }
-
   it('sorts ids into emitted, not emitted, and unknown', async () => {
     const test = createTestDb();
     cleanup = test.cleanup;
@@ -600,7 +573,7 @@ describe('EngineStore.classifyCardIds', () => {
     const store = new EngineStore(test.db);
     using loaded = await store.load(key);
     expect(loaded.engine.has_card(0)).toBe(true);
-    const off = switchedOffCardId(loaded.engine);
+    const off = switchedOffCardId(loaded.engine, key.materialId);
 
     const classes = store.classifyCardIds(key, loaded, [0, off, 999_999_999]);
 

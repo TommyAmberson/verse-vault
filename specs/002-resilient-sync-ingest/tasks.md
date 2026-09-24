@@ -108,35 +108,35 @@ land, the response reports all of them by index, and the status is 200.
 
 ### Tests
 
-- [ ] T014 [P] [US1] In `packages/api/src/routes/sync.test.ts`, replace "rejects events carrying
+- [X] T014 [P] [US1] In `packages/api/src/routes/sync.test.ts`, replace "rejects events carrying
       card ids the engine does not know" with a test asserting 200, the good events persisted, and
       one `dispositions` entry per event, each with its `index`
-- [ ] T015 [P] [US1] Add a test that a batch where nothing is applicable returns 200 with every
+- [X] T015 [P] [US1] Add a test that a batch where nothing is applicable returns 200 with every
       event dispositioned and `review_events` untouched
-- [ ] T016 [P] [US1] Add a test that malformed events (bad grade, unknown kind, negative id, missing
+- [X] T016 [P] [US1] Add a test that malformed events (bad grade, unknown kind, negative id, missing
       `clientEventId`) are taken as `unusable` with reason code `malformed`, and that the one with no
       id is reported with `clientEventId: null` at its index
-- [ ] T017 [P] [US1] Add a test that re-uploading an event already taken as `pending` reports
+- [X] T017 [P] [US1] Add a test that re-uploading an event already taken as `pending` reports
       `duplicate` and creates no second row (FR-012, research D2)
-- [ ] T018 [P] [US1] Replace the "not enrolled" 404 test with one asserting 200 and every event
+- [X] T018 [P] [US1] Replace the "not enrolled" 404 test with one asserting 200 and every event
       taken as `pending`, reason code `not-enrolled` (FR-018)
 
 ### Implementation
 
-- [ ] T019 [US1] In `packages/api/src/routes/sync.ts`, replace the `unknownCardIds` 400 with
+- [X] T019 [US1] In `packages/api/src/routes/sync.ts`, replace the `unknownCardIds` 400 with
       per-event classification through `classifyCardId`: `emitted` is applied as today;
       `not-emitted` is `pending` / `card-not-emitted`; `unknown` is `unusable` / `card-unknown`
-- [ ] T020 [US1] Remove the field-validation 400s from `validateUpload`, reclassifying malformed
+- [X] T020 [US1] Remove the field-validation 400s from `validateUpload`, reclassifying malformed
       events as `unusable` / `malformed` with the validation message as `reason`. Keep 400 only for
       a body that is not an object with an `events` array; keep 401, 409 and 413
-- [ ] T021 [US1] Replace the `tryLoad` null 404 with taking every event as `pending` /
+- [X] T021 [US1] Replace the `tryLoad` null 404 with taking every event as `pending` /
       `not-enrolled`
-- [ ] T022 [US1] Extend the dedup check to query `review_events` and `pending_events` together so a
+- [X] T022 [US1] Extend the dedup check to query `review_events` and `pending_events` together so a
       retry cannot duplicate a pending row (research D2)
-- [ ] T023 [US1] Add `dispositions` (`index`, `clientEventId`, `disposition`, `reasonCode`,
+- [X] T023 [US1] Add `dispositions` (`index`, `clientEventId`, `disposition`, `reasonCode`,
       `reason`) to the merged response, keeping `accepted`/`duplicates` counting only applied and
       already-known events
-- [ ] T024 [US1] Rewrite the api CHANGELOG entry added earlier on this branch so it describes the
+- [X] T024 [US1] Rewrite the api CHANGELOG entry added earlier on this branch so it describes the
       shipped behaviour rather than the 400 it replaced, and bump `packages/api/package.json`
 
 **Checkpoint**: The original incident's batch, replayed against a test server, lands 49 of 57 events
@@ -256,7 +256,7 @@ merge question is open.
 
 **Independent Test**: Run the query in quickstart §6 against a database with pending rows.
 
-- [ ] T053 [P] [US3] Keep and repoint the structured log added earlier on this branch: log each
+- [X] T053 [P] [US3] Keep and repoint the structured log added earlier on this branch: log each
       taken-but-unapplied event's status, reason code and reason with the requestId, replacing the
       refusal log in `packages/api/src/routes/sync.ts`
 - [ ] T054 [US3] Add the operator query to `docs/test-scenarios.md` (or a short runbook note) so the

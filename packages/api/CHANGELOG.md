@@ -12,18 +12,47 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [0.1.40] — 2026-09-24
 
-PATCH — rebuilding a material's state survives an event row the engine cannot resolve.
+MINOR — sync takes every event. An upload is no longer refused because one event in it cannot be
+applied: each event is judged alone, and one the server cannot apply is stored with its reason
+instead of refused (constitution principle VI).
 
 ### Bundled algorithm contract
 
-* `verse-vault-core@0.9.0` — unchanged.
-* `verse-vault-wasm@0.9.0` — unchanged.
+* `verse-vault-core@0.10.0` — adds `MaterialConfig::max_emission`; no state-semantics change.
+* `verse-vault-wasm@0.10.0` — exposes it as `max_emission_config_json()`.
+
+### Changed
+
+* `POST /sync/:materialId/events` reports a disposition per event, by position: `applied`,
+  `duplicate`, `pending` (may apply later), or `unusable` (never will), with a closed `reasonCode`
+  and a prose `reason` for the last two. `accepted` and `duplicates` keep their meaning.
+* An id the learner's current config does not emit, but some config does, is `pending` /
+  `card-not-emitted`; one no config produces is `unusable` / `card-unknown`. Neither reaches
+  `review_events` or `graduated_cards`, so replay never meets it.
+* Malformed events are taken as `unusable` / `malformed` instead of failing the request with 400.
+  Only a body that is not a list of events is still a 400.
+* Uploads for a material the account is not enrolled in are taken as `pending` / `not-enrolled`
+  instead of 404.
+
+### Added
+
+* `pending_events` table (migration 0028) holding every event taken but not applied, with its
+  payload verbatim, status, reason code and reason. Re-uploading a held event is a duplicate.
+* A `sync.events_not_applied` log line per request naming each such event and why, with the
+  requestId. The reason an event did not land used to live only in a response body.
 
 ### Fixed
 
 * Rebuilding a material's state from its event log skips a row the engine cannot resolve instead of
   throwing. One such row used to fail every future rebuild for that material, freezing the learner's
   state; the skip now logs an `engine.replay_skipped` line naming the card ids (#152).
+
+### Why
+
+On 2026-09-09 a card-id migration left eight events from the retired id space in one browser's
+outbox. The server refused every batch containing them, so the 49 good reviews queued behind them
+never landed either, for two weeks, with the reason visible only in DevTools. Refusing was the bug:
+a device holding work the server will not take cannot be wiped without losing it.
 
 ## [0.1.39] — 2026-09-10
 

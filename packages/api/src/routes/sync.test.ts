@@ -2,8 +2,14 @@ import { randomUUID } from 'node:crypto';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { graduatedCards, graduatedVerses, reviewEvents, testStates } from '../db/schema.js';
-import { seedEnrolledUser } from '../test-fixtures.js';
+import {
+  graduatedCards,
+  graduatedVerses,
+  pendingEvents,
+  reviewEvents,
+  testStates,
+} from '../db/schema.js';
+import { seedEnrolledUser, switchedOffCardId } from '../test-fixtures.js';
 import { type TestApp, createTestApp, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-cor';
@@ -27,12 +33,35 @@ interface StateResponse {
   graduatedCardIds: number[];
 }
 
+interface Disposition {
+  index: number;
+  clientEventId: string | null;
+  disposition: 'applied' | 'duplicate' | 'pending' | 'unusable';
+  reasonCode?: string;
+  reason?: string;
+}
+
 interface UploadResponse {
   accepted: number;
   duplicates: number;
   rebuilt: boolean;
   testStates: TestStateWire[];
   lastEventId: string | null;
+  dispositions: Disposition[];
+}
+
+async function upload(
+  test: TestApp,
+  cookie: string,
+  events: unknown[],
+  extra: Record<string, unknown> = {},
+): Promise<{ status: number; body: UploadResponse }> {
+  const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({ events, ...extra }),
+  });
+  return { status: res.status, body: (await res.json()) as UploadResponse };
 }
 
 async function enroll(test: TestApp, email: string): Promise<{ cookie: string; userId: string }> {
@@ -80,22 +109,36 @@ describe('sync routes', () => {
     expect(eventsRes.status).toBe(401);
   });
 
-  it('returns 404 when the user is not enrolled', async () => {
+  it('404s state but takes events as pending when the user is not enrolled', async () => {
+    // Reading state that does not exist is a 404. Refusing the upload
+    // would strand the work on the device forever, so it is taken and
+    // held until the account enrols (FR-018).
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie } = await signUpTestUser(test, 'nouser@example.com');
+    const { cookie, userId } = await signUpTestUser(test, 'nouser@example.com');
 
     const stateRes = await test.app.request(`/api/sync/${MATERIAL_ID}/state`, {
       headers: { cookie },
     });
     expect(stateRes.status).toBe(404);
 
-    const eventsRes = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ events: [event()] }),
-    });
-    expect(eventsRes.status).toBe(404);
+    const e = event();
+    const { status, body } = await upload(test, cookie, [e]);
+    expect(status).toBe(200);
+    expect(body.accepted).toBe(0);
+    expect(body.dispositions).toEqual([
+      {
+        index: 0,
+        clientEventId: e.clientEventId,
+        disposition: 'pending',
+        reasonCode: 'not-enrolled',
+        reason: expect.any(String),
+      },
+    ]);
+    const held = test.db.select().from(pendingEvents).all();
+    expect(held.map((r) => [r.userId, r.clientEventId, r.reasonCode])).toEqual([
+      [userId, e.clientEventId, 'not-enrolled'],
+    ]);
   });
 
   it('returns snapshot + seeded test_states for a newly-enrolled user', async () => {
@@ -207,23 +250,86 @@ describe('sync routes', () => {
     expect(stateBody.lastEventId).toBe(newerId);
   });
 
-  it('rejects events carrying card ids the engine does not know', async () => {
-    // A stale tab from before a card-id-space change must not persist
-    // unreplayable rows — the out-of-order path commits before replay,
-    // so one unknown id would brick rebuildFromEvents permanently.
+  it('applies good events beside ones it cannot apply, and reports each', async () => {
+    // The original incident: one batch mixing good reviews with ids the
+    // engine cannot resolve. Every good event must land, and nothing
+    // unresolvable may reach review_events, where replay would choke.
     const test = createTestApp();
     cleanup = test.cleanup;
-    const { cookie } = await enroll(test, 'unknown-card@example.com');
+    const { cookie, userId } = await enroll(test, 'unknown-card@example.com');
+    let off: number;
+    {
+      using loaded = await test.engines.load({ userId, materialId: MATERIAL_ID });
+      off = switchedOffCardId(loaded.engine, MATERIAL_ID);
+    }
+    const good = event({ timestampSecs: 1_700_000_000 });
+    const unknown = event({ cardId: 999_999_999, timestampSecs: 1_700_000_001 });
+    const switchedOff = event({ cardId: off, timestampSecs: 1_700_000_002 });
+    const good2 = event({ timestampSecs: 1_700_000_003 });
 
-    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ events: [event({ cardId: 999_999_999 })] }),
-    });
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toMatch(/Unknown card ids/);
+    const { status, body } = await upload(test, cookie, [good, unknown, switchedOff, good2]);
+
+    expect(status).toBe(200);
+    expect(body.accepted).toBe(2);
+    expect(body.dispositions).toEqual([
+      { index: 0, clientEventId: good.clientEventId, disposition: 'applied' },
+      {
+        index: 1,
+        clientEventId: unknown.clientEventId,
+        disposition: 'unusable',
+        reasonCode: 'card-unknown',
+        reason: expect.stringContaining('999999999'),
+      },
+      {
+        index: 2,
+        clientEventId: switchedOff.clientEventId,
+        disposition: 'pending',
+        reasonCode: 'card-not-emitted',
+        reason: expect.stringContaining(String(off)),
+      },
+      { index: 3, clientEventId: good2.clientEventId, disposition: 'applied' },
+    ]);
+    const applied = test.db.select().from(reviewEvents).all().map((r) => r.clientEventId).sort();
+    expect(applied).toEqual([good.clientEventId, good2.clientEventId].sort());
+    const held = test.db.select().from(pendingEvents).all();
+    expect(held.map((r) => [r.clientEventId, r.status, r.reasonCode]).sort()).toEqual(
+      [
+        [switchedOff.clientEventId, 'pending', 'card-not-emitted'],
+        [unknown.clientEventId, 'unusable', 'card-unknown'],
+      ].sort(),
+    );
+  });
+
+  it('takes a batch where nothing applies, leaving applied history alone', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'nothing@example.com');
+    const events = [event({ cardId: 999_999_999 }), event({ cardId: 999_999_998 })];
+
+    const { status, body } = await upload(test, cookie, events);
+
+    expect(status).toBe(200);
+    expect(body.accepted).toBe(0);
+    expect(body.dispositions.map((d) => d.disposition)).toEqual(['unusable', 'unusable']);
     expect(test.db.select().from(reviewEvents).all()).toHaveLength(0);
+    expect(test.db.select().from(pendingEvents).all()).toHaveLength(2);
+  });
+
+  it('reports a re-uploaded pending event as a duplicate and stores it once', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'retry@example.com');
+    const e = event({ cardId: 999_999_999 });
+
+    await upload(test, cookie, [e]);
+    const { status, body } = await upload(test, cookie, [e]);
+
+    expect(status).toBe(200);
+    expect(body.duplicates).toBe(1);
+    expect(body.dispositions).toEqual([
+      { index: 0, clientEventId: e.clientEventId, disposition: 'duplicate' },
+    ]);
+    expect(test.db.select().from(pendingEvents).all()).toHaveLength(1);
   });
 
   it('rejects batches larger than MAX_BATCH_SIZE with 413', async () => {
@@ -240,26 +346,58 @@ describe('sync routes', () => {
     expect(res.status).toBe(413);
   });
 
-  it('rejects non-finite or non-integer numeric fields with 400', async () => {
+  it('takes malformed events as unusable instead of refusing them', async () => {
+    // A client that cannot hand over its junk cannot empty its outbox
+    // (SC-002), so the server takes it and records why it is junk.
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await enroll(test, 'alice@example.com');
-
-    const bad = [
+    const good = event();
+    const bad: unknown[] = [
       event({ timestampSecs: Number.NaN }),
       event({ timestampSecs: Number.POSITIVE_INFINITY }),
       event({ timestampSecs: 1.5 }),
       event({ timestampSecs: -1 }),
       event({ snapshotVersion: 0 }),
       event({ cardId: 1.5 }),
+      event({ cardId: -3 }),
       event({ grade: 0 as 1 }),
       event({ grade: 5 as 1 }),
+      { ...event(), kind: 'teleport' },
+      { ...event(), clientEventId: undefined },
+      null,
+      42,
     ];
-    for (const e of bad) {
+
+    const { status, body } = await upload(test, cookie, [good, ...bad]);
+
+    expect(status).toBe(200);
+    expect(body.accepted).toBe(1);
+    expect(body.dispositions[0]).toEqual({
+      index: 0,
+      clientEventId: good.clientEventId,
+      disposition: 'applied',
+    });
+    const rest = body.dispositions.slice(1);
+    expect(rest.map((d) => d.index)).toEqual(bad.map((_, i) => i + 1));
+    for (const d of rest) {
+      expect(d).toMatchObject({ disposition: 'unusable', reasonCode: 'malformed' });
+      expect(d.reason).toBeTruthy();
+    }
+    // Events with no readable id are still reported, by position.
+    expect(rest.slice(-3).map((d) => d.clientEventId)).toEqual([null, null, null]);
+    expect(test.db.select().from(pendingEvents).all()).toHaveLength(bad.length);
+  });
+
+  it('still refuses a body that carries no list of events', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+    for (const body of ['not json', JSON.stringify({}), JSON.stringify({ events: 'x' })]) {
       const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', cookie },
-        body: JSON.stringify({ events: [e] }),
+        body,
       });
       expect(res.status).toBe(400);
     }
@@ -278,18 +416,20 @@ describe('sync routes', () => {
     expect(res.status).toBe(409);
   });
 
-  it('rejects events more than 24h in the future with 400', async () => {
+  it('takes events more than 24h in the future as unusable', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await enroll(test, 'alice@example.com');
 
     const farFuture = Math.floor(Date.now() / 1000) + 25 * 60 * 60;
-    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ events: [event({ timestampSecs: farFuture })] }),
+    const { status, body } = await upload(test, cookie, [event({ timestampSecs: farFuture })]);
+    expect(status).toBe(200);
+    expect(body.dispositions[0]).toMatchObject({
+      disposition: 'unusable',
+      reasonCode: 'malformed',
+      reason: expect.stringMatching(/future/),
     });
-    expect(res.status).toBe(400);
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(0);
   });
 
   it('accepts a graduate event and writes graduatedVerses', async () => {
