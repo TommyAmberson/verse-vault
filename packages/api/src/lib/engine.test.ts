@@ -1,10 +1,11 @@
 import { and, eq } from 'drizzle-orm';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DB } from '../db/client.js';
 import {
   graphSnapshots,
   materialSchedules,
+  reviewEvents,
   testStates as testStatesTable,
 } from '../db/schema.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
@@ -74,6 +75,53 @@ describe('EngineStore', () => {
     await expect(store.load({ userId: 'missing', materialId: 'x' })).rejects.toBeInstanceOf(
       NotEnrolledError,
     );
+  });
+
+  it('rebuilds past a logged event whose card the engine cannot resolve', async () => {
+    // One unreplayable row must not brick the rebuild for good. The
+    // good row either side still has to land, and the skip has to be
+    // loud, because it means history the learner made is not counting.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-cor' });
+    const row = (id: string, cardId: number, timestampSecs: number) => ({
+      id,
+      userId: 'u1',
+      materialId: 'nkjv-cor',
+      snapshotVersion: 1,
+      timestampSecs,
+      cardId,
+      grade: 3,
+      clientEventId: id,
+      createdAt: timestampSecs,
+    });
+    test.db
+      .insert(reviewEvents)
+      .values([
+        row('good-1', 0, 1_790_000_000),
+        row('bad', 999_999_999, 1_790_000_100),
+        row('good-2', 0, 1_790_000_200),
+      ])
+      .run();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const store = new EngineStore(test.db);
+    const loaded = store.rebuildFromEvents({ userId: 'u1', materialId: 'nkjv-cor' });
+
+    const states = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
+    // The later good row replayed, so replay carried on past the bad one.
+    expect(states.some((s) => s.last_seen_secs === 1_790_000_200)).toBe(true);
+    const logged = warn.mock.calls.map((args) => String(args[0]));
+    const line = logged.find((l) => l.includes('engine.replay_skipped'));
+    expect(line).toBeDefined();
+    expect(JSON.parse(line!)).toMatchObject({
+      userId: 'u1',
+      materialId: 'nkjv-cor',
+      skipped: 1,
+      skippedCardIds: [999_999_999],
+    });
+    warn.mockRestore();
+    store.clear();
   });
 
   it('caches engines across calls', async () => {

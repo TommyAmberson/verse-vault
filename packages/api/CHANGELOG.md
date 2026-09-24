@@ -10,6 +10,21 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.40] — 2026-09-24
+
+PATCH — rebuilding a material's state survives an event row the engine cannot resolve.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.9.0` — unchanged.
+* `verse-vault-wasm@0.9.0` — unchanged.
+
+### Fixed
+
+* Rebuilding a material's state from its event log skips a row the engine cannot resolve instead of
+  throwing. One such row used to fail every future rebuild for that material, freezing the learner's
+  state; the skip now logs an `engine.replay_skipped` line naming the card ids (#152).
+
 ## [0.1.39] — 2026-09-10
 
 MINOR — `/api/years` now reports a schedule-aware memorize backlog per year.

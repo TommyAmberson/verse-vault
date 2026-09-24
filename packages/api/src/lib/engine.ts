@@ -679,8 +679,30 @@ export class EngineStore {
       )
       .orderBy(asc(schema.reviewEvents.timestampSecs), asc(schema.reviewEvents.clientEventId))
       .all();
+    // Replay must be total: a row naming a card the engine does not have
+    // is skipped, not thrown, or one bad row fails every future rebuild
+    // for this material and the learner's state freezes for good. Checked
+    // up front rather than caught, so a genuine engine failure still
+    // throws instead of leaving a broken engine cached. Skipping is still
+    // data not counting, so it is logged as one structured line.
+    const skippedCardIds: number[] = [];
     for (const e of events) {
+      if (!engine.has_card(e.cardId)) {
+        skippedCardIds.push(e.cardId);
+        continue;
+      }
       engine.replay_event(e.cardId, e.grade as Grade, BigInt(e.timestampSecs));
+    }
+    if (skippedCardIds.length > 0) {
+      console.warn(
+        JSON.stringify({
+          event: 'engine.replay_skipped',
+          userId: key.userId,
+          materialId: key.materialId,
+          skipped: skippedCardIds.length,
+          skippedCardIds: [...new Set(skippedCardIds)],
+        }),
+      );
     }
 
     const rebuiltStates = JSON.parse(engine.export_test_states()) as TestStateEntry[];

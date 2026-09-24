@@ -47,10 +47,10 @@ the server (FR-011, research D6).
 
 **⚠️ CRITICAL**: No user story work begins until this phase is complete.
 
-- [ ] T003 Write a failing test in `packages/api/src/lib/engine.test.ts`: a material whose
+- [X] T003 Write a failing test in `packages/api/src/lib/engine.test.ts`: a material whose
       `review_events` contains one row with a card id the engine does not know still rebuilds, and
       the skip is logged
-- [ ] T004 Make replay total in `packages/api/src/lib/engine.ts` `rebuildFromEvents`: wrap
+- [X] T004 Make replay total in `packages/api/src/lib/engine.ts` `rebuildFromEvents`: wrap
       `engine.replay_event` per event, skip and count failures, emit one structured log line naming
       the material and the skipped ids (closes #152)
 - [ ] T005 Write a failing test in the `crates/core/src/builder.rs` test module: for every
