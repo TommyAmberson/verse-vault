@@ -43,6 +43,8 @@ import {
   existingEventIds,
   type ReviewEventInput,
   persistEngineState,
+  writeGraduatedCard,
+  writeGraduatedVerse,
 } from '../lib/review-log.js';
 import { type AppVariables, getUser, requireAuth } from '../middleware/session.js';
 
@@ -497,26 +499,10 @@ export function syncRoutes(deps: SyncRoutesDeps) {
             testStateUpdates: changed,
           });
           for (const g of graduations) {
-            tx.insert(schema.graduatedVerses)
-              .values({
-                userId: user.id,
-                materialId,
-                verseId: g.verseId,
-                graduatedAtSecs: g.timestampSecs,
-              })
-              .onConflictDoNothing()
-              .run();
+            writeGraduatedVerse(tx, key, g.verseId, g.timestampSecs);
           }
           for (const g of cardGraduations) {
-            tx.insert(schema.graduatedCards)
-              .values({
-                userId: user.id,
-                materialId,
-                cardId: g.cardId,
-                graduatedAtSecs: g.timestampSecs,
-              })
-              .onConflictDoNothing()
-              .run();
+            writeGraduatedCard(tx, key, g.cardId, g.timestampSecs);
           }
         });
       } catch (err) {

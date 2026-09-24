@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 
-import type { DB } from '../db/client.js';
+import type { DB, Tx } from '../db/client.js';
 import * as schema from '../db/schema.js';
 
 import {
@@ -33,11 +33,6 @@ import {
 import { ScheduleValidationError, canonicaliseSchedule } from './schedules.js';
 
 const SUPPORTED_EXPORT_VERSION = 1;
-
-/** drizzle's `db.transaction` callback receives this narrower type;
- *  it shares the table-API surface (insert/update/select/delete) so
- *  the per-material helper functions accept it transparently. */
-type Tx = Parameters<Parameters<DB['transaction']>[0]>[0];
 
 export class ImportValidationError extends Error {
   constructor(message: string) {

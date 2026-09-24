@@ -12,19 +12,23 @@ import { randomUUID } from 'node:crypto';
 
 import { and, asc, count, eq, inArray, min, sql } from 'drizzle-orm';
 
-import type { DB } from '../db/client.js';
+import type { DB, Tx } from '../db/client.js';
 import {
   type PendingReasonCode,
   type PendingStatus,
-  graduatedCards,
-  graduatedVerses,
   pendingEvents,
   reviewEvents,
 } from '../db/schema.js';
 import type { UserMaterial } from './keys.js';
-import type { Grade } from './review-log.js';
+import { writeGraduatedCard, writeGraduatedVerse, writeReviewEvents } from './review-log.js';
+import {
+  eventKind,
+  type GraduateCardEventUpload,
+  type GraduateEventUpload,
+  type ReviewEventUpload,
+  type SyncEventUpload,
+} from './sync-events.js';
 
-type Tx = Parameters<Parameters<DB['transaction']>[0]>[0];
 
 export type PendingRow = typeof pendingEvents.$inferSelect;
 
@@ -165,52 +169,38 @@ export function promote(
  */
 export function writeApplied(tx: Tx, key: UserMaterial, row: PendingRow): boolean {
   if (row.clientEventId === null || row.timestampSecs === null) return false;
-  const e = JSON.parse(row.payloadJson) as Record<string, unknown>;
-  if (row.kind === 'review') {
-    // Same row shape as writeReviewEvents, but an id already in the log
-    // means the event already applied: that is success, not a conflict
-    // that could fail the engine build promoting it.
-    tx.insert(reviewEvents)
-      .values({
-        id: row.clientEventId,
-        userId: key.userId,
-        materialId: key.materialId,
-        snapshotVersion: e.snapshotVersion as number,
-        timestampSecs: row.timestampSecs,
-        cardId: e.cardId as number,
-        grade: e.grade as Grade,
-        clientEventId: row.clientEventId,
-        createdAt: row.timestampSecs,
-      })
-      .onConflictDoNothing()
-      .run();
-    return true;
+  const e = JSON.parse(row.payloadJson) as SyncEventUpload;
+  const atSecs = row.timestampSecs;
+  switch (eventKind(e)) {
+    case 'review': {
+      const r = e as ReviewEventUpload;
+      // An id already in the log means the event already applied: that
+      // is success, not a conflict that could fail the build promoting it.
+      writeReviewEvents(
+        tx,
+        [
+          {
+            ...key,
+            snapshotVersion: r.snapshotVersion,
+            timestampSecs: atSecs,
+            cardId: r.cardId,
+            grade: r.grade,
+            clientEventId: row.clientEventId,
+          },
+        ],
+        { ignoreDuplicates: true },
+      );
+      return true;
+    }
+    case 'graduate':
+      writeGraduatedVerse(tx, key, (e as GraduateEventUpload).verseId, atSecs);
+      return true;
+    case 'graduateCard':
+      writeGraduatedCard(tx, key, (e as GraduateCardEventUpload).cardId, atSecs);
+      return true;
+    default:
+      return false;
   }
-  if (row.kind === 'graduate') {
-    tx.insert(graduatedVerses)
-      .values({
-        userId: key.userId,
-        materialId: key.materialId,
-        verseId: e.verseId as number,
-        graduatedAtSecs: row.timestampSecs,
-      })
-      .onConflictDoNothing()
-      .run();
-    return true;
-  }
-  if (row.kind === 'graduateCard') {
-    tx.insert(graduatedCards)
-      .values({
-        userId: key.userId,
-        materialId: key.materialId,
-        cardId: e.cardId as number,
-        graduatedAtSecs: row.timestampSecs,
-      })
-      .onConflictDoNothing()
-      .run();
-    return true;
-  }
-  return false;
 }
 
 function awaitingWhere(key: UserMaterial) {
