@@ -33,9 +33,9 @@ the server (FR-011, research D6).
 
 **Purpose**: The test harness this feature's client work cannot be verified without.
 
-- [ ] T001 Add `fake-indexeddb` as a dev dependency to `apps/web/package.json` and register it in
+- [X] T001 Add `fake-indexeddb` as a dev dependency to `apps/web/package.json` and register it in
       `apps/web/vitest.config.ts` so IndexedDB-backed modules are testable (closes #157)
-- [ ] T002 Create `apps/web/src/lib/engine/testing/harness.ts` providing a stubbed `WasmEngine`
+- [X] T002 Create `apps/web/src/lib/engine/testing/harness.ts` providing a stubbed `WasmEngine`
       (`has_card`, `graduate_card`, `replay_event`) and a seeded IndexedDB, so `engineStore` tests
       need no real wasm build
 

@@ -15,6 +15,10 @@ export default defineConfig({
     // passes every assertion. Runners default to UTC, so without this the
     // guarantee would only ever be checked on a developer's machine.
     env: { TZ: 'America/Edmonton' },
+    // In-memory IndexedDB for the engine persistence layer. Tests that
+    // want isolation replace `globalThis.indexedDB` with a fresh
+    // `IDBFactory` (see `lib/engine/testing/harness.ts`).
+    setupFiles: ['fake-indexeddb/auto'],
   },
   resolve: {
     alias: {
