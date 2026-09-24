@@ -15,8 +15,11 @@ export interface ProgressDeletionSummary {
 }
 
 /**
- * Wipe a user's learning state — review events, graduations, and the
- * derived test_states — across every material they're enrolled in.
+ * Wipe a user's learning state — review events, graduations, the
+ * derived test_states, and events sync took but did not apply — across
+ * every material they're enrolled in. Held events go too, or a later
+ * build or merge answer would promote pre-reset work back into the
+ * freshly emptied log.
  * Enrollment (`user_materials`), per-year settings, and the content
  * snapshot are deliberately kept: decks stay in the user's list, reset
  * to all-new. Each material is cleared under the engine's per-key lock
@@ -73,6 +76,15 @@ export async function deleteAccountProgress(
             ),
           )
           .run();
+        const held = tx
+          .delete(schema.pendingEvents)
+          .where(
+            and(
+              eq(schema.pendingEvents.userId, userId),
+              eq(schema.pendingEvents.materialId, materialId),
+            ),
+          )
+          .run();
         const ts = tx
           .delete(schema.testStates)
           .where(
@@ -84,7 +96,7 @@ export async function deleteAccountProgress(
           .run();
         eventsDeleted += ev.changes;
         graduationsDeleted += gv.changes + gc.changes;
-        materialChanges = ev.changes + gv.changes + gc.changes + ts.changes;
+        materialChanges = ev.changes + gv.changes + gc.changes + held.changes + ts.changes;
       });
       if (materialChanges > 0) {
         materialsReset += 1;
@@ -92,6 +104,10 @@ export async function deleteAccountProgress(
       }
     });
   }
+
+  // Held for materials the account never enrolled in: nothing builds an
+  // engine for those, so no lock is needed.
+  db.delete(schema.pendingEvents).where(eq(schema.pendingEvents.userId, userId)).run();
 
   return { materialsReset, eventsDeleted, graduationsDeleted };
 }

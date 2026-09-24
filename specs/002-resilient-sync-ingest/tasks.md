@@ -75,7 +75,7 @@ the server (FR-011, research D6).
       `has_card` first, and only on a miss build (or reuse from a cache keyed by material and content
       sha) a `WasmEngine` from `max_emission_config_json()` and check
       there. Depends on T007
-- [ ] T010 [P] Write `packages/api/migrations/0028_pending_events.sql` creating `pending_events` per
+- [X] T010 [P] Write `packages/api/migrations/0028_pending_events.sql` creating `pending_events` per
       [data-model.md](./data-model.md): `id` text PK; `user_id` text NOT NULL referencing `user`
       with cascade delete; `material_id` text NOT NULL, not a foreign key; `client_event_id` text
       NULL; `kind` text NULL; `timestamp_secs` integer NULL; `payload_json` text NOT NULL; `status`
@@ -83,14 +83,14 @@ the server (FR-011, research D6).
       text NOT NULL; `received_at` integer NOT NULL. Unique index on
       `(user_id, material_id, client_event_id)`; index on `(user_id, material_id, status)`. Each
       statement followed by `--> statement-breakpoint`
-- [ ] T011 [P] Add the `pendingEvents` table to `packages/api/src/db/schema.ts` mirroring T010,
+- [X] T011 [P] Add the `pendingEvents` table to `packages/api/src/db/schema.ts` mirroring T010,
       with a comment explaining why these rows are not in `review_events` (replay must never have to
       filter the log), and export the reason-code union from the contract
-- [ ] T012 Write failing tests in `packages/api/src/lib/pending-events.test.ts` for: taking an event
+- [X] T012 Write failing tests in `packages/api/src/lib/pending-events.test.ts` for: taking an event
       as `pending` and as `unusable` with a reason code; re-taking the same `clientEventId` being a
       no-op; two events with `NULL` `clientEventId` both being stored; counting by
       `(user, material, status, reason_code)`; and summarising `awaiting-confirmation` rows
-- [ ] T013 Implement `packages/api/src/lib/pending-events.ts` with `take`, `promote`,
+- [X] T013 Implement `packages/api/src/lib/pending-events.ts` with `take`, `promote`,
       `markDiscarded`, `summariseAwaitingConfirmation`, and `countForOperator`, depends on T010-T012
 
 **Checkpoint**: Migration applies to a copy of production; helpers are green; replay tolerates a bad
