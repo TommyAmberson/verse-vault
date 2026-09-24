@@ -63,7 +63,7 @@ the server (FR-011, research D6).
       club's memorize and review enabled (a paused club drops its cards), with a
       docstring naming the T005 test as its guard. Bump `crates/core/Cargo.toml` to 0.10.0 and add a
       dated `## [0.10.0]` entry to `crates/core/CHANGELOG.md` in the same commit
-- [ ] T007 Export `max_emission_config_json()` from `crates/wasm/src/lib.rs` as a free
+- [X] T007 Export `max_emission_config_json()` from `crates/wasm/src/lib.rs` as a free
       `#[wasm_bindgen]` function returning the config's JSON; bump `crates/wasm/Cargo.toml` to 0.10.0
       with a dated `crates/wasm/CHANGELOG.md` entry; rebuild `pkg/` and extend
       `crates/wasm/test-smoke.js` to construct an engine from it

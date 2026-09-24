@@ -22,6 +22,21 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-09-24
+
+MINOR — exposes core 0.10.0's max-emission config over the boundary.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.10.0` — adds `MaterialConfig::max_emission`; no state-semantics change.
+
+### Added
+
+* `max_emission_config_json()` — free function returning the JSON of the config that emits every
+  card any config can. Build a throwaway `WasmEngine` with it and ask `has_card` to learn whether an
+  id is one some reachable setting produces, or one nothing ever will. The api uses it to keep an
+  event for a switched-off card pending instead of discarding it.
+
 ## [0.9.0] — 2026-09-10
 
 MINOR — exposes core 0.9.0's schedule-aware memorize count over the boundary.
