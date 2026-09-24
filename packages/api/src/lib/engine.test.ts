@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { WasmEngine, max_emission_config_json } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import {
@@ -11,6 +12,7 @@ import {
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import { enrollUser } from './enrollment.js';
+import { getMaterialJson } from './materials.js';
 import {
   EngineStore,
   NotEnrolledError,
@@ -553,6 +555,76 @@ describe('EngineStore', () => {
     resolveFirst();
     await Promise.all([first, second]);
     expect(order).toEqual([1, 2, 3, 4]);
+    store.clear();
+  });
+});
+
+describe('EngineStore.classifyCardIds', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  const key = { userId: 'u1', materialId: 'nkjv-cor' };
+
+  /** A card id the max-emission config produces but the learner's
+   *  current config does not: the shape of a card they switched off. */
+  function switchedOffCardId(current: WasmEngine): number {
+    const max = new WasmEngine(
+      getMaterialJson(key.materialId),
+      max_emission_config_json(),
+      '',
+      '[]',
+      0n,
+    );
+    try {
+      for (let verse = 0; verse < 64; verse++) {
+        for (let slot = 0; slot < 12; slot++) {
+          for (let pos = 0; pos < 4; pos++) {
+            const id = (verse << 16) | (slot << 12) | pos;
+            if (max.has_card(id) && !current.has_card(id)) return id;
+          }
+        }
+      }
+    } finally {
+      max.free();
+    }
+    throw new Error('fixture has no switched-off card');
+  }
+
+  it('sorts ids into emitted, not emitted, and unknown', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, ...key });
+    const store = new EngineStore(test.db);
+    using loaded = await store.load(key);
+    expect(loaded.engine.has_card(0)).toBe(true);
+    const off = switchedOffCardId(loaded.engine);
+
+    const classes = store.classifyCardIds(key, loaded, [0, off, 999_999_999]);
+
+    expect(classes.get(0)).toBe('emitted');
+    expect(classes.get(off)).toBe('not-emitted');
+    expect(classes.get(999_999_999)).toBe('unknown');
+    store.clear();
+  });
+
+  it('builds the max-emission engine once per material content', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, ...key });
+    seedUserWithFixture({ db: test.db, userId: 'u2', materialId: key.materialId });
+    const store = new EngineStore(test.db);
+    using a = await store.load(key);
+    using b = await store.load({ userId: 'u2', materialId: key.materialId });
+
+    store.classifyCardIds(key, a, [999_999_999]);
+    store.classifyCardIds({ userId: 'u2', materialId: key.materialId }, b, [999_999_998]);
+    // An id the current engine has never needs the second engine.
+    store.classifyCardIds(key, a, [0]);
+
+    expect(store.maxEmissionEngineBuilds).toBe(1);
     store.clear();
   });
 });

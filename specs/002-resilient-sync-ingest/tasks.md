@@ -67,11 +67,11 @@ the server (FR-011, research D6).
       `#[wasm_bindgen]` function returning the config's JSON; bump `crates/wasm/Cargo.toml` to 0.10.0
       with a dated `crates/wasm/CHANGELOG.md` entry; rebuild `pkg/` and extend
       `crates/wasm/test-smoke.js` to construct an engine from it
-- [ ] T008 Write failing tests in `packages/api/src/lib/engine.test.ts` for `classifyCardId`: an id
+- [X] T008 Write failing tests in `packages/api/src/lib/engine.test.ts` for `classifyCardId`: an id
       the current config emits is `emitted`; an id only the max-emission engine has is
       `not-emitted`; an id neither has is `unknown`; and the max-emission engine is built once per
       material content, shared across learners
-- [ ] T009 Implement `classifyCardId` in `packages/api/src/lib/engine.ts`: check the loaded engine's
+- [X] T009 Implement `classifyCardId` in `packages/api/src/lib/engine.ts`: check the loaded engine's
       `has_card` first, and only on a miss build (or reuse from a cache keyed by material and content
       sha) a `WasmEngine` from `max_emission_config_json()` and check
       there. Depends on T007

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import { and, asc, desc, eq } from 'drizzle-orm';
-import { WasmEngine } from 'verse-vault-wasm';
+import { WasmEngine, max_emission_config_json } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
@@ -443,6 +443,11 @@ const DEFAULT_REAPER_INTERVAL_SECS = 60;
  *  (api.bible cache fetch + DB transaction) comfortably fits in 30 s. */
 const PENDING_FREE_GRACE_SECS = 30;
 
+/** How an id relates to the cards a material can produce. `not-emitted`
+ *  is a card some reachable setting produces but the learner's current
+ *  config does not, e.g. one whose kind or club they switched off. */
+export type CardIdClass = 'emitted' | 'not-emitted' | 'unknown';
+
 /**
  * Per-(user, material) engine cache + serialisation.
  *
@@ -470,6 +475,15 @@ export class EngineStore {
    *  change that stashes a `LoadedEngine` somewhere it shouldn't. */
   private readonly pendingFree: { entry: CacheEntry; evictedAt: number }[] = [];
   private reaperHandle: NodeJS.Timeout | null = null;
+  /** One engine per material content, built from core's max-emission
+   *  config, to classify ids the learner's own engine lacks. Keyed by
+   *  content sha rather than per user because the config is fixed, so
+   *  every learner on the same deck shares it. */
+  private readonly maxEmissionEngines = new Map<string, { sha: string; engine: WasmEngine }>();
+  /** Count of max-emission engines built, for tests asserting the cache
+   *  holds. */
+  maxEmissionEngineBuilds = 0;
+
   private readonly maxEntries: number;
   private readonly idleTtlSecs: number;
   private readonly reaperIntervalSecs: number;
@@ -605,6 +619,45 @@ export class EngineStore {
       if (err instanceof NotEnrolledError) return null;
       throw err;
     }
+  }
+
+  /**
+   * Classify card ids against what this material can produce. The
+   * learner's own engine answers for anything it emits; only a miss
+   * consults the max-emission engine, so the common case costs one
+   * `has_card` per distinct id and never builds a second engine.
+   */
+  classifyCardIds(
+    key: EngineKey,
+    loaded: LoadedEngine,
+    cardIds: Iterable<number>,
+  ): Map<number, CardIdClass> {
+    const out = new Map<number, CardIdClass>();
+    let max: WasmEngine | undefined;
+    for (const id of cardIds) {
+      if (out.has(id)) continue;
+      if (loaded.engine.has_card(id)) {
+        out.set(id, 'emitted');
+        continue;
+      }
+      max ??= this.maxEmissionEngine(key.materialId);
+      out.set(id, max.has_card(id) ? 'not-emitted' : 'unknown');
+    }
+    return out;
+  }
+
+  private maxEmissionEngine(materialId: string): WasmEngine {
+    const json = this.loadBundledJson(materialId);
+    const sha = sha256Memo(json);
+    const cached = this.maxEmissionEngines.get(materialId);
+    if (cached?.sha === sha) return cached.engine;
+    // Nothing holds a reference across calls (classifyCardIds is
+    // synchronous), so a deck update can free the old engine at once.
+    cached?.engine.free();
+    const engine = new WasmEngine(json, max_emission_config_json(), '', '[]', BigInt(this.now()));
+    this.maxEmissionEngines.set(materialId, { sha, engine });
+    this.maxEmissionEngineBuilds += 1;
+    return engine;
   }
 
   /**
@@ -899,5 +952,7 @@ export class EngineStore {
     this.tails.clear();
     for (const item of this.pendingFree) item.entry.engine.free();
     this.pendingFree.length = 0;
+    for (const { engine } of this.maxEmissionEngines.values()) engine.free();
+    this.maxEmissionEngines.clear();
   }
 }
