@@ -17,6 +17,10 @@ pub enum ClubTier {
 }
 
 impl ClubTier {
+    /// Every tier, most specific first: the order memorize walks the
+    /// clubs and the cross-club gates chain in.
+    pub const ALL: [ClubTier; 3] = [ClubTier::Club150, ClubTier::Club300, ClubTier::Full];
+
     /// Stable ordinal used inside persisted card-id layouts
     /// (`stable_card_id`'s position field, the CCL pseudo-verse anchor).
     /// Renumbering is a data migration.

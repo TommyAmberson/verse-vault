@@ -22,6 +22,24 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-24
+
+MINOR: `memorize_debt` counts every club with memorize enabled, ignoring the cross-club gates. The
+count changes; no state semantics or replay change.
+
+### Changed
+
+* `schedule::memorize_debt` sums over every club whose memorize is enabled, as the badge spec
+  defines it ("Σ over enabled clubs"). It used to run through `compute_eligible_clubs`, so a closed
+  `move_to_next` gate took that club's verses out of the count: a learner behind on Club 300 under a
+  `CaughtUp` gate saw this week's Full verses vanish from the debt, and falling further behind made
+  the number smaller. The gates still decide what `next_memorize_batch` serves next.
+
+### Added
+
+* `ClubTier::ALL`, every tier most specific first, so `memorize_debt` and `compute_eligible_clubs`
+  walk the clubs in one shared order.
+
 ## [0.10.0] — 2026-09-24
 
 MINOR — adds `MaterialConfig::max_emission`, the config that emits every card any config can. Purely
