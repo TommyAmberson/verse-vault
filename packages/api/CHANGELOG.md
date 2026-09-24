@@ -10,6 +10,21 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.41] — 2026-09-24
+
+PATCH: the per-year memorize backlog counts every club with memorize enabled.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.11.0`: `memorize_debt` ignores the cross-club gates.
+* `verse-vault-wasm@0.11.0`: bundles it.
+
+### Fixed
+
+* `GET /years`' `memorizeDebt` left out a club held back by its `move_to_next` gate, so a learner
+  behind on Club 300 did not see this week's Full verses in the backlog. It now counts every club
+  with memorize enabled, as the badge spec defines it; the gates still order the memorize queue.
+
 ## [0.1.40] — 2026-09-24
 
 MINOR — sync takes every event. An upload is no longer refused because one event in it cannot be
