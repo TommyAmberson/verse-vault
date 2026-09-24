@@ -197,6 +197,20 @@ Returns a JSON array of `TestStateEntry` — one entry per known `(TestKind, Ele
 Persist this array between sessions and feed it back to the constructor as `persisted_states_json`
 to resume.
 
+## Free functions
+
+### `max_emission_config_json`
+
+```ts
+max_emission_config_json(): string
+```
+
+JSON of core's `MaterialConfig::max_emission()`: every emission flag at its widest and every club
+unpaused, the config that emits every card any config can. Pass it as a throwaway engine's
+`material_config_json` and ask `has_card`: an id that engine lacks is one no reachable setting will
+ever produce. The API uses it to tell a card the learner switched off (the event waits) from an id
+nothing produces (unusable). Added in wasm 0.10.0.
+
 ## JSON shapes
 
 ### `TestKey`

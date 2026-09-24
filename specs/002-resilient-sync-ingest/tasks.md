@@ -259,7 +259,7 @@ merge question is open.
 - [X] T053 [P] [US3] Keep and repoint the structured log added earlier on this branch: log each
       taken-but-unapplied event's status, reason code and reason with the requestId, replacing the
       refusal log in `packages/api/src/routes/sync.ts`
-- [ ] T054 [US3] Add the operator query to `docs/test-scenarios.md` (or a short runbook note) so the
+- [X] T054 [US3] Add the operator query to `docs/test-scenarios.md` (or a short runbook note) so the
       two-week diagnosis has a documented one-liner
 
 **Checkpoint**: quickstart §6 returns rows.
@@ -307,10 +307,10 @@ confirm it applied at its recorded time and the row records the repair.
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T063 [P] Rewrite the sync section of `docs/server-api.md` from
+- [X] T063 [P] Rewrite the sync section of `docs/server-api.md` from
       [contracts/sync-events.md](./contracts/sync-events.md), including the new confirm route and
       `pendingConfirmation`, removing the deviation note added earlier on this branch (FR-015)
-- [ ] T064 [P] Add `pending_events` to the storage model in `docs/persistence.md`, stating that
+- [X] T064 [P] Add `pending_events` to the storage model in `docs/persistence.md`, stating that
       replay reads `review_events` only
 - [ ] T065 Close #151, #153, #155, #156, #157, #158 against this branch, and #152 with T004
 - [ ] T066 Run the whole of [quickstart.md](./quickstart.md), including both wipe tests on a real
