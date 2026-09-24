@@ -455,10 +455,11 @@ material-picker UI.
 
 `newCardCount` is every card still in `New` — the whole remaining pool. `memorizeDebt` is the
 schedule-aware slice of it: un-memorized verses the year's schedule introduced in weeks
-`0..=current_week`, plus the cards they carry (`core::schedule::memorize_debt`). Years with no
-schedule, or whose season hasn't started, report their whole eligible pool; unenrolled years report
-zeroes. Added in api 0.1.39 — clients that may reach an older server should fall back to
-`newCardCount`.
+`0..=current_week` in every club with memorize enabled, plus the cards they carry
+(`core::schedule::memorize_debt`). The cross-club gates don't shrink it: being behind on Club 300
+does not take this week's Full verses out of the count. Years with no schedule, or whose season
+hasn't started, report those clubs' whole un-memorized pool; unenrolled years report zeroes. Added
+in api 0.1.39 — clients that may reach an older server should fall back to `newCardCount`.
 
 `pendingConfirmation` is the year's open stale-merge question, or `null`; absent for unenrolled
 years. It is the same summary `GET /api/sync/:materialId/state` returns, carried here because a

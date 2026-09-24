@@ -408,7 +408,7 @@ pub fn anchor_card_for_verse(engine: &ReviewEngine, verse_id: u32) -> Option<Car
 /// How much memorizing the schedule still expects, as of `now_secs`.
 ///
 /// `verses` counts un-memorized verses the schedule introduced in weeks
-/// `0..=current_week` for the clubs eligible right now; `cards` counts
+/// `0..=current_week` for every club with memorize enabled; `cards` counts
 /// the `New` cards those verses carry. Dashboards pair the two ("N
 /// fresh cards from M verses").
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
@@ -421,17 +421,20 @@ pub struct MemorizeDebt {
 /// backlog through this week, not just this week's row, so a learner who
 /// skipped a fortnight sees the debt rather than a flat weekly quota.
 ///
-/// Falls back to every eligible un-memorized verse when there's no
-/// schedule or the season hasn't reached week 0: with no calendar to
-/// bound the work, the full pool is the honest answer (and matches what
-/// the dashboards showed before schedules existed).
+/// Falls back to every un-memorized verse in the counted clubs when
+/// there's no schedule or the season hasn't reached week 0: with no
+/// calendar to bound the work, the full pool is the honest answer (and
+/// matches what the dashboards showed before schedules existed).
 ///
-/// Club eligibility runs through the same `compute_eligible_clubs` gates
-/// as [`next_memorize_batch`], so a club held back by an unmet
-/// `move_to_next` gate contributes nothing.
+/// Counts every club with memorize enabled, per the badge spec's
+/// "Σ over enabled clubs". The `move_to_next` gates are deliberately not
+/// applied: they decide which club [`next_memorize_batch`] serves from
+/// next, not what the schedule has asked for, so a learner behind on
+/// Club 300 still owes this week's Full verses. Applying them would make
+/// falling behind shrink the count.
 ///
-/// The *week* bound, though, is deliberately stricter than the queue's:
-/// this counts weeks `0..=current_week` for every eligible club, while
+/// The *week* bound is deliberately stricter than the queue's: this
+/// counts weeks `0..=current_week` for every enabled club, while
 /// [`next_memorize_batch`] week-bounds only its `CalendarCascade` Phase 1
 /// and lets Phase 2 run into next week's verses. That's the badge spec —
 /// `max(0, cumulative_through_current_week − memorized)` — and it means
@@ -442,16 +445,19 @@ pub fn memorize_debt(
     schedule: Option<&Schedule>,
     now_secs: i64,
 ) -> MemorizeDebt {
-    let eligible = compute_eligible_clubs(engine, schedule, now_secs);
-    if eligible.is_empty() {
+    let enabled: Vec<ClubTier> = ClubTier::ALL
+        .into_iter()
+        .filter(|&club| engine.material_config.memorize_enabled_for(club))
+        .collect();
+    if enabled.is_empty() {
         return MemorizeDebt::default();
     }
-    let unmemorized = unmemorized_verses_by_tier(engine, &eligible);
+    let unmemorized = unmemorized_verses_by_tier(engine, &enabled);
 
     let mut verses: HashSet<u32> = HashSet::new();
     match schedule.and_then(|s| Some((s, s.current_week_index(now_secs)?))) {
         Some((sched, week_idx)) => {
-            // One union across every eligible tier, not a set per tier. A
+            // One union across every enabled tier, not a set per tier. A
             // verse's deck club tag and the tier the *schedule* files it
             // under can differ: on the John printable, 1:17-18 are tagged
             // Club 150 (so they sit in that pool) but week 0's row lists
@@ -464,7 +470,7 @@ pub fn memorize_debt(
             // verse in the *whole deck* — this runs on every `/api/years`
             // request, and the pools hold only un-memorized verses.
             let mut scheduled: HashSet<(&str, u16, u16)> = HashSet::new();
-            for &club in &eligible {
+            for &club in &enabled {
                 sched.for_each_cumulative_ref(week_idx, club, |book, chapter, verse| {
                     scheduled.insert((book, chapter, verse));
                 });
@@ -516,7 +522,7 @@ fn compute_eligible_clubs(
     let config = &engine.material_config;
     let mut result: Vec<ClubTier> = Vec::new();
     let mut prev_eligible: Option<ClubTier> = None;
-    for club in [ClubTier::Club150, ClubTier::Club300, ClubTier::Full] {
+    for club in ClubTier::ALL {
         if !config.memorize_enabled_for(club) {
             continue;
         }
@@ -1709,6 +1715,55 @@ mod tests {
     }
 
     #[test]
+    fn memorize_debt_counts_every_enabled_club_whatever_the_gates() {
+        // The gates decide what the queue serves next, not what the
+        // schedule has asked for. A learner behind on Club 150 still owes
+        // this week's Club 300 verse; only switching a club's memorize
+        // off takes its verses out of the count.
+        let m = sample_material_mixed_tiers();
+        let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        engine.material_config.move_to_next = MoveToNextConfig {
+            p150_to_300: MoveToNextGate::FullyMemorized,
+            p300_to_full: MoveToNextGate::FullyMemorized,
+        };
+        let sched = Schedule {
+            weeks: vec![ScheduleWeek {
+                date: "2025-09-08".into(),
+                blocks: vec![PassageBlock {
+                    passage: Passage {
+                        book: "John".into(),
+                        chapter: 3,
+                        start_verse: 16,
+                        end_verse: 17,
+                    },
+                    verses: ClubVerseLists {
+                        club150: vec![16],
+                        club300: vec![17],
+                    },
+                }],
+                is_review: false,
+            }],
+            ..two_week_john_schedule()
+        };
+        let now = day_secs("2025-09-08");
+        // Club 150 is not fully memorized, so the gate holds Club 300 out
+        // of the queue, but its verse is still owed.
+        assert_eq!(
+            compute_eligible_clubs(&engine, Some(&sched), now),
+            vec![ClubTier::Club150]
+        );
+        let owed = memorize_debt(&engine, Some(&sched), now);
+        assert_eq!(owed.verses, 2);
+
+        engine.material_config.memorize.club300.enabled = false;
+        let without_300 = memorize_debt(&engine, Some(&sched), now);
+        assert_eq!(without_300.verses, 1);
+        // Cards follow verses: the Club 300 verse's cards leave with it.
+        assert!(without_300.cards > 0 && without_300.cards < owed.cards);
+    }
+
+    #[test]
     fn memorize_debt_drops_memorized_verses() {
         let (mut engine, sched) = debt_fixture();
         engine.graduate_verse(0);
@@ -1720,7 +1775,8 @@ mod tests {
     fn memorize_debt_falls_back_to_the_whole_pool() {
         let (engine, sched) = debt_fixture();
         // No schedule at all, and a schedule whose season hasn't started,
-        // both mean "no week bounds the work" → every eligible verse.
+        // both mean "no week bounds the work" → every un-memorized verse
+        // in the enabled clubs.
         assert_eq!(memorize_debt(&engine, None, 0).verses, 2);
         assert_eq!(
             memorize_debt(&engine, Some(&sched), day_secs("2025-09-01")).verses,

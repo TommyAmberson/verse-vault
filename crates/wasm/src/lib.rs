@@ -411,8 +411,9 @@ impl WasmEngine {
     }
 
     /// JSON `{ verses, cards }` for the un-memorized work the bound
-    /// schedule has already asked for, through the current week. Falls
-    /// back to the whole eligible pool when no schedule is bound or the
+    /// schedule has already asked for, through the current week, in every
+    /// club with memorize enabled. Falls back to those clubs' whole
+    /// un-memorized pool when no schedule is bound or the
     /// season hasn't started, so a caller can render one number without
     /// branching on whether a schedule exists. See
     /// `core::schedule::memorize_debt`.

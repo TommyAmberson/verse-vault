@@ -22,6 +22,20 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-09-24
+
+MINOR: bundles core 0.11.0, whose `memorize_debt` now counts every club with memorize enabled.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.11.0`: `memorize_debt` ignores the cross-club gates; no state-semantics
+  change.
+
+### Changed
+
+* `memorize_debt(now_secs)` returns the backlog across every club with memorize enabled, not only
+  the clubs the cross-club gates currently admit.
+
 ## [0.10.0] — 2026-09-24
 
 MINOR — exposes core 0.10.0's max-emission config over the boundary.

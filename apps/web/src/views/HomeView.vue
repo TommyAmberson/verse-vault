@@ -8,8 +8,10 @@ import ActivityHeatmap from '@/components/ActivityHeatmap.vue'
 interface YearAgg {
   materialId: string
   title: string
-  /** Schedule-aware backlog, not the whole New pool: the hero promises
-   *  work the memorize queue would actually hand out this week.
+  /** Schedule-aware backlog, not the whole New pool: what the schedule
+   *  has asked for through this week in every club with memorize on.
+   *  The queue may serve it in a different order, since the cross-club
+   *  gates decide which club comes next.
    *  Non-optional here — the loader fills the pre-0.1.39 fallback in. */
   memorizeDebt: NonNullable<YearView['memorizeDebt']>
   /** Whole un-memorized pool. Only used to tell "caught up with more of
@@ -37,6 +39,15 @@ const totalVersesDue = sumOver((y) => y.stats.versesDueCount)
 const totalVersesHeld = sumOver((y) => y.stats.versesLearned)
 const totalReviewsDue = sumOver((y) => y.stats.reviewsDueCount)
 const totalReviews = sumOver((y) => y.stats.totalGrades)
+
+/** Years that actually contribute to a total, for "across N years".
+ *  Counting every enrolled year would claim work in a year that has
+ *  none, e.g. one with memorize switched off. */
+function yearsWith(pick: (y: YearAgg) => number) {
+  return computed(() => years.value.filter((y) => pick(y) > 0).length)
+}
+const yearsToMemorize = yearsWith((y) => y.memorizeDebt.verses)
+const yearsDue = yearsWith((y) => y.stats.reviewsDueCount)
 
 const aggregateRetention = computed<number | null>(() => {
   let passes = 0
@@ -179,8 +190,8 @@ onMounted(async () => {
             <template v-if="totalNewToMemorize > 0">
               fresh card{{ totalNewToMemorize === 1 ? '' : 's' }}
               from {{ totalNewVerses }} verse{{ totalNewVerses === 1 ? '' : 's' }}<template
-                v-if="years.length > 1"
-              > across {{ years.length }} years</template>.
+                v-if="yearsToMemorize > 1"
+              > across {{ yearsToMemorize }} years</template>.
             </template>
             <template v-else-if="totalUnmemorized > 0">
               caught up on this week's schedule — memorize to work ahead.
@@ -214,8 +225,8 @@ onMounted(async () => {
             <template v-else>
               card{{ totalReviewsDue === 1 ? '' : 's' }} due now
               from {{ totalVersesDue }} verse{{ totalVersesDue === 1 ? '' : 's' }}<template
-                v-if="years.length > 1"
-              > across {{ years.length }} years</template>.
+                v-if="yearsDue > 1"
+              > across {{ yearsDue }} years</template>.
             </template>
           </p>
           <p class="hero-arrow">
