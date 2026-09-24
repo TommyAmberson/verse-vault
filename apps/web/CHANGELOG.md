@@ -9,6 +9,21 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.19] — 2026-09-24
+
+PATCH — the chapter club-list card colours its verse numbers.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.10.0` — unchanged.
+* `verse-vault-wasm@0.10.0` — unchanged.
+
+### Fixed
+
+* The answer to "Which verses are in this club?" listed the verse numbers in plain text. Each number
+  already carried its verse colour, but the rule that applies it only reached numbers in the card's
+  reference line, not in answer text. It now reaches verse numbers anywhere on the card.
+
 ## [0.9.18] — 2026-09-24
 
 MINOR — the outbox always drains. A device with a working connection can be wiped without losing

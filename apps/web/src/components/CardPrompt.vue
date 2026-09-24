@@ -627,8 +627,8 @@ const diffHtml = computed(() => {
    dominant header so it doesn't overpower the verse text on cards
    where the verse is the real focus (PhraseFill / VerseInHeading).
    Book + chapter render in the neutral text colour so the only accent
-   in the line is the verse-number digit (which picks up the verse
-   colour via its own inline rule). */
+   in the line is the verse-number digit (coloured by the
+   `.verse-number` rule below). */
 .ref {
   font-weight: 600;
   color: var(--color-text);
@@ -657,9 +657,13 @@ const diffHtml = computed(() => {
   font-weight: 600;
 }
 
-/* Verse-number digit inside the ref. Pulls from the same custom
-   property as the card-box border so the two always match. */
-.ref :deep(.verse-number) {
+/* Every verse-number digit on the card, wherever it renders: the ref
+   line, a passage range, a club list. It reads the same custom property
+   as the top stripe, so a lone verse matches the stripe, and spans from
+   `verseNumberSpan` override the property per number. Scoped to the card
+   rather than to each container so a new place that renders verse
+   numbers is coloured without another selector. */
+.card-box :deep(.verse-number) {
   color: var(--active-verse-colour);
 }
 
