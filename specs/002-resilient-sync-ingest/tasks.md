@@ -225,25 +225,25 @@ merge question is open.
 
 ### Tests
 
-- [ ] T046 [P] [US2] In `packages/api/src/lib/engine.test.ts`: building an engine with a
+- [X] T046 [P] [US2] In `packages/api/src/lib/engine.test.ts`: building an engine with a
       `card-not-emitted` event that is now resolvable promotes it, writes the real row at its
       recorded `timestamp_secs`, and deletes the pending row
-- [ ] T047 [P] [US2] Test that promoting a review older than applied history rebuilds, and the
+- [X] T047 [P] [US2] Test that promoting a review older than applied history rebuilds, and the
       resulting test state equals one where the review had been applied on time (FR-016)
-- [ ] T048 [P] [US2] Test that a still-unresolvable event stays pending and does not affect
+- [X] T048 [P] [US2] Test that a still-unresolvable event stays pending and does not affect
       `stateRev`, and that `awaiting-confirmation` rows are never promoted at build (FR-007)
-- [ ] T049 [P] [US2] Test that `not-enrolled` rows are promoted at the first build after enrolment
+- [X] T049 [P] [US2] Test that `not-enrolled` rows are promoted at the first build after enrolment
       (FR-018)
-- [ ] T050 [P] [US2] Test that promotion is a single transaction: the pending row and the real row
+- [X] T050 [P] [US2] Test that promotion is a single transaction: the pending row and the real row
       are never both present
 
 ### Implementation
 
-- [ ] T051 [US2] In `packages/api/src/lib/engine.ts`, before replay, call `pending-events.promote`
+- [X] T051 [US2] In `packages/api/src/lib/engine.ts`, before replay, call `pending-events.promote`
       for this `(user, material)` over `card-not-emitted` and `not-enrolled` rows only, promoting
       those whose ids the engine now emits (`has_card`), guarded by an indexed count so the common
       no-pending case costs one query (research D4)
-- [ ] T052 [US2] In `load`, hand off to `rebuildFromEvents` whenever promotion wrote a review, since
+- [X] T052 [US2] In `load`, hand off to `rebuildFromEvents` whenever promotion wrote a review, since
       `load` restores materialised test states rather than replaying
 
 **Checkpoint**: quickstart §4 passes.

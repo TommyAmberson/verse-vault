@@ -49,6 +49,10 @@ instead of refused (constitution principle VI).
 * `POST /sync/:materialId/confirm` with `{ decision: 'merge' | 'discard' }` answers it. Merge
   applies the held events at their recorded times and rebuilds; discard marks them discarded and
   deletes nothing. Answering with nothing open is a no-op.
+* Held events apply themselves when they can. Every engine build promotes `card-not-emitted` events
+  the config emits again and `not-enrolled` events once the account enrols, writing each at the time
+  it was recorded; a promoted review rebuilds from the log so it lands in order. Events awaiting the
+  learner's merge answer are left for that answer.
 * A `sync.events_not_applied` log line per request naming each such event and why, with the
   requestId. The reason an event did not land used to live only in a response body.
 

@@ -3,14 +3,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DB } from '../db/client.js';
 import {
+  graduatedCards,
   graphSnapshots,
   materialSchedules,
+  pendingEvents,
   reviewEvents,
   testStates as testStatesTable,
 } from '../db/schema.js';
 import { seedUserWithFixture, switchedOffCardId } from '../test-fixtures.js';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import { enrollUser } from './enrollment.js';
+import { take, type TakeInput } from './pending-events.js';
+import { computeStateRev } from './state-rev.js';
 import {
   EngineStore,
   NotEnrolledError,
@@ -598,6 +602,150 @@ describe('EngineStore.classifyCardIds', () => {
     store.classifyCardIds(key, a, [0]);
 
     expect(store.maxEmissionEngineBuilds).toBe(1);
+    store.clear();
+  });
+});
+
+describe('EngineStore promotion of pending events', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  const key = { userId: 'u1', materialId: 'nkjv-cor' };
+
+  function setup() {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, ...key });
+    return test.db;
+  }
+
+  function held(overrides: Partial<TakeInput> & { payload: Record<string, unknown> }): TakeInput {
+    return {
+      clientEventId: String(overrides.payload.clientEventId),
+      kind: String(overrides.payload.kind),
+      timestampSecs: overrides.payload.timestampSecs as number,
+      status: 'pending',
+      reasonCode: 'card-not-emitted',
+      reason: 'test',
+      ...overrides,
+    };
+  }
+
+  function review(clientEventId: string, timestampSecs: number, cardId = 0) {
+    return { kind: 'review', clientEventId, timestampSecs, snapshotVersion: 1, cardId, grade: 3 };
+  }
+
+  function logRow(clientEventId: string, timestampSecs: number) {
+    return {
+      id: clientEventId,
+      userId: key.userId,
+      materialId: key.materialId,
+      snapshotVersion: 1,
+      timestampSecs,
+      cardId: 0,
+      grade: 3,
+      clientEventId,
+      createdAt: timestampSecs,
+    };
+  }
+
+  it('promotes a held graduation the engine now emits, at its recorded time', async () => {
+    const db = setup();
+    take(db, key, [
+      held({
+        payload: {
+          kind: 'graduateCard',
+          clientEventId: 'g1',
+          timestampSecs: 1_790_000_000,
+          cardId: 0,
+        },
+      }),
+    ], 1_790_000_500);
+
+    const store = new EngineStore(db);
+    using loaded = await store.load(key);
+
+    expect(db.select().from(pendingEvents).all()).toHaveLength(0);
+    expect(db.select().from(graduatedCards).all()).toEqual([
+      expect.objectContaining({ cardId: 0, graduatedAtSecs: 1_790_000_000 }),
+    ]);
+    // Applied to the engine it was promoted into, not only written down.
+    expect(loaded.engine.graduate_card(0)).toBe(false);
+    store.clear();
+  });
+
+  it('replays a promoted review in order, as if it had applied on time', async () => {
+    // FR-016. The held review sits between two applied ones; promoting it
+    // must yield exactly the state of a log that had it all along.
+    const late = setup();
+    late
+      .insert(reviewEvents)
+      .values([logRow('a', 1_790_000_000), logRow('c', 1_790_000_200)])
+      .run();
+    take(late, key, [held({ payload: review('b', 1_790_000_100) })], 1_790_000_900);
+    // Unseen tests are seeded at the store's clock, so both stores need
+    // the same one or a slow run splits them across a second boundary.
+    const clock = () => 1_790_001_000;
+    const lateStore = new EngineStore(late, clock);
+    using promoted = await lateStore.load(key);
+    const lateStates = JSON.parse(promoted.engine.export_test_states()) as TestStateEntry[];
+    lateStore.clear();
+    cleanup?.();
+
+    const onTime = setup();
+    onTime
+      .insert(reviewEvents)
+      .values([logRow('a', 1_790_000_000), logRow('b', 1_790_000_100), logRow('c', 1_790_000_200)])
+      .run();
+    const onTimeStore = new EngineStore(onTime, clock);
+    using rebuilt = onTimeStore.rebuildFromEvents(key);
+    const onTimeStates = JSON.parse(rebuilt.engine.export_test_states()) as TestStateEntry[];
+    onTimeStore.clear();
+
+    const byKey = (states: TestStateEntry[]) =>
+      Object.fromEntries(states.map((t) => [`${t.test_kind}|${JSON.stringify(t.element)}`, t]));
+    expect(byKey(lateStates)).toEqual(byKey(onTimeStates));
+  });
+
+  it('leaves an event it still cannot apply pending, without moving stateRev', async () => {
+    const db = setup();
+    const before = computeStateRev(db, key.userId, key.materialId);
+    take(db, key, [
+      held({ payload: review('x', 1_790_000_000, 999_999_999) }),
+      held({ payload: review('y', 1_790_000_000), reasonCode: 'awaiting-confirmation' }),
+    ], 1_790_000_500);
+
+    const store = new EngineStore(db);
+    using _loaded = await store.load(key);
+
+    // The unresolvable one waits, and so does the one awaiting the
+    // learner's answer (FR-007's exception), though it could apply.
+    expect(db.select().from(pendingEvents).all().map((r) => r.clientEventId).sort()).toEqual([
+      'x',
+      'y',
+    ]);
+    expect(db.select().from(reviewEvents).all()).toHaveLength(0);
+    expect(computeStateRev(db, key.userId, key.materialId)).toBe(before);
+    store.clear();
+  });
+
+  it('promotes events held while not enrolled at the first build after enrolling', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    createTestUser(test.db, key.userId);
+    take(test.db, key, [
+      held({ payload: review('n1', 1_790_000_000), reasonCode: 'not-enrolled' }),
+    ], 1_790_000_500);
+    enrollUser({ db: test.db, ...key, now: () => 1_790_001_000 });
+
+    const store = new EngineStore(test.db);
+    using _loaded = await store.load(key);
+
+    expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
+    expect(test.db.select().from(reviewEvents).all().map((r) => r.clientEventId)).toEqual(['n1']);
     store.clear();
   });
 });

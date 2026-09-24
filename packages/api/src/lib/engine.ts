@@ -8,6 +8,7 @@ import * as schema from '../db/schema.js';
 import { type Grade, writeTestStates } from './review-log.js';
 import { type UserMaterial, userMaterialKey } from './keys.js';
 import { getMaterialJson } from './materials.js';
+import { hasPromotable, type PendingRow, promote, writeApplied } from './pending-events.js';
 import { loadSchedule } from './schedules.js';
 import { legacyToNew, type YearSettings } from './year-settings.js';
 
@@ -443,6 +444,29 @@ const DEFAULT_REAPER_INTERVAL_SECS = 60;
  *  (api.bible cache fetch + DB transaction) comfortably fits in 30 s. */
 const PENDING_FREE_GRACE_SECS = 30;
 
+/** Pending reasons engine build resolves by itself. `awaiting-confirmation`
+ *  is deliberately absent: it waits for the learner's answer, however
+ *  applicable it is (spec FR-007). */
+const BUILD_PROMOTABLE = ['card-not-emitted', 'not-enrolled'] as const;
+
+/**
+ * Apply every held event `engine` can now resolve, writing each to its
+ * real table at its recorded time. Runs on a freshly built engine, before
+ * graduations are read or the log is replayed, so promoted rows join
+ * those reads like any other. The common case of nothing held costs one
+ * indexed probe.
+ */
+function promotePending(db: DB, key: EngineKey, engine: WasmEngine): PendingRow[] {
+  if (!hasPromotable(db, key, [...BUILD_PROMOTABLE])) return [];
+  return promote(db, key, [...BUILD_PROMOTABLE], (tx, row) => {
+    if (row.kind !== 'graduate') {
+      const cardId = (JSON.parse(row.payloadJson) as { cardId?: unknown }).cardId;
+      if (typeof cardId !== 'number' || !engine.has_card(cardId)) return false;
+    }
+    return writeApplied(tx, key, row);
+  });
+}
+
 /** How an id relates to the cards a material can produce. `not-emitted`
  *  is a card some reachable setting produces but the learner's current
  *  config does not, e.g. one whose kind or club they switched off. */
@@ -579,6 +603,15 @@ export class EngineStore {
       BigInt(this.now()),
     );
 
+    // A promoted review changes its card's FSRS path from its recorded
+    // time on, and the materialised states this engine was built from
+    // don't have it. Only a replay of the log orders it correctly.
+    const promoted = promotePending(this.db, key, engine);
+    if (promoted.some((row) => row.kind === 'review')) {
+      engine.free();
+      return this.rebuildFromEvents(key);
+    }
+
     // Cards built from MaterialData start as `New`; apply every recorded
     // graduation so the in-memory engine matches the user's actual progress.
     // Verse-bulk first, then per-card — order doesn't matter for state
@@ -691,6 +724,8 @@ export class EngineStore {
       '[]',
       BigInt(this.now()),
     );
+    // Before the reads below, so promoted rows are part of them.
+    promotePending(this.db, key, engine);
 
     // Graduations live outside reviewEvents; apply them upfront so the
     // rebuilt engine's card-lifecycle state matches what a fresh
