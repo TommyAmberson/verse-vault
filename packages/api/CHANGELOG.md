@@ -33,11 +33,21 @@ instead of refused (constitution principle VI).
   Only a body that is not a list of events is still a 400.
 * Uploads for a material the account is not enrolled in are taken as `pending` / `not-enrolled`
   instead of 404.
+* A batch that trips the stale-merge threshold is taken as `pending` / `awaiting-confirmation`
+  before the learner is asked, and the response is the normal one with `needsConfirm` and
+  `staleSummary` added. The work used to wait in the browser while the question was open, so wiping
+  the device before answering lost it. An older client re-sending the batch with `confirmMerge`
+  still merges it.
 
 ### Added
 
 * `pending_events` table (migration 0028) holding every event taken but not applied, with its
   payload verbatim, status, reason code and reason. Re-uploading a held event is a duplicate.
+* `GET /sync/:materialId/state` reports an open merge question as `pendingConfirmation`, so any
+  device can raise it, including one wiped since.
+* `POST /sync/:materialId/confirm` with `{ decision: 'merge' | 'discard' }` answers it. Merge
+  applies the held events at their recorded times and rebuilds; discard marks them discarded and
+  deletes nothing. Answering with nothing open is a no-op.
 * A `sync.events_not_applied` log line per request naming each such event and why, with the
   requestId. The reason an event did not land used to live only in a response body.
 

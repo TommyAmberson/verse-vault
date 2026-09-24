@@ -154,28 +154,28 @@ merge question is open.
 
 ### Server tests
 
-- [ ] T025 [P] [US0] In `packages/api/src/routes/sync.test.ts`, change "returns needsConfirm when
+- [X] T025 [P] [US0] In `packages/api/src/routes/sync.test.ts`, change "returns needsConfirm when
       the batch predates many server events" to assert the batch is taken as `pending` /
       `awaiting-confirmation`, the response is a normal 200 with `needsConfirm: true`,
       `staleSummary`, and one disposition per event, and `review_events` is untouched
-- [ ] T026 [P] [US0] Test that `GET /:materialId/state` reports `pendingConfirmation` while such
+- [X] T026 [P] [US0] Test that `GET /:materialId/state` reports `pendingConfirmation` while such
       rows exist and `null` otherwise
-- [ ] T027 [P] [US0] Test `POST /:materialId/confirm`: `merge` applies the rows at their recorded
+- [X] T027 [P] [US0] Test `POST /:materialId/confirm`: `merge` applies the rows at their recorded
       times and rebuilds; `discard` sets `status = 'discarded'` and deletes nothing; either with no
       open question is a 200 no-op; any other `decision` is 400
-- [ ] T028 [P] [US0] Test the old-client path: re-uploading held events with `confirmMerge: true`
+- [X] T028 [P] [US0] Test the old-client path: re-uploading held events with `confirmMerge: true`
       applies them and reports `applied`, not `duplicate`
 
 ### Server implementation
 
-- [ ] T029 [US0] In `packages/api/src/routes/sync.ts`, turn the stale-merge preflight into taking
+- [X] T029 [US0] In `packages/api/src/routes/sync.ts`, turn the stale-merge preflight into taking
       the fresh events via `pending-events.take` as `awaiting-confirmation`, returning the merged
       shape with `needsConfirm` and `staleSummary`
-- [ ] T030 [US0] Add `pendingConfirmation` to the `GET /:materialId/state` response from
+- [X] T030 [US0] Add `pendingConfirmation` to the `GET /:materialId/state` response from
       `summariseAwaitingConfirmation`
-- [ ] T031 [US0] Add `POST /:materialId/confirm`, taking the engine lock, promoting or discarding
+- [X] T031 [US0] Add `POST /:materialId/confirm`, taking the engine lock, promoting or discarding
       the `awaiting-confirmation` rows, and rebuilding on merge
-- [ ] T032 [US0] Treat an upload with `confirmMerge: true` whose events are held as
+- [X] T032 [US0] Treat an upload with `confirmMerge: true` whose events are held as
       `awaiting-confirmation` as a merge of those rows
 
 ### Client tests

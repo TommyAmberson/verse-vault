@@ -15,7 +15,18 @@ import {
   readTestStateEntries,
 } from '../lib/engine.js';
 import { getMaterialJson } from '../lib/materials.js';
-import { heldClientEventIds, take, type TakeInput } from '../lib/pending-events.js';
+import {
+  hasPromotable,
+  heldClientEventIds,
+  markDiscarded,
+  type PendingRow,
+  promote,
+  summariseAwaitingConfirmation,
+  take,
+  type TakeInput,
+  writeApplied,
+} from '../lib/pending-events.js';
+import type { UserMaterial } from '../lib/keys.js';
 import { computeStateRev } from '../lib/state-rev.js';
 import {
   existingEventIds,
@@ -132,6 +143,37 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       // Fingerprint of the logs this response was built from — see
       // `computeStateRev` for what it detects and why.
       stateRev: computeStateRev(deps.db, user.id, materialId),
+      // An open merge question, read from the server so any device can
+      // raise it, including one wiped since the upload that opened it.
+      pendingConfirmation: staleSummary(deps.db, key),
+    });
+  });
+
+  app.post('/:materialId/confirm', async (c) => {
+    const user = getUser(c);
+    const materialId = c.req.param('materialId');
+    const key = { userId: user.id, materialId };
+
+    let decision: unknown;
+    try {
+      decision = ((await c.req.json()) as { decision?: unknown })?.decision;
+    } catch {
+      return c.json({ error: 'invalid JSON body' }, 400);
+    }
+    if (decision !== 'merge' && decision !== 'discard') {
+      return c.json({ error: "decision must be 'merge' or 'discard'" }, 400);
+    }
+    if (!getLatestSnapshot(deps.db, key)) return c.json({ error: 'Not enrolled' }, 404);
+
+    // Answering with nothing open is a no-op, not an error: another
+    // device may have answered first.
+    if (decision === 'discard') {
+      return c.json({ discarded: markDiscarded(deps.db, key) });
+    }
+    const merged = await mergeAwaiting(deps, key);
+    return c.json({
+      ...unchangedResponse(deps.db, key, merged.length, 0),
+      rebuilt: merged.length > 0,
     });
   });
 
@@ -237,6 +279,18 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       }
     }
 
+    // An older client answers the merge question by re-sending its
+    // batch with confirmMerge. Those events are already held, awaiting
+    // that answer, so merge them rather than calling them duplicates.
+    // The merge rebuilds the engine, which leaves `loaded` stale, so
+    // anything applied below must go through a rebuild too.
+    const mergedIds = new Set<string>();
+    if (body.confirmMerge === true) {
+      for (const row of await mergeAwaiting(deps, key)) {
+        if (row.clientEventId !== null) mergedIds.add(row.clientEventId);
+      }
+    }
+
     // Already taken, into either table, or earlier in this same request.
     const ids = wellFormed.map((w) => w.event.clientEventId);
     const seen = existingEventIds(deps.db, user.id, materialId, ids);
@@ -256,12 +310,22 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     );
 
     let duplicates = 0;
+    let mergedHere = 0;
     const applicable: { index: number; event: SyncEventUpload }[] = [];
     for (const w of wellFormed) {
       const { index, event } = w;
       if (seen.has(event.clientEventId)) {
-        dispositions[index] = duplicateOf(index, event);
-        duplicates += 1;
+        if (mergedIds.delete(event.clientEventId)) {
+          dispositions[index] = {
+            index,
+            clientEventId: event.clientEventId,
+            disposition: 'applied',
+          };
+          mergedHere += 1;
+        } else {
+          dispositions[index] = duplicateOf(index, event);
+          duplicates += 1;
+        }
         continue;
       }
       seen.add(event.clientEventId);
@@ -303,54 +367,43 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
     if (fresh.length === 0) {
       takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
-      return c.json({ ...unchangedResponse(deps.db, key, 0, duplicates), dispositions });
+      return c.json({
+        ...unchangedResponse(deps.db, key, mergedHere, duplicates),
+        rebuilt: mergedHere > 0,
+        dispositions,
+      });
     }
 
     // Stale-merge preflight: if the batch's oldest event predates more
     // than STALE_MERGE_THRESHOLD already-applied server events, the
     // user probably didn't sync this device for a long time and the
     // automatic merge can drag down FSRS stability on cards reviewed
-    // since. Surface the confirmation prompt before doing any work.
-    // The client re-POSTs with confirmMerge:true to proceed, or
-    // discards locally and never returns.
+    // since, so the learner is asked first. The batch is taken before
+    // asking, held as awaiting-confirmation: while the question is open
+    // the work must rest on the server, not in the browser (FR-011).
+    // POST .../confirm answers it; GET /state re-raises it on any device.
     if (body.confirmMerge !== true) {
       const oldestQueuedTs = fresh.reduce(
         (min, e) => (e.timestampSecs < min ? e.timestampSecs : min),
         fresh[0].timestampSecs,
       );
-      const sinceRow = deps.db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(schema.reviewEvents)
-        .where(
-          and(
-            eq(schema.reviewEvents.userId, user.id),
-            eq(schema.reviewEvents.materialId, materialId),
-            sql`${schema.reviewEvents.timestampSecs} > ${oldestQueuedTs}`,
-          ),
-        )
-        .get();
-      const serverEventsSince = sinceRow?.count ?? 0;
-      if (serverEventsSince > STALE_MERGE_THRESHOLD) {
-        // What cannot apply anyway is taken now; only the merge waits.
+      if (serverEventsSince(deps.db, key, oldestQueuedTs) > STALE_MERGE_THRESHOLD) {
+        for (const { index, event } of applicable) {
+          setAside(
+            index,
+            uploadIds(event),
+            'pending',
+            'awaiting-confirmation',
+            'batch predates newer history; waiting for the learner to merge or discard it',
+          );
+        }
         takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
-        const newestRow = deps.db
-          .select({ ts: sql<number>`MAX(${schema.reviewEvents.timestampSecs})` })
-          .from(schema.reviewEvents)
-          .where(
-            and(
-              eq(schema.reviewEvents.userId, user.id),
-              eq(schema.reviewEvents.materialId, materialId),
-            ),
-          )
-          .get();
         return c.json({
+          ...unchangedResponse(deps.db, key, mergedHere, duplicates),
+          rebuilt: mergedHere > 0,
           needsConfirm: true,
-          staleSummary: {
-            queuedCount: fresh.length,
-            serverEventsSince,
-            oldestQueuedTs,
-            newestServerTs: newestRow?.ts ?? oldestQueuedTs,
-          },
+          staleSummary: staleSummary(deps.db, key),
+          dispositions,
         });
       }
     }
@@ -368,8 +421,10 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         fresh.filter((e) => eventKind(e) === 'review').map((e) => (e as ReviewEventUpload).cardId),
       ),
     ];
-    let outOfOrder = false;
-    if (freshReviewCardIds.length > 0) {
+    // A merge above already rebuilt the cached engine, so `loaded` is no
+    // longer the engine to apply to in order.
+    let outOfOrder = mergedHere > 0 || mergedIds.size > 0;
+    if (!outOfOrder && freshReviewCardIds.length > 0) {
       const maxByCard = deps.db
         .select({
           cardId: schema.reviewEvents.cardId,
@@ -516,7 +571,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       }
 
       return c.json({
-        accepted: fresh.length - graduateNoops,
+        accepted: fresh.length - graduateNoops + mergedHere,
         duplicates: duplicates + graduateNoops,
         rebuilt: outOfOrder,
         // Send the full state so fat clients can replace their cache in one
@@ -551,6 +606,69 @@ function unchangedResponse(
     lastEventId: latestEventId(db, key.userId, key.materialId),
     stateRev: computeStateRev(db, key.userId, key.materialId),
   };
+}
+
+function serverEventsSince(db: DB, key: UserMaterial, sinceTs: number): number {
+  const row = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(schema.reviewEvents)
+    .where(
+      and(
+        eq(schema.reviewEvents.userId, key.userId),
+        eq(schema.reviewEvents.materialId, key.materialId),
+        sql`${schema.reviewEvents.timestampSecs} > ${sinceTs}`,
+      ),
+    )
+    .get();
+  return row?.count ?? 0;
+}
+
+/** The open merge question for this account and material, or `null`.
+ *  One shape for the upload's `staleSummary` and GET /state's
+ *  `pendingConfirmation`, so the modal reads the same either way. */
+function staleSummary(
+  db: DB,
+  key: UserMaterial,
+): {
+  queuedCount: number;
+  serverEventsSince: number;
+  oldestQueuedTs: number;
+  newestServerTs: number;
+} | null {
+  const held = summariseAwaitingConfirmation(db, key);
+  if (!held) return null;
+  const newestRow = db
+    .select({ ts: sql<number>`MAX(${schema.reviewEvents.timestampSecs})` })
+    .from(schema.reviewEvents)
+    .where(
+      and(
+        eq(schema.reviewEvents.userId, key.userId),
+        eq(schema.reviewEvents.materialId, key.materialId),
+      ),
+    )
+    .get();
+  return {
+    queuedCount: held.queuedCount,
+    serverEventsSince: serverEventsSince(db, key, held.oldestQueuedTs),
+    oldestQueuedTs: held.oldestQueuedTs,
+    newestServerTs: newestRow?.ts ?? held.oldestQueuedTs,
+  };
+}
+
+/** Apply every event held awaiting the learner's merge answer, at its
+ *  recorded time, then rebuild: the batch predates applied history by
+ *  definition, so only a replay from the log orders it correctly. */
+async function mergeAwaiting(deps: SyncRoutesDeps, key: UserMaterial): Promise<PendingRow[]> {
+  if (!hasPromotable(deps.db, key, ['awaiting-confirmation'])) return [];
+  return deps.engines.withLock(key, async () => {
+    const promoted = promote(deps.db, key, ['awaiting-confirmation'], (tx, row) =>
+      writeApplied(tx, key, row),
+    );
+    // Nothing here reads the rebuilt engine; release the handle at once
+    // so the cache holds the only reference.
+    if (promoted.length > 0) deps.engines.rebuildFromEvents(key)[Symbol.dispose]();
+    return promoted;
+  });
 }
 
 function latestEventId(db: DB, userId: string, materialId: string): string | null {

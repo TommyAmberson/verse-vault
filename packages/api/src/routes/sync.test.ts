@@ -590,46 +590,167 @@ describe('sync routes', () => {
     }
   });
 
-  it('returns needsConfirm when the batch predates many server events', async () => {
-    const test = createTestApp();
-    cleanup = test.cleanup;
-    const { cookie } = await enroll(test, 'alice@example.com');
-
-    // Seed 11 newer server events (over the STALE_MERGE_THRESHOLD of 10).
+  /** Put 11 applied events on the server, past the stale-merge
+   *  threshold of 10, all newer than `STALE_TS`. */
+  async function seedNewerHistory(test: TestApp, cookie: string): Promise<void> {
     for (let i = 0; i < 11; i++) {
       const e = event({ timestampSecs: 1_700_001_000 + i, grade: 3, cardId: 0 });
-      const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', cookie },
-        body: JSON.stringify({ events: [e] }),
-      });
-      expect(res.status).toBe(200);
+      const { status } = await upload(test, cookie, [e]);
+      expect(status).toBe(200);
     }
+  }
+  const STALE_TS = 1_700_000_000;
 
-    // Stale batch: ts well before the seeded server events.
-    const stale = event({ timestampSecs: 1_700_000_000, grade: 1, cardId: 0 });
-    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ events: [stale] }),
-    });
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      needsConfirm: boolean;
-      staleSummary: {
+  async function getState(test: TestApp, cookie: string) {
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/state`, { headers: { cookie } });
+    return (await res.json()) as StateResponse & {
+      pendingConfirmation: {
         queuedCount: number;
         serverEventsSince: number;
         oldestQueuedTs: number;
         newestServerTs: number;
-      };
+      } | null;
     };
-    expect(body.needsConfirm).toBe(true);
-    expect(body.staleSummary.queuedCount).toBe(1);
-    expect(body.staleSummary.serverEventsSince).toBe(11);
-    expect(body.staleSummary.oldestQueuedTs).toBe(1_700_000_000);
+  }
 
-    // Preflight did not insert the stale event.
+  async function confirm(test: TestApp, cookie: string, decision: unknown) {
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ decision }),
+    });
+    return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+  }
+
+  it('takes a stale batch as pending and asks about it', async () => {
+    // The question used to be asked about work held only in the browser,
+    // so wiping the device before answering lost it. Now the work is
+    // on the server before the question is asked (FR-011).
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+    await seedNewerHistory(test, cookie);
+
+    const stale = event({ timestampSecs: STALE_TS, grade: 1, cardId: 0 });
+    const { status, body } = await upload(test, cookie, [stale]);
+
+    expect(status).toBe(200);
+    const b = body as UploadResponse & {
+      needsConfirm: boolean;
+      staleSummary: Record<string, number>;
+    };
+    expect(b.needsConfirm).toBe(true);
+    expect(b.staleSummary).toMatchObject({
+      queuedCount: 1,
+      serverEventsSince: 11,
+      oldestQueuedTs: STALE_TS,
+    });
+    expect(b.accepted).toBe(0);
+    expect(b.dispositions).toEqual([
+      {
+        index: 0,
+        clientEventId: stale.clientEventId,
+        disposition: 'pending',
+        reasonCode: 'awaiting-confirmation',
+        reason: expect.any(String),
+      },
+    ]);
     expect(test.db.select().from(reviewEvents).all()).toHaveLength(11);
+    const held = test.db.select().from(pendingEvents).all();
+    expect(held.map((r) => [r.clientEventId, r.status, r.reasonCode])).toEqual([
+      [stale.clientEventId, 'pending', 'awaiting-confirmation'],
+    ]);
+  });
+
+  it('reports an open merge question on GET /state, from any device', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+    await seedNewerHistory(test, cookie);
+    expect((await getState(test, cookie)).pendingConfirmation).toBeNull();
+
+    await upload(test, cookie, [event({ timestampSecs: STALE_TS, grade: 1 })]);
+
+    expect((await getState(test, cookie)).pendingConfirmation).toEqual({
+      queuedCount: 1,
+      serverEventsSince: 11,
+      oldestQueuedTs: STALE_TS,
+      newestServerTs: 1_700_001_010,
+    });
+  });
+
+  it('merges the held batch at its recorded times when confirmed', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+    await seedNewerHistory(test, cookie);
+    const stale = event({ timestampSecs: STALE_TS, grade: 1, cardId: 0 });
+    await upload(test, cookie, [stale]);
+
+    const { status, body } = await confirm(test, cookie, 'merge');
+
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ accepted: 1, rebuilt: true });
+    const row = test.db
+      .select()
+      .from(reviewEvents)
+      .all()
+      .find((r) => r.clientEventId === stale.clientEventId);
+    expect(row?.timestampSecs).toBe(STALE_TS);
+    expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
+    expect((await getState(test, cookie)).pendingConfirmation).toBeNull();
+  });
+
+  it('marks the held batch discarded, deleting nothing, when discarded', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+    await seedNewerHistory(test, cookie);
+    await upload(test, cookie, [event({ timestampSecs: STALE_TS, grade: 1 })]);
+
+    const { status, body } = await confirm(test, cookie, 'discard');
+
+    expect(status).toBe(200);
+    expect(body).toEqual({ discarded: 1 });
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(11);
+    expect(test.db.select().from(pendingEvents).all().map((r) => r.status)).toEqual(['discarded']);
+    expect((await getState(test, cookie)).pendingConfirmation).toBeNull();
+  });
+
+  it('treats an answer with no open question as a no-op, and rejects nonsense', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+
+    expect(await confirm(test, cookie, 'merge')).toMatchObject({
+      status: 200,
+      body: { accepted: 0, rebuilt: false },
+    });
+    expect(await confirm(test, cookie, 'discard')).toEqual({ status: 200, body: { discarded: 0 } });
+    expect((await confirm(test, cookie, 'maybe')).status).toBe(400);
+  });
+
+  it('merges held events an old client re-sends with confirmMerge', async () => {
+    // A client from before this change keeps its outbox on needsConfirm
+    // and, on Sync, re-uploads with confirmMerge: true. Those events are
+    // already held, so they must be merged, not reported as duplicates.
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+    await seedNewerHistory(test, cookie);
+    const stale = event({ timestampSecs: STALE_TS, grade: 1, cardId: 0 });
+    await upload(test, cookie, [stale]);
+
+    const { status, body } = await upload(test, cookie, [stale], { confirmMerge: true });
+
+    expect(status).toBe(200);
+    expect(body.accepted).toBe(1);
+    expect(body.rebuilt).toBe(true);
+    expect(body.dispositions).toEqual([
+      { index: 0, clientEventId: stale.clientEventId, disposition: 'applied' },
+    ]);
+    expect(test.db.select().from(reviewEvents).all()).toHaveLength(12);
+    expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
   });
 
   it('bypasses the preflight when confirmMerge is true', async () => {

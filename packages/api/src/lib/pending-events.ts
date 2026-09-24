@@ -16,9 +16,12 @@ import type { DB } from '../db/client.js';
 import {
   type PendingReasonCode,
   type PendingStatus,
+  graduatedCards,
+  graduatedVerses,
   pendingEvents,
 } from '../db/schema.js';
 import type { UserMaterial } from './keys.js';
+import { type Grade, writeReviewEvents } from './review-log.js';
 
 type Tx = Parameters<Parameters<DB['transaction']>[0]>[0];
 
@@ -140,6 +143,57 @@ export function promote(
     }
     return promoted;
   });
+}
+
+/**
+ * Write a held event to the table it would have landed in had it been
+ * applied on arrival, at the time it was recorded (FR-016): a review
+ * joins the log at its own timestamp, so replay orders it exactly as if
+ * it had never waited. Returns false for a row that is not a well-formed
+ * event, which stays where it is.
+ */
+export function writeApplied(tx: Tx, key: UserMaterial, row: PendingRow): boolean {
+  if (row.clientEventId === null || row.timestampSecs === null) return false;
+  const e = JSON.parse(row.payloadJson) as Record<string, unknown>;
+  if (row.kind === 'review') {
+    writeReviewEvents(tx, [
+      {
+        userId: key.userId,
+        materialId: key.materialId,
+        snapshotVersion: e.snapshotVersion as number,
+        timestampSecs: row.timestampSecs,
+        cardId: e.cardId as number,
+        grade: e.grade as Grade,
+        clientEventId: row.clientEventId,
+      },
+    ]);
+    return true;
+  }
+  if (row.kind === 'graduate') {
+    tx.insert(graduatedVerses)
+      .values({
+        userId: key.userId,
+        materialId: key.materialId,
+        verseId: e.verseId as number,
+        graduatedAtSecs: row.timestampSecs,
+      })
+      .onConflictDoNothing()
+      .run();
+    return true;
+  }
+  if (row.kind === 'graduateCard') {
+    tx.insert(graduatedCards)
+      .values({
+        userId: key.userId,
+        materialId: key.materialId,
+        cardId: e.cardId as number,
+        graduatedAtSecs: row.timestampSecs,
+      })
+      .onConflictDoNothing()
+      .run();
+    return true;
+  }
+  return false;
 }
 
 function awaitingWhere(key: UserMaterial) {
