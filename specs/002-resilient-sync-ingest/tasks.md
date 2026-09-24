@@ -180,36 +180,36 @@ merge question is open.
 
 ### Client tests
 
-- [ ] T033 [P] [US0] In `apps/web/src/lib/engine/engineStore.test.ts` (new, uses the T002 harness):
+- [X] T033 [P] [US0] In `apps/web/src/lib/engine/engineStore.test.ts` (new, uses the T002 harness):
       a `200` deletes every event the request carried, even when `dispositions` is empty or lists
       values the client does not recognise
-- [ ] T034 [P] [US0] Test that an outbox of 501 events drains across two requests, neither exceeding
+- [X] T034 [P] [US0] Test that an outbox of 501 events drains across two requests, neither exceeding
       the 500 cap (FR-013, closes #156)
-- [ ] T035 [P] [US0] Test that a `needsConfirm: true` response carrying `dispositions` empties the
+- [X] T035 [P] [US0] Test that a `needsConfirm: true` response carrying `dispositions` empties the
       outbox, while the old server's arm without `dispositions` keeps it (contracts, Compatibility)
-- [ ] T036 [P] [US0] In `apps/web/src/lib/engine/persistence.test.ts` (new): opening a v1 database
+- [X] T036 [P] [US0] In `apps/web/src/lib/engine/persistence.test.ts` (new): opening a v1 database
       holding orphan rows migrates them into `eventQueue` and drops the store (FR-014)
 
 ### Client implementation
 
-- [ ] T037 [US0] In `apps/web/src/lib/engine/engineStore.ts` `doFlush`, delete every sent event on
+- [X] T037 [US0] In `apps/web/src/lib/engine/engineStore.ts` `doFlush`, delete every sent event on
       any `200`, and drop the quarantine-and-retry branch entirely
-- [ ] T038 [US0] Chunk the upload in `doFlush` at the server's 500-event cap, looping until the
+- [X] T038 [US0] Chunk the upload in `doFlush` at the server's 500-event cap, looping until the
       outbox is empty (FR-013)
-- [ ] T039 [US0] Remove the per-material stale gate from `engineStore.ts`, keeping only the
+- [X] T039 [US0] Remove the per-material stale gate from `engineStore.ts`, keeping only the
       old-server fallback that holds the outbox when `needsConfirm` arrives without `dispositions`
-- [ ] T040 [US0] In `apps/web/src/composables/useEngine.ts`, drive the modal from
+- [X] T040 [US0] In `apps/web/src/composables/useEngine.ts`, drive the modal from
       `pendingConfirmation` on `GET /state`; make `confirmMerge` and `discardStale` call
       `POST .../confirm`, with discard still invalidating the session and snapshot caches afterwards
-- [ ] T041 [US0] Update `apps/web/src/components/StaleMergeModal.vue` copy: discarding sets the
+- [X] T041 [US0] Update `apps/web/src/components/StaleMergeModal.vue` copy: discarding sets the
       reviews aside on the server rather than deleting them
-- [ ] T042 [US0] Bump `DB_VERSION` to 2 in `apps/web/src/lib/engine/persistence.ts`; in the upgrade
+- [X] T042 [US0] Bump `DB_VERSION` to 2 in `apps/web/src/lib/engine/persistence.ts`; in the upgrade
       path re-enqueue any `eventQueueOrphans` rows into `eventQueue`, then delete the store
-- [ ] T043 [US0] Delete `moveToOrphans`, `getOrphans`, `countOrphans` from `persistence.ts`, and
+- [X] T043 [US0] Delete `moveToOrphans`, `getOrphans`, `countOrphans` from `persistence.ts`, and
       `orphanCount` from `useEngine.ts`
-- [ ] T044 [US0] Delete `apps/web/src/lib/engine/syncErrors.ts` and its test if nothing still reads a
+- [X] T044 [US0] Delete `apps/web/src/lib/engine/syncErrors.ts` and its test if nothing still reads a
       refusal body; otherwise reduce it to what remains needed
-- [ ] T045 [US0] Update `SyncEventsResponse` and the state response in
+- [X] T045 [US0] Update `SyncEventsResponse` and the state response in
       `apps/web/src/lib/engine/types.ts`, add the confirm call to `apps/web/src/api.ts`, then add the
       web CHANGELOG entry and version bump
 

@@ -13,9 +13,10 @@
  *     queue. A background flush ships it to the server.
  *   - `submitGraduation` runs `engine.graduate_verse` locally and
  *     appends a `kind: 'graduate'` event.
- *   - `flush` POSTs the queue to `/api/sync/:materialId/events`, applies
- *     the server's response (including a `rebuilt: true` wholesale
- *     state replacement), and deletes acked events by clientEventId.
+ *   - `flush` POSTs the outbox to `/api/sync/:materialId/events` in
+ *     pages of at most `MAX_UPLOAD_BATCH`, applies each response
+ *     (including a `rebuilt: true` wholesale state replacement), and
+ *     deletes every event a page carried once the server answers it.
  *
  * Reads:
  *   - `getCardRender` checks the IDB `renders` cache (MAUA-compliant
@@ -102,39 +103,65 @@ function coalesce<T>(
  *  would each see the same pre-mutation snapshot and overwrite each
  *  other's ids. Chaining onto the previous promise serialises them. */
 const persistGraduationChains = new Map<string, Promise<void>>()
-/** A material the server flagged with a stale-merge `needsConfirm`: its
- *  id plus the summary payload the confirmation modal shows. */
+/** The server's per-request cap on uploaded events. The outbox is
+ *  uploaded in pages this size until it is empty (spec FR-013); the cap
+ *  is a page size, not a condition to recover from. */
+const MAX_UPLOAD_BATCH = 500
+
+/** A material with an open stale-merge question: its id plus the summary
+ *  payload the confirmation modal shows. */
 export interface StalePrompt extends StaleMergeSummary {
   materialId: string
 }
 
-/** Materials the server has flagged with a stale-merge `needsConfirm`,
- *  keyed by materialId in the order they were flagged, each carrying its
- *  summary payload. Flush calls for a gated material no-op until either
- *  `confirmMerge: true` is passed (which bypasses the gate and clears it
- *  on success) or `clearStaleGate` is called explicitly (the discard
- *  path). Prevents the per-grade debounce + visibilitychange listeners
- *  from looping the same stale batch through the server endlessly.
+/** Open stale-merge questions, keyed by materialId in the order they
+ *  were raised. The question lives on the server; this is only what the
+ *  modal shows. It is raised by an upload's response, a cold `GET
+ *  /state`, or the /api/years row (`setMergeQuestion`), and cleared by
+ *  answering it (`answerMergeQuestion`) or dismissing it for now.
  *
- *  Single source of truth for the pending-prompt queue: `useEngine`
- *  projects its modal off the head rather than keeping a parallel map,
- *  so `clearAllSessions` emptying this also empties the UI (#119). */
-const staleGate = new Map<string, StalePrompt>()
+ *  Single source of truth for the modal queue: `useEngine` projects off
+ *  the head rather than keeping a parallel map, so `clearAllSessions`
+ *  emptying this also empties the UI (#119). */
+const prompts = new Map<string, StalePrompt>()
 
-/** The oldest still-unresolved stale-merge prompt (the head of the gate,
- *  in server-flag order), or `null` when nothing is gated. `useEngine`
- *  projects the active modal off this. */
+/** Materials whose outbox an older server refused to take pending the
+ *  learner's answer (a bare `needsConfirm` with no dispositions). Their
+ *  flushes no-op until the answer re-sends the batch with `confirmMerge`,
+ *  so the debounce and visibility listeners don't loop the same batch
+ *  through the server. Only reachable against an api that predates
+ *  server-held batches; remove once none can be running. */
+const legacyHold = new Set<string>()
+
+/** The oldest open stale-merge question, or `null`. `useEngine` projects
+ *  the active modal off this. */
 export function firstStalePrompt(): StalePrompt | null {
-  return staleGate.values().next().value ?? null
+  return prompts.values().next().value ?? null
+}
+
+/** Record (or clear, with `null`) the open merge question for a material,
+ *  as reported by the server. */
+export function setMergeQuestion(
+  materialId: string,
+  summary: StaleMergeSummary | null | undefined,
+): void {
+  if (summary) prompts.set(materialId, { materialId, ...summary })
+  else if (summary === null && !legacyHold.has(materialId)) prompts.delete(materialId)
+}
+
+/** Hide the question for now without answering it. It is still open on
+ *  the server and comes back on the next boot. */
+export function dismissMergeQuestion(materialId: string): void {
+  prompts.delete(materialId)
 }
 
 /** The `materialConfig` + `schedule` a live session was built with, or
  *  `undefined` if no session is cached. Rebuild paths that drop and
- *  reload a session (e.g. `useEngine.discardStale`) read this *before*
+ *  reload a session (e.g. `reloadFromServer`) read this *before*
  *  invalidating so the reload preserves per-club enables + retention +
  *  schedule instead of falling back to the wasm-side all-clubs-enabled
  *  default (see `loadEngine`'s `materialConfig` note). */
-export function sessionConfig(
+function sessionConfig(
   materialId: string,
 ): { materialConfig: WireMaterialConfig | undefined; schedule: unknown | '' } | undefined {
   const session = sessions.get(materialId)
@@ -142,13 +169,9 @@ export function sessionConfig(
   return { materialConfig: session.materialConfig, schedule: session.schedule }
 }
 
-export function clearStaleGate(materialId: string): void {
-  staleGate.delete(materialId)
-}
-
-/** Outcome of a flush attempt. Stale-merge prompts are NOT surfaced here
- *  — a `needsConfirm` response registers the prompt in the stale gate
- *  (`firstStalePrompt`), which the UI reads directly. */
+/** Outcome of a flush attempt, summed over every page it uploaded.
+ *  Stale-merge questions are NOT surfaced here; they land in the prompt
+ *  queue (`firstStalePrompt`), which the UI reads directly. */
 export interface FlushResult {
   /** Events successfully merged into the server log. */
   accepted: number
@@ -234,6 +257,7 @@ async function buildSession(
     testStates = fetched.testStates
     await idb.putSnapshot(snapshot)
     await idb.replaceAllTestStates(materialId, testStates)
+    setMergeQuestion(materialId, fetched.pendingConfirmation)
   }
 
   const engine = createEngine({
@@ -572,17 +596,14 @@ export async function pendingCount(materialId: string): Promise<number> {
 /** Flush queued events. Coalesces concurrent calls so two near-simultaneous
  *  flushes share one round-trip and one event-deletion pass.
  *
- *  `opts.confirmMerge` bypasses the server's stale-merge preflight —
- *  set after the user clicks Sync on the confirmation modal. */
+ *  `opts.confirmMerge` answers an older server's stale-merge question by
+ *  re-sending the held outbox; see `legacyHold`. */
 export async function flush(
   materialId: string,
   nowSecs: number,
   opts: { confirmMerge?: boolean } = {},
 ): Promise<FlushResult> {
-  // Don't keep re-POSTing a batch the server already told us needs
-  // user confirmation. confirmMerge:true is the explicit override that
-  // resumes flushing (and clears the gate on success).
-  if (!opts.confirmMerge && staleGate.has(materialId)) {
+  if (!opts.confirmMerge && legacyHold.has(materialId)) {
     return { accepted: 0, duplicates: 0, rebuilt: false }
   }
   return coalesce(inflightFlushes, materialId, () =>
@@ -594,10 +615,55 @@ async function doFlush(
   nowSecs: number,
   confirmMerge: boolean,
 ): Promise<FlushResult> {
-  const queued = await idb.getQueuedEvents(materialId)
-  if (queued.length === 0) {
-    return { accepted: 0, duplicates: 0, rebuilt: false }
+  const total: FlushResult = { accepted: 0, duplicates: 0, rebuilt: false }
+  // Every answer carries the whole post-merge state, so only the last one
+  // is current: it is applied once, after the last page, and still
+  // applied if a later page fails. A rebuild on any page means the local
+  // engine must rebuild too.
+  let latest: MergedSyncResponse | undefined
+  try {
+    // Page through the outbox until it is empty. Each page re-reads the
+    // queue, so events added mid-flush ride a later page, and a short
+    // page means everything that was queued has been sent.
+    for (;;) {
+      const page = await idb.getQueuedEvents(materialId, MAX_UPLOAD_BATCH)
+      if (page.length === 0) break
+      const result = await uploadPage(materialId, page, nowSecs, confirmMerge)
+      if (result === 'refetched') {
+        // The refetch replaced local state wholesale; an earlier page's
+        // answer is older than it.
+        latest = undefined
+        break
+      }
+      if (result === 'held') break
+      total.accepted += result.accepted
+      total.duplicates += result.duplicates
+      total.rebuilt ||= result.rebuilt
+      // A held batch leaves the server's state as it was before the
+      // batch, while the local engine already has it applied. Adopting
+      // that state would split the two until the question is answered,
+      // and answering reloads from the server either way.
+      if (!result.needsConfirm) latest = { ...result, rebuilt: total.rebuilt }
+      if (page.length < MAX_UPLOAD_BATCH) break
+    }
+  } finally {
+    if (latest) await applyMergedState(requireSession(materialId, 'flush'), latest, nowSecs)
   }
+  return total
+}
+
+type MergedSyncResponse = Extract<SyncEventsResponse, { accepted: number }>
+
+/** Upload one page of the outbox and forget it once answered. Returns
+ *  the server's answer, or why it took nothing: `'refetched'` after a
+ *  stale stamp was fixed by refetching state, `'held'` when an older
+ *  server is holding out for the learner. Either way the flush stops. */
+async function uploadPage(
+  materialId: string,
+  queued: idb.QueuedEvent[],
+  nowSecs: number,
+  confirmMerge: boolean,
+): Promise<MergedSyncResponse | 'refetched' | 'held'> {
   const session = requireSession(materialId, 'flush')
 
   const events = queued.map<SyncEventUpload>((q) => {
@@ -644,22 +710,44 @@ async function doFlush(
     if (status === 409) {
       await refetchSyncState(session, nowSecs)
       await idb.rewriteQueuedSnapshotVersion(materialId, session.snapshotVersion)
-      return { accepted: 0, duplicates: 0, rebuilt: false }
+      return 'refetched'
     }
     throw err
   }
 
-  if ('needsConfirm' in response && response.needsConfirm) {
-    staleGate.set(materialId, { materialId, ...response.staleSummary })
-    return { accepted: 0, duplicates: 0, rebuilt: false }
+  // An older server's stale-merge envelope carries no dispositions and
+  // took nothing, so the outbox has to stay until the learner answers.
+  if (response.needsConfirm && response.dispositions === undefined) {
+    legacyHold.add(materialId)
+    setMergeQuestion(materialId, response.staleSummary)
+    return 'held'
   }
-  // The union narrows here: the `needsConfirm` arm returned above, so
-  // the rest of this function sees only the merged-response shape.
-  // Successful merge — clear the gate (covers the confirmMerge:true
-  // retry path and the case where prior server activity drained below
-  // the stale-merge threshold).
-  staleGate.delete(materialId)
+  // The union narrows here: everything below is the merged shape, and
+  // every event on this page is now the server's to hold.
+  legacyHold.delete(materialId)
+  if (response.needsConfirm) setMergeQuestion(materialId, response.staleSummary)
 
+  // Forget everything this page carried, whatever its disposition: the
+  // server took all of it (FR-005). Deleting by what was sent, not by
+  // what was reported, is what lets an event the server could not even
+  // name leave the outbox.
+  await idb.deleteQueuedEvents(queued.map((q) => q.clientEventId))
+  return response
+}
+
+/** Adopt the test states a merge response carries, rebuilding the local
+ *  engine when the server rebuilt its own, and record the new state
+ *  fingerprint. */
+async function applyMergedState(
+  session: EngineSession,
+  response: {
+    testStates: TestStateEntry[]
+    rebuilt: boolean
+    stateRev?: string
+  },
+  nowSecs: number,
+): Promise<void> {
+  const { materialId } = session
   await idb.replaceAllTestStates(materialId, response.testStates)
   if (response.rebuilt) {
     const snapshot = await idb.getSnapshot(materialId)
@@ -688,18 +776,68 @@ async function doFlush(
       applyGraduations(session.engine, snapshot.graduatedVerseIds, snapshot.graduatedCardIds)
     }
   }
-
-  await idb.deleteQueuedEvents(queued.map((q) => q.clientEventId))
-
   if (response.stateRev != null) {
     await persistSnapshotStateRev(materialId, response.stateRev)
   }
+}
 
-  return {
-    accepted: response.accepted,
-    duplicates: response.duplicates,
-    rebuilt: response.rebuilt,
+/** Answer the open stale-merge question for a material. Merging applies
+ *  the held batch at its recorded times; discarding sets it aside on the
+ *  server, where it is kept rather than deleted.
+ *
+ *  Either way the local engine is rebuilt from the server afterwards: a
+ *  merge rebuilt the server's state, and a discard means the local engine
+ *  still carries grades the server will never apply. */
+export async function answerMergeQuestion(
+  materialId: string,
+  decision: 'merge' | 'discard',
+  nowSecs: number,
+): Promise<void> {
+  if (legacyHold.has(materialId)) {
+    await answerLegacy(materialId, decision, nowSecs)
+    return
   }
+  // Upload anything graded since the question was raised first: the
+  // reload below rebuilds the engine from the server, and grades still
+  // in the outbox would otherwise vanish from it until the next reload.
+  await flush(materialId, nowSecs)
+  await api.postSyncConfirm(materialId, decision)
+  prompts.delete(materialId)
+  await reloadFromServer(materialId, nowSecs)
+}
+
+/** An older server holds nothing: merge by re-sending the outbox with
+ *  `confirmMerge`, discard by deleting it locally. */
+async function answerLegacy(
+  materialId: string,
+  decision: 'merge' | 'discard',
+  nowSecs: number,
+): Promise<void> {
+  if (decision === 'merge') {
+    await flush(materialId, nowSecs, { confirmMerge: true })
+    if (!legacyHold.has(materialId)) prompts.delete(materialId)
+    return
+  }
+  const queued = await idb.getQueuedEvents(materialId)
+  await idb.deleteQueuedEvents(queued.map((q) => q.clientEventId))
+  legacyHold.delete(materialId)
+  prompts.delete(materialId)
+  await reloadFromServer(materialId, nowSecs)
+}
+
+/** Drop the local engine and cached snapshot and rebuild both from the
+ *  server, keeping the session's config and schedule.
+ *
+ *  Drops the snapshot, not just the test states, because
+ *  `submitGraduation` / `submitCardGraduation` write
+ *  `graduated{Verse,Card}Ids` into it separately from queuing the
+ *  event: after a discard it can list graduations the server never
+ *  applied, and `loadEngine` would re-apply them on every boot. */
+async function reloadFromServer(materialId: string, nowSecs: number): Promise<void> {
+  const cached = sessionConfig(materialId)
+  await invalidateSession(materialId)
+  await idb.deleteSnapshot(materialId)
+  await loadEngine(materialId, nowSecs, cached?.materialConfig, cached?.schedule ?? '')
 }
 
 /** Drop the cached session + render cache — used after settings
@@ -716,11 +854,11 @@ export async function invalidateSession(materialId: string): Promise<void> {
 }
 
 /** Reset all per-profile in-memory state. Frees every cached WASM
- *  engine and drops the sessions / inflightFlushes / staleGate /
- *  persistGraduationChains maps. Called on profile switch + sign-out
- *  (`useAuth.signInComplete`, `useAuth.enterProfile`, `useAuth.signOut`)
- *  so the next profile starts fresh — without clearing `staleGate`, a
- *  stale-merge gate from profile A would silently no-op every flush
+ *  engine and drops the sessions / inflightFlushes / prompts /
+ *  legacyHold / persistGraduationChains maps. Called on profile switch +
+ *  sign-out (`useAuth.signInComplete`, `useAuth.enterProfile`,
+ *  `useAuth.signOut`) so the next profile starts fresh — without clearing
+ *  `legacyHold`, a hold from profile A would silently no-op every flush
  *  in profile B (or the same user's next session). Does not touch IDB.
  *
  *  **Asynchronous and must be awaited.** Any in-flight flush, engine
@@ -751,6 +889,7 @@ export async function clearAllSessions(): Promise<void> {
   sessions.clear()
   inflightFlushes.clear()
   inflightLoads.clear()
-  staleGate.clear()
+  prompts.clear()
+  legacyHold.clear()
   persistGraduationChains.clear()
 }

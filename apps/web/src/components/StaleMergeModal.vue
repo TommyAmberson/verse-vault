@@ -30,12 +30,12 @@ const oldestDate = computed(() =>
     <div class="modal">
       <h2 id="stale-title">Sync offline reviews from {{ oldestDate }}?</h2>
       <p>
-        You have <strong>{{ summary.queuedCount }}</strong> offline
-        review{{ summary.queuedCount === 1 ? '' : 's' }} queued from before
-        <strong>{{ summary.serverEventsSince }}</strong> server-side
-        review{{ summary.serverEventsSince === 1 ? '' : 's' }}. Merging will
-        rebuild this deck's card history to include them. Discarding throws
-        them away.
+        <strong>{{ summary.queuedCount }}</strong> offline
+        review{{ summary.queuedCount === 1 ? '' : 's' }} from before
+        <strong>{{ summary.serverEventsSince }}</strong> newer
+        review{{ summary.serverEventsSince === 1 ? '' : 's' }} {{ summary.queuedCount === 1 ? 'is' : 'are' }}
+        waiting to be merged. Merging will rebuild this deck's card history to
+        include them. Discarding sets them aside without counting them.
       </p>
       <div class="actions">
         <button

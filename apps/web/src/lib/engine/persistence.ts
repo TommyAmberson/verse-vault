@@ -1,5 +1,5 @@
 /**
- * IndexedDB layer for the browser-side fat-client. Five object stores
+ * IndexedDB layer for the browser-side fat-client. Four object stores
  * under one DB per profile, named `verse-vault-${profileId}`. The
  * "current profile" is a module-level variable set by
  * `setActiveProfile()` (called from `useAuth.signInComplete` /
@@ -7,23 +7,22 @@
  * known profiles + the last-active pointer lives in a separate
  * `verse-vault-registry` DB; see `./registry.ts`.
  *
- * The five stores in a profile DB:
+ * The four stores in a profile DB:
  *
  *   - `snapshots` — one row per material (`{ materialId, version,
  *     materialData, fetchedAt }`). Source of the MaterialData blob the
  *     WASM engine consumes; mirrors `graph_snapshots` server-side.
  *   - `testStates` — materialised FSRS state per
  *     `(materialId, testKind, element)`. Fast warm-start on boot.
- *   - `eventQueue` — append-only outbound events awaiting sync. Each
- *     entry is deleted by `clientEventId` after the server acks it.
- *   - `eventQueueOrphans` — events whose `cardId` failed validation
- *     after a snapshot upgrade. Surfaced to the UI as a loud-failure
- *     affordance; never silently dropped.
+ *   - `eventQueue` — the outbox: events not yet delivered. The only
+ *     store that is not a cache, and its only end state is delivered:
+ *     every entry is deleted once the server acknowledges the upload
+ *     that carried it, whatever it did with the event.
  *   - `renders` — composed-HTML per card, MAUA-compliant cache. Entries
  *     with `fetchedAt > 30d` are treated as misses; bulk-invalidated on
  *     `snapshotVersion` bump.
  *
- * Hand-rolled to avoid a Dexie dependency for what's really five small
+ * Hand-rolled to avoid a Dexie dependency for what's really four small
  * stores. Promise-wrapped IDBRequest primitives at the bottom.
  *
  * MAUA note: the `renders` store holds api.bible-derived content. The
@@ -38,7 +37,13 @@
 
 import type { SyncEventUpload, TestStateEntry } from './types'
 
-const DB_VERSION = 1
+/** v2 dropped `eventQueueOrphans`, a store for events set aside
+ *  instead of uploaded. Client storage holds caches and an outbox and
+ *  nothing else (constitution VI); the upgrade returns anything in it to
+ *  the outbox, since the server now takes every event. */
+const DB_VERSION = 2
+
+const LEGACY_ORPHAN_STORE = 'eventQueueOrphans'
 
 /** TTL the client cache honours, mirroring the server's
  *  `CACHE_TTL_SECS` in `packages/api/src/lib/apibible-cache.ts`. */
@@ -52,7 +57,6 @@ const STORE = {
   Snapshots: 'snapshots',
   TestStates: 'testStates',
   EventQueue: 'eventQueue',
-  EventQueueOrphans: 'eventQueueOrphans',
   Renders: 'renders',
 } as const
 
@@ -92,11 +96,8 @@ export function openDb(): Promise<IDBDatabase> {
         const s = db.createObjectStore(STORE.EventQueue, { keyPath: 'clientEventId' })
         s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
       }
-      if (!db.objectStoreNames.contains(STORE.EventQueueOrphans)) {
-        const s = db.createObjectStore(STORE.EventQueueOrphans, {
-          keyPath: 'clientEventId',
-        })
-        s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
+      if (db.objectStoreNames.contains(LEGACY_ORPHAN_STORE)) {
+        drainOrphanStore(db, req.transaction!)
       }
       if (!db.objectStoreNames.contains(STORE.Renders)) {
         const s = db.createObjectStore(STORE.Renders, {
@@ -109,6 +110,18 @@ export function openDb(): Promise<IDBDatabase> {
     req.onerror = () => reject(req.error)
   })
   return dbPromise
+}
+
+/** Move every set-aside event back into the outbox, then drop the store.
+ *  Runs inside the version-change transaction, so a failure aborts the
+ *  whole upgrade and leaves the v1 database, orphans included, intact. */
+function drainOrphanStore(db: IDBDatabase, tx: IDBTransaction): void {
+  const orphans = tx.objectStore(LEGACY_ORPHAN_STORE).getAll()
+  orphans.onsuccess = () => {
+    const queue = tx.objectStore(STORE.EventQueue)
+    for (const row of orphans.result) queue.put(row)
+    db.deleteObjectStore(LEGACY_ORPHAN_STORE)
+  }
 }
 
 /** Set (or clear) the active profile. Closes any open handle for the
@@ -266,11 +279,12 @@ export async function appendQueuedEvent(event: QueuedEvent): Promise<void> {
   )
 }
 
-export async function getQueuedEvents(materialId: string): Promise<QueuedEvent[]> {
+/** The material's queued events, or at most `limit` of them. */
+export async function getQueuedEvents(materialId: string, limit?: number): Promise<QueuedEvent[]> {
   const db = await openDb()
   const tx = db.transaction(STORE.EventQueue, 'readonly')
   const idx = tx.objectStore(STORE.EventQueue).index(BY_MATERIAL_ID_INDEX)
-  return promiseRequest<QueuedEvent[]>(idx.getAll(materialId))
+  return promiseRequest<QueuedEvent[]>(idx.getAll(materialId, limit))
 }
 
 /** Cheap row count without materialising the rows — IDB `count()` runs
@@ -326,37 +340,6 @@ export async function deleteQueuedEvents(clientEventIds: string[]): Promise<void
   const store = tx.objectStore(STORE.EventQueue)
   for (const id of clientEventIds) store.delete(id)
   await transactionComplete(tx)
-}
-
-// --- Orphan-queue store ---
-
-export async function moveToOrphans(events: QueuedEvent[]): Promise<void> {
-  if (events.length === 0) return
-  const db = await openDb()
-  const tx = db.transaction([STORE.EventQueue, STORE.EventQueueOrphans], 'readwrite')
-  const queue = tx.objectStore(STORE.EventQueue)
-  const orphans = tx.objectStore(STORE.EventQueueOrphans)
-  for (const e of events) {
-    queue.delete(e.clientEventId)
-    orphans.put(e)
-  }
-  await transactionComplete(tx)
-}
-
-export async function getOrphans(materialId: string): Promise<QueuedEvent[]> {
-  const db = await openDb()
-  const tx = db.transaction(STORE.EventQueueOrphans, 'readonly')
-  const idx = tx.objectStore(STORE.EventQueueOrphans).index(BY_MATERIAL_ID_INDEX)
-  return promiseRequest<QueuedEvent[]>(idx.getAll(materialId))
-}
-
-/** Cheap orphan count. Pairs with countQueuedEvents for the
- *  refreshCounts reactive surface. */
-export async function countOrphans(materialId: string): Promise<number> {
-  const db = await openDb()
-  const tx = db.transaction(STORE.EventQueueOrphans, 'readonly')
-  const idx = tx.objectStore(STORE.EventQueueOrphans).index(BY_MATERIAL_ID_INDEX)
-  return promiseRequest<number>(idx.count(IDBKeyRange.only(materialId)))
 }
 
 // --- Render cache (MAUA-compliant) ---
