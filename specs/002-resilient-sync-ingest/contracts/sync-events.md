@@ -107,8 +107,9 @@ client learns of it from `GET /state` and answers through `POST .../confirm`.
 | 200  | Every request carrying a readable list of events, including one where nothing applied, one for a material the account is not enrolled in, and one held for confirmation |
 | 400  | The body is not a JSON object with an `events` array. Carries no events, so strands none                                                                                |
 | 401  | Not authenticated                                                                                                                                                       |
+| 404  | The material is not in the catalogue. No event for it can ever apply                                                                                                    |
 | 409  | An event's `snapshotVersion` is behind; client refetches `/state` and re-stamps                                                                                         |
-| 413  | More than 500 events in one request                                                                                                                                     |
+| 413  | More than 500 events in one request, or a body over 1 MiB                                                                                                               |
 
 **Gone**:
 

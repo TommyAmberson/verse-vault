@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
@@ -14,7 +15,7 @@ import {
   readGraduatedVerseIds,
   readTestStateEntries,
 } from '../lib/engine.js';
-import { getMaterialJson } from '../lib/materials.js';
+import { getMaterial, getMaterialJson } from '../lib/materials.js';
 import {
   hasPromotable,
   judge,
@@ -56,6 +57,11 @@ export interface SyncRoutesDeps {
 /** Caps each upload to bound per-request work; the dedup query chunks
  *  internally (see `existingEventIds`) so it isn't tied to this value. */
 const MAX_BATCH_SIZE = 500;
+
+/** Caps an upload's body. A full page of well-formed events is about
+ *  125 KB; this leaves headroom while bounding what one request can ask
+ *  the server to store, since malformed events are kept verbatim. */
+const MAX_UPLOAD_BYTES = 1024 * 1024;
 
 interface UploadBody {
   events: SyncEventUpload[];
@@ -154,15 +160,27 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     });
   });
 
+  app.use(
+    '/:materialId/events',
+    bodyLimit({
+      maxSize: MAX_UPLOAD_BYTES,
+      onError: (c) => c.json({ error: 'payload too large' }, 413),
+    }),
+  );
+
   app.post('/:materialId/events', async (c) => {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
     const key = { userId: user.id, materialId };
 
-    // The only refusals left strand nothing: a body that is not a list
+    // The only refusals left strand nothing: a material the catalogue
+    // does not have can never apply an event, a body that is not a list
     // of events carries nothing to take, 413 is a page size, and 409
     // below is a stale stamp the client fixes itself. Every event in a
     // readable list is taken (spec FR-001) and gets a disposition.
+    if (!getMaterial(materialId)) {
+      return c.json({ error: `Unknown material: ${materialId}` }, 404);
+    }
     let body: UploadBody;
     try {
       body = await c.req.json<UploadBody>();

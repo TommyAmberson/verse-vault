@@ -32,7 +32,8 @@ instead of refused (constitution principle VI).
 * Malformed events are taken as `unusable` / `malformed` instead of failing the request with 400.
   Only a body that is not a list of events is still a 400.
 * Uploads for a material the account is not enrolled in are taken as `pending` / `not-enrolled`
-  instead of 404.
+  instead of 404. A material the catalogue does not have is still a 404, and a body over 1 MiB is a
+  413, so no client can grow `pending_events` at will.
 * A batch that trips the stale-merge threshold is taken as `pending` / `awaiting-confirmation`
   before the learner is asked, and the response is the normal one with `needsConfirm` and
   `staleSummary` added. The work used to wait in the browser while the question was open, so wiping

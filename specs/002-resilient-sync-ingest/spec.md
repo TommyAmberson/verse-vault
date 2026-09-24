@@ -263,7 +263,11 @@ reason that strands nothing:
 * **Too many events in one request.** A page size, not a verdict. The client sends smaller pages
   (FR-013).
 * **Not a list of events at all.** A body the server cannot read as a list carries nothing to take.
-  No outbox content can produce one; only a broken client sends it.
+  No outbox content can produce one; only a broken client sends it. A body past a generous size cap
+  is treated the same way: no page of real events comes near it.
+* **Not a material at all.** An upload naming a material the catalogue does not have can never
+  apply, so there is nothing to hold, and holding it would let any client grow storage at will. An
+  upload for a real material the account is not enrolled in is taken (FR-018).
 
 Any other reason to turn a request away is a defect against FR-001.
 

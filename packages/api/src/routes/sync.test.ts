@@ -402,6 +402,39 @@ describe('sync routes', () => {
     expect(body.dispositions.map((d) => d.disposition)).toEqual(['applied', 'applied']);
   });
 
+  it('refuses an upload for a material the catalogue does not have', async () => {
+    // No event for it can ever apply, so there is nothing to hold, and
+    // holding them would let any signed-in client grow the table at will.
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+    const res = await test.app.request('/api/sync/no-such-material/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ events: [event()] }),
+    });
+    expect(res.status).toBe(404);
+    expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
+  });
+
+  it('refuses a body past the upload size cap with 413', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+    const body = JSON.stringify({ events: [{ ...event(), padding: 'x'.repeat(1024 * 1024) }] });
+    const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': String(Buffer.byteLength(body)),
+        cookie,
+      },
+      body,
+    });
+    expect(res.status).toBe(413);
+    expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
+  });
+
   it('still refuses a body that carries no list of events', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;

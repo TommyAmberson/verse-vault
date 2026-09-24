@@ -326,7 +326,10 @@ The request as a whole can still be refused, but only for reasons that strand no
 * **401** when not signed in. Signing in resumes the upload with nothing lost.
 * **409** when a well-formed event's `snapshotVersion` is behind. The events are fine, only their
   stamp is stale: the client re-fetches `/state`, re-stamps its queue, and uploads again.
-* **413** when more than 500 events arrive in one request. A page size, not a verdict.
+* **404** when the material is not in the catalogue. No event for it can ever apply, so there is
+  nothing to hold.
+* **413** when more than 500 events arrive in one request, or the body exceeds 1 MiB. A page size,
+  not a verdict; a full page of real events is about 125 KB.
 
 An upload for a material the account is not enrolled in is taken as `pending` / `not-enrolled`, not
 refused, and applies at the first engine build after the account enrols.
@@ -541,15 +544,15 @@ snapshot — decks stay, reset to all-new. Idempotent. Returns:
 
 ## Status codes
 
-| status | when                                                                                                               |
-| ------ | ------------------------------------------------------------------------------------------------------------------ |
-| 400    | malformed JSON, missing required field, invalid `grade`, invalid scope value, …                                    |
-| 401    | no session cookie / expired session                                                                                |
-| 404    | material id unknown, or caller not enrolled in the requested material, or card id unknown (never on a sync upload) |
-| 409    | sync batch uses a stale `snapshotVersion`, or already-enrolled on `/enroll`                                        |
-| 413    | sync batch exceeds the 500-event cap                                                                               |
-| 429    | rate limit exceeded; `Retry-After` header carries integer seconds until next allowed request                       |
-| 500    | engine threw on `replay_event` / `get_card_render` (unknown card id, malformed state) — caller's bug               |
+| status | when                                                                                                                                                     |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400    | malformed JSON, missing required field, invalid `grade`, invalid scope value, …                                                                          |
+| 401    | no session cookie / expired session                                                                                                                      |
+| 404    | material id unknown, or caller not enrolled in the requested material, or card id unknown (a sync upload 404s only for a material outside the catalogue) |
+| 409    | sync batch uses a stale `snapshotVersion`, or already-enrolled on `/enroll`                                                                              |
+| 413    | sync batch exceeds the 500-event cap                                                                                                                     |
+| 429    | rate limit exceeded; `Retry-After` header carries integer seconds until next allowed request                                                             |
+| 500    | engine threw on `replay_event` / `get_card_render` (unknown card id, malformed state) — caller's bug                                                     |
 
 All error bodies follow `{ "error": "..." }`.
 
