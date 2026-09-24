@@ -22,6 +22,26 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-09-24
+
+MINOR — adds `MaterialConfig::max_emission`, the config that emits every card any config can. Purely
+additive; no existing behaviour or state semantics change.
+
+### Added
+
+* `MaterialConfig::max_emission()` — every emission flag at its widest (`heading_card`,
+  `heading_passage_card` and `ftv` on, `club_card_scope: All`, `chapter_list_scope: Up300`) and
+  every club unpaused, since a paused club drops its verses' cards. A card id it does not emit is
+  one no reachable setting will ever produce.
+
+### Why
+
+The server now takes every uploaded event, and has to tell a card the learner switched off (keep the
+event pending, apply it when the card returns) from an id nothing can produce (store it as
+unusable). `has_card` only answers for the current config. Which fields gate emission is builder
+knowledge, so it lives here, guarded by a test that every config's cards are a subset of this one's;
+an api-side list would silently misfile a future gate's cards.
+
 ## [0.9.0] — 2026-09-10
 
 MINOR — adds `memorize_debt`, the schedule-aware "how much is still owed" count the dashboards

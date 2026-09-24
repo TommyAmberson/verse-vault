@@ -6,6 +6,8 @@
  */
 
 import type {
+  StaleMergeSummary,
+  SyncConfirmResponse,
   SyncEventsRequest,
   SyncEventsResponse,
   SyncStateResponse,
@@ -299,6 +301,10 @@ export interface YearView {
    *  client never saw forces a sync-state refetch. Absent for
    *  unenrolled years (and from pre-fingerprint servers). */
   stateRev?: string
+  /** An open stale-merge question for this year, raised by an upload
+   *  from any device. Here because a client booting from its cache never
+   *  fetches sync state. Absent for unenrolled years and older servers. */
+  pendingConfirmation?: StaleMergeSummary | null
 }
 
 export interface YearsResponse {
@@ -417,6 +423,9 @@ export interface ApiClient {
    *  them, possibly triggering a full-log rebuild (`rebuilt: true`) or
    *  returning a `needsConfirm` envelope for stale-merge UX. */
   postSyncEvents(materialId: string, body: SyncEventsRequest): Promise<SyncEventsResponse>
+  /** Answer an open stale-merge question: merge the held batch at its
+   *  recorded times, or set it aside on the server. */
+  postSyncConfirm(materialId: string, decision: 'merge' | 'discard'): Promise<SyncConfirmResponse>
   setOfflineMode(materialId: string, offlineMode: boolean): Promise<{ offlineMode: boolean }>
   /** Requires `offline_mode=true` on the server; returns 403 otherwise. */
   getMaterialRenders(materialId: string): Promise<{ renders: MaterialRender[] }>
@@ -543,6 +552,8 @@ export function createApiClient(apiUrl: string): ApiClient {
       request('GET', `/api/sync/${encodeURIComponent(materialId)}/state`),
     postSyncEvents: (materialId, body) =>
       request('POST', `/api/sync/${encodeURIComponent(materialId)}/events`, body),
+    postSyncConfirm: (materialId, decision) =>
+      request('POST', `/api/sync/${encodeURIComponent(materialId)}/confirm`, { decision }),
     setOfflineMode: (materialId, offlineMode) =>
       request('PATCH', `/api/materials/${encodeURIComponent(materialId)}/offline-mode`, {
         offlineMode,

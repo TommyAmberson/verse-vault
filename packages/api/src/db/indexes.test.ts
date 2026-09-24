@@ -38,6 +38,7 @@ describe('indexes', () => {
         'idx_apibible_sections_fetched_at',
         'idx_graph_snapshots_user_material',
         'idx_material_schedules_user',
+        'idx_pending_events_user_material_status',
         'idx_review_events_state_rev',
         'idx_review_events_user_material_time',
         'idx_verification_identifier',
@@ -53,6 +54,18 @@ describe('indexes', () => {
         'nkjv-cor',
       ),
     ).toContain('idx_review_events_user_material_time');
+  });
+
+  it('uses idx_pending_events_user_material_status for the engine-build probe', () => {
+    // hasPromotable runs on every engine build; it must stay an index
+    // probe, not a scan, since the answer is almost always "none".
+    expect(
+      planFor(
+        "SELECT id FROM pending_events WHERE user_id = ? AND material_id = ? AND status = 'pending' AND reason_code IN ('card-not-emitted', 'not-enrolled') LIMIT 1",
+        'u1',
+        'nkjv-cor',
+      ),
+    ).toContain('idx_pending_events_user_material_status');
   });
 
   it('uses idx_account_provider for OAuth callback lookups', () => {

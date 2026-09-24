@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
-import type { DB } from '../db/client.js';
+import type { DB, Tx } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import type { TestStateEntry } from './engine.js';
 
@@ -34,7 +34,6 @@ export interface PersistArgs {
   materialId: string;
 }
 
-type Tx = Parameters<Parameters<DB['transaction']>[0]>[0];
 
 /** A read/write executor: either the root `DB` or a transaction handle.
  *  The dedup read runs pre-transaction in sync but inside the import
@@ -85,13 +84,20 @@ export function existingEventIds(
 
 /** Chunked append of `review_events`. The row `id` is the
  *  `clientEventId` (stable + unique), and `createdAt` is the event's own
- *  timestamp — same convention across the online, sync, and import write
- *  paths. Callers are responsible for dedup (see `existingEventIds`). */
-export function writeReviewEvents(tx: Tx, events: ReviewEventInput[]): void {
+ *  timestamp — same convention across the online, sync, import, and
+ *  pending-promotion write paths. Callers are responsible for dedup (see
+ *  `existingEventIds`), unless `ignoreDuplicates` says an id already in
+ *  the log means the event already applied. */
+export function writeReviewEvents(
+  tx: Tx,
+  events: ReviewEventInput[],
+  opts: { ignoreDuplicates?: boolean } = {},
+): void {
   for (let i = 0; i < events.length; i += REVIEW_EVENTS_BATCH) {
     const slice = events.slice(i, i + REVIEW_EVENTS_BATCH);
     if (slice.length === 0) continue;
-    tx.insert(schema.reviewEvents)
+    const insert = tx
+      .insert(schema.reviewEvents)
       .values(
         slice.map((e) => ({
           id: e.clientEventId,
@@ -104,9 +110,36 @@ export function writeReviewEvents(tx: Tx, events: ReviewEventInput[]): void {
           clientEventId: e.clientEventId,
           createdAt: e.timestampSecs,
         })),
-      )
-      .run();
+      );
+    (opts.ignoreDuplicates ? insert.onConflictDoNothing() : insert).run();
   }
+}
+
+/** Record a verse graduation. Idempotent: a verse graduates once, so a
+ *  repeat keeps the first time it happened. */
+export function writeGraduatedVerse(
+  tx: Tx,
+  key: { userId: string; materialId: string },
+  verseId: number,
+  atSecs: number,
+): void {
+  tx.insert(schema.graduatedVerses)
+    .values({ ...key, verseId, graduatedAtSecs: atSecs })
+    .onConflictDoNothing()
+    .run();
+}
+
+/** Record a single-card graduation. Idempotent, as for verses. */
+export function writeGraduatedCard(
+  tx: Tx,
+  key: { userId: string; materialId: string },
+  cardId: number,
+  atSecs: number,
+): void {
+  tx.insert(schema.graduatedCards)
+    .values({ ...key, cardId, graduatedAtSecs: atSecs })
+    .onConflictDoNothing()
+    .run();
 }
 
 interface UpsertOpts {

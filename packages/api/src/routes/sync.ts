@@ -1,8 +1,10 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
+import type { PendingReasonCode } from '../db/schema.js';
 import {
   EngineStore,
   changedStatesFromUpdates,
@@ -13,15 +15,38 @@ import {
   readGraduatedVerseIds,
   readTestStateEntries,
 } from '../lib/engine.js';
-import { getMaterialJson } from '../lib/materials.js';
+import { getMaterial, getMaterialJson } from '../lib/materials.js';
+import {
+  hasPromotable,
+  judge,
+  markDiscarded,
+  rejudgeHeld,
+  type PendingRow,
+  mergeQuestion,
+  serverEventsSince,
+  take,
+  takenClientEventIds,
+  type TakeInput,
+} from '../lib/pending-events.js';
+import type { UserMaterial } from '../lib/keys.js';
 import { computeStateRev } from '../lib/state-rev.js';
 import {
-  existingEventIds,
-  type Grade,
+  cardIdOf,
+  eventKind,
+  type GraduateCardEventUpload,
+  type GraduateEventUpload,
+  parseUpload,
+  type ReviewEventUpload,
+  type SyncEventUpload,
+  type UploadIds,
+} from '../lib/sync-events.js';
+import {
   type ReviewEventInput,
   persistEngineState,
+  writeGraduatedCard,
+  writeGraduatedVerse,
 } from '../lib/review-log.js';
-import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
+import { type AppVariables, getUser, requireAuth } from '../middleware/session.js';
 
 export interface SyncRoutesDeps {
   db: DB;
@@ -33,35 +58,10 @@ export interface SyncRoutesDeps {
  *  internally (see `existingEventIds`) so it isn't tied to this value. */
 const MAX_BATCH_SIZE = 500;
 
-/** Events with `timestampSecs` more than this far in the future are rejected.
- *  A broken device RTC (BIOS battery dead, etc.) would otherwise wedge the
- *  user's event timeline arbitrarily. */
-const CLOCK_SKEW_TOLERANCE_SECS = 24 * 60 * 60;
-
-interface BaseEventUpload {
-  clientEventId: string;
-  timestampSecs: number;
-  snapshotVersion: number;
-}
-
-interface ReviewEventUpload extends BaseEventUpload {
-  /** Optional for backward compat: legacy uploads omit `kind`. */
-  kind?: 'review';
-  cardId: number;
-  grade: Grade;
-}
-
-interface GraduateEventUpload extends BaseEventUpload {
-  kind: 'graduate';
-  verseId: number;
-}
-
-interface GraduateCardEventUpload extends BaseEventUpload {
-  kind: 'graduateCard';
-  cardId: number;
-}
-
-type SyncEventUpload = ReviewEventUpload | GraduateEventUpload | GraduateCardEventUpload;
+/** Caps an upload's body. A full page of well-formed events is about
+ *  125 KB; this leaves headroom while bounding what one request can ask
+ *  the server to store, since malformed events are kept verbatim. */
+const MAX_UPLOAD_BYTES = 1024 * 1024;
 
 interface UploadBody {
   events: SyncEventUpload[];
@@ -76,12 +76,8 @@ interface UploadBody {
  *  Cancel before the merge actually runs. */
 const STALE_MERGE_THRESHOLD = 10;
 
-function eventKind(e: SyncEventUpload): 'review' | 'graduate' | 'graduateCard' {
-  return e.kind ?? 'review';
-}
-
 export function syncRoutes(deps: SyncRoutesDeps) {
-  const app = new Hono<{ Variables: SessionVariables }>();
+  const app = new Hono<{ Variables: AppVariables }>();
   const now = deps.now ?? (() => Math.floor(Date.now() / 1000));
 
   app.use('*', requireAuth());
@@ -130,74 +126,203 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       // Fingerprint of the logs this response was built from — see
       // `computeStateRev` for what it detects and why.
       stateRev: computeStateRev(deps.db, user.id, materialId),
+      // An open merge question, read from the server so any device can
+      // raise it, including one wiped since the upload that opened it.
+      pendingConfirmation: mergeQuestion(deps.db, key),
     });
   });
+
+  app.post('/:materialId/confirm', async (c) => {
+    const user = getUser(c);
+    const materialId = c.req.param('materialId');
+    const key = { userId: user.id, materialId };
+
+    let decision: unknown;
+    try {
+      decision = ((await c.req.json()) as { decision?: unknown })?.decision;
+    } catch {
+      return c.json({ error: 'invalid JSON body' }, 400);
+    }
+    if (decision !== 'merge' && decision !== 'discard') {
+      return c.json({ error: "decision must be 'merge' or 'discard'" }, 400);
+    }
+    if (!getLatestSnapshot(deps.db, key)) return c.json({ error: 'Not enrolled' }, 404);
+
+    // Answering with nothing open is a no-op, not an error: another
+    // device may have answered first.
+    if (decision === 'discard') {
+      return c.json({ discarded: markDiscarded(deps.db, key) });
+    }
+    const merged = await mergeAwaiting(deps, key);
+    return c.json({
+      ...unchangedResponse(deps.db, key, merged.length, 0),
+      rebuilt: merged.length > 0,
+    });
+  });
+
+  app.use(
+    '/:materialId/events',
+    bodyLimit({
+      maxSize: MAX_UPLOAD_BYTES,
+      onError: (c) => c.json({ error: 'payload too large' }, 413),
+    }),
+  );
 
   app.post('/:materialId/events', async (c) => {
     const user = getUser(c);
     const materialId = c.req.param('materialId');
     const key = { userId: user.id, materialId };
 
+    // The only refusals left strand nothing: a material the catalogue
+    // does not have can never apply an event, a body that is not a list
+    // of events carries nothing to take, 413 is a page size, and 409
+    // below is a stale stamp the client fixes itself. Every event in a
+    // readable list is taken (spec FR-001) and gets a disposition.
+    if (!getMaterial(materialId)) {
+      return c.json({ error: `Unknown material: ${materialId}` }, 404);
+    }
     let body: UploadBody;
     try {
       body = await c.req.json<UploadBody>();
     } catch {
       return c.json({ error: 'invalid JSON body' }, 400);
     }
-    const events = body.events;
+    const events: unknown[] = body?.events;
     if (!Array.isArray(events)) return c.json({ error: 'events required' }, 400);
     if (events.length > MAX_BATCH_SIZE) {
       return c.json({ error: `Batch too large — max ${MAX_BATCH_SIZE} events per request` }, 413);
     }
     const nowSecs = now();
-    for (const e of events) {
-      const problem = validateUpload(e, nowSecs);
-      if (problem) return c.json({ error: problem }, 400);
-    }
 
-    if (events.length === 0) {
-      return c.json(unchangedResponse(deps.db, key, 0, 0));
-    }
+    const dispositions: Disposition[] = new Array(events.length);
+    const notApplied: { index: number; take: TakeInput }[] = [];
+    const setAside = (
+      index: number,
+      parsed: UploadIds,
+      status: TakeInput['status'],
+      reasonCode: PendingReasonCode,
+      reason: string,
+    ) => {
+      dispositions[index] = {
+        index,
+        clientEventId: parsed.clientEventId,
+        disposition: status,
+        reasonCode,
+        reason,
+      };
+      notApplied.push({
+        index,
+        take: {
+          clientEventId: parsed.clientEventId,
+          kind: parsed.kind,
+          timestampSecs: parsed.timestampSecs,
+          payload: events[index] ?? null,
+          status,
+          reasonCode,
+          reason,
+        },
+      });
+    };
+
+    const wellFormed: UploadEntry[] = [];
+    events.forEach((raw, index) => {
+      const parsed = parseUpload(raw, nowSecs);
+      if (parsed.event) wellFormed.push({ index, event: parsed.event, ids: parsed });
+      else setAside(index, parsed, 'unusable', 'malformed', parsed.problem);
+    });
+
+    // Already taken, into either table, or earlier in this same request.
+    const seen = takenClientEventIds(
+      deps.db,
+      key,
+      wellFormed.map((w) => w.event.clientEventId),
+    );
+    let duplicates = 0;
 
     const raw = await deps.engines.tryLoad(key);
-    if (raw === null) return c.json({ error: 'Not enrolled' }, 404);
+    if (raw === null) {
+      // Not enrolled. Refusing would strand these on the device for
+      // good; hold them until the account enrols in this material.
+      for (const { index, event, ids } of wellFormed) {
+        if (seen.has(event.clientEventId)) {
+          dispositions[index] = duplicateOf(index, event);
+          duplicates += 1;
+          continue;
+        }
+        seen.add(event.clientEventId);
+        setAside(index, ids, 'pending', 'not-enrolled', `not enrolled in ${materialId}`);
+      }
+      takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
+      return c.json({
+        accepted: 0,
+        duplicates,
+        rebuilt: false,
+        testStates: [],
+        lastEventId: null,
+        stateRev: computeStateRev(deps.db, user.id, materialId),
+        dispositions,
+      });
+    }
     using loaded = raw;
-    for (const e of events) {
-      if (e.snapshotVersion !== loaded.snapshotVersion) {
+    for (const { event } of wellFormed) {
+      if (event.snapshotVersion !== loaded.snapshotVersion) {
         return c.json({ error: 'Snapshot version mismatch — re-fetch state before syncing' }, 409);
       }
     }
 
-    // Reject card ids the engine doesn't know BEFORE anything persists.
-    // Without this a stale tab from before a card-id-space change (the
-    // #141 migration) can commit unreplayable rows: the out-of-order
-    // path persists first and replays later, so one unknown id would
-    // permanently brick rebuildFromEvents for this material, and
-    // unknown graduateCard ids would sit in graduated_cards as junk.
-    const unknownCardIds = [
-      ...new Set(
-        events
-          .filter((e) => eventKind(e) !== 'graduate')
-          .map((e) => (e as { cardId: number }).cardId)
-          .filter((id) => !loaded.engine.has_card(id)),
-      ),
-    ];
-    if (unknownCardIds.length > 0) {
-      return c.json(
-        { error: `Unknown card ids: ${unknownCardIds.join(', ')} — re-fetch state before syncing` },
-        400,
-      );
+    // An older client answers the merge question by re-sending its
+    // batch with confirmMerge. Those events are already held, awaiting
+    // that answer, so merge them rather than calling them duplicates.
+    // The merge rebuilds the engine, which leaves `loaded` stale, so
+    // anything applied below must go through a rebuild too.
+    const mergedIds = new Set<string>();
+    if (body.confirmMerge === true) {
+      for (const row of await mergeAwaiting(deps, key)) {
+        if (row.clientEventId !== null) mergedIds.add(row.clientEventId);
+      }
     }
 
-    const seen = existingEventIds(
-      deps.db,
-      user.id,
-      materialId,
-      events.map((e) => e.clientEventId),
+    // Judge each event before anything persists. An id the learner's
+    // engine lacks never reaches review_events or graduated_cards, where
+    // replay would have to cope with it forever: core's max-emission
+    // config says whether it is a card they switched off (it waits) or
+    // one nothing produces (unusable).
+    const classes = deps.engines.classifyCardIds(
+      key,
+      loaded.engine,
+      wellFormed.map((w) => cardIdOf(w.event)).filter((id): id is number => id !== null),
     );
 
-    const fresh = events
-      .filter((e) => !seen.has(e.clientEventId))
+    let mergedHere = 0;
+    const applicable: UploadEntry[] = [];
+    for (const w of wellFormed) {
+      const { index, event, ids } = w;
+      if (seen.has(event.clientEventId)) {
+        if (mergedIds.delete(event.clientEventId)) {
+          dispositions[index] = {
+            index,
+            clientEventId: event.clientEventId,
+            disposition: 'applied',
+          };
+          mergedHere += 1;
+        } else {
+          dispositions[index] = duplicateOf(index, event);
+          duplicates += 1;
+        }
+        continue;
+      }
+      seen.add(event.clientEventId);
+      const verdict = judge(event, classes);
+      if (!verdict.apply) {
+        setAside(index, ids, verdict.status, verdict.reasonCode, verdict.reason);
+        continue;
+      }
+      dispositions[index] = { index, clientEventId: event.clientEventId, disposition: 'applied' };
+      applicable.push(w);
+    }
+
+    const fresh = applicable
+      .map((w) => w.event)
       .sort((a, b) =>
         a.timestampSecs !== b.timestampSecs
           ? a.timestampSecs - b.timestampSecs
@@ -205,52 +330,44 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       );
 
     if (fresh.length === 0) {
-      return c.json(unchangedResponse(deps.db, key, 0, events.length));
+      takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
+      return c.json({
+        ...unchangedResponse(deps.db, key, mergedHere, duplicates),
+        rebuilt: mergedHere > 0,
+        dispositions,
+      });
     }
 
     // Stale-merge preflight: if the batch's oldest event predates more
     // than STALE_MERGE_THRESHOLD already-applied server events, the
     // user probably didn't sync this device for a long time and the
     // automatic merge can drag down FSRS stability on cards reviewed
-    // since. Surface the confirmation prompt before doing any work.
-    // The client re-POSTs with confirmMerge:true to proceed, or
-    // discards locally and never returns.
+    // since, so the learner is asked first. The batch is taken before
+    // asking, held as awaiting-confirmation: while the question is open
+    // the work must rest on the server, not in the browser (FR-011).
+    // POST .../confirm answers it; GET /state re-raises it on any device.
     if (body.confirmMerge !== true) {
       const oldestQueuedTs = fresh.reduce(
         (min, e) => (e.timestampSecs < min ? e.timestampSecs : min),
         fresh[0].timestampSecs,
       );
-      const sinceRow = deps.db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(schema.reviewEvents)
-        .where(
-          and(
-            eq(schema.reviewEvents.userId, user.id),
-            eq(schema.reviewEvents.materialId, materialId),
-            sql`${schema.reviewEvents.timestampSecs} > ${oldestQueuedTs}`,
-          ),
-        )
-        .get();
-      const serverEventsSince = sinceRow?.count ?? 0;
-      if (serverEventsSince > STALE_MERGE_THRESHOLD) {
-        const newestRow = deps.db
-          .select({ ts: sql<number>`MAX(${schema.reviewEvents.timestampSecs})` })
-          .from(schema.reviewEvents)
-          .where(
-            and(
-              eq(schema.reviewEvents.userId, user.id),
-              eq(schema.reviewEvents.materialId, materialId),
-            ),
-          )
-          .get();
+      if (serverEventsSince(deps.db, key, oldestQueuedTs) > STALE_MERGE_THRESHOLD) {
+        for (const { index, ids } of applicable) {
+          setAside(
+            index,
+            ids,
+            'pending',
+            'awaiting-confirmation',
+            'batch predates newer history; waiting for the learner to merge or discard it',
+          );
+        }
+        takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
         return c.json({
+          ...unchangedResponse(deps.db, key, mergedHere, duplicates),
+          rebuilt: mergedHere > 0,
           needsConfirm: true,
-          staleSummary: {
-            queuedCount: fresh.length,
-            serverEventsSince,
-            oldestQueuedTs,
-            newestServerTs: newestRow?.ts ?? oldestQueuedTs,
-          },
+          staleSummary: mergeQuestion(deps.db, key),
+          dispositions,
         });
       }
     }
@@ -268,8 +385,10 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         fresh.filter((e) => eventKind(e) === 'review').map((e) => (e as ReviewEventUpload).cardId),
       ),
     ];
-    let outOfOrder = false;
-    if (freshReviewCardIds.length > 0) {
+    // A merge above already rebuilt the cached engine, so `loaded` is no
+    // longer the engine to apply to in order.
+    let outOfOrder = mergedHere > 0 || mergedIds.size > 0;
+    if (!outOfOrder && freshReviewCardIds.length > 0) {
       const maxByCard = deps.db
         .select({
           cardId: schema.reviewEvents.cardId,
@@ -358,6 +477,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
       try {
         deps.db.transaction((tx) => {
+          takeNotApplied(tx, key, notApplied, nowSecs, c.get('requestId'));
           persistEngineState(tx, {
             userId: user.id,
             materialId,
@@ -365,26 +485,10 @@ export function syncRoutes(deps: SyncRoutesDeps) {
             testStateUpdates: changed,
           });
           for (const g of graduations) {
-            tx.insert(schema.graduatedVerses)
-              .values({
-                userId: user.id,
-                materialId,
-                verseId: g.verseId,
-                graduatedAtSecs: g.timestampSecs,
-              })
-              .onConflictDoNothing()
-              .run();
+            writeGraduatedVerse(tx, key, g.verseId, g.timestampSecs);
           }
           for (const g of cardGraduations) {
-            tx.insert(schema.graduatedCards)
-              .values({
-                userId: user.id,
-                materialId,
-                cardId: g.cardId,
-                graduatedAtSecs: g.timestampSecs,
-              })
-              .onConflictDoNothing()
-              .run();
+            writeGraduatedCard(tx, key, g.cardId, g.timestampSecs);
           }
         });
       } catch (err) {
@@ -415,8 +519,8 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       }
 
       return c.json({
-        accepted: fresh.length - graduateNoops,
-        duplicates: events.length - fresh.length + graduateNoops,
+        accepted: fresh.length - graduateNoops + mergedHere,
+        duplicates: duplicates + graduateNoops,
         rebuilt: outOfOrder,
         // Send the full state so fat clients can replace their cache in one
         // shot; DB writes were filtered above to just the touched keys
@@ -428,6 +532,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         // every boot after any synced session would see the years-row
         // fingerprint ahead of the cached one and needlessly refetch.
         stateRev: computeStateRev(deps.db, user.id, materialId),
+        dispositions,
       });
     });
   });
@@ -451,6 +556,27 @@ function unchangedResponse(
   };
 }
 
+/** Apply every event held awaiting the learner's merge answer, at its
+ *  recorded time, then rebuild: the batch predates applied history by
+ *  definition, so only a replay from the log orders it correctly. Each
+ *  event is re-judged first, by the rule the upload used: a card the
+ *  learner has switched off since keeps waiting, and one no config emits
+ *  any more becomes unusable, rather than either reaching the log. */
+async function mergeAwaiting(deps: SyncRoutesDeps, key: UserMaterial): Promise<PendingRow[]> {
+  if (!hasPromotable(deps.db, key, ['awaiting-confirmation'])) return [];
+  // Loaded outside the lock, as every route does: load never takes it.
+  using loaded = await deps.engines.load(key);
+  return await deps.engines.withLock(key, async () => {
+    const promoted = rejudgeHeld(deps.db, key, ['awaiting-confirmation'], (ids) =>
+      deps.engines.classifyCardIds(key, loaded.engine, ids),
+    );
+    // Nothing here reads the rebuilt engine; release the handle at once
+    // so the cache holds the only reference.
+    if (promoted.length > 0) deps.engines.rebuildFromEvents(key)[Symbol.dispose]();
+    return promoted;
+  });
+}
+
 function latestEventId(db: DB, userId: string, materialId: string): string | null {
   const latest = db
     .select({ id: schema.reviewEvents.id })
@@ -467,38 +593,52 @@ function latestEventId(db: DB, userId: string, materialId: string): string | nul
   return latest?.id ?? null;
 }
 
-function validateUpload(e: SyncEventUpload, nowSecs: number): string | null {
-  if (typeof e.clientEventId !== 'string' || !e.clientEventId) return 'clientEventId required';
-  if (!Number.isInteger(e.timestampSecs) || e.timestampSecs < 0) {
-    return 'timestampSecs must be a non-negative integer';
-  }
-  if (e.timestampSecs > nowSecs + CLOCK_SKEW_TOLERANCE_SECS) {
-    return 'timestampSecs more than 24h in the future — check device clock';
-  }
-  if (!Number.isInteger(e.snapshotVersion) || e.snapshotVersion < 1) {
-    return 'snapshotVersion must be a positive integer';
-  }
-  const kind = eventKind(e);
-  if (kind === 'review') {
-    const re = e as ReviewEventUpload;
-    if (!Number.isInteger(re.cardId) || re.cardId < 0) {
-      return 'cardId must be a non-negative integer';
-    }
-    if (![1, 2, 3, 4].includes(re.grade)) {
-      return 'grade must be 1..=4';
-    }
-  } else if (kind === 'graduate') {
-    const ge = e as GraduateEventUpload;
-    if (!Number.isInteger(ge.verseId) || ge.verseId < 0) {
-      return 'verseId must be a non-negative integer';
-    }
-  } else if (kind === 'graduateCard') {
-    const gc = e as GraduateCardEventUpload;
-    if (!Number.isInteger(gc.cardId) || gc.cardId < 0) {
-      return 'cardId must be a non-negative integer';
-    }
-  } else {
-    return `unknown event kind: ${String((e as { kind: unknown }).kind)}`;
-  }
-  return null;
+/** A well-formed upload, its position in the request, and its ids. */
+interface UploadEntry {
+  index: number;
+  event: SyncEventUpload;
+  ids: UploadIds;
+}
+
+/** One event's outcome, reported back to the client by position. */
+interface Disposition {
+  index: number;
+  clientEventId: string | null;
+  disposition: 'applied' | 'duplicate' | 'pending' | 'unusable';
+  reasonCode?: PendingReasonCode;
+  reason?: string;
+}
+
+function duplicateOf(index: number, event: SyncEventUpload): Disposition {
+  return { index, clientEventId: event.clientEventId, disposition: 'duplicate' };
+}
+
+/** Store what was taken but not applied, and log it: until this feature
+ *  the reason an event did not land lived only in a response body
+ *  nobody keeps. One JSON line per request, with the requestId, in the
+ *  shape the request logger emits so `journalctl | jq` can join them. */
+function takeNotApplied(
+  db: Parameters<typeof take>[0],
+  key: UserMaterial,
+  notApplied: { index: number; take: TakeInput }[],
+  nowSecs: number,
+  requestId: string | undefined,
+): void {
+  if (notApplied.length === 0) return;
+  take(db, key, notApplied.map((n) => n.take), nowSecs);
+  console.warn(
+    JSON.stringify({
+      requestId,
+      event: 'sync.events_not_applied',
+      userId: key.userId,
+      materialId: key.materialId,
+      events: notApplied.map((n) => ({
+        index: n.index,
+        clientEventId: n.take.clientEventId,
+        status: n.take.status,
+        reasonCode: n.take.reasonCode,
+        reason: n.take.reason,
+      })),
+    }),
+  );
 }

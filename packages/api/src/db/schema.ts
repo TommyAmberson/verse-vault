@@ -257,6 +257,69 @@ export const reviewEvents = sqliteTable(
   }),
 );
 
+/** Why an event was taken but not applied. The closed set a program can
+ *  group and act on; `reason` beside it is prose for operators. See
+ *  specs/002-resilient-sync-ingest/contracts/sync-events.md. */
+export type PendingReasonCode =
+  | 'card-not-emitted'
+  | 'not-enrolled'
+  | 'awaiting-confirmation'
+  | 'card-unknown'
+  | 'malformed';
+
+/** `repaired` is terminal: a repaired event that was applied. Kept, not
+ *  deleted, as the record of what arrived and which repair changed it. */
+export type PendingStatus = 'pending' | 'unusable' | 'discarded' | 'repaired';
+
+// Events sync took but did not apply. Sync never refuses an event: one it
+// cannot apply now rests here with its reason, so the device can forget
+// it and the work is on the server. Deliberately not rows in
+// review_events: replay reads that table unfiltered, and must never have
+// to remember to skip something that was not applied. Promotion deletes
+// the row here and writes the real one in the same transaction.
+export const pendingEvents = sqliteTable(
+  'pending_events',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    // Not a foreign key: a not-enrolled row may name a material the
+    // account has no enrolment for.
+    materialId: text('material_id').notNull(),
+    // Nullable because a malformed event is taken too, and may carry no
+    // usable id, kind or timestamp. SQLite treats NULLs as distinct in
+    // the unique index, so id-less events never collide.
+    clientEventId: text('client_event_id'),
+    kind: text('kind'),
+    timestampSecs: integer('timestamp_secs'),
+    // The event to apply: as uploaded, or as a repair rewrote it.
+    payloadJson: text('payload_json').notNull(),
+    // Set when a repair rewrites payload_json: the event as uploaded.
+    originalPayloadJson: text('original_payload_json'),
+    repairedBy: text('repaired_by'),
+    // The set of shipped repairs last tried on this row (repairEpoch in
+    // lib/repairs.ts); NULL until the first build tries any.
+    repairEpoch: text('repair_epoch'),
+    status: text('status').$type<PendingStatus>().notNull(),
+    reasonCode: text('reason_code').$type<PendingReasonCode>().notNull(),
+    reason: text('reason').notNull(),
+    receivedAt: integer('received_at').notNull(),
+  },
+  (t) => ({
+    clientEventIdx: uniqueIndex('uniq_pending_events_user_material_client_event').on(
+      t.userId,
+      t.materialId,
+      t.clientEventId,
+    ),
+    statusIdx: index('idx_pending_events_user_material_status').on(
+      t.userId,
+      t.materialId,
+      t.status,
+    ),
+  }),
+);
+
 // Materialized per-test FSRS state (recomputable by replaying review_events).
 // `element` is the serde-tagged JSON form of `core::ElementId`; opaque to
 // the API — passed through verbatim from `WasmEngine.export_test_states()`.

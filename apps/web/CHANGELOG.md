@@ -9,6 +9,42 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.18] — 2026-09-24
+
+MINOR — the outbox always drains. A device with a working connection can be wiped without losing
+anything, which constitution principle VI now requires.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.10.0` — adds `MaterialConfig::max_emission`; no state-semantics change.
+* `verse-vault-wasm@0.10.0` — exposes it as `max_emission_config_json()`.
+
+### Changed
+
+* A flush deletes every event it sent as soon as the server answers, whatever the server did with
+  each one. The server now takes every event, storing what it cannot apply, so nothing is left for
+  the client to keep. Dispositions are logged, not used to decide deletion, which is what lets an
+  event the server could not even name still leave the outbox.
+* The outbox uploads in pages of 500 until it is empty. A device offline long enough to queue more
+  than that used to hit the server's cap on every attempt and never sync again (#156).
+* The stale-merge question is asked about work the server already holds. The modal is raised by the
+  upload that opened the question, by a cold state fetch, or by the years row on any boot, so a
+  device wiped mid-question, or a different device, still asks it. Sync and Discard answer through
+  `POST /sync/:id/confirm`; Discard sets the reviews aside on the server rather than deleting them.
+  Against an older api that takes nothing, the modal falls back to the previous behaviour.
+
+### Removed
+
+* The `eventQueueOrphans` IndexedDB store and `orphanCount`. Client storage holds caches and an
+  outbox and nothing else. Opening the database at v2 returns anything in the store to the outbox,
+  and the legacy-database migration does the same.
+
+### Why
+
+One browser synced nothing for two weeks because the server refused every batch containing eight
+events from a retired card-id space, and the client only recovered from a 409. The 49 good reviews
+behind them could never leave the device. See `specs/002-resilient-sync-ingest/`.
+
 ## [0.9.17] — 2026-09-10
 
 MINOR — the home hero and the Memorize pill both count this week's schedule, not the whole season.

@@ -5,6 +5,7 @@ import { seedUserWithFixture } from '../test-fixtures.js';
 import { createTestDb } from '../test-utils.js';
 
 import { EngineStore } from './engine.js';
+import { take } from './pending-events.js';
 import { deleteAccountProgress } from './reset.js';
 
 const MATERIAL_ID = 'nkjv-cor';
@@ -62,6 +63,21 @@ function seedProgress(db: ReturnType<typeof createTestDb>['db']) {
   db.insert(schema.graduatedCards)
     .values({ userId: 'u1', materialId: MATERIAL_ID, cardId: 0, graduatedAtSecs: NOW })
     .run();
+  // Held events: one for the enrolled material, one for a material the
+  // account never enrolled in.
+  for (const materialId of [MATERIAL_ID, 'never-enrolled']) {
+    take(db, { userId: 'u1', materialId }, [
+      {
+        clientEventId: `held-${materialId}`,
+        kind: 'review',
+        timestampSecs: NOW,
+        payload: {},
+        status: 'pending',
+        reasonCode: 'card-not-emitted',
+        reason: 'test',
+      },
+    ], NOW);
+  }
 }
 
 describe('deleteAccountProgress', () => {
@@ -88,6 +104,7 @@ describe('deleteAccountProgress', () => {
       expect(test.db.select().from(schema.graduatedVerses).all()).toHaveLength(0);
       expect(test.db.select().from(schema.graduatedCards).all()).toHaveLength(0);
       expect(test.db.select().from(schema.testStates).all()).toHaveLength(0);
+      expect(test.db.select().from(schema.pendingEvents).all()).toHaveLength(0);
 
       // Enrollment + settings survive — decks stay, just reset to new.
       expect(test.db.select().from(schema.userMaterials).all()).toHaveLength(1);

@@ -939,6 +939,18 @@ fn parse_schedule(
     serde_json::from_str(trimmed).map(Some)
 }
 
+/// JSON of `MaterialConfig::max_emission()`, the config that emits every
+/// card any config can. Pass it as the `material_config_json` of a
+/// throwaway `WasmEngine` and ask `has_card`: an id that engine lacks is
+/// one no setting the learner can reach will ever produce. The server
+/// uses this to decide whether an event it cannot apply today should
+/// wait (the learner switched the card off) or is unusable.
+#[wasm_bindgen]
+pub fn max_emission_config_json() -> String {
+    serde_json::to_string(&MaterialConfig::max_emission())
+        .expect("MaterialConfig serialises infallibly")
+}
+
 fn parse_material_config(json: &str) -> Result<MaterialConfig, serde_json::Error> {
     let trimmed = json.trim();
     if trimmed.is_empty() {
@@ -1088,6 +1100,12 @@ mod tests {
     use super::*;
     use verse_vault_core::element::ElementId;
     use verse_vault_core::test_kind::TestKind;
+
+    #[test]
+    fn max_emission_config_json_parses_back_to_max_emission() {
+        let parsed = parse_material_config(&max_emission_config_json()).unwrap();
+        assert_eq!(parsed, MaterialConfig::max_emission());
+    }
 
     #[test]
     fn test_state_entry_round_trips_via_json() {

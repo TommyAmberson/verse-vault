@@ -1,15 +1,21 @@
 import { and, eq } from 'drizzle-orm';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DB } from '../db/client.js';
 import {
+  graduatedCards,
   graphSnapshots,
   materialSchedules,
+  pendingEvents,
+  reviewEvents,
   testStates as testStatesTable,
 } from '../db/schema.js';
-import { seedUserWithFixture } from '../test-fixtures.js';
+import { seedUserWithFixture, switchedOffCardId } from '../test-fixtures.js';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import { enrollUser } from './enrollment.js';
+import { markDiscarded, take, type TakeInput } from './pending-events.js';
+import type { Repair } from './repairs.js';
+import { computeStateRev } from './state-rev.js';
 import {
   EngineStore,
   NotEnrolledError,
@@ -74,6 +80,53 @@ describe('EngineStore', () => {
     await expect(store.load({ userId: 'missing', materialId: 'x' })).rejects.toBeInstanceOf(
       NotEnrolledError,
     );
+  });
+
+  it('rebuilds past a logged event whose card the engine cannot resolve', async () => {
+    // One unreplayable row must not brick the rebuild for good. The
+    // good row either side still has to land, and the skip has to be
+    // loud, because it means history the learner made is not counting.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: 'nkjv-cor' });
+    const row = (id: string, cardId: number, timestampSecs: number) => ({
+      id,
+      userId: 'u1',
+      materialId: 'nkjv-cor',
+      snapshotVersion: 1,
+      timestampSecs,
+      cardId,
+      grade: 3,
+      clientEventId: id,
+      createdAt: timestampSecs,
+    });
+    test.db
+      .insert(reviewEvents)
+      .values([
+        row('good-1', 0, 1_790_000_000),
+        row('bad', 999_999_999, 1_790_000_100),
+        row('good-2', 0, 1_790_000_200),
+      ])
+      .run();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const store = new EngineStore(test.db);
+    const loaded = store.rebuildFromEvents({ userId: 'u1', materialId: 'nkjv-cor' });
+
+    const states = JSON.parse(loaded.engine.export_test_states()) as TestStateEntry[];
+    // The later good row replayed, so replay carried on past the bad one.
+    expect(states.some((s) => s.last_seen_secs === 1_790_000_200)).toBe(true);
+    const logged = warn.mock.calls.map((args) => String(args[0]));
+    const line = logged.find((l) => l.includes('engine.replay_skipped'));
+    expect(line).toBeDefined();
+    expect(JSON.parse(line!)).toMatchObject({
+      userId: 'u1',
+      materialId: 'nkjv-cor',
+      skipped: 1,
+      skippedCardIds: [999_999_999],
+    });
+    warn.mockRestore();
+    store.clear();
   });
 
   it('caches engines across calls', async () => {
@@ -505,6 +558,344 @@ describe('EngineStore', () => {
     resolveFirst();
     await Promise.all([first, second]);
     expect(order).toEqual([1, 2, 3, 4]);
+    store.clear();
+  });
+});
+
+describe('EngineStore.classifyCardIds', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  const key = { userId: 'u1', materialId: 'nkjv-cor' };
+
+  it('sorts ids into emitted, not emitted, and unknown', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, ...key });
+    const store = new EngineStore(test.db);
+    using loaded = await store.load(key);
+    expect(loaded.engine.has_card(0)).toBe(true);
+    const off = switchedOffCardId(loaded.engine, key.materialId);
+
+    const classes = store.classifyCardIds(key, loaded.engine, [0, off, 999_999_999]);
+
+    expect(classes.get(0)).toBe('emitted');
+    expect(classes.get(off)).toBe('not-emitted');
+    expect(classes.get(999_999_999)).toBe('unknown');
+    store.clear();
+  });
+
+  it('builds the max-emission engine once per material content', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, ...key });
+    seedUserWithFixture({ db: test.db, userId: 'u2', materialId: key.materialId });
+    const store = new EngineStore(test.db);
+    using a = await store.load(key);
+    using b = await store.load({ userId: 'u2', materialId: key.materialId });
+
+    store.classifyCardIds(key, a.engine, [999_999_999]);
+    store.classifyCardIds({ userId: 'u2', materialId: key.materialId }, b.engine, [999_999_998]);
+    // An id the current engine has never needs the second engine.
+    store.classifyCardIds(key, a.engine, [0]);
+
+    expect(store.maxEmissionEngineBuilds).toBe(1);
+    store.clear();
+  });
+});
+
+describe('EngineStore promotion of pending events', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  const key = { userId: 'u1', materialId: 'nkjv-cor' };
+
+  function setup() {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, ...key });
+    return test.db;
+  }
+
+  function held(overrides: Partial<TakeInput> & { payload: Record<string, unknown> }): TakeInput {
+    return {
+      clientEventId: String(overrides.payload.clientEventId),
+      kind: String(overrides.payload.kind),
+      timestampSecs: overrides.payload.timestampSecs as number,
+      status: 'pending',
+      reasonCode: 'card-not-emitted',
+      reason: 'test',
+      ...overrides,
+    };
+  }
+
+  function review(clientEventId: string, timestampSecs: number, cardId = 0) {
+    return { kind: 'review', clientEventId, timestampSecs, snapshotVersion: 1, cardId, grade: 3 };
+  }
+
+  function logRow(clientEventId: string, timestampSecs: number) {
+    return {
+      id: clientEventId,
+      userId: key.userId,
+      materialId: key.materialId,
+      snapshotVersion: 1,
+      timestampSecs,
+      cardId: 0,
+      grade: 3,
+      clientEventId,
+      createdAt: timestampSecs,
+    };
+  }
+
+  it('promotes a held graduation the engine now emits, at its recorded time', async () => {
+    const db = setup();
+    take(db, key, [
+      held({
+        payload: {
+          kind: 'graduateCard',
+          clientEventId: 'g1',
+          timestampSecs: 1_790_000_000,
+          cardId: 0,
+        },
+      }),
+    ], 1_790_000_500);
+
+    const store = new EngineStore(db);
+    using loaded = await store.load(key);
+
+    expect(db.select().from(pendingEvents).all()).toHaveLength(0);
+    expect(db.select().from(graduatedCards).all()).toEqual([
+      expect.objectContaining({ cardId: 0, graduatedAtSecs: 1_790_000_000 }),
+    ]);
+    // Applied to the engine it was promoted into, not only written down.
+    expect(loaded.engine.graduate_card(0)).toBe(false);
+    store.clear();
+  });
+
+  it('replays a promoted review in order, as if it had applied on time', async () => {
+    // FR-016. The held review sits between two applied ones; promoting it
+    // must yield exactly the state of a log that had it all along.
+    const late = setup();
+    late
+      .insert(reviewEvents)
+      .values([logRow('a', 1_790_000_000), logRow('c', 1_790_000_200)])
+      .run();
+    take(late, key, [held({ payload: review('b', 1_790_000_100) })], 1_790_000_900);
+    // Unseen tests are seeded at the store's clock, so both stores need
+    // the same one or a slow run splits them across a second boundary.
+    const clock = () => 1_790_001_000;
+    const lateStore = new EngineStore(late, clock);
+    using promoted = await lateStore.load(key);
+    const lateStates = JSON.parse(promoted.engine.export_test_states()) as TestStateEntry[];
+    lateStore.clear();
+    cleanup?.();
+
+    const onTime = setup();
+    onTime
+      .insert(reviewEvents)
+      .values([logRow('a', 1_790_000_000), logRow('b', 1_790_000_100), logRow('c', 1_790_000_200)])
+      .run();
+    const onTimeStore = new EngineStore(onTime, clock);
+    using rebuilt = onTimeStore.rebuildFromEvents(key);
+    const onTimeStates = JSON.parse(rebuilt.engine.export_test_states()) as TestStateEntry[];
+    onTimeStore.clear();
+
+    const byKey = (states: TestStateEntry[]) =>
+      Object.fromEntries(states.map((t) => [`${t.test_kind}|${JSON.stringify(t.element)}`, t]));
+    expect(byKey(lateStates)).toEqual(byKey(onTimeStates));
+  });
+
+  it('holds what it cannot apply without moving stateRev, re-judging each row', async () => {
+    const db = setup();
+    const before = computeStateRev(db, key.userId, key.materialId);
+    let off: number;
+    {
+      using loaded = await new EngineStore(db).load(key);
+      off = switchedOffCardId(loaded.engine, key.materialId);
+    }
+    take(db, key, [
+      held({ payload: review('off', 1_790_000_000, off) }),
+      held({ payload: review('gone', 1_790_000_000, 999_999_999) }),
+      held({ payload: review('wait', 1_790_000_000), reasonCode: 'awaiting-confirmation' }),
+      held({ payload: review('new', 1_790_000_000, 999_999_998), reasonCode: 'not-enrolled' }),
+    ], 1_790_000_500);
+
+    const store = new EngineStore(db);
+    using _loaded = await store.load(key);
+
+    // A switched-off card keeps waiting. A card no config emits any more
+    // is demoted to unusable, where repairs can reach it, whatever it was
+    // held for. The one awaiting the learner's answer is left alone
+    // (FR-007's exception), though it could apply.
+    const byId = Object.fromEntries(
+      db.select().from(pendingEvents).all().map((r) => [r.clientEventId, [r.status, r.reasonCode]]),
+    );
+    expect(byId).toEqual({
+      off: ['pending', 'card-not-emitted'],
+      gone: ['unusable', 'card-unknown'],
+      wait: ['pending', 'awaiting-confirmation'],
+      new: ['unusable', 'card-unknown'],
+    });
+    expect(db.select().from(reviewEvents).all()).toHaveLength(0);
+    expect(computeStateRev(db, key.userId, key.materialId)).toBe(before);
+    store.clear();
+  });
+
+  it('promotes events held while not enrolled at the first build after enrolling', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    createTestUser(test.db, key.userId);
+    take(test.db, key, [
+      held({ payload: review('n1', 1_790_000_000), reasonCode: 'not-enrolled' }),
+    ], 1_790_000_500);
+    enrollUser({ db: test.db, ...key, now: () => 1_790_001_000 });
+
+    const store = new EngineStore(test.db);
+    using _loaded = await store.load(key);
+
+    expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
+    expect(test.db.select().from(reviewEvents).all().map((r) => r.clientEventId)).toEqual(['n1']);
+    store.clear();
+  });
+});
+
+describe('EngineStore repairs', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  const key = { userId: 'u1', materialId: 'nkjv-cor' };
+  const TS = 1_790_000_000;
+
+  function setup() {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, ...key });
+    return test.db;
+  }
+
+  function unusable(payload: Record<string, unknown>, reasonCode: 'malformed' | 'card-unknown') {
+    return {
+      clientEventId: (payload.clientEventId as string | undefined) ?? null,
+      kind: 'review',
+      timestampSecs: TS,
+      payload,
+      status: 'unusable' as const,
+      reasonCode,
+      reason: 'test',
+    };
+  }
+
+  function review(overrides: Record<string, unknown> = {}) {
+    return {
+      kind: 'review',
+      clientEventId: 'm1',
+      timestampSecs: TS,
+      snapshotVersion: 1,
+      cardId: 0,
+      grade: 3,
+      ...overrides,
+    };
+  }
+
+  /** A repair that rewrites whatever `fix` returns, counting its calls. */
+  function repairing(id: string, fix: (e: Record<string, unknown>) => unknown) {
+    const calls = { n: 0 };
+    const repair: Repair = {
+      id,
+      description: `test repair ${id}`,
+      repair(payload) {
+        calls.n += 1;
+        return fix(payload as Record<string, unknown>);
+      },
+    };
+    return { repair, calls };
+  }
+
+  const rows = (db: ReturnType<typeof setup>) => db.select().from(pendingEvents).all();
+
+  it('applies an event a repair fixes, at its recorded time, and keeps the record', async () => {
+    const db = setup();
+    take(db, key, [unusable(review({ grade: 0 }), 'malformed')], TS + 60);
+    const { repair } = repairing('grade-zero-is-good', (e) => ({ ...e, grade: 3 }));
+
+    const store = new EngineStore(db, undefined, undefined, { repairs: [repair] });
+    using _loaded = await store.load(key);
+
+    expect(db.select().from(reviewEvents).all()).toEqual([
+      expect.objectContaining({ clientEventId: 'm1', timestampSecs: TS, grade: 3 }),
+    ]);
+    const [row] = rows(db);
+    expect(row).toMatchObject({ status: 'repaired', repairedBy: 'grade-zero-is-good' });
+    expect(JSON.parse(row.originalPayloadJson!)).toMatchObject({ grade: 0 });
+    expect(JSON.parse(row.payloadJson)).toMatchObject({ grade: 3 });
+    store.clear();
+  });
+
+  it('leaves an event a repair cannot rescue untouched, and tries each repair once', async () => {
+    const db = setup();
+    const original = review({ cardId: 999_999_999 });
+    take(db, key, [unusable(original, 'card-unknown')], TS + 60);
+    // Output is well-formed but still names a card no config emits.
+    const first = repairing('still-unknown', (e) => ({ ...e, grade: 2 }));
+
+    for (let i = 0; i < 2; i++) {
+      const store = new EngineStore(db, undefined, undefined, { repairs: [first.repair] });
+      using _loaded = await store.load(key);
+      store.clear();
+    }
+
+    expect(first.calls.n).toBe(1);
+    const [row] = rows(db);
+    expect(row).toMatchObject({ status: 'unusable', repairedBy: null, originalPayloadJson: null });
+    expect(JSON.parse(row.payloadJson)).toEqual(original);
+    expect(row.repairEpoch).toBeTruthy();
+
+    // Shipping another repair retries the row, once.
+    const second = repairing('maps-to-card-zero', (e) => ({ ...e, cardId: 0 }));
+    const store = new EngineStore(db, undefined, undefined, {
+      repairs: [first.repair, second.repair],
+    });
+    using _loaded = await store.load(key);
+    expect(second.calls.n).toBe(1);
+    expect(rows(db)[0]).toMatchObject({ status: 'repaired', repairedBy: 'maps-to-card-zero' });
+    store.clear();
+  });
+
+  it('never repairs a discarded event, nor lets a repair change an event id', async () => {
+    const db = setup();
+    take(db, key, [
+      {
+        ...unusable(review({ clientEventId: 'd1' }), 'malformed'),
+        status: 'pending',
+        reasonCode: 'awaiting-confirmation',
+      },
+      unusable(review({ clientEventId: 'r1', grade: 0 }), 'malformed'),
+    ], TS + 60);
+    markDiscarded(db, key);
+    const { repair, calls } = repairing('renames', (e) => ({
+      ...e,
+      clientEventId: 'other',
+      grade: 3,
+    }));
+
+    const store = new EngineStore(db, undefined, undefined, { repairs: [repair] });
+    using _loaded = await store.load(key);
+
+    expect(calls.n).toBe(1);
+    expect(rows(db).map((r) => [r.clientEventId, r.status]).sort()).toEqual([
+      ['d1', 'discarded'],
+      ['r1', 'unusable'],
+    ]);
+    expect(db.select().from(reviewEvents).all()).toHaveLength(0);
     store.clear();
   });
 });

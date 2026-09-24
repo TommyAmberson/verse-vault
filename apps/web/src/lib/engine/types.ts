@@ -73,6 +73,10 @@ export interface SyncStateResponse {
    *  /api/years value on later boots to detect server-side changes.
    *  Optional so an older API keeps working. */
   stateRev?: string
+  /** An open stale-merge question for this material, raised on the
+   *  server by an earlier upload from any device. Optional so an older
+   *  API keeps working. */
+  pendingConfirmation?: StaleMergeSummary | null
 }
 
 /** One queued event in `POST /api/sync/:materialId/events`. Mirrors the
@@ -104,13 +108,26 @@ export type SyncEventUpload =
 /** POST /api/sync/:materialId/events body. */
 export interface SyncEventsRequest {
   events: SyncEventUpload[]
-  /** Set true when re-POSTing after the stale-merge confirmation modal. */
+  /** Answers the stale-merge question by re-sending the batch. Only for
+   *  an older server that took nothing; a current one is answered
+   *  through `POST .../confirm`. */
   confirmMerge?: boolean
 }
 
-/** The stale-merge preflight summary the server returns when a batch is
- *  too far behind to auto-merge (see the sync route's
- *  `STALE_MERGE_THRESHOLD`). Drives the confirmation modal. */
+/** What the server did with one uploaded event, by position. The client
+ *  never decides deletion by dispositions; their absence is what marks an
+ *  older server's stale-merge envelope as having taken nothing. */
+export interface EventDisposition {
+  index: number
+  clientEventId: string | null
+  disposition: 'applied' | 'duplicate' | 'pending' | 'unusable'
+  reasonCode?: string
+  reason?: string
+}
+
+/** An open stale-merge question: a batch too far behind to merge
+ *  without asking (see the sync route's `STALE_MERGE_THRESHOLD`), held
+ *  on the server until the learner answers. Drives the modal. */
 export interface StaleMergeSummary {
   queuedCount: number
   serverEventsSince: number
@@ -118,15 +135,22 @@ export interface StaleMergeSummary {
   newestServerTs: number
 }
 
-/** POST /api/sync/:materialId/events response. Two shapes: the normal
- *  merge result, or the stale-merge preflight envelope. */
+/** POST /api/sync/:materialId/events response. The first arm is an
+ *  older server's stale-merge envelope, which took nothing; a current
+ *  server always answers with the second, flagging a held batch with
+ *  `needsConfirm` beside the usual fields. */
 export type SyncEventsResponse =
   | {
       needsConfirm: true
       staleSummary: StaleMergeSummary
+      dispositions?: undefined
     }
   | {
-      needsConfirm?: false
+      /** Set when the batch was taken but held, awaiting the learner. */
+      needsConfirm?: boolean
+      staleSummary?: StaleMergeSummary | null
+      /** One per uploaded event. Absent from older servers. */
+      dispositions?: EventDisposition[]
       accepted: number
       duplicates: number
       rebuilt: boolean
@@ -135,5 +159,18 @@ export type SyncEventsResponse =
       /** Post-merge state fingerprint — the flush stores it on the
        *  cached snapshot so its own write doesn't read as staleness on
        *  the next boot. Optional so an older API keeps working. */
+      stateRev?: string
+    }
+
+/** POST /api/sync/:materialId/confirm response: a merge answers like an
+ *  upload without dispositions, a discard with how many were set aside. */
+export type SyncConfirmResponse =
+  | { discarded: number }
+  | {
+      accepted: number
+      duplicates: number
+      rebuilt: boolean
+      testStates: TestStateEntry[]
+      lastEventId: string | null
       stateRev?: string
     }

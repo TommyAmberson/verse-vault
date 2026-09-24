@@ -149,28 +149,43 @@ client can mix the two on a single device (a fat client that posts to `/sync/...
 elsewhere the same user is reviewing via `/cards/review` on another tab will serialise correctly
 through `engines.withLock`).
 
+The server takes every event a client offers (constitution principle VI). An event it cannot apply
+now is stored with its reason in `pending_events` and reported back, never refused, so a device with
+a working connection always drains its outbox and can be wiped without losing work. The design
+record is `specs/002-resilient-sync-ingest/`.
+
 ### `GET /api/sync/:materialId/state`
 
-Hydrate a fresh client. Returns the latest snapshot + every persisted test state + the most recent
-event id (so the client can know where to resume).
+Hydrate a fresh client. Returns the latest snapshot, every persisted test state, the most recent
+event id, the graduation logs, the state fingerprint, and any open stale-merge question.
 
 ```json
 {
   "snapshot": {
     "version": 3,
-    "materialData": { /* parsed MaterialData JSON — see wasm-api.md */ }
+    "materialData": { /* parsed MaterialData JSON, see wasm-api.md */ }
   },
   "testStates": [ /* TestStateEntry[] */ ],
-  "lastEventId": "01HXX..."
+  "lastEventId": "01HXX...",
+  "graduatedVerseIds": [17],
+  "graduatedCardIds": [684032],
+  "stateRev": "a1b2c3d4",
+  "pendingConfirmation": null
 }
 ```
 
-404 if the user isn't enrolled in the material.
+`pendingConfirmation` is `null`, or the summary of a batch held awaiting the learner's merge answer
+(same shape as `staleSummary` below). It is read from the server, so any device can raise the
+question, including one wiped after the upload that opened it. `GET /api/years` carries the same
+field per enrolled year, for clients that boot from a cached snapshot and never call `/state`.
+
+404 if the user isn't enrolled in the material: this reads state that does not exist, and refuses no
+work.
 
 ### `POST /api/sync/:materialId/events`
 
 Upload a batch. The client supplies a `clientEventId` per event so retries are idempotent. Batch
-size is capped at 500 (413 otherwise — keeps the dedup `inArray` under SQLite's 999-param limit).
+size is capped at 500 per request; a client with more uploads in pages until its outbox is empty.
 
 Request:
 
@@ -199,36 +214,77 @@ Request:
 
 Event kinds:
 
-* `review` — replays through `engine.replay_event(cardId, grade, …)`. Required fields: `cardId`,
+* `review`: replays through `engine.replay_event(cardId, grade, …)`. Required fields: `cardId`,
   `grade` (1=Again, 2=Hard, 3=Good, 4=Easy).
-* `graduate` — calls `engine.graduate_verse(verseId)` and upserts a `graduated_verses` row in the
+* `graduate`: calls `engine.graduate_verse(verseId)` and upserts a `graduated_verses` row in the
   same transaction. Required field: `verseId`.
+* `graduateCard`: calls `engine.graduate_card(cardId)` and upserts a `graduated_cards` row. Required
+  field: `cardId`.
 * Events without a `kind` field default to `review` for backward compatibility with the original
   thin-client wire shape.
 
-`confirmMerge: true` bypasses the stale-merge preflight (see below). Defaults to `false`.
+`confirmMerge: true` survives for older clients only: it answers the stale-merge question by
+re-sending the batch (see below). A current client answers through `POST .../confirm`.
 
-Validation rejects (400) with these conditions:
-
-* `timestampSecs > server_now + 24h` (clock-skew guard — a broken device RTC could otherwise insert
-  events at arbitrary positions in the timeline).
-* `clientEventId` missing/empty, `snapshotVersion < 1`, `cardId < 0`, `grade ∉ {1,2,3,4}`,
-  `verseId < 0`, or an unknown `kind`.
-
-Response — normal merge:
+Response:
 
 ```json
 {
-  "accepted": 12,
-  "duplicates": 0,
+  "accepted": 49,
+  "duplicates": 1,
   "rebuilt": false,
-  "testStates": [ /* TestStateEntry[] — full set after replay */ ],
-  "lastEventId": "01HXX..."
+  "testStates": [ /* TestStateEntry[], full set after replay */ ],
+  "lastEventId": "01HXX...",
+  "stateRev": "a1b2c3d4",
+  "dispositions": [
+    { "index": 0, "clientEventId": "0179058f-...", "disposition": "applied" },
+    { "index": 1, "clientEventId": "0455c893-...", "disposition": "unusable", "reasonCode": "card-unknown", "reason": "card id 7578 is not produced by any config for this deck" },
+    { "index": 2, "clientEventId": "27915966-...", "disposition": "pending", "reasonCode": "card-not-emitted", "reason": "card id 71 is not emitted by the current config" },
+    { "index": 3, "clientEventId": "4083429a-...", "disposition": "duplicate" },
+    { "index": 4, "clientEventId": null, "disposition": "unusable", "reasonCode": "malformed", "reason": "clientEventId must be a non-empty string" }
+  ]
 }
 ```
 
-Response — stale-merge preflight (when the batch's oldest event predates more than
-`STALE_MERGE_THRESHOLD` already-applied server events and `confirmMerge !== true`):
+Every event in the request appears exactly once in `dispositions`, identified by its `index`;
+`clientEventId` is echoed when the event carried a readable one. `accepted` and `duplicates` count
+only applied and already-known events, so an older client reading just those behaves as before.
+Graduate events whose `engine.graduate_verse()` returned 0 (the verse was already Active) are
+counted as duplicates.
+
+| Disposition | Meaning                                                          | Where it lives                          |
+| ----------- | ---------------------------------------------------------------- | --------------------------------------- |
+| `applied`   | Changed the learner's state                                      | `review_events` or `graduated_*`        |
+| `duplicate` | The server already held it                                       | Unchanged, in whichever table held it   |
+| `pending`   | May apply later                                                  | `pending_events`, `status = 'pending'`  |
+| `unusable`  | Will not apply as things stand; a shipped repair may change that | `pending_events`, `status = 'unusable'` |
+
+| Reason code             | Status     | Leaves pending when                                    |
+| ----------------------- | ---------- | ------------------------------------------------------ |
+| `card-not-emitted`      | `pending`  | An engine build finds the config emits the card again  |
+| `not-enrolled`          | `pending`  | The account enrols in the material                     |
+| `awaiting-confirmation` | `pending`  | The learner answers the merge question                 |
+| `card-unknown`          | `unusable` | A shipped repair turns it into an id some config emits |
+| `malformed`             | `unusable` | A shipped repair turns it into a well-formed event     |
+
+`card-not-emitted` versus `card-unknown` is the engine's call: an id the learner's engine lacks is
+checked against an engine built from core's `MaterialConfig::max_emission()`, the config that emits
+every card any config can. `reason` is prose for operators; clients must not parse it.
+
+A malformed event is taken, not refused: a missing or empty `clientEventId`, a non-integer or
+negative `timestampSecs`, one more than 24h in the future (a broken device clock would otherwise
+insert events at arbitrary positions in the timeline), `snapshotVersion < 1`, a negative or
+non-integer `cardId` or `verseId`, `grade ∉ {1,2,3,4}`, an unknown `kind`, or an entry that is not
+an object. A client that could not hand over its junk could never empty its outbox.
+
+**Client obligation.** On any 200 the client deletes every event the request carried, whatever the
+dispositions say. They are information, not instructions; this is what lets an event whose
+`clientEventId` the server could not read still leave the outbox.
+
+**Stale merge.** When the batch's oldest applicable event predates more than `STALE_MERGE_THRESHOLD`
+already-applied server events and `confirmMerge !== true`, the learner is asked before it merges,
+because an old batch can drag down FSRS stability on cards reviewed since. The batch is taken first,
+as `pending` / `awaiting-confirmation`, and the normal response adds:
 
 ```json
 {
@@ -242,13 +298,16 @@ Response — stale-merge preflight (when the batch's oldest event predates more 
 }
 ```
 
-No events are applied in the preflight response. The client surfaces a confirmation prompt and
-re-POSTs the same batch with `confirmMerge: true` to proceed, or discards locally.
+The client still deletes the batch; the question is the server's to hold, and `POST .../confirm`
+answers it. An older client that keeps its outbox and re-sends it with `confirmMerge: true` has
+those held events merged and reported `applied`.
 
 Side effects (atomic, one transaction):
 
-* Appends accepted events to `review_events`.
-* For `graduate` events: upserts `graduated_verses` rows (`onConflictDoNothing`).
+* Appends applied reviews to `review_events`.
+* For `graduate` / `graduateCard` events: upserts `graduated_verses` / `graduated_cards` rows
+  (`onConflictDoNothing`).
+* Inserts every event taken but not applied into `pending_events`, with its payload verbatim.
 * Upserts touched rows in `test_states`.
 * On out-of-order arrival (an incoming review's `timestampSecs` is earlier than any already applied
   for the same `card_id`): drops the cached engine, replays the full `review_events` log in
@@ -256,14 +315,56 @@ Side effects (atomic, one transaction):
   `test_states` back wholesale, and returns `rebuilt: true`. The client treats this as a wholesale
   state replacement rather than a merge.
 * If the transaction itself throws, the cached engine is invalidated so the next request rebuilds
-  from disk state (the handler calls `engine.replay_event` / `engine.graduate_verse` before the
-  transaction, so the in-memory engine would otherwise diverge from `review_events` +
-  `graduated_verses` until process restart).
+  from disk state.
 
-Snapshot-version mismatch returns 409 — the client must re-fetch `/state` and rebuild its local
-engine before retrying. A duplicate `clientEventId` is silently dropped (counted under
-`duplicates`); the rest of the batch still applies. Graduate events whose `engine.graduate_verse()`
-returned 0 (the verse was already Active before this batch) are counted as duplicates too.
+Each request that stores anything unapplied logs one `sync.events_not_applied` line naming each
+event, its status, reason code and reason, with the requestId.
+
+The request as a whole can still be refused, but only for reasons that strand nothing:
+
+* **400** when the body is not a JSON object with an `events` array. It carries no events to take.
+* **401** when not signed in. Signing in resumes the upload with nothing lost.
+* **409** when a well-formed event's `snapshotVersion` is behind. The events are fine, only their
+  stamp is stale: the client re-fetches `/state`, re-stamps its queue, and uploads again.
+* **404** when the material is not in the catalogue. No event for it can ever apply, so there is
+  nothing to hold.
+* **413** when more than 500 events arrive in one request, or the body exceeds 1 MiB. A page size,
+  not a verdict; a full page of real events is about 125 KB.
+
+An upload for a material the account is not enrolled in is taken as `pending` / `not-enrolled`, not
+refused, and applies at the first engine build after the account enrols.
+
+### `POST /api/sync/:materialId/confirm`
+
+Answer an open stale-merge question.
+
+```json
+{ "decision": "merge" }
+```
+
+* `merge`: every `awaiting-confirmation` event for this account and material is re-judged by the
+  upload's rule, then applied at its recorded time, and the engine is rebuilt from the log. An event
+  whose card the learner has switched off since keeps waiting as `card-not-emitted`; one no config
+  emits any more becomes `unusable`. Responds like an upload, without `dispositions`.
+* `discard`: every such event becomes `status = 'discarded'`. Nothing is deleted. Responds
+  `{ "discarded": 57 }`.
+
+Answering with no open question is a 200 no-op with zero counts, so a question answered on another
+device first is not an error. 400 for any other `decision`; 404 if not enrolled.
+
+### Held events
+
+Engine build (`EngineStore.load` and `rebuildFromEvents`) re-judges `card-not-emitted` and
+`not-enrolled` rows with the same rule the upload uses. One whose card the engine now emits is
+written to its real table at its recorded time; a promoted review sends `load` through a rebuild so
+it replays in order. One whose card no config emits any more becomes `unusable` / `card-unknown`.
+The common case of nothing held costs one indexed probe. `awaiting-confirmation` rows wait for the
+learner.
+
+Before promoting, the build offers shipped repairs to `unusable` rows not yet offered this set of
+repairs. One that yields a well-formed event with an emittable card makes the row `pending`, and it
+promotes in the same build if its card is emitted. See [`persistence.md`](persistence.md) for how
+repairs are recorded.
 
 ## Materials — `/api/materials/*`
 
@@ -345,7 +446,8 @@ material-picker UI.
       },
       "newCardCount": 87,
       "memorizeDebt": { "verses": 13, "cards": 124 },
-      "stateRev": "a1b2c3d4"
+      "stateRev": "a1b2c3d4",
+      "pendingConfirmation": null
     }
   ]
 }
@@ -357,6 +459,11 @@ schedule-aware slice of it: un-memorized verses the year's schedule introduced i
 schedule, or whose season hasn't started, report their whole eligible pool; unenrolled years report
 zeroes. Added in api 0.1.39 — clients that may reach an older server should fall back to
 `newCardCount`.
+
+`pendingConfirmation` is the year's open stale-merge question, or `null`; absent for unenrolled
+years. It is the same summary `GET /api/sync/:materialId/state` returns, carried here because a
+client booting from its cached snapshot never calls `/state` and would otherwise never hear of a
+question another device opened. Added in api 0.1.40.
 
 ### `POST /api/years/:materialId/settings`
 
@@ -437,15 +544,15 @@ snapshot — decks stay, reset to all-new. Idempotent. Returns:
 
 ## Status codes
 
-| status | when                                                                                                 |
-| ------ | ---------------------------------------------------------------------------------------------------- |
-| 400    | malformed JSON, missing required field, invalid `grade`, invalid scope value, …                      |
-| 401    | no session cookie / expired session                                                                  |
-| 404    | material id unknown, or caller not enrolled in the requested material, or card id unknown            |
-| 409    | sync batch uses a stale `snapshotVersion`, or already-enrolled on `/enroll`                          |
-| 413    | sync batch exceeds the 500-event cap                                                                 |
-| 429    | rate limit exceeded; `Retry-After` header carries integer seconds until next allowed request         |
-| 500    | engine threw on `replay_event` / `get_card_render` (unknown card id, malformed state) — caller's bug |
+| status | when                                                                                                                                                     |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400    | malformed JSON, missing required field, invalid `grade`, invalid scope value, …                                                                          |
+| 401    | no session cookie / expired session                                                                                                                      |
+| 404    | material id unknown, or caller not enrolled in the requested material, or card id unknown (a sync upload 404s only for a material outside the catalogue) |
+| 409    | sync batch uses a stale `snapshotVersion`, or already-enrolled on `/enroll`                                                                              |
+| 413    | sync batch exceeds the 500-event cap                                                                                                                     |
+| 429    | rate limit exceeded; `Retry-After` header carries integer seconds until next allowed request                                                             |
+| 500    | engine threw on `replay_event` / `get_card_render` (unknown card id, malformed state) — caller's bug                                                     |
 
 All error bodies follow `{ "error": "..." }`.
 

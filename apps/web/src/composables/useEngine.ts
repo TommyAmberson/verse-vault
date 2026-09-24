@@ -24,10 +24,11 @@
  *     flush across every active material so queued events don't leak
  *     across navigations.
  *
- * Stale-merge prompt: engineStore's stale gate owns which materials are
- * awaiting confirmation (with their summaries, in arrival order); the
- * composable projects `staleSummary` off its head after each flush and
- * the view shows the modal, calling `confirmMerge()` / `discardStale()` /
+ * Stale-merge prompt: the question and the batch it concerns live on the
+ * server. engineStore's prompt queue holds the questions it has heard of
+ * (from an upload, a cold state fetch, or the years row), in arrival
+ * order; the composable projects `staleSummary` off its head and the
+ * view shows the modal, calling `confirmMerge()` / `discardStale()` /
  * `cancelStale()` on the user's choice. Multiple simultaneously-stale
  * materials queue and surface one at a time.
  */
@@ -39,8 +40,7 @@ import { getCachedSchedule, getCachedYears } from '../lib/apiCache'
 import { hasEnabledClub, hasReviewableClub } from '../lib/clubs'
 import * as engineStore from '../lib/engine/engineStore'
 import type { FlushResult } from '../lib/engine/engineStore'
-import * as idb from '../lib/engine/persistence'
-import type { WireMaterialConfig } from '../lib/engine/types'
+import type { StaleMergeSummary, WireMaterialConfig } from '../lib/engine/types'
 
 /** Debounce window for the auto-flush trigger after a grade — long enough
  *  to coalesce a stream of grades into one round-trip, short enough that
@@ -48,7 +48,7 @@ import type { WireMaterialConfig } from '../lib/engine/types'
 const FLUSH_DEBOUNCE_MS = 5_000
 
 /** The stale-merge prompt shape the view binds to. Owned by engineStore
- *  (its stale gate is the single source of truth); re-exported here so
+ *  (its prompt queue is the single source of truth); re-exported here so
  *  the view keeps importing it from the composable. */
 export type StaleSummary = engineStore.StalePrompt
 
@@ -57,9 +57,8 @@ export function useEngine() {
   const error = shallowRef<unknown>(null)
   const syncing = ref(false)
   const pendingCount = ref(0)
-  const orphanCount = ref(0)
   /** The stale-merge prompt currently shown to the user — the head of
-   *  engineStore's stale gate, which owns membership + payload + arrival
+   *  engineStore's prompt queue, which owns membership + payload + arrival
    *  order (#119). A pull projection: refreshed after every flush /
    *  confirm / discard, so when two materials go stale in one flush both
    *  stay queued and surface one at a time (#112). It self-heals rather
@@ -70,7 +69,7 @@ export function useEngine() {
    *  stranded. */
   const staleSummary = shallowRef<StaleSummary | null>(null)
 
-  /** Re-project `staleSummary` from the head of engineStore's stale gate.
+  /** Re-project `staleSummary` from the head of engineStore's prompt queue.
    *  Returns the gate's own stored object, so re-projecting after an
    *  unrelated material's flush yields the same reference and doesn't
    *  churn the modal. */
@@ -86,27 +85,16 @@ export function useEngine() {
   }
 
   async function refreshCounts() {
-    // Parallel per-material so MemorizeView's ~8-year sessions don't
-    // pay 16 serial IDB transactions after every grade. count() runs
-    // against the index without materialising rows.
-    const counts = await Promise.all(
-      [...active].map(async (id) => {
-        const [pending, orphans] = await Promise.all([
-          engineStore.pendingCount(id),
-          idb.countOrphans(id),
-        ])
-        return { pending, orphans }
-      }),
-    )
-    pendingCount.value = counts.reduce((sum, c) => sum + c.pending, 0)
-    orphanCount.value = counts.reduce((sum, c) => sum + c.orphans, 0)
+    // Parallel per-material so MemorizeView's ~8-year sessions don't pay
+    // serial IDB transactions after every grade. count() runs against the
+    // index without materialising rows.
+    const counts = await Promise.all([...active].map((id) => engineStore.pendingCount(id)))
+    pendingCount.value = counts.reduce((sum, c) => sum + c, 0)
   }
 
   async function flushOne(materialId: string): Promise<FlushResult> {
-    // engineStore's flush maintains the gate itself (sets it on a
-    // needsConfirm response, clears it on a clean merge), so a still-gated
-    // material stays queued and a resolved one drops — we just re-project
-    // the modal off the gate head afterward.
+    // engineStore's flush raises a question on a needsConfirm response
+    // itself, so we just re-project the modal off the queue head after.
     const result = await engineStore.flush(materialId, nowSecs())
     refreshStale()
     return result
@@ -180,15 +168,22 @@ export function useEngine() {
    *
    *  `stateRev` is the server's state fingerprint from the years row —
    *  see `engineStore.loadEngine`. Omit when unknown; the cached
-   *  snapshot is then trusted unconditionally. */
+   *  snapshot is then trusted unconditionally.
+   *
+   *  `pendingConfirmation` is the years row's open merge question, the
+   *  only way a device booting from its cache hears of one raised by
+   *  another device. Omit when unknown. */
   async function init(
     id: string,
     config?: WireMaterialConfig,
     schedule: unknown | '' = '',
     stateRev?: string,
+    pendingConfirmation?: StaleMergeSummary | null,
   ) {
     try {
       await engineStore.loadEngine(id, nowSecs(), config, schedule, stateRev)
+      engineStore.setMergeQuestion(id, pendingConfirmation)
+      refreshStale()
       active.add(id)
       await refreshCounts()
       ready.value = true
@@ -239,7 +234,7 @@ export function useEngine() {
     await Promise.all(
       eligible.map(async (y) => {
         const schedule = await getCachedSchedule(y.materialId, api.getSchedule).catch(() => null)
-        await init(y.materialId, y.perClub, schedule ?? '', y.stateRev)
+        await init(y.materialId, y.perClub, schedule ?? '', y.stateRev, y.pendingConfirmation)
       }),
     )
     return eligible
@@ -305,85 +300,45 @@ export function useEngine() {
     return engineStore.getCardRender(materialId, cardId, nowSecs())
   }
 
-  /** Re-POST the affected material's queue with `confirmMerge: true`
-   *  after the user approves the stale-merge modal. */
-  async function confirmMerge() {
+  /** Answer the open question on the modal. The batch is already on the
+   *  server; this tells it what to do with it, then rebuilds the local
+   *  engine from the result. */
+  async function answerStale(decision: 'merge' | 'discard') {
     const stale = staleSummary.value
     if (!stale) return
     syncing.value = true
     try {
-      await engineStore.flush(stale.materialId, nowSecs(), { confirmMerge: true })
+      await engineStore.answerMergeQuestion(stale.materialId, decision, nowSecs())
     } catch (e) {
       error.value = e
       throw e
     } finally {
-      // engineStore clears the gate on a clean merge and keeps it on a
-      // throw or a re-issued needsConfirm, so re-projecting the head here
-      // promotes the next prompt on success and leaves this one up
-      // otherwise — no #112 wedge, no manual reconciliation.
+      // A failed answer leaves the question queued, so re-projecting
+      // keeps the modal up on failure and promotes the next on success.
       syncing.value = false
       refreshStale()
       await refreshCounts()
     }
   }
 
-  /** Dismiss the stale-merge prompt without acting on it. Clears the
-   *  gate so the next flush re-surfaces the modal rather than
-   *  silently no-op'ing. */
+  /** Merge the held batch at its recorded times. */
+  function confirmMerge() {
+    return answerStale('merge')
+  }
+
+  /** Set the held batch aside. It is kept on the server, marked
+   *  discarded, rather than deleted. */
+  function discardStale() {
+    return answerStale('discard')
+  }
+
+  /** Dismiss the prompt without answering. The question stays open on
+   *  the server and comes back on the next boot. */
   function cancelStale() {
     const stale = staleSummary.value
     if (!stale) return
-    engineStore.clearStaleGate(stale.materialId)
+    engineStore.dismissMergeQuestion(stale.materialId)
     refreshStale()
-  }
-
-  /** Drop the queued events the server flagged stale on the affected
-   *  material. The user explicitly chose to throw them away.
-   *
-   *  This must also drop the cached engine + snapshot, NOT just the
-   *  event queue. Reasons:
-   *    1. The cached in-memory engine still has `replay_event` mutations
-   *       from every grade in the discarded batch, so its next-card
-   *       picker would keep showing the post-grade view even though
-   *       those grades are gone.
-   *    2. Worse, `submitGraduation` / `submitCardGraduation` write to
-   *       `snapshot.graduatedVerseIds` / `graduatedCardIds` via
-   *       `persistLocalGraduation` *separately* from queuing the
-   *       event. Discarding the queue rows leaves those lists with
-   *       entries the server never received — and on the next page
-   *       reload `loadEngine` re-applies them via `applyGraduations`,
-   *       diverging the local engine from the server permanently.
-   *
-   *  `invalidateSession` drops the cached engine + render cache;
-   *  `deleteSnapshot` drops the IDB snapshot so the next loadEngine
-   *  cold-paths through `GET /state` and rebuilds from the server's
-   *  authoritative view.
-   */
-  async function discardStale() {
-    const stale = staleSummary.value
-    if (!stale) return
-    // Capture the live session's config + schedule BEFORE invalidating —
-    // the reload below must re-pass them, or the rebuilt engine falls back
-    // to the wasm-side all-clubs-enabled-at-legacy-retention default and
-    // serves cards from disabled clubs at the wrong retention for the rest
-    // of the session (the hazard loadEngine documents).
-    const cached = engineStore.sessionConfig(stale.materialId)
-    const queued = await idb.getQueuedEvents(stale.materialId)
-    await idb.deleteQueuedEvents(queued.map((q) => q.clientEventId))
-    // Re-open the flush path: the gate was set on the needsConfirm
-    // response; without clearing it here, subsequent flushes would
-    // continue to no-op even though there's nothing to confirm.
-    engineStore.clearStaleGate(stale.materialId)
-    await engineStore.invalidateSession(stale.materialId)
-    await idb.deleteSnapshot(stale.materialId)
-    refreshStale()
-    await refreshCounts()
-    await engineStore.loadEngine(
-      stale.materialId,
-      nowSecs(),
-      cached?.materialConfig,
-      cached?.schedule ?? '',
-    )
   }
 
   return {
@@ -391,7 +346,6 @@ export function useEngine() {
     error,
     syncing,
     pendingCount,
-    orphanCount,
     staleSummary,
     init,
     initEligibleYears,

@@ -90,6 +90,17 @@ function openTargetReadWrite(profileId: string): Promise<IDBDatabase> {
   })
 }
 
+/** Where a legacy store's rows land in the profile DB. The profile DB
+ *  has no orphan store since v2; set-aside events go back to the outbox,
+ *  which is where the v2 upgrade puts them too. */
+const TARGET_STORE: Record<(typeof STORES)[number], string> = {
+  snapshots: 'snapshots',
+  testStates: 'testStates',
+  eventQueue: 'eventQueue',
+  eventQueueOrphans: 'eventQueue',
+  renders: 'renders',
+}
+
 async function copyStore(
   source: IDBDatabase,
   target: IDBDatabase,
@@ -101,8 +112,8 @@ async function copyStore(
     sourceTx.objectStore(storeName).getAll(),
   )
   if (rows.length === 0) return
-  const targetTx = target.transaction(storeName, 'readwrite')
-  const targetStore = targetTx.objectStore(storeName)
+  const targetTx = target.transaction(TARGET_STORE[storeName], 'readwrite')
+  const targetStore = targetTx.objectStore(TARGET_STORE[storeName])
   for (const row of rows) targetStore.put(row)
   await transactionComplete(targetTx)
 }

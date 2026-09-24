@@ -10,6 +10,72 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.40] — 2026-09-24
+
+MINOR — sync takes every event. An upload is no longer refused because one event in it cannot be
+applied: each event is judged alone, and one the server cannot apply is stored with its reason
+instead of refused (constitution principle VI).
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.10.0` — adds `MaterialConfig::max_emission`; no state-semantics change.
+* `verse-vault-wasm@0.10.0` — exposes it as `max_emission_config_json()`.
+
+### Changed
+
+* `POST /sync/:materialId/events` reports a disposition per event, by position: `applied`,
+  `duplicate`, `pending` (may apply later), or `unusable` (never will), with a closed `reasonCode`
+  and a prose `reason` for the last two. `accepted` and `duplicates` keep their meaning.
+* An id the learner's current config does not emit, but some config does, is `pending` /
+  `card-not-emitted`; one no config produces is `unusable` / `card-unknown`. Neither reaches
+  `review_events` or `graduated_cards`, so replay never meets it.
+* Malformed events are taken as `unusable` / `malformed` instead of failing the request with 400.
+  Only a body that is not a list of events is still a 400.
+* Uploads for a material the account is not enrolled in are taken as `pending` / `not-enrolled`
+  instead of 404. A material the catalogue does not have is still a 404, and a body over 1 MiB is a
+  413, so no client can grow `pending_events` at will.
+* A batch that trips the stale-merge threshold is taken as `pending` / `awaiting-confirmation`
+  before the learner is asked, and the response is the normal one with `needsConfirm` and
+  `staleSummary` added. The work used to wait in the browser while the question was open, so wiping
+  the device before answering lost it. An older client re-sending the batch with `confirmMerge`
+  still merges it.
+
+### Added
+
+* `pending_events` table (migration 0028) holding every event taken but not applied, with its
+  payload verbatim, status, reason code and reason. Re-uploading a held event is a duplicate.
+* `GET /sync/:materialId/state` and each enrolled year on `GET /years` report an open merge question
+  as `pendingConfirmation`, so any device can raise it: a wiped one on its first state fetch, a
+  cached one on its next boot.
+* `POST /sync/:materialId/confirm` with `{ decision: 'merge' | 'discard' }` answers it. Merge
+  applies the held events at their recorded times and rebuilds; discard marks them discarded and
+  deletes nothing. Answering with nothing open is a no-op.
+* Held events apply themselves when they can. Every engine build promotes `card-not-emitted` events
+  the config emits again and `not-enrolled` events once the account enrols, writing each at the time
+  it was recorded; a promoted review rebuilds from the log so it lands in order. A held event whose
+  card no config emits any more becomes `unusable`, where repairs can reach it. Events awaiting the
+  learner's merge answer are left for that answer.
+* Repairs: shipped fixes for `unusable` events (`src/lib/repairs.ts`, empty until the first one
+  ships). Engine build offers each repair once to every unusable row, and one that yields a
+  well-formed event with an emittable card makes it pending, applied at its recorded time. The
+  upload and the repair that changed it are kept (migration 0029); discarded events are never
+  repaired. Taking every event only helps if what was taken can come back.
+* A `sync.events_not_applied` log line per request naming each such event and why, with the
+  requestId. The reason an event did not land used to live only in a response body.
+
+### Fixed
+
+* Rebuilding a material's state from its event log skips a row the engine cannot resolve instead of
+  throwing. One such row used to fail every future rebuild for that material, freezing the learner's
+  state; the skip now logs an `engine.replay_skipped` line naming the card ids (#152).
+
+### Why
+
+On 2026-09-09 a card-id migration left eight events from the retired id space in one browser's
+outbox. The server refused every batch containing them, so the 49 good reviews queued behind them
+never landed either, for two weeks, with the reason visible only in DevTools. Refusing was the bug:
+a device holding work the server will not take cannot be wiped without losing it.
+
 ## [0.1.39] — 2026-09-10
 
 MINOR — `/api/years` now reports a schedule-aware memorize backlog per year.

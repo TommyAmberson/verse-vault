@@ -1,7 +1,7 @@
 // Smoke test for verse-vault-wasm.
 // Run with: node crates/wasm/test-smoke.js
 
-import { WasmEngine } from './pkg/verse_vault_wasm.js';
+import { WasmEngine, max_emission_config_json } from './pkg/verse_vault_wasm.js';
 
 // John 3:16 (partial) — 9 words split into 4 phrases of 2/2/2/3.
 // Structural shape: no NKJV verse text on the wire; api.bible composes
@@ -114,5 +114,17 @@ if (phraseStates.length === 0 || !ranged) {
   process.exit(1);
 }
 console.log(`${phraseStates.length} phrase states all use the range identity`);
+
+// The max-emission config must build, and must emit strictly more than
+// the empty-config fallback here: with clubs: [] the verse sits in Full,
+// and only the widest config turns on its VerseInClub card.
+const maxEngine = new WasmEngine(JSON.stringify(material), max_emission_config_json(), '', '', NOW);
+const maxCards = maxEngine.new_card_count();
+const baseCards = new WasmEngine(JSON.stringify(material), '', '', '', NOW).new_card_count();
+console.log(`Max-emission config emits ${maxCards} cards (fallback config: ${baseCards})`);
+if (maxCards <= baseCards) {
+  console.error('FAIL: max-emission config should emit more cards than the fallback');
+  process.exit(1);
+}
 
 console.log('\n✓ All smoke-test assertions passed');

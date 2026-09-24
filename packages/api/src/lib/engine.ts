@@ -1,13 +1,15 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import { and, asc, desc, eq } from 'drizzle-orm';
-import { WasmEngine } from 'verse-vault-wasm';
+import { WasmEngine, max_emission_config_json } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import { type Grade, writeTestStates } from './review-log.js';
 import { type UserMaterial, userMaterialKey } from './keys.js';
 import { getMaterialJson } from './materials.js';
+import { type PendingRow, resolveHeld } from './pending-events.js';
+import { REPAIRS, type Repair } from './repairs.js';
 import { loadSchedule } from './schedules.js';
 import { legacyToNew, type YearSettings } from './year-settings.js';
 
@@ -416,7 +418,7 @@ export function readTestStateEntries(
     });
 }
 
-export interface EvictionOptions {
+export interface EngineStoreOptions {
   /** Hard cap on cached engines. The least-recently-used entry is
    *  evicted to make room when a `load()` would otherwise exceed this.
    *  Sized as a safety net for unexpected concurrent peaks; the idle
@@ -430,6 +432,9 @@ export interface EvictionOptions {
   idleTtlSecs?: number;
   /** How often the reaper walks the cache. */
   reaperIntervalSecs?: number;
+  /** Repairs tried on unusable pending events at build. Defaults to the
+   *  shipped `REPAIRS`; tests inject their own. */
+  repairs?: readonly Repair[];
 }
 
 const DEFAULT_MAX_ENTRIES = 128;
@@ -443,12 +448,17 @@ const DEFAULT_REAPER_INTERVAL_SECS = 60;
  *  (api.bible cache fetch + DB transaction) comfortably fits in 30 s. */
 const PENDING_FREE_GRACE_SECS = 30;
 
+/** How an id relates to the cards a material can produce. `not-emitted`
+ *  is a card some reachable setting produces but the learner's current
+ *  config does not, e.g. one whose kind or club they switched off. */
+export type CardIdClass = 'emitted' | 'not-emitted' | 'unknown';
+
 /**
  * Per-(user, material) engine cache + serialisation.
  *
  * Cache: WasmEngine instances live across requests so we don't re-parse the
  * MaterialData blob on every call. Bounded by an LRU cap + idle TTL —
- * see `EvictionOptions`. The reaper has to be started explicitly via
+ * see `EngineStoreOptions`. The reaper has to be started explicitly via
  * `start()` so tests can drive eviction synchronously via `reap()`.
  *
  * Serialisation: `WasmEngine.replay_event` is `&mut self` at the WASM
@@ -470,9 +480,19 @@ export class EngineStore {
    *  change that stashes a `LoadedEngine` somewhere it shouldn't. */
   private readonly pendingFree: { entry: CacheEntry; evictedAt: number }[] = [];
   private reaperHandle: NodeJS.Timeout | null = null;
+  /** One engine per material content, built from core's max-emission
+   *  config, to classify ids the learner's own engine lacks. Keyed by
+   *  content sha rather than per user because the config is fixed, so
+   *  every learner on the same deck shares it. */
+  private readonly maxEmissionEngines = new Map<string, { sha: string; engine: WasmEngine }>();
+  /** Count of max-emission engines built, for tests asserting the cache
+   *  holds. */
+  maxEmissionEngineBuilds = 0;
+
   private readonly maxEntries: number;
   private readonly idleTtlSecs: number;
   private readonly reaperIntervalSecs: number;
+  private readonly repairs: readonly Repair[];
 
   constructor(
     private readonly db: DB,
@@ -481,11 +501,12 @@ export class EngineStore {
      *  inject a stub to drive snapshot-bump scenarios; production
      *  defaults to the on-disk loader. */
     private readonly loadBundledJson: (id: string) => string = getMaterialJson,
-    options: EvictionOptions = {},
+    options: EngineStoreOptions = {},
   ) {
     this.maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES;
     this.idleTtlSecs = options.idleTtlSecs ?? DEFAULT_IDLE_TTL_SECS;
     this.reaperIntervalSecs = options.reaperIntervalSecs ?? DEFAULT_REAPER_INTERVAL_SECS;
+    this.repairs = options.repairs ?? REPAIRS;
   }
 
   /**
@@ -565,6 +586,15 @@ export class EngineStore {
       BigInt(this.now()),
     );
 
+    // A promoted review changes its card's FSRS path from its recorded
+    // time on, and the materialised states this engine was built from
+    // don't have it. Only a replay of the log orders it correctly.
+    const promoted = this.promotePending(key, engine);
+    if (promoted.some((row) => row.kind === 'review')) {
+      engine.free();
+      return this.rebuildFromEvents(key);
+    }
+
     // Cards built from MaterialData start as `New`; apply every recorded
     // graduation so the in-memory engine matches the user's actual progress.
     // Verse-bulk first, then per-card — order doesn't matter for state
@@ -608,6 +638,56 @@ export class EngineStore {
   }
 
   /**
+   * Classify card ids against what this material can produce. The
+   * learner's own engine answers for anything it emits; only a miss
+   * consults the max-emission engine, so the common case costs one
+   * `has_card` per distinct id and never builds a second engine.
+   */
+  classifyCardIds(
+    key: EngineKey,
+    engine: WasmEngine,
+    cardIds: Iterable<number>,
+  ): Map<number, CardIdClass> {
+    const out = new Map<number, CardIdClass>();
+    let max: WasmEngine | undefined;
+    for (const id of cardIds) {
+      if (out.has(id)) continue;
+      if (engine.has_card(id)) {
+        out.set(id, 'emitted');
+        continue;
+      }
+      max ??= this.maxEmissionEngine(key.materialId);
+      out.set(id, max.has_card(id) ? 'not-emitted' : 'unknown');
+    }
+    return out;
+  }
+
+  /** Resolve held events for this material against a freshly built
+   *  engine: repairs, then promotion (see `resolveHeld`). */
+  private promotePending(key: EngineKey, engine: WasmEngine): PendingRow[] {
+    return resolveHeld(this.db, key, {
+      engine,
+      repairs: this.repairs,
+      classify: (ids) => this.classifyCardIds(key, engine, ids),
+      nowSecs: this.now(),
+    });
+  }
+
+  private maxEmissionEngine(materialId: string): WasmEngine {
+    const json = this.loadBundledJson(materialId);
+    const sha = sha256Memo(json);
+    const cached = this.maxEmissionEngines.get(materialId);
+    if (cached?.sha === sha) return cached.engine;
+    // Nothing holds a reference across calls (classifyCardIds is
+    // synchronous), so a deck update can free the old engine at once.
+    cached?.engine.free();
+    const engine = new WasmEngine(json, max_emission_config_json(), '', '[]', BigInt(this.now()));
+    this.maxEmissionEngines.set(materialId, { sha, engine });
+    this.maxEmissionEngineBuilds += 1;
+    return engine;
+  }
+
+  /**
    * Drop the in-memory engine and recompute test_states from the full
    * event log. Used by the sync handler when an incoming batch carries
    * events older than what's already been applied for the same card —
@@ -638,6 +718,8 @@ export class EngineStore {
       '[]',
       BigInt(this.now()),
     );
+    // Before the reads below, so promoted rows are part of them.
+    this.promotePending(key, engine);
 
     // Graduations live outside reviewEvents; apply them upfront so the
     // rebuilt engine's card-lifecycle state matches what a fresh
@@ -679,8 +761,30 @@ export class EngineStore {
       )
       .orderBy(asc(schema.reviewEvents.timestampSecs), asc(schema.reviewEvents.clientEventId))
       .all();
+    // Replay must be total: a row naming a card the engine does not have
+    // is skipped, not thrown, or one bad row fails every future rebuild
+    // for this material and the learner's state freezes for good. Checked
+    // up front rather than caught, so a genuine engine failure still
+    // throws instead of leaving a broken engine cached. Skipping is still
+    // data not counting, so it is logged as one structured line.
+    const skippedCardIds: number[] = [];
     for (const e of events) {
+      if (!engine.has_card(e.cardId)) {
+        skippedCardIds.push(e.cardId);
+        continue;
+      }
       engine.replay_event(e.cardId, e.grade as Grade, BigInt(e.timestampSecs));
+    }
+    if (skippedCardIds.length > 0) {
+      console.warn(
+        JSON.stringify({
+          event: 'engine.replay_skipped',
+          userId: key.userId,
+          materialId: key.materialId,
+          skipped: skippedCardIds.length,
+          skippedCardIds: [...new Set(skippedCardIds)],
+        }),
+      );
     }
 
     const rebuiltStates = JSON.parse(engine.export_test_states()) as TestStateEntry[];
@@ -877,5 +981,7 @@ export class EngineStore {
     this.tails.clear();
     for (const item of this.pendingFree) item.entry.engine.free();
     this.pendingFree.length = 0;
+    for (const { engine } of this.maxEmissionEngines.values()) engine.free();
+    this.maxEmissionEngines.clear();
   }
 }

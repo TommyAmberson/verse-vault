@@ -104,6 +104,54 @@ Per-user verse-graduation log. Cards built from MaterialData start in `CardState
 load, `EngineStore.load` calls `engine.graduate_verse(verseId)` for every row in this table to flip
 the cards into `Active`. Primary key `(user_id, material_id, verse_id)`.
 
+### `pending_events` — taken, not applied
+
+Events the sync upload took but could not apply. The server takes every event a client offers
+(constitution principle VI), so one it cannot apply now rests here with its reason rather than in
+the learner's browser. Replay never reads this table: `review_events` stays the only log replay
+walks, and a row lands there only if the engine could resolve it.
+
+| column                  | notes                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `client_event_id`       | the client's idempotency key; nullable, because a malformed event is taken too                 |
+| `kind`                  | `review`, `graduate` or `graduateCard`; nullable for the same reason                           |
+| `timestamp_secs`        | when the event happened, per the client; promotion writes the real row at this time            |
+| `payload_json`          | the event to apply: as uploaded, or as a repair rewrote it                                     |
+| `original_payload_json` | the event as uploaded, set when a repair rewrites `payload_json`                               |
+| `repaired_by`           | id of the repair that rewrote the event                                                        |
+| `repair_epoch`          | the set of shipped repairs last offered this row; `NULL` until the first build                 |
+| `status`                | `pending` (may apply later), `unusable` (will not as things stand), `discarded`, or `repaired` |
+| `reason_code`           | `card-not-emitted`, `not-enrolled`, `awaiting-confirmation`, `card-unknown`, or `malformed`    |
+| `reason`                | prose for operators                                                                            |
+| `received_at`           | when the server took it                                                                        |
+
+Unique on `(user_id, material_id, client_event_id)`, so a retried upload cannot duplicate a row;
+SQLite treats `NULL`s as distinct, so id-less malformed events never collide. Indexed on
+`(user_id, material_id, status)` for the engine-build probe and the operator count. `material_id` is
+not a foreign key: a `not-enrolled` row may name a material with no enrolment.
+
+A `pending` row leaves by promotion: engine build writes it to `review_events` or `graduated_*` at
+its recorded time and deletes it in the same transaction, so the two never coexist. Build promotes
+`card-not-emitted` and `not-enrolled` rows; `awaiting-confirmation` rows wait for the learner's
+answer on `POST /api/sync/:materialId/confirm`, which promotes them or marks them `discarded`. Build
+re-judges every row it resolves with the same rule the upload uses: one whose card no config emits
+any more, say after a deck update, is demoted to `unusable` / `card-unknown`. An `unusable` row
+stays retryable. Shipped repairs (`packages/api/src/lib/repairs.ts`) are offered to every unusable
+row a build finds whose `repair_epoch` is not the current set of repairs, so each repair runs once
+per row. The first output that is a well-formed event whose card some config emits replaces
+`payload_json`, keeping the upload in `original_payload_json` and the repair in `repaired_by`, and
+the row becomes `pending`, promoted like any other once its card is emitted. A promoted repaired row
+is kept as `status = 'repaired'` rather than deleted, as the record of what arrived and what changed
+it. `discarded` rows are never offered to a repair; discarding was the learner's decision. Nothing
+deletes a row in any terminal status.
+
+Operators see stranded work in one query:
+
+```sql
+SELECT user_id, material_id, status, reason_code, count(*)
+FROM pending_events GROUP BY 1, 2, 3, 4;
+```
+
 ### `apibible_passages` + `apibible_sections`
 
 Cached api.bible content. Per the
@@ -148,6 +196,14 @@ Either everything lands or nothing does, so the log and the materialised cache n
 4. Every `graduated_verses` row for `(user, material)`, applied via
    `engine.graduate_verse(verseId)`.
 
+Between building the engine and step 4, pending events the engine can now resolve are promoted into
+their real tables (see `pending_events`). A promoted review sends `load` through `rebuildFromEvents`
+instead, because materialised states cannot reflect a review that lands before history already
+applied.
+
+Replay is total: `rebuildFromEvents` skips a `review_events` row the engine cannot resolve and logs
+an `engine.replay_skipped` line, rather than throwing on every rebuild of that material for good.
+
 Engines are cached in-process keyed by `(user_id, material_id)` — the Node process is long-running,
 so reloading per request would be wasteful. The cache is invalidated on snapshot bumps and on
 material-picker writes (`invalidate(key)`).
@@ -161,16 +217,24 @@ Credit assignment and FSRS updates are pure functions of
 ### Upload flow — `POST /api/sync/:materialId/events`
 
 1. Client sends a batch of events, each keyed by a client-generated `clientEventId` (UUID).
-2. Server rejects the batch (409) if any event's `snapshotVersion` doesn't match the current
-   snapshot — the client must re-pull `/state` before syncing.
-3. Server filters out events whose `clientEventId` already exists for this `(user, material)`.
-   Remaining events are sorted by `(timestampSecs, clientEventId)` for stable ordering.
-4. For each fresh event the server calls `WasmEngine.replay_event(cardId, grade, timestampSecs)` —
-   the same call the thin-client `/api/cards/review` route uses, just batched.
-5. In a single transaction the server appends the new events and upserts the touched `test_states`
-   rows.
-6. The response returns the full set of test states plus the new `lastEventId` so the client can
-   replace its local cache in one shot.
+2. Malformed events are set aside as `unusable`. If the account is not enrolled, every other event
+   is set aside as `pending` / `not-enrolled`.
+3. Server refuses the request (409) if a well-formed event's `snapshotVersion` doesn't match the
+   current snapshot; the client re-pulls `/state`, re-stamps, and uploads again.
+4. Server marks events whose `clientEventId` already exists in `review_events` or `pending_events`
+   as duplicates, and sets aside any whose card the engine cannot resolve (`pending` if some config
+   emits it, `unusable` if none does). Remaining events are sorted by
+   `(timestampSecs, clientEventId)` for stable ordering.
+5. A batch past the stale-merge threshold is set aside whole as `awaiting-confirmation`, and the
+   learner is asked.
+6. Otherwise, for each applicable event the server calls
+   `WasmEngine.replay_event(cardId, grade, timestampSecs)`, the same call the thin-client
+   `/api/cards/review` route uses, just batched.
+7. In a single transaction the server appends the new events, inserts everything set aside into
+   `pending_events`, and upserts the touched `test_states` rows.
+8. The response reports a disposition per event and returns the full set of test states plus the new
+   `lastEventId`, so the client can replace its local cache in one shot and delete every event it
+   sent.
 
 ### Determinism contract
 

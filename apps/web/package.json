@@ -1,6 +1,6 @@
 {
   "name": "@verse-vault/web",
-  "version": "0.9.17",
+  "version": "0.9.18",
   "private": true,
   "type": "module",
   "scripts": {
@@ -29,6 +29,7 @@
     "@types/node": "^24.10.13",
     "@vitejs/plugin-vue": "^6.0.4",
     "@vue/tsconfig": "^0.8.1",
+    "fake-indexeddb": "^6.2.5",
     "npm-run-all2": "^8.0.4",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
