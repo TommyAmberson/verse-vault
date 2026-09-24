@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { pendingEvents } from '../db/schema.js';
+import { graduatedCards, pendingEvents } from '../db/schema.js';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import {
   countForOperator,
   hasPromotable,
   heldClientEventIds,
   markDiscarded,
-  promote,
+  rejudgeHeld,
   summariseAwaitingConfirmation,
   take,
   type TakeInput,
@@ -142,35 +142,39 @@ describe('pending-events', () => {
     ]);
   });
 
-  it('promotes only rows the caller applied, deleting them in the same transaction', () => {
+  it('applies only rows judged to apply, retiring them in the same transaction', () => {
     const db = setup();
+    const card = (id: string, cardId: number) =>
+      input({ clientEventId: id, payload: { kind: 'graduateCard', clientEventId: id, cardId } });
     take(db, KEY, [
-      input({ clientEventId: 'yes' }),
-      input({ clientEventId: 'no' }),
-      input({ clientEventId: 'wait', reasonCode: 'awaiting-confirmation' }),
+      card('yes', 1),
+      card('no', 2),
+      card('gone', 3),
+      { ...card('wait', 1), reasonCode: 'awaiting-confirmation' },
     ], NOW);
+    const classes = new Map([
+      [1, 'emitted'],
+      [2, 'not-emitted'],
+      [3, 'unknown'],
+    ] as const);
 
-    expect(hasPromotable(db, KEY, ['card-not-emitted'])).toBe(true);
-    const seen: string[] = [];
-    const promoted = promote(db, KEY, ['card-not-emitted'], (_tx, row) => {
-      seen.push(row.clientEventId!);
-      return row.clientEventId === 'yes';
-    });
+    const applied = rejudgeHeld(db, KEY, ['card-not-emitted'], () => classes);
 
-    expect(seen.sort()).toEqual(['no', 'yes']);
-    expect(promoted.map((r) => r.clientEventId)).toEqual(['yes']);
-    const left = db.select().from(pendingEvents).all().map((r) => r.clientEventId).sort();
-    expect(left).toEqual(['no', 'wait']);
+    expect(applied.map((r) => r.clientEventId)).toEqual(['yes']);
+    expect(db.select().from(graduatedCards).all().map((r) => r.cardId)).toEqual([1]);
+    const left = Object.fromEntries(
+      db.select().from(pendingEvents).all().map((r) => [r.clientEventId, r.status]),
+    );
+    expect(left).toEqual({ no: 'pending', gone: 'unusable', wait: 'pending' });
   });
 
-  it('rolls a promotion back when applying throws', () => {
+  it('rolls a re-judge back when it fails part-way', () => {
     const db = setup();
     take(db, KEY, [input({ clientEventId: 'a' }), input({ clientEventId: 'b' })], NOW);
 
     expect(() =>
-      promote(db, KEY, ['card-not-emitted'], (_tx, row) => {
-        if (row.clientEventId === 'b') throw new Error('boom');
-        return true;
+      rejudgeHeld(db, KEY, ['card-not-emitted'], () => {
+        throw new Error('boom');
       })
     ).toThrow('boom');
     expect(db.select().from(pendingEvents).all()).toHaveLength(2);

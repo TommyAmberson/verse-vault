@@ -580,7 +580,7 @@ describe('EngineStore.classifyCardIds', () => {
     expect(loaded.engine.has_card(0)).toBe(true);
     const off = switchedOffCardId(loaded.engine, key.materialId);
 
-    const classes = store.classifyCardIds(key, loaded, [0, off, 999_999_999]);
+    const classes = store.classifyCardIds(key, loaded.engine, [0, off, 999_999_999]);
 
     expect(classes.get(0)).toBe('emitted');
     expect(classes.get(off)).toBe('not-emitted');
@@ -597,10 +597,10 @@ describe('EngineStore.classifyCardIds', () => {
     using a = await store.load(key);
     using b = await store.load({ userId: 'u2', materialId: key.materialId });
 
-    store.classifyCardIds(key, a, [999_999_999]);
-    store.classifyCardIds({ userId: 'u2', materialId: key.materialId }, b, [999_999_998]);
+    store.classifyCardIds(key, a.engine, [999_999_999]);
+    store.classifyCardIds({ userId: 'u2', materialId: key.materialId }, b.engine, [999_999_998]);
     // An id the current engine has never needs the second engine.
-    store.classifyCardIds(key, a, [0]);
+    store.classifyCardIds(key, a.engine, [0]);
 
     expect(store.maxEmissionEngineBuilds).toBe(1);
     store.clear();
@@ -711,23 +711,37 @@ describe('EngineStore promotion of pending events', () => {
     expect(byKey(lateStates)).toEqual(byKey(onTimeStates));
   });
 
-  it('leaves an event it still cannot apply pending, without moving stateRev', async () => {
+  it('holds what it cannot apply without moving stateRev, re-judging each row', async () => {
     const db = setup();
     const before = computeStateRev(db, key.userId, key.materialId);
+    let off: number;
+    {
+      using loaded = await new EngineStore(db).load(key);
+      off = switchedOffCardId(loaded.engine, key.materialId);
+    }
     take(db, key, [
-      held({ payload: review('x', 1_790_000_000, 999_999_999) }),
-      held({ payload: review('y', 1_790_000_000), reasonCode: 'awaiting-confirmation' }),
+      held({ payload: review('off', 1_790_000_000, off) }),
+      held({ payload: review('gone', 1_790_000_000, 999_999_999) }),
+      held({ payload: review('wait', 1_790_000_000), reasonCode: 'awaiting-confirmation' }),
+      held({ payload: review('new', 1_790_000_000, 999_999_998), reasonCode: 'not-enrolled' }),
     ], 1_790_000_500);
 
     const store = new EngineStore(db);
     using _loaded = await store.load(key);
 
-    // The unresolvable one waits, and so does the one awaiting the
-    // learner's answer (FR-007's exception), though it could apply.
-    expect(db.select().from(pendingEvents).all().map((r) => r.clientEventId).sort()).toEqual([
-      'x',
-      'y',
-    ]);
+    // A switched-off card keeps waiting. A card no config emits any more
+    // is demoted to unusable, where repairs can reach it, whatever it was
+    // held for. The one awaiting the learner's answer is left alone
+    // (FR-007's exception), though it could apply.
+    const byId = Object.fromEntries(
+      db.select().from(pendingEvents).all().map((r) => [r.clientEventId, [r.status, r.reasonCode]]),
+    );
+    expect(byId).toEqual({
+      off: ['pending', 'card-not-emitted'],
+      gone: ['unusable', 'card-unknown'],
+      wait: ['pending', 'awaiting-confirmation'],
+      new: ['unusable', 'card-unknown'],
+    });
     expect(db.select().from(reviewEvents).all()).toHaveLength(0);
     expect(computeStateRev(db, key.userId, key.materialId)).toBe(before);
     store.clear();

@@ -111,19 +111,19 @@ Events the sync upload took but could not apply. The server takes every event a 
 the learner's browser. Replay never reads this table: `review_events` stays the only log replay
 walks, and a row lands there only if the engine could resolve it.
 
-| column                  | notes                                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------------------- |
-| `client_event_id`       | the client's idempotency key; nullable, because a malformed event is taken too                          |
-| `kind`                  | `review`, `graduate` or `graduateCard`; nullable for the same reason                                    |
-| `timestamp_secs`        | when the event happened, per the client; promotion writes the real row at this time                     |
-| `payload_json`          | the event to apply: as uploaded, or as a repair rewrote it                                              |
-| `original_payload_json` | the event as uploaded, set when a repair rewrites `payload_json`                                        |
-| `repaired_by`           | id of the repair that rewrote the event                                                                 |
-| `repair_epoch`          | the set of shipped repairs last offered this row; `NULL` until the first build                          |
-| `status`                | `pending` (may apply later), `unusable` (will not as things stand), `discarded`, or `repaired`          |
-| `reason_code`           | `card-not-emitted`, `not-enrolled`, `awaiting-confirmation`, `repaired`, `card-unknown`, or `malformed` |
-| `reason`                | prose for operators                                                                                     |
-| `received_at`           | when the server took it                                                                                 |
+| column                  | notes                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `client_event_id`       | the client's idempotency key; nullable, because a malformed event is taken too                 |
+| `kind`                  | `review`, `graduate` or `graduateCard`; nullable for the same reason                           |
+| `timestamp_secs`        | when the event happened, per the client; promotion writes the real row at this time            |
+| `payload_json`          | the event to apply: as uploaded, or as a repair rewrote it                                     |
+| `original_payload_json` | the event as uploaded, set when a repair rewrites `payload_json`                               |
+| `repaired_by`           | id of the repair that rewrote the event                                                        |
+| `repair_epoch`          | the set of shipped repairs last offered this row; `NULL` until the first build                 |
+| `status`                | `pending` (may apply later), `unusable` (will not as things stand), `discarded`, or `repaired` |
+| `reason_code`           | `card-not-emitted`, `not-enrolled`, `awaiting-confirmation`, `card-unknown`, or `malformed`    |
+| `reason`                | prose for operators                                                                            |
+| `received_at`           | when the server took it                                                                        |
 
 Unique on `(user_id, material_id, client_event_id)`, so a retried upload cannot duplicate a row;
 SQLite treats `NULL`s as distinct, so id-less malformed events never collide. Indexed on
@@ -133,15 +133,17 @@ not a foreign key: a `not-enrolled` row may name a material with no enrolment.
 A `pending` row leaves by promotion: engine build writes it to `review_events` or `graduated_*` at
 its recorded time and deletes it in the same transaction, so the two never coexist. Build promotes
 `card-not-emitted` and `not-enrolled` rows; `awaiting-confirmation` rows wait for the learner's
-answer on `POST /api/sync/:materialId/confirm`, which promotes them or marks them `discarded`. An
-`unusable` row stays retryable. Shipped repairs (`packages/api/src/lib/repairs.ts`) are offered to
-every unusable row a build finds whose `repair_epoch` is not the current set of repairs, so each
-repair runs once per row. The first output that is a well-formed event whose card some config emits
-replaces `payload_json`, keeping the upload in `original_payload_json` and the repair in
-`repaired_by`, and the row becomes `pending` / `repaired`, promoted like any other once its card is
-emitted. A promoted repaired row is kept as `status = 'repaired'` rather than deleted, as the record
-of what arrived and what changed it. `discarded` rows are never offered to a repair; discarding was
-the learner's decision. Nothing deletes a row in any terminal status.
+answer on `POST /api/sync/:materialId/confirm`, which promotes them or marks them `discarded`. Build
+re-judges every row it resolves with the same rule the upload uses: one whose card no config emits
+any more, say after a deck update, is demoted to `unusable` / `card-unknown`. An `unusable` row
+stays retryable. Shipped repairs (`packages/api/src/lib/repairs.ts`) are offered to every unusable
+row a build finds whose `repair_epoch` is not the current set of repairs, so each repair runs once
+per row. The first output that is a well-formed event whose card some config emits replaces
+`payload_json`, keeping the upload in `original_payload_json` and the repair in `repaired_by`, and
+the row becomes `pending`, promoted like any other once its card is emitted. A promoted repaired row
+is kept as `status = 'repaired'` rather than deleted, as the record of what arrived and what changed
+it. `discarded` rows are never offered to a repair; discarding was the learner's decision. Nothing
+deletes a row in any terminal status.
 
 Operators see stranded work in one query:
 

@@ -10,7 +10,8 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { and, asc, count, eq, inArray, min, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNull, min, ne, or, sql } from 'drizzle-orm';
+import type { WasmEngine } from 'verse-vault-wasm';
 
 import type { DB, Tx } from '../db/client.js';
 import {
@@ -19,10 +20,19 @@ import {
   pendingEvents,
   reviewEvents,
 } from '../db/schema.js';
+import type { CardIdClass } from './engine.js';
 import type { UserMaterial } from './keys.js';
-import { writeGraduatedCard, writeGraduatedVerse, writeReviewEvents } from './review-log.js';
+import { type Repair, repairEpoch } from './repairs.js';
 import {
+  existingEventIds,
+  writeGraduatedCard,
+  writeGraduatedVerse,
+  writeReviewEvents,
+} from './review-log.js';
+import {
+  cardIdOf,
   eventKind,
+  parseUpload,
   type GraduateCardEventUpload,
   type GraduateEventUpload,
   type ReviewEventUpload,
@@ -80,7 +90,7 @@ export function take(
  *  status. The upload route unions this with review_events so a retry
  *  of an event that is waiting is a duplicate, not a second row. */
 export function heldClientEventIds(
-  db: DB,
+  db: DB | Tx,
   key: UserMaterial,
   clientEventIds: string[],
 ): Set<string> {
@@ -99,7 +109,7 @@ export function heldClientEventIds(
   return new Set(rows.map((r) => r.clientEventId).filter((id): id is string => id !== null));
 }
 
-function promotableWhere(key: UserMaterial, codes: PendingReasonCode[]) {
+function promotableWhere(key: UserMaterial, codes: readonly PendingReasonCode[]) {
   return and(
     eq(pendingEvents.userId, key.userId),
     eq(pendingEvents.materialId, key.materialId),
@@ -110,7 +120,11 @@ function promotableWhere(key: UserMaterial, codes: PendingReasonCode[]) {
 
 /** Cheap guard for the engine-build path: one indexed probe, so the
  *  common case of nothing pending costs nothing more. */
-export function hasPromotable(db: DB, key: UserMaterial, codes: PendingReasonCode[]): boolean {
+export function hasPromotable(
+  db: DB,
+  key: UserMaterial,
+  codes: readonly PendingReasonCode[],
+): boolean {
   const row = db
     .select({ id: pendingEvents.id })
     .from(pendingEvents)
@@ -120,44 +134,32 @@ export function hasPromotable(db: DB, key: UserMaterial, codes: PendingReasonCod
   return row !== undefined;
 }
 
-/**
- * Offer every pending row with one of `codes` to `apply`, in recorded
- * order, and delete the rows it applied. `apply` writes the real row
- * with the same transaction handle and returns whether it did; the
- * delete runs in that same transaction, so a pending row and its applied
- * copy never both exist, and a throw rolls the whole promotion back.
- */
-export function promote(
-  db: DB,
-  key: UserMaterial,
-  codes: PendingReasonCode[],
-  apply: (tx: Tx, row: PendingRow) => boolean,
-): PendingRow[] {
-  return db.transaction((tx) => {
-    const candidates = tx
-      .select()
-      .from(pendingEvents)
-      .where(promotableWhere(key, codes))
-      .orderBy(asc(pendingEvents.timestampSecs), asc(pendingEvents.clientEventId))
-      .all();
-    const promoted = candidates.filter((row) => apply(tx, row));
-    const ids = (rows: PendingRow[]) => rows.map((r) => r.id);
-    const repaired = promoted.filter((r) => r.repairedBy !== null);
-    const plain = promoted.filter((r) => r.repairedBy === null);
-    if (plain.length > 0) {
-      tx.delete(pendingEvents).where(inArray(pendingEvents.id, ids(plain))).run();
-    }
-    // A repaired row is the only record of what arrived and what changed
-    // it, so it stays, marked applied. Its client id stays held, so a
-    // re-upload is a duplicate rather than a second application.
-    if (repaired.length > 0) {
-      tx.update(pendingEvents)
-        .set({ status: 'repaired' })
-        .where(inArray(pendingEvents.id, ids(repaired)))
-        .run();
-    }
-    return promoted;
-  });
+function heldRows(tx: Tx, key: UserMaterial, codes: readonly PendingReasonCode[]): PendingRow[] {
+  return tx
+    .select()
+    .from(pendingEvents)
+    .where(promotableWhere(key, codes))
+    .orderBy(asc(pendingEvents.timestampSecs), asc(pendingEvents.clientEventId))
+    .all();
+}
+
+/** Retire rows whose real row was just written. A plain row is deleted,
+ *  so the pair never coexists. A repaired row is the only record of what
+ *  arrived and what changed it, so it stays, marked applied; its client
+ *  id stays held, so a re-upload is a duplicate, not a second apply. */
+function finishPromoted(tx: Tx, promoted: PendingRow[]): void {
+  const ids = (rows: PendingRow[]) => rows.map((r) => r.id);
+  const repaired = promoted.filter((r) => r.repairedBy !== null);
+  const plain = promoted.filter((r) => r.repairedBy === null);
+  if (plain.length > 0) {
+    tx.delete(pendingEvents).where(inArray(pendingEvents.id, ids(plain))).run();
+  }
+  if (repaired.length > 0) {
+    tx.update(pendingEvents)
+      .set({ status: 'repaired' })
+      .where(inArray(pendingEvents.id, ids(repaired)))
+      .run();
+  }
 }
 
 /**
@@ -167,7 +169,7 @@ export function promote(
  * it had never waited. Returns false for a row that is not a well-formed
  * event, which stays where it is.
  */
-export function writeApplied(tx: Tx, key: UserMaterial, row: PendingRow): boolean {
+function writeApplied(tx: Tx, key: UserMaterial, row: PendingRow): boolean {
   if (row.clientEventId === null || row.timestampSecs === null) return false;
   const e = JSON.parse(row.payloadJson) as SyncEventUpload;
   const atSecs = row.timestampSecs;
@@ -319,4 +321,223 @@ export function countForOperator(db: DB): OperatorCount[] {
       asc(pendingEvents.reasonCode),
     )
     .all();
+}
+
+/** What becomes of a well-formed event, given how its card classifies. */
+export type Verdict =
+  | { apply: true }
+  | { apply: false; status: 'pending' | 'unusable'; reasonCode: PendingReasonCode; reason: string };
+
+/**
+ * The one rule for whether an event applies, waits, or is unusable,
+ * shared by the upload, promotion and repairs so the three can never
+ * disagree. A card the learner's config emits applies; one only some
+ * other config emits waits; one no config emits is unusable. A verse
+ * graduation names no card and always applies. An id missing from
+ * `classes` is treated as unknown rather than guessed at.
+ */
+export function judge(e: SyncEventUpload, classes: ReadonlyMap<number, CardIdClass>): Verdict {
+  const cardId = cardIdOf(e);
+  if (cardId === null) return { apply: true };
+  switch (classes.get(cardId) ?? 'unknown') {
+    case 'emitted':
+      return { apply: true };
+    case 'not-emitted':
+      return {
+        apply: false,
+        status: 'pending',
+        reasonCode: 'card-not-emitted',
+        reason: `card id ${cardId} is not emitted by the current config`,
+      };
+    case 'unknown':
+      return {
+        apply: false,
+        status: 'unusable',
+        reasonCode: 'card-unknown',
+        reason: `card id ${cardId} is not produced by any config for this deck`,
+      };
+  }
+}
+
+/** Which of `clientEventIds` this account already holds for the
+ *  material, applied or held. The upload's dedup set, and the check a
+ *  repair's newly assigned id must pass. */
+export function takenClientEventIds(
+  db: DB | Tx,
+  key: UserMaterial,
+  clientEventIds: string[],
+): Set<string> {
+  const taken = existingEventIds(db, key.userId, key.materialId, clientEventIds);
+  for (const id of heldClientEventIds(db, key, clientEventIds)) taken.add(id);
+  return taken;
+}
+
+/** Pending reasons an engine build resolves by itself. `awaiting-
+ *  confirmation` is deliberately absent: it waits for the learner's
+ *  answer, however applicable it is (spec FR-007). */
+const BUILD_RESOLVES: readonly PendingReasonCode[] = ['card-not-emitted', 'not-enrolled'];
+
+export interface ResolveContext {
+  /** The learner's freshly built engine, under their current config. */
+  engine: WasmEngine;
+  repairs: readonly Repair[];
+  classify: (cardIds: number[]) => ReadonlyMap<number, CardIdClass>;
+  nowSecs: number;
+}
+
+/**
+ * Everything an engine build does with held events, in order:
+ *
+ * 1. Offer shipped repairs to unusable rows this set of repairs has not
+ *    seen (research D9). A fix makes the row pending.
+ * 2. Re-judge every row a build resolves (`rejudgeHeld`). One whose card
+ *    no config emits any more is demoted to unusable, where step 1 of a
+ *    later build can reach it.
+ *
+ * Returns the rows applied. The common case of nothing held costs two
+ * indexed probes.
+ */
+export function resolveHeld(db: DB, key: UserMaterial, ctx: ResolveContext): PendingRow[] {
+  repairUnusable(db, key, ctx);
+  return rejudgeHeld(db, key, BUILD_RESOLVES, ctx.classify);
+}
+
+/**
+ * Re-judge every held row with one of `codes`, in one transaction. A row
+ * that now applies is written to its real table at its recorded time
+ * (FR-016) and retired; one that still waits keeps an up-to-date reason;
+ * one whose card no config emits any more is demoted to unusable, where
+ * repairs can reach it. Returns the rows applied.
+ */
+export function rejudgeHeld(
+  db: DB,
+  key: UserMaterial,
+  codes: readonly PendingReasonCode[],
+  classify: ResolveContext['classify'],
+): PendingRow[] {
+  if (!hasPromotable(db, key, codes)) return [];
+  return db.transaction((tx) => {
+    const rows = heldRows(tx, key, codes);
+    const events = rows.map((r) => JSON.parse(r.payloadJson) as SyncEventUpload);
+    const classes = classify(events.map(cardIdOf).filter((id): id is number => id !== null));
+    const applied: PendingRow[] = [];
+    rows.forEach((row, i) => {
+      const verdict = judge(events[i], classes);
+      if (verdict.apply) {
+        if (writeApplied(tx, key, row)) applied.push(row);
+        return;
+      }
+      if (verdict.status === row.status && verdict.reasonCode === row.reasonCode) return;
+      tx.update(pendingEvents)
+        .set({
+          status: verdict.status,
+          reasonCode: verdict.reasonCode,
+          reason: verdict.reason,
+          // A row newly unusable has not been offered this set of repairs.
+          ...(verdict.status === 'unusable' ? { repairEpoch: null } : {}),
+        })
+        .where(eq(pendingEvents.id, row.id))
+        .run();
+    });
+    finishPromoted(tx, applied);
+    return applied;
+  });
+}
+
+/** Step 1 of `resolveHeld`, in one transaction. Every row offered is
+ *  stamped with the current epoch, so each repair runs once per row. */
+function repairUnusable(db: DB, key: UserMaterial, ctx: ResolveContext): void {
+  const epoch = repairEpoch(ctx.repairs);
+  const rows = db
+    .select()
+    .from(pendingEvents)
+    .where(
+      and(
+        eq(pendingEvents.userId, key.userId),
+        eq(pendingEvents.materialId, key.materialId),
+        eq(pendingEvents.status, 'unusable'),
+        or(isNull(pendingEvents.repairEpoch), ne(pendingEvents.repairEpoch, epoch)),
+      ),
+    )
+    .all();
+  if (rows.length === 0) return;
+  const repaired: { row: PendingRow; fix: RepairFix }[] = [];
+  db.transaction((tx) => {
+    for (const row of rows) {
+      const fix = firstRepair(tx, key, row, ctx);
+      tx.update(pendingEvents)
+        .set(
+          fix
+            ? {
+                payloadJson: JSON.stringify(fix.event),
+                // The upload, even when an earlier repair already rewrote it.
+                originalPayloadJson: row.originalPayloadJson ?? row.payloadJson,
+                repairedBy: fix.repairId,
+                clientEventId: fix.event.clientEventId,
+                kind: eventKind(fix.event),
+                timestampSecs: fix.event.timestampSecs,
+                // Provisional: step 2 re-judges it in this same build.
+                status: 'pending',
+                reasonCode: 'card-not-emitted',
+                reason: `repaired by ${fix.repairId}`,
+                repairEpoch: epoch,
+              }
+            : { repairEpoch: epoch },
+        )
+        .where(eq(pendingEvents.id, row.id))
+        .run();
+      if (fix) repaired.push({ row, fix });
+    }
+  });
+  for (const { row, fix } of repaired) {
+    console.warn(
+      JSON.stringify({
+        event: 'engine.event_repaired',
+        userId: key.userId,
+        materialId: key.materialId,
+        pendingId: row.id,
+        clientEventId: fix.event.clientEventId,
+        repairId: fix.repairId,
+      }),
+    );
+  }
+}
+
+interface RepairFix {
+  repairId: string;
+  event: SyncEventUpload;
+}
+
+/** The first shipped repair whose output parses as an upload would and
+ *  is not judged unusable, or `null`. */
+function firstRepair(
+  tx: Tx,
+  key: UserMaterial,
+  row: PendingRow,
+  ctx: ResolveContext,
+): RepairFix | null {
+  for (const r of ctx.repairs) {
+    let out: unknown;
+    try {
+      out = r.repair(JSON.parse(row.payloadJson), { key, engine: ctx.engine });
+    } catch (err) {
+      console.error(`pending-events: repair ${r.id} threw on pending event ${row.id}`, err);
+      continue;
+    }
+    if (out === null || out === undefined) continue;
+    const event = parseUpload(out, ctx.nowSecs).event;
+    if (!event) continue;
+    // An id the event already had is its identity; one it lacked must
+    // not collide with an event either table already holds.
+    if (row.clientEventId !== null) {
+      if (event.clientEventId !== row.clientEventId) continue;
+    } else if (takenClientEventIds(tx, key, [event.clientEventId]).size > 0) {
+      continue;
+    }
+    const cardId = cardIdOf(event);
+    const verdict = judge(event, ctx.classify(cardId === null ? [] : [cardId]));
+    if (!verdict.apply && verdict.status === 'unusable') continue;
+    return { repairId: r.id, event };
+  }
+  return null;
 }

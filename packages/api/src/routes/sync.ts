@@ -17,19 +17,20 @@ import {
 import { getMaterialJson } from '../lib/materials.js';
 import {
   hasPromotable,
-  heldClientEventIds,
+  judge,
   markDiscarded,
+  rejudgeHeld,
   type PendingRow,
   mergeQuestion,
-  promote,
   serverEventsSince,
   take,
+  takenClientEventIds,
   type TakeInput,
-  writeApplied,
 } from '../lib/pending-events.js';
 import type { UserMaterial } from '../lib/keys.js';
 import { computeStateRev } from '../lib/state-rev.js';
 import {
+  cardIdOf,
   eventKind,
   type GraduateCardEventUpload,
   type GraduateEventUpload,
@@ -37,10 +38,8 @@ import {
   type ReviewEventUpload,
   type SyncEventUpload,
   type UploadIds,
-  uploadIds,
 } from '../lib/sync-events.js';
 import {
-  existingEventIds,
   type ReviewEventInput,
   persistEngineState,
   writeGraduatedCard,
@@ -207,37 +206,33 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       });
     };
 
-    const wellFormed: { index: number; event: SyncEventUpload }[] = [];
+    const wellFormed: UploadEntry[] = [];
     events.forEach((raw, index) => {
       const parsed = parseUpload(raw, nowSecs);
-      if (parsed.event) wellFormed.push({ index, event: parsed.event });
+      if (parsed.event) wellFormed.push({ index, event: parsed.event, ids: parsed });
       else setAside(index, parsed, 'unusable', 'malformed', parsed.problem);
     });
+
+    // Already taken, into either table, or earlier in this same request.
+    const seen = takenClientEventIds(
+      deps.db,
+      key,
+      wellFormed.map((w) => w.event.clientEventId),
+    );
+    let duplicates = 0;
 
     const raw = await deps.engines.tryLoad(key);
     if (raw === null) {
       // Not enrolled. Refusing would strand these on the device for
       // good; hold them until the account enrols in this material.
-      const held = heldClientEventIds(
-        deps.db,
-        key,
-        wellFormed.map((w) => w.event.clientEventId),
-      );
-      let duplicates = 0;
-      for (const { index, event } of wellFormed) {
-        if (held.has(event.clientEventId)) {
+      for (const { index, event, ids } of wellFormed) {
+        if (seen.has(event.clientEventId)) {
           dispositions[index] = duplicateOf(index, event);
           duplicates += 1;
-        } else {
-          held.add(event.clientEventId);
-          setAside(
-            index,
-            uploadIds(event),
-            'pending',
-            'not-enrolled',
-            `not enrolled in ${materialId}`,
-          );
+          continue;
         }
+        seen.add(event.clientEventId);
+        setAside(index, ids, 'pending', 'not-enrolled', `not enrolled in ${materialId}`);
       }
       takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
       return c.json({
@@ -269,29 +264,21 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       }
     }
 
-    // Already taken, into either table, or earlier in this same request.
-    const ids = wellFormed.map((w) => w.event.clientEventId);
-    const seen = existingEventIds(deps.db, user.id, materialId, ids);
-    for (const id of heldClientEventIds(deps.db, key, ids)) seen.add(id);
-
-    // Classify card ids before anything persists. An id the learner's
+    // Judge each event before anything persists. An id the learner's
     // engine lacks never reaches review_events or graduated_cards, where
-    // replay would have to cope with it forever. Core's max-emission
+    // replay would have to cope with it forever: core's max-emission
     // config says whether it is a card they switched off (it waits) or
     // one nothing produces (unusable).
     const classes = deps.engines.classifyCardIds(
       key,
-      loaded,
-      wellFormed
-        .filter((w) => eventKind(w.event) !== 'graduate')
-        .map((w) => (w.event as { cardId: number }).cardId),
+      loaded.engine,
+      wellFormed.map((w) => cardIdOf(w.event)).filter((id): id is number => id !== null),
     );
 
-    let duplicates = 0;
     let mergedHere = 0;
-    const applicable: { index: number; event: SyncEventUpload }[] = [];
+    const applicable: UploadEntry[] = [];
     for (const w of wellFormed) {
-      const { index, event } = w;
+      const { index, event, ids } = w;
       if (seen.has(event.clientEventId)) {
         if (mergedIds.delete(event.clientEventId)) {
           dispositions[index] = {
@@ -307,29 +294,10 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         continue;
       }
       seen.add(event.clientEventId);
-      if (eventKind(event) !== 'graduate') {
-        const cardId = (event as { cardId: number }).cardId;
-        const cls = classes.get(cardId);
-        if (cls === 'not-emitted') {
-          setAside(
-            index,
-            uploadIds(event),
-            'pending',
-            'card-not-emitted',
-            `card id ${cardId} is not emitted by the current config`,
-          );
-          continue;
-        }
-        if (cls === 'unknown') {
-          setAside(
-            index,
-            uploadIds(event),
-            'unusable',
-            'card-unknown',
-            `card id ${cardId} is not produced by any config for this deck`,
-          );
-          continue;
-        }
+      const verdict = judge(event, classes);
+      if (!verdict.apply) {
+        setAside(index, ids, verdict.status, verdict.reasonCode, verdict.reason);
+        continue;
       }
       dispositions[index] = { index, clientEventId: event.clientEventId, disposition: 'applied' };
       applicable.push(w);
@@ -366,10 +334,10 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         fresh[0].timestampSecs,
       );
       if (serverEventsSince(deps.db, key, oldestQueuedTs) > STALE_MERGE_THRESHOLD) {
-        for (const { index, event } of applicable) {
+        for (const { index, ids } of applicable) {
           setAside(
             index,
-            uploadIds(event),
+            ids,
             'pending',
             'awaiting-confirmation',
             'batch predates newer history; waiting for the learner to merge or discard it',
@@ -572,12 +540,17 @@ function unchangedResponse(
 
 /** Apply every event held awaiting the learner's merge answer, at its
  *  recorded time, then rebuild: the batch predates applied history by
- *  definition, so only a replay from the log orders it correctly. */
+ *  definition, so only a replay from the log orders it correctly. Each
+ *  event is re-judged first, by the rule the upload used: a card the
+ *  learner has switched off since keeps waiting, and one no config emits
+ *  any more becomes unusable, rather than either reaching the log. */
 async function mergeAwaiting(deps: SyncRoutesDeps, key: UserMaterial): Promise<PendingRow[]> {
   if (!hasPromotable(deps.db, key, ['awaiting-confirmation'])) return [];
-  return deps.engines.withLock(key, async () => {
-    const promoted = promote(deps.db, key, ['awaiting-confirmation'], (tx, row) =>
-      writeApplied(tx, key, row),
+  // Loaded outside the lock, as every route does: load never takes it.
+  using loaded = await deps.engines.load(key);
+  return await deps.engines.withLock(key, async () => {
+    const promoted = rejudgeHeld(deps.db, key, ['awaiting-confirmation'], (ids) =>
+      deps.engines.classifyCardIds(key, loaded.engine, ids),
     );
     // Nothing here reads the rebuilt engine; release the handle at once
     // so the cache holds the only reference.
@@ -602,6 +575,13 @@ function latestEventId(db: DB, userId: string, materialId: string): string | nul
   return latest?.id ?? null;
 }
 
+/** A well-formed upload, its position in the request, and its ids. */
+interface UploadEntry {
+  index: number;
+  event: SyncEventUpload;
+  ids: UploadIds;
+}
+
 /** One event's outcome, reported back to the client by position. */
 interface Disposition {
   index: number;
@@ -621,7 +601,7 @@ function duplicateOf(index: number, event: SyncEventUpload): Disposition {
  *  shape the request logger emits so `journalctl | jq` can join them. */
 function takeNotApplied(
   db: Parameters<typeof take>[0],
-  key: { userId: string; materialId: string },
+  key: UserMaterial,
   notApplied: { index: number; take: TakeInput }[],
   nowSecs: number,
   requestId: string | undefined,

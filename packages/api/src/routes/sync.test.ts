@@ -9,6 +9,7 @@ import {
   reviewEvents,
   testStates,
 } from '../db/schema.js';
+import { take } from '../lib/pending-events.js';
 import { seedEnrolledUser, switchedOffCardId } from '../test-fixtures.js';
 import { type TestApp, createTestApp, signUpTestUser } from '../test-utils.js';
 
@@ -699,6 +700,46 @@ describe('sync routes', () => {
     expect(row?.timestampSecs).toBe(STALE_TS);
     expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
     expect((await getState(test, cookie)).pendingConfirmation).toBeNull();
+  });
+
+  it('re-judges the held batch on merge, keeping out what can no longer apply', async () => {
+    // Between upload and answer a deck update can drop a card. Merging
+    // must not write it to the log, where every rebuild would skip it.
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie, userId } = await enroll(test, 'alice@example.com');
+    await seedNewerHistory(test, cookie);
+    const good = event({ timestampSecs: STALE_TS, grade: 1, cardId: 0 });
+    await upload(test, cookie, [good]);
+    take(test.db, { userId, materialId: MATERIAL_ID }, [
+      {
+        clientEventId: 'dropped',
+        kind: 'review',
+        timestampSecs: STALE_TS,
+        payload: {
+          ...event({ timestampSecs: STALE_TS, cardId: 999_999_999 }),
+          clientEventId: 'dropped',
+        },
+        status: 'pending',
+        reasonCode: 'awaiting-confirmation',
+        reason: 'test',
+      },
+    ], STALE_TS);
+
+    const { status, body } = await confirm(test, cookie, 'merge');
+
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ accepted: 1, rebuilt: true });
+    const logged = test.db.select().from(reviewEvents).all().map((r) => r.clientEventId);
+    expect(logged).toContain(good.clientEventId);
+    expect(logged).not.toContain('dropped');
+    expect(test.db.select().from(pendingEvents).all()).toEqual([
+      expect.objectContaining({
+        clientEventId: 'dropped',
+        status: 'unusable',
+        reasonCode: 'card-unknown',
+      }),
+    ]);
   });
 
   it('marks the held batch discarded, deleting nothing, when discarded', async () => {

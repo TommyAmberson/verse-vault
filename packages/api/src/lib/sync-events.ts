@@ -40,6 +40,12 @@ export function eventKind(e: SyncEventUpload): 'review' | 'graduate' | 'graduate
   return e.kind ?? 'review';
 }
 
+/** The card an event names, or `null` for a verse graduation, which
+ *  names none. */
+export function cardIdOf(e: SyncEventUpload): number | null {
+  return eventKind(e) === 'graduate' ? null : (e as { cardId: number }).cardId;
+}
+
 /** The identifying fields of an upload, as far as they can be read. A
  *  malformed event may have none of them, and is taken anyway. */
 export interface UploadIds {
@@ -51,10 +57,6 @@ export interface UploadIds {
 export type ParsedUpload =
   | (UploadIds & { event: SyncEventUpload; problem?: undefined })
   | (UploadIds & { event?: undefined; problem: string });
-
-export function uploadIds(e: SyncEventUpload): UploadIds {
-  return { clientEventId: e.clientEventId, kind: eventKind(e), timestampSecs: e.timestampSecs };
-}
 
 /** Read one uploaded event. Anything that fails is still taken, as
  *  `unusable` / `malformed`, with the problem as its reason. */

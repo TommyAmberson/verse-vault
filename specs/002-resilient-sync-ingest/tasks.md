@@ -291,7 +291,7 @@ confirm it applied at its recorded time and the row records the repair.
       output is validated exactly as an upload is
 - [X] T059 [US4] Add `original_payload_json` text NULL, `repaired_by` text NULL and `repair_epoch`
       text NULL to `pending_events` in `packages/api/migrations/0029_pending_event_repairs.sql` and
-      `packages/api/src/db/schema.ts`; `status` gains `repaired`, and reason codes gain `repaired`
+      `packages/api/src/db/schema.ts`; `status` gains `repaired`
 - [X] T060 [US4] Create `packages/api/src/lib/repairs.ts`: the `Repair` interface, the shipped
       `REPAIRS` registry (empty until the first repair ships), and the epoch fingerprint
 - [X] T061 [US4] In `packages/api/src/lib/engine.ts`, try repairs on the key's unusable rows before

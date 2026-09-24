@@ -259,14 +259,13 @@ counted as duplicates.
 | `pending`   | May apply later                                                  | `pending_events`, `status = 'pending'`  |
 | `unusable`  | Will not apply as things stand; a shipped repair may change that | `pending_events`, `status = 'unusable'` |
 
-| Reason code             | Status     | Leaves pending when                                              |
-| ----------------------- | ---------- | ---------------------------------------------------------------- |
-| `card-not-emitted`      | `pending`  | An engine build finds the config emits the card again            |
-| `not-enrolled`          | `pending`  | The account enrols in the material                               |
-| `awaiting-confirmation` | `pending`  | The learner answers the merge question                           |
-| `repaired`              | `pending`  | An engine build finds the config emits the repaired event's card |
-| `card-unknown`          | `unusable` | A shipped repair turns it into an id some config emits           |
-| `malformed`             | `unusable` | A shipped repair turns it into a well-formed event               |
+| Reason code             | Status     | Leaves pending when                                    |
+| ----------------------- | ---------- | ------------------------------------------------------ |
+| `card-not-emitted`      | `pending`  | An engine build finds the config emits the card again  |
+| `not-enrolled`          | `pending`  | The account enrols in the material                     |
+| `awaiting-confirmation` | `pending`  | The learner answers the merge question                 |
+| `card-unknown`          | `unusable` | A shipped repair turns it into an id some config emits |
+| `malformed`             | `unusable` | A shipped repair turns it into a well-formed event     |
 
 `card-not-emitted` versus `card-unknown` is the engine's call: an id the learner's engine lacks is
 checked against an engine built from core's `MaterialConfig::max_emission()`, the config that emits
@@ -340,9 +339,10 @@ Answer an open stale-merge question.
 { "decision": "merge" }
 ```
 
-* `merge`: every `awaiting-confirmation` event for this account and material is applied at its
-  recorded time and the engine is rebuilt from the log. Responds like an upload, without
-  `dispositions`.
+* `merge`: every `awaiting-confirmation` event for this account and material is re-judged by the
+  upload's rule, then applied at its recorded time, and the engine is rebuilt from the log. An event
+  whose card the learner has switched off since keeps waiting as `card-not-emitted`; one no config
+  emits any more becomes `unusable`. Responds like an upload, without `dispositions`.
 * `discard`: every such event becomes `status = 'discarded'`. Nothing is deleted. Responds
   `{ "discarded": 57 }`.
 
@@ -351,16 +351,17 @@ device first is not an error. 400 for any other `decision`; 404 if not enrolled.
 
 ### Held events
 
-Engine build (`EngineStore.load` and `rebuildFromEvents`) promotes `card-not-emitted` rows whose
-card the engine now emits and `not-enrolled` rows once enrolled, writing each to its real table at
-its recorded time; a promoted review sends `load` through a rebuild so it replays in order. The
-common case of nothing held costs one indexed probe. `awaiting-confirmation` rows wait for the
+Engine build (`EngineStore.load` and `rebuildFromEvents`) re-judges `card-not-emitted` and
+`not-enrolled` rows with the same rule the upload uses. One whose card the engine now emits is
+written to its real table at its recorded time; a promoted review sends `load` through a rebuild so
+it replays in order. One whose card no config emits any more becomes `unusable` / `card-unknown`.
+The common case of nothing held costs one indexed probe. `awaiting-confirmation` rows wait for the
 learner.
 
 Before promoting, the build offers shipped repairs to `unusable` rows not yet offered this set of
-repairs. One that yields a well-formed event with an emittable card makes the row `pending` /
-`repaired`, and it promotes in the same build if its card is emitted. See
-[`persistence.md`](persistence.md) for how repairs are recorded.
+repairs. One that yields a well-formed event with an emittable card makes the row `pending`, and it
+promotes in the same build if its card is emitted. See [`persistence.md`](persistence.md) for how
+repairs are recorded.
 
 ## Materials — `/api/materials/*`
 

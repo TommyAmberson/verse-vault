@@ -80,14 +80,13 @@ request. `clientEventId` is echoed when the event carried a readable one and is 
 
 ### Reason codes
 
-| Code                    | Status     | Leaves pending when                                               |
-| ----------------------- | ---------- | ----------------------------------------------------------------- |
-| `card-not-emitted`      | `pending`  | The config emits the card again (FR-007)                          |
-| `not-enrolled`          | `pending`  | The account enrols in the material (FR-018)                       |
-| `awaiting-confirmation` | `pending`  | The learner answers the merge question (FR-011)                   |
-| `repaired`              | `pending`  | The config emits the card of the event a repair produced (FR-019) |
-| `card-unknown`          | `unusable` | A repair makes it an id some config emits (research D8, D9)       |
-| `malformed`             | `unusable` | A repair makes it a well-formed event (research D9)               |
+| Code                    | Status     | Leaves pending when                                         |
+| ----------------------- | ---------- | ----------------------------------------------------------- |
+| `card-not-emitted`      | `pending`  | The config emits the card again (FR-007)                    |
+| `not-enrolled`          | `pending`  | The account enrols in the material (FR-018)                 |
+| `awaiting-confirmation` | `pending`  | The learner answers the merge question (FR-011)             |
+| `card-unknown`          | `unusable` | A repair makes it an id some config emits (research D8, D9) |
+| `malformed`             | `unusable` | A repair makes it a well-formed event (research D9)         |
 
 `reason` is human-readable detail for operators. Clients MUST NOT parse it.
 
@@ -153,9 +152,10 @@ does not exist, not a refusal to take work.
 
 `decision` is `merge` or `discard`.
 
-* **merge**: every `awaiting-confirmation` row for this account and material is applied at its
-  recorded time (FR-016), which rebuilds the engine because the rows predate history already
-  applied. Responds with the same body as an upload, dispositions omitted.
+* **merge**: every `awaiting-confirmation` row for this account and material is re-judged by the
+  upload's rule, then applied at its recorded time (FR-016), which rebuilds the engine because the
+  rows predate history already applied. A row that no longer applies keeps waiting or becomes
+  unusable, as at upload. Responds with the same body as an upload, dispositions omitted.
 * **discard**: every such row becomes `status = 'discarded'`. Nothing is deleted. Responds
   `{ "discarded": 57 }`.
 

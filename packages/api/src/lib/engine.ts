@@ -1,22 +1,15 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-import { and, asc, desc, eq, isNull, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { WasmEngine, max_emission_config_json } from 'verse-vault-wasm';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { existingEventIds, type Grade, writeTestStates } from './review-log.js';
+import { type Grade, writeTestStates } from './review-log.js';
 import { type UserMaterial, userMaterialKey } from './keys.js';
 import { getMaterialJson } from './materials.js';
-import {
-  hasPromotable,
-  heldClientEventIds,
-  type PendingRow,
-  promote,
-  writeApplied,
-} from './pending-events.js';
-import { REPAIRS, type Repair, repairEpoch } from './repairs.js';
-import { eventKind, parseUpload, type SyncEventUpload } from './sync-events.js';
+import { type PendingRow, resolveHeld } from './pending-events.js';
+import { REPAIRS, type Repair } from './repairs.js';
 import { loadSchedule } from './schedules.js';
 import { legacyToNew, type YearSettings } from './year-settings.js';
 
@@ -455,11 +448,6 @@ const DEFAULT_REAPER_INTERVAL_SECS = 60;
  *  (api.bible cache fetch + DB transaction) comfortably fits in 30 s. */
 const PENDING_FREE_GRACE_SECS = 30;
 
-/** Pending reasons engine build resolves by itself. `awaiting-confirmation`
- *  is deliberately absent: it waits for the learner's answer, however
- *  applicable it is (spec FR-007). */
-const BUILD_PROMOTABLE = ['card-not-emitted', 'not-enrolled', 'repaired'] as const;
-
 /** How an id relates to the cards a material can produce. `not-emitted`
  *  is a card some reachable setting produces but the learner's current
  *  config does not, e.g. one whose kind or club they switched off. */
@@ -657,14 +645,14 @@ export class EngineStore {
    */
   classifyCardIds(
     key: EngineKey,
-    loaded: { engine: WasmEngine },
+    engine: WasmEngine,
     cardIds: Iterable<number>,
   ): Map<number, CardIdClass> {
     const out = new Map<number, CardIdClass>();
     let max: WasmEngine | undefined;
     for (const id of cardIds) {
       if (out.has(id)) continue;
-      if (loaded.engine.has_card(id)) {
+      if (engine.has_card(id)) {
         out.set(id, 'emitted');
         continue;
       }
@@ -674,123 +662,15 @@ export class EngineStore {
     return out;
   }
 
-  /**
-   * Apply every held event `engine` can now resolve, writing each to its
-   * real table at its recorded time. Runs on a freshly built engine,
-   * before graduations are read or the log is replayed, so promoted rows
-   * join those reads like any other. Shipped repairs get their turn at
-   * unusable rows first, so a repaired event can promote in the same
-   * build. The common case of nothing held costs two indexed probes.
-   */
+  /** Resolve held events for this material against a freshly built
+   *  engine: repairs, then promotion (see `resolveHeld`). */
   private promotePending(key: EngineKey, engine: WasmEngine): PendingRow[] {
-    this.repairUnusable(key, engine);
-    if (!hasPromotable(this.db, key, [...BUILD_PROMOTABLE])) return [];
-    return promote(this.db, key, [...BUILD_PROMOTABLE], (tx, row) => {
-      if (row.kind !== 'graduate') {
-        const cardId = (JSON.parse(row.payloadJson) as { cardId?: unknown }).cardId;
-        if (typeof cardId !== 'number' || !engine.has_card(cardId)) return false;
-      }
-      return writeApplied(tx, key, row);
+    return resolveHeld(this.db, key, {
+      engine,
+      repairs: this.repairs,
+      classify: (ids) => this.classifyCardIds(key, engine, ids),
+      nowSecs: this.now(),
     });
-  }
-
-  /**
-   * Offer the shipped repairs to every unusable row this set of repairs
-   * has not seen (research D9). The first output that is a well-formed
-   * event whose card some config emits replaces the payload, keeping
-   * the original, and the row becomes pending for promotion. Every row
-   * offered is stamped with the epoch, so a repair runs once per row.
-   */
-  private repairUnusable(key: EngineKey, engine: WasmEngine): void {
-    const epoch = repairEpoch(this.repairs);
-    const rows = this.db
-      .select()
-      .from(schema.pendingEvents)
-      .where(
-        and(
-          eq(schema.pendingEvents.userId, key.userId),
-          eq(schema.pendingEvents.materialId, key.materialId),
-          eq(schema.pendingEvents.status, 'unusable'),
-          or(isNull(schema.pendingEvents.repairEpoch), ne(schema.pendingEvents.repairEpoch, epoch)),
-        ),
-      )
-      .all();
-    for (const row of rows) {
-      const fix = this.firstRepair(key, engine, row);
-      this.db
-        .update(schema.pendingEvents)
-        .set(
-          fix
-            ? {
-                payloadJson: JSON.stringify(fix.event),
-                originalPayloadJson: row.payloadJson,
-                repairedBy: fix.repairId,
-                clientEventId: fix.event.clientEventId,
-                kind: eventKind(fix.event),
-                timestampSecs: fix.event.timestampSecs,
-                status: 'pending',
-                reasonCode: 'repaired',
-                reason: `repaired by ${fix.repairId}`,
-                repairEpoch: epoch,
-              }
-            : { repairEpoch: epoch },
-        )
-        .where(eq(schema.pendingEvents.id, row.id))
-        .run();
-      if (fix) {
-        console.warn(
-          JSON.stringify({
-            event: 'engine.event_repaired',
-            userId: key.userId,
-            materialId: key.materialId,
-            pendingId: row.id,
-            clientEventId: fix.event.clientEventId,
-            repairId: fix.repairId,
-          }),
-        );
-      }
-    }
-  }
-
-  private firstRepair(
-    key: EngineKey,
-    engine: WasmEngine,
-    row: PendingRow,
-  ): { repairId: string; event: SyncEventUpload } | null {
-    const nowSecs = this.now();
-    for (const r of this.repairs) {
-      let out: unknown;
-      try {
-        out = r.repair(JSON.parse(row.payloadJson), { key, engine });
-      } catch (err) {
-        console.error(`EngineStore: repair ${r.id} threw on pending event ${row.id}`, err);
-        continue;
-      }
-      if (out === null || out === undefined) continue;
-      const parsed = parseUpload(out, nowSecs);
-      const event = parsed.event;
-      if (!event) continue;
-      // An id the event already had is its identity; one it lacked must
-      // not collide with an event either table already holds.
-      if (row.clientEventId !== null) {
-        if (event.clientEventId !== row.clientEventId) continue;
-      } else if (this.clientEventIdTaken(key, event.clientEventId)) {
-        continue;
-      }
-      if (eventKind(event) !== 'graduate') {
-        const cardId = (event as { cardId: number }).cardId;
-        if (this.classifyCardIds(key, { engine }, [cardId]).get(cardId) === 'unknown') continue;
-      }
-      return { repairId: r.id, event };
-    }
-    return null;
-  }
-
-  private clientEventIdTaken(key: EngineKey, clientEventId: string): boolean {
-    return (
-      existingEventIds(this.db, key.userId, key.materialId, [clientEventId]).size > 0 ||
-      heldClientEventIds(this.db, key, [clientEventId]).size > 0
-    );
   }
 
   private maxEmissionEngine(materialId: string): WasmEngine {

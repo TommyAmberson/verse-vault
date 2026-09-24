@@ -265,8 +265,7 @@ export type PendingReasonCode =
   | 'not-enrolled'
   | 'awaiting-confirmation'
   | 'card-unknown'
-  | 'malformed'
-  | 'repaired';
+  | 'malformed';
 
 /** `repaired` is terminal: a repaired event that was applied. Kept, not
  *  deleted, as the record of what arrived and which repair changed it. */

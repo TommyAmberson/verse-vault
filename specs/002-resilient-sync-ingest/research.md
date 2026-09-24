@@ -183,12 +183,14 @@ to reclassify at every build.
 `packages/api/src/lib/repairs.ts` that takes a stored unusable event and returns a rewritten one, or
 nothing. Engine build tries the shipped repairs on the account's unusable rows for that material,
 before promotion. A repair succeeds only if its output is a well-formed event whose card some config
-emits; the row then becomes `pending` with reason code `repaired`, and the same build promotes it if
-it applies. Each row records the set of repairs last tried on it (`repair_epoch`), so a repair is
-tried once per row, and shipping a new one retries every row once. The row keeps the payload as
-uploaded (`original_payload_json`) and the repair that changed it (`repaired_by`); a repaired row
-that is promoted is kept as `status = 'repaired'` rather than deleted, so the record survives.
-`discarded` rows are never repaired.
+emits; the row then becomes `pending`, and the same build re-judges and promotes it if it applies.
+Promotion re-judges every row it resolves with the rule the upload uses, so a held row whose card no
+config emits any more is demoted to `unusable`, where repairs can reach it. Each row records the set
+of repairs last tried on it (`repair_epoch`), so a repair is tried once per row, and shipping a new
+one retries every row once. The row keeps the payload as uploaded (`original_payload_json`) and the
+repair that changed it (`repaired_by`); a repaired row that is promoted is kept as
+`status = 'repaired'` rather than deleted, so the record survives. `discarded` rows are never
+repaired.
 
 **Rationale**: Taking every event only helps if what was taken can come back. The case that started
 this feature is one: eight events carrying retired ids are unusable today, and recoverable the day a

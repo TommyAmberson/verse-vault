@@ -56,11 +56,13 @@ an out-of-order batch. `load` restores materialised test states rather than repl
 hand off to a rebuild whenever it promotes a review.
 
 Engine build first tries shipped repairs on `unusable` rows whose `repair_epoch` is not the current
-set of repairs (research D9), then promotes. Promotion considers only `card-not-emitted` and
-`not-enrolled` rows. A promoted row with `repaired_by` set becomes `status = 'repaired'` instead of
-being deleted, keeping the record of what arrived and what changed it; its client id stays held, so
-a re-upload is a duplicate. `awaiting-confirmation` rows are applicable but wait for the learner
-(FR-007's exception), and are promoted only by a `merge` answer.
+set of repairs (research D9), then promotes. Promotion re-judges `card-not-emitted` and
+`not-enrolled` rows with the rule the upload uses: one that applies is written, one that still waits
+keeps a current reason, and one whose card no config emits any more is demoted to `unusable`. A
+promoted row with `repaired_by` set becomes `status = 'repaired'` instead of being deleted, keeping
+the record of what arrived and what changed it; its client id stays held, so a re-upload is a
+duplicate. `awaiting-confirmation` rows are applicable but wait for the learner (FR-007's
+exception), and are promoted only by a `merge` answer.
 
 ## Unchanged, but newly constrained
 

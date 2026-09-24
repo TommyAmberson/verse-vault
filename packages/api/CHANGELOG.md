@@ -51,7 +51,8 @@ instead of refused (constitution principle VI).
   deletes nothing. Answering with nothing open is a no-op.
 * Held events apply themselves when they can. Every engine build promotes `card-not-emitted` events
   the config emits again and `not-enrolled` events once the account enrols, writing each at the time
-  it was recorded; a promoted review rebuilds from the log so it lands in order. Events awaiting the
+  it was recorded; a promoted review rebuilds from the log so it lands in order. A held event whose
+  card no config emits any more becomes `unusable`, where repairs can reach it. Events awaiting the
   learner's merge answer are left for that answer.
 * Repairs: shipped fixes for `unusable` events (`src/lib/repairs.ts`, empty until the first one
   ships). Engine build offers each repair once to every unusable row, and one that yields a
