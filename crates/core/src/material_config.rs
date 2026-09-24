@@ -457,6 +457,26 @@ impl MaterialConfig {
         Self::from_scopes_with_retention(TierScope::All, TierScope::All, desired_retention)
     }
 
+    /// The config that emits every card any config can: every emission
+    /// flag at its widest and every club unpaused, since a paused club
+    /// drops its verses' cards entirely. A card id this config does not
+    /// emit is one no setting the learner can reach will ever produce.
+    ///
+    /// Emission is additive in each of these fields, which is what makes
+    /// a single widest config exist at all. The builder test
+    /// `max_emission_emits_every_card_any_config_does` enforces it, so a
+    /// new gate that is not additive fails there first.
+    pub fn max_emission() -> Self {
+        Self {
+            heading_card: true,
+            heading_passage_card: true,
+            ftv: true,
+            club_card_scope: TierScope::All,
+            chapter_list_scope: ChapterListScope::Up300,
+            ..Self::all_clubs_enabled(DEFAULT_REVIEW_RETENTION)
+        }
+    }
+
     /// Effective per-tier status, derived from the orthogonal memorize +
     /// review pair. Preserves the prior table:
     ///

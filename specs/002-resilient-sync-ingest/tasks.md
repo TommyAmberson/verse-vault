@@ -53,11 +53,11 @@ the server (FR-011, research D6).
 - [X] T004 Make replay total in `packages/api/src/lib/engine.ts` `rebuildFromEvents`: wrap
       `engine.replay_event` per event, skip and count failures, emit one structured log line naming
       the material and the skipped ids (closes #152)
-- [ ] T005 Write a failing test in the `crates/core/src/builder.rs` test module: for every
+- [X] T005 Write a failing test in the `crates/core/src/builder.rs` test module: for every
       combination of `heading_card`, `heading_passage_card`, `ftv`, `club_card_scope` and
       `chapter_list_scope` over a fixture deck, the card ids `build_with_config` emits are a subset
       of those emitted under `MaterialConfig::max_emission()` (research D8)
-- [ ] T006 Add `MaterialConfig::max_emission()` to `crates/core/src/material_config.rs`: default
+- [X] T006 Add `MaterialConfig::max_emission()` to `crates/core/src/material_config.rs`: default
       config with `heading_card: true`, `heading_passage_card: true`, `ftv: true`,
       `club_card_scope: TierScope::All`, `chapter_list_scope: ChapterListScope::Up300`, and every
       club's memorize and review enabled (a paused club drops its cards), with a

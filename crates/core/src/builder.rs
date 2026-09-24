@@ -1278,4 +1278,112 @@ mod tests {
             assert_eq!(r.legacy_card_id_map[i], c.id);
         }
     }
+
+    /// Two chapters, a verse in each club tier, headings, and FTV, so
+    /// every config flag has something to switch on or off.
+    fn material_every_card_kind() -> MaterialData {
+        serde_json::from_str(
+            r#"{
+                "year": 4,
+                "books": ["John"],
+                "chapters": [
+                    {"book": "John", "number": 1, "start_verse": 1, "end_verse": 3},
+                    {"book": "John", "number": 2, "start_verse": 1, "end_verse": 2}
+                ],
+                "verses": [
+                    {"book": "John", "chapter": 1, "verse": 1, "phraseWordCounts": [3, 3],
+                     "annotations": [], "ftvWordCount": 2, "clubs": [150]},
+                    {"book": "John", "chapter": 1, "verse": 2, "phraseWordCounts": [2, 4],
+                     "annotations": [], "ftvWordCount": 2, "clubs": [300]},
+                    {"book": "John", "chapter": 1, "verse": 3, "phraseWordCounts": [4, 2],
+                     "annotations": [], "ftvWordCount": 2, "clubs": []},
+                    {"book": "John", "chapter": 2, "verse": 1, "phraseWordCounts": [3, 2],
+                     "annotations": [], "ftvWordCount": 2, "clubs": [150]},
+                    {"book": "John", "chapter": 2, "verse": 2, "phraseWordCounts": [2, 2],
+                     "annotations": [], "ftvWordCount": 2, "clubs": [300]}
+                ],
+                "headings": [
+                    {"book": "John", "startChapter": 1, "startVerse": 1, "endChapter": 1, "endVerse": 3},
+                    {"book": "John", "startChapter": 2, "startVerse": 1, "endChapter": 2, "endVerse": 2}
+                ]
+            }"#,
+        )
+        .unwrap()
+    }
+
+    /// `MaterialConfig::max_emission` promises that no config emits a card
+    /// it does not. The sync path relies on that to tell a card the
+    /// learner switched off (keep the event pending) from an id no config
+    /// could produce (unusable), so a new emission gate that breaks the
+    /// promise must fail here rather than misfile events in production.
+    #[test]
+    fn max_emission_emits_every_card_any_config_does() {
+        use crate::material_config::TierScope;
+        let m = material_every_card_kind();
+        let max: HashSet<CardId> = build_with_config(&m, &MaterialConfig::max_emission(), 0)
+            .cards
+            .iter()
+            .map(|c| c.id)
+            .collect();
+
+        let club_scopes = [
+            TierScope::Off,
+            TierScope::Up150,
+            TierScope::Up300,
+            TierScope::All,
+        ];
+        let list_scopes = [
+            ChapterListScope::Off,
+            ChapterListScope::Up150,
+            ChapterListScope::Up300,
+        ];
+        let mut configs = 0;
+        for flags in 0..8u8 {
+            for &club_card_scope in &club_scopes {
+                for &chapter_list_scope in &list_scopes {
+                    // Every memorize/review on-off pattern per tier, since
+                    // a paused tier drops its verses' cards entirely.
+                    for enables in 0..64u8 {
+                        let mut cfg = MaterialConfig {
+                            heading_card: flags & 1 != 0,
+                            heading_passage_card: flags & 2 != 0,
+                            ftv: flags & 4 != 0,
+                            club_card_scope,
+                            chapter_list_scope,
+                            ..MaterialConfig::default()
+                        };
+                        cfg.memorize.club150.enabled = enables & 1 != 0;
+                        cfg.memorize.club300.enabled = enables & 2 != 0;
+                        cfg.memorize.full.enabled = enables & 4 != 0;
+                        cfg.review.club150.enabled = enables & 8 != 0;
+                        cfg.review.club300.enabled = enables & 16 != 0;
+                        cfg.review.full.enabled = enables & 32 != 0;
+                        for card in build_with_config(&m, &cfg, 0).cards {
+                            assert!(
+                                max.contains(&card.id),
+                                "{:?} (id {}) emitted under {cfg:?} but not under max_emission",
+                                card.kind,
+                                card.id.0,
+                            );
+                        }
+                        configs += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(configs, 8 * 4 * 3 * 64);
+        // Guard against a vacuous pass: the fixture must exercise every
+        // gated kind, or a broken gate could hide behind missing data.
+        let kinds: HashSet<u32> = build_with_config(&m, &MaterialConfig::max_emission(), 0)
+            .cards
+            .iter()
+            .map(|c| c.kind.id_slot())
+            .collect();
+        for slot in [4, 5, 8, 9, 10] {
+            assert!(
+                kinds.contains(&slot),
+                "fixture emits no card of kind slot {slot}"
+            );
+        }
+    }
 }
