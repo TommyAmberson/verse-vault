@@ -19,6 +19,7 @@ import {
   graduatedCards,
   graduatedVerses,
   pendingEvents,
+  reviewEvents,
 } from '../db/schema.js';
 import type { UserMaterial } from './keys.js';
 import { type Grade, writeReviewEvents } from './review-log.js';
@@ -219,6 +220,53 @@ export function summariseAwaitingConfirmation(
     .get();
   if (!row || row.queuedCount === 0) return null;
   return { queuedCount: row.queuedCount, oldestQueuedTs: row.oldestQueuedTs ?? 0 };
+}
+
+export function serverEventsSince(db: DB, key: UserMaterial, sinceTs: number): number {
+  const row = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(reviewEvents)
+    .where(
+      and(
+        eq(reviewEvents.userId, key.userId),
+        eq(reviewEvents.materialId, key.materialId),
+        sql`${reviewEvents.timestampSecs} > ${sinceTs}`,
+      ),
+    )
+    .get();
+  return row?.count ?? 0;
+}
+
+/** The open merge question for this account and material, or `null`.
+ *  One shape for the upload's `staleSummary`, and for the
+ *  `pendingConfirmation` on GET /state and /api/years, so the modal reads
+ *  the same wherever it was raised. */
+export interface MergeQuestion {
+  queuedCount: number;
+  serverEventsSince: number;
+  oldestQueuedTs: number;
+  newestServerTs: number;
+}
+
+export function mergeQuestion(db: DB, key: UserMaterial): MergeQuestion | null {
+  const held = summariseAwaitingConfirmation(db, key);
+  if (!held) return null;
+  const newestRow = db
+    .select({ ts: sql<number>`MAX(${reviewEvents.timestampSecs})` })
+    .from(reviewEvents)
+    .where(
+      and(
+        eq(reviewEvents.userId, key.userId),
+        eq(reviewEvents.materialId, key.materialId),
+      ),
+    )
+    .get();
+  return {
+    queuedCount: held.queuedCount,
+    serverEventsSince: serverEventsSince(db, key, held.oldestQueuedTs),
+    oldestQueuedTs: held.oldestQueuedTs,
+    newestServerTs: newestRow?.ts ?? held.oldestQueuedTs,
+  };
 }
 
 /** The learner chose to discard the work awaiting confirmation. Kept,

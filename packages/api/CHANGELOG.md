@@ -43,8 +43,9 @@ instead of refused (constitution principle VI).
 
 * `pending_events` table (migration 0028) holding every event taken but not applied, with its
   payload verbatim, status, reason code and reason. Re-uploading a held event is a duplicate.
-* `GET /sync/:materialId/state` reports an open merge question as `pendingConfirmation`, so any
-  device can raise it, including one wiped since.
+* `GET /sync/:materialId/state` and each enrolled year on `GET /years` report an open merge question
+  as `pendingConfirmation`, so any device can raise it: a wiped one on its first state fetch, a
+  cached one on its next boot.
 * `POST /sync/:materialId/confirm` with `{ decision: 'merge' | 'discard' }` answers it. Merge
   applies the held events at their recorded times and rebuilds; discard marks them discarded and
   deletes nothing. Answering with nothing open is a no-op.

@@ -20,8 +20,9 @@ import {
   heldClientEventIds,
   markDiscarded,
   type PendingRow,
+  mergeQuestion,
   promote,
-  summariseAwaitingConfirmation,
+  serverEventsSince,
   take,
   type TakeInput,
   writeApplied,
@@ -145,7 +146,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       stateRev: computeStateRev(deps.db, user.id, materialId),
       // An open merge question, read from the server so any device can
       // raise it, including one wiped since the upload that opened it.
-      pendingConfirmation: staleSummary(deps.db, key),
+      pendingConfirmation: mergeQuestion(deps.db, key),
     });
   });
 
@@ -402,7 +403,7 @@ export function syncRoutes(deps: SyncRoutesDeps) {
           ...unchangedResponse(deps.db, key, mergedHere, duplicates),
           rebuilt: mergedHere > 0,
           needsConfirm: true,
-          staleSummary: staleSummary(deps.db, key),
+          staleSummary: mergeQuestion(deps.db, key),
           dispositions,
         });
       }
@@ -605,53 +606,6 @@ function unchangedResponse(
     testStates: readTestStateEntries(db, key),
     lastEventId: latestEventId(db, key.userId, key.materialId),
     stateRev: computeStateRev(db, key.userId, key.materialId),
-  };
-}
-
-function serverEventsSince(db: DB, key: UserMaterial, sinceTs: number): number {
-  const row = db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(schema.reviewEvents)
-    .where(
-      and(
-        eq(schema.reviewEvents.userId, key.userId),
-        eq(schema.reviewEvents.materialId, key.materialId),
-        sql`${schema.reviewEvents.timestampSecs} > ${sinceTs}`,
-      ),
-    )
-    .get();
-  return row?.count ?? 0;
-}
-
-/** The open merge question for this account and material, or `null`.
- *  One shape for the upload's `staleSummary` and GET /state's
- *  `pendingConfirmation`, so the modal reads the same either way. */
-function staleSummary(
-  db: DB,
-  key: UserMaterial,
-): {
-  queuedCount: number;
-  serverEventsSince: number;
-  oldestQueuedTs: number;
-  newestServerTs: number;
-} | null {
-  const held = summariseAwaitingConfirmation(db, key);
-  if (!held) return null;
-  const newestRow = db
-    .select({ ts: sql<number>`MAX(${schema.reviewEvents.timestampSecs})` })
-    .from(schema.reviewEvents)
-    .where(
-      and(
-        eq(schema.reviewEvents.userId, key.userId),
-        eq(schema.reviewEvents.materialId, key.materialId),
-      ),
-    )
-    .get();
-  return {
-    queuedCount: held.queuedCount,
-    serverEventsSince: serverEventsSince(db, key, held.oldestQueuedTs),
-    oldestQueuedTs: held.oldestQueuedTs,
-    newestServerTs: newestRow?.ts ?? held.oldestQueuedTs,
   };
 }
 

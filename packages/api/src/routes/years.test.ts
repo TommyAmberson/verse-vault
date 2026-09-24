@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { userYearSettings } from '../db/schema.js';
+import { take } from '../lib/pending-events.js';
 import { createTestApp, enrollViaApi, signUpTestUser } from '../test-utils.js';
 import type { MemorizeDebt } from './years.js';
 
@@ -60,6 +61,7 @@ interface YearsResponse {
     clubs: Record<'150' | '300' | 'full', { status: ClubStatus; cardCount: number }>;
     newCardCount: number;
     memorizeDebt: MemorizeDebt;
+    pendingConfirmation?: { queuedCount: number; oldestQueuedTs: number } | null;
   }>;
 }
 
@@ -123,6 +125,37 @@ describe('years routes', () => {
     // Unenrolled years have no engine, so no backlog.
     const unenrolled = body.years.find((y) => !y.enrolled)!;
     expect(unenrolled.memorizeDebt).toEqual({ verses: 0, cards: 0 });
+  });
+
+  it('reports an open merge question per enrolled year', async () => {
+    // A device booting from its IndexedDB cache never calls GET /state,
+    // so /api/years is how it learns a question is open elsewhere.
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'alice@example.com');
+    await enrollViaApi(test, cookie, MATERIAL_ID, 150);
+    const year = async () => {
+      const res = await test.app.request('/api/years', { headers: { cookie } });
+      return ((await res.json()) as YearsResponse).years.find((y) => y.materialId === MATERIAL_ID)!;
+    };
+    expect((await year()).pendingConfirmation).toBeNull();
+
+    take(test.db, { userId, materialId: MATERIAL_ID }, [
+      {
+        clientEventId: 'e1',
+        kind: 'review',
+        timestampSecs: 1_700_000_000,
+        payload: {},
+        status: 'pending',
+        reasonCode: 'awaiting-confirmation',
+        reason: 'test',
+      },
+    ], 1_700_000_100);
+
+    expect((await year()).pendingConfirmation).toMatchObject({
+      queuedCount: 1,
+      oldestQueuedTs: 1_700_000_000,
+    });
   });
 
   it('returns default scopes that derive Active per tier when enrolled', async () => {

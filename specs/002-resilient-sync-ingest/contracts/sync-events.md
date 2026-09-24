@@ -138,6 +138,10 @@ Adds one field, `null` when there is nothing to ask:
 It summarises every `awaiting-confirmation` row for this account and material. Because it is read
 from the server, any device can raise the question, including one wiped after the upload.
 
+`GET /api/years` carries the same field on each enrolled year. A client that boots from its cached
+snapshot never calls `GET /state`, so without it only a wiped device would ever see a question
+another device opened.
+
 The existing `404` for a material the account is not enrolled in stays: that is a read of state that
 does not exist, not a refusal to take work.
 

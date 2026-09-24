@@ -25,6 +25,7 @@ import {
   validatePerClubYearSettings,
   type YearSettings,
 } from '../lib/year-settings.js';
+import { type MergeQuestion, mergeQuestion } from '../lib/pending-events.js';
 import { computeStateRev } from '../lib/state-rev.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
@@ -88,6 +89,11 @@ interface YearView {
    *  made directly on the server ever reaches a client that already
    *  holds a cache. Absent for unenrolled years. */
   stateRev?: string;
+  /** An open stale-merge question for this year, or `null`. Here as
+   *  well as on GET /sync/:id/state because a client booting from its
+   *  cache never fetches state, and must still be able to answer a
+   *  question another device opened. Absent for unenrolled years. */
+  pendingConfirmation?: MergeQuestion | null;
 }
 
 export interface MemorizeDebt {
@@ -320,7 +326,13 @@ export function yearsRoutes(deps: YearsRoutesDeps) {
         newCardCount,
         memorizeDebt,
         ...(enrolled
-          ? { stateRev: computeStateRev(deps.db, user.id, material.id) }
+          ? {
+              stateRev: computeStateRev(deps.db, user.id, material.id),
+              pendingConfirmation: mergeQuestion(deps.db, {
+                userId: user.id,
+                materialId: material.id,
+              }),
+            }
           : {}),
       });
     }
