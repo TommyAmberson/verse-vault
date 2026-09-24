@@ -390,6 +390,18 @@ describe('sync routes', () => {
     expect(test.db.select().from(pendingEvents).all()).toHaveLength(bad.length);
   });
 
+  it('reads a review with a null or missing kind as a review', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'alice@example.com');
+    const nullKind = { ...event({ timestampSecs: 1_700_000_000 }), kind: null };
+    const noKind = event({ timestampSecs: 1_700_000_001 });
+
+    const { body } = await upload(test, cookie, [nullKind, noKind]);
+
+    expect(body.dispositions.map((d) => d.disposition)).toEqual(['applied', 'applied']);
+  });
+
   it('still refuses a body that carries no list of events', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;

@@ -64,7 +64,9 @@ export function parseUpload(raw: unknown, nowSecs: number): ParsedUpload {
   const obj = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
   const clientEventId =
     typeof obj.clientEventId === 'string' && obj.clientEventId ? obj.clientEventId : null;
-  const kind = obj.kind === undefined ? 'review' : typeof obj.kind === 'string' ? obj.kind : null;
+  // A missing or null kind is a review, as `eventKind` reads it: the
+  // original wire shape had no kind field at all.
+  const kind = obj.kind == null ? 'review' : typeof obj.kind === 'string' ? obj.kind : null;
   const timestampSecs = Number.isInteger(obj.timestampSecs) ? (obj.timestampSecs as number) : null;
   const ids: UploadIds = { clientEventId, kind, timestampSecs };
   const fail = (problem: string): ParsedUpload => ({ ...ids, problem });
