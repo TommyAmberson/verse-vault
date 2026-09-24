@@ -9,6 +9,24 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.20] — 2026-09-24
+
+PATCH: the home hero counts only the years that have work, and the memorize backlog it shows counts
+every club with memorize enabled.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.11.0`: `memorize_debt` ignores the cross-club gates.
+* `verse-vault-wasm@0.11.0`: bundles it.
+
+### Fixed
+
+* "across N years" on both hero panels counted every enrolled year, so a learner with memorize off
+  in one of two years read "21 verses across 2 years" when all 21 were in one. Each panel now counts
+  the years contributing to its own total.
+* The "to memorize" number and the Memorize pill come from the api's `memorizeDebt`, which now
+  includes clubs held back by a cross-club gate (api 0.1.41).
+
 ## [0.9.19] — 2026-09-24
 
 PATCH — the chapter club-list card colours its verse numbers.

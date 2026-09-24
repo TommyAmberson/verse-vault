@@ -287,8 +287,9 @@ export interface YearView {
   newCardCount: number
   /** Schedule-aware backlog: un-memorized verses the schedule
    *  introduced through the current week, and the `New` cards they
-   *  carry. Drives the "N to memorize" pill and the home hero. Equals
-   *  the whole eligible pool for years with no schedule or no season
+   *  carry, across every club with memorize enabled. Drives the "N to
+   *  memorize" pill and the home hero. Equals those clubs' whole
+   *  un-memorized pool for years with no schedule or no season
    *  under way, and is zero for unenrolled years.
    *
    *  Optional because web and api deploy independently off the same
