@@ -275,13 +275,13 @@ confirm it applied at its recorded time and the row records the repair.
 
 ### Tests
 
-- [ ] T055 [P] [US4] In `packages/api/src/lib/engine.test.ts`: a repair that fixes a malformed
+- [X] T055 [P] [US4] In `packages/api/src/lib/engine.test.ts`: a repair that fixes a malformed
       review makes it apply at its recorded time on the next build, and the row is kept as
       `status = 'repaired'` with `original_payload_json` and `repaired_by` set
-- [ ] T056 [P] [US4] Test that a repair whose output still cannot apply (malformed, or a card no
+- [X] T056 [P] [US4] Test that a repair whose output still cannot apply (malformed, or a card no
       config emits) leaves the row unchanged, records `repair_epoch`, and is not re-run on the next
       build; shipping another repair retries the row once
-- [ ] T057 [P] [US4] Test that `discarded` rows are never repaired, and that a repair changing an
+- [X] T057 [P] [US4] Test that `discarded` rows are never repaired, and that a repair changing an
       event's non-null `clientEventId` is rejected
 
 ### Implementation
@@ -289,16 +289,16 @@ confirm it applied at its recorded time and the row records the repair.
 - [X] T058 [US4] Move upload parsing (`parseUpload`, `SyncEventUpload`, `eventKind`) from
       `packages/api/src/routes/sync.ts` to `packages/api/src/lib/sync-events.ts`, so a repair's
       output is validated exactly as an upload is
-- [ ] T059 [US4] Add `original_payload_json` text NULL, `repaired_by` text NULL and `repair_epoch`
+- [X] T059 [US4] Add `original_payload_json` text NULL, `repaired_by` text NULL and `repair_epoch`
       text NULL to `pending_events` in `packages/api/migrations/0029_pending_event_repairs.sql` and
       `packages/api/src/db/schema.ts`; `status` gains `repaired`, and reason codes gain `repaired`
-- [ ] T060 [US4] Create `packages/api/src/lib/repairs.ts`: the `Repair` interface, the shipped
+- [X] T060 [US4] Create `packages/api/src/lib/repairs.ts`: the `Repair` interface, the shipped
       `REPAIRS` registry (empty until the first repair ships), and the epoch fingerprint
-- [ ] T061 [US4] In `packages/api/src/lib/engine.ts`, try repairs on the key's unusable rows before
+- [X] T061 [US4] In `packages/api/src/lib/engine.ts`, try repairs on the key's unusable rows before
       promotion, classify each output through `classifyCardIds`, and keep promoted repaired rows as
       `repaired`; make promotion's review insert tolerate an already-applied id so a bad row can
       never fail a build
-- [ ] T062 [US4] Document repairs in `docs/persistence.md` and how to write one in the header of
+- [X] T062 [US4] Document repairs in `docs/persistence.md` and how to write one in the header of
       `packages/api/src/lib/repairs.ts`
 
 **Checkpoint**: an empty registry changes nothing; a test registry recovers a malformed event.
@@ -315,7 +315,7 @@ confirm it applied at its recorded time and the row records the repair.
 - [ ] T065 Close #151, #153, #155, #156, #157, #158 against this branch, and #152 with T004
 - [ ] T066 Run the whole of [quickstart.md](./quickstart.md), including both wipe tests on a real
       browser profile
-- [ ] T067 Decide whether an `unusable` or `discarded` row is terminal: unusable rows are retryable
+- [X] T067 Decide whether an `unusable` or `discarded` row is terminal: unusable rows are retryable
       by shipped repairs, discarded rows stay the learner's decision (research D9, US4)
 
 ---

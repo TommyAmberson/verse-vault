@@ -22,7 +22,7 @@ import {
   reviewEvents,
 } from '../db/schema.js';
 import type { UserMaterial } from './keys.js';
-import { type Grade, writeReviewEvents } from './review-log.js';
+import type { Grade } from './review-log.js';
 
 type Tx = Parameters<Parameters<DB['transaction']>[0]>[0];
 
@@ -35,7 +35,7 @@ export interface TakeInput {
   /** The event as uploaded. Stored verbatim so promotion needs no
    *  reconstruction, and so an operator sees exactly what arrived. */
   payload: unknown;
-  status: Exclude<PendingStatus, 'discarded'>;
+  status: 'pending' | 'unusable';
   reasonCode: PendingReasonCode;
   reason: string;
 }
@@ -137,9 +137,19 @@ export function promote(
       .orderBy(asc(pendingEvents.timestampSecs), asc(pendingEvents.clientEventId))
       .all();
     const promoted = candidates.filter((row) => apply(tx, row));
-    if (promoted.length > 0) {
-      tx.delete(pendingEvents)
-        .where(inArray(pendingEvents.id, promoted.map((r) => r.id)))
+    const ids = (rows: PendingRow[]) => rows.map((r) => r.id);
+    const repaired = promoted.filter((r) => r.repairedBy !== null);
+    const plain = promoted.filter((r) => r.repairedBy === null);
+    if (plain.length > 0) {
+      tx.delete(pendingEvents).where(inArray(pendingEvents.id, ids(plain))).run();
+    }
+    // A repaired row is the only record of what arrived and what changed
+    // it, so it stays, marked applied. Its client id stays held, so a
+    // re-upload is a duplicate rather than a second application.
+    if (repaired.length > 0) {
+      tx.update(pendingEvents)
+        .set({ status: 'repaired' })
+        .where(inArray(pendingEvents.id, ids(repaired)))
         .run();
     }
     return promoted;
@@ -157,8 +167,12 @@ export function writeApplied(tx: Tx, key: UserMaterial, row: PendingRow): boolea
   if (row.clientEventId === null || row.timestampSecs === null) return false;
   const e = JSON.parse(row.payloadJson) as Record<string, unknown>;
   if (row.kind === 'review') {
-    writeReviewEvents(tx, [
-      {
+    // Same row shape as writeReviewEvents, but an id already in the log
+    // means the event already applied: that is success, not a conflict
+    // that could fail the engine build promoting it.
+    tx.insert(reviewEvents)
+      .values({
+        id: row.clientEventId,
         userId: key.userId,
         materialId: key.materialId,
         snapshotVersion: e.snapshotVersion as number,
@@ -166,8 +180,10 @@ export function writeApplied(tx: Tx, key: UserMaterial, row: PendingRow): boolea
         cardId: e.cardId as number,
         grade: e.grade as Grade,
         clientEventId: row.clientEventId,
-      },
-    ]);
+        createdAt: row.timestampSecs,
+      })
+      .onConflictDoNothing()
+      .run();
     return true;
   }
   if (row.kind === 'graduate') {

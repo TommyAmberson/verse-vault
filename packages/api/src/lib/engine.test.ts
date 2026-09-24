@@ -13,7 +13,8 @@ import {
 import { seedUserWithFixture, switchedOffCardId } from '../test-fixtures.js';
 import { createTestDb, createTestUser } from '../test-utils.js';
 import { enrollUser } from './enrollment.js';
-import { take, type TakeInput } from './pending-events.js';
+import { markDiscarded, take, type TakeInput } from './pending-events.js';
+import type { Repair } from './repairs.js';
 import { computeStateRev } from './state-rev.js';
 import {
   EngineStore,
@@ -746,6 +747,141 @@ describe('EngineStore promotion of pending events', () => {
 
     expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
     expect(test.db.select().from(reviewEvents).all().map((r) => r.clientEventId)).toEqual(['n1']);
+    store.clear();
+  });
+});
+
+describe('EngineStore repairs', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  const key = { userId: 'u1', materialId: 'nkjv-cor' };
+  const TS = 1_790_000_000;
+
+  function setup() {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, ...key });
+    return test.db;
+  }
+
+  function unusable(payload: Record<string, unknown>, reasonCode: 'malformed' | 'card-unknown') {
+    return {
+      clientEventId: (payload.clientEventId as string | undefined) ?? null,
+      kind: 'review',
+      timestampSecs: TS,
+      payload,
+      status: 'unusable' as const,
+      reasonCode,
+      reason: 'test',
+    };
+  }
+
+  function review(overrides: Record<string, unknown> = {}) {
+    return {
+      kind: 'review',
+      clientEventId: 'm1',
+      timestampSecs: TS,
+      snapshotVersion: 1,
+      cardId: 0,
+      grade: 3,
+      ...overrides,
+    };
+  }
+
+  /** A repair that rewrites whatever `fix` returns, counting its calls. */
+  function repairing(id: string, fix: (e: Record<string, unknown>) => unknown) {
+    const calls = { n: 0 };
+    const repair: Repair = {
+      id,
+      description: `test repair ${id}`,
+      repair(payload) {
+        calls.n += 1;
+        return fix(payload as Record<string, unknown>);
+      },
+    };
+    return { repair, calls };
+  }
+
+  const rows = (db: ReturnType<typeof setup>) => db.select().from(pendingEvents).all();
+
+  it('applies an event a repair fixes, at its recorded time, and keeps the record', async () => {
+    const db = setup();
+    take(db, key, [unusable(review({ grade: 0 }), 'malformed')], TS + 60);
+    const { repair } = repairing('grade-zero-is-good', (e) => ({ ...e, grade: 3 }));
+
+    const store = new EngineStore(db, undefined, undefined, { repairs: [repair] });
+    using _loaded = await store.load(key);
+
+    expect(db.select().from(reviewEvents).all()).toEqual([
+      expect.objectContaining({ clientEventId: 'm1', timestampSecs: TS, grade: 3 }),
+    ]);
+    const [row] = rows(db);
+    expect(row).toMatchObject({ status: 'repaired', repairedBy: 'grade-zero-is-good' });
+    expect(JSON.parse(row.originalPayloadJson!)).toMatchObject({ grade: 0 });
+    expect(JSON.parse(row.payloadJson)).toMatchObject({ grade: 3 });
+    store.clear();
+  });
+
+  it('leaves an event a repair cannot rescue untouched, and tries each repair once', async () => {
+    const db = setup();
+    const original = review({ cardId: 999_999_999 });
+    take(db, key, [unusable(original, 'card-unknown')], TS + 60);
+    // Output is well-formed but still names a card no config emits.
+    const first = repairing('still-unknown', (e) => ({ ...e, grade: 2 }));
+
+    for (let i = 0; i < 2; i++) {
+      const store = new EngineStore(db, undefined, undefined, { repairs: [first.repair] });
+      using _loaded = await store.load(key);
+      store.clear();
+    }
+
+    expect(first.calls.n).toBe(1);
+    const [row] = rows(db);
+    expect(row).toMatchObject({ status: 'unusable', repairedBy: null, originalPayloadJson: null });
+    expect(JSON.parse(row.payloadJson)).toEqual(original);
+    expect(row.repairEpoch).toBeTruthy();
+
+    // Shipping another repair retries the row, once.
+    const second = repairing('maps-to-card-zero', (e) => ({ ...e, cardId: 0 }));
+    const store = new EngineStore(db, undefined, undefined, {
+      repairs: [first.repair, second.repair],
+    });
+    using _loaded = await store.load(key);
+    expect(second.calls.n).toBe(1);
+    expect(rows(db)[0]).toMatchObject({ status: 'repaired', repairedBy: 'maps-to-card-zero' });
+    store.clear();
+  });
+
+  it('never repairs a discarded event, nor lets a repair change an event id', async () => {
+    const db = setup();
+    take(db, key, [
+      {
+        ...unusable(review({ clientEventId: 'd1' }), 'malformed'),
+        status: 'pending',
+        reasonCode: 'awaiting-confirmation',
+      },
+      unusable(review({ clientEventId: 'r1', grade: 0 }), 'malformed'),
+    ], TS + 60);
+    markDiscarded(db, key);
+    const { repair, calls } = repairing('renames', (e) => ({
+      ...e,
+      clientEventId: 'other',
+      grade: 3,
+    }));
+
+    const store = new EngineStore(db, undefined, undefined, { repairs: [repair] });
+    using _loaded = await store.load(key);
+
+    expect(calls.n).toBe(1);
+    expect(rows(db).map((r) => [r.clientEventId, r.status]).sort()).toEqual([
+      ['d1', 'discarded'],
+      ['r1', 'unusable'],
+    ]);
+    expect(db.select().from(reviewEvents).all()).toHaveLength(0);
     store.clear();
   });
 });

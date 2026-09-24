@@ -252,20 +252,21 @@ only applied and already-known events, so an older client reading just those beh
 Graduate events whose `engine.graduate_verse()` returned 0 (the verse was already Active) are
 counted as duplicates.
 
-| Disposition | Meaning                         | Where it lives                          |
-| ----------- | ------------------------------- | --------------------------------------- |
-| `applied`   | Changed the learner's state     | `review_events` or `graduated_*`        |
-| `duplicate` | The server already held it      | Unchanged, in whichever table held it   |
-| `pending`   | May apply later                 | `pending_events`, `status = 'pending'`  |
-| `unusable`  | Will never apply, as things are | `pending_events`, `status = 'unusable'` |
+| Disposition | Meaning                                                          | Where it lives                          |
+| ----------- | ---------------------------------------------------------------- | --------------------------------------- |
+| `applied`   | Changed the learner's state                                      | `review_events` or `graduated_*`        |
+| `duplicate` | The server already held it                                       | Unchanged, in whichever table held it   |
+| `pending`   | May apply later                                                  | `pending_events`, `status = 'pending'`  |
+| `unusable`  | Will not apply as things stand; a shipped repair may change that | `pending_events`, `status = 'unusable'` |
 
-| Reason code             | Status     | Leaves pending when                                         |
-| ----------------------- | ---------- | ----------------------------------------------------------- |
-| `card-not-emitted`      | `pending`  | An engine build finds the config emits the card again       |
-| `not-enrolled`          | `pending`  | The account enrols in the material                          |
-| `awaiting-confirmation` | `pending`  | The learner answers the merge question                      |
-| `card-unknown`          | `unusable` | Never: no config the app offers emits this id for this deck |
-| `malformed`             | `unusable` | Never: the event's shape cannot be interpreted              |
+| Reason code             | Status     | Leaves pending when                                              |
+| ----------------------- | ---------- | ---------------------------------------------------------------- |
+| `card-not-emitted`      | `pending`  | An engine build finds the config emits the card again            |
+| `not-enrolled`          | `pending`  | The account enrols in the material                               |
+| `awaiting-confirmation` | `pending`  | The learner answers the merge question                           |
+| `repaired`              | `pending`  | An engine build finds the config emits the repaired event's card |
+| `card-unknown`          | `unusable` | A shipped repair turns it into an id some config emits           |
+| `malformed`             | `unusable` | A shipped repair turns it into a well-formed event               |
 
 `card-not-emitted` versus `card-unknown` is the engine's call: an id the learner's engine lacks is
 checked against an engine built from core's `MaterialConfig::max_emission()`, the config that emits
@@ -355,6 +356,11 @@ card the engine now emits and `not-enrolled` rows once enrolled, writing each to
 its recorded time; a promoted review sends `load` through a rebuild so it replays in order. The
 common case of nothing held costs one indexed probe. `awaiting-confirmation` rows wait for the
 learner.
+
+Before promoting, the build offers shipped repairs to `unusable` rows not yet offered this set of
+repairs. One that yields a well-formed event with an emittable card makes the row `pending` /
+`repaired`, and it promotes in the same build if its card is emitted. See
+[`persistence.md`](persistence.md) for how repairs are recorded.
 
 ## Materials — `/api/materials/*`
 

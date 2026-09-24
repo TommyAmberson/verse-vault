@@ -265,9 +265,12 @@ export type PendingReasonCode =
   | 'not-enrolled'
   | 'awaiting-confirmation'
   | 'card-unknown'
-  | 'malformed';
+  | 'malformed'
+  | 'repaired';
 
-export type PendingStatus = 'pending' | 'unusable' | 'discarded';
+/** `repaired` is terminal: a repaired event that was applied. Kept, not
+ *  deleted, as the record of what arrived and which repair changed it. */
+export type PendingStatus = 'pending' | 'unusable' | 'discarded' | 'repaired';
 
 // Events sync took but did not apply. Sync never refuses an event: one it
 // cannot apply now rests here with its reason, so the device can forget
@@ -291,7 +294,14 @@ export const pendingEvents = sqliteTable(
     clientEventId: text('client_event_id'),
     kind: text('kind'),
     timestampSecs: integer('timestamp_secs'),
+    // The event to apply: as uploaded, or as a repair rewrote it.
     payloadJson: text('payload_json').notNull(),
+    // Set when a repair rewrites payload_json: the event as uploaded.
+    originalPayloadJson: text('original_payload_json'),
+    repairedBy: text('repaired_by'),
+    // The set of shipped repairs last tried on this row (repairEpoch in
+    // lib/repairs.ts); NULL until the first build tries any.
+    repairEpoch: text('repair_epoch'),
     status: text('status').$type<PendingStatus>().notNull(),
     reasonCode: text('reason_code').$type<PendingReasonCode>().notNull(),
     reason: text('reason').notNull(),

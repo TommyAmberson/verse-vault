@@ -53,6 +53,11 @@ instead of refused (constitution principle VI).
   the config emits again and `not-enrolled` events once the account enrols, writing each at the time
   it was recorded; a promoted review rebuilds from the log so it lands in order. Events awaiting the
   learner's merge answer are left for that answer.
+* Repairs: shipped fixes for `unusable` events (`src/lib/repairs.ts`, empty until the first one
+  ships). Engine build offers each repair once to every unusable row, and one that yields a
+  well-formed event with an emittable card makes it pending, applied at its recorded time. The
+  upload and the repair that changed it are kept (migration 0029); discarded events are never
+  repaired. Taking every event only helps if what was taken can come back.
 * A `sync.events_not_applied` log line per request naming each such event and why, with the
   requestId. The reason an event did not land used to live only in a response body.
 
