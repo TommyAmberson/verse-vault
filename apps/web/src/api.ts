@@ -558,9 +558,13 @@ export function createApiClient(apiUrl: string): ApiClient {
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
-    message: string,
+    /** Response body, so callers can read structured error fields (see
+     *  `lib/engine/syncErrors`) without re-parsing the message text.
+     *  Falls back to the status phrase when the body is empty, so it is
+     *  not guaranteed to be JSON. */
+    public readonly body: string,
   ) {
-    super(`API error ${status}: ${message}`)
+    super(`API error ${status}: ${body}`)
     this.name = 'ApiError'
   }
 }

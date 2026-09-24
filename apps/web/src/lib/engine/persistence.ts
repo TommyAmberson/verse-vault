@@ -293,12 +293,17 @@ export async function countAllQueuedEvents(): Promise<number> {
 }
 
 /** Re-stamp every queued event for `materialId` with a new
- *  `snapshotVersion`. Used after a 409 + `refetchSyncState`: the
- *  events themselves are still valid (cardId / verseId mappings are
- *  stable across snapshot bumps for the same material) but the
- *  server's per-event snapshot-version check rejects anything
- *  carrying the old value, so without rewriting the queue every
- *  subsequent flush would 409 against the same stale rows forever. */
+ *  `snapshotVersion`. Used after a 409 + `refetchSyncState`, because the
+ *  server's per-event snapshot-version check rejects anything carrying
+ *  the old value: without rewriting the queue every subsequent flush
+ *  would 409 against the same stale rows forever.
+ *
+ *  Re-stamping assumes the events themselves are still meaningful, i.e.
+ *  that a cardId means the same card before and after the bump. The
+ *  #141 id-space change broke that assumption, which is how queued
+ *  events from the retired space kept clearing this check and landing
+ *  on the server's unknown-card rejection instead. Validating ids here
+ *  rather than at the far end is tracked in #155. */
 export async function rewriteQueuedSnapshotVersion(
   materialId: string,
   snapshotVersion: number,

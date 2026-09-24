@@ -9,6 +9,32 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.18] — 2026-09-23
+
+PATCH — a rejected event no longer wedges the whole sync queue.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.9.0` — unchanged.
+* `verse-vault-wasm@0.9.0` — unchanged.
+
+### Fixed
+
+* `doFlush` recovered from a 409 and rethrew everything else, so a 400 naming unknown card ids left
+  the offending events in the queue forever. Every later review on that device queued up behind them
+  and never reached the server: grade a verse, refresh, get the same verses back. Reported from Edge
+  on 2026-09-23, with Firefox on the same account syncing normally, so the poisoned queue is
+  per-browser.
+* Those events now move to the `eventQueueOrphans` store (which existed, with a `countOrphans`
+  reader wired to `useEngine`, but had nothing writing to it) and the flush retries once so the rest
+  of the queue uploads. They carry ids from a retired id space, so no retry could ever have
+  succeeded. The queue held eight `graduateCard` events stamped 2026-09-09, two weeks before the
+  report.
+* `ApiError` keeps the raw response `body`, so structured error fields are readable without parsing
+  the message. `lib/engine/syncErrors` prefers the server's new `unknownCardIds` field and falls
+  back to the message text, which keeps the recovery working against an api that hasn't deployed
+  yet.
+
 ## [0.9.17] — 2026-09-10
 
 MINOR — the home hero and the Memorize pill both count this week's schedule, not the whole season.

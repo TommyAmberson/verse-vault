@@ -28,6 +28,7 @@
 import { type CardRender, api } from '../../api'
 import { createEngine, type WasmEngine } from './engineLoader'
 import * as idb from './persistence'
+import { unknownCardIds } from './syncErrors'
 import type {
   Grade,
   StaleMergeSummary,
@@ -593,6 +594,9 @@ async function doFlush(
   materialId: string,
   nowSecs: number,
   confirmMerge: boolean,
+  /** Set on the single retry that follows a quarantine, so a server
+   *  that keeps naming unknown ids can't spin this forever. */
+  requarantined = false,
 ): Promise<FlushResult> {
   const queued = await idb.getQueuedEvents(materialId)
   if (queued.length === 0) {
@@ -645,6 +649,50 @@ async function doFlush(
       await refetchSyncState(session, nowSecs)
       await idb.rewriteQueuedSnapshotVersion(materialId, session.snapshotVersion)
       return { accepted: 0, duplicates: 0, rebuilt: false }
+    }
+    // A 400 naming unknown card ids is the other failure we can act on.
+    // Some of those events are dead: they carry ids from a retired id
+    // space (the pre-#141 migration left some in client queues) and the
+    // server will refuse them for as long as they exist. Setting those
+    // aside lets the rest of the queue, every review graded since,
+    // finally upload.
+    //
+    // But "the server doesn't know this id" is not the same as "this
+    // event is junk". `has_card` answers for the cards the *current*
+    // config emits, so pausing a club turns a perfectly good queued
+    // review into a refused one (#153). Those events must stay queued:
+    // they upload as soon as the tier comes back, and setting them
+    // aside would destroy real grades and silently un-memorize verses.
+    //
+    // Our own engine settles it. It is built from the same deck and the
+    // same config, so an id it doesn't recognise either is one no
+    // config change can revive.
+    const refused = unknownCardIds(err)
+    if (refused.length > 0 && !requarantined) {
+      const dead = refused.filter((id) => !session.engine.has_card(id))
+      const poisoned = queued.filter(
+        (q) => (q.kind === 'review' || q.kind === 'graduateCard') && dead.includes(q.cardId),
+      )
+      const stillValidLocally = refused.length - dead.length
+      if (poisoned.length > 0) {
+        console.warn(
+          `sync: setting aside ${poisoned.length} unsendable event(s) for ${materialId} `
+            + `(card ids ${dead.join(', ')}); they are in the orphan store, not deleted`,
+        )
+        await idb.moveToOrphans(poisoned)
+        return doFlush(materialId, nowSecs, confirmMerge, true)
+      }
+      // Refused, yet our engine knows every id: server-side config skew
+      // rather than dead events. Leave them queued to retry, and say so.
+      // A queue that cannot drain must never do it quietly.
+      console.warn(
+        `sync: server refused ${refused.length} card id(s) for ${materialId} that this engine `
+          + `knows (${stillValidLocally} of them); leaving them queued to retry`,
+      )
+    } else if (refused.length > 0) {
+      console.warn(
+        `sync: still refused after setting events aside for ${materialId}; queue is not draining`,
+      )
     }
     throw err
   }
