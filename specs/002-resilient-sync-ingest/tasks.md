@@ -286,7 +286,7 @@ confirm it applied at its recorded time and the row records the repair.
 
 ### Implementation
 
-- [ ] T058 [US4] Move upload parsing (`parseUpload`, `SyncEventUpload`, `eventKind`) from
+- [X] T058 [US4] Move upload parsing (`parseUpload`, `SyncEventUpload`, `eventKind`) from
       `packages/api/src/routes/sync.ts` to `packages/api/src/lib/sync-events.ts`, so a repair's
       output is validated exactly as an upload is
 - [ ] T059 [US4] Add `original_payload_json` text NULL, `repaired_by` text NULL and `repair_epoch`

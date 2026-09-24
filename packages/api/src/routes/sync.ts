@@ -30,8 +30,17 @@ import {
 import type { UserMaterial } from '../lib/keys.js';
 import { computeStateRev } from '../lib/state-rev.js';
 import {
+  eventKind,
+  type GraduateCardEventUpload,
+  type GraduateEventUpload,
+  parseUpload,
+  type ReviewEventUpload,
+  type SyncEventUpload,
+  type UploadIds,
+  uploadIds,
+} from '../lib/sync-events.js';
+import {
   existingEventIds,
-  type Grade,
   type ReviewEventInput,
   persistEngineState,
 } from '../lib/review-log.js';
@@ -47,36 +56,6 @@ export interface SyncRoutesDeps {
  *  internally (see `existingEventIds`) so it isn't tied to this value. */
 const MAX_BATCH_SIZE = 500;
 
-/** Events with `timestampSecs` more than this far in the future are rejected.
- *  A broken device RTC (BIOS battery dead, etc.) would otherwise wedge the
- *  user's event timeline arbitrarily. */
-const CLOCK_SKEW_TOLERANCE_SECS = 24 * 60 * 60;
-
-interface BaseEventUpload {
-  clientEventId: string;
-  timestampSecs: number;
-  snapshotVersion: number;
-}
-
-interface ReviewEventUpload extends BaseEventUpload {
-  /** Optional for backward compat: legacy uploads omit `kind`. */
-  kind?: 'review';
-  cardId: number;
-  grade: Grade;
-}
-
-interface GraduateEventUpload extends BaseEventUpload {
-  kind: 'graduate';
-  verseId: number;
-}
-
-interface GraduateCardEventUpload extends BaseEventUpload {
-  kind: 'graduateCard';
-  cardId: number;
-}
-
-type SyncEventUpload = ReviewEventUpload | GraduateEventUpload | GraduateCardEventUpload;
-
 interface UploadBody {
   events: SyncEventUpload[];
   /** Set true to bypass the stale-merge preflight after the client has
@@ -89,10 +68,6 @@ interface UploadBody {
  *  a `needsConfirm` response so the user can choose Sync / Discard /
  *  Cancel before the merge actually runs. */
 const STALE_MERGE_THRESHOLD = 10;
-
-function eventKind(e: SyncEventUpload): 'review' | 'graduate' | 'graduateCard' {
-  return e.kind ?? 'review';
-}
 
 export function syncRoutes(deps: SyncRoutesDeps) {
   const app = new Hono<{ Variables: AppVariables }>();
@@ -654,22 +629,6 @@ function duplicateOf(index: number, event: SyncEventUpload): Disposition {
   return { index, clientEventId: event.clientEventId, disposition: 'duplicate' };
 }
 
-/** The identifying fields of an upload, as far as they can be read. A
- *  malformed event may have none of them, and is taken anyway. */
-interface UploadIds {
-  clientEventId: string | null;
-  kind: string | null;
-  timestampSecs: number | null;
-}
-
-type ParsedUpload =
-  | (UploadIds & { event: SyncEventUpload; problem?: undefined })
-  | (UploadIds & { event?: undefined; problem: string });
-
-function uploadIds(e: SyncEventUpload): UploadIds {
-  return { clientEventId: e.clientEventId, kind: eventKind(e), timestampSecs: e.timestampSecs };
-}
-
 /** Store what was taken but not applied, and log it: until this feature
  *  the reason an event did not land lived only in a response body
  *  nobody keeps. One JSON line per request, with the requestId, in the
@@ -698,40 +657,4 @@ function takeNotApplied(
       })),
     }),
   );
-}
-
-/** Read one uploaded event. Anything that fails is still taken, as
- *  `unusable` / `malformed`, with the problem as its reason. */
-function parseUpload(raw: unknown, nowSecs: number): ParsedUpload {
-  const obj = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
-  const clientEventId =
-    typeof obj.clientEventId === 'string' && obj.clientEventId ? obj.clientEventId : null;
-  const kind = obj.kind === undefined ? 'review' : typeof obj.kind === 'string' ? obj.kind : null;
-  const timestampSecs = Number.isInteger(obj.timestampSecs) ? (obj.timestampSecs as number) : null;
-  const ids: UploadIds = { clientEventId, kind, timestampSecs };
-  const fail = (problem: string): ParsedUpload => ({ ...ids, problem });
-
-  if (typeof raw !== 'object' || raw === null) return fail('event must be an object');
-  if (clientEventId === null) return fail('clientEventId must be a non-empty string');
-  if (timestampSecs === null || timestampSecs < 0) {
-    return fail('timestampSecs must be a non-negative integer');
-  }
-  if (timestampSecs > nowSecs + CLOCK_SKEW_TOLERANCE_SECS) {
-    return fail('timestampSecs more than 24h in the future — check device clock');
-  }
-  if (!Number.isInteger(obj.snapshotVersion) || (obj.snapshotVersion as number) < 1) {
-    return fail('snapshotVersion must be a positive integer');
-  }
-  const nonNegativeInt = (v: unknown) => Number.isInteger(v) && (v as number) >= 0;
-  if (kind === 'review') {
-    if (!nonNegativeInt(obj.cardId)) return fail('cardId must be a non-negative integer');
-    if (![1, 2, 3, 4].includes(obj.grade as number)) return fail('grade must be 1..=4');
-  } else if (kind === 'graduate') {
-    if (!nonNegativeInt(obj.verseId)) return fail('verseId must be a non-negative integer');
-  } else if (kind === 'graduateCard') {
-    if (!nonNegativeInt(obj.cardId)) return fail('cardId must be a non-negative integer');
-  } else {
-    return fail(`unknown event kind: ${String(obj.kind)}`);
-  }
-  return { ...ids, event: raw as SyncEventUpload };
 }
