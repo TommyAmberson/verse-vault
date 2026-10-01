@@ -1,8 +1,7 @@
 # Contributing
 
 This file is the source of truth for verse-vault's git conventions and local development setup.
-`CLAUDE.md` (and the other agent rule files) point here rather than restating it, so change this
-file when a convention changes.
+`CLAUDE.md` points here rather than restating it, so change this file when a convention changes.
 
 The repository is small and mostly single-maintainer, but the conventions below are machine-enforced
 by git hooks and CI — they are not stylistic suggestions. A commit that ignores them gets rejected
@@ -88,16 +87,19 @@ warranted. Do not reach for it to skip a failing test.
 
 ## Git conventions
 
+<!-- BEGIN shared git conventions: keep identical in qzr-sheet and verse-vault -->
+
 ### Branches
 
 Work on feature branches; never commit directly to master. Branch names use a `type/short-slug`
-shape matching the commit type — `feat/canonicalise-schedule-v2`, `fix/empty-passage-blocks`,
-`test/web-vitest`, `docs/roadmap-anki-import`.
+shape matching the commit type, e.g. `feat/schedule-editor`, `fix/empty-passage-blocks`,
+`docs/roadmap-anki-import`.
 
-The `django-vue*`, `laravel*`, and `express-vue` branches are abandoned spikes. Treat them as
-read-only history; never merge from them.
+A sub-feature that will take more than one commit gets its own branch off the feature branch
+(`feat/schedule-editor` → `feat/roll-teams`), merged back with `git merge --no-ff`. Single-commit
+tweaks stay on the parent branch.
 
-### Commit message format
+### Commit messages
 
 [Conventional Commits](https://www.conventionalcommits.org/):
 
@@ -110,19 +112,19 @@ read-only history; never merge from them.
 **Types:** `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `style`, `revert`, `perf`,
 `build`.
 
-**Scopes:** `core`, `wasm`, `sim`, `api`, `web`, `desktop`, `cli`, `tools`, `docs`, `ci`, `deploy`.
-Each corresponds to a top-level workspace member or root directory (`crates/<scope>`,
-`packages/<scope>`, `apps/<scope>`, plus `docs/`, `.github/workflows/` → `ci`, `deploy/` →
-`deploy`). Omit the scope for cross-cutting changes, e.g. `chore: bump version to 0.2.0`. Use bare
-`docs:` for doc-only edits — sub-scoping by doc area (`docs(arch)`, `docs(server-api)`) sprawls fast
-and isn't enforced.
+**Scope:** one of the repo's scopes listed under [Commit scopes](#commit-scopes), or omitted for a
+cross-cutting change. Use bare `docs:` for doc-only edits; sub-scoping by doc area (`docs(arch)`,
+`docs(server-api)`) sprawls fast and isn't enforced.
 
 **Subject:** lowercase, imperative mood, no trailing period, and **≤ 50 characters** including the
 `type(scope):` prefix. `commitlint` enforces the length as an error. Apply the "if applied, this
-commit will \_\_" test — `simplify cleanup pass` and `heading split + passage card render` both fail
+commit will \_\_" test: `simplify cleanup pass` and `heading split + passage card render` both fail
 it, because they name the change as a noun rather than the action it performs.
 
-**Body:** wrapped at ~72 columns (a warning, not an error — quoted URLs and stack traces are fair
+**Breaking changes** carry `!` after the type or scope (`feat(api)!: …`): a wire format, file
+format, or public-type change consumers must adapt to.
+
+**Body:** wrapped at ~72 columns (a warning, not an error: quoted URLs and stack traces are fair
 exceptions), and focused on _why_.
 
 ### Commits are atomic
@@ -133,29 +135,33 @@ is that `git blame` on any line lands on a commit whose message explains that li
 
 ### Pull requests
 
-PRs are feature-sized and carry several logical commits. A substantive change shouldn't arrive as a
-single commit, and a one-line change usually doesn't need its own PR — fold it into the related
-work.
+PRs are feature-sized and carry several logical commits: many atomic commits, few PRs. A substantive
+change shouldn't arrive as a single commit, and a one-line change usually doesn't need its own PR.
+Fold follow-ups that touch the same surface into the in-flight branch, and land design docs with the
+code they describe. Split only for different urgency or a genuine precondition.
 
 ### Merging
 
 * **Always merge, never squash:** `gh pr merge <N> --merge --delete-branch`. The individual branch
-  commits must land on master so `git log` shows the real progression.
-* **Merge-commit subjects follow conventional-commits too** — typically
-  `chore: merge <branch-name>`. GitHub's default `Merge pull request #N from …` template doesn't
-  conform, so pass `--subject "chore: merge <branch>"` to `gh pr merge`, or
-  `git merge --no-ff -m "..."` for a local merge.
-* **master is branch-protected.** GitHub blocks the merge until `rust`, `typos`, `dprint`, and `ts`
-  pass on the PR head. The net effect is that a merge commit's content is always equivalent to a SHA
-  CI already validated, so the deploy workflows that fire on master push can't race a broken merge.
-  The owner can bypass with `gh pr merge <N> --admin --merge ...` for a true hotfix — a conscious
-  decision, not a default.
-* **Rebase onto current master only for version-bump PRs.** A PR that bumps a package version
-  (`crates/{core,wasm}/Cargo.toml`, `packages/api/package.json`, `apps/web/package.json`,
-  `deploy/vv-router/package.json`) needs its branch current. The required `ts` job runs the
-  deploy-time `tools/check-contract-versions.sh --ci` check for each package the PR bumps, against
-  the PR merged into master as of the run, so rebasing re-runs it against the master the PR will
-  deploy from. Other PRs merge fine when master has advanced — skip the pre-emptive rebase.
+  commits must land on master so `git log` shows the real progression. Squash and rebase merges are
+  disabled in the GitHub settings.
+* **Merge-commit subjects follow Conventional Commits too**, typically `chore: merge <branch-name>`.
+  GitHub's default `Merge pull request #N from …` template doesn't conform, so pass
+  `--subject "chore: merge <branch>"` to `gh pr merge`, or `git merge --no-ff -m "..."` for a local
+  merge.
+* **master is branch-protected.** GitHub blocks the merge until the
+  [required checks](#required-checks) pass on the PR head, so a merge commit's content is always
+  equivalent to a SHA CI already validated, and the deploy workflows that fire on master push can't
+  race a broken merge. The owner can bypass with `gh pr merge <N> --admin --merge ...` for a true
+  hotfix: a conscious decision, not a default.
+* **Rebase onto current master only for version-bump PRs.** A PR that bumps a deployable package's
+  version needs its branch current. PR CI runs the deploy-time
+  `tools/check-contract-versions.sh --ci` check for each package the PR bumps, against the PR merged
+  into master as of the run, so rebasing re-runs it against the master the PR will deploy from.
+  Other PRs merge fine when master has advanced; skip the pre-emptive rebase.
+* **Clean up locally.** GitHub deletes the remote branch on merge. Afterwards,
+  `git checkout master`, `git pull --ff-only`, and `git branch -d <branch>` so stale local branches
+  don't pile up.
 
 ### Rewriting history
 
@@ -168,7 +174,7 @@ work.
 Keep the small atomic commits that each did real incremental work.
 
 **Fixup + autosquash.** When a later commit corrects something an earlier commit on the same branch
-got wrong — a typo, a missed branch, a review reply — prefer `git commit --fixup=<orig-sha>` over a
+got wrong (a typo, a missed branch, a review reply), prefer `git commit --fixup=<orig-sha>` over a
 fresh `fix(...)` commit. Collapse before merging:
 
 ```
@@ -177,14 +183,36 @@ git -c sequence.editor=: rebase -i --autosquash master
 
 `-i` is required (autosquash only activates in interactive mode); the no-op sequence editor accepts
 the auto-prepared todo list, and `fixup!` commits discard their own message, so no editor opens. The
-result is that `git blame` lands on the original commit — whose message explains the change — rather
+result is that `git blame` lands on the original commit, whose message explains the change, rather
 than a follow-up that restates the same scope.
 
 Two caveats. On a long-lived branch with interleaved refactors touching the same lines, autosquash
 will conflict; keep the plain `fix(...)` commit instead. And check whether the fixup changes what
 the target's subject claims: a typo fix slots in invisibly, but a fixup that expands scope or
 reverses a stated intent leaves the subject lying about the squashed commit. In that case use
-`git commit --fixup=amend:<orig-sha>`, which prompts for a new subject when collapsing.
+`git commit --fixup=amend:<orig-sha>`, which prompts for a new subject when collapsing, or
+`git commit --amend` if the target is HEAD.
+
+<!-- END shared git conventions -->
+
+### Commit scopes
+
+`core`, `wasm`, `sim`, `api`, `web`, `desktop`, `cli`, `tools`, `docs`, `ci`, `deploy`. Each
+corresponds to a top-level workspace member or root directory (`crates/<scope>`, `packages/<scope>`,
+`apps/<scope>`, plus `docs/`, `.github/workflows/` → `ci`, `deploy/` → `deploy`). A release commit
+names its package: `chore(<pkg>): release X.Y.Z`.
+
+### Required checks
+
+Four jobs: `rust`, `typos`, `dprint`, and `ts`. `ts` also runs the contract crate bump check
+(`tools/check-contract-versions.sh --pr`) and the deploy's contract check for every package the PR
+bumps. The version files that make a PR a bump PR are `crates/{core,wasm}/Cargo.toml`,
+`packages/api/package.json`, `apps/web/package.json`, and `deploy/vv-router/package.json`.
+
+### Abandoned branches
+
+The `django-vue*`, `laravel*`, and `express-vue` branches are abandoned spikes. Treat them as
+read-only history; never merge from them.
 
 ## Contract crate versioning
 
@@ -198,19 +226,24 @@ When you change either crate:
 1. Bump the version in the matching `Cargo.toml`. Semver here means: MAJOR for a breaking state/wire
    change (event replay would produce different state, or the wire shape changed incompatibly),
    MINOR for additive features, PATCH for pure implementation fixes.
-2. In the same commit, record the change in that crate's `CHANGELOG.md` under a dated
+2. In the commit that bumps, record the change in that crate's `CHANGELOG.md` under a dated
    `## [X.Y.Z] - YYYY-MM-DD` section for the new version. The pre-commit hook rejects a bump left
-   under `## [Unreleased]`. The hook checks every commit that touches the crate's `src/`, so each
-   such commit bumps again: a branch with several crate commits carries several crate versions.
-3. When releasing a consumer (bumping its `package.json`), update the consumer's
+   under `## [Unreleased]`.
+3. Bump once per PR, in the first commit that changes the crate (or an earlier one). Later crate
+   commits on the branch extend that dated section rather than bumping again.
+4. When releasing a consumer (bumping its `package.json`), update the consumer's
    `### Bundled algorithm contract` subsection with the new crate versions.
 
 `tools/check-contract-versions.sh` enforces this in two places:
 
-* **Pre-commit.** Blocks a commit that touches `crates/{core,wasm}/src/` without bumping the
-  matching `Cargo.toml` version, and blocks a commit that bumps _any_ package's version without a
-  matching dated `## [X.Y.Z]` section in that package's `CHANGELOG.md`. Promote `[Unreleased]` in
-  the same commit.
+* **Pre-commit.** Blocks a commit that touches `crates/{core,wasm}/src/` while the matching
+  `Cargo.toml` version still equals the version where the branch left master (the more recent fork
+  point of `master` and `origin/master`), and blocks a commit that bumps _any_ package's version
+  without a matching dated `## [X.Y.Z]` section in that package's `CHANGELOG.md`. Promote
+  `[Unreleased]` in the same commit as the bump.
+* **PR CI** (`--pr <base>`, run by the required `ts` job). The same crate check against the PR's
+  base, which also catches commits that skipped the hook: `--no-verify`, or history rewritten by a
+  rebase or cherry-pick, which don't run pre-commit.
 * **CI** (`--ci <target>`, run by each consumer's deploy workflow, where target is `api`, `web`, or
   `vv-router`). Blocks the deploy when the consumer's CHANGELOG has no dated section for the version
   being deployed. For `api` and `web` it additionally requires that section to reference the current
@@ -228,7 +261,7 @@ the latest entry for the package you're touching before making a non-trivial cha
 **Release with the change.** By default the PR that changes a shipping package also bumps it and
 promotes its `[Unreleased]` entries to a dated section, so merging the PR is the release. Bump
 `api`, `web`, and `vv-router` once per PR: later commits on the branch extend that dated section
-rather than bumping again. The contract crates differ: every commit that changes one bumps it (see
+rather than bumping again. The contract crates follow the same rule (see
 [Contract crate versioning](#contract-crate-versioning)).
 
 **Deferring a release.** To ship several PRs as one release, leave their entries under

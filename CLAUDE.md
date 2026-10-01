@@ -116,11 +116,11 @@ essentials and the Claude-Code-specific caveats:
 
 ## Contract crate versioning
 
-`crates/core` and `crates/wasm` are versioned contracts: bumping their `Cargo.toml` version and
-adding a `CHANGELOG.md` entry is mandatory when their `src/` changes, and
-`tools/check-contract-versions.sh` enforces it at pre-commit and at deploy time. See
-[CONTRIBUTING.md](./CONTRIBUTING.md#contract-crate-versioning) for the semver rules and the release
-promotion steps.
+`crates/core` and `crates/wasm` are versioned contracts: a PR that changes their `src/` must bump
+their `Cargo.toml` version once and add a dated `CHANGELOG.md` section, which later commits on the
+branch extend. `tools/check-contract-versions.sh` enforces it at pre-commit, in PR CI, and at deploy
+time. See [CONTRIBUTING.md](./CONTRIBUTING.md#contract-crate-versioning) for the semver rules and
+the release promotion steps.
 
 ## Spec-driven development
 
@@ -157,6 +157,12 @@ Don't fold it silently into the current change: it muddies the diff, and the use
   restate what well-named code already says). Prefer line comments on the previous line over block
   or trailing comments. Docstrings on functions — especially public APIs — stay brief and focus on
   what isn't obvious from the signature.
+* **Ask before correcting extracted source data.** When extractor output (a schedule from
+  `tools/extract_pdf_schedule.py`, a deck, a club list) looks wrong against the app's model, such as
+  a club verse outside its block's passage or a date off the meeting day, ship it verbatim and list
+  each anomaly as a question in the commit or PR. Hand-edit only after the user confirms: the
+  printed schedules sometimes break the pattern on purpose, e.g. to balance weekly memorisation
+  load.
 
 ## Gotchas
 
