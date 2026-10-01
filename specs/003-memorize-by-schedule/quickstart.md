@@ -94,6 +94,39 @@ cargo run -p verse-vault-sim --release -- --memorize \
   and the mean wait no longer (SC-004).
 * Mean call times within 10% of the baseline's (plan Performance Goals).
 
+Recorded 2026-10-01 against core 0.12.0: zero invariant failures in every combination, and 0 of 288
+combinations regressed against `sim-baseline.tsv`.
+
+| Season              | Learner | Verses memorized | Mean wait (days) | Invariant failures |
+| ------------------- | ------- | ---------------- | ---------------- | ------------------ |
+| GEPC 2023-24        | On plan | 503.0            | 3.12             | 0                  |
+| GEPC 2023-24        | Behind  | 468.0            | 13.92            | 0                  |
+| GEPC 2023-24        | Ahead   | 503.0            | 0.07             | 0                  |
+| NT Survey 2024-25   | On plan | 812.0            | 3.08             | 0                  |
+| NT Survey 2024-25   | Behind  | 734.0            | 17.31            | 0                  |
+| NT Survey 2024-25   | Ahead   | 812.0            | 0.05             | 0                  |
+| Corinthians 2025-26 | On plan | 689.0            | 4.67             | 0                  |
+| Corinthians 2025-26 | Behind  | 645.0            | 14.55            | 0                  |
+| Corinthians 2025-26 | Ahead   | 694.0            | 0.06             | 0                  |
+| John 2026-27        | On plan | 879.0            | 3.08             | 0                  |
+| John 2026-27        | Behind  | 806.0            | 15.89            | 0                  |
+| John 2026-27        | Ahead   | 879.0            | 0.03             | 0                  |
+
+The mean wait is 6.38 days in every one of the 24 settings. That is expected rather than a flaw in
+the measure: once every verse served is owed, the order among owed verses moves which verse waits,
+not how many days of waiting there are in total. The settings now only reorder the owed set; the
+baseline's gaps between them came from serving verses that were not yet owed.
+
+| Call                  | Baseline, rerun alongside | After  |
+| --------------------- | ------------------------- | ------ |
+| `memorize_debt`       | 147 µs                    | 148 µs |
+| `next_memorize_batch` | 235 µs                    | 235 µs |
+
+Run to run, the same build varies by about 10% on this machine, so the old queue was timed again
+beside the new one rather than compared with the figure recorded in §1. The first run of the new
+queue was about 12% slower on `memorize_debt`; the visitor the placement pass walks the schedule
+with allocated per block, and `perf(core): visit schedule refs without allocating` removed that.
+
 ## 3. The app, on real data
 
 Against a copy of production data, or after deploy, for an account enrolled in John with Club 300

@@ -234,7 +234,7 @@ as amended).
 
 ## Phase 7: Contract, validation and shipping
 
-- [ ] T019 Rebuild `crates/wasm/pkg`, rerun `cargo run -p verse-vault-sim --release -- --memorize
+- [X] T019 Rebuild `crates/wasm/pkg`, rerun `cargo run -p verse-vault-sim --release -- --memorize
       --baseline specs/003-memorize-by-schedule/sim-baseline.tsv`, and record the results beside
       the baseline in `specs/003-memorize-by-schedule/quickstart.md`. Zero invariant failures and
       zero regressed combinations (SC-001 to SC-006). The mean time per `memorize_debt` and
