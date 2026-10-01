@@ -24,9 +24,9 @@ export const TAURI_ORIGINS = ['tauri://localhost', 'https://tauri.localhost'] as
 export function createAuth(db: DB, env: AuthEnv) {
   const isProd = process.env.NODE_ENV === 'production';
   // Browsers send Origin headers as scheme+host+port only — never a path.
-  // env.webOrigin may include a subpath in prod (e.g.
-  // `https://www.versevault.ca/vv`), but matching against trustedOrigins
-  // needs the bare origin. Strip the path here once and reuse below.
+  // env.webOrigin may include a subpath (production used
+  // `https://www.versevault.ca/vv` before moving to the root), but matching
+  // against trustedOrigins needs the bare origin. Strip the path here once and reuse below.
   const webOrigin = new URL(env.webOrigin).origin;
 
   // In dev, trust any localhost port the thin client might land on (Vite
@@ -39,10 +39,10 @@ export function createAuth(db: DB, env: AuthEnv) {
 
   // Better Auth derives its request-matching basePath from
   // `new URL(baseURL).pathname` — so any path component in env.baseUrl
-  // (e.g. `/vv` in prod, where the SPA is mounted under a subpath) becomes
-  // part of what Better Auth expects every request URL to start with. The
-  // API actually receives requests at `/api/auth/*` because vv-router
-  // strips `/vv` before forwarding. Pass just the origin so the match path
+  // (a subpath deploy, as production's `/vv` was) becomes part of what
+  // Better Auth expects every request URL to start with. The API always
+  // receives requests at `/api/auth/*`: vv-router forwards `/api/*` with the
+  // path unchanged (and used to strip `/vv`). Pass just the origin so the match path
   // stays empty and `/api/auth/*` is matched directly. We still keep
   // env.baseUrl as the source of truth for the public-facing URL (used
   // elsewhere for things like OAuth-flow URL construction).
@@ -53,11 +53,10 @@ export function createAuth(db: DB, env: AuthEnv) {
     secret: env.secret,
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     trustedOrigins,
-    // Better Auth's default error page is `${baseURL}/error`, i.e.
-    // https://<origin>/api/auth/error with our origin-only baseURL. That path
-    // has no `/vv` and is routed to the sibling qzr-api Worker, not to us.
-    // Send any OAuth error the client didn't give its own errorCallbackURL
-    // for to the profile picker instead, which shows it. force=1 keeps the
+    // Better Auth's default error page is `${baseURL}/error`, a bare page
+    // on the API rather than the app. Send any OAuth error the client didn't
+    // give its own errorCallbackURL for to the profile picker instead, which
+    // shows it. force=1 keeps the
     // router guard from forwarding a signed-in user off the picker (and
     // dropping `?error=`); Better Auth appends `&error=<code>`.
     onAPIError: { errorURL: `${env.webOrigin.replace(/\/$/, '')}/profiles?force=1` },
@@ -66,14 +65,10 @@ export function createAuth(db: DB, env: AuthEnv) {
       ? {
           google: {
             ...env.googleOAuth,
-            // Better Auth's auto-generated redirect URI is
-            // `${baseURL}/callback/google`. With our stripped origin-only
-            // baseURL that resolves to https://<origin>/callback/google —
-            // wrong on two fronts: it's missing `/api/auth/`, and the path
-            // would hit the sibling qzr-api Worker, not vv-router → API.
-            // This override is load-bearing for the web path; do not
-            // remove without first checking the qzr-api/vv-router routing
-            // story still holds. Tauri-shell OAuth is expected to reuse
+            // Pin the redirect URI to the public API URL (env.baseUrl) rather
+            // than Better Auth's derived one, which is built from the
+            // origin-only baseURL above and would drop any subpath. It must
+            // match a URI registered in the Google console exactly. Tauri-shell OAuth is expected to reuse
             // this same URI (the flow lands on the API, which bounces to
             // the in-app `callbackURL`) but isn't smoke-tested yet — see
             // the Known limitations entry in apps/web/CHANGELOG.md.
