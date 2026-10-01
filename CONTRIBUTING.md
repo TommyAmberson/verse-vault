@@ -152,9 +152,10 @@ work.
   decision, not a default.
 * **Rebase onto current master only for version-bump PRs.** A PR that bumps a package version
   (`crates/{core,wasm}/Cargo.toml`, `packages/api/package.json`, `apps/web/package.json`,
-  `deploy/vv-router/package.json`) needs its branch current, because the deploy-time
-  `tools/check-contract-versions.sh --ci` check runs against master rather than the PR head. Other
-  PRs merge fine when master has advanced — skip the pre-emptive rebase.
+  `deploy/vv-router/package.json`) needs its branch current. The required `ts` job runs the
+  deploy-time `tools/check-contract-versions.sh --ci` check for each package the PR bumps, against
+  the PR merged into master as of the run, so rebasing re-runs it against the master the PR will
+  deploy from. Other PRs merge fine when master has advanced — skip the pre-emptive rebase.
 
 ### Rewriting history
 
@@ -221,6 +222,18 @@ Every shipping package keeps its own changelog: `apps/web/CHANGELOG.md`,
 `crates/core/CHANGELOG.md` and `crates/wasm/CHANGELOG.md`. They record _why_ a release shipped. Read
 the latest entry for the package you're touching before making a non-trivial change, and add an
 `[Unreleased]` entry as part of the change rather than at release time.
+
+**Release with the change.** By default the PR that changes a shipping package also bumps it and
+promotes its `[Unreleased]` entries to a dated section, so merging the PR is the release. Bump
+`api`, `web`, and `vv-router` once per PR: later commits on the branch extend that dated section
+rather than bumping again. The contract crates differ: every commit that changes one bumps it (see
+[Contract crate versioning](#contract-crate-versioning)).
+
+**Deferring a release.** To ship several PRs as one release, leave their entries under
+`## [Unreleased]` and say so in each PR body. Keep the window short: while master holds unreleased
+changes to a package, an urgent fix to that package can only ship by releasing them too. Before
+deferring, check what is already waiting (`git log <pkg>@<last-version>..master -- <package-path>`),
+and ship the backlog from a `chore/release-<pkg>-<version>` PR.
 
 The top-level `CHANGELOG.md` describes the contract model and indexes the per-package changelogs.
 
