@@ -126,11 +126,15 @@ shape. A checkout without those hooks silently skips every local gate.
 
 Master is branch-protected on the four required CI checks and stays that way; the `--admin` bypass
 is a conscious hotfix decision, not a fallback. A pull request that bumps any package version MUST
-be rebased onto current master, because the deploy-time contract check runs against master rather
-than the pull-request head; other pull requests MUST NOT be rebased pre-emptively.
+be rebased onto current master, so that CI's run of the deploy-time contract check reflects the
+master it will deploy from; other pull requests MUST NOT be rebased pre-emptively.
 
 Every shipping package keeps its own changelog and records _why_ a release shipped. Add the
-`[Unreleased]` entry as part of the change, not at release time.
+`[Unreleased]` entry as part of the change, not at release time. By default the pull request that
+changes a shipping package also bumps it, so merging it is the release. Deferring the bump to ship
+several changes together is allowed but deliberate: the pull request body says so, and the entries
+wait under `## [Unreleased]`. Master SHOULD NOT hold unreleased changes for long, because an urgent
+fix then cannot ship without them.
 
 The `django-vue*`, `laravel*`, and `express-vue` branches are abandoned spikes. They are read-only
 history and MUST NOT be merged from.
@@ -149,4 +153,4 @@ the principles above. Added complexity — a new crate, a new package, an except
 MUST carry its justification in the pull request body, and an exception that outlives its
 justification is a defect to be removed.
 
-**Version**: 1.1.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-09-23
+**Version**: 1.2.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-10-01
