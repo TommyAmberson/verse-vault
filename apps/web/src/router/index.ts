@@ -84,6 +84,9 @@ const router = createRouter({
         },
       ],
     },
+    // Anything else belongs to qzr, which shares the host under /qzr/. The
+    // guard below sends it there; this route only gives it a name to match.
+    { path: '/:pathMatch(.*)*', name: 'qzr', component: { render: () => null } },
   ],
 })
 
@@ -98,6 +101,19 @@ const router = createRouter({
 // If the registry has no last-active profile (or the referenced DB
 // has been wiped), fall through to the sign-in form.
 router.beforeEach(async (to) => {
+  // Old qzr links (meet slugs like /fall-2025, bookmarks, printed sheets) land
+  // here now that verse-vault owns the root. qzr is a separate app, so this is a
+  // full page load, and it runs before the sign-in redirect so signed-out
+  // visitors aren't sent to the profile picker first.
+  if (to.name === 'qzr') {
+    // In production /qzr/* never reaches this app (qzr's Workers serve it). On
+    // the dev server, pages.dev, or in Tauri it does, and prefixing it again
+    // would loop, so land on the app instead.
+    if (to.path === '/qzr' || to.path.startsWith('/qzr/')) return { path: '/' }
+    window.location.replace(`/qzr${to.fullPath}`)
+    return false
+  }
+
   const signedIn = await loadActiveProfileFromRegistry()
 
   // Kick off the live session check in the background. We don't await
