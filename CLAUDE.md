@@ -137,6 +137,17 @@ for agents. Where they disagree, fix the operational file rather than working ar
 Spec Kit is branch-agnostic: `create-new-feature.sh` invokes git nowhere, and its `NNN-slug` string
 names the `specs/` directory rather than a branch. Keep using `type/short-slug` branches.
 
+## Scope discipline
+
+When you notice something nearby that's bad, awkward, or wrong while working on a feature, **stop
+and check with the user before acting**. Offer to either:
+
+* fix it now as a separate commit before continuing the feature, or
+* record it (TODO comment, issue, or `docs/unspecced.md` / ROADMAP entry) and carry on.
+
+Don't fold it silently into the current change: it muddies the diff, and the user may have context
+(a deliberate choice, planned rework) you don't. Don't ignore it either.
+
 ## Other conventions
 
 * Slight preference for writing tests before features.
