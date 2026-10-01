@@ -35,6 +35,8 @@ MINOR: bundles core 0.12.0, whose memorize count and queue follow the schedule.
 
 * `memorize_debt(now_secs)` is zero before the season's first week, where it used to report the
   whole pool. Without a schedule it still reports the whole pool.
+* `memorize_session_v2(limit, now_secs)` serves the verses `memorize_debt` counts first, and a
+  cross-club gate orders clubs rather than leaving one out.
 
 ## [0.11.0] — 2026-09-24
 

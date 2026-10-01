@@ -136,28 +136,26 @@ impl Default for ClubReviewConfig {
 /// Club 150 and Club 300, `p300_to_full` between Club 300 and Full).
 ///
 /// Each variant describes a condition on the higher club's progress
-/// against the schedule; gate-open means the lower club enters the
-/// eligible set for Phase 2's canonical-order fill. Eligibility is
-/// independent of fill priority — once eligible, both clubs interleave
-/// by deck position.
+/// against the schedule. While a gate is unmet, the memorize queue serves
+/// the lower club's verses after the higher club's (see
+/// `schedule::club_ranks`); it never hides them. Once met, both clubs
+/// interleave by deck position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum MoveToNextGate {
-    /// Lower club waits until the higher is fully memorized
-    /// (strict drain).
+    /// Met once the higher club is fully memorized (strict drain).
     FullyMemorized,
-    /// Lower club enters after the higher's verses through the most
-    /// recent past meet are all memorized. Never open before the
-    /// season's first meet.
+    /// Met once the higher's verses through the most recent past meet
+    /// are all memorized. Never met before the season's first meet.
     AfterMajorCheckpoint,
-    /// Lower club enters once the higher's this-week row is done.
+    /// Met once the higher's this-week row is done.
     AfterMinorCheckpoint,
-    /// Lower club is eligible whenever the higher's user position is
-    /// at or past the previous week's checkpoint. Open by default at
-    /// season start (no previous checkpoint yet).
+    /// Met whenever the higher's user position is at or past the
+    /// previous week's checkpoint. Met by default at season start (no
+    /// previous checkpoint yet).
     #[default]
     CaughtUp,
-    /// No gate — lower always eligible.
+    /// No gate: always met.
     Always,
 }
 

@@ -110,12 +110,12 @@ with its first caller (commit rule).
       the schedule once to map `(book, chapter, verse)` to its first assigning week, borrowing book
       names (as `for_each_cumulative_ref` does), then look up each un-memorized verse of an enabled
       club by its render reference (research D1). Commit with T018's version bumps
-- [ ] T008 Write failing tests for `club_ranks` in `crates/core/src/schedule.rs`: every gate met gives
+- [X] T008 Write failing tests for `club_ranks` in `crates/core/src/schedule.rs`: every gate met gives
       every enabled club rank 0; an unmet `p150_to_300` gives Club 300 rank 1, and Full rank 1 or 2
       depending on `p300_to_full`; a club with memorize off has no rank; a gate that can never open
       (checkpoint gates with no schedule, `FullyMemorized` over an empty higher club) still yields a
       rank, never an exclusion
-- [ ] T009 Implement `club_ranks` in `crates/core/src/schedule.rs` over `ClubTier::ALL` using the
+- [X] T009 Implement `club_ranks` in `crates/core/src/schedule.rs` over `ClubTier::ALL` using the
       existing `gate_is_open` unchanged (research D2). `compute_eligible_clubs` stays until T012
       removes its last caller
 
@@ -135,7 +135,7 @@ commits 1 and 2 of the commit rule.
 **Independent Test**: A learner behind by two weeks gets only owed verses, in deck order, and the
 count drops by each verse memorized.
 
-- [ ] T010 [US1] Write failing tests in `crates/core/src/schedule.rs`: a learner two weeks behind
+- [X] T010 [US1] Write failing tests in `crates/core/src/schedule.rs`: a learner two weeks behind
       gets only owed verses; owed verses from several weeks arrive in deck order; the verse count
       drops by k after graduating k served verses; a verse its week lists out of deck order is
       served while owed, before any ahead verse; before the season `memorize_debt` is zero with a
@@ -144,7 +144,7 @@ count drops by each verse memorized.
       pass's `Owed` verses (and `Unscheduled` only when there is no schedule), keeping the
       `{ verses, cards }` shape, and rewrite `memorize_debt_falls_back_to_the_whole_pool` for the
       pre-season case
-- [ ] T012 [US1] Rewrite `next_memorize_batch` in `crates/core/src/schedule.rs` to serve `Owed`
+- [X] T012 [US1] Rewrite `next_memorize_batch` in `crates/core/src/schedule.rs` to serve `Owed`
       verses sorted by (club rank, verse id), taking at most `batch_size` (firm limit). Delete
       `compute_eligible_clubs`, which this removes the last caller of, and rewrite
       `memorize_debt_counts_every_enabled_club_whatever_the_gates` to assert on `club_ranks`. Update
@@ -190,7 +190,7 @@ Club 300's, and the queue is never empty while the count is above zero.
       the gate is still unmet; under `FullyMemorized` with an empty higher club and under
       checkpoint gates with no schedule, a positive `memorize_debt` always yields a non-empty batch;
       adjust `next_memorize_batch` if any of these fail
-- [ ] T016 [US3] With T012: rewrite `batch_strict_drain_keeps_lower_club_off` and
+- [X] T016 [US3] With T012: rewrite `batch_strict_drain_keeps_lower_club_off` and
       `batch_empty_when_nothing_eligible` in `crates/core/src/schedule.rs`. They assert the old
       filter, which T012's ranking removes; they should assert ordering and non-emptiness instead
 
