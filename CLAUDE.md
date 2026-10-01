@@ -157,6 +157,12 @@ Don't fold it silently into the current change: it muddies the diff, and the use
   restate what well-named code already says). Prefer line comments on the previous line over block
   or trailing comments. Docstrings on functions — especially public APIs — stay brief and focus on
   what isn't obvious from the signature.
+* **Ask before correcting extracted source data.** When extractor output (a schedule from
+  `tools/extract_pdf_schedule.py`, a deck, a club list) looks wrong against the app's model, such as
+  a club verse outside its block's passage or a date off the meeting day, ship it verbatim and list
+  each anomaly as a question in the commit or PR. Hand-edit only after the user confirms: the
+  printed schedules sometimes break the pattern on purpose, e.g. to balance weekly memorisation
+  load.
 
 ## Gotchas
 
