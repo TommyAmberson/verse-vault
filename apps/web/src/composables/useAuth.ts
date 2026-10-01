@@ -490,23 +490,44 @@ watch(
   (data) => {
     const user = data?.user
     if (!user) return
-    // Consume the OAuth provider stash on ANY resolved-user fire. A
-    // same-account re-auth return lands in the token-refresh branch
-    // below and would otherwise strand 'google' in sessionStorage to
-    // mislabel a later sign-in (#2). Reading after the `!user` guard
-    // keeps a null fire from eating it before the real one. Undefined on
-    // a restored session, so the row then keeps its prior provider.
+    // Consume the OAuth provider stash on ANY resolved-user fire,
+    // including a same-account re-auth return, which skips
+    // `signInComplete` and would otherwise strand 'google' in
+    // sessionStorage to mislabel a later sign-in (#2). Reading after the
+    // `!user` guard keeps a null fire from eating it before the real one.
+    // Undefined on a restored session, so the row then keeps its prior
+    // provider.
     const pendingProvider = readPendingProvider()
     const sessionToken = data?.session?.token ?? null
     if (activeProfile.value?.profileId === user.id) {
-      if (sessionToken && activeProfile.value.sessionToken !== sessionToken) {
-        void setProfileToken(user.id, sessionToken)
-      }
+      void refreshActiveProfileAuth(user.id, sessionToken, pendingProvider)
       return
     }
     void signInComplete(user, sessionToken, pendingProvider)
   },
 )
+
+/** Same-account watcher fire: a rotated cookie or a re-auth of the
+ *  active profile. Records the provider too: re-auth is the only time
+ *  an active legacy row (one that predates provider tracking) learns
+ *  its method; skipping it left such rows prompting for a password the
+ *  user never set on every expiry. */
+async function refreshActiveProfileAuth(
+  profileId: string,
+  sessionToken: string | null,
+  provider: registry.AuthProvider | undefined,
+): Promise<void> {
+  const patch: Partial<registry.ProfileRow> = {}
+  if (sessionToken && activeProfile.value?.sessionToken !== sessionToken) {
+    patch.sessionToken = sessionToken
+  }
+  if (provider && activeProfile.value?.provider !== provider) {
+    patch.provider = provider
+  }
+  if (Object.keys(patch).length === 0) return
+  applyProfileRowUpdate(profileId, await registry.updateProfile(profileId, patch))
+  await refreshProfilesList()
+}
 
 /** Clear a token judged stale by the boot reconcile, but only if the
  *  row still holds that exact token. A concurrent watcher fire may have

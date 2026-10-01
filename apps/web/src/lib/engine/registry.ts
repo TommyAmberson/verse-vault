@@ -165,11 +165,7 @@ export async function touchProfile(
   profileId: string,
   nowSecs: number,
 ): Promise<ProfileRow | null> {
-  const existing = await getProfile(profileId)
-  if (!existing) return null
-  const updated: ProfileRow = { ...existing, lastUsedAt: nowSecs }
-  await upsertProfile(updated)
-  return updated
+  return updateProfile(profileId, { lastUsedAt: nowSecs })
 }
 
 /** Set or clear the Better Auth session token for a profile. Returns
@@ -180,9 +176,18 @@ export async function updateProfileSessionToken(
   profileId: string,
   sessionToken: string | null,
 ): Promise<ProfileRow | null> {
+  return updateProfile(profileId, { sessionToken })
+}
+
+/** Merge `patch` into a profile's row. Returns the updated row, or null
+ *  when the profile is gone. */
+export async function updateProfile(
+  profileId: string,
+  patch: Partial<Omit<ProfileRow, 'profileId'>>,
+): Promise<ProfileRow | null> {
   const existing = await getProfile(profileId)
   if (!existing) return null
-  const updated: ProfileRow = { ...existing, sessionToken }
+  const updated: ProfileRow = { ...existing, ...patch }
   await upsertProfile(updated)
   return updated
 }
