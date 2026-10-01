@@ -52,6 +52,8 @@ not the code.
 * `docs/graph.md` — verse element index: `VerseIndex`, `ElementId`, bindings
 * `docs/review.md` — review pipeline: direct + propagated FSRS updates driven by `Card::tests`
 * `docs/scheduling.md` — per-test FSRS scheduling, `next_card`, sibling cooldown
+* `docs/memorize.md`: the memorize queue and count, covering owed, ahead and unscheduled verses,
+  gates as ranking, and calendar cascade
 * `docs/session.md` — within-session flow (re-drills, progressive reveal)
 * `docs/validation.md` — proofs, simulation framework, test scenarios
 * `docs/wasm-api.md` — WASM boundary: exposed functions, JSON shapes

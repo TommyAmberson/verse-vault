@@ -252,14 +252,14 @@ as amended).
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T022 [P] Write `docs/memorize.md`: owed, ahead and unscheduled; the queue order; gates as
+- [X] T022 [P] Write `docs/memorize.md`: owed, ahead and unscheduled; the queue order; gates as
       ranking; calendar cascade; the firm batch size; the no-schedule, pre-season and post-season
       cases; how the count relates to the queue, including the brief rollout window where a
       client on an older web build counts and serves under different engines (FR-014, research D8)
 - [ ] T023 [P] Update the `memorize_session_v2`, `memorize_session` and `memorize_debt` descriptions
       in `docs/wasm-api.md`, and their doc comments in `crates/wasm/src/lib.rs`, per
       [contracts/memorize-queue.md](./contracts/memorize-queue.md)
-- [ ] T024 [P] Add `docs/memorize.md` to the reference-docs list in `CLAUDE.md`, and narrow the
+- [X] T024 [P] Add `docs/memorize.md` to the reference-docs list in `CLAUDE.md`, and narrow the
       "Memorize schedules" entry in `docs/unspecced.md` to what stays undocumented (the schedule
       data model and editor)
 - [ ] T025 After deploy, run [quickstart.md](./quickstart.md) §3 on the John account: served verses
