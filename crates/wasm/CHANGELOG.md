@@ -22,6 +22,20 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-01
+
+MINOR: bundles core 0.12.0, whose memorize count and queue follow the schedule.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: `memorize_debt` counts only verses the schedule has assigned in weeks
+  that have started; no state-semantics change.
+
+### Changed
+
+* `memorize_debt(now_secs)` is zero before the season's first week, where it used to report the
+  whole pool. Without a schedule it still reports the whole pool.
+
 ## [0.11.0] — 2026-09-24
 
 MINOR: bundles core 0.11.0, whose `memorize_debt` now counts every club with memorize enabled.

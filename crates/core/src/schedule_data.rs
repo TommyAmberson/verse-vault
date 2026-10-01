@@ -247,26 +247,22 @@ impl Schedule {
         out
     }
 
-    /// Visit every `(book, chapter, verse)` that `tier` introduces in
-    /// weeks `0..=through_week_idx`, borrowing each book name from the
-    /// schedule rather than cloning it per verse. The allocation-light
-    /// counterpart to `cumulative_verse_refs_through_week` for callers
-    /// that only need a membership test — see `schedule::memorize_debt`,
-    /// which runs on every `/api/years` request.
-    pub fn for_each_cumulative_ref<'a>(
+    /// Visit every `(book, chapter, verse)` that `tier` introduces, with the
+    /// index of the week introducing it, borrowing each book name from the
+    /// schedule rather than cloning it per verse. Weeks are visited in
+    /// order, so a ref's first visit is its earliest assigning week. The
+    /// allocation-light counterpart to `week_verse_refs` for callers that
+    /// only need a lookup, such as `schedule::memorize_debt`, which runs
+    /// on every `/api/years` request.
+    pub fn for_each_ref<'a>(
         &'a self,
-        through_week_idx: usize,
         tier: ClubTier,
-        mut visit: impl FnMut(&'a str, u16, u16),
+        mut visit: impl FnMut(usize, &'a str, u16, u16),
     ) {
-        if self.weeks.is_empty() {
-            return;
-        }
-        let cap = through_week_idx.min(self.weeks.len() - 1);
-        for week in &self.weeks[..=cap] {
+        for (week_idx, week) in self.weeks.iter().enumerate() {
             for block in &week.blocks {
                 for n in block_verse_numbers_for_tier(block, tier) {
-                    visit(&block.passage.book, block.passage.chapter, n);
+                    visit(week_idx, &block.passage.book, block.passage.chapter, n);
                 }
             }
         }

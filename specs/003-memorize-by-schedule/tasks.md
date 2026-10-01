@@ -98,7 +98,7 @@ eligibility filter (FR-006).
 **⚠️ CRITICAL**: Write and run this phase's tests before any story's implementation. Its code lands
 with its first caller (commit rule).
 
-- [ ] T006 Write failing tests in the `tests` module of `crates/core/src/schedule.rs` for the
+- [X] T006 Write failing tests in the `tests` module of `crates/core/src/schedule.rs` for the
       placement pass, per [data-model.md](./data-model.md): a verse is `Owed` when first assigned in
       a started week, `Ahead { week }` when first assigned in a future week, `Unscheduled` when no
       week assigns it; "assigned" is the union across enabled clubs including Full's derived range;
@@ -106,7 +106,7 @@ with its first caller (commit rule).
       first week; every scheduled verse is `Owed` after the season ends; with no schedule every
       verse is `Unscheduled`; memorized verses and verses whose own club has memorize off are
       absent; an edited schedule changes the placement on the next call
-- [ ] T007 Implement the placement pass as a private function in `crates/core/src/schedule.rs`. Walk
+- [X] T007 Implement the placement pass as a private function in `crates/core/src/schedule.rs`. Walk
       the schedule once to map `(book, chapter, verse)` to its first assigning week, borrowing book
       names (as `for_each_cumulative_ref` does), then look up each un-memorized verse of an enabled
       club by its render reference (research D1). Commit with T018's version bumps
@@ -119,7 +119,7 @@ with its first caller (commit rule).
       existing `gate_is_open` unchanged (research D2). `compute_eligible_clubs` stays until T012
       removes its last caller
 
-- [ ] T018 Bump `crates/core/Cargo.toml` and `crates/wasm/Cargo.toml` to 0.12.0 with dated
+- [X] T018 Bump `crates/core/Cargo.toml` and `crates/wasm/Cargo.toml` to 0.12.0 with dated
       `## [0.12.0] - YYYY-MM-DD` sections in the two CHANGELOGs. Lands in the same commit as T007;
       later core commits add to those sections
 
@@ -140,7 +140,7 @@ count drops by each verse memorized.
       drops by k after graduating k served verses; a verse its week lists out of deck order is
       served while owed, before any ahead verse; before the season `memorize_debt` is zero with a
       schedule and the whole pool without one (FR-010, FR-011)
-- [ ] T011 [US1] Rewrite `memorize_debt` in `crates/core/src/schedule.rs` to count the placement
+- [X] T011 [US1] Rewrite `memorize_debt` in `crates/core/src/schedule.rs` to count the placement
       pass's `Owed` verses (and `Unscheduled` only when there is no schedule), keeping the
       `{ verses, cards }` shape, and rewrite `memorize_debt_falls_back_to_the_whole_pool` for the
       pre-season case

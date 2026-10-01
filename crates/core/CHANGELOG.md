@@ -22,6 +22,27 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-01
+
+MINOR: the memorize count and queue follow the schedule (`specs/003-memorize-by-schedule`). What the
+count reports changes; no state semantics or replay change.
+
+### Changed
+
+* `schedule::memorize_debt` counts the verses a new placement pass marks owed: un-memorized verses
+  of an enabled club that the schedule first assigns in a week that has started. Before the season's
+  first week the count is zero, where it used to fall back to the whole pool. With no schedule it
+  still counts the whole pool.
+
+### Added
+
+* `Schedule::for_each_ref`, which visits each ref a tier introduces together with its week's index,
+  borrowing book names as `for_each_cumulative_ref` did.
+
+### Removed
+
+* `Schedule::for_each_cumulative_ref`, whose one caller, `memorize_debt`, now reads `for_each_ref`.
+
 ## [0.11.0] — 2026-09-24
 
 MINOR: `memorize_debt` counts every club with memorize enabled, ignoring the cross-club gates. The
