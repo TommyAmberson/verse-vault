@@ -68,7 +68,7 @@ changelog_section() {
 	' "$file"
 }
 
-# True iff the staged changelog has a dated `## [X.Y.Z] — YYYY-MM-DD`
+# True iff the staged changelog has a dated `## [X.Y.Z] - YYYY-MM-DD`
 # header (i.e. promoted, not the bare `## [Unreleased]`) for the given
 # version. Reads the index, not the working tree, so an unstaged section
 # doesn't pass. The version is matched literally, so semver build metadata
@@ -140,8 +140,8 @@ check_version_promotion() {
   $manifest version bumped to $new_version but $changelog has no
   dated [$new_version] section.
 
-  Promote [Unreleased] to '[$new_version] — YYYY-MM-DD' in the same
-  commit. See CLAUDE.md "Contract crate versioning".
+  Promote [Unreleased] to '[$new_version] - YYYY-MM-DD' in the same
+  commit. See CONTRIBUTING.md "Contract crate versioning".
 
 EOF
 	return 1
