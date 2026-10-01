@@ -49,6 +49,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A PR checks out its merge into the base, so HEAD^1 is the base.
+          fetch-depth: 2
+
+      # Run the deploy's contract check for every package this PR bumps,
+      # against the master it merges into, so a stale `### Bundled algorithm
+      # contract` fails here instead of in the deploy after merge. Lives in
+      # `ts` because that job is a required check.
+      - name: Verify contract reference for bumped packages
+        if: github.event_name == 'pull_request'
+        run: |
+          for entry in api:packages/api web:apps/web vv-router:deploy/vv-router; do
+            pkg=${entry%%:*}
+            dir=${entry#*:}
+            old=$(git show "HEAD^1:$dir/package.json" | jq -r .version)
+            new=$(jq -r .version "$dir/package.json")
+            if [ "$old" != "$new" ]; then
+              echo "$pkg: $old -> $new"
+              tools/check-contract-versions.sh --ci "$pkg"
+            fi
+          done
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
