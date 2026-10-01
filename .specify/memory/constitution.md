@@ -104,6 +104,28 @@ events carried ids from a retired space; the same account synced normally in ano
 diagnosis required reading a response body out of devtools. Every individual decision in that chain
 was defensible. The system still ate a fortnight of reviews.
 
+### VII. Simplest Design That Works
+
+A feature takes the simplest design that meets its spec. Existing code MUST be reused before a new
+helper, module, type, or test fixture is added, and each decision or write path the feature adds
+MUST have one owner. Every production export, option, reason code, or piece of state MUST have a
+production caller; nothing exists only for a test to read. `crates/sim` counts as a caller, since
+Principle IV validates behaviour through it. Test fixtures and helpers fall under the reuse rule
+above instead. Behaviour the framework or a library already provides MUST NOT be restated or
+re-implemented. Plans record owners and reuse in a Reuse and Ownership table. Implementation tasks
+MUST describe the behaviour they add, and the test that proves it where Principle IV calls for one,
+pointing at those owners. They MUST NOT prescribe the names or signatures of new functions, types,
+or options, or split one change into per-layer files; implementation chooses those. Naming the file
+a change lands in is fine, and a name the spec, data-model.md, or contracts/ already fixes is not
+new: tasks may cite it. Complexity beyond this MUST be justified in the pull request body, and in
+the plan's Complexity Tracking when there is one.
+
+Rationale: a plan or task list that prescribes structure gets built literally. On the first features
+run through Spec Kit, the largest cleanups after implementation, and one real bug, came from
+structure the plan or tasks had named: a writer copied a fifth time, one decision split across three
+files with three rules, helpers with no caller, and framework defaults restated by hand. Not writing
+that structure is cheaper than deleting it.
+
 ## Technology and Content Constraints
 
 The stack is fixed by the architecture and MUST NOT be forked casually: a Rust workspace
@@ -155,4 +177,4 @@ the principles above. Added complexity — a new crate, a new package, an except
 MUST carry its justification in the pull request body, and an exception that outlives its
 justification is a defect to be removed.
 
-**Version**: 1.3.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-10-01
+**Version**: 1.4.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-10-01
