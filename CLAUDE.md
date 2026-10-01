@@ -126,7 +126,9 @@ promotion steps.
 
 Feature-sized work runs through the `speckit-*` skills — `/speckit-specify` → `/speckit-plan` →
 `/speckit-tasks` → `/speckit-implement` — writing into `specs/<NNN-slug>/`. `/speckit-analyze`
-cross-checks the three artefacts before implementation starts.
+cross-checks the three artefacts before implementation starts. Run it before every
+`/speckit-implement`, even when asked to just "continue", unless the user says it already ran or to
+skip it.
 
 Those commands gate against `.specify/memory/constitution.md`. It states principles;
 `CONTRIBUTING.md` holds the mechanics they compile down to, and this file holds the runtime guidance
