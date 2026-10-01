@@ -37,8 +37,6 @@ node crates/wasm/test-smoke.js  # smoke-test the WASM module
 * `specs/` — spec-driven development artefacts, one `NNN-slug/` directory per feature holding
   `spec.md`, `plan.md`, and `tasks.md`.
 * `.specify/` — Spec Kit scaffolding: templates, shell helpers, and the project constitution.
-  Vendored by the Specify CLI, which rewrites `scripts/` and `templates/*.md` on every refresh —
-  customise through `.specify/templates/overrides/<name>.md` rather than editing them in place.
 * `data/` — gitignored. Local content files (NKJV text, chunked JSON). Not committed.
 * Other branches (`django-vue*`, `laravel*`, `express-vue`, etc.) are abandoned spikes. Do not merge
   from them.
@@ -89,31 +87,6 @@ pnpm test             # TypeScript suites (api + web)
 dprint check          # formatting for docs (also runs via lint-staged)
 ```
 
-## Git conventions
-
-Full detail — branch naming, commit format, PR/merge policy, history rewriting, contract-crate
-versioning — lives in [CONTRIBUTING.md](./CONTRIBUTING.md). Read it before committing. The
-essentials and the Claude-Code-specific caveats:
-
-* Commits are atomic and single-responsibility. Commit as you go; don't batch at the end.
-* Work on feature branches (`type/short-slug`), never directly on master.
-* Conventional-commits subject, lowercase, imperative, **≤ 50 chars** including the `type(scope):`
-  prefix. Body wrapped at ~72 cols, explaining why.
-* Merge PRs with a merge commit, never squash:
-  `gh pr merge <N> --merge --delete-branch --subject "chore: merge <branch>"`.
-* master is branch-protected behind the `rust`, `typos`, `dprint`, and `ts` checks.
-* Never rewrite master. Feature branches are fair game before merging.
-
-**`git rebase -i` is unavailable in Claude Code** (no interactive input). Workarounds:
-
-* Contiguous squash: `git cherry-pick --no-commit <a> <b> <c>` then a single `git commit`.
-* Wider restructure: `git reset --soft <base>`, then re-stage and re-commit in groups.
-* Autosquash still works non-interactively —
-  `git -c sequence.editor=: rebase -i --autosquash master` — because `fixup!` commits discard their
-  own message, so no editor opens. Before using `--fixup=<sha>`, check whether the fix changes what
-  the target's subject claims; if it does, use `--fixup=amend:<sha>` so the squash prompts for a new
-  subject instead of shipping a misleading one.
-
 ## Contract crate versioning
 
 `crates/core` and `crates/wasm` are versioned contracts: a PR that changes their `src/` must bump
@@ -122,20 +95,21 @@ branch extend. `tools/check-contract-versions.sh` enforces it at pre-commit, in 
 time. See [CONTRIBUTING.md](./CONTRIBUTING.md#contract-crate-versioning) for the semver rules and
 the release promotion steps.
 
-## Spec-driven development
+<!-- BEGIN shared agent workflow: keep identical in qzr-sheet and verse-vault -->
 
-Feature-sized work runs through the `speckit-*` skills — `/speckit-specify` → `/speckit-plan` →
-`/speckit-tasks` → `/speckit-implement` — writing into `specs/<NNN-slug>/`. `/speckit-analyze`
-cross-checks the three artefacts before implementation starts. Run it before every
-`/speckit-implement`, even when asked to just "continue", unless the user says it already ran or to
-skip it.
+## Git workflow
 
-Those commands gate against `.specify/memory/constitution.md`. It states principles;
-`CONTRIBUTING.md` holds the mechanics they compile down to, and this file holds the runtime guidance
-for agents. Where they disagree, fix the operational file rather than working around it.
+[CONTRIBUTING.md](./CONTRIBUTING.md) holds the mechanics: hooks, branches, commit format, PRs,
+merging, history rewriting, versioning, and releasing. Read it before committing; its rules aren't
+repeated here. On top of it:
 
-Spec Kit is branch-agnostic: `create-new-feature.sh` invokes git nowhere, and its `NNN-slug` string
-names the `specs/` directory rather than a branch. Keep using `type/short-slug` branches.
+* Commit as you go on a `type/short-slug` branch, without waiting to be asked.
+* Ask before opening, closing, or splitting a PR.
+* `git rebase -i` is unavailable in Claude Code (no interactive input). For a contiguous squash,
+  `git cherry-pick --no-commit <a> <b> <c>`, then a single `git commit`. For a wider restructure,
+  `git reset --soft <base>`, then re-stage and re-commit in groups. Autosquash still works
+  non-interactively, `git -c sequence.editor=: rebase -i --autosquash master`, because `fixup!`
+  commits discard their own message, so no editor opens; see CONTRIBUTING "Rewriting history".
 
 ## Scope discipline
 
@@ -143,20 +117,67 @@ When you notice something nearby that's bad, awkward, or wrong while working on 
 and check with the user before acting**. Offer to either:
 
 * fix it now as a separate commit before continuing the feature, or
-* record it (TODO comment, issue, or `docs/unspecced.md` / ROADMAP entry) and carry on.
+* record it (TODO comment, issue, or ROADMAP entry) and carry on.
 
 Don't fold it silently into the current change: it muddies the diff, and the user may have context
 (a deliberate choice, planned rework) you don't. Don't ignore it either.
 
-## Other conventions
+## Spec-driven development
+
+Feature-sized work runs through the `speckit-*` skills (`/speckit-specify`, `/speckit-plan`,
+`/speckit-tasks`, `/speckit-implement`), writing into `specs/<NNN-slug>/`. `/speckit-clarify` before
+planning de-risks an ambiguous spec, and `/speckit-analyze` cross-checks the three artefacts before
+implementation starts. Run `/speckit-analyze` before every `/speckit-implement`, even when asked to
+just "continue", unless the user says it already ran or to skip it. Small fixes and one-commit
+changes skip the pipeline.
+
+Those commands gate against `.specify/memory/constitution.md`. It states principles;
+[CONTRIBUTING.md](./CONTRIBUTING.md) holds the mechanics they compile down to, and this file the
+runtime guidance for agents. Where they disagree, fix the operational file rather than working
+around it.
+
+Spec Kit is branch-agnostic: `create-new-feature.sh` invokes git nowhere, and its `NNN-slug` string
+names the `specs/` directory rather than a branch. Keep using `type/short-slug` branches. Commit
+each artefact as it lands (`docs: spec <feature>`, `docs: plan <feature>`,
+`docs: break <feature> into tasks`).
+
+`.specify/` is vendored by the Specify CLI, which rewrites `scripts/` and `templates/*.md` on every
+refresh. Customise through `.specify/templates/overrides/<name>.md` rather than editing them in
+place.
+
+Spec Kit gotchas:
+
+* **A fresh clone cannot resume a committed feature.** `.specify/feature.json` is the only
+  feature-context source the scripts accept, and Spec Kit gitignores it as machine-local state.
+  Every speckit command fails with "Feature directory not found" until you
+  `export SPECIFY_FEATURE_DIRECTORY=specs/<NNN-slug>` or re-run `/speckit-specify`. Set the env var
+  when picking up a feature started elsewhere, including in another worktree.
+* **dprint rewrites Spec Kit's checkboxes, so `specs/**/tasks.md` and `specs/**/checklists/` are
+  excluded.** `unorderedListKind: "asterisks"` turns `- [ ]` into `* [ ]`, and `/speckit-implement`
+  and `/speckit-converge` read task state from the hyphen form. The rewrite is silent and still
+  renders fine, so the damage only shows when a speckit command finds no tasks. Prose artefacts in
+  `specs/` carry no checkboxes and stay linted.
+* **Vendored Spec Kit files are exempt from dprint and typos, narrowly.** `typos` skips
+  `.specify/scripts/`, `.specify/templates/`, and `.claude/skills/speckit-*`; `dprint` skips
+  `.specify/templates/*.md` and `.claude/skills/speckit-*/`. The Specify CLI rewrites all of them on
+  refresh, so any fix would be undone. `.specify/memory/constitution.md` and
+  `.specify/templates/overrides/` are project-authored and stay linted. Don't widen either exclusion
+  to `.specify/**`.
+
+## Code style
 
 * Slight preference for writing tests before features.
-* Comments are part of the code: update them when surrounding code changes — stale comments are
-  bugs. Use correct grammar and spelling.
+* Comments are part of the code: update them when the surrounding code changes, since stale comments
+  are bugs. Use correct grammar and spelling.
 * Comments explain **why**, sometimes **how at a high level**, never **how at a low level** (don't
   restate what well-named code already says). Prefer line comments on the previous line over block
-  or trailing comments. Docstrings on functions — especially public APIs — stay brief and focus on
-  what isn't obvious from the signature.
+  or trailing comments. Docstrings stay brief and focus on what isn't obvious from the signature.
+  Don't be too picky about removing existing comments.
+
+<!-- END shared agent workflow -->
+
+## Source data
+
 * **Ask before correcting extracted source data.** When extractor output (a schedule from
   `tools/extract_pdf_schedule.py`, a deck, a club list) looks wrong against the app's model, such as
   a club verse outside its block's passage or a date off the meeting day, ship it verbatim and list
@@ -198,21 +219,5 @@ from the code or design docs.
   with `The supplied SQL string contains more than one statement` unless each `;` is followed by
   `--> statement-breakpoint` on its own line. See `migrations/0013_relearn_and_wipe.sql` for the
   shape.
-* **A fresh clone cannot resume a committed Spec Kit feature.** `.specify/feature.json` is the only
-  feature-context source the scripts accept, and Spec Kit gitignores it as machine-local state. So
-  `specs/001-spelling-dialects/` is committed but every speckit command fails with "Feature
-  directory not found" until you `export SPECIFY_FEATURE_DIRECTORY=specs/<NNN-slug>` or re-run
-  `/speckit-specify`. Set the env var when picking up someone else's feature.
-* **dprint rewrites Spec Kit's checkboxes, so `specs/**/tasks.md` and `specs/**/checklists/` are
-  excluded.** `unorderedListKind: "asterisks"` turns `- [ ]` into `* [ ]`, and Spec Kit mandates the
-  hyphen form — `/speckit-implement` and `/speckit-converge` both read task state from those
-  checkboxes. The rewrite is silent and the resulting markdown still renders fine, so the damage
-  only shows up when a speckit command finds no tasks. Prose artifacts in `specs/` (`spec.md`,
-  `plan.md`, `research.md`, `data-model.md`, `quickstart.md`) carry no checkboxes and stay linted.
-* **Vendored Spec Kit files are exempt from dprint and typos, narrowly.** `typos` skips
-  `.specify/scripts/` and `dprint` skips `.specify/templates/*.md` and `.claude/skills/speckit-*/`,
-  because the Specify CLI rewrites all of them on refresh and any fix would be undone. The globs are
-  deliberately tight: `.specify/memory/constitution.md` and `.specify/templates/overrides/` are
-  project-authored and stay linted. Don't widen either to `.specify/**`.
 * **Abandoned branches.** `django-vue*`, `laravel*`, `express-vue`, and similar are spike
   experiments that were superseded. Don't merge from them; treat as read-only history.

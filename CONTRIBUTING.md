@@ -150,15 +150,17 @@ code they describe. Split only for different urgency or a genuine precondition.
   `--subject "chore: merge <branch>"` to `gh pr merge`, or `git merge --no-ff -m "..."` for a local
   merge.
 * **master is branch-protected.** GitHub blocks the merge until the
-  [required checks](#required-checks) pass on the PR head, so a merge commit's content is always
-  equivalent to a SHA CI already validated, and the deploy workflows that fire on master push can't
-  race a broken merge. The owner can bypass with `gh pr merge <N> --admin --merge ...` for a true
-  hotfix: a conscious decision, not a default.
-* **Rebase onto current master only for version-bump PRs.** A PR that bumps a deployable package's
-  version needs its branch current. PR CI runs the deploy-time
-  `tools/check-contract-versions.sh --ci` check for each package the PR bumps, against the PR merged
-  into master as of the run, so rebasing re-runs it against the master the PR will deploy from.
-  Other PRs merge fine when master has advanced; skip the pre-emptive rebase.
+  [required checks](#required-checks) pass on the PR. It doesn't require the branch to be up to
+  date, so a PR merged while behind master lands a combination CI never ran; the rebase default
+  below is what closes that gap. The owner can bypass the checks with
+  `gh pr merge <N> --admin --merge ...` for a true hotfix: a conscious decision, not a default.
+* **Rebase onto current master before merging.** Testing the branch against the master it will land
+  on lowers the chance of a bad interaction slipping through, so update the PR first
+  (`git rebase master` and `git push --force-with-lease`, or GitHub's "Update branch" with rebase).
+  It's a strong default, not a requirement, and GitHub doesn't enforce it. The exception is a PR
+  that bumps a deployable package's version, which must be rebased: PR CI runs the deploy-time
+  `tools/check-contract-versions.sh --ci` check against the PR merged into master as of the run, so
+  only a fresh run checks the bump against the master it will deploy from.
 * **Clean up locally.** GitHub deletes the remote branch on merge. Afterwards,
   `git checkout master`, `git pull --ff-only`, and `git branch -d <branch>` so stale local branches
   don't pile up.
