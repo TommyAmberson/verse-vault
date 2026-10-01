@@ -31,6 +31,9 @@ PATCH: Google sign-in can no longer capture an account pre-registered with someo
 * Email and password accounts are never verified, so Google sign-in on an address that already has a
   password account no longer merges into it. Better Auth refuses the link
   (`error=account_not_linked`) and the user signs in with their password instead.
+* OAuth errors without a client `errorCallbackURL` now go to the web app (`onAPIError.errorURL`)
+  instead of Better Auth's default `/api/auth/error`, which has no `/vv` prefix and was routed to
+  the sibling qzr-api Worker.
 
 ## [0.1.41] — 2026-09-24
 
