@@ -116,11 +116,11 @@ essentials and the Claude-Code-specific caveats:
 
 ## Contract crate versioning
 
-`crates/core` and `crates/wasm` are versioned contracts: bumping their `Cargo.toml` version and
-adding a `CHANGELOG.md` entry is mandatory when their `src/` changes, and
-`tools/check-contract-versions.sh` enforces it at pre-commit and at deploy time. See
-[CONTRIBUTING.md](./CONTRIBUTING.md#contract-crate-versioning) for the semver rules and the release
-promotion steps.
+`crates/core` and `crates/wasm` are versioned contracts: a PR that changes their `src/` must bump
+their `Cargo.toml` version once and add a dated `CHANGELOG.md` section, which later commits on the
+branch extend. `tools/check-contract-versions.sh` enforces it at pre-commit, in PR CI, and at deploy
+time. See [CONTRIBUTING.md](./CONTRIBUTING.md#contract-crate-versioning) for the semver rules and
+the release promotion steps.
 
 ## Spec-driven development
 

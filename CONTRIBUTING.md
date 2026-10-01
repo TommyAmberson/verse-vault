@@ -204,10 +204,10 @@ names its package: `chore(<pkg>): release X.Y.Z`.
 
 ### Required checks
 
-Four jobs: `rust`, `typos`, `dprint`, and `ts`. `ts` also runs the deploy's contract check for every
-package the PR bumps. The version files that make a PR a bump PR are
-`crates/{core,wasm}/Cargo.toml`, `packages/api/package.json`, `apps/web/package.json`, and
-`deploy/vv-router/package.json`.
+Four jobs: `rust`, `typos`, `dprint`, and `ts`. `ts` also runs the contract crate bump check
+(`tools/check-contract-versions.sh --pr`) and the deploy's contract check for every package the PR
+bumps. The version files that make a PR a bump PR are `crates/{core,wasm}/Cargo.toml`,
+`packages/api/package.json`, `apps/web/package.json`, and `deploy/vv-router/package.json`.
 
 ### Abandoned branches
 
@@ -226,19 +226,24 @@ When you change either crate:
 1. Bump the version in the matching `Cargo.toml`. Semver here means: MAJOR for a breaking state/wire
    change (event replay would produce different state, or the wire shape changed incompatibly),
    MINOR for additive features, PATCH for pure implementation fixes.
-2. In the same commit, record the change in that crate's `CHANGELOG.md` under a dated
+2. In the commit that bumps, record the change in that crate's `CHANGELOG.md` under a dated
    `## [X.Y.Z] - YYYY-MM-DD` section for the new version. The pre-commit hook rejects a bump left
-   under `## [Unreleased]`. The hook checks every commit that touches the crate's `src/`, so each
-   such commit bumps again: a branch with several crate commits carries several crate versions.
-3. When releasing a consumer (bumping its `package.json`), update the consumer's
+   under `## [Unreleased]`.
+3. Bump once per PR, in the first commit that changes the crate (or an earlier one). Later crate
+   commits on the branch extend that dated section rather than bumping again.
+4. When releasing a consumer (bumping its `package.json`), update the consumer's
    `### Bundled algorithm contract` subsection with the new crate versions.
 
 `tools/check-contract-versions.sh` enforces this in two places:
 
-* **Pre-commit.** Blocks a commit that touches `crates/{core,wasm}/src/` without bumping the
-  matching `Cargo.toml` version, and blocks a commit that bumps _any_ package's version without a
-  matching dated `## [X.Y.Z]` section in that package's `CHANGELOG.md`. Promote `[Unreleased]` in
-  the same commit.
+* **Pre-commit.** Blocks a commit that touches `crates/{core,wasm}/src/` while the matching
+  `Cargo.toml` version still equals the version where the branch left master (the more recent fork
+  point of `master` and `origin/master`), and blocks a commit that bumps _any_ package's version
+  without a matching dated `## [X.Y.Z]` section in that package's `CHANGELOG.md`. Promote
+  `[Unreleased]` in the same commit as the bump.
+* **PR CI** (`--pr <base>`, run by the required `ts` job). The same crate check against the PR's
+  base, which also catches commits that skipped the hook: `--no-verify`, or history rewritten by a
+  rebase or cherry-pick, which don't run pre-commit.
 * **CI** (`--ci <target>`, run by each consumer's deploy workflow, where target is `api`, `web`, or
   `vv-router`). Blocks the deploy when the consumer's CHANGELOG has no dated section for the version
   being deployed. For `api` and `web` it additionally requires that section to reference the current
@@ -256,7 +261,7 @@ the latest entry for the package you're touching before making a non-trivial cha
 **Release with the change.** By default the PR that changes a shipping package also bumps it and
 promotes its `[Unreleased]` entries to a dated section, so merging the PR is the release. Bump
 `api`, `web`, and `vv-router` once per PR: later commits on the branch extend that dated section
-rather than bumping again. The contract crates differ: every commit that changes one bumps it (see
+rather than bumping again. The contract crates follow the same rule (see
 [Contract crate versioning](#contract-crate-versioning)).
 
 **Deferring a release.** To ship several PRs as one release, leave their entries under

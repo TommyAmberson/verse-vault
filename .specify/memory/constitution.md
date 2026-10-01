@@ -26,17 +26,20 @@ locally, server and client can disagree about a learner's state, and no changelo
 ### III. Contract Versions Are Promises
 
 The versions in `crates/core/Cargo.toml` and `crates/wasm/Cargo.toml` _are_ the contract: equal
-versions across two consumers MUST mean identical observable behaviour. Any change to either crate's
-`src/` MUST bump that crate's version and record it in that crate's CHANGELOG under a dated
-`## [X.Y.Z]` section in the same commit — `tools/check-contract-versions.sh` rejects a version bump
-whose changelog still leaves the entry under `## [Unreleased]`. Semver is read strictly — MAJOR when
-event replay would produce different state or the wire shape changed incompatibly, MINOR for
-additive features, PATCH for implementation fixes with no observable change. Releasing a consumer
-MUST restate the bundled contract versions.
+versions across two consumers MUST mean identical observable behaviour. A pull request that changes
+either crate's `src/` MUST bump that crate's version once and record the change in that crate's
+CHANGELOG under a dated `## [X.Y.Z]` section; later commits in the same pull request extend that
+section rather than bumping again. `tools/check-contract-versions.sh` enforces this at commit time
+against the point where the branch left master, and in CI against the pull request's base, and
+rejects a version bump whose changelog still leaves the entry under `## [Unreleased]`. Semver is
+read strictly — MAJOR when event replay would produce different state or the wire shape changed
+incompatibly, MINOR for additive features, PATCH for implementation fixes with no observable change.
+Releasing a consumer MUST restate the bundled contract versions.
 
 Rationale: a version mismatch between what a client ships and what the server runs is the only
 compatibility signal available at sync time. It is worthless if the number can drift from the
-behaviour.
+behaviour. Clients and servers are only ever built from master, so the version is bumped per pull
+request, the unit that reaches master; a commit in the middle of a branch never ships.
 
 ### IV. Validate Before You Ship
 
@@ -152,4 +155,4 @@ the principles above. Added complexity — a new crate, a new package, an except
 MUST carry its justification in the pull request body, and an exception that outlives its
 justification is a defect to be removed.
 
-**Version**: 1.2.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-10-01
+**Version**: 1.3.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-10-01

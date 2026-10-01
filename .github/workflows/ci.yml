@@ -53,6 +53,11 @@ jobs:
           # A PR checks out its merge into the base, so HEAD^1 is the base.
           fetch-depth: 2
 
+      # A PR that changes a contract crate's src/ must bump that crate.
+      - name: Verify contract crates are bumped
+        if: github.event_name == 'pull_request'
+        run: tools/check-contract-versions.sh --pr HEAD^1
+
       # Run the deploy's contract check for every package this PR bumps,
       # against the master it merges into, so a stale `### Bundled algorithm
       # contract` fails here instead of in the deploy after merge. Lives in
