@@ -20,9 +20,11 @@ PATCH: the better-auth client moves to 1.6.33, matching the API.
 
 ### Changed
 
-* better-auth 1.6.5 to 1.6.33, in step with API 0.1.42's account-takeover fix. No client-side
-  behaviour change; a Google sign-in on an address that already has a password account now lands on
-  Better Auth's `account_not_linked` error instead of merging.
+* better-auth 1.6.5 to 1.6.33, in step with API 0.1.42's account-takeover fix.
+* Google sign-in on an address that already has a password account no longer merges into it (see API
+  0.1.42). The sign-in form now explains this and opens on email sign-in, instead of the browser
+  landing on an error page from another app. Any other failed Google sign-in returns to the form
+  with a "try again" message.
 
 ## [0.9.22] — 2026-10-01
 

@@ -2,6 +2,7 @@ import { multiSessionClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 
 import type { AuthProvider } from '@/lib/engine/registry'
+import { socialSignInError, withoutErrorParam } from '@/lib/socialSignInError'
 
 /** Mirrors qzr-sheet's `createAppAuthClient` factory: a `createAuthClient`
  *  bound to a base URL plus a `useAuth` composable that exposes the
@@ -31,12 +32,14 @@ function stashPendingProvider(provider: AuthProvider): void {
 
 /** Read and clear the provider stashed before an OAuth redirect. Returns
  *  `undefined` when there was none (a restored session, not a fresh
- *  social sign-in). */
+ *  social sign-in), or when the round-trip came back with `?error=`: it
+ *  failed, so any session present belongs to someone already signed in. */
 export function readPendingProvider(): AuthProvider | undefined {
   try {
     const v = sessionStorage.getItem(PENDING_PROVIDER_KEY)
     if (v) {
       sessionStorage.removeItem(PENDING_PROVIDER_KEY)
+      if (socialSignInError(window.location.search)) return undefined
       return v as AuthProvider
     }
   } catch {
@@ -58,9 +61,15 @@ export function createAppAuthClient(baseURL: string) {
     // where it started). Re-auth passes an explicit destination so the
     // OAuth round-trip lands past the force=1 picker on the page the user
     // was headed to, rather than bouncing back onto the picker.
+    // A failed round-trip (e.g. `account_not_linked`) returns to the page
+    // that holds the sign-in form, which reads `?error=` and explains it.
     function signInSocial(provider: SocialProvider, callbackURL: string = window.location.href) {
       stashPendingProvider(provider)
-      authClient.signIn.social({ provider, callbackURL })
+      authClient.signIn.social({
+        provider,
+        callbackURL,
+        errorCallbackURL: withoutErrorParam(window.location.href),
+      })
     }
 
     async function signInEmail(email: string, password: string) {
