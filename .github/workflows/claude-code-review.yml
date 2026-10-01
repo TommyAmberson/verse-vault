@@ -78,7 +78,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0 # need full history for git blame / log lookups during review
           # issue_comment workflows checkout the default branch by default;
           # point at the PR head so the review sees the actual diff.
           ref: refs/pull/${{ steps.pr.outputs.number }}/head
@@ -92,3 +92,12 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ steps.pr.outputs.number }}'
+          # Tools the /code-review:code-review skill needs to inspect the PR + post results.
+          # Narrow allowlist: read-only gh subcommands + the comment/review POSTs we want,
+          # plus history-only git subcommands. Avoids granting blanket Bash(gh:*) / Bash(git:*).
+          claude_args: >-
+            --allowed-tools
+            "Read,Grep,Glob,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh
+            pr checks:*),Bash(gh api repos/*/pulls/*:*),Bash(gh api repos/*/issues/*:*),Bash(gh
+            issue view:*),Bash(gh issue list:*),Bash(gh label list:*),Bash(git log:*),Bash(git
+            blame:*),Bash(git diff:*),Bash(git show:*)"
