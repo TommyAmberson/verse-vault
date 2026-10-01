@@ -68,14 +68,20 @@ changelog_section() {
 	' "$file"
 }
 
-# True iff the changelog has a `## [X.Y.Z]` header (i.e. promoted, not
-# the bare `## [Unreleased]`) for the given version.
+# True iff the staged changelog has a dated `## [X.Y.Z] — YYYY-MM-DD`
+# header (i.e. promoted, not the bare `## [Unreleased]`) for the given
+# version. Reads the index, not the working tree, so an unstaged section
+# doesn't pass. The version is matched literally, so semver build metadata
+# (`+`) isn't read as regex. awk reads to EOF: an early-exiting `grep -q`
+# would SIGPIPE `git show` on a large changelog, which pipefail reads as a
+# miss.
 changelog_has_section() {
 	local file=$1
 	local version=$2
-	local escaped
-	escaped=$(printf '%s' "$version" | sed 's/\./\\./g')
-	grep -qE "^## \\[$escaped\\]" "$file"
+	git show ":$file" 2>/dev/null | awk -v ver="$version" '
+		index($0, "## [" ver "] ") == 1 && $0 ~ /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/ { found = 1 }
+		END { exit !found }
+	'
 }
 
 ###############################################################################

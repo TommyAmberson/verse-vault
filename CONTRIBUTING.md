@@ -152,9 +152,10 @@ work.
   decision, not a default.
 * **Rebase onto current master only for version-bump PRs.** A PR that bumps a package version
   (`crates/{core,wasm}/Cargo.toml`, `packages/api/package.json`, `apps/web/package.json`,
-  `deploy/vv-router/package.json`) needs its branch current, because the deploy-time
-  `tools/check-contract-versions.sh --ci` check runs against master rather than the PR head. Other
-  PRs merge fine when master has advanced — skip the pre-emptive rebase.
+  `deploy/vv-router/package.json`) needs its branch current. The required `ts` job runs the
+  deploy-time `tools/check-contract-versions.sh --ci` check for each package the PR bumps, against
+  the PR merged into master as of the run, so rebasing re-runs it against the master the PR will
+  deploy from. Other PRs merge fine when master has advanced — skip the pre-emptive rebase.
 
 ### Rewriting history
 
@@ -197,10 +198,12 @@ When you change either crate:
 1. Bump the version in the matching `Cargo.toml`. Semver here means: MAJOR for a breaking state/wire
    change (event replay would produce different state, or the wire shape changed incompatibly),
    MINOR for additive features, PATCH for pure implementation fixes.
-2. Add an entry under `## [Unreleased]` in that crate's `CHANGELOG.md`.
-3. When releasing a consumer (bumping its `package.json`), promote the contract crate's
-   `[Unreleased]` entries to a dated version section, and update the consumer's
-   `### Bundled algorithm contract` subsection with the new versions.
+2. In the same commit, record the change in that crate's `CHANGELOG.md` under a dated
+   `## [X.Y.Z] - YYYY-MM-DD` section for the new version. The pre-commit hook rejects a bump left
+   under `## [Unreleased]`. The hook checks every commit that touches the crate's `src/`, so each
+   such commit bumps again: a branch with several crate commits carries several crate versions.
+3. When releasing a consumer (bumping its `package.json`), update the consumer's
+   `### Bundled algorithm contract` subsection with the new crate versions.
 
 `tools/check-contract-versions.sh` enforces this in two places:
 
@@ -221,6 +224,18 @@ Every shipping package keeps its own changelog: `apps/web/CHANGELOG.md`,
 `crates/core/CHANGELOG.md` and `crates/wasm/CHANGELOG.md`. They record _why_ a release shipped. Read
 the latest entry for the package you're touching before making a non-trivial change, and add an
 `[Unreleased]` entry as part of the change rather than at release time.
+
+**Release with the change.** By default the PR that changes a shipping package also bumps it and
+promotes its `[Unreleased]` entries to a dated section, so merging the PR is the release. Bump
+`api`, `web`, and `vv-router` once per PR: later commits on the branch extend that dated section
+rather than bumping again. The contract crates differ: every commit that changes one bumps it (see
+[Contract crate versioning](#contract-crate-versioning)).
+
+**Deferring a release.** To ship several PRs as one release, leave their entries under
+`## [Unreleased]` and say so in each PR body. Keep the window short: while master holds unreleased
+changes to a package, an urgent fix to that package can only ship by releasing them too. Before
+deferring, check what is already waiting (`git log <pkg>@<last-version>..master -- <package-path>`),
+and ship the backlog from a `chore/release-<pkg>-<version>` PR.
 
 The top-level `CHANGELOG.md` describes the contract model and indexes the per-package changelogs.
 
