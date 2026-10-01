@@ -1,8 +1,7 @@
 # Contributing
 
 This file is the source of truth for verse-vault's git conventions and local development setup.
-`CLAUDE.md` (and the other agent rule files) point here rather than restating it, so change this
-file when a convention changes.
+`CLAUDE.md` points here rather than restating it, so change this file when a convention changes.
 
 The repository is small and mostly single-maintainer, but the conventions below are machine-enforced
 by git hooks and CI — they are not stylistic suggestions. A commit that ignores them gets rejected
