@@ -240,7 +240,7 @@ as amended).
       zero regressed combinations (SC-001 to SC-006). The mean time per `memorize_debt` and
       `next_memorize_batch` call stays within 10% of the baseline's (plan Performance Goals). Then
       run the quickstart's regression checks
-- [ ] T020 [P] Bump `packages/api/package.json` to 0.1.43 with a dated `packages/api/CHANGELOG.md`
+- [X] T020 [P] Bump `packages/api/package.json` to 0.1.43 with a dated `packages/api/CHANGELOG.md`
       section restating core and wasm 0.12.0. Note that until a client loads web 0.9.24, its queue
       runs the old engine while Home's count comes from this api, so the two can disagree for one
       page load

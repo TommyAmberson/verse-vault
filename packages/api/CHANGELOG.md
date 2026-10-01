@@ -10,6 +10,31 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.43] - 2026-10-01
+
+PATCH: Memorize follows the schedule. The memorize count and the memorize session now read one
+placement of every un-memorized verse, so pressing Memorize works down the number the learner sees.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: the memorize count and queue follow the schedule; no state-semantics
+  change.
+* `verse-vault-wasm@0.12.0`: bundles it.
+
+### Changed
+
+* `GET /api/cards/memorize/session` serves owed verses first: those the schedule assigned in weeks
+  that have started, and only those while any are owed. With nothing owed it works ahead a week at a
+  time in schedule order, not deck order. Cross-club gates order the clubs instead of hiding one,
+  and the session size is a firm limit, including for calendar cascade.
+* `memorizeDebt` on `GET /api/years` is zero before a season's first week, where it used to report
+  the whole pool.
+
+### Rollout
+
+* Until a client loads web 0.9.24, its Memorize page runs the old engine locally while Home's count
+  comes from this api, so the two can disagree for that page load.
+
 ## [0.1.42] - 2026-10-01
 
 PATCH: Google sign-in can no longer capture an account pre-registered with someone's email.

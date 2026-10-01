@@ -80,8 +80,8 @@ interface YearView {
    *  introduced in weeks `0..=current_week` plus the `New` cards they
    *  carry. Drives the "N to memorize" nudge in the web nav and the
    *  home hero, so a schedule-bound year advertises this week's work
-   *  instead of the whole season. Falls back to the full pool when the
-   *  year has no schedule or its season hasn't started. */
+   *  instead of the whole season. Zero before the season's first week;
+   *  the full pool when the year has no schedule. See docs/memorize.md. */
   memorizeDebt: MemorizeDebt;
   /** Fingerprint of the server-side engine state (event + graduation
    *  logs). Clients compare it against the value stored with their
