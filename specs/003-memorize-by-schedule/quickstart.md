@@ -23,18 +23,60 @@ every scheduled verse in every setting, and failures are summed. Invariant failu
 here: the current queue violates SC-001, SC-002, SC-005 and SC-006 in some states, which is the
 point of the feature.
 
-| Season | Learner | Verses memorized | Mean wait (days) | Invariant failures |
-| ------ | ------- | ---------------- | ---------------- | ------------------ |
-| _..._  | _..._   | _baseline_       | _baseline_       | _baseline_         |
+Baseline recorded 2026-10-01 against core 0.11.0, in 26 s.
 
-| Gates | Catch-up | Batch | Verses memorized | Mean wait (days) | Count vs batch | Not owed   | Oversized  | Not nearest week |
-| ----- | -------- | ----- | ---------------- | ---------------- | -------------- | ---------- | ---------- | ---------------- |
-| _..._ | _..._    | _..._ | _baseline_       | _baseline_       | _baseline_     | _baseline_ | _baseline_ | _baseline_       |
+| Season              | Learner | Verses memorized | Mean wait (days) | Invariant failures |
+| ------------------- | ------- | ---------------- | ---------------- | ------------------ |
+| GEPC 2023-24        | On plan | 499.3            | 32.75            | 5111               |
+| GEPC 2023-24        | Behind  | 464.3            | 43.11            | 4973               |
+| GEPC 2023-24        | Ahead   | 503.0            | 10.37            | 5714               |
+| NT Survey 2024-25   | On plan | 788.3            | 31.09            | 7685               |
+| NT Survey 2024-25   | Behind  | 710.3            | 44.42            | 6890               |
+| NT Survey 2024-25   | Ahead   | 812.0            | 10.81            | 11922              |
+| Corinthians 2025-26 | On plan | 668.0            | 18.20            | 3616               |
+| Corinthians 2025-26 | Behind  | 624.0            | 27.97            | 3449               |
+| Corinthians 2025-26 | Ahead   | 694.0            | 4.99             | 1936               |
+| John 2026-27        | On plan | 850.2            | 16.28            | 3582               |
+| John 2026-27        | Behind  | 777.2            | 29.07            | 3404               |
+| John 2026-27        | Ahead   | 879.0            | 4.52             | 1986               |
 
-| Call                  | Mean time  |
-| --------------------- | ---------- |
-| `memorize_debt`       | _baseline_ |
-| `next_memorize_batch` | _baseline_ |
+Per setting, over every season and learner; verses memorized is the mean per season and learner.
+"Oversized" is calendar cascade's soft cap (FR-008), "count vs batch" a count above zero with
+nothing served under a checkpoint gate (FR-007), "not owed" a verse served before its week (SC-005),
+and "not nearest week" working ahead out of schedule order (SC-002). Sequential catch-up waits about
+three times as long as calendar cascade because deck order ignores the schedule.
+
+| Gates (150→300 / 300→Full)                  | Catch-up        | Batch | Verses memorized | Mean wait (days) | Count vs batch | Not owed | Oversized | Not nearest week |
+| ------------------------------------------- | --------------- | ----- | ---------------- | ---------------- | -------------- | -------- | --------- | ---------------- |
+| Always / CaughtUp                           | Sequential      | 1     | 702.0            | 19.76            | 0              | 1866     | 0         | 146              |
+| Always / CaughtUp                           | Sequential      | 5     | 702.0            | 19.77            | 0              | 1865     | 0         | 146              |
+| Always / CaughtUp                           | CalendarCascade | 1     | 702.0            | 6.66             | 0              | 129      | 1451      | 549              |
+| Always / CaughtUp                           | CalendarCascade | 5     | 702.0            | 6.69             | 0              | 137      | 1200      | 549              |
+| Always / Always                             | Sequential      | 1     | 702.0            | 19.80            | 0              | 1914     | 0         | 146              |
+| Always / Always                             | Sequential      | 5     | 702.0            | 19.80            | 0              | 1914     | 0         | 146              |
+| Always / Always                             | CalendarCascade | 1     | 702.0            | 6.47             | 0              | 48       | 1493      | 549              |
+| Always / Always                             | CalendarCascade | 5     | 702.0            | 6.47             | 0              | 48       | 1271      | 549              |
+| CaughtUp / CaughtUp                         | Sequential      | 1     | 702.0            | 19.76            | 0              | 1866     | 0         | 146              |
+| CaughtUp / CaughtUp                         | Sequential      | 5     | 702.0            | 19.77            | 0              | 1863     | 0         | 146              |
+| CaughtUp / CaughtUp                         | CalendarCascade | 1     | 702.0            | 6.79             | 0              | 140      | 1461      | 549              |
+| CaughtUp / CaughtUp                         | CalendarCascade | 5     | 702.0            | 6.86             | 0              | 136      | 1164      | 549              |
+| FullyMemorized / FullyMemorized             | Sequential      | 1     | 702.0            | 30.29            | 0              | 3488     | 0         | 78               |
+| FullyMemorized / FullyMemorized             | Sequential      | 5     | 702.0            | 30.29            | 0              | 3488     | 0         | 78               |
+| FullyMemorized / FullyMemorized             | CalendarCascade | 1     | 702.0            | 29.11            | 0              | 3459     | 537       | 78               |
+| FullyMemorized / FullyMemorized             | CalendarCascade | 5     | 702.0            | 29.11            | 0              | 3459     | 356       | 78               |
+| AfterMajorCheckpoint / AfterMajorCheckpoint | Sequential      | 1     | 626.5            | 50.90            | 387            | 2395     | 0         | 60               |
+| AfterMajorCheckpoint / AfterMajorCheckpoint | Sequential      | 5     | 626.5            | 50.88            | 387            | 2397     | 0         | 60               |
+| AfterMajorCheckpoint / AfterMajorCheckpoint | CalendarCascade | 1     | 626.5            | 49.85            | 387            | 2241     | 665       | 60               |
+| AfterMajorCheckpoint / AfterMajorCheckpoint | CalendarCascade | 5     | 626.5            | 49.87            | 387            | 2243     | 479       | 60               |
+| AfterMinorCheckpoint / AfterMinorCheckpoint | Sequential      | 1     | 700.3            | 19.99            | 10             | 1958     | 0         | 146              |
+| AfterMinorCheckpoint / AfterMinorCheckpoint | Sequential      | 5     | 700.3            | 20.25            | 10             | 2217     | 0         | 146              |
+| AfterMinorCheckpoint / AfterMinorCheckpoint | CalendarCascade | 1     | 700.3            | 7.18             | 10             | 283      | 1512      | 549              |
+| AfterMinorCheckpoint / AfterMinorCheckpoint | CalendarCascade | 5     | 700.3            | 7.79             | 10             | 626      | 802       | 546              |
+
+| Call                  | Mean time |
+| --------------------- | --------- |
+| `memorize_debt`       | 133 µs    |
+| `next_memorize_batch` | 206 µs    |
 
 ## 2. Simulator after the change
 

@@ -81,7 +81,7 @@ changes (research D7).
       time per `memorize_debt` and `next_memorize_batch` call. `--out <path>` writes every
       combination's outcome as a table and `--baseline <path>` reports the combinations that
       regressed against one
-- [ ] T005 Run `cargo run -p verse-vault-sim --release -- --memorize --out
+- [X] T005 Run `cargo run -p verse-vault-sim --release -- --memorize --out
       specs/003-memorize-by-schedule/sim-baseline.tsv` against the current queue and record the
       totals in the tables in `specs/003-memorize-by-schedule/quickstart.md`
 
