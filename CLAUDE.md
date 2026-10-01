@@ -126,7 +126,9 @@ promotion steps.
 
 Feature-sized work runs through the `speckit-*` skills — `/speckit-specify` → `/speckit-plan` →
 `/speckit-tasks` → `/speckit-implement` — writing into `specs/<NNN-slug>/`. `/speckit-analyze`
-cross-checks the three artefacts before implementation starts.
+cross-checks the three artefacts before implementation starts. Run it before every
+`/speckit-implement`, even when asked to just "continue", unless the user says it already ran or to
+skip it.
 
 Those commands gate against `.specify/memory/constitution.md`. It states principles;
 `CONTRIBUTING.md` holds the mechanics they compile down to, and this file holds the runtime guidance
@@ -134,6 +136,17 @@ for agents. Where they disagree, fix the operational file rather than working ar
 
 Spec Kit is branch-agnostic: `create-new-feature.sh` invokes git nowhere, and its `NNN-slug` string
 names the `specs/` directory rather than a branch. Keep using `type/short-slug` branches.
+
+## Scope discipline
+
+When you notice something nearby that's bad, awkward, or wrong while working on a feature, **stop
+and check with the user before acting**. Offer to either:
+
+* fix it now as a separate commit before continuing the feature, or
+* record it (TODO comment, issue, or `docs/unspecced.md` / ROADMAP entry) and carry on.
+
+Don't fold it silently into the current change: it muddies the diff, and the user may have context
+(a deliberate choice, planned rework) you don't. Don't ignore it either.
 
 ## Other conventions
 
