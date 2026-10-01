@@ -185,7 +185,7 @@ verses; a batch larger than that week continues into the next.
 **Independent Test**: With Club 300 behind a closed gate, Club 150's owed verses come first, then
 Club 300's, and the queue is never empty while the count is above zero.
 
-- [ ] T015 [US3] Write tests in `crates/core/src/schedule.rs`: with an unmet gate the higher club's
+- [X] T015 [US3] Write tests in `crates/core/src/schedule.rs`: with an unmet gate the higher club's
       owed verses come first; once they are done the lower club's owed verses are served though
       the gate is still unmet; under `FullyMemorized` with an empty higher club and under
       checkpoint gates with no schedule, a positive `memorize_debt` always yields a non-empty batch;

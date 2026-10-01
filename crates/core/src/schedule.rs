@@ -1952,6 +1952,93 @@ mod tests {
         assert_eq!(memorize_debt(&engine, Some(&sched), now).verses, 1);
     }
 
+    // ===== gates order the work, never hide it =====
+
+    /// John 3:16 in Club 300 and 3:17 in Club 150, so deck order puts the
+    /// lower club first. Both listed in week 0, with the given gates.
+    fn lower_club_first(gates: (MoveToNextGate, MoveToNextGate)) -> (ReviewEngine, Schedule) {
+        let m: MaterialData = serde_json::from_str(
+            r#"{
+                "year": 3,
+                "books": ["John"],
+                "chapters": [
+                    {"book": "John", "number": 3, "start_verse": 16, "end_verse": 17}
+                ],
+                "verses": [
+                    {"book": "John", "chapter": 3, "verse": 16, "phraseWordCounts": [2, 2],
+                     "annotations": [], "ftvWordCount": null, "clubs": [300]},
+                    {"book": "John", "chapter": 3, "verse": 17, "phraseWordCounts": [2, 3],
+                     "annotations": [], "ftvWordCount": null, "clubs": [150]}
+                ],
+                "headings": []
+            }"#,
+        )
+        .unwrap();
+        let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        engine.material_config.move_to_next = MoveToNextConfig {
+            p150_to_300: gates.0,
+            p300_to_full: gates.1,
+        };
+        (engine, john_schedule(&[("2025-09-08", 16, 17, &[17])]))
+    }
+
+    #[test]
+    fn unmet_gate_serves_the_higher_clubs_owed_verses_first() {
+        let now = day_secs("2025-09-08");
+        let (engine, sched) =
+            lower_club_first((MoveToNextGate::FullyMemorized, MoveToNextGate::Always));
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![1]);
+
+        let (engine, sched) = lower_club_first((MoveToNextGate::Always, MoveToNextGate::Always));
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![0]);
+    }
+
+    #[test]
+    fn unmet_gate_serves_the_lower_club_once_the_higher_is_done() {
+        // A major-checkpoint gate stays shut with no meet behind it, yet
+        // the lower club's owed verse comes next once Club 150 is done.
+        let (mut engine, sched) =
+            lower_club_first((MoveToNextGate::AfterMajorCheckpoint, MoveToNextGate::Always));
+        engine.graduate_verse(1);
+        let now = day_secs("2025-09-08");
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![0]);
+    }
+
+    #[test]
+    fn a_positive_count_always_has_a_verse_to_serve() {
+        // Gates that can never open: FullyMemorized over clubs with no
+        // verses of their own, and checkpoint gates without a schedule.
+        let (mut engine, sched) = debt_fixture();
+        let now = day_secs("2025-09-08");
+        for (gates, schedule) in [
+            (
+                (
+                    MoveToNextGate::FullyMemorized,
+                    MoveToNextGate::FullyMemorized,
+                ),
+                Some(&sched),
+            ),
+            (
+                (
+                    MoveToNextGate::AfterMajorCheckpoint,
+                    MoveToNextGate::AfterMinorCheckpoint,
+                ),
+                None,
+            ),
+        ] {
+            engine.material_config.move_to_next = MoveToNextConfig {
+                p150_to_300: gates.0,
+                p300_to_full: gates.1,
+            };
+            assert!(memorize_debt(&engine, schedule, now).verses > 0);
+            assert!(!next_memorize_batch(&engine, schedule, now, 1).is_empty());
+        }
+    }
+
     // ===== working ahead =====
 
     /// John 3:16-18, every verse in Full, every club memorizing.
