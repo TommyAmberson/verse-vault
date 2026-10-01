@@ -9,6 +9,21 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.23] - 2026-10-01
+
+PATCH: the better-auth client moves to 1.6.33, matching the API.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.11.0`: unchanged.
+* `verse-vault-wasm@0.11.0`: unchanged.
+
+### Changed
+
+* better-auth 1.6.5 to 1.6.33, in step with API 0.1.42's account-takeover fix. No client-side
+  behaviour change; a Google sign-in on an address that already has a password account now lands on
+  Better Auth's `account_not_linked` error instead of merging.
+
 ## [0.9.22] — 2026-10-01
 
 PATCH: a Google account whose session expired can sign back in with Google again.
