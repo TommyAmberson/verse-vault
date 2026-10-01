@@ -287,10 +287,16 @@ const diffItems = computed<DiffItem[] | null>(() => {
 const diffHtml = computed(() => {
   const items = diffItems.value
   if (!items) return ''
+  const isClubList = props.card.kind === 'ChapterClubList'
   return items
     .map((it) => {
       const safe = escapeHtml(it.raw)
-      if (it.kind === 'match') return safe
+      // A club list's correct numbers keep their verse colours, as they
+      // do when nothing was typed. Missed and extra numbers stay in the
+      // diff's red, which a verse colour would override.
+      if (it.kind === 'match') {
+        return isClubList ? safe.replace(/\d+/, (n) => verseNumberSpan(Number(n))) : safe
+      }
       if (it.kind === 'missing') return `<span class="diff-missing">${safe}</span>`
       return `<span class="diff-extra">${safe}</span>`
     })
