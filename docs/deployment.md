@@ -1,41 +1,40 @@
 # Deployment
 
-verse-vault co-hosts under `www.versevault.ca/vv/*` alongside qzr-sheet at the apex. The plan is to
-migrate qzr-sheet to its own domain later and split verse-vault back onto subdomains
-(`app.versevault.ca` + `api.versevault.ca`); the cleanup section at the bottom covers what changes
-then.
+verse-vault serves the root of `www.versevault.ca`. qzr-sheet shares the host under `/qzr/*` (its
+own Workers). verse-vault lived under `/vv/*` until 2026-10; old `/vv` addresses redirect to the
+root, and the last section covers the move.
 
 ## Topology
 
 ```
-                    www.versevault.ca
-                           │
-                    Cloudflare edge
-     ┌─────────────────────┼───────────────────────────┐
-     │                     │                           │
-/api/*  → qzr-api      /vv/*  → vv-router Worker    /*  → qzr-sheet
-Worker (existing)            │                       Pages (existing)
-                             │
-             ┌───────────────┴────────────────┐
-             │                                │
-     /vv/api/*                          /vv/*  (everything else)
-             │                                │
-     Cloudflare Tunnel                  CF Pages project
-     (cloudflared on VPS)               (verse-vault-web)
-             │
-     ┌───────┴─────────┐
-     │ DO droplet tor1 │
-     │ node dist/…     │  → /var/lib/verse-vault/verse-vault.db
-     │ better-sqlite3  │  → Litestream → Backblaze B2
-     │ Litestream      │
-     └─────────────────┘
+                         www.versevault.ca
+                                │
+                         Cloudflare edge
+    ┌───────────────────┬───────┴─────────┬──────────────────────────┐
+    │                   │                 │                          │
+/api/*, /vv/*     /qzr/api/*        /qzr/*, /scoresheet*       /* (everything else)
+vv-router Worker  qzr-api Worker    qzr-web Worker              CF Pages project
+    │             (qzr-sheet)       (qzr-sheet)                 (verse-vault-web,
+    │                                                            custom domain)
+    ├── /vv/*  → 308 to the same path without /vv
+    │
+    └── /api/* → Cloudflare Tunnel (cloudflared on VPS)
+                        │
+                ┌───────┴─────────┐
+                │ DO droplet tor1 │
+                │ node dist/…     │  → /var/lib/verse-vault/verse-vault.db
+                │ better-sqlite3  │  → Litestream → Backblaze B2
+                │ Litestream      │
+                └─────────────────┘
 ```
 
 Why this shape:
 
-* **CF Pages** handles the SPA build + edge cache for free. Auto-deploys on git push.
-* **CF Worker** is ~30 lines of glue. Stripping the `/vv` prefix at the edge means the VPS API
-  doesn't know it's hosted under a subpath — it stays portable for the future subdomain cutover.
+* **CF Pages** handles the SPA build + edge cache for free, bound to the hostname as a custom
+  domain. More specific Worker routes win over it, so qzr's `/qzr/*` and the routes below carve out
+  of the root.
+* **CF Worker** (`vv-router`) is a few lines of glue: it sends `/api/*` to the Tunnel with the path
+  unchanged and redirects the old `/vv` addresses.
 * **CF Tunnel** removes the VPS from the public internet. No DNS A record leaks the IP, no inbound
   ports, no Caddy to configure. The Tunnel daemon (`cloudflared`) makes an outbound connection to
   CF's edge and pulls request traffic through it.
@@ -121,8 +120,8 @@ BETTER_AUTH_SECRET=<openssl rand -hex 64>
 
 # Public-facing base URLs (what browsers + OAuth providers see). The VPS
 # itself never serves these directly — they describe the edge.
-API_BASE_URL=https://www.versevault.ca/vv
-WEB_BASE_URL=https://www.versevault.ca/vv
+API_BASE_URL=https://www.versevault.ca
+WEB_BASE_URL=https://www.versevault.ca
 
 DATABASE_PATH=/var/lib/verse-vault/verse-vault.db
 PORT=3000
@@ -294,34 +293,28 @@ In GitHub repo settings → Secrets and variables → Actions, add:
 * `CLOUDFLARE_ACCOUNT_ID` — `92302b1ae0bb49089e62d3a5af313e41`.
 
 To ship: bump `version` in `apps/web/package.json` on master. The workflow detects the change,
-builds with `VITE_BASE_PATH=/vv/` + `VITE_API_BASE=/vv/api`, and runs `wrangler pages deploy`.
-`workflow_dispatch` is the manual escape hatch for the first deploy.
+builds with `VITE_API_BASE=https://www.versevault.ca` (and the default `/` base), and runs
+`wrangler pages deploy`. `workflow_dispatch` is the manual escape hatch for the first deploy.
 
-Pages assigns a `*.pages.dev` hostname (e.g. `verse-vault-web.pages.dev`). The Worker will proxy to
-that hostname; no custom domain on the Pages project itself.
+Pages assigns a `*.pages.dev` hostname (e.g. `verse-vault-web.pages.dev`). In the dashboard, add
+`www.versevault.ca` as a custom domain on the project (Workers & Pages → `verse-vault-web` → Custom
+domains). A hostname can be bound to only one Pages project.
 
 ### 2. CF Worker (`vv-router`)
 
 The Worker source is at `deploy/vv-router/` (a workspace member, so it's covered by the root
-`pnpm install`). Deploy it locally:
-
-```bash
-# Edit deploy/vv-router/wrangler.toml: set PAGES_HOST = "<your-pages-project>.pages.dev"
-pnpm install --frozen-lockfile
-pnpm --filter @verse-vault/vv-router deploy
-```
-
-Or push a `version` bump in `deploy/vv-router/package.json` to master and the
+`pnpm install`). Push a `version` bump in `deploy/vv-router/package.json` to master and the
 `.github/workflows/deploy-vv-router.yml` workflow ships it (uses `CLOUDFLARE_API_TOKEN` +
-`CLOUDFLARE_ACCOUNT_ID` from repo secrets).
+`CLOUDFLARE_ACCOUNT_ID` from repo secrets). Locally: `pnpm --filter @verse-vault/vv-router deploy`.
 
-The route `www.versevault.ca/vv/*` is declared in `wrangler.toml`, so the deploy registers it
-automatically. The Worker has two responsibilities:
+The routes (`www.versevault.ca/api`, `/api/*`, `/vv`, `/vv/*`) are declared in `wrangler.toml`, so
+the deploy registers them. Cloudflare refuses a route another Worker already holds. The Worker has
+two responsibilities:
 
-1. **`/vv/api/*`** → fetch `https://vv-api.versevault.ca${path-without-/vv}` (the Tunnel-fronted
-   API). Stripping the `/vv` prefix here means the VPS API code stays unaware of the subpath.
-2. **`/vv/*`** → fetch `https://${PAGES_HOST}${path-without-/vv}` (the SPA bundle). The Pages
-   project's `_redirects` provides the SPA fallback to `/index.html`.
+1. **`/api/*`** → fetch `https://vv-api.versevault.ca${path}` (the Tunnel-fronted API), path
+   unchanged.
+2. **`/vv`, `/vv/*`** → `308` to the same path without `/vv`, query kept, so bookmarks and in-flight
+   POSTs from before the move still land.
 
 ### 3. SPA subpath wiring (one-time code change)
 
@@ -333,7 +326,8 @@ Three small tweaks let the SPA work under any subpath, controlled by build-time 
   `createApiClient(import.meta.env.VITE_API_BASE ?? 'http://localhost:3000')`
 
 These default to root-relative URLs, so local dev (`pnpm dev:web`) keeps working without setting
-either env var. The Pages build command sets them for production.
+either env var. Production serves from the root, so it only sets `VITE_API_BASE`. A subpath deploy
+would set `VITE_BASE_PATH` too.
 
 Add `apps/web/public/_redirects` with the SPA fallback rule:
 
@@ -343,7 +337,7 @@ Add `apps/web/public/_redirects` with the SPA fallback rule:
 
 ### 4. OAuth callback URLs
 
-For Google: register `https://www.versevault.ca/vv/api/auth/callback/google` in the OAuth console.
+For Google: register `https://www.versevault.ca/api/auth/callback/google` in the OAuth console.
 Verify the exact path by checking what the API logs when a sign-in flow fails — Better Auth prints
 the expected callback in its error.
 
@@ -395,21 +389,29 @@ setup, but adequate for now.
 * Backblaze B2 (Litestream): cents per month.
 * Total: ~$5/mo on top of existing domain.
 
-## Future: cutting over to subdomains
+## Moving from `/vv` to the root (2026-10)
 
-When qzr-sheet moves off `versevault.ca`, the subpath plumbing comes out:
+verse-vault was served under `/vv/*` by vv-router while qzr-sheet held the root. qzr moved under
+`/qzr/` first (qzr-sheet `specs/001-qzr-subpath`); then verse-vault took the root. Merging the
+verse-vault PR deploys the SPA and vv-router at the same time, so the root can't change hands
+atomically: steps 3-5 leave parts of the site broken for a few minutes. Run them back to back at a
+quiet time. The switch, in order, with what is broken after each step:
 
-1. **Worker**: delete `vv-router` and its `/vv/*` route.
-2. **DNS**: add CNAMEs `app.versevault.ca` → `verse-vault-web.pages.dev` and `api.versevault.ca` →
-   the Tunnel hostname.
-3. **Pages**: bind the custom domain `app.versevault.ca` to the Pages project. Drop the
-   `VITE_BASE_PATH` env var (defaults back to `/`); set `VITE_API_BASE=https://api.versevault.ca`.
-   Trigger a rebuild.
-4. **Tunnel**: `cloudflared tunnel route dns vv-api api.versevault.ca`.
-5. **VPS `/etc/verse-vault.env`**:
-   ```ini
-   API_BASE_URL=https://api.versevault.ca
-   WEB_BASE_URL=https://app.versevault.ca
-   ```
-   Restart the service.
-6. **OAuth consoles**: update callback URLs to the new domain.
+1. **Google console**: add `https://www.versevault.ca/api/auth/callback/google` to verse-vault's
+   OAuth client, keeping the `/vv/...` one until the switch is done. Nothing changes yet.
+2. **qzr-sheet**: merge its switch-day PR and wait for its deploys. It drops `qzr-api`'s `/api/*`
+   route, which vv-router can't claim until then, and redirects qzr's old `/scoresheet*` into
+   `/qzr/`. Broken: only qzr's old root portal, which is being retired. verse-vault at `/vv/` still
+   works.
+3. **VPS `/etc/verse-vault.env`**: `API_BASE_URL` and `WEB_BASE_URL` to `https://www.versevault.ca`,
+   then `sudo systemctl restart verse-vault`. Broken: Google sign-in, whose callback now points at
+   the root `/api`, which nothing routes yet. Email sign-in and sync still work through `/vv/api`.
+4. **Merge the verse-vault PR** (web 0.10.0, vv-router 0.2.0, api 0.1.44) and watch `deploy-web`.
+   Broken from here until step 5: `/vv/*` either serves the new root build under the old prefix or
+   redirects to a root that is still qzr's old site.
+5. **Pages custom domain**, as soon as `deploy-web` is green: remove `www.versevault.ca` from
+   qzr-sheet's `versevault-www` project and add it to `verse-vault-web`. The root now serves
+   verse-vault, and the gaps from steps 3 and 4 close once vv-router's deploy has finished too.
+6. **Check**: `/` serves verse-vault, `/vv/review` redirects to `/review`, `/api/health` is not the
+   SPA, Google sign-in completes, an old qzr meet link (`/<slug>`) lands on `/qzr/<slug>`.
+7. **Later**: remove the `/vv/api/auth/callback/google` URI.

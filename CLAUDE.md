@@ -215,10 +215,12 @@ from the code or design docs.
   component.** With baseURL `/vv`, route calls land at `/vv/sign-up/email` (405) instead of
   `/vv/api/auth/sign-up/email`. Add `/api/auth` to `baseURL` explicitly when constructing the
   client. See `apps/web/CHANGELOG.md` [0.1.6].
-* **`VITE_API_BASE` is the subpath prefix only** (`/vv` in production), not including `/api`. The
-  api client adds `/api/...` itself; doubling it produces `/vv/api/api/...` 404s. Same applies to
-  the CORS/origin comparison on the server — strip the path from `WEB_BASE_URL` before comparing
-  against the browser's `Origin` header (always scheme+host+port only).
+* **`VITE_API_BASE` is the API's origin or a subpath prefix, never including `/api`**
+  (`https://www.versevault.ca` in production; it was `/vv` before the move to the root). The api
+  client adds `/api/...` itself; doubling it produces `.../api/api/...` 404s. Don't set it to an
+  empty string: the auth client reads that as unset and falls back to localhost. Same applies to the
+  CORS/origin comparison on the server — strip the path from `WEB_BASE_URL` before comparing against
+  the browser's `Origin` header (always scheme+host+port only).
 * **Deck JSONs live at repo root `/data/`, not under `packages/api/`.** `pnpm deploy` only bundles
   files under the API workspace, so the deploy workflow has to copy `/data/*.json` into the bundle
   separately. `materials.ts` searches bundle-local first with a repo-root fallback so dev keeps
