@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
-import type { SocialProvider } from '@/lib/authClient'
+import { readPendingProvider, type SocialProvider } from '@/lib/authClient'
 import type { AuthProvider } from '@/lib/engine/registry'
+import { socialSignInError } from '@/lib/socialSignInError'
 
 type SignInResult = { error?: { message?: string | null } | null } | undefined
 
@@ -20,12 +22,29 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'success'): void }>()
 
+// A social sign-in that failed comes back here with `?error=`; show why once.
+// Clear the provider stashed for that round-trip (readPendingProvider also
+// refuses it while `?error=` is present, in case the session watcher gets
+// there first), or a following email sign-in would be stamped as a social
+// one. Strip the error through the router: a raw replaceState is undone by
+// vue-router's next push, and Back would show the message again.
+const route = useRoute()
+const router = useRouter()
+const oauthError = socialSignInError(window.location.search)
+if (oauthError) {
+  readPendingProvider()
+  const query = Object.fromEntries(
+    Object.entries(route.query).filter(([key]) => key !== 'error' && key !== 'error_description'),
+  )
+  void router.replace({ query })
+}
+
 const mode = ref<'pick' | 'signin' | 'signup'>(
-  props.reauth?.provider === 'email' ? 'signin' : 'pick',
+  props.reauth?.provider === 'email' || oauthError?.passwordAccount ? 'signin' : 'pick',
 )
 const email = ref(props.reauth?.email ?? '')
 const password = ref('')
-const error = ref('')
+const error = ref(oauthError?.message ?? '')
 const pending = ref(false)
 
 async function submitEmail() {
@@ -45,6 +64,7 @@ async function submitEmail() {
 <template>
   <div class="auth-card">
     <template v-if="mode === 'pick'">
+      <p v-if="error" class="error-msg">{{ error }}</p>
       <button class="provider-btn" @click="signInSocial('google')">
         <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
           <path

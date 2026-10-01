@@ -10,6 +10,31 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.42] - 2026-10-01
+
+PATCH: Google sign-in can no longer capture an account pre-registered with someone's email.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.11.0`: unchanged.
+* `verse-vault-wasm@0.11.0`: unchanged.
+
+### Fixed
+
+* Upgrade better-auth 1.6.5 to 1.6.33 (GHSA-g38m-r43w-p2q7). Before 1.6.11, a Google sign-in
+  auto-linked onto an existing account by email without checking that the local account's own email
+  was verified, so anyone could sign up with a victim's address and password, wait for the victim to
+  sign in with Google, and keep password access to the merged account.
+
+### Changed
+
+* Email and password accounts are never verified, so Google sign-in on an address that already has a
+  password account no longer merges into it. Better Auth refuses the link
+  (`error=account_not_linked`) and the user signs in with their password instead.
+* OAuth errors without a client `errorCallbackURL` now go to the web app (`onAPIError.errorURL`)
+  instead of Better Auth's default `/api/auth/error`, which has no `/vv` prefix and was routed to
+  the sibling qzr-api Worker.
+
 ## [0.1.41] — 2026-09-24
 
 PATCH: the per-year memorize backlog counts every club with memorize enabled.

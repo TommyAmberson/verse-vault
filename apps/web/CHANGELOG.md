@@ -9,6 +9,23 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.23] - 2026-10-01
+
+PATCH: the better-auth client moves to 1.6.33, matching the API.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.11.0`: unchanged.
+* `verse-vault-wasm@0.11.0`: unchanged.
+
+### Changed
+
+* better-auth 1.6.5 to 1.6.33, in step with API 0.1.42's account-takeover fix.
+* Google sign-in on an address that already has a password account no longer merges into it (see API
+  0.1.42). The sign-in form now explains this and opens on email sign-in, instead of the browser
+  landing on an error page from another app. Any other failed Google sign-in returns to the form
+  with a "try again" message.
+
 ## [0.9.22] — 2026-10-01
 
 PATCH: a Google account whose session expired can sign back in with Google again.

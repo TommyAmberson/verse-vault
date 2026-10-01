@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProfileCard from '@/components/ProfileCard.vue'
 import SignInForm from '@/components/SignInForm.vue'
+import { socialSignInError } from '@/lib/socialSignInError'
 import { useAuth } from '@/composables/useAuth'
 import { safeRedirect } from '@/router'
 import type { ProfileRow } from '@/lib/engine/registry'
@@ -23,7 +24,12 @@ const {
 const router = useRouter()
 const route = useRoute()
 
-const mode = ref<'empty' | 'cards' | 'add'>(profiles.value.length === 0 ? 'empty' : 'cards')
+// A failed social sign-in comes back here with `?error=`. The cards don't
+// render SignInForm, so open the form, which shows and strips the error.
+const returnedWithError = socialSignInError(window.location.search) !== null
+const mode = ref<'empty' | 'cards' | 'add'>(
+  profiles.value.length === 0 ? 'empty' : returnedWithError ? 'add' : 'cards',
+)
 const reauthTarget = ref<ProfileRow | null>(null)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)

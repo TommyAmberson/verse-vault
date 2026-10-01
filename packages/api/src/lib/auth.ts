@@ -53,6 +53,14 @@ export function createAuth(db: DB, env: AuthEnv) {
     secret: env.secret,
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
     trustedOrigins,
+    // Better Auth's default error page is `${baseURL}/error`, i.e.
+    // https://<origin>/api/auth/error with our origin-only baseURL. That path
+    // has no `/vv` and is routed to the sibling qzr-api Worker, not to us.
+    // Send any OAuth error the client didn't give its own errorCallbackURL
+    // for to the profile picker instead, which shows it. force=1 keeps the
+    // router guard from forwarding a signed-in user off the picker (and
+    // dropping `?error=`); Better Auth appends `&error=<code>`.
+    onAPIError: { errorURL: `${env.webOrigin.replace(/\/$/, '')}/profiles?force=1` },
     emailAndPassword: { enabled: true },
     socialProviders: env.googleOAuth
       ? {
@@ -75,8 +83,13 @@ export function createAuth(db: DB, env: AuthEnv) {
       : {},
     account: {
       accountLinking: {
-        // Google verifies email addresses — safe to auto-link with the
-        // matching email/password account.
+        // Trusting Google skips only the provider-side email check.
+        // better-auth >= 1.6.11 still refuses to auto-link onto a local
+        // account whose own email is unverified (`requireLocalEmailVerified`,
+        // default true), which blocks pre-registering a victim's email with a
+        // password (GHSA-g38m-r43w-p2q7). Email/password accounts are never
+        // verified here, so Google sign-in no longer merges into one; don't
+        // turn that off without adding email verification first.
         enabled: true,
         trustedProviders: ['google'],
       },
