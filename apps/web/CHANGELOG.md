@@ -9,6 +9,22 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.21] — 2026-10-01
+
+PATCH: a typed answer to the chapter club-list card keeps its verse colours.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.11.0`: unchanged.
+* `verse-vault-wasm@0.11.0`: unchanged.
+
+### Fixed
+
+* Typing the verse numbers for "Which verses are in this club?" showed the answer in plain text on
+  the back, even when every number was right. 0.9.19 coloured the list shown when nothing is typed,
+  but a typed answer renders through the word diff, which never coloured its numbers. Correct
+  numbers now carry their verse colours; missed and extra ones stay red.
+
 ## [0.9.20] — 2026-09-24
 
 PATCH: the home hero counts only the years that have work, and the memorize backlog it shows counts
