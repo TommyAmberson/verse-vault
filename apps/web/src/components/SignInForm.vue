@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 
 import type { SocialProvider } from '@/lib/authClient'
+import type { AuthProvider } from '@/lib/engine/registry'
 
 type SignInResult = { error?: { message?: string | null } | null } | undefined
 
@@ -9,31 +10,23 @@ const props = defineProps<{
   signInSocial: (provider: SocialProvider) => void
   signInEmail: (email: string, password: string) => Promise<SignInResult>
   signUpEmail: (email: string, password: string) => Promise<SignInResult>
-  /** When set, skip the provider picker and open the form in
-   *  email-signin mode with this address pre-populated. Used by the
-   *  picker's reauth flow so a click on a signed-out card lands the
-   *  user directly in the field for their existing email. */
-  prefillEmail?: string
+  /** The signed-out profile being re-authenticated, if any. Its email
+   *  prefills the form; a known `email` provider skips the provider
+   *  picker. An unknown provider may be an OAuth account, so it still
+   *  sees Google. Read once at mount: the picker re-keys the form per
+   *  target. */
+  reauth?: { email: string; provider?: AuthProvider }
 }>()
 
 const emit = defineEmits<{ (e: 'success'): void }>()
 
-const mode = ref<'pick' | 'signin' | 'signup'>(props.prefillEmail ? 'signin' : 'pick')
-const email = ref(props.prefillEmail ?? '')
+const mode = ref<'pick' | 'signin' | 'signup'>(
+  props.reauth?.provider === 'email' ? 'signin' : 'pick',
+)
+const email = ref(props.reauth?.email ?? '')
 const password = ref('')
 const error = ref('')
 const pending = ref(false)
-
-// Picker can change the prefill without remounting (user clicks a
-// different signed-out card mid-flow); keep the form in sync.
-watch(
-  () => props.prefillEmail,
-  (next) => {
-    if (!next) return
-    mode.value = 'signin'
-    email.value = next
-  },
-)
 
 async function submitEmail() {
   error.value = ''

@@ -24,7 +24,7 @@ const router = useRouter()
 const route = useRoute()
 
 const mode = ref<'empty' | 'cards' | 'add'>(profiles.value.length === 0 ? 'empty' : 'cards')
-const prefillEmail = ref<string | undefined>(undefined)
+const reauthTarget = ref<ProfileRow | null>(null)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)
 
@@ -81,7 +81,8 @@ function signInSocialToDestination(provider: Parameters<typeof signInSocial>[0])
 // straight back through the OAuth flow (the callbackURL is the current
 // URL, so the router guard forwards to `redirect` on return); an email
 // profile drops into the sign-in form prefilled with its address. A
-// profile with no recorded provider (legacy row) falls back to the form.
+// profile with no recorded provider (legacy row) could be either, so it
+// gets the provider picker: a password form would strand an OAuth user.
 function reauth(profile: ProfileRow) {
   if (profile.provider === 'google') {
     // Land the OAuth round-trip on the destination, not back on this
@@ -89,7 +90,7 @@ function reauth(profile: ProfileRow) {
     signInSocialToDestination('google')
     return
   }
-  prefillEmail.value = profile.email
+  reauthTarget.value = profile
   mode.value = 'add'
 }
 
@@ -135,12 +136,12 @@ async function confirmDelete() {
 }
 
 function startAdd() {
-  prefillEmail.value = undefined
+  reauthTarget.value = null
   mode.value = 'add'
 }
 
 function cancelAdd() {
-  prefillEmail.value = undefined
+  reauthTarget.value = null
   mode.value = profiles.value.length === 0 ? 'empty' : 'cards'
 }
 
@@ -181,7 +182,8 @@ async function onSignInSuccess() {
         :sign-in-social="signInSocialToDestination"
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
-        :prefill-email="prefillEmail"
+        :key="reauthTarget?.profileId ?? ''"
+        :reauth="reauthTarget ?? undefined"
         @success="onSignInSuccess"
       />
       <button v-if="mode === 'add'" type="button" class="back-btn" @click="cancelAdd">

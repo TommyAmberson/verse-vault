@@ -9,6 +9,26 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.22] — 2026-10-01
+
+PATCH: a Google account whose session expired can sign back in with Google again.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.11.0`: unchanged.
+* `verse-vault-wasm@0.11.0`: unchanged.
+
+### Fixed
+
+* Signing back in to an expired profile created before 0.9.8 opened the email and password form,
+  even for a Google account with no password. 0.9.8 sends a Google profile straight back through
+  Google, but only when the profile records how it signed in, and older profiles record nothing. A
+  profile with no recorded method now gets the choice of Google or email, with the address still
+  filled in.
+* Signing back in with Google never recorded the method on the profile being re-entered, so an older
+  profile stayed unrecorded however often it signed in. The method is now saved, and the next expiry
+  goes straight to Google.
+
 ## [0.9.21] — 2026-10-01
 
 PATCH: a typed answer to the chapter club-list card keeps its verse colours.
