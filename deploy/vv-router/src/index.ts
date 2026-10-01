@@ -1,50 +1,41 @@
 /**
- * Edge router for verse-vault's temporary /vv/* mount on versevault.ca.
+ * Edge router for verse-vault at the root of www.versevault.ca.
  *
- * - /vv/api/* → Tunnel-fronted Node API on the VPS (env.API_HOST)
- * - /vv/*     → CF Pages project hosting the SPA bundle (env.PAGES_HOST)
+ * - /api, /api/* → Tunnel-fronted Node API on the VPS (env.API_HOST), path unchanged
+ * - /vv, /vv/*   → 308 to the same path without the /vv prefix, query kept
  *
- * The /vv prefix is stripped before forwarding so the origin services
- * don't need to know they're hosted under a subpath. When qzr-sheet moves
- * off this domain, this Worker is deleted and the Pages project + Tunnel
- * are wired to subdomains directly.
+ * Everything else at the root is the CF Pages project, bound to the hostname as
+ * a custom domain, so it never reaches this Worker. qzr owns /qzr/* on the same
+ * host through its own Workers.
  */
 
 interface Env {
-  PAGES_HOST: string;
   API_HOST: string;
 }
 
-const PREFIX = '/vv';
+const LEGACY_PREFIX = '/vv';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (!url.pathname.startsWith(PREFIX)) {
-      // Worker route is /vv and /vv/*, so anything that lands here without
-      // the prefix is a routing misconfiguration. Surface it loudly.
-      return new Response('vv-router: path outside /vv prefix', { status: 500 });
+    // verse-vault lived under /vv/ until it moved to the root. 308 rather than
+    // 301 so a POST (an in-flight OAuth callback, a queued sync) keeps its
+    // method and body.
+    if (url.pathname === LEGACY_PREFIX || url.pathname.startsWith(`${LEGACY_PREFIX}/`)) {
+      const target = new URL(url);
+      target.pathname = url.pathname.slice(LEGACY_PREFIX.length) || '/';
+      return Response.redirect(target.toString(), 308);
     }
 
-    // Bare /vv (no trailing slash) → redirect to /vv/. Without this, the SPA
-    // would load with `<base href="/vv/">` while the browser URL was `/vv`,
-    // and Vue Router's path normalisation would lose the prefix. Also, if we
-    // forwarded the bare /vv to Pages as `/`, the Pages SPA would render but
-    // any relative-path navigation from there would drop out of the /vv
-    // subpath entirely.
-    if (url.pathname === PREFIX) {
-      const redirectTo = new URL(url);
-      redirectTo.pathname = PREFIX + '/';
-      return Response.redirect(redirectTo.toString(), 301);
+    if (url.pathname !== '/api' && !url.pathname.startsWith('/api/')) {
+      // The Worker's routes are /vv* and /api*, so anything else here is a
+      // routing misconfiguration. Surface it loudly.
+      return new Response('vv-router: path outside its routes', { status: 500 });
     }
 
-    const rest = url.pathname.slice(PREFIX.length) || '/';
     const target = new URL(url);
-    target.pathname = rest;
-    target.hostname = rest === '/api' || rest.startsWith('/api/')
-      ? env.API_HOST
-      : env.PAGES_HOST;
+    target.hostname = env.API_HOST;
 
     // redirect: manual preserves Better Auth's OAuth bounce (Set-Cookie
     // + Location both flow through to the browser). Body omitted on
