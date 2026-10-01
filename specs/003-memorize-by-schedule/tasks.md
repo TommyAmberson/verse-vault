@@ -164,12 +164,12 @@ count drops by each verse memorized.
 **Independent Test**: A learner with nothing owed gets the nearest future week's un-memorized
 verses; a batch larger than that week continues into the next.
 
-- [ ] T013 [US2] Write failing tests in `crates/core/src/schedule.rs`: nothing owed serves the
+- [X] T013 [US2] Write failing tests in `crates/core/src/schedule.rs`: nothing owed serves the
       nearest future week that still has un-memorized verses; a batch larger than that spans into
       the following week; a review week is skipped; `memorize_debt` stays zero while working
       ahead; before the season the batch comes from the first week (FR-011); after every
       scheduled verse is memorized, unscheduled verses come in deck order (FR-012)
-- [ ] T014 [US2] Extend `next_memorize_batch` in `crates/core/src/schedule.rs` with the `Ahead`
+- [X] T014 [US2] Extend `next_memorize_batch` in `crates/core/src/schedule.rs` with the `Ahead`
       bucket sorted by (week, club rank, verse id), then, with a schedule, the `Unscheduled` bucket
       sorted by (club rank, verse id), filling the batch after `Owed`. Without a schedule, T012
       already serves those verses

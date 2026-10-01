@@ -288,8 +288,10 @@ pub fn next_memorize_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId
 /// set [`memorize_debt`] counts; with no schedule the whole pool stands in
 /// for them. They come in [`club_ranks`] order, so a club behind an unmet
 /// cross-club gate follows the club above it rather than being hidden,
-/// and in deck (verse id) order within a rank. Whatever is left of the
-/// batch is filled from the remaining un-memorized verses in deck order.
+/// and in deck (verse id) order within a rank. When fewer are owed than
+/// `batch_size`, the queue works ahead as if the calendar had moved on:
+/// the nearest week that hasn't started, by rank and then deck order,
+/// then the week after. Verses no week assigns come last (FR-012).
 ///
 /// Calendar cascade still runs its own first phase: a rank-0 club on
 /// `CalendarCascade` puts this week's verses ahead of everything, and
@@ -351,20 +353,28 @@ pub fn next_memorize_batch(
         picked.extend(this_week);
     }
 
-    let owes = |p: &&PlacedVerse| match p.placement {
-        Placement::Owed => true,
-        Placement::Unscheduled => schedule.is_none(),
-        Placement::Ahead => false,
-    };
-    let mut owed: Vec<&PlacedVerse> = placed.iter().filter(owes).collect();
-    owed.sort_unstable_by_key(|p| (rank_of(p.club), p.verse_id));
-    let rest = placed.iter().filter(|p| !owes(p));
-    for p in owed.into_iter().chain(rest) {
+    // Owed verses first, then working ahead a week at a time as if the
+    // calendar had moved on, then the verses no week assigns. Without a
+    // schedule the whole pool stands in for the owed verses.
+    let mut order: Vec<(u8, usize, u32, u32)> = placed
+        .iter()
+        .map(|p| {
+            let rank = rank_of(p.club);
+            match p.placement {
+                Placement::Owed => (0, 0, rank, p.verse_id),
+                Placement::Unscheduled if schedule.is_none() => (0, 0, rank, p.verse_id),
+                Placement::Ahead { week } => (1, week, rank, p.verse_id),
+                Placement::Unscheduled => (2, 0, rank, p.verse_id),
+            }
+        })
+        .collect();
+    order.sort_unstable();
+    for (_, _, _, verse_id) in order {
         if picked.len() >= usize::from(batch_size) {
             break;
         }
-        if seen.insert(p.verse_id) {
-            picked.push(p.verse_id);
+        if seen.insert(verse_id) {
+            picked.push(verse_id);
         }
     }
 
@@ -443,7 +453,7 @@ pub fn memorize_debt(
         .filter(|p| match p.placement {
             Placement::Owed => true,
             Placement::Unscheduled => schedule.is_none(),
-            Placement::Ahead => false,
+            Placement::Ahead { .. } => false,
         })
         .map(|p| p.verse_id)
         .collect();
@@ -465,8 +475,8 @@ pub fn memorize_debt(
 enum Placement {
     /// First assigned in a week that has started.
     Owed,
-    /// First assigned in a week that hasn't started yet.
-    Ahead,
+    /// First assigned in `week`, which hasn't started yet.
+    Ahead { week: usize },
     /// No week assigns it under an enabled club, or there is no schedule.
     Unscheduled,
 }
@@ -532,7 +542,7 @@ fn place_unmemorized(
                 Some(week) if current_week.is_some_and(|current| week <= current) => {
                     Placement::Owed
                 }
-                Some(_) => Placement::Ahead,
+                Some(week) => Placement::Ahead { week },
             };
             PlacedVerse {
                 verse_id,
@@ -1942,6 +1952,135 @@ mod tests {
         assert_eq!(memorize_debt(&engine, Some(&sched), now).verses, 1);
     }
 
+    // ===== working ahead =====
+
+    /// John 3:16-18, every verse in Full, every club memorizing.
+    fn three_verse_engine() -> ReviewEngine {
+        let m: MaterialData = serde_json::from_str(
+            r#"{
+                "year": 3,
+                "books": ["John"],
+                "chapters": [
+                    {"book": "John", "number": 3, "start_verse": 16, "end_verse": 18}
+                ],
+                "verses": [
+                    {"book": "John", "chapter": 3, "verse": 16, "phraseWordCounts": [2, 2],
+                     "annotations": [], "ftvWordCount": null, "clubs": []},
+                    {"book": "John", "chapter": 3, "verse": 17, "phraseWordCounts": [2, 3],
+                     "annotations": [], "ftvWordCount": null, "clubs": []},
+                    {"book": "John", "chapter": 3, "verse": 18, "phraseWordCounts": [3, 2],
+                     "annotations": [], "ftvWordCount": null, "clubs": []}
+                ],
+                "headings": []
+            }"#,
+        )
+        .unwrap();
+        let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
+        ReviewEngine::new(r, 0.9)
+    }
+
+    /// Weeks that run against deck order: verse 16, then 18, then 17.
+    fn against_deck_order() -> Schedule {
+        john_schedule(&[
+            ("2025-09-08", 16, 16, &[]),
+            ("2025-09-15", 18, 18, &[]),
+            ("2025-09-22", 17, 17, &[]),
+        ])
+    }
+
+    #[test]
+    fn batch_works_ahead_into_the_nearest_week() {
+        // Week 0 is done, so nothing is owed: next comes week 1's verse 18,
+        // not verse 17, which is next in the deck.
+        let mut engine = three_verse_engine();
+        engine.graduate_verse(0);
+        let sched = against_deck_order();
+        let now = day_secs("2025-09-08");
+        assert_eq!(memorize_debt(&engine, Some(&sched), now).verses, 0);
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![2]);
+    }
+
+    #[test]
+    fn batch_works_ahead_a_week_at_a_time() {
+        let mut engine = three_verse_engine();
+        engine.graduate_verse(0);
+        let batch = next_memorize_batch(
+            &engine,
+            Some(&against_deck_order()),
+            day_secs("2025-09-08"),
+            2,
+        );
+        assert_eq!(batch_verse_ids(&engine, batch), vec![2, 1]);
+    }
+
+    #[test]
+    fn batch_skips_a_review_week_when_working_ahead() {
+        let mut engine = three_verse_engine();
+        engine.graduate_verse(0);
+        let mut sched = against_deck_order();
+        sched.weeks.insert(
+            1,
+            ScheduleWeek {
+                date: "2025-09-15".into(),
+                blocks: vec![],
+                is_review: true,
+            },
+        );
+        for (week, date) in
+            sched
+                .weeks
+                .iter_mut()
+                .zip(["2025-09-08", "2025-09-15", "2025-09-22", "2025-09-29"])
+        {
+            week.date = date.into();
+        }
+        let batch = next_memorize_batch(&engine, Some(&sched), day_secs("2025-09-08"), 1);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![2]);
+    }
+
+    #[test]
+    fn working_ahead_leaves_the_count_at_zero() {
+        let mut engine = three_verse_engine();
+        engine.graduate_verse(0);
+        let sched = against_deck_order();
+        let now = day_secs("2025-09-08");
+        for card in next_memorize_batch(&engine, Some(&sched), now, 2) {
+            let verse = engine.card(card).unwrap().verse_id;
+            engine.graduate_verse(verse);
+        }
+        assert_eq!(memorize_debt(&engine, Some(&sched), now).verses, 0);
+    }
+
+    #[test]
+    fn batch_before_the_season_starts_at_the_first_week() {
+        let engine = three_verse_engine();
+        let sched = john_schedule(&[("2025-09-08", 18, 18, &[]), ("2025-09-15", 16, 17, &[])]);
+        let batch = next_memorize_batch(&engine, Some(&sched), day_secs("2025-09-01"), 1);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![2]);
+    }
+
+    #[test]
+    fn batch_serves_unscheduled_verses_last_in_deck_order() {
+        // Only verse 18 is scheduled, in week 1. Working ahead takes it
+        // first, then the verses no week assigns (FR-012).
+        let engine = three_verse_engine();
+        let sched = john_schedule(&[("2025-09-08", 18, 18, &[])]);
+        let sched = Schedule {
+            weeks: vec![
+                ScheduleWeek {
+                    date: "2025-09-01".into(),
+                    blocks: vec![],
+                    is_review: true,
+                },
+                sched.weeks[0].clone(),
+            ],
+            ..sched
+        };
+        let batch = next_memorize_batch(&engine, Some(&sched), day_secs("2025-09-01"), 3);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![2, 0, 1]);
+    }
+
     // ===== placement of un-memorized verses =====
 
     fn placements(
@@ -1987,7 +2126,7 @@ mod tests {
         let (engine, sched) = debt_fixture();
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-08"),
-            vec![(0, Placement::Owed), (1, Placement::Ahead)]
+            vec![(0, Placement::Owed), (1, Placement::Ahead { week: 1 })]
         );
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-15"),
@@ -2000,7 +2139,10 @@ mod tests {
         let (engine, sched) = debt_fixture();
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-01"),
-            vec![(0, Placement::Ahead), (1, Placement::Ahead)]
+            vec![
+                (0, Placement::Ahead { week: 0 }),
+                (1, Placement::Ahead { week: 1 })
+            ]
         );
     }
 
@@ -2040,7 +2182,7 @@ mod tests {
         let sched = john_schedule(&[("2025-09-08", 17, 17, &[]), ("2025-09-15", 16, 17, &[])]);
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-08"),
-            vec![(0, Placement::Ahead), (1, Placement::Owed)]
+            vec![(0, Placement::Ahead { week: 1 }), (1, Placement::Owed)]
         );
     }
 
@@ -2072,7 +2214,7 @@ mod tests {
         engine.graduate_verse(0);
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-08"),
-            vec![(1, Placement::Ahead)]
+            vec![(1, Placement::Ahead { week: 1 })]
         );
     }
 
@@ -2082,11 +2224,11 @@ mod tests {
         let edited = john_schedule(&[("2025-09-08", 17, 17, &[]), ("2025-09-15", 16, 16, &[])]);
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-08"),
-            vec![(0, Placement::Owed), (1, Placement::Ahead)]
+            vec![(0, Placement::Owed), (1, Placement::Ahead { week: 1 })]
         );
         assert_eq!(
             placements(&engine, Some(&edited), "2025-09-08"),
-            vec![(0, Placement::Ahead), (1, Placement::Owed)]
+            vec![(0, Placement::Ahead { week: 1 }), (1, Placement::Owed)]
         );
     }
 

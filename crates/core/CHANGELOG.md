@@ -38,6 +38,9 @@ count reports changes; no state semantics or replay change.
   them: a club behind an unmet gate comes after the club above it, and a gate that can never open
   (checkpoint gates without a schedule, `FullyMemorized` over an empty club) no longer leaves a
   positive count with nothing to serve.
+* With fewer owed verses than the batch size, `next_memorize_batch` works ahead as if the calendar
+  had moved on: the nearest week that hasn't started, then the week after, rather than the next
+  verses in the deck. Verses no week assigns come last.
 
 ### Added
 
