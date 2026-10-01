@@ -32,8 +32,7 @@ versions across two consumers MUST mean identical observable behaviour. Any chan
 whose changelog still leaves the entry under `## [Unreleased]`. Semver is read strictly — MAJOR when
 event replay would produce different state or the wire shape changed incompatibly, MINOR for
 additive features, PATCH for implementation fixes with no observable change. Releasing a consumer
-MUST promote the contract crate's `[Unreleased]` entries to a dated section and restate the bundled
-contract versions.
+MUST restate the bundled contract versions.
 
 Rationale: a version mismatch between what a client ships and what the server runs is the only
 compatibility signal available at sync time. It is worthless if the number can drift from the

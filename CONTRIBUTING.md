@@ -198,10 +198,12 @@ When you change either crate:
 1. Bump the version in the matching `Cargo.toml`. Semver here means: MAJOR for a breaking state/wire
    change (event replay would produce different state, or the wire shape changed incompatibly),
    MINOR for additive features, PATCH for pure implementation fixes.
-2. Add an entry under `## [Unreleased]` in that crate's `CHANGELOG.md`.
-3. When releasing a consumer (bumping its `package.json`), promote the contract crate's
-   `[Unreleased]` entries to a dated version section, and update the consumer's
-   `### Bundled algorithm contract` subsection with the new versions.
+2. In the same commit, record the change in that crate's `CHANGELOG.md` under a dated
+   `## [X.Y.Z] - YYYY-MM-DD` section for the new version. The pre-commit hook rejects a bump left
+   under `## [Unreleased]`. The hook checks every commit that touches the crate's `src/`, so each
+   such commit bumps again: a branch with several crate commits carries several crate versions.
+3. When releasing a consumer (bumping its `package.json`), update the consumer's
+   `### Bundled algorithm contract` subsection with the new crate versions.
 
 `tools/check-contract-versions.sh` enforces this in two places:
 
