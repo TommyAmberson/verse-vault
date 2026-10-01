@@ -54,22 +54,22 @@ actually breaks a test rewrites it.
 This phase gives it a season memorize mode and records the current queue's results before anything
 changes (research D7).
 
-- [ ] T001 Add a `--memorize` flag to `parse_args` in `crates/sim/src/main.rs` that dispatches to
+- [X] T001 Add a `--memorize` flag to `parse_args` in `crates/sim/src/main.rs` that dispatches to
       `memorize::run` and leaves the existing review-calibration mode unchanged
-- [ ] T002 Create `crates/sim/src/memorize.rs`: for each bundled season (`data/1-gepc.json` with
+- [X] T002 Create `crates/sim/src/memorize.rs`: for each bundled season (`data/1-gepc.json` with
       `data/schedules/1-gepc-2023-24.json`, NT Survey 2024-25, Corinthians 2025-26, John 2026-27),
       load the deck and schedule (through core's `Schedule` deserialisation), build an engine with
       every club's memorize enabled for each combination of gates (production John, then each of
       the five conditions on both pairs), catch-up (all sequential, all calendar cascade) and batch
       size (1, 5), and walk the season day by day from the first week's date to 14 days past the
       last. No review loop: the queue reads no memory state (research D7)
-- [ ] T003 In `crates/sim/src/memorize.rs`, add three learner profiles: on plan (each week's quota,
+- [X] T003 In `crates/sim/src/memorize.rs`, add three learner profiles: on plan (each week's quota,
       the verses that week is the first to assign, spread exactly across the seven days from its
       date), behind (the same pace, memorizing nothing in two mid-season weeks), and ahead (twice
       the on-plan pace). No profile memorizes after the last week's seven days. Each day the
       learner presses Memorize until it has memorized its budget, memorizing served verses in
       batch order and leaving the rest of a batch for the next press
-- [ ] T004 In `crates/sim/src/memorize.rs`, check the spec invariants for every verse served and count
+- [X] T004 In `crates/sim/src/memorize.rs`, check the spec invariants for every verse served and count
       failures. The sim holds no definition of "owed" (constitution principle II); it reads
       ownership off `memorize_debt` as the learner memorizes each served verse in batch order:
       SC-001/SC-003 (while the count is above zero the batch is non-empty; at zero, memorizing a
