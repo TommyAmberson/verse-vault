@@ -69,16 +69,15 @@ impl ChapterListScope {
     }
 }
 
-/// How a club's pool is ordered when the user is behind the calendar.
+/// How a club orders its owed backlog when the user is behind the
+/// calendar.
 ///
-/// `Sequential` ignores the calendar entirely — the pool is "next
-/// un-memorized verse in canonical (deck/passage) order." Catches up
-/// automatically when behind, rolls ahead naturally when caught up.
+/// `Sequential` serves the club's owed verses in deck order.
 ///
-/// `CalendarCascade` prefers this week's calendar row first (Phase 1
-/// of the memorize fill), then falls through to backlog and lookahead
-/// via Phase 2. Users on a strict league schedule pick this; one-verse-
-/// a-day users typically don't.
+/// `CalendarCascade` serves its owed verses from the current week first,
+/// then the older ones (see `schedule::next_memorize_batch`). Users on a
+/// strict league schedule pick this; one-verse-a-day users typically
+/// don't. With nothing owed the two behave the same.
 ///
 /// JSON form is camelCase (`sequential` / `calendarCascade`) — matches
 /// the per-club shape the API uses for the new fields.

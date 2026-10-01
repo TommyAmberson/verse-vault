@@ -41,6 +41,10 @@ count reports changes; no state semantics or replay change.
 * With fewer owed verses than the batch size, `next_memorize_batch` works ahead as if the calendar
   had moved on: the nearest week that hasn't started, then the week after, rather than the next
   verses in the deck. Verses no week assigns come last.
+* `CatchUp::CalendarCascade` means "this week first" and nothing more: within its rank, a club on
+  calendar cascade puts its current week's owed verses before its older ones. Its separate this-week
+  phase is gone, and with it the overflow that let a batch run past `batch_size`, which is now a
+  firm limit for every club.
 
 ### Added
 

@@ -6,7 +6,7 @@ use crate::card::{Card, CardKind, CardState};
 use crate::element::ClubTier;
 use crate::engine::{ReviewEngine, is_bulk_graduable};
 use crate::material_config::{CatchUp, MoveToNextGate};
-use crate::schedule_data::{Schedule, VerseRef};
+use crate::schedule_data::Schedule;
 use crate::types::CardId;
 
 /// Whether a card tests the **content of one verse** — its text,
@@ -274,9 +274,10 @@ pub fn due_review_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
 /// reviewed. Ties broken by ascending verse id (the batch fill sorts
 /// picked verses), so the memorize queue surfaces early verses first.
 pub fn next_memorize_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId> {
-    // Thin wrapper around the two-phase batch; the existing single-card
-    // surface is preserved for callers (the wasm `next_memorize_card`
-    // binding, schedule tests) that don't have or need a schedule.
+    // A batch of one with no schedule, so rank and then deck order; the
+    // single-card surface is kept for callers (the wasm
+    // `next_memorize_card` binding, schedule tests) that don't have or
+    // need a schedule.
     next_memorize_batch(engine, None, now_secs, 1)
         .first()
         .copied()
@@ -287,15 +288,15 @@ pub fn next_memorize_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId
 /// Owed verses are those [`place_unmemorized`] places as owed, the same
 /// set [`memorize_debt`] counts; with no schedule the whole pool stands in
 /// for them. They come in [`club_ranks`] order, so a club behind an unmet
-/// cross-club gate follows the club above it rather than being hidden,
-/// and in deck (verse id) order within a rank. When fewer are owed than
-/// `batch_size`, the queue works ahead as if the calendar had moved on:
-/// the nearest week that hasn't started, by rank and then deck order,
-/// then the week after. Verses no week assigns come last (FR-012).
+/// cross-club gate follows the club above it rather than being hidden.
+/// Within a rank, a club on `CalendarCascade` puts its current week's owed
+/// verses before its older ones, and deck (verse id) order decides the
+/// rest.
 ///
-/// Calendar cascade still runs its own first phase: a rank-0 club on
-/// `CalendarCascade` puts this week's verses ahead of everything, and
-/// that phase may overflow `batch_size`.
+/// When fewer are owed than `batch_size`, the queue works ahead as if the
+/// calendar had moved on: the nearest week that hasn't started, by rank
+/// and then deck order, then the week after. Verses no week assigns come
+/// last (FR-012). `batch_size` is a firm limit for every club.
 ///
 /// Returns one anchor `CardId` per chosen verse — `Recitation` if the
 /// verse emits one, otherwise the first un-graduated bulk-graduable
@@ -316,70 +317,37 @@ pub fn next_memorize_batch(
             .find(|(c, _)| *c == club)
             .map_or(u32::MAX, |&(_, rank)| rank)
     };
-    let mut picked: Vec<u32> = Vec::new();
-    let mut seen: HashSet<u32> = HashSet::new();
-
-    // Calendar cascade's this-week phase, for rank-0 clubs only, as the
-    // gates used to admit. The (book, chapter, verse) → verse_id lookup is
-    // an O(verses) HashMap with owned String keys, so it is only built
-    // when some club is on CalendarCascade.
-    let cascade: Vec<ClubTier> = ranks
-        .iter()
-        .filter(|&&(club, rank)| {
-            rank == 0 && engine.material_config.catch_up_for(club) == CatchUp::CalendarCascade
-        })
-        .map(|&(club, _)| club)
-        .collect();
-    if !cascade.is_empty()
-        && let Some(sched) = schedule
-        && let Some(week_idx) = sched.current_week_index(now_secs)
-    {
-        let lookup = build_verse_lookup(engine);
-        let mut this_week: Vec<u32> = Vec::new();
-        for &club in &cascade {
-            for vref in sched.week_verse_refs(week_idx, club) {
-                let Some(&vid) = lookup.get(&vref) else {
-                    continue;
-                };
-                let unmemorized = placed
-                    .binary_search_by_key(&vid, |p| p.verse_id)
-                    .is_ok_and(|i| placed[i].club == club);
-                if unmemorized && seen.insert(vid) {
-                    this_week.push(vid);
-                }
-            }
-        }
-        this_week.sort_unstable();
-        picked.extend(this_week);
-    }
+    let current_week = schedule.and_then(|s| s.current_week_index(now_secs));
+    // Calendar cascade is "this week first": within its rank, a club on
+    // CalendarCascade puts its owed verses from the current week ahead of
+    // its older backlog. It has nothing to reorder when nothing is owed.
+    let this_week_first = |club: ClubTier, week: usize| {
+        let cascades = engine.material_config.catch_up_for(club) == CatchUp::CalendarCascade;
+        u8::from(!(cascades && current_week == Some(week)))
+    };
 
     // Owed verses first, then working ahead a week at a time as if the
     // calendar had moved on, then the verses no week assigns. Without a
     // schedule the whole pool stands in for the owed verses.
-    let mut order: Vec<(u8, usize, u32, u32)> = placed
+    let mut order: Vec<(u8, usize, u32, u8, u32)> = placed
         .iter()
         .map(|p| {
             let rank = rank_of(p.club);
             match p.placement {
-                Placement::Owed => (0, 0, rank, p.verse_id),
-                Placement::Unscheduled if schedule.is_none() => (0, 0, rank, p.verse_id),
-                Placement::Ahead { week } => (1, week, rank, p.verse_id),
-                Placement::Unscheduled => (2, 0, rank, p.verse_id),
+                Placement::Owed { week } => (0, 0, rank, this_week_first(p.club, week), p.verse_id),
+                Placement::Unscheduled if schedule.is_none() => (0, 0, rank, 0, p.verse_id),
+                Placement::Ahead { week } => (1, week, rank, 0, p.verse_id),
+                Placement::Unscheduled => (2, 0, rank, 0, p.verse_id),
             }
         })
         .collect();
     order.sort_unstable();
-    for (_, _, _, verse_id) in order {
-        if picked.len() >= usize::from(batch_size) {
-            break;
-        }
-        if seen.insert(verse_id) {
-            picked.push(verse_id);
-        }
-    }
+    let picked = order
+        .into_iter()
+        .take(usize::from(batch_size))
+        .map(|(.., verse_id)| verse_id);
 
     picked
-        .into_iter()
         .filter_map(|vid| anchor_card_for_verse(engine, vid))
         .collect()
 }
@@ -451,7 +419,7 @@ pub fn memorize_debt(
     let verses: HashSet<u32> = place_unmemorized(engine, schedule, now_secs)
         .into_iter()
         .filter(|p| match p.placement {
-            Placement::Owed => true,
+            Placement::Owed { .. } => true,
             Placement::Unscheduled => schedule.is_none(),
             Placement::Ahead { .. } => false,
         })
@@ -473,8 +441,8 @@ pub fn memorize_debt(
 /// (specs/003-memorize-by-schedule/data-model.md).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Placement {
-    /// First assigned in a week that has started.
-    Owed,
+    /// First assigned in `week`, which has started.
+    Owed { week: usize },
     /// First assigned in `week`, which hasn't started yet.
     Ahead { week: usize },
     /// No week assigns it under an enabled club, or there is no schedule.
@@ -512,9 +480,8 @@ fn place_unmemorized(
         .collect();
     let unmemorized = unmemorized_verses_by_tier(engine, &enabled);
 
-    // Keyed on the schedule's own strings rather than `build_verse_lookup`,
-    // which clones a book name per verse in the whole deck: `memorize_debt`
-    // runs on every `/api/years` request.
+    // Keyed on strings borrowed from the schedule, so a call clones no book
+    // names: `memorize_debt` runs on every `/api/years` request.
     let mut first_week: HashMap<(&str, u16, u16), usize> = HashMap::new();
     if let Some(sched) = schedule {
         for &club in &enabled {
@@ -540,7 +507,7 @@ fn place_unmemorized(
             let placement = match week {
                 None => Placement::Unscheduled,
                 Some(week) if current_week.is_some_and(|current| week <= current) => {
-                    Placement::Owed
+                    Placement::Owed { week }
                 }
                 Some(week) => Placement::Ahead { week },
             };
@@ -642,16 +609,6 @@ fn gate_is_open(
             tier_memorize_progress(engine, higher).0 >= needed
         }
     }
-}
-
-/// Map of (book, chapter, verse) → verse_id, sourced from the engine's
-/// per-verse render data. Built once per `next_memorize_batch` call.
-fn build_verse_lookup(engine: &ReviewEngine) -> HashMap<VerseRef, u32> {
-    let mut map: HashMap<VerseRef, u32> = HashMap::new();
-    for (&vid, render) in engine.verse_render_data.iter() {
-        map.insert((render.book.clone(), render.chapter, render.verse), vid);
-    }
-    map
 }
 
 /// For each `tier` in `eligible`, the sorted-ascending list of verse_ids
@@ -1474,7 +1431,7 @@ mod tests {
         assert_eq!(due_review_count(&engine, now), 0);
     }
 
-    // ===== next_memorize_batch (two-phase canonical fill) =====
+    // ===== next_memorize_batch =====
 
     use crate::material_config::{
         CatchUp, ClubMemorizeConfig, MaterialConfig, MoveToNextConfig, MoveToNextGate, TierScope,
@@ -1521,9 +1478,9 @@ mod tests {
 
     #[test]
     fn batch_no_schedule_sequential_matches_legacy_next_memorize_card() {
-        // Default config = Club 150 only, Sequential. Without a schedule,
-        // Phase 1 contributes nothing → Phase 2 picks the first Club 150
-        // verse in canonical order. The single-card wrapper must agree.
+        // Without a schedule the whole pool is owed, so the batch starts
+        // with the first verse in rank and deck order. The single-card
+        // wrapper must agree.
         let m = sample_material_mixed_tiers();
         let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
         let engine = ReviewEngine::new(r, 0.9);
@@ -1572,9 +1529,8 @@ mod tests {
         // Two-verse deck with one Club150 (verse 16) and one Club300
         // (verse 17). Schedule's week 0 covers John 3:16-17, lists 16 as
         // Club150 and 17 as Club300. With Club 150 in CalendarCascade
-        // and gate Always → Phase 1 takes verse 16, Phase 2 takes
-        // verse 17 (eligible via Always). With batch_size=1, only
-        // verse 16 appears.
+        // and gate Always, both are owed and Club 150's this-week verse
+        // comes first; with batch_size=1, only verse 16 appears.
         let m = sample_material_mixed_tiers();
         let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
         let mut engine = ReviewEngine::new(r, 0.9);
@@ -1598,15 +1554,14 @@ mod tests {
         let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
         let verse_ids = batch_verse_ids(&engine, batch);
-        // Phase 1 contributes verse 16 (Club150 this-week). Soft cap on
-        // primary keeps it, even though batch_size=1.
         assert_eq!(verse_ids, vec![0]);
     }
 
     #[test]
-    fn batch_calendar_cascade_soft_cap_overflows_phase1() {
-        // Both verses are Club150 this week, CalendarCascade. batch_size=1
-        // but Phase 1's primary pool has 2 verses → soft cap pulls both in.
+    fn batch_calendar_cascade_keeps_to_the_batch_size() {
+        // Both verses are this week's, on CalendarCascade. The batch size
+        // is a firm limit for every club (FR-008), so a batch of one holds
+        // one verse, not the whole week.
         let m = sample_material_two_verses(); // both verses → Full (clubs:[])
         let mut config = MaterialConfig::all_clubs_enabled(0.9);
         // Force everything to Full club to match the fixture verses.
@@ -1649,10 +1604,7 @@ mod tests {
         let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 1);
         let verse_ids = batch_verse_ids(&engine, batch);
-        // Soft cap on Phase 1: both Full verses surface even though
-        // batch_size=1.
-        assert_eq!(verse_ids.len(), 2);
-        assert_eq!(verse_ids, vec![0, 1]);
+        assert_eq!(verse_ids, vec![0]);
     }
 
     /// John 3:16 in week 0, 3:17 in week 1 — the two verses
@@ -2168,6 +2120,55 @@ mod tests {
         assert_eq!(batch_verse_ids(&engine, batch), vec![2, 0, 1]);
     }
 
+    // ===== this week first =====
+
+    /// The three-verse engine with Full on the given catch-up, two weeks
+    /// into a schedule that lists one verse a week in deck order.
+    fn behind_on(catch_up: CatchUp) -> (ReviewEngine, Schedule, i64) {
+        let mut engine = three_verse_engine();
+        engine.material_config.memorize.full.catch_up = catch_up;
+        let sched = john_schedule(&[
+            ("2025-09-08", 16, 16, &[]),
+            ("2025-09-15", 17, 17, &[]),
+            ("2025-09-22", 18, 18, &[]),
+        ]);
+        (engine, sched, day_secs("2025-09-22"))
+    }
+
+    #[test]
+    fn calendar_cascade_serves_this_weeks_owed_verses_first() {
+        let (engine, sched, now) = behind_on(CatchUp::CalendarCascade);
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 3);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![2, 0, 1]);
+    }
+
+    #[test]
+    fn sequential_serves_owed_verses_in_deck_order() {
+        let (engine, sched, now) = behind_on(CatchUp::Sequential);
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 3);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn catch_up_makes_no_difference_with_nothing_owed() {
+        let batch_on = |catch_up| {
+            let mut engine = three_verse_engine();
+            engine.material_config.memorize.full.catch_up = catch_up;
+            engine.graduate_verse(0);
+            let batch = next_memorize_batch(
+                &engine,
+                Some(&against_deck_order()),
+                day_secs("2025-09-08"),
+                2,
+            );
+            batch_verse_ids(&engine, batch)
+        };
+        assert_eq!(
+            batch_on(CatchUp::CalendarCascade),
+            batch_on(CatchUp::Sequential)
+        );
+    }
+
     // ===== placement of un-memorized verses =====
 
     fn placements(
@@ -2213,11 +2214,17 @@ mod tests {
         let (engine, sched) = debt_fixture();
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-08"),
-            vec![(0, Placement::Owed), (1, Placement::Ahead { week: 1 })]
+            vec![
+                (0, Placement::Owed { week: 0 }),
+                (1, Placement::Ahead { week: 1 })
+            ]
         );
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-15"),
-            vec![(0, Placement::Owed), (1, Placement::Owed)]
+            vec![
+                (0, Placement::Owed { week: 0 }),
+                (1, Placement::Owed { week: 1 })
+            ]
         );
     }
 
@@ -2238,7 +2245,10 @@ mod tests {
         let (engine, sched) = debt_fixture();
         assert_eq!(
             placements(&engine, Some(&sched), "2026-01-05"),
-            vec![(0, Placement::Owed), (1, Placement::Owed)]
+            vec![
+                (0, Placement::Owed { week: 0 }),
+                (1, Placement::Owed { week: 1 })
+            ]
         );
     }
 
@@ -2257,7 +2267,10 @@ mod tests {
         let sched = john_schedule(&[("2025-09-08", 16, 16, &[])]);
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-08"),
-            vec![(0, Placement::Owed), (1, Placement::Unscheduled)]
+            vec![
+                (0, Placement::Owed { week: 0 }),
+                (1, Placement::Unscheduled)
+            ]
         );
     }
 
@@ -2269,7 +2282,10 @@ mod tests {
         let sched = john_schedule(&[("2025-09-08", 17, 17, &[]), ("2025-09-15", 16, 17, &[])]);
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-08"),
-            vec![(0, Placement::Ahead { week: 1 }), (1, Placement::Owed)]
+            vec![
+                (0, Placement::Ahead { week: 1 }),
+                (1, Placement::Owed { week: 0 })
+            ]
         );
     }
 
@@ -2284,7 +2300,10 @@ mod tests {
         let sched = john_schedule(&[("2025-09-08", 16, 17, &[17])]);
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-08"),
-            vec![(0, Placement::Owed), (1, Placement::Owed)]
+            vec![
+                (0, Placement::Owed { week: 0 }),
+                (1, Placement::Owed { week: 0 })
+            ]
         );
         // With Club 150 off, verse 16 leaves the pool, and the only listing
         // of verse 17 no longer assigns it.
@@ -2311,19 +2330,24 @@ mod tests {
         let edited = john_schedule(&[("2025-09-08", 17, 17, &[]), ("2025-09-15", 16, 16, &[])]);
         assert_eq!(
             placements(&engine, Some(&sched), "2025-09-08"),
-            vec![(0, Placement::Owed), (1, Placement::Ahead { week: 1 })]
+            vec![
+                (0, Placement::Owed { week: 0 }),
+                (1, Placement::Ahead { week: 1 })
+            ]
         );
         assert_eq!(
             placements(&engine, Some(&edited), "2025-09-08"),
-            vec![(0, Placement::Ahead { week: 1 }), (1, Placement::Owed)]
+            vec![
+                (0, Placement::Ahead { week: 1 }),
+                (1, Placement::Owed { week: 0 })
+            ]
         );
     }
 
     #[test]
-    fn batch_cascade_falls_through_to_lookahead_in_phase2() {
-        // Schedule has two weeks; we're at week 0. CalendarCascade picks
-        // week 0's verse for Phase 1 (verse 16); Phase 2 has room for
-        // verse 17 (week 1's Club150 lookahead).
+    fn batch_cascade_falls_through_to_working_ahead() {
+        // Schedule has two weeks; we're at week 0. The owed verse 16 comes
+        // first, then the batch has room to work ahead into week 1's 17.
         let m = sample_material_two_verses();
         let mut config = MaterialConfig::all_clubs_enabled(0.9);
         // Force Full so both verses are eligible.
@@ -2340,8 +2364,6 @@ mod tests {
         let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 5);
         let verse_ids = batch_verse_ids(&engine, batch);
-        // Phase 1 takes verse 16 (this week's Full); Phase 2 picks up
-        // verse 17 (next week's lookahead, in canonical order).
         assert_eq!(verse_ids, vec![0, 1]);
     }
 

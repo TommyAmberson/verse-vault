@@ -205,7 +205,7 @@ Club 300's, and the queue is never empty while the count is above zero.
 **Independent Test**: Two weeks behind with a club on calendar cascade, its current-week verses come
 first; on sequential, deck order.
 
-- [ ] T017 [US4] Write failing tests in `crates/core/src/schedule.rs`: a club on calendar cascade
+- [X] T017 [US4] Write failing tests in `crates/core/src/schedule.rs`: a club on calendar cascade
       serves its current-week owed verses before its older owed verses; on sequential, deck order;
       calendar cascade never exceeds `batch_size`; when nothing is owed both settings give the same
       batch. Then add the cascade key to the `Owed` sort (club rank, cascade key, verse id), remove
