@@ -244,7 +244,7 @@ as amended).
       section restating core and wasm 0.12.0. Note that until a client loads web 0.9.24, its queue
       runs the old engine while Home's count comes from this api, so the two can disagree for one
       page load
-- [ ] T021 [P] Bump `apps/web/package.json` to 0.9.24 with a dated `apps/web/CHANGELOG.md` section
+- [X] T021 [P] Bump `apps/web/package.json` to 0.9.24 with a dated `apps/web/CHANGELOG.md` section
       restating core and wasm 0.12.0. The PR bumps package versions, so rebase it onto master
       before merging (constitution, Development Workflow)
 

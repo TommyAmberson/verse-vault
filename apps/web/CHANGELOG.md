@@ -9,6 +9,28 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.24] - 2026-10-01
+
+PATCH: Memorize follows the schedule, in step with API 0.1.43.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: the memorize count and queue follow the schedule; no state-semantics
+  change.
+* `verse-vault-wasm@0.12.0`: bundles it.
+
+### Changed
+
+* The Memorize page's local engine serves the verses Home's "to memorize" count includes, and only
+  those while the count is above zero. With nothing owed it works ahead into the nearest week the
+  schedule hasn't reached, rather than the next verses in the deck. A cross-club gate orders clubs
+  instead of leaving the page empty while the count is above zero, and the lesson batch size is a
+  firm limit.
+* With more than one year enrolled, a session holds only the years that owe verses while any do, so
+  one year's work-ahead never joins another year's backlog.
+* Home's zero-count line reads "caught up on the schedule", not "this week's schedule": before a
+  season's first week the count is now zero and there is no this week yet.
+
 ## [0.9.23] - 2026-10-01
 
 PATCH: the better-auth client moves to 1.6.33, matching the API.
