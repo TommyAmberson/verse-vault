@@ -27,7 +27,7 @@ const META_KEY = 'singleton'
  *  re-auth: a `'google'` profile whose stored token is dead re-auths
  *  straight through the OAuth flow rather than the email/password form.
  *  `undefined` on rows written before this was tracked — treated as
- *  unknown, falling back to the email form. */
+ *  unknown, so re-auth offers both methods. */
 export type AuthProvider = 'google' | 'email'
 
 export interface ProfileRow {
