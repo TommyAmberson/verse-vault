@@ -143,11 +143,11 @@ US3 adds no rule: FR-006 gives every edit one form, and T005's in-flow stack alr
 
 ### Tests for User Story 4
 
-- [ ] T011 [US4] Extend the edit module's tests: the John 1:14 paraphrase yields one `replace` with expected "as of the only begotten of" against typed "of the one and only Son from", while "made His dwelling" against "dwelt" and the added "all of" stay separate; two glue words merge and three do not; a four-letter glue word merges and a five-letter one does not; a short match run at the start or end of the answer is never folded; the match measures from T006 are unchanged by merging (data-model.md: "A match run of at most two words, each at most four letters after normalization, that sits between two edits is folded into one `replace`" and "Counted on the diff before merging").
+- [X] T011 [US4] Extend the edit module's tests: the John 1:14 paraphrase yields one `replace` with expected "as of the only begotten of" against typed "of the one and only Son from", while "made His dwelling" against "dwelt" and the added "all of" stay separate; two glue words merge and three do not; a four-letter glue word merges and a five-letter one does not; a short match run at the start or end of the answer is never folded; the match measures from T006 are unchanged by merging (data-model.md: "A match run of at most two words, each at most four letters after normalization, that sits between two edits is folded into one `replace`" and "Counted on the diff before merging").
 
 ### Implementation for User Story 4
 
-- [ ] T012 [US4] Add merging to the edit module, owner of "whether two edits merge across a glue run (FR-010)" (plan.md), reusing `normalize` from `wordDiff.ts` for letter counts, with the two-word and four-letter limits as named values commented with FR-010 (research R8). Apply it to prose cards only; club-list answers never reach it. No rendering change: a merged edit is an ordinary `replace`. Extend the `[Unreleased]` entry in `apps/web/CHANGELOG.md`. Covered by T011 and quickstart reference case 4.
+- [X] T012 [US4] Add merging to the edit module, owner of "whether two edits merge across a glue run (FR-010)" (plan.md), reusing `normalize` from `wordDiff.ts` for letter counts, with the two-word and four-letter limits as named values commented with FR-010 (research R8). Apply it to prose cards only; club-list answers never reach it. No rendering change: a merged edit is an ordinary `replace`. Extend the `[Unreleased]` entry in `apps/web/CHANGELOG.md`. Covered by T011 and quickstart reference case 4.
 
 **Checkpoint**: Paraphrases read as one correction.
 

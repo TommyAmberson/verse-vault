@@ -95,6 +95,52 @@ describe('long and trailing edits', () => {
   });
 });
 
+describe('merging reworded phrases', () => {
+  const JOHN_1_14 =
+    'And the Word became flesh and dwelt among us, and we beheld His glory, the glory as of the only begotten of the Father, full of grace and truth.';
+
+  it('reads a paraphrase as one correction', () => {
+    const typed =
+      'And the Word became flesh and made His dwelling among all of us, and we saw His glory, the glory of the one and only Son from the Father, full of grace and truth.';
+
+    expect(edits(JOHN_1_14, typed)).toEqual([
+      { kind: 'replace', typed: ['made', 'His', 'dwelling'], expected: ['dwelt'] },
+      { kind: 'add', typed: ['all', 'of'] },
+      { kind: 'replace', typed: ['saw'], expected: ['beheld'] },
+      {
+        kind: 'replace',
+        typed: ['of', 'the', 'one', 'and', 'only', 'Son', 'from'],
+        expected: ['as', 'of', 'the', 'only', 'begotten', 'of'],
+      },
+    ]);
+  });
+
+  it('merges across at most two glue words', () => {
+    expect(edits('alpha of the bravo end', 'zulu of the yankee end')).toEqual([
+      { kind: 'replace', typed: ['zulu', 'of', 'the', 'yankee'], expected: ['alpha', 'of', 'the', 'bravo'] },
+    ]);
+    expect(edits('alpha of the a bravo end', 'zulu of the a yankee end')).toHaveLength(2);
+  });
+
+  it('merges across glue words of at most four letters', () => {
+    expect(edits('alpha from bravo end', 'zulu from yankee end')).toHaveLength(1);
+    expect(edits('alpha among bravo end', 'zulu among yankee end')).toHaveLength(2);
+  });
+
+  it('never folds a match run at the start or end', () => {
+    expect(segments('of alpha', 'of zulu').map((s) => s.kind)).toEqual(['match', 'replace']);
+    expect(segments('alpha of', 'zulu of').map((s) => s.kind)).toEqual(['replace', 'match']);
+  });
+
+  // The fallback counts the diff, not the merged segments, so glue words
+  // folded into a correction still count as matched.
+  it('leaves the wrong-verse measures alone', () => {
+    const typed = 'And the Word became flesh and dwelt among us, and we beheld His glory, the glory of the one and only Son from the Father, full of grace and truth.';
+
+    expect(wrongVerse(wordDiff(JOHN_1_14, typed))).toBeNull();
+  });
+});
+
 describe('wrongVerse', () => {
   function check(expected: string, typed: string) {
     return wrongVerse(wordDiff(expected, typed));

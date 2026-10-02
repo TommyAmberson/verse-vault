@@ -21,6 +21,9 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   of the verse and under half of what you typed is in it, the back shows the verse as it reads
   untyped, with your answer below as a muted note and how many words matched. Stopping early or
   running on into the next verse still gets the proofread view.
+* A reworded phrase reads as one correction. Mistakes separated only by one or two short shared
+  words (of, the, and) merge, so "of the one and only Son from" carries "as of the only begotten of"
+  above it instead of a scatter of small marks.
 
 ### Fixed
 

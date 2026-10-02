@@ -6,7 +6,7 @@
  * struck with no label. See docs/type-to-recite.md.
  */
 
-import type { DiffItem } from './wordDiff'
+import { type DiffItem, normalize } from './wordDiff'
 
 export type Segment =
   | { kind: 'match'; words: string[] }
@@ -14,11 +14,22 @@ export type Segment =
   | { kind: 'add'; typed: string[] }
   | { kind: 'skip'; expected: string[] }
 
+// A match run this short, between two edits, is glue a paraphrase happened
+// to share with the verse; folding it in reads the stretch as one
+// correction rather than a scatter of tiny marks (FR-010).
+const GLUE_MAX_WORDS = 2
+const GLUE_MAX_LETTERS = 4
+
 /** Groups each maximal run of matches, and each maximal run of
- *  differences, into one segment. A difference run with both sides is a
- *  replacement, so a swapped word reads as one correction rather than a
- *  deletion beside an insertion. */
+ *  differences, into one segment, after folding glue into the edits
+ *  around it. A difference run with both sides is a replacement, so a
+ *  swapped word reads as one correction rather than a deletion beside an
+ *  insertion. */
 export function toSegments(items: DiffItem[]): Segment[] {
+  return group(foldGlue(items))
+}
+
+function group(items: DiffItem[]): Segment[] {
   const out: Segment[] = []
   let k = 0
   while (k < items.length) {
@@ -38,6 +49,33 @@ export function toSegments(items: DiffItem[]): Segment[] {
     if (typed.length === 0) out.push({ kind: 'skip', expected })
     else if (expected.length === 0) out.push({ kind: 'add', typed })
     else out.push({ kind: 'replace', typed, expected })
+  }
+  return out
+}
+
+function isGlue(run: DiffItem[]): boolean {
+  return run.length <= GLUE_MAX_WORDS && run.every((m) => normalize(m.raw).length <= GLUE_MAX_LETTERS)
+}
+
+// Rewrites each glue word between two differences as both missing and
+// extra, since the reader typed it too, so `group` sees one unbroken run
+// of differences. Runs at either end have no difference on one side.
+function foldGlue(items: DiffItem[]): DiffItem[] {
+  const out: DiffItem[] = []
+  let k = 0
+  while (k < items.length) {
+    if (items[k]!.kind !== 'match') {
+      out.push(items[k++]!)
+      continue
+    }
+    const start = k
+    while (k < items.length && items[k]!.kind === 'match') k++
+    const run = items.slice(start, k)
+    if (start > 0 && k < items.length && isGlue(run)) {
+      for (const m of run) out.push({ kind: 'missing', raw: m.raw }, { kind: 'extra', raw: m.raw })
+    } else {
+      out.push(...run)
+    }
   }
   return out
 }
