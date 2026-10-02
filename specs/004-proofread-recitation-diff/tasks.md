@@ -177,7 +177,7 @@ US3 adds no rule: FR-006 gives every edit one form, and T005's in-flow stack alr
 **Purpose**: Documentation, release, and end-to-end validation
 
 - [X] T016 [P] Write `docs/type-to-recite.md` covering the whole feature (research R9): optional typing and self-grading, normalized comparison and the earliest-occurrence preference on both sides, FTV prefix handling and dialect, the proofread view and its edit kinds, merging, the wrong-verse fallback and its two measures, and club lists; add it to the reference docs list in `CLAUDE.md`; point the club-list diffing mention in `docs/unspecced.md` at the new doc.
-- [ ] T017 Release `@verse-vault/web` as a MINOR bump: move the `[Unreleased]` entry in `apps/web/CHANGELOG.md` under a dated version heading labelled MINOR, restating the bundled contract versions as unchanged, and bump `apps/web/package.json` to match. Set the number from master at the time of the commit.
+- [X] T017 Release `@verse-vault/web` as a MINOR bump: move the `[Unreleased]` entry in `apps/web/CHANGELOG.md` under a dated version heading labelled MINOR, restating the bundled contract versions as unchanged, and bump `apps/web/package.json` to match. Set the number from master at the time of the commit.
 - [ ] T018 Run the quickstart validation in `specs/004-proofread-recitation-diff/quickstart.md`: `pnpm --filter @verse-vault/web test`, `pnpm --filter @verse-vault/web type-check`, `dprint check`, and `typos`, then every reference case and Scenarios 1 to 5 against `pnpm dev:all`, in light and dark and at 360px width.
 
 ---

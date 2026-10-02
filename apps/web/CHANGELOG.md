@@ -9,6 +9,16 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.26] - 2026-10-02
+
+MINOR: typed answers read as a proofread page instead of a red word diff (spec
+`specs/004-proofread-recitation-diff/`, doc `docs/type-to-recite.md`).
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+* `verse-vault-wasm@0.12.0`: unchanged.
+
 ### Changed
 
 * A typed Recitation or FTV answer now reads as a proofread page instead of a red word diff. The
