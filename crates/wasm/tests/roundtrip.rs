@@ -394,3 +394,52 @@ fn card_count_by_club_returns_buckets_for_full_tier_material() {
     assert!(v.get("Club150").is_none());
     assert!(v.get("Club300").is_none());
 }
+
+// Week 0 lists 3:17 and week 1 lists 3:16, so working ahead before the
+// season serves the chapter out of deck order.
+const SCHEDULE_AGAINST_DECK_JSON: &str = r#"{
+    "version": 2, "materialId": "t", "season": "x", "title": "t", "meetingDayOfWeek": "Mon",
+    "weeks": [
+        {"date": "2025-09-08", "isReview": false, "blocks": [{
+            "passage": {"book": "John", "chapter": 3, "startVerse": 17, "endVerse": 17},
+            "verses": {"club150": [17], "club300": []}}]},
+        {"date": "2025-09-15", "isReview": false, "blocks": [{
+            "passage": {"book": "John", "chapter": 3, "startVerse": 16, "endVerse": 16},
+            "verses": {"club150": [16], "club300": []}}]}
+    ]
+}"#;
+
+#[test]
+fn memorize_session_attaches_hp_and_ccl_by_session_order() {
+    // The heading card goes with the first of its verses the session
+    // reaches, and the chapter-list card with the last, whatever their
+    // verse ids: the reading walkthrough follows session order.
+    let engine =
+        WasmEngine::new(MATERIAL_HP_CCL_JSON, "", SCHEDULE_AGAINST_DECK_JSON, "", 0).unwrap();
+    let json = engine.memorize_session_v2(10, 0).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let entries = session["verses"].as_array().unwrap();
+    let verse_ids: Vec<u64> = entries
+        .iter()
+        .map(|e| e["verseId"].as_u64().unwrap())
+        .collect();
+    assert_eq!(
+        verse_ids,
+        vec![1, 0],
+        "working ahead serves 3:17 first: {json}"
+    );
+    assert!(
+        entries[0]
+            .get("hpCardId")
+            .and_then(|v| v.as_u64())
+            .is_some(),
+        "{json}"
+    );
+    assert!(
+        entries[1]
+            .get("cclCardId")
+            .and_then(|v| v.as_u64())
+            .is_some(),
+        "{json}"
+    );
+}

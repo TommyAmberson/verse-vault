@@ -40,6 +40,13 @@ MINOR: bundles core 0.12.0, whose memorize count and queue follow the schedule.
   cross-club gate orders clubs rather than leaving one out.
 * Working ahead follows the schedule a week at a time, not deck order, and comes in a session of its
   own: a session with owed verses holds only those.
+
+### Fixed
+
+* `memorize_session_v2` attaches a heading's `HeadingPassage` card to the first of its verses in the
+  session and a chapter's `ChapterClubList` card to the last, by session order rather than verse id.
+  The queue no longer serves verses in ascending order, so the reading walkthrough could reach a
+  chapter-list card before the verses it lists.
 * `limit` is a firm cap: calendar cascade no longer adds a whole week's verses past it.
 
 ## [0.11.0] — 2026-09-24

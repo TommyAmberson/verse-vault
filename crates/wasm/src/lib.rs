@@ -573,6 +573,14 @@ impl WasmEngine {
         // cards doesn't pile onto the first verse — they spread across
         // `verse_order` and the overflow defers to the next session.
         let session_verses: HashSet<u32> = verse_order.iter().copied().collect();
+        // The reading walkthrough follows `verse_order`, which the queue
+        // no longer keeps ascending (calendar cascade, working ahead by
+        // week), so attach points go by session position, not verse id.
+        let position: HashMap<u32, usize> = verse_order
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| (v, i))
+            .collect();
         let active_verses: HashSet<u32> = cards
             .iter()
             .filter(|c| matches!(c.state, CardState::Active))
@@ -611,17 +619,17 @@ impl WasmEngine {
             let (is_hp, intent) = match card.kind {
                 CardKind::HeadingPassage { .. } => {
                     let atoms = self.engine.atoms_for(card.verse_id);
-                    let in_session_min = atoms
+                    let first_in_session = atoms
                         .heading_members
                         .iter()
                         .copied()
                         .filter(|v| session_verses.contains(v))
-                        .min();
+                        .min_by_key(|v| position[v]);
                     let any_active = atoms
                         .heading_members
                         .iter()
                         .any(|v| active_verses.contains(v));
-                    let intent = if let Some(v) = in_session_min {
+                    let intent = if let Some(v) = first_in_session {
                         AttachIntent::Normal(v)
                     } else if any_active {
                         AttachIntent::Orphan
@@ -636,15 +644,15 @@ impl WasmEngine {
                         .chapter_members
                         .iter()
                         .all(|(v, _)| active_verses.contains(v) || session_verses.contains(v));
-                    let in_session_max = atoms
+                    let last_in_session = atoms
                         .chapter_members
                         .iter()
                         .map(|(v, _)| *v)
                         .filter(|v| session_verses.contains(v))
-                        .max();
+                        .max_by_key(|v| position[v]);
                     let intent = if !all_settled {
                         AttachIntent::None
-                    } else if let Some(v) = in_session_max {
+                    } else if let Some(v) = last_in_session {
                         AttachIntent::Normal(v)
                     } else {
                         AttachIntent::Orphan
