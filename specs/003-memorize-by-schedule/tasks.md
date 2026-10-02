@@ -33,7 +33,7 @@ Every commit must build, pass `cargo clippy --all-targets -- -D warnings`, and l
 green. So a function arrives in the same commit as its first caller and leaves in the commit that
 removes its last one, and a commit that changes behaviour rewrites the existing tests that the
 change breaks. Run new tests and see them fail before implementing, but never commit them failing.
-The core work lands in five commits:
+The core work lands in six commits:
 
 1. **The count** (T006, T007, T010's count tests, T011, T018): the placement pass, and
    `memorize_debt` rebuilt on it, with the 0.12.0 bumps.
@@ -42,6 +42,7 @@ The core work lands in five commits:
 3. **Working ahead** (T013, T014).
 4. **Gates never hide work** (T015): tests, plus any fix they force.
 5. **This week first** (T017).
+6. **One kind per batch** (T026).
 
 The tests that T012, T016 and T017 name as needing rewrites are a forecast. Whichever commit
 actually breaks a test rewrites it.
@@ -216,6 +217,18 @@ first; on sequential, deck order.
       `batch_cascade_falls_through_to_lookahead_in_phase2` for the new rules
 
 **Checkpoint**: The whole queue matches [data-model.md](./data-model.md).
+
+---
+
+## Phase 6b: One kind per batch (amendment 2026-10-01)
+
+**Goal**: Working ahead is its own press. A batch with any owed verse holds only owed verses (FR-004
+as amended).
+
+- [X] T026 [US2] Write failing tests in `crates/core/src/schedule.rs`: with one verse owed and room
+      for five, the batch is that verse alone; the next press, with nothing owed, works ahead; the
+      verses no week assigns come in a batch of their own. Then make `next_memorize_batch` take
+      from the first non-empty bucket only, and rerun T019's sim against `sim-baseline.tsv`
 
 ---
 

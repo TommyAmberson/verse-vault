@@ -39,9 +39,10 @@ count reports changes; no state semantics or replay change.
   them: a club behind an unmet gate comes after the club above it, and a gate that can never open
   (checkpoint gates without a schedule, `FullyMemorized` over an empty club) no longer leaves a
   positive count with nothing to serve.
-* With fewer owed verses than the batch size, `next_memorize_batch` works ahead as if the calendar
-  had moved on: the nearest week that hasn't started, then the week after, rather than the next
-  verses in the deck. Verses no week assigns come last.
+* With nothing owed, `next_memorize_batch` works ahead as if the calendar had moved on: the nearest
+  week that hasn't started, then the week after, rather than the next verses in the deck. Verses no
+  week assigns come last. A batch never mixes these kinds: while anything is owed it holds only owed
+  verses, even when fewer than the batch size, and working ahead is the next press.
 * `CatchUp::CalendarCascade` means "this week first" and nothing more: a club on calendar cascade
   puts its current week's owed verses ahead of its own older ones, without moving another club's.
   Its separate this-week phase is gone, and with it the overflow that let a batch run past

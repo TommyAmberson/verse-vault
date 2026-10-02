@@ -293,10 +293,12 @@ pub fn next_memorize_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId
 /// `CalendarCascade` puts its current week's owed verses ahead of its own
 /// older ones, without moving any other club's.
 ///
-/// When fewer are owed than `batch_size`, the queue works ahead as if the
-/// calendar had moved on: the nearest week that hasn't started, by rank
-/// and then deck order, then the week after. Verses no week assigns come
-/// last (FR-012). `batch_size` is a firm limit for every club.
+/// With nothing owed, the queue works ahead as if the calendar had moved
+/// on: the nearest week that hasn't started, by rank and then deck order,
+/// then the week after. Verses no week assigns come last (FR-012). A batch
+/// never mixes these kinds: while anything is owed it holds only owed
+/// verses, even when fewer than `batch_size`, which is a firm limit for
+/// every club.
 ///
 /// Returns one anchor `CardId` per chosen verse — `Recitation` if the
 /// verse emits one, otherwise the first un-graduated bulk-graduable
@@ -317,17 +319,17 @@ pub fn next_memorize_batch(
             .find(|(c, _)| *c == club)
             .map_or(u32::MAX, |&(_, rank)| rank)
     };
-    // Owed verses first, then working ahead a week at a time as if the
-    // calendar had moved on, then the verses no week assigns. `placed` is
-    // in deck order, and the sort is stable, so deck order breaks ties.
+    // Owed verses, else working ahead a week at a time as if the calendar
+    // had moved on, else the verses no week assigns. `placed` is in deck
+    // order, and the sort is stable, so deck order breaks ties.
     let mut queue: Vec<&PlacedVerse> = placed.iter().collect();
     queue.sort_by_cached_key(|p| {
         let rank = rank_of(p.club);
-        match p.placement {
-            Placement::Owed { .. } => (0, 0, rank),
-            Placement::Ahead { week } => (1, week, rank),
-            Placement::Unscheduled => (2, 0, rank),
-        }
+        let week = match p.placement {
+            Placement::Ahead { week } => week,
+            _ => 0,
+        };
+        (p.placement.bucket(), week, rank)
     });
 
     // Calendar cascade is "this week first" within its own club: a club on
@@ -354,8 +356,12 @@ pub fn next_memorize_batch(
         }
     }
 
+    // One kind per batch (FR-004): working ahead is a separate press, so
+    // a short owed batch isn't topped up with next week's verses.
+    let bucket = queue.first().map(|p| p.placement.bucket());
     queue
         .into_iter()
+        .take_while(|p| Some(p.placement.bucket()) == bucket)
         .take(usize::from(batch_size))
         .filter_map(|p| anchor_card_for_verse(engine, p.verse_id))
         .collect()
@@ -461,6 +467,16 @@ impl Placement {
     /// Whether the count includes the verse and the queue serves it first.
     fn is_owed(self) -> bool {
         matches!(self, Placement::Owed { .. })
+    }
+
+    /// The queue's buckets, served in this order and never mixed in one
+    /// batch: owed, then ahead, then unscheduled.
+    fn bucket(self) -> u8 {
+        match self {
+            Placement::Owed { .. } => 0,
+            Placement::Ahead { .. } => 1,
+            Placement::Unscheduled => 2,
+        }
     }
 }
 
@@ -1909,6 +1925,19 @@ mod tests {
     }
 
     #[test]
+    fn batch_holds_only_owed_verses_while_any_are_owed() {
+        // One verse owed, one ahead, and room for five: the batch is the
+        // owed verse alone. Working ahead is the next press's batch.
+        let (mut engine, sched) = debt_fixture();
+        let now = day_secs("2025-09-08");
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 5);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![0]);
+        engine.graduate_verse(0);
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 5);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![1]);
+    }
+
+    #[test]
     fn memorizing_served_owed_verses_drops_the_count_by_as_many() {
         let (mut engine, sched) = debt_fixture();
         let now = day_secs("2025-09-15");
@@ -2116,9 +2145,10 @@ mod tests {
     }
 
     #[test]
-    fn batch_serves_unscheduled_verses_last_in_deck_order() {
-        // Only verse 18 is scheduled, in week 1. Working ahead takes it
-        // first, then the verses no week assigns (FR-012).
+    fn batch_serves_unscheduled_verses_last_in_a_batch_of_their_own() {
+        // Only verse 18 is scheduled, in week 1. Working ahead takes it on
+        // its own; the verses no week assigns come in the next batch, in
+        // deck order (FR-012).
         let engine = three_verse_engine();
         let sched = john_schedule(&[("2025-09-08", 18, 18, &[])]);
         let sched = Schedule {
@@ -2132,8 +2162,13 @@ mod tests {
             ],
             ..sched
         };
-        let batch = next_memorize_batch(&engine, Some(&sched), day_secs("2025-09-01"), 3);
-        assert_eq!(batch_verse_ids(&engine, batch), vec![2, 0, 1]);
+        let now = day_secs("2025-09-01");
+        let mut engine = engine;
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 3);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![2]);
+        engine.graduate_verse(2);
+        let batch = next_memorize_batch(&engine, Some(&sched), now, 3);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![0, 1]);
     }
 
     // ===== this week first =====
@@ -2430,9 +2465,10 @@ mod tests {
     }
 
     #[test]
-    fn batch_cascade_falls_through_to_working_ahead() {
-        // Schedule has two weeks; we're at week 0. The owed verse 16 comes
-        // first, then the batch has room to work ahead into week 1's 17.
+    fn batch_cascade_works_ahead_only_in_the_next_batch() {
+        // Schedule has two weeks; we're at week 0. The owed verse 16 fills
+        // the batch alone, though it has room: week 1's 17 waits for the
+        // next press, when nothing is owed.
         let m = sample_material_two_verses();
         let mut config = MaterialConfig::all_clubs_enabled(0.9);
         // Force Full so both verses are eligible.
@@ -2449,7 +2485,7 @@ mod tests {
         let now = day_secs("2025-09-08");
         let batch = next_memorize_batch(&engine, Some(&sched), now, 5);
         let verse_ids = batch_verse_ids(&engine, batch);
-        assert_eq!(verse_ids, vec![0, 1]);
+        assert_eq!(verse_ids, vec![0]);
     }
 
     #[test]

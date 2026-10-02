@@ -38,7 +38,8 @@ MINOR: bundles core 0.12.0, whose memorize count and queue follow the schedule.
   whole pool.
 * `memorize_session_v2(limit, now_secs)` serves the verses `memorize_debt` counts first, and a
   cross-club gate orders clubs rather than leaving one out.
-* Working ahead follows the schedule a week at a time, not deck order.
+* Working ahead follows the schedule a week at a time, not deck order, and comes in a session of its
+  own: a session with owed verses holds only those.
 * `limit` is a firm cap: calendar cascade no longer adds a whole week's verses past it.
 
 ## [0.11.0] — 2026-09-24
