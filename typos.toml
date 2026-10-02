@@ -2,6 +2,7 @@
 # typos skips dot-directories by default; check .specify/, .claude/, and .github/ too.
 ignore-hidden = false
 extend-exclude = [
+    ".git/", # a real directory in the main clone; ignore-hidden = false would scan it
     "crates/wasm/pkg/",
     "data/",
     "docs/decks.md", # commit-SHA tables trigger false positives (e.g. `ba` inside `64a4ba6`)
