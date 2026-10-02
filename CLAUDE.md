@@ -157,13 +157,14 @@ Spec Kit gotchas:
   `* [ ]`, and `/speckit-implement` and `/speckit-converge` read task state from the hyphen form.
   The rewrite is silent and still renders fine, so the damage only shows when a speckit command
   finds no tasks. Prose artefacts in `specs/` carry no checkboxes and stay linted.
-* **Vendored Spec Kit files are exempt from dprint, narrowly.** `dprint` skips
-  `.specify/templates/*.md` and `.claude/skills/speckit-*/`, because the Specify CLI rewrites them
-  on refresh and any fix would be undone. `.specify/memory/constitution.md` and
-  `.specify/templates/overrides/` are project-authored and stay formatted, apart from the
-  tasks-template override above. Don't widen the exclusion to `.specify/**`. `typos` skips hidden
-  directories by default, so it never reads `.specify/`, `.claude/`, or `.github/`; the `.specify`
-  entries in `typos.toml` only matter if that default changes.
+* **Vendored Spec Kit files are exempt from dprint and typos, narrowly.** `dprint` skips
+  `.specify/templates/*.md` and `.claude/skills/speckit-*/`; `typos` skips `.specify/scripts/`,
+  `.specify/templates/*.md`, and `.claude/skills/speckit-*`. The Specify CLI rewrites all of them on
+  refresh, so any fix would be undone. `.specify/memory/constitution.md` and
+  `.specify/templates/overrides/` are project-authored and stay linted, apart from dprint skipping
+  the tasks-template override above. Don't widen either exclusion to `.specify/**`. `typos.toml`
+  sets `ignore-hidden = false`, because typos otherwise skips dot-directories such as `.specify/`,
+  `.claude/`, and `.github/` entirely.
 
 ## Code style
 
