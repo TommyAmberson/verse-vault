@@ -9,6 +9,12 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Fixed
+
+* A typed recitation that runs on into the next verse no longer splits that verse in two. The word
+  diff matched the verse's last word against the next verse's last word, striking the real one; it
+  now prefers the earliest typed occurrence, as it already did for the verse's own words.
+
 ## [0.9.25] - 2026-10-02
 
 PATCH: a tab left open on an older version no longer hangs new ones.
