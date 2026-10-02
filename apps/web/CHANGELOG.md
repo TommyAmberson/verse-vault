@@ -9,6 +9,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.25] - 2026-10-02
+
+PATCH: a tab left open on an older version no longer hangs new ones.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+* `verse-vault-wasm@0.12.0`: unchanged.
+
 ### Fixed
 
 * A verse-vault tab left open on an older version could hang every new tab on a blank page or an
