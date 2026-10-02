@@ -51,6 +51,9 @@ description: "Task list template for feature implementation"
     that only a test reads.
   - Don't specify framework or library defaults; plan.md records what the
     platform already provides.
+  - Name the packages a release bumps and the semver level of each, never the
+    resulting version number. The number is set when the bump commit is
+    written, from master at that time, and a hotfix landing first takes it.
   - Prefer one task per coherent change over one task per layer (model, then
     service, then endpoint). Split only where tasks can genuinely run or be
     reviewed apart.

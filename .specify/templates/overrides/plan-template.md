@@ -125,6 +125,10 @@ above]
 restate, e.g., "`apps/web`'s predev hook rebuilds the WASM bundle", "Better Auth adds `/api/auth`
 only when the base URL has no path"]
 
+**Releases**: [packages this feature bumps and the semver level of each, e.g., "core and wasm MINOR,
+then api and web PATCH". Never the resulting version numbers: each is set when its bump commit is
+written, from master at that time, and a hotfix that lands first takes it.]
+
 ## Complexity Tracking
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
