@@ -35,6 +35,7 @@
  * clause for the full rules.
  */
 
+import { openIdb } from './idbOpen'
 import type { SyncEventUpload, TestStateEntry } from './types'
 
 /** v2 dropped `eventQueueOrphans`, a store for events set aside
@@ -79,35 +80,30 @@ export function openDb(): Promise<IDBDatabase> {
     )
   }
   const dbName = profileDbName(activeProfileId)
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName, DB_VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE.Snapshots)) {
-        db.createObjectStore(STORE.Snapshots, { keyPath: 'materialId' })
-      }
-      if (!db.objectStoreNames.contains(STORE.TestStates)) {
-        const s = db.createObjectStore(STORE.TestStates, {
-          keyPath: ['materialId', 'compositeKey'],
-        })
-        s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
-      }
-      if (!db.objectStoreNames.contains(STORE.EventQueue)) {
-        const s = db.createObjectStore(STORE.EventQueue, { keyPath: 'clientEventId' })
-        s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
-      }
-      if (db.objectStoreNames.contains(LEGACY_ORPHAN_STORE)) {
-        drainOrphanStore(db, req.transaction!)
-      }
-      if (!db.objectStoreNames.contains(STORE.Renders)) {
-        const s = db.createObjectStore(STORE.Renders, {
-          keyPath: ['materialId', 'cardId'],
-        })
-        s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
-      }
+  dbPromise = openIdb(dbName, DB_VERSION, (req) => {
+    const db = req.result
+    if (!db.objectStoreNames.contains(STORE.Snapshots)) {
+      db.createObjectStore(STORE.Snapshots, { keyPath: 'materialId' })
     }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
+    if (!db.objectStoreNames.contains(STORE.TestStates)) {
+      const s = db.createObjectStore(STORE.TestStates, {
+        keyPath: ['materialId', 'compositeKey'],
+      })
+      s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
+    }
+    if (!db.objectStoreNames.contains(STORE.EventQueue)) {
+      const s = db.createObjectStore(STORE.EventQueue, { keyPath: 'clientEventId' })
+      s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
+    }
+    if (db.objectStoreNames.contains(LEGACY_ORPHAN_STORE)) {
+      drainOrphanStore(db, req.transaction!)
+    }
+    if (!db.objectStoreNames.contains(STORE.Renders)) {
+      const s = db.createObjectStore(STORE.Renders, {
+        keyPath: ['materialId', 'cardId'],
+      })
+      s.createIndex(BY_MATERIAL_ID_INDEX, 'materialId', { unique: false })
+    }
   })
   return dbPromise
 }

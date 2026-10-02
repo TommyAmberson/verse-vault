@@ -10,6 +10,7 @@
  * we know which profile-DB to open.
  */
 
+import { openIdb } from './idbOpen'
 import { profileDbName, promiseRequest, transactionComplete } from './persistence'
 
 const DB_NAME = 'verse-vault-registry'
@@ -58,38 +59,33 @@ let dbPromise: Promise<IDBDatabase> | null = null
 
 export function openRegistry(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = (ev) => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE.Profiles)) {
-        db.createObjectStore(STORE.Profiles, { keyPath: 'profileId' })
-      }
-      if (!db.objectStoreNames.contains(STORE.Meta)) {
-        db.createObjectStore(STORE.Meta, { keyPath: 'key' })
-      }
-      // v1 → v2: backfill `sessionToken: null` on every existing row so
-      // reads don't need to coerce `undefined`. New devices skip this
-      // (oldVersion === 0); v1-era users get one cursor-pass on first
-      // launch post-PR-C. Runs inside the upgrade transaction.
-      if (ev.oldVersion < 2) {
-        const tx = req.transaction
-        if (tx) {
-          const store = tx.objectStore(STORE.Profiles)
-          store.openCursor().onsuccess = (cursorEv) => {
-            const cursor = (cursorEv.target as IDBRequest<IDBCursorWithValue>).result
-            if (!cursor) return
-            const row = cursor.value as Partial<ProfileRow>
-            if (row.sessionToken === undefined) {
-              cursor.update({ ...row, sessionToken: null })
-            }
-            cursor.continue()
+  dbPromise = openIdb(DB_NAME, DB_VERSION, (req, ev) => {
+    const db = req.result
+    if (!db.objectStoreNames.contains(STORE.Profiles)) {
+      db.createObjectStore(STORE.Profiles, { keyPath: 'profileId' })
+    }
+    if (!db.objectStoreNames.contains(STORE.Meta)) {
+      db.createObjectStore(STORE.Meta, { keyPath: 'key' })
+    }
+    // v1 → v2: backfill `sessionToken: null` on every existing row so
+    // reads don't need to coerce `undefined`. New devices skip this
+    // (oldVersion === 0); v1-era users get one cursor-pass on first
+    // launch post-PR-C. Runs inside the upgrade transaction.
+    if (ev.oldVersion < 2) {
+      const tx = req.transaction
+      if (tx) {
+        const store = tx.objectStore(STORE.Profiles)
+        store.openCursor().onsuccess = (cursorEv) => {
+          const cursor = (cursorEv.target as IDBRequest<IDBCursorWithValue>).result
+          if (!cursor) return
+          const row = cursor.value as Partial<ProfileRow>
+          if (row.sessionToken === undefined) {
+            cursor.update({ ...row, sessionToken: null })
           }
+          cursor.continue()
         }
       }
     }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
   })
   return dbPromise
 }

@@ -9,6 +9,24 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.25] - 2026-10-02
+
+PATCH: a tab left open on an older version no longer hangs new ones.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+* `verse-vault-wasm@0.12.0`: unchanged.
+
+### Fixed
+
+* A verse-vault tab left open on an older version could hang every new tab on a blank page or an
+  endless "Loading…" (#175). Updating the data the app keeps on the device waits for every other tab
+  to let go of it, and nothing ever asked them to. Tabs now let go as soon as a newer one needs the
+  update, and say they were updated in another tab, with a Reload button. A tab from before this
+  release still holds on; the new tab now explains that and asks you to close or refresh it, then
+  carries on by itself.
+
 ## [0.9.24] - 2026-10-01
 
 PATCH: Memorize follows the schedule, in step with API 0.1.43.

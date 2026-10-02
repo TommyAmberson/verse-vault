@@ -7,6 +7,7 @@ import AppAvatar from '@/components/AppAvatar.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import MobileTabBar from '@/components/MobileTabBar.vue'
 import OfflineBanner from '@/components/OfflineBanner.vue'
+import StorageInterruptionModal from '@/components/StorageInterruptionModal.vue'
 import { useAuth } from '@/composables/useAuth'
 import { getCachedYears } from '@/lib/apiCache'
 import { memorizeBadgeCount } from '@/lib/badges'
@@ -76,6 +77,7 @@ watch(() => route.fullPath, refreshMemorizeCount)
         profile you can return to.
       </p>
     </ConfirmDialog>
+    <StorageInterruptionModal />
     <main class="site-main">
       <RouterView />
     </main>
