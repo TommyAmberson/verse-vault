@@ -41,9 +41,9 @@ import type {
 } from './types'
 
 // Per-club retention now lives inside MaterialConfig (wasm@0.6.0).
-// Schedules are optional per material — empty string skips the
-// schedule-aware Phase 1 of the memorize fill, matching the legacy
-// pre-Phase-1 behaviour for decks that don't ship one.
+// Schedules are optional per material. An empty string means none, and
+// the memorize queue then treats the whole pool as owed
+// (docs/memorize.md).
 
 interface EngineSession {
   materialId: string
@@ -194,8 +194,8 @@ export interface FlushResult {
  *  wrong card set surfaces.
  *
  *  `schedule` is the per-(user, material) memorize schedule (bundled
- *  default or user override). Empty string skips schedule-aware Phase 1
- *  of the memorize fill — pure-Sequential behaviour.
+ *  default or user override). Empty string means no schedule: the
+ *  memorize queue then treats the whole pool as owed.
  *
  *  `stateRev` is the server's current state fingerprint for this
  *  material (from the /api/years row). When it doesn't match the value
@@ -526,10 +526,10 @@ interface MemorizeSessionEntry {
  *  `/api/cards/memorize/session` route. See `MemorizeSessionResponse`
  *  in `@/api` for field semantics.
  *
- *  Uses wasm@0.6.0's `memorize_session_v2(limit, now_secs)` — the
- *  schedule-aware two-phase canonical-order fill. Falls back to pure-
- *  Sequential when no schedule was passed to the engine constructor,
- *  matching pre-Phase-1 behaviour for decks without a schedule. */
+ *  Uses wasm's `memorize_session_v2(limit, now_secs)`: owed verses, else
+ *  working ahead by schedule week, one kind per session
+ *  (docs/memorize.md). With no schedule passed to the engine
+ *  constructor, the whole pool is owed. */
 export function memorizeSession(
   materialId: string,
   limit: number,

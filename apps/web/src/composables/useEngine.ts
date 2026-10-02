@@ -162,9 +162,8 @@ export function useEngine() {
    *  touched.
    *
    *  `schedule` is the per-(user, material) memorize schedule (bundled
-   *  default or user override) — wasm@0.6.0's schedule-aware Phase 1 of
-   *  the memorize fill reads it. Empty string skips it; behaviour
-   *  collapses to pure-Sequential, matching pre-Phase-1.
+   *  default or user override), which the memorize queue places verses
+   *  against. Empty string means none; the whole pool is then owed.
    *
    *  `stateRev` is the server's state fingerprint from the years row —
    *  see `engineStore.loadEngine`. Omit when unknown; the cached
