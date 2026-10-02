@@ -62,6 +62,8 @@ not the code.
 * `docs/deployment.md` — production deployment topology (CF edge + Tunnel + VPS)
 * `docs/decks.md` — deck inventory + phrase-split provenance, one row per `data/<N>-*.json`
 * `docs/web-nav.md` — web client information architecture and route inventory
+* `docs/type-to-recite.md` - typed answers on Recitation, FTV, and club-list cards: comparison and
+  the proofread view
 * `docs/test-scenarios.md` — manual smoke checklist for sync + offline behaviours
 * `docs/unspecced.md` — shipped features with no design doc yet; the documentation backlog
 * `docs/archive/` — historical audits (FSRS-6 + per-deck keyword-markup snapshots)
