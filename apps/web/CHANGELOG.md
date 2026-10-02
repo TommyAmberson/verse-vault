@@ -9,6 +9,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Changed
+
+* A typed Recitation or FTV answer now reads as a proofread page instead of a red word diff. The
+  line is what you typed: words you got right stay in the verse colour, and every mistake carries
+  the verse's words in a tinted label above your struck words, or above a caret where you skipped
+  words. Words you added are struck with no label. Labels wrap rather than overflow, so long
+  corrections work on a phone, and nothing is red any more, so red verse colours no longer blur into
+  the mistakes.
+
 ### Fixed
 
 * A typed recitation that runs on into the next verse no longer splits that verse in two. The word

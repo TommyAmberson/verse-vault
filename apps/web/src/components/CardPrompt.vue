@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 
 import { type CardRender, formatCardTier } from '@/api'
 import { normaliseClubListAnswer } from '@/lib/diff/clubList'
+import { type Segment, toSegments } from '@/lib/diff/proofread'
 import { type DiffItem, normalize, wordDiff } from '@/lib/diff/wordDiff'
 
 const props = defineProps<{
@@ -96,6 +97,7 @@ function escapeHtml(s: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 /** Renders the reference with each part either revealed or shown as a
@@ -284,10 +286,44 @@ const diffItems = computed<DiffItem[] | null>(() => {
   return wordDiff(expectedText.value, userInputForDiff.value)
 })
 
+const CARET = '<span class="caret">‸</span>'
+
+/** A correction stack: the verse's words as a label on top, the reader's
+ *  struck words or a caret below, so every correction reads the same way
+ *  at any length. The title restates both sides for readers who can't
+ *  see the layout (FR-016). */
+function markHtml(label: string, below: string, title: string, style = ''): string {
+  const styleAttr = style ? ` style="${style}"` : ''
+  return `<span class="mark"${styleAttr} title="${title}"><ins>${label}</ins>${below}</span>`
+}
+
+/** One proofread segment as HTML. */
+function segmentHtml(seg: Segment): string {
+  const words = (ws: string[]) => escapeHtml(ws.join(' '))
+  switch (seg.kind) {
+    case 'match':
+      return words(seg.words)
+    case 'add':
+      return `<del title="Not in the verse">${words(seg.typed)}</del>`
+    case 'skip': {
+      const expected = words(seg.expected)
+      return markHtml(expected, CARET, `Skipped: ${expected}`)
+    }
+    case 'replace': {
+      const expected = words(seg.expected)
+      const typed = words(seg.typed)
+      return markHtml(expected, `<del>${typed}</del>`, `You typed: ${typed}. Verse: ${expected}`)
+    }
+  }
+}
+
 const diffHtml = computed(() => {
   const items = diffItems.value
   if (!items) return ''
   const isClubList = props.card.kind === 'ChapterClubList'
+  if (!isClubList) {
+    return `<span class="proofread">${toSegments(items).map(segmentHtml).join(' ')}</span>`
+  }
   return items
     .map((it) => {
       const safe = escapeHtml(it.raw)
@@ -728,6 +764,55 @@ const diffHtml = computed(() => {
 .type-input:focus {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
+}
+
+/* Proofread view of a typed recitation. The diff size sits on the body
+   `diffHtml` emits, not on the `.verse-text.diff` container, so other
+   bodies rendered there keep the normal size. Each mark is an in-flow
+   inline-block stacking the verse's words over the reader's struck words
+   or a caret: its baseline is its last line, so the bottom row sits on the
+   sentence's baseline, and a label wider than the line wraps and makes its
+   line taller instead of overlapping anything. Colour means "the verse";
+   the reader's words stay in the text colour. */
+.verse-text.diff :deep(.proofread) {
+  display: block;
+  font-size: 1.3rem;
+  line-height: 1.8;
+}
+
+.verse-text.diff :deep(.mark) {
+  display: inline-block;
+  max-width: 100%;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.verse-text.diff :deep(.mark > *) {
+  display: block;
+}
+
+.verse-text.diff :deep(ins) {
+  width: fit-content;
+  margin: 0 auto 0.1em;
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--active-verse-colour);
+  background: color-mix(in oklch, var(--active-verse-colour) 16%, var(--color-bg-card));
+}
+
+.verse-text.diff :deep(del) {
+  color: var(--color-text);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--color-mark-line);
+}
+
+.verse-text.diff :deep(.caret) {
+  font-weight: 700;
+  color: var(--color-mark-line);
 }
 
 /* Word-level diff markers on the reveal side. Missing = canonical word
