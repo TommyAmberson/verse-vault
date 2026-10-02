@@ -143,7 +143,8 @@ around it.
 Spec Kit is branch-agnostic: `create-new-feature.sh` invokes git nowhere, and its `NNN-slug` string
 names the `specs/` directory rather than a branch. Keep using `type/short-slug` branches. Commit
 each artefact as it lands (`docs: spec <feature>`, `docs: plan <feature>`,
-`docs: break <feature> into tasks`).
+`docs: break <feature> into tasks`), and fold later refinements into that commit with `--fixup` (see
+CONTRIBUTING, "What to squash").
 
 `.specify/` is vendored by the Specify CLI, which rewrites `scripts/` and `templates/*.md` on every
 refresh. Customise through `.specify/templates/overrides/<name>.md` rather than editing them in

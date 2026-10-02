@@ -173,7 +173,10 @@ code they describe. Split only for different urgency or a genuine precondition.
 **Master:** never. Once a commit is on master it stays.
 
 **What to squash:** "changed my mind from X to Y" iterations whose intermediate state never ships.
-Keep the small atomic commits that each did real incremental work.
+Keep the small atomic commits that each did real incremental work. Documents follow the same rule:
+refining a spec, plan, or design doc before anything is built on it folds into the commit that added
+it. A change of mind worth remembering, such as a decision reversed once planning or implementation
+proved it wrong, is real history: give it its own commit, with the reason in the body.
 
 **Fixup + autosquash.** When a later commit corrects something an earlier commit on the same branch
 got wrong (a typo, a missed branch, a review reply), prefer `git commit --fixup=<orig-sha>` over a
