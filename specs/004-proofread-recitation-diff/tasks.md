@@ -104,12 +104,12 @@ None. The worktree is installed and the WASM builds exist; the feature adds no d
 
 ### Tests for User Story 2
 
-- [ ] T006 [US2] Extend the edit module's tests from T003: the John 1:15-on-1:10 case reports 2 of 19 expected words matched and selects the fallback; "He was in the" on John 1:10 (recall 21%, precision 100%) and John 1:10 followed by John 1:11 (recall 100%) do not; boundaries with recall and precision each just under and exactly at one half, confirming the fallback needs both under (data-model.md, Match measures: "wrong-verse fallback when recall < 0.5 AND precision < 0.5").
+- [X] T006 [US2] Extend the edit module's tests from T003: the John 1:15-on-1:10 case reports 2 of 19 expected words matched and selects the fallback; "He was in the" on John 1:10 (recall 21%, precision 100%) and John 1:10 followed by John 1:11 (recall 100%) do not; boundaries with recall and precision each just under and exactly at one half, confirming the fallback needs both under (data-model.md, Match measures: "wrong-verse fallback when recall < 0.5 AND precision < 0.5").
 
 ### Implementation for User Story 2
 
-- [ ] T007 [US2] Add the match measures and the fallback decision to the edit module, owner of "whether the wrong-verse fallback applies (FR-011), and N of M" (plan.md): recall is matched over expected words, precision is matched over typed words, both counted on the diff before any merging (data-model.md), with the one-half threshold as a named value commented with FR-011 (research R8). Covered by T006.
-- [ ] T008 [US2] Render the fallback body from the `diffHtml` computed in `apps/web/src/components/CardPrompt.vue` per `contracts/card-back-markup.md` (Wrong-verse fallback): reuse `verseHtml` for the expected text at today's `.verse-text` size, not the diff type size, then, in muted text, the label "You typed (N of M words match)" and the typed answer escaped as entered, with no marks. Extend the `[Unreleased]` entry in `apps/web/CHANGELOG.md`. Covered by T006 for the decision and by quickstart reference cases 5, 6, and 7 and Scenario 2 step 4.
+- [X] T007 [US2] Add the match measures and the fallback decision to the edit module, owner of "whether the wrong-verse fallback applies (FR-011), and N of M" (plan.md): recall is matched over expected words, precision is matched over typed words, both counted on the diff before any merging (data-model.md), with the one-half threshold as a named value commented with FR-011 (research R8). Covered by T006.
+- [X] T008 [US2] Render the fallback body from the `diffHtml` computed in `apps/web/src/components/CardPrompt.vue` per `contracts/card-back-markup.md` (Wrong-verse fallback): reuse `verseHtml` for the expected text at today's `.verse-text` size, not the diff type size, then, in muted text, the label "You typed (N of M words match)" and the typed answer escaped as entered, with no marks. Extend the `[Unreleased]` entry in `apps/web/CHANGELOG.md`. Covered by T006 for the decision and by quickstart reference cases 5, 6, and 7 and Scenario 2 step 4.
 
 **Checkpoint**: Wrong verses fall back at normal size; partial and run-on recitations do not.
 

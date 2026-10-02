@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { type Segment, toSegments } from './proofread';
+import { type Segment, toSegments, wrongVerse } from './proofread';
 import { wordDiff } from './wordDiff';
 
 const JOHN_1_1 = 'In the beginning was the Word, and the Word was with God, and the Word was God.';
 const JOHN_1_11_CONTINUATION = 'to His own, and His own did not receive Him.';
+const JOHN_1_10 =
+  'He was in the world, and the world was made through Him, and the world did not know Him.';
+const JOHN_1_11 = 'He came to His own, and His own did not receive Him.';
+const JOHN_1_15 =
+  'This is He of whom I said, "After me comes a Man who is preferred before me, for He was before me."';
 
 function segments(expected: string, typed: string): Segment[] {
   return toSegments(wordDiff(expected, typed));
@@ -63,5 +68,39 @@ describe('toSegments', () => {
       'replace',
       'match',
     ]);
+  });
+});
+
+describe('wrongVerse', () => {
+  function check(expected: string, typed: string) {
+    return wrongVerse(wordDiff(expected, typed));
+  }
+
+  it('falls back when another verse was recited', () => {
+    expect(check(JOHN_1_10, JOHN_1_15)).toEqual({ matched: 2, expected: 19 });
+  });
+
+  // Recall 4 of 19, but everything typed is in the verse.
+  it('keeps the proofread view when the reader stopped early', () => {
+    expect(check(JOHN_1_10, 'He was in the')).toBeNull();
+  });
+
+  // Precision 19 of 31, but the whole verse was recalled.
+  it('keeps the proofread view when the reader ran into the next verse', () => {
+    expect(check(JOHN_1_10, `${JOHN_1_10} ${JOHN_1_11}`)).toBeNull();
+  });
+
+  it('needs both measures under one half', () => {
+    // Both exactly one half.
+    expect(check('one two three four', 'one two five six')).toBeNull();
+    // Recall one half, precision two fifths.
+    expect(check('one two three four', 'one two five six seven')).toBeNull();
+    // Recall two fifths, precision one half.
+    expect(check('one two three four five', 'one two six seven')).toBeNull();
+    // Both two fifths.
+    expect(check('one two three four five', 'one two six seven eight')).toEqual({
+      matched: 2,
+      expected: 5,
+    });
   });
 });

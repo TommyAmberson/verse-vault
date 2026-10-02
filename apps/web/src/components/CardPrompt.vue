@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 
 import { type CardRender, formatCardTier } from '@/api'
 import { normaliseClubListAnswer } from '@/lib/diff/clubList'
-import { type Segment, toSegments } from '@/lib/diff/proofread'
+import { type Segment, toSegments, wrongVerse } from '@/lib/diff/proofread'
 import { type DiffItem, normalize, wordDiff } from '@/lib/diff/wordDiff'
 
 const props = defineProps<{
@@ -322,6 +322,13 @@ const diffHtml = computed(() => {
   if (!items) return ''
   const isClubList = props.card.kind === 'ChapterClubList'
   if (!isClubList) {
+    // A different verse recited in full is all noise as a markup, so show
+    // the verse as it reads untyped, with the answer as a muted note.
+    const counts = wrongVerse(items)
+    if (counts) {
+      const note = `You typed (${counts.matched} of ${counts.expected} words match)`
+      return `${verseHtml.value}<span class="fallback"><span class="fallback-note">${note}</span><span class="fallback-answer">${escapeHtml(userInputForDiff.value.trim())}</span></span>`
+    }
     return `<span class="proofread">${toSegments(items).map(segmentHtml).join(' ')}</span>`
   }
   return items
@@ -813,6 +820,26 @@ const diffHtml = computed(() => {
 .verse-text.diff :deep(.caret) {
   font-weight: 700;
   color: var(--color-mark-line);
+}
+
+/* Wrong-verse fallback: the verse at its normal size, then the reader's
+   answer as a muted note. */
+.verse-text.diff :deep(.fallback) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 1rem;
+  color: var(--color-muted);
+}
+
+.verse-text.diff :deep(.fallback-note) {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.verse-text.diff :deep(.fallback-answer) {
+  font-size: 0.95rem;
 }
 
 /* Word-level diff markers on the reveal side. Missing = canonical word

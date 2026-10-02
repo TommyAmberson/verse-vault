@@ -41,3 +41,26 @@ export function toSegments(items: DiffItem[]): Segment[] {
   }
   return out
 }
+
+// Below this share of the verse recalled AND of the typed words matching,
+// the reader recited something else, and marking it up is noise (FR-011).
+const WRONG_VERSE_SHARE = 0.5
+
+/** The match counts for the "N of M words match" note when the answer
+ *  is a different verse, or null when the proofread view applies. Both
+ *  measures must be low: stopping early keeps precision high, and running
+ *  on into the next verse keeps recall high. */
+export function wrongVerse(items: DiffItem[]): { matched: number; expected: number } | null {
+  let matched = 0
+  let expected = 0
+  let typed = 0
+  for (const it of items) {
+    if (it.kind === 'match') matched++
+    if (it.kind !== 'extra') expected++
+    if (it.kind !== 'missing') typed++
+  }
+  const recall = matched / Math.max(expected, 1)
+  const precision = matched / Math.max(typed, 1)
+  if (recall < WRONG_VERSE_SHARE && precision < WRONG_VERSE_SHARE) return { matched, expected }
+  return null
+}

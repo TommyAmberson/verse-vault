@@ -17,6 +17,10 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   words. Words you added are struck with no label. Labels wrap rather than overflow, so long
   corrections work on a phone, and nothing is red any more, so red verse colours no longer blur into
   the mistakes.
+* Reciting a different verse no longer produces a line of struck words. When you matched under half
+  of the verse and under half of what you typed is in it, the back shows the verse as it reads
+  untyped, with your answer below as a muted note and how many words matched. Stopping early or
+  running on into the next verse still gets the proofread view.
 
 ### Fixed
 
