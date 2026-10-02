@@ -321,34 +321,31 @@ pub fn next_memorize_batch(
     // Calendar cascade is "this week first": within its rank, a club on
     // CalendarCascade puts its owed verses from the current week ahead of
     // its older backlog. It has nothing to reorder when nothing is owed.
-    let this_week_first = |club: ClubTier, week: usize| {
-        let cascades = engine.material_config.catch_up_for(club) == CatchUp::CalendarCascade;
-        u8::from(!(cascades && current_week == Some(week)))
+    let older_than_this_week = |p: &PlacedVerse| {
+        let Placement::Owed { week } = p.placement else {
+            return true;
+        };
+        engine.material_config.catch_up_for(p.club) != CatchUp::CalendarCascade
+            || current_week != Some(week)
     };
 
     // Owed verses first, then working ahead a week at a time as if the
-    // calendar had moved on, then the verses no week assigns. Without a
-    // schedule the whole pool stands in for the owed verses.
-    let mut order: Vec<(u8, usize, u32, u8, u32)> = placed
-        .iter()
-        .map(|p| {
-            let rank = rank_of(p.club);
-            match p.placement {
-                Placement::Owed { week } => (0, 0, rank, this_week_first(p.club, week), p.verse_id),
-                Placement::Unscheduled if schedule.is_none() => (0, 0, rank, 0, p.verse_id),
-                Placement::Ahead { week } => (1, week, rank, 0, p.verse_id),
-                Placement::Unscheduled => (2, 0, rank, 0, p.verse_id),
-            }
-        })
-        .collect();
-    order.sort_unstable();
-    let picked = order
+    // calendar had moved on, then the verses no week assigns. `placed` is
+    // in deck order, and the sort is stable, so deck order breaks ties.
+    let has_schedule = schedule.is_some();
+    let mut queue: Vec<&PlacedVerse> = placed.iter().collect();
+    queue.sort_by_cached_key(|p| {
+        let rank = rank_of(p.club);
+        match p.placement {
+            _ if p.placement.is_owed(has_schedule) => (0, 0, rank, older_than_this_week(p)),
+            Placement::Ahead { week } => (1, week, rank, false),
+            _ => (2, 0, rank, false),
+        }
+    });
+    queue
         .into_iter()
         .take(usize::from(batch_size))
-        .map(|(.., verse_id)| verse_id);
-
-    picked
-        .filter_map(|vid| anchor_card_for_verse(engine, vid))
+        .filter_map(|p| anchor_card_for_verse(engine, p.verse_id))
         .collect()
 }
 
@@ -418,11 +415,7 @@ pub fn memorize_debt(
 ) -> MemorizeDebt {
     let verses: HashSet<u32> = place_unmemorized(engine, schedule, now_secs)
         .into_iter()
-        .filter(|p| match p.placement {
-            Placement::Owed { .. } => true,
-            Placement::Unscheduled => schedule.is_none(),
-            Placement::Ahead { .. } => false,
-        })
+        .filter(|p| p.placement.is_owed(schedule.is_some()))
         .map(|p| p.verse_id)
         .collect();
 
@@ -447,6 +440,19 @@ enum Placement {
     Ahead { week: usize },
     /// No week assigns it under an enabled club, or there is no schedule.
     Unscheduled,
+}
+
+impl Placement {
+    /// Whether the count includes the verse and the queue serves it first.
+    /// With no schedule there is no calendar to bound the work, so the
+    /// whole pool stands in for the owed verses (FR-010).
+    fn is_owed(self, has_schedule: bool) -> bool {
+        match self {
+            Placement::Owed { .. } => true,
+            Placement::Unscheduled => !has_schedule,
+            Placement::Ahead { .. } => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -478,7 +484,7 @@ fn place_unmemorized(
         .into_iter()
         .filter(|&club| engine.material_config.memorize_enabled_for(club))
         .collect();
-    let unmemorized = unmemorized_verses_by_tier(engine, &enabled);
+    let unmemorized = unmemorized_verses(engine, &enabled);
 
     // Keyed on strings borrowed from the schedule, so a call clones no book
     // names: `memorize_debt` runs on every `/api/years` request.
@@ -495,10 +501,9 @@ fn place_unmemorized(
     }
     let current_week = schedule.and_then(|s| s.current_week_index(now_secs));
 
-    let mut placed: Vec<PlacedVerse> = unmemorized
-        .iter()
-        .flat_map(|(&club, verses)| verses.iter().map(move |&verse_id| (club, verse_id)))
-        .map(|(club, verse_id)| {
+    unmemorized
+        .into_iter()
+        .map(|(verse_id, club)| {
             let week = engine.verse_render(verse_id).and_then(|r| {
                 first_week
                     .get(&(r.book.as_str(), r.chapter, r.verse))
@@ -517,9 +522,7 @@ fn place_unmemorized(
                 placement,
             }
         })
-        .collect();
-    placed.sort_unstable_by_key(|p| p.verse_id);
-    placed
+        .collect()
 }
 
 /// Each enabled club with its rank: the number of unmet cross-club gates
@@ -611,16 +614,11 @@ fn gate_is_open(
     }
 }
 
-/// For each `tier` in `eligible`, the sorted-ascending list of verse_ids
-/// with that tier whose bulk-graduable cards include at least one `New`
-/// — i.e. verses the user hasn't yet graduated.
-fn unmemorized_verses_by_tier(
-    engine: &ReviewEngine,
-    eligible: &[ClubTier],
-) -> HashMap<ClubTier, Vec<u32>> {
-    let tier_set: HashSet<ClubTier> = eligible.iter().copied().collect();
-    let mut grouped: HashMap<ClubTier, Vec<u32>> = HashMap::new();
+/// Every verse the user hasn't graduated (one with a `New` bulk-graduable
+/// card) whose own club is in `clubs`, with that club, in verse-id order.
+fn unmemorized_verses(engine: &ReviewEngine, clubs: &[ClubTier]) -> Vec<(u32, ClubTier)> {
     let mut seen: HashSet<u32> = HashSet::new();
+    let mut verses: Vec<(u32, ClubTier)> = Vec::new();
     for card in &engine.cards {
         if !matches!(card.state, CardState::New) || !is_bulk_graduable(&card.kind) {
             continue;
@@ -628,26 +626,21 @@ fn unmemorized_verses_by_tier(
         if !seen.insert(card.verse_id) {
             continue;
         }
-        let Some(elements) = engine.verse_index.elements_of(card.verse_id) else {
+        let Some(&club) = engine
+            .verse_index
+            .elements_of(card.verse_id)
+            .and_then(|e| e.clubs.first())
+        else {
             continue;
         };
-        let Some(&tier) = elements.clubs.first() else {
-            continue;
-        };
-        if !tier_set.contains(&tier) {
-            continue;
+        if clubs.contains(&club) {
+            verses.push((card.verse_id, club));
         }
-        grouped.entry(tier).or_default().push(card.verse_id);
     }
-    // verse_ids are assigned in deck order, so the per-tier vectors are
-    // already ascending — but the card scan can reach them out-of-order
-    // (e.g. Recitation cards land after their PhraseFills, both sharing
-    // the same verse_id). Sort for canonical-order safety.
-    for v in grouped.values_mut() {
-        v.sort_unstable();
-        v.dedup();
-    }
-    grouped
+    // Verse ids follow deck order, but nothing promises the card scan
+    // reaches them in that order; the queue relies on it for ties.
+    verses.sort_unstable_by_key(|&(verse_id, _)| verse_id);
+    verses
 }
 
 /// `(memorized, total)` count of verses with `tier` as their most-specific
