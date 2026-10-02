@@ -21,6 +21,7 @@ use verse_vault_core::test_kind::TestKey;
 use verse_vault_core::types::Grade;
 
 mod learner;
+mod memorize;
 mod metrics;
 
 use learner::ProbLearner;
@@ -40,12 +41,22 @@ struct SimArgs {
     /// sim measure how well the engine's default-params predictions
     /// calibrate against a user-fitted truth.
     learner_params: Option<Vec<f32>>,
+    /// Run the season memorize mode instead of review calibration.
+    memorize: bool,
+    /// Memorize mode: write every season, setting and learner's outcome
+    /// here, for a later run to compare against.
+    memorize_out: Option<PathBuf>,
+    /// Memorize mode: an earlier run's `--out` file to compare against.
+    memorize_baseline: Option<PathBuf>,
 }
 
 fn parse_args() -> SimArgs {
     let mut reviews = DEFAULT_REVIEWS;
     let mut reviews_per_day = DEFAULT_REVIEWS_PER_DAY;
     let mut learner_params: Option<Vec<f32>> = None;
+    let mut memorize = false;
+    let mut memorize_out: Option<PathBuf> = None;
+    let mut memorize_baseline: Option<PathBuf> = None;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -80,6 +91,9 @@ fn parse_args() -> SimArgs {
                     }
                 }
             }
+            "--memorize" => memorize = true,
+            "--out" => memorize_out = args.next().map(PathBuf::from),
+            "--baseline" => memorize_baseline = args.next().map(PathBuf::from),
             _ => {}
         }
     }
@@ -87,13 +101,14 @@ fn parse_args() -> SimArgs {
         reviews,
         reviews_per_day,
         learner_params,
+        memorize,
+        memorize_out,
+        memorize_baseline,
     }
 }
 
 fn fixture_path() -> PathBuf {
-    let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    p.push("../../data/3-corinthians.json");
-    p
+    memorize::data_path("3-corinthians.json")
 }
 
 fn main() {
@@ -101,7 +116,20 @@ fn main() {
         reviews,
         reviews_per_day,
         learner_params,
+        memorize,
+        memorize_out,
+        memorize_baseline,
     } = parse_args();
+    if memorize {
+        memorize::run(memorize_out.as_deref(), memorize_baseline.as_deref());
+        return;
+    }
+    // Without --memorize these would be silently ignored, and a regression
+    // check that never ran would look like one that passed.
+    if memorize_out.is_some() || memorize_baseline.is_some() {
+        eprintln!("--out and --baseline only apply with --memorize");
+        std::process::exit(2);
+    }
     let path = fixture_path();
     let json = std::fs::read_to_string(&path).expect("corinthians fixture should exist");
     let material: MaterialData = serde_json::from_str(&json).expect("fixture parses");

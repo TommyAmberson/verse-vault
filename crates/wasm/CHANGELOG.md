@@ -22,6 +22,33 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-01
+
+MINOR: bundles core 0.12.0, whose memorize count and queue follow the schedule.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: `memorize_debt` counts only verses the schedule has assigned in weeks
+  that have started; no state-semantics change.
+
+### Changed
+
+* `memorize_debt(now_secs)` is zero before the season's first week, where it used to report the
+  whole pool. Without a schedule, or with one that assigns the deck nothing, it still reports the
+  whole pool.
+* `memorize_session_v2(limit, now_secs)` serves the verses `memorize_debt` counts first, and a
+  cross-club gate orders clubs rather than leaving one out.
+* Working ahead follows the schedule a week at a time, not deck order, and comes in a session of its
+  own: a session with owed verses holds only those.
+
+### Fixed
+
+* `memorize_session_v2` attaches a heading's `HeadingPassage` card to the first of its verses in the
+  session and a chapter's `ChapterClubList` card to the last, by session order rather than verse id.
+  The queue no longer serves verses in ascending order, so the reading walkthrough could reach a
+  chapter-list card before the verses it lists.
+* `limit` is a firm cap: calendar cascade no longer adds a whole week's verses past it.
+
 ## [0.11.0] — 2026-09-24
 
 MINOR: bundles core 0.11.0, whose `memorize_debt` now counts every club with memorize enabled.

@@ -194,7 +194,7 @@ onMounted(async () => {
               > across {{ yearsToMemorize }} years</template>.
             </template>
             <template v-else-if="totalUnmemorized > 0">
-              caught up on this week's schedule — memorize to work ahead.
+              caught up on the schedule — memorize to work ahead.
             </template>
             <template v-else>
               caught up — nothing new is waiting.

@@ -127,16 +127,34 @@ memorize_debt(now_secs: bigint): string // { verses: number, cards: number }
 ```
 
 `memorize_debt` counts what the bound schedule has already asked for and the user hasn't memorized:
-un-memorized verses introduced in weeks `0..=current_week` for every club with memorize enabled,
-plus the `New` cards those verses carry. The whole backlog through this week, not one week's quota.
-The cross-club `move_to_next` gates are not applied: they decide what the memorize queue serves
-next, not what the schedule has asked for. With no schedule bound (or before week 0) it reports
-those clubs' entire un-memorized pool, so callers render one number without branching. Drives the
-API's per-year `memorizeDebt` and, through it, the web home hero and Memorize pill.
+the owed verses, those of every club with memorize enabled that the schedule first assigns in a week
+that has started, plus the `New` cards those verses carry. The whole backlog through this week, not
+one week's quota. The cross-club `move_to_next` gates are not applied: they decide what the memorize
+queue serves next, not what the schedule has asked for. Before the season's first week it is zero.
+With no schedule bound it reports those clubs' entire un-memorized pool, so callers render one
+number without branching. Drives the API's per-year `memorizeDebt` and, through it, the web home
+hero and Memorize pill.
 
-The week bound is stricter than the memorize queue's: `next_memorize_batch` week-bounds only its
-`CalendarCascade` phase and lets the sequential phase run into next week. Zero debt therefore means
-"on plan", not "queue empty" — a caller rendering the zero state should say so.
+Zero debt means "on plan", not "queue empty": the memorize session can still work ahead into weeks
+that haven't started, so a caller rendering the zero state should say so. See
+[`memorize.md`](memorize.md) for how the count and the queue share one placement of verses.
+
+```ts
+memorize_session_v2(limit: number, now_secs: bigint): string // { verses, orphans }
+memorize_session(limit: number): string // deprecated
+```
+
+`memorize_session_v2` plans a whole memorize session: up to `limit` verses, each with its
+progression, plus the standalone meta cards placed alongside them. Its verses come from
+`next_memorize_batch`, one kind per session: the verses `memorize_debt` counts if there are any, in
+cross-club rank and then deck order (calendar cascade puts a club's current week first); else
+working ahead a week at a time in schedule order; else verses no week assigns. A session with owed
+verses holds only those, even when fewer than `limit`. `limit` is a firm cap. `now_secs` places
+verses against the schedule's weeks and evaluates gates that reference dated checkpoints.
+
+`memorize_session` calls `memorize_session_v2(limit, 0)`, which reads as before any season: with a
+schedule bound it serves in schedule order from the first week, without one in rank and then deck
+order. No client calls it.
 
 ### Rendering a card
 

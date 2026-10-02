@@ -22,6 +22,41 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-01
+
+MINOR: the memorize count and queue follow the schedule (`specs/003-memorize-by-schedule`). What the
+count reports changes; no state semantics or replay change.
+
+### Changed
+
+* `schedule::memorize_debt` counts the verses a new placement pass marks owed: un-memorized verses
+  of an enabled club that the schedule first assigns in a week that has started. Before the season's
+  first week the count is zero, where it used to fall back to the whole pool. With no schedule, or
+  one that assigns the deck nothing (no weeks, or rows from another book), it still counts the whole
+  pool.
+* `schedule::next_memorize_batch` serves those owed verses first, so the button works down the
+  number the learner sees. The cross-club `move_to_next` gates now rank clubs instead of filtering
+  them: a club behind an unmet gate comes after the club above it, and a gate that can never open
+  (checkpoint gates without a schedule, `FullyMemorized` over an empty club) no longer leaves a
+  positive count with nothing to serve.
+* With nothing owed, `next_memorize_batch` works ahead as if the calendar had moved on: the nearest
+  week that hasn't started, then the week after, rather than the next verses in the deck. Verses no
+  week assigns come last. A batch never mixes these kinds: while anything is owed it holds only owed
+  verses, even when fewer than the batch size, and working ahead is the next press.
+* `CatchUp::CalendarCascade` means "this week first" and nothing more: a club on calendar cascade
+  puts its current week's owed verses ahead of its own older ones, without moving another club's.
+  Its separate this-week phase is gone, and with it the overflow that let a batch run past
+  `batch_size`, which is now a firm limit for every club.
+
+### Added
+
+* `Schedule::for_each_ref`, which visits each ref a tier introduces together with its week's index,
+  borrowing book names as `for_each_cumulative_ref` did.
+
+### Removed
+
+* `Schedule::for_each_cumulative_ref`, whose one caller, `memorize_debt`, now reads `for_each_ref`.
+
 ## [0.11.0] — 2026-09-24
 
 MINOR: `memorize_debt` counts every club with memorize enabled, ignoring the cross-club gates. The

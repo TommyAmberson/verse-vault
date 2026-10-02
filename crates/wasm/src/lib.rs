@@ -289,9 +289,9 @@ impl WasmEngine {
     /// (everything-on); otherwise it's a JSON `MaterialConfig` carrying the
     /// per-year toggles (headings / ftv / citation) plus the per-club
     /// memorize / review / move_to_next shape.
-    /// `schedule_json` may be `""` to skip the schedule entirely — the
-    /// memorize algorithm collapses to pure-Sequential when no schedule is
-    /// supplied. Otherwise it's a JSON `Schedule` matching the bundled
+    /// `schedule_json` may be `""` to skip the schedule entirely, in which
+    /// case the memorize queue treats the whole pool as owed. Otherwise it's
+    /// a JSON `Schedule` matching the bundled
     /// `data/schedules/<deck>-<season>.json` shape.
     ///
     /// As of `crates/wasm@0.6.0` the standalone `desired_retention`
@@ -412,11 +412,10 @@ impl WasmEngine {
 
     /// JSON `{ verses, cards }` for the un-memorized work the bound
     /// schedule has already asked for, through the current week, in every
-    /// club with memorize enabled. Falls back to those clubs' whole
-    /// un-memorized pool when no schedule is bound or the
-    /// season hasn't started, so a caller can render one number without
-    /// branching on whether a schedule exists. See
-    /// `core::schedule::memorize_debt`.
+    /// club with memorize enabled. Zero before the season starts. Falls
+    /// back to those clubs' whole un-memorized pool when no schedule is
+    /// bound, so a caller can render one number without branching on
+    /// whether a schedule exists. See `core::schedule::memorize_debt`.
     pub fn memorize_debt(&self, now_secs: i64) -> Result<String, JsError> {
         let debt = schedule_memorize_debt(&self.engine, self.schedule.as_ref(), now_secs);
         serde_json::to_string(&debt).map_err(|e| JsError::new(&e.to_string()))
@@ -468,23 +467,22 @@ impl WasmEngine {
     /// / drill / graduation steps. Graduation goes through
     /// `graduate_card`, not the host verse's `graduate_verse`.
     pub fn memorize_session(&self, limit: u32) -> Result<String, JsError> {
-        // Pre-0.6.0 surface — calls v2 with `now_secs = 0` so the
-        // existing web client keeps working through the wasm bump. The
-        // empty-or-absent schedule path inside next_memorize_batch
-        // collapses to Phase 2 (pure-Sequential) which matches today's
-        // canonical-order behaviour exactly. Deprecated; remove after
-        // Phase 2 ships the v2 call site on the web client.
+        // Pre-0.6.0 surface — calls v2 with `now_secs = 0`, which reads
+        // as before any season: with a schedule bound it serves in
+        // schedule order from the first week, without one in rank and
+        // then deck order. Deprecated; no client calls it any more.
         self.memorize_session_v2(limit, 0)
     }
 
-    /// Schedule-aware memorize session — two-phase canonical fill via
-    /// `crates/core::schedule::next_memorize_batch`. Returns the same
-    /// `{ verses, orphans }` JSON shape `memorize_session` returns; only
-    /// the verse-anchor source changes.
+    /// Schedule-aware memorize session via
+    /// `crates/core::schedule::next_memorize_batch`: owed verses if any
+    /// are owed, else working ahead by schedule week, never both in one
+    /// session, with `limit` as a firm cap (`docs/memorize.md`). Returns the same `{ verses, orphans }` JSON
+    /// shape `memorize_session` returns; only the verse-anchor source
+    /// changes.
     ///
-    /// `now_secs` is the wall-clock used to compute the current week
-    /// (CalendarCascade Phase 1) and to evaluate cross-club gates that
-    /// reference dated checkpoints.
+    /// `now_secs` places verses against the schedule's weeks and
+    /// evaluates cross-club gates that reference dated checkpoints.
     pub fn memorize_session_v2(&self, limit: u32, now_secs: i64) -> Result<String, JsError> {
         use std::collections::{HashMap, HashSet};
         use verse_vault_core::card::{CardKind, CardState};
@@ -537,12 +535,9 @@ impl WasmEngine {
             .map(|c| c.verse_id)
             .collect();
 
-        // Verse anchors come from the schedule-aware two-phase fill —
-        // Phase 1 picks CalendarCascade clubs' this-week primary verses
-        // first, Phase 2 fills the rest in canonical order. With no
-        // schedule supplied (legacy path), Phase 1 contributes nothing
-        // and Phase 2 walks every eligible verse in canonical order,
-        // matching the old card-scan behaviour byte-for-byte.
+        // Verse anchors come from the schedule-aware queue, one kind per
+        // session: owed verses, else working ahead by schedule week, else
+        // verses no week assigns, capped at `limit` (docs/memorize.md).
         let batch_cap = limit.min(u8::MAX as u32) as u8;
         let batch_card_ids = verse_vault_core::schedule::next_memorize_batch(
             &self.engine,
@@ -573,6 +568,14 @@ impl WasmEngine {
         // cards doesn't pile onto the first verse — they spread across
         // `verse_order` and the overflow defers to the next session.
         let session_verses: HashSet<u32> = verse_order.iter().copied().collect();
+        // The reading walkthrough follows `verse_order`, which the queue
+        // no longer keeps ascending (calendar cascade, working ahead by
+        // week), so attach points go by session position, not verse id.
+        let position: HashMap<u32, usize> = verse_order
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| (v, i))
+            .collect();
         let active_verses: HashSet<u32> = cards
             .iter()
             .filter(|c| matches!(c.state, CardState::Active))
@@ -611,17 +614,17 @@ impl WasmEngine {
             let (is_hp, intent) = match card.kind {
                 CardKind::HeadingPassage { .. } => {
                     let atoms = self.engine.atoms_for(card.verse_id);
-                    let in_session_min = atoms
+                    let first_in_session = atoms
                         .heading_members
                         .iter()
                         .copied()
                         .filter(|v| session_verses.contains(v))
-                        .min();
+                        .min_by_key(|v| position[v]);
                     let any_active = atoms
                         .heading_members
                         .iter()
                         .any(|v| active_verses.contains(v));
-                    let intent = if let Some(v) = in_session_min {
+                    let intent = if let Some(v) = first_in_session {
                         AttachIntent::Normal(v)
                     } else if any_active {
                         AttachIntent::Orphan
@@ -636,15 +639,15 @@ impl WasmEngine {
                         .chapter_members
                         .iter()
                         .all(|(v, _)| active_verses.contains(v) || session_verses.contains(v));
-                    let in_session_max = atoms
+                    let last_in_session = atoms
                         .chapter_members
                         .iter()
                         .map(|(v, _)| *v)
                         .filter(|v| session_verses.contains(v))
-                        .max();
+                        .max_by_key(|v| position[v]);
                     let intent = if !all_settled {
                         AttachIntent::None
-                    } else if let Some(v) = in_session_max {
+                    } else if let Some(v) = last_in_session {
                         AttachIntent::Normal(v)
                     } else {
                         AttachIntent::Orphan

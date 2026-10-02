@@ -17,15 +17,18 @@ Compiled 2026-09-10 by auditing `docs/` against the tree. Delete an entry when i
 
 ## Memorize schedules
 
-The largest gap. A material can carry a season schedule that drives which verses become available
-when, separately from FSRS due dates.
+A material can carry a season schedule that drives which verses become available when, separately
+from FSRS due dates. How the schedule drives the memorize queue and count is owned by
+`docs/memorize.md`; what stays undocumented is the schedule itself.
 
-* **Surface:** `crates/core/src/schedule.rs`, `crates/core/src/schedule_data.rs`,
-  `packages/api/src/lib/schedules.ts`, `packages/api/src/routes/schedules.ts`,
-  `apps/web/src/views/ScheduleEditorView.vue`, route `/schedule/:materialId`, the
-  `material_schedules` table (migration `0022`), and `data/schedules/*.json`
-* **Coverage:** none. `docs/scheduling.md` is exclusively FSRS due-date scheduling and never
-  mentions season schedules — the name collision is itself a trap
+* **Surface:** `crates/core/src/schedule_data.rs`, `packages/api/src/lib/schedules.ts`,
+  `packages/api/src/routes/schedules.ts`, `apps/web/src/views/ScheduleEditorView.vue`, route
+  `/schedule/:materialId`, the `material_schedules` table (migration `0022`), and
+  `data/schedules/*.json`
+* **Coverage:** `docs/memorize.md` covers how a schedule places verses for the memorize queue. The
+  schedule's data model, its per-user overrides and the editor have no doc. `docs/scheduling.md` is
+  exclusively FSRS due-date scheduling and never mentions season schedules — the name collision is
+  itself a trap
 * **Nearest thing to a spec:** `docs/superpowers/specs/2026-06-14-schedules-and-settings-design.md`,
   now read-only history and predating the canonicalisation work in migration `0025`
 

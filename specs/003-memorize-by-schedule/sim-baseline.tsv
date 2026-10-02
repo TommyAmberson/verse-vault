@@ -1,0 +1,289 @@
+season	gates	catch_up	batch	learner	memorized	wait_days	scheduled
+GEPC 2023-24	Always/CaughtUp	Sequential	1	On plan	503	23399	503
+GEPC 2023-24	Always/CaughtUp	Sequential	1	Behind	468	28293	503
+GEPC 2023-24	Always/CaughtUp	Sequential	1	Ahead	503	6215	503
+GEPC 2023-24	Always/CaughtUp	Sequential	5	On plan	503	23404	503
+GEPC 2023-24	Always/CaughtUp	Sequential	5	Behind	468	28327	503
+GEPC 2023-24	Always/CaughtUp	Sequential	5	Ahead	503	6215	503
+GEPC 2023-24	Always/CaughtUp	CalendarCascade	1	On plan	503	1685	503
+GEPC 2023-24	Always/CaughtUp	CalendarCascade	1	Behind	468	7656	503
+GEPC 2023-24	Always/CaughtUp	CalendarCascade	1	Ahead	503	205	503
+GEPC 2023-24	Always/CaughtUp	CalendarCascade	5	On plan	503	1685	503
+GEPC 2023-24	Always/CaughtUp	CalendarCascade	5	Behind	468	7722	503
+GEPC 2023-24	Always/CaughtUp	CalendarCascade	5	Ahead	503	205	503
+GEPC 2023-24	Always/Always	Sequential	1	On plan	503	23694	503
+GEPC 2023-24	Always/Always	Sequential	1	Behind	468	27976	503
+GEPC 2023-24	Always/Always	Sequential	1	Ahead	503	6215	503
+GEPC 2023-24	Always/Always	Sequential	5	On plan	503	23694	503
+GEPC 2023-24	Always/Always	Sequential	5	Behind	468	27976	503
+GEPC 2023-24	Always/Always	Sequential	5	Ahead	503	6215	503
+GEPC 2023-24	Always/Always	CalendarCascade	1	On plan	503	1685	503
+GEPC 2023-24	Always/Always	CalendarCascade	1	Behind	468	7117	503
+GEPC 2023-24	Always/Always	CalendarCascade	1	Ahead	503	205	503
+GEPC 2023-24	Always/Always	CalendarCascade	5	On plan	503	1685	503
+GEPC 2023-24	Always/Always	CalendarCascade	5	Behind	468	7117	503
+GEPC 2023-24	Always/Always	CalendarCascade	5	Ahead	503	205	503
+GEPC 2023-24	CaughtUp/CaughtUp	Sequential	1	On plan	503	23399	503
+GEPC 2023-24	CaughtUp/CaughtUp	Sequential	1	Behind	468	28293	503
+GEPC 2023-24	CaughtUp/CaughtUp	Sequential	1	Ahead	503	6215	503
+GEPC 2023-24	CaughtUp/CaughtUp	Sequential	5	On plan	503	23404	503
+GEPC 2023-24	CaughtUp/CaughtUp	Sequential	5	Behind	468	28327	503
+GEPC 2023-24	CaughtUp/CaughtUp	Sequential	5	Ahead	503	6215	503
+GEPC 2023-24	CaughtUp/CaughtUp	CalendarCascade	1	On plan	503	1685	503
+GEPC 2023-24	CaughtUp/CaughtUp	CalendarCascade	1	Behind	468	8764	503
+GEPC 2023-24	CaughtUp/CaughtUp	CalendarCascade	1	Ahead	503	205	503
+GEPC 2023-24	CaughtUp/CaughtUp	CalendarCascade	5	On plan	503	1685	503
+GEPC 2023-24	CaughtUp/CaughtUp	CalendarCascade	5	Behind	468	9183	503
+GEPC 2023-24	CaughtUp/CaughtUp	CalendarCascade	5	Ahead	503	205	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	Sequential	1	On plan	503	22800	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	Sequential	1	Behind	468	26445	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	Sequential	1	Ahead	503	5397	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	Sequential	5	On plan	503	22800	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	Sequential	5	Behind	468	26445	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	Sequential	5	Ahead	503	5397	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	CalendarCascade	1	On plan	503	21896	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	CalendarCascade	1	Behind	468	25724	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	CalendarCascade	1	Ahead	503	5052	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	CalendarCascade	5	On plan	503	21896	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	CalendarCascade	5	Behind	468	25724	503
+GEPC 2023-24	FullyMemorized/FullyMemorized	CalendarCascade	5	Ahead	503	5052	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	On plan	481	26548	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	Behind	446	31101	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	Ahead	503	13338	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	On plan	481	26548	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	Behind	446	30937	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	Ahead	503	13354	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	On plan	481	25324	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	Behind	446	28988	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	Ahead	503	13098	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	On plan	481	25324	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	Behind	446	29115	503
+GEPC 2023-24	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	Ahead	503	13108	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	On plan	503	23444	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	Behind	468	28876	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	Ahead	503	6215	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	On plan	503	23487	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	Behind	468	28919	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	Ahead	503	6215	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	On plan	503	1708	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	Behind	468	10508	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	Ahead	503	205	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	On plan	503	2521	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	Behind	468	10938	503
+GEPC 2023-24	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	Ahead	503	207	503
+NT Survey 2024-25	Always/CaughtUp	Sequential	1	On plan	812	32357	812
+NT Survey 2024-25	Always/CaughtUp	Sequential	1	Behind	734	42423	812
+NT Survey 2024-25	Always/CaughtUp	Sequential	1	Ahead	812	8433	812
+NT Survey 2024-25	Always/CaughtUp	Sequential	5	On plan	812	32357	812
+NT Survey 2024-25	Always/CaughtUp	Sequential	5	Behind	734	42426	812
+NT Survey 2024-25	Always/CaughtUp	Sequential	5	Ahead	812	8433	812
+NT Survey 2024-25	Always/CaughtUp	CalendarCascade	1	On plan	812	2502	812
+NT Survey 2024-25	Always/CaughtUp	CalendarCascade	1	Behind	734	15193	812
+NT Survey 2024-25	Always/CaughtUp	CalendarCascade	1	Ahead	812	402	812
+NT Survey 2024-25	Always/CaughtUp	CalendarCascade	5	On plan	812	2502	812
+NT Survey 2024-25	Always/CaughtUp	CalendarCascade	5	Behind	734	15375	812
+NT Survey 2024-25	Always/CaughtUp	CalendarCascade	5	Ahead	812	402	812
+NT Survey 2024-25	Always/Always	Sequential	1	On plan	812	32357	812
+NT Survey 2024-25	Always/Always	Sequential	1	Behind	734	42774	812
+NT Survey 2024-25	Always/Always	Sequential	1	Ahead	812	8433	812
+NT Survey 2024-25	Always/Always	Sequential	5	On plan	812	32357	812
+NT Survey 2024-25	Always/Always	Sequential	5	Behind	734	42774	812
+NT Survey 2024-25	Always/Always	Sequential	5	Ahead	812	8433	812
+NT Survey 2024-25	Always/Always	CalendarCascade	1	On plan	812	2502	812
+NT Survey 2024-25	Always/Always	CalendarCascade	1	Behind	734	14057	812
+NT Survey 2024-25	Always/Always	CalendarCascade	1	Ahead	812	402	812
+NT Survey 2024-25	Always/Always	CalendarCascade	5	On plan	812	2502	812
+NT Survey 2024-25	Always/Always	CalendarCascade	5	Behind	734	14057	812
+NT Survey 2024-25	Always/Always	CalendarCascade	5	Ahead	812	402	812
+NT Survey 2024-25	CaughtUp/CaughtUp	Sequential	1	On plan	812	32357	812
+NT Survey 2024-25	CaughtUp/CaughtUp	Sequential	1	Behind	734	42415	812
+NT Survey 2024-25	CaughtUp/CaughtUp	Sequential	1	Ahead	812	8433	812
+NT Survey 2024-25	CaughtUp/CaughtUp	Sequential	5	On plan	812	32357	812
+NT Survey 2024-25	CaughtUp/CaughtUp	Sequential	5	Behind	734	42419	812
+NT Survey 2024-25	CaughtUp/CaughtUp	Sequential	5	Ahead	812	8433	812
+NT Survey 2024-25	CaughtUp/CaughtUp	CalendarCascade	1	On plan	812	2502	812
+NT Survey 2024-25	CaughtUp/CaughtUp	CalendarCascade	1	Behind	734	15201	812
+NT Survey 2024-25	CaughtUp/CaughtUp	CalendarCascade	1	Ahead	812	402	812
+NT Survey 2024-25	CaughtUp/CaughtUp	CalendarCascade	5	On plan	812	2502	812
+NT Survey 2024-25	CaughtUp/CaughtUp	CalendarCascade	5	Behind	734	15380	812
+NT Survey 2024-25	CaughtUp/CaughtUp	CalendarCascade	5	Ahead	812	402	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	Sequential	1	On plan	812	33187	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	Sequential	1	Behind	734	42819	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	Sequential	1	Ahead	812	9997	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	Sequential	5	On plan	812	33187	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	Sequential	5	Behind	734	42819	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	Sequential	5	Ahead	812	9997	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	CalendarCascade	1	On plan	812	30202	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	CalendarCascade	1	Behind	734	40426	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	CalendarCascade	1	Ahead	812	7104	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	CalendarCascade	5	On plan	812	30202	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	CalendarCascade	5	Behind	734	40426	812
+NT Survey 2024-25	FullyMemorized/FullyMemorized	CalendarCascade	5	Ahead	812	7104	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	On plan	670	51323	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	Behind	592	60215	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	Ahead	812	26643	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	On plan	670	51323	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	Behind	592	60215	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	Ahead	812	26653	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	On plan	670	48172	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	Behind	592	58351	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	Ahead	812	26189	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	On plan	670	48172	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	Behind	592	58351	812
+NT Survey 2024-25	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	Ahead	812	26206	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	On plan	812	32419	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	Behind	734	42626	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	Ahead	812	8433	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	On plan	812	32458	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	Behind	734	42667	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	Ahead	812	8433	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	On plan	812	2502	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	Behind	734	15650	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	Ahead	812	402	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	On plan	812	3543	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	Behind	734	16635	812
+NT Survey 2024-25	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	Ahead	812	406	812
+Corinthians 2025-26	Always/CaughtUp	Sequential	1	On plan	689	3241	694
+Corinthians 2025-26	Always/CaughtUp	Sequential	1	Behind	645	10096	694
+Corinthians 2025-26	Always/CaughtUp	Sequential	1	Ahead	694	43	694
+Corinthians 2025-26	Always/CaughtUp	Sequential	5	On plan	689	3251	694
+Corinthians 2025-26	Always/CaughtUp	Sequential	5	Behind	645	10102	694
+Corinthians 2025-26	Always/CaughtUp	Sequential	5	Ahead	694	43	694
+Corinthians 2025-26	Always/CaughtUp	CalendarCascade	1	On plan	689	3241	694
+Corinthians 2025-26	Always/CaughtUp	CalendarCascade	1	Behind	645	10096	694
+Corinthians 2025-26	Always/CaughtUp	CalendarCascade	1	Ahead	694	43	694
+Corinthians 2025-26	Always/CaughtUp	CalendarCascade	5	On plan	689	3241	694
+Corinthians 2025-26	Always/CaughtUp	CalendarCascade	5	Behind	645	10096	694
+Corinthians 2025-26	Always/CaughtUp	CalendarCascade	5	Ahead	694	43	694
+Corinthians 2025-26	Always/Always	Sequential	1	On plan	689	3241	694
+Corinthians 2025-26	Always/Always	Sequential	1	Behind	645	10096	694
+Corinthians 2025-26	Always/Always	Sequential	1	Ahead	694	43	694
+Corinthians 2025-26	Always/Always	Sequential	5	On plan	689	3241	694
+Corinthians 2025-26	Always/Always	Sequential	5	Behind	645	10096	694
+Corinthians 2025-26	Always/Always	Sequential	5	Ahead	694	43	694
+Corinthians 2025-26	Always/Always	CalendarCascade	1	On plan	689	3241	694
+Corinthians 2025-26	Always/Always	CalendarCascade	1	Behind	645	10096	694
+Corinthians 2025-26	Always/Always	CalendarCascade	1	Ahead	694	43	694
+Corinthians 2025-26	Always/Always	CalendarCascade	5	On plan	689	3241	694
+Corinthians 2025-26	Always/Always	CalendarCascade	5	Behind	645	10096	694
+Corinthians 2025-26	Always/Always	CalendarCascade	5	Ahead	694	43	694
+Corinthians 2025-26	CaughtUp/CaughtUp	Sequential	1	On plan	689	3241	694
+Corinthians 2025-26	CaughtUp/CaughtUp	Sequential	1	Behind	645	10096	694
+Corinthians 2025-26	CaughtUp/CaughtUp	Sequential	1	Ahead	694	43	694
+Corinthians 2025-26	CaughtUp/CaughtUp	Sequential	5	On plan	689	3251	694
+Corinthians 2025-26	CaughtUp/CaughtUp	Sequential	5	Behind	645	10096	694
+Corinthians 2025-26	CaughtUp/CaughtUp	Sequential	5	Ahead	694	43	694
+Corinthians 2025-26	CaughtUp/CaughtUp	CalendarCascade	1	On plan	689	3241	694
+Corinthians 2025-26	CaughtUp/CaughtUp	CalendarCascade	1	Behind	645	10096	694
+Corinthians 2025-26	CaughtUp/CaughtUp	CalendarCascade	1	Ahead	694	43	694
+Corinthians 2025-26	CaughtUp/CaughtUp	CalendarCascade	5	On plan	689	3246	694
+Corinthians 2025-26	CaughtUp/CaughtUp	CalendarCascade	5	Behind	645	10096	694
+Corinthians 2025-26	CaughtUp/CaughtUp	CalendarCascade	5	Ahead	694	43	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	Sequential	1	On plan	689	23605	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	Sequential	1	Behind	645	30038	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	Sequential	1	Ahead	694	3078	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	Sequential	5	On plan	689	23605	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	Sequential	5	Behind	645	30038	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	Sequential	5	Ahead	694	3078	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	CalendarCascade	1	On plan	689	23605	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	CalendarCascade	1	Behind	645	30038	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	CalendarCascade	1	Ahead	694	3078	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	CalendarCascade	5	On plan	689	23605	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	CalendarCascade	5	Behind	645	30038	694
+Corinthians 2025-26	FullyMemorized/FullyMemorized	CalendarCascade	5	Ahead	694	3078	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	On plan	573	38431	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	Behind	529	45286	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	Ahead	694	17507	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	On plan	573	38431	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	Behind	529	45286	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	Ahead	694	17507	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	On plan	573	38431	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	Behind	529	45286	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	Ahead	694	17507	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	On plan	573	38431	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	Behind	529	45286	694
+Corinthians 2025-26	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	Ahead	694	17507	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	On plan	679	3817	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	Behind	635	10650	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	Ahead	694	47	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	On plan	679	4223	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	Behind	635	11058	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	Ahead	694	50	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	On plan	679	3817	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	Behind	635	10650	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	Ahead	694	47	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	On plan	679	4223	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	Behind	635	11058	694
+Corinthians 2025-26	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	Ahead	694	49	694
+John 2026-27	Always/CaughtUp	Sequential	1	On plan	879	2712	879
+John 2026-27	Always/CaughtUp	Sequential	1	Behind	806	13967	879
+John 2026-27	Always/CaughtUp	Sequential	1	Ahead	879	32	879
+John 2026-27	Always/CaughtUp	Sequential	5	On plan	879	2712	879
+John 2026-27	Always/CaughtUp	Sequential	5	Behind	806	13967	879
+John 2026-27	Always/CaughtUp	Sequential	5	Ahead	879	32	879
+John 2026-27	Always/CaughtUp	CalendarCascade	1	On plan	879	2709	879
+John 2026-27	Always/CaughtUp	CalendarCascade	1	Behind	806	13964	879
+John 2026-27	Always/CaughtUp	CalendarCascade	1	Ahead	879	30	879
+John 2026-27	Always/CaughtUp	CalendarCascade	5	On plan	879	2709	879
+John 2026-27	Always/CaughtUp	CalendarCascade	5	Behind	806	13964	879
+John 2026-27	Always/CaughtUp	CalendarCascade	5	Ahead	879	30	879
+John 2026-27	Always/Always	Sequential	1	On plan	879	2712	879
+John 2026-27	Always/Always	Sequential	1	Behind	806	13967	879
+John 2026-27	Always/Always	Sequential	1	Ahead	879	32	879
+John 2026-27	Always/Always	Sequential	5	On plan	879	2712	879
+John 2026-27	Always/Always	Sequential	5	Behind	806	13967	879
+John 2026-27	Always/Always	Sequential	5	Ahead	879	32	879
+John 2026-27	Always/Always	CalendarCascade	1	On plan	879	2709	879
+John 2026-27	Always/Always	CalendarCascade	1	Behind	806	13964	879
+John 2026-27	Always/Always	CalendarCascade	1	Ahead	879	30	879
+John 2026-27	Always/Always	CalendarCascade	5	On plan	879	2709	879
+John 2026-27	Always/Always	CalendarCascade	5	Behind	806	13964	879
+John 2026-27	Always/Always	CalendarCascade	5	Ahead	879	30	879
+John 2026-27	CaughtUp/CaughtUp	Sequential	1	On plan	879	2712	879
+John 2026-27	CaughtUp/CaughtUp	Sequential	1	Behind	806	13967	879
+John 2026-27	CaughtUp/CaughtUp	Sequential	1	Ahead	879	32	879
+John 2026-27	CaughtUp/CaughtUp	Sequential	5	On plan	879	2712	879
+John 2026-27	CaughtUp/CaughtUp	Sequential	5	Behind	806	13967	879
+John 2026-27	CaughtUp/CaughtUp	Sequential	5	Ahead	879	32	879
+John 2026-27	CaughtUp/CaughtUp	CalendarCascade	1	On plan	879	2709	879
+John 2026-27	CaughtUp/CaughtUp	CalendarCascade	1	Behind	806	13964	879
+John 2026-27	CaughtUp/CaughtUp	CalendarCascade	1	Ahead	879	30	879
+John 2026-27	CaughtUp/CaughtUp	CalendarCascade	5	On plan	879	2709	879
+John 2026-27	CaughtUp/CaughtUp	CalendarCascade	5	Behind	806	13964	879
+John 2026-27	CaughtUp/CaughtUp	CalendarCascade	5	Ahead	879	30	879
+John 2026-27	FullyMemorized/FullyMemorized	Sequential	1	On plan	879	25568	879
+John 2026-27	FullyMemorized/FullyMemorized	Sequential	1	Behind	806	36823	879
+John 2026-27	FullyMemorized/FullyMemorized	Sequential	1	Ahead	879	2668	879
+John 2026-27	FullyMemorized/FullyMemorized	Sequential	5	On plan	879	25568	879
+John 2026-27	FullyMemorized/FullyMemorized	Sequential	5	Behind	806	36823	879
+John 2026-27	FullyMemorized/FullyMemorized	Sequential	5	Ahead	879	2668	879
+John 2026-27	FullyMemorized/FullyMemorized	CalendarCascade	1	On plan	879	25568	879
+John 2026-27	FullyMemorized/FullyMemorized	CalendarCascade	1	Behind	806	36823	879
+John 2026-27	FullyMemorized/FullyMemorized	CalendarCascade	1	Ahead	879	2668	879
+John 2026-27	FullyMemorized/FullyMemorized	CalendarCascade	5	On plan	879	25568	879
+John 2026-27	FullyMemorized/FullyMemorized	CalendarCascade	5	Behind	806	36823	879
+John 2026-27	FullyMemorized/FullyMemorized	CalendarCascade	5	Ahead	879	2668	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	On plan	706	49130	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	Behind	633	60385	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	1	Ahead	879	21062	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	On plan	706	49130	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	Behind	633	60385	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	Sequential	5	Ahead	879	21062	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	On plan	706	49130	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	Behind	633	60385	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	1	Ahead	879	21062	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	On plan	706	49130	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	Behind	633	60385	879
+John 2026-27	AfterMajorCheckpoint/AfterMajorCheckpoint	CalendarCascade	5	Ahead	879	21062	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	On plan	879	2709	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	Behind	806	13964	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	1	Ahead	879	30	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	On plan	879	3398	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	Behind	806	14476	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	Sequential	5	Ahead	879	37	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	On plan	879	2709	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	Behind	806	13964	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	1	Ahead	879	30	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	On plan	879	3398	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	Behind	806	14476	879
+John 2026-27	AfterMinorCheckpoint/AfterMinorCheckpoint	CalendarCascade	5	Ahead	879	37	879

@@ -69,16 +69,15 @@ impl ChapterListScope {
     }
 }
 
-/// How a club's pool is ordered when the user is behind the calendar.
+/// How a club orders its owed backlog when the user is behind the
+/// calendar.
 ///
-/// `Sequential` ignores the calendar entirely — the pool is "next
-/// un-memorized verse in canonical (deck/passage) order." Catches up
-/// automatically when behind, rolls ahead naturally when caught up.
+/// `Sequential` serves the club's owed verses in deck order.
 ///
-/// `CalendarCascade` prefers this week's calendar row first (Phase 1
-/// of the memorize fill), then falls through to backlog and lookahead
-/// via Phase 2. Users on a strict league schedule pick this; one-verse-
-/// a-day users typically don't.
+/// `CalendarCascade` serves its owed verses from the current week first,
+/// then the older ones (see `schedule::next_memorize_batch`). Users on a
+/// strict league schedule pick this; one-verse-a-day users typically
+/// don't. With nothing owed the two behave the same.
 ///
 /// JSON form is camelCase (`sequential` / `calendarCascade`) — matches
 /// the per-club shape the API uses for the new fields.
@@ -136,28 +135,26 @@ impl Default for ClubReviewConfig {
 /// Club 150 and Club 300, `p300_to_full` between Club 300 and Full).
 ///
 /// Each variant describes a condition on the higher club's progress
-/// against the schedule; gate-open means the lower club enters the
-/// eligible set for Phase 2's canonical-order fill. Eligibility is
-/// independent of fill priority — once eligible, both clubs interleave
-/// by deck position.
+/// against the schedule. While a gate is unmet, the memorize queue serves
+/// the lower club's verses after the higher club's (see
+/// `schedule::club_ranks`); it never hides them. Once met, both clubs
+/// interleave by deck position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum MoveToNextGate {
-    /// Lower club waits until the higher is fully memorized
-    /// (strict drain).
+    /// Met once the higher club is fully memorized (strict drain).
     FullyMemorized,
-    /// Lower club enters after the higher's verses through the most
-    /// recent past meet are all memorized. Never open before the
-    /// season's first meet.
+    /// Met once the higher's verses through the most recent past meet
+    /// are all memorized. Never met before the season's first meet.
     AfterMajorCheckpoint,
-    /// Lower club enters once the higher's this-week row is done.
+    /// Met once the higher's this-week row is done.
     AfterMinorCheckpoint,
-    /// Lower club is eligible whenever the higher's user position is
-    /// at or past the previous week's checkpoint. Open by default at
-    /// season start (no previous checkpoint yet).
+    /// Met whenever the higher's user position is at or past the
+    /// previous week's checkpoint. Met by default at season start (no
+    /// previous checkpoint yet).
     #[default]
     CaughtUp,
-    /// No gate — lower always eligible.
+    /// No gate: always met.
     Always,
 }
 

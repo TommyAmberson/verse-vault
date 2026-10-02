@@ -105,12 +105,21 @@ async function buildSession() {
   // own failures, so a year that failed to load isn't in `active` and
   // calling `memorizeSession` on it would throw "no session" and abort
   // the whole multi-year session. Mirrors ReviewView's isActive filter.
+  const activeYears = eligibleYears.filter((y) => engine.isActive(y.materialId))
+  // One kind per session, across years as within one (FR-004): while any
+  // year owes verses, only the years that owe them contribute, so one
+  // year's work-ahead never joins another year's backlog. With nothing
+  // owed anywhere, every year works ahead. An api older than 0.1.39 sends
+  // no memorizeDebt; such a year counts as owing, as the badge does.
+  const owingYears = activeYears.filter(
+    (y) => (y.memorizeDebt?.verses ?? y.newCardCount) > 0,
+  )
+  const servingYears = owingYears.length > 0 ? owingYears : activeYears
   const sessions: {
     materialId: string
     verses: MemorizeSessionVerse[]
     orphans: number[]
-  }[] = eligibleYears
-    .filter((y) => engine.isActive(y.materialId))
+  }[] = servingYears
     .map((y) => {
       const s = engine.memorizeSession(y.materialId, y.perClub.lessonBatchSize)
       return { materialId: y.materialId, verses: s.verses, orphans: s.orphans }
