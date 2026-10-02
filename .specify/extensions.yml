@@ -1,0 +1,12 @@
+# Spec Kit extension hooks. The speckit-* skills read this file at the hook points named below.
+hooks:
+  after_implement:
+    - extension: simplify
+      command: simplify
+      enabled: true
+      optional: true
+      description: Review the feature branch (origin/master...HEAD) for reuse, simplification, efficiency, and altitude
+      # A bare /simplify diffs against the upstream branch (the pushed PR branch), so pass the range.
+      prompt: >-
+        Run `/simplify origin/master...HEAD` so it reviews the whole feature branch, not just
+        unpushed commits, then fold the fixes you accept into the commits they correct with --fixup.
