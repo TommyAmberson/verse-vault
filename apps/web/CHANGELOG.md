@@ -9,6 +9,41 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.9.26] - 2026-10-02
+
+MINOR: typed answers read as a proofread page instead of a red word diff (spec
+`specs/004-proofread-recitation-diff/`, doc `docs/type-to-recite.md`).
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+* `verse-vault-wasm@0.12.0`: unchanged.
+
+### Changed
+
+* A typed Recitation or FTV answer now reads as a proofread page instead of a red word diff. The
+  line is what you typed: words you got right stay in the verse colour, and every mistake carries
+  the verse's words in a tinted label above your struck words, or above a caret where you skipped
+  words. Words you added are struck with no label. Labels wrap rather than overflow, so long
+  corrections work on a phone, and nothing is red any more, so red verse colours no longer blur into
+  the mistakes.
+* Reciting a different verse no longer produces a line of struck words. When you matched under half
+  of the verse and under half of what you typed is in it, the back shows the verse as it reads
+  untyped, with your answer below as a muted note and how many words matched. Stopping early or
+  running on into the next verse still gets the proofread view.
+* A reworded phrase reads as one correction. Mistakes separated only by one or two short shared
+  words (of, the, and) merge, so "of the one and only Son from" carries "as of the only begotten of"
+  above it instead of a scatter of small marks.
+* Typed club lists use the same look. Correct verses keep their verse colours, verses not in the
+  club are struck, and each missed verse sits above a caret in sorted order, tinted in its own verse
+  colour.
+
+### Fixed
+
+* A typed recitation that runs on into the next verse no longer splits that verse in two. The word
+  diff matched the verse's last word against the next verse's last word, striking the real one; it
+  now prefers the earliest typed occurrence, as it already did for the verse's own words.
+
 ## [0.9.25] - 2026-10-02
 
 PATCH: a tab left open on an older version no longer hangs new ones.

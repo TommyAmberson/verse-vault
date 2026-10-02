@@ -4,6 +4,9 @@
   --color-text: #2a2724;
   --color-muted: #78716c;
   --color-border: #e0ddd4;
+  /* Strikethrough and caret on a typed recitation's marks: a grey of its
+     own, since the muted text colour is too dark against the dark card. */
+  --color-mark-line: #a59d92;
   --color-accent: #2563eb;
   --color-accent-hover: #1d4ed8;
   --color-accent-soft: #dbeafe;
@@ -54,6 +57,7 @@
     --color-text: #f1ede5;
     --color-muted: #9a938a;
     --color-border: #332e2a;
+    --color-mark-line: #a8a096;
     --color-accent: #93c5fd;
     --color-accent-hover: #bfdbfe;
     --color-accent-soft: #1e293b;

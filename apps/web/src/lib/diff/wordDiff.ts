@@ -63,13 +63,18 @@ export function wordDiff(expected: string, actual: string): DiffItem[] {
   while (i > 0 && j > 0) {
     if (e[i - 1]!.norm === a[j - 1]!.norm) {
       // Standard LCS would match here unconditionally, biasing toward
-      // the LATEST valid expected position. Defer the match when we
-      // can skip without shortening the LCS — the next iteration will
-      // land it at the earliest occurrence instead, which is what
-      // readers expect when typing only the first few words.
+      // the LATEST valid position on both sides. Defer the match when
+      // either token can be skipped without shortening the LCS, so a
+      // later iteration lands it at the earliest occurrence instead.
+      // Expected side: typing only the first few words matches the
+      // verse's opening. Typed side: running on into the next verse
+      // matches this verse's own last word, not the next verse's.
       if (dp[i - 1]![j]! === dp[i]![j]!) {
         out.push({ kind: 'missing', raw: e[i - 1]!.raw })
         i--
+      } else if (dp[i]![j - 1]! === dp[i]![j]!) {
+        out.push({ kind: 'extra', raw: a[j - 1]!.raw })
+        j--
       } else {
         out.push({ kind: 'match', raw: e[i - 1]!.raw })
         i--

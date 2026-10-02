@@ -1,0 +1,104 @@
+/**
+ * Shapes a `wordDiff` result into the proofread view of a typed
+ * recitation: the reader's words in typed order, with each stretch of
+ * difference as one edit. A replacement or skip shows the verse's words
+ * as a label over the reader's struck words or a caret; an addition is
+ * struck with no label. See docs/type-to-recite.md.
+ */
+
+import { type DiffItem, normalize } from './wordDiff'
+
+export type Segment =
+  | { kind: 'match'; words: string[] }
+  | { kind: 'replace'; typed: string[]; expected: string[] }
+  | { kind: 'add'; typed: string[] }
+  | { kind: 'skip'; expected: string[] }
+
+// A match run this short, between two edits, is glue a paraphrase happened
+// to share with the verse; folding it in reads the stretch as one
+// correction rather than a scatter of tiny marks (FR-010).
+const GLUE_MAX_WORDS = 2
+const GLUE_MAX_LETTERS = 4
+
+/** Groups each maximal run of matches, and each maximal run of
+ *  differences, into one segment, after folding glue into the edits
+ *  around it. A difference run with both sides is a replacement, so a
+ *  swapped word reads as one correction rather than a deletion beside an
+ *  insertion. */
+export function toSegments(items: DiffItem[]): Segment[] {
+  return group(foldGlue(items))
+}
+
+function group(items: DiffItem[]): Segment[] {
+  const out: Segment[] = []
+  let k = 0
+  while (k < items.length) {
+    if (items[k]!.kind === 'match') {
+      const words: string[] = []
+      while (k < items.length && items[k]!.kind === 'match') words.push(items[k++]!.raw)
+      out.push({ kind: 'match', words })
+      continue
+    }
+    const typed: string[] = []
+    const expected: string[] = []
+    while (k < items.length && items[k]!.kind !== 'match') {
+      const it = items[k++]!
+      if (it.kind === 'extra') typed.push(it.raw)
+      else expected.push(it.raw)
+    }
+    if (typed.length === 0) out.push({ kind: 'skip', expected })
+    else if (expected.length === 0) out.push({ kind: 'add', typed })
+    else out.push({ kind: 'replace', typed, expected })
+  }
+  return out
+}
+
+function isGlue(run: DiffItem[]): boolean {
+  return run.length <= GLUE_MAX_WORDS && run.every((m) => normalize(m.raw).length <= GLUE_MAX_LETTERS)
+}
+
+// Rewrites each glue word between two differences as both missing and
+// extra, since the reader typed it too, so `group` sees one unbroken run
+// of differences. Runs at either end have no difference on one side.
+function foldGlue(items: DiffItem[]): DiffItem[] {
+  const out: DiffItem[] = []
+  let k = 0
+  while (k < items.length) {
+    if (items[k]!.kind !== 'match') {
+      out.push(items[k++]!)
+      continue
+    }
+    const start = k
+    while (k < items.length && items[k]!.kind === 'match') k++
+    const run = items.slice(start, k)
+    if (start > 0 && k < items.length && isGlue(run)) {
+      for (const m of run) out.push({ kind: 'missing', raw: m.raw }, { kind: 'extra', raw: m.raw })
+    } else {
+      out.push(...run)
+    }
+  }
+  return out
+}
+
+// Below this share of the verse recalled AND of the typed words matching,
+// the reader recited something else, and marking it up is noise (FR-011).
+const WRONG_VERSE_SHARE = 0.5
+
+/** The match counts for the "N of M words match" note when the answer
+ *  is a different verse, or null when the proofread view applies. Both
+ *  measures must be low: stopping early keeps precision high, and running
+ *  on into the next verse keeps recall high. */
+export function wrongVerse(items: DiffItem[]): { matched: number; expected: number } | null {
+  let matched = 0
+  let expected = 0
+  let typed = 0
+  for (const it of items) {
+    if (it.kind === 'match') matched++
+    if (it.kind !== 'extra') expected++
+    if (it.kind !== 'missing') typed++
+  }
+  const recall = matched / Math.max(expected, 1)
+  const precision = matched / Math.max(typed, 1)
+  if (recall < WRONG_VERSE_SHARE && precision < WRONG_VERSE_SHARE) return { matched, expected }
+  return null
+}

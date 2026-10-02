@@ -66,7 +66,7 @@ scheduling and membership drills.
 
 * **Surface:** `data/*-tiers.json` (years 5, 6, 7 — transcribed from the QuizMeet booklet),
   `card_count_by_club`, per-tier target retention in `MaterialConfig`, club-list diffing in
-  `apps/web/src/lib/diff/clubList.ts`
+  `apps/web/src/lib/diff/clubList.ts` (now covered by `docs/type-to-recite.md`)
 * **Coverage:** scattered. `docs/graph.md` mentions club tier as an element property,
   `docs/validation.md` references Club 150. `docs/decks.md` inventories every deck file but has no
   row for the `-tiers.json` files

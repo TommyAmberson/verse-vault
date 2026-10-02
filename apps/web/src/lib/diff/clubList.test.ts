@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normaliseClubListAnswer } from './clubList';
+import { normaliseClubListAnswer, sortClubListEdits } from './clubList';
 import { wordDiff } from './wordDiff';
 
 /** Core emits `chapterMembers` ascending, and `CardPrompt` joins them
@@ -49,5 +49,49 @@ describe('chapter club-list answer checking', () => {
 
   it('sorts whatever the user typed', () => {
     expect(normaliseClubListAnswer('16, 1, 3')).toBe('1, 3, 16');
+  });
+});
+
+describe('chapter club-list edit order', () => {
+  const members = [1, 3, 4, 12, 14, 29];
+
+  function ordered(typed: string): string[] {
+    const diff = sortClubListEdits(wordDiff(expectedFrom(members), normaliseClubListAnswer(typed)));
+    return diff.map((d) => `${d.kind} ${d.raw.replace(',', '')}`);
+  }
+
+  // The diff leaves the order inside a run of edits arbitrary; a reader
+  // expects the list ascending throughout.
+  it('puts missed and invented verses in ascending order', () => {
+    expect(ordered('1, 3, 5, 12, 14, 18')).toEqual([
+      'match 1',
+      'match 3',
+      'missing 4',
+      'extra 5',
+      'match 12',
+      'match 14',
+      'extra 18',
+      'missing 29',
+    ]);
+  });
+
+  it('leaves a complete list as matches', () => {
+    expect(ordered('29, 1, 14, 3, 12, 4').every((d) => d.startsWith('match'))).toBe(true);
+  });
+
+  it('keeps a token it cannot read as a number', () => {
+    expect(ordered('1, 3, 4, 12, 14, 29, x')).toContain('extra x');
+  });
+
+  // `parseVerseList` rejects "4-5", so the answer reaches the diff unsorted
+  // and must keep the diff's order rather than be read as 4.
+  it('leaves an answer that is not all whole numbers in diff order', () => {
+    const diff = wordDiff(expectedFrom(members), normaliseClubListAnswer('12, 4-5'));
+
+    expect(sortClubListEdits(diff)).toEqual(diff);
+  });
+
+  it('keeps a repeated verse as an extra', () => {
+    expect(ordered('1, 1, 3, 4, 12, 14, 29').filter((d) => d === 'extra 1')).toHaveLength(1);
   });
 });
