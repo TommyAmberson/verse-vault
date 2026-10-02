@@ -289,9 +289,9 @@ pub fn next_memorize_card(engine: &ReviewEngine, now_secs: i64) -> Option<CardId
 /// set [`memorize_debt`] counts; with no schedule the whole pool stands in
 /// for them. They come in [`club_ranks`] order, so a club behind an unmet
 /// cross-club gate follows the club above it rather than being hidden.
-/// Within a rank, a club on `CalendarCascade` puts its current week's owed
-/// verses before its older ones, and deck (verse id) order decides the
-/// rest.
+/// Within a rank they keep deck (verse id) order, except that a club on
+/// `CalendarCascade` puts its current week's owed verses ahead of its own
+/// older ones, without moving any other club's.
 ///
 /// When fewer are owed than `batch_size`, the queue works ahead as if the
 /// calendar had moved on: the nearest week that hasn't started, by rank
@@ -317,18 +317,6 @@ pub fn next_memorize_batch(
             .find(|(c, _)| *c == club)
             .map_or(u32::MAX, |&(_, rank)| rank)
     };
-    let current_week = schedule.and_then(|s| s.current_week_index(now_secs));
-    // Calendar cascade is "this week first": within its rank, a club on
-    // CalendarCascade puts its owed verses from the current week ahead of
-    // its older backlog. It has nothing to reorder when nothing is owed.
-    let older_than_this_week = |p: &PlacedVerse| {
-        let Placement::Owed { week: Some(week) } = p.placement else {
-            return true;
-        };
-        engine.material_config.catch_up_for(p.club) != CatchUp::CalendarCascade
-            || current_week != Some(week)
-    };
-
     // Owed verses first, then working ahead a week at a time as if the
     // calendar had moved on, then the verses no week assigns. `placed` is
     // in deck order, and the sort is stable, so deck order breaks ties.
@@ -336,11 +324,36 @@ pub fn next_memorize_batch(
     queue.sort_by_cached_key(|p| {
         let rank = rank_of(p.club);
         match p.placement {
-            Placement::Owed { .. } => (0, 0, rank, older_than_this_week(p)),
-            Placement::Ahead { week } => (1, week, rank, false),
-            _ => (2, 0, rank, false),
+            Placement::Owed { .. } => (0, 0, rank),
+            Placement::Ahead { week } => (1, week, rank),
+            Placement::Unscheduled => (2, 0, rank),
         }
     });
+
+    // Calendar cascade is "this week first" within its own club: a club on
+    // CalendarCascade puts its owed verses from the current week ahead of
+    // its older backlog, in the places its owed verses already hold, so
+    // every other club keeps its order. With nothing owed there is nothing
+    // to reorder.
+    if let Some(current) = schedule.and_then(|s| s.current_week_index(now_secs)) {
+        let this_week = Placement::Owed {
+            week: Some(current),
+        };
+        for club in ClubTier::ALL {
+            if engine.material_config.catch_up_for(club) != CatchUp::CalendarCascade {
+                continue;
+            }
+            let slots: Vec<usize> = (0..queue.len())
+                .filter(|&i| queue[i].club == club && queue[i].placement.is_owed())
+                .collect();
+            let mut owed: Vec<&PlacedVerse> = slots.iter().map(|&i| queue[i]).collect();
+            owed.sort_by_key(|p| p.placement != this_week);
+            for (&i, p) in slots.iter().zip(owed) {
+                queue[i] = p;
+            }
+        }
+    }
+
     queue
         .into_iter()
         .take(usize::from(batch_size))
@@ -2150,6 +2163,43 @@ mod tests {
         let (engine, sched, now) = behind_on(CatchUp::Sequential);
         let batch = next_memorize_batch(&engine, Some(&sched), now, 3);
         assert_eq!(batch_verse_ids(&engine, batch), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn calendar_cascade_reorders_only_its_own_club() {
+        // Verse 16 is Club 150 on sequential; 17 and 18 are Full on
+        // calendar cascade. All are owed in week 1, at one rank. Full's
+        // this-week verse 18 moves ahead of its own 17, but not ahead of
+        // Club 150's 16, which keeps its place in deck order.
+        let m: MaterialData = serde_json::from_str(
+            r#"{
+                "year": 3,
+                "books": ["John"],
+                "chapters": [
+                    {"book": "John", "number": 3, "start_verse": 16, "end_verse": 18}
+                ],
+                "verses": [
+                    {"book": "John", "chapter": 3, "verse": 16, "phraseWordCounts": [2, 2],
+                     "annotations": [], "ftvWordCount": null, "clubs": [150]},
+                    {"book": "John", "chapter": 3, "verse": 17, "phraseWordCounts": [2, 3],
+                     "annotations": [], "ftvWordCount": null, "clubs": []},
+                    {"book": "John", "chapter": 3, "verse": 18, "phraseWordCounts": [3, 2],
+                     "annotations": [], "ftvWordCount": null, "clubs": []}
+                ],
+                "headings": []
+            }"#,
+        )
+        .unwrap();
+        let r = crate::builder::build_with_config(&m, &MaterialConfig::all_clubs_enabled(0.9), 0);
+        let mut engine = ReviewEngine::new(r, 0.9);
+        engine.material_config.move_to_next = MoveToNextConfig {
+            p150_to_300: MoveToNextGate::Always,
+            p300_to_full: MoveToNextGate::Always,
+        };
+        engine.material_config.memorize.full.catch_up = CatchUp::CalendarCascade;
+        let sched = john_schedule(&[("2025-09-08", 16, 17, &[16]), ("2025-09-15", 18, 18, &[])]);
+        let batch = next_memorize_batch(&engine, Some(&sched), day_secs("2025-09-15"), 3);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![0, 2, 1]);
     }
 
     #[test]

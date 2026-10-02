@@ -208,7 +208,8 @@ first; on sequential, deck order.
 - [X] T017 [US4] Write failing tests in `crates/core/src/schedule.rs`: a club on calendar cascade
       serves its current-week owed verses before its older owed verses; on sequential, deck order;
       calendar cascade never exceeds `batch_size`; when nothing is owed both settings give the same
-      batch. Then add the cascade key to the `Owed` sort (club rank, cascade key, verse id), remove
+      batch; another club's verses keep their places. Then reorder each cascade club's own owed
+      verses in the places they hold, current week first (data-model.md), remove
       Phase 1 and its soft cap from `next_memorize_batch`, and rewrite
       `batch_calendar_cascade_picks_this_week_first`,
       `batch_calendar_cascade_soft_cap_overflows_phase1` and
