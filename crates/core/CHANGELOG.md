@@ -31,8 +31,9 @@ count reports changes; no state semantics or replay change.
 
 * `schedule::memorize_debt` counts the verses a new placement pass marks owed: un-memorized verses
   of an enabled club that the schedule first assigns in a week that has started. Before the season's
-  first week the count is zero, where it used to fall back to the whole pool. With no schedule it
-  still counts the whole pool.
+  first week the count is zero, where it used to fall back to the whole pool. With no schedule, or
+  one that assigns the deck nothing (no weeks, or rows from another book), it still counts the whole
+  pool.
 * `schedule::next_memorize_batch` serves those owed verses first, so the button works down the
   number the learner sees. The cross-club `move_to_next` gates now rank clubs instead of filtering
   them: a club behind an unmet gate comes after the club above it, and a gate that can never open
