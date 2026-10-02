@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 
 import { type CardRender, formatCardTier } from '@/api'
-import { normaliseClubListAnswer } from '@/lib/diff/clubList'
+import { normaliseClubListAnswer, sortClubListEdits, verseNumber } from '@/lib/diff/clubList'
 import { type Segment, toSegments, wrongVerse } from '@/lib/diff/proofread'
 import { type DiffItem, normalize, wordDiff } from '@/lib/diff/wordDiff'
 
@@ -63,8 +63,12 @@ const verseColour = computed(() => `var(${verseColourVar(props.card.verse.verse)
  *  custom property is set inline so each span gets its own colour,
  *  letting a chapter or passage range render multiple verse-coloured
  *  numbers within one parent that doesn't pick a single colour. */
+function verseColourStyle(n: number): string {
+  return `--active-verse-colour: var(${verseColourVar(n)})`
+}
+
 function verseNumberSpan(n: number): string {
-  return `<span class="verse-number" style="--active-verse-colour: var(${verseColourVar(n)})">${n}</span>`
+  return `<span class="verse-number" style="${verseColourStyle(n)}">${n}</span>`
 }
 
 /** Per-card visibility of each ref component. For "what chapter?" /
@@ -317,33 +321,46 @@ function segmentHtml(seg: Segment): string {
   }
 }
 
+/** A typed club list in the proofread style, per number. Correct numbers
+ *  keep their verse colours, as they do when nothing was typed; a missed
+ *  number stacks over a caret in its own verse colour. Commas only join
+ *  typed numbers, so a caret never sits between two of them. */
+function clubListHtml(items: DiffItem[]): string {
+  const sorted = sortClubListEdits(items)
+  return sorted
+    .map((it, idx) => {
+      // Matched and missed tokens come from the club's own member list,
+      // so they are always verse numbers; only typed tokens may not be.
+      let part: string
+      if (it.kind === 'match') {
+        part = verseNumberSpan(verseNumber(it)!)
+      } else if (it.kind === 'missing') {
+        const n = verseNumber(it)!
+        part = markHtml(String(n), CARET, `Missed: ${n}`, verseColourStyle(n))
+      } else {
+        part = `<del title="Not in this club">${escapeHtml(it.raw.replace(/,$/, ''))}</del>`
+      }
+      if (idx === 0) return part
+      const nextToCaret = it.kind === 'missing' || sorted[idx - 1]!.kind === 'missing'
+      return `${nextToCaret ? ' ' : ', '}${part}`
+    })
+    .join('')
+}
+
 const diffHtml = computed(() => {
   const items = diffItems.value
   if (!items) return ''
-  const isClubList = props.card.kind === 'ChapterClubList'
-  if (!isClubList) {
-    // A different verse recited in full is all noise as a markup, so show
-    // the verse as it reads untyped, with the answer as a muted note.
-    const counts = wrongVerse(items)
-    if (counts) {
-      const note = `You typed (${counts.matched} of ${counts.expected} words match)`
-      return `${verseHtml.value}<span class="fallback"><span class="fallback-note">${note}</span><span class="fallback-answer">${escapeHtml(userInputForDiff.value.trim())}</span></span>`
-    }
-    return `<span class="proofread">${toSegments(items).map(segmentHtml).join(' ')}</span>`
+  if (props.card.kind === 'ChapterClubList') {
+    return `<span class="proofread">${clubListHtml(items)}</span>`
   }
-  return items
-    .map((it) => {
-      const safe = escapeHtml(it.raw)
-      // A club list's correct numbers keep their verse colours, as they
-      // do when nothing was typed. Missed and extra numbers stay in the
-      // diff's red, which a verse colour would override.
-      if (it.kind === 'match') {
-        return isClubList ? safe.replace(/\d+/, (n) => verseNumberSpan(Number(n))) : safe
-      }
-      if (it.kind === 'missing') return `<span class="diff-missing">${safe}</span>`
-      return `<span class="diff-extra">${safe}</span>`
-    })
-    .join(' ')
+  // A different verse recited in full is all noise as a markup, so show
+  // the verse as it reads untyped, with the answer as a muted note.
+  const counts = wrongVerse(items)
+  if (counts) {
+    const note = `You typed (${counts.matched} of ${counts.expected} words match)`
+    return `${verseHtml.value}<span class="fallback"><span class="fallback-note">${note}</span><span class="fallback-answer">${escapeHtml(userInputForDiff.value.trim())}</span></span>`
+  }
+  return `<span class="proofread">${toSegments(items).map(segmentHtml).join(' ')}</span>`
 })
 
 </script>
@@ -840,21 +857,6 @@ const diffHtml = computed(() => {
 
 .verse-text.diff :deep(.fallback-answer) {
   font-size: 0.95rem;
-}
-
-/* Word-level diff markers on the reveal side. Missing = canonical word
-   the user didn't type (or got wrong); Extra = word the user typed
-   that wasn't in the canonical. Both use the same Again-grade red so
-   they read as "this is where you slipped" without competing with
-   the verse-colour accent. */
-.verse-text.diff :deep(.diff-missing) {
-  color: var(--color-grade-again);
-  text-decoration: underline;
-}
-
-.verse-text.diff :deep(.diff-extra) {
-  color: var(--color-grade-again);
-  text-decoration: line-through;
 }
 
 .answer {

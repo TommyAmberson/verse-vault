@@ -24,6 +24,9 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 * A reworded phrase reads as one correction. Mistakes separated only by one or two short shared
   words (of, the, and) merge, so "of the one and only Son from" carries "as of the only begotten of"
   above it instead of a scatter of small marks.
+* Typed club lists use the same look. Correct verses keep their verse colours, verses not in the
+  club are struck, and each missed verse sits above a caret in sorted order, tinted in its own verse
+  colour.
 
 ### Fixed
 
