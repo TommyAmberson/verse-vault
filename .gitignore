@@ -40,6 +40,8 @@ build/Release
 
 # Dependency directories
 node_modules/
+# Local `wrangler dev` state (miniflare caches, KV, D1)
+.wrangler/
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)

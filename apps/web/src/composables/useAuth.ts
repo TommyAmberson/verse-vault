@@ -18,12 +18,12 @@ async function clearProfileCaches(): Promise<void> {
 
 // Better Auth's client auto-appends `/api/auth` to baseURL only when the
 // URL has no path component (see `withPath` / `checkHasPath` in
-// better-auth/utils/url). In our subpath deployment VITE_API_BASE is `/vv`,
-// which already has a path, so the auto-append is skipped — we add the
-// `/api/auth` suffix ourselves. Better Auth also validates baseURL via
-// `new URL(...)`, which rejects relative inputs, so we absolutize against
-// `window.location.origin` when VITE_API_BASE is origin-relative.
-// VITE_API_URL is the legacy absolute-origin form, kept as a fallback.
+// better-auth/utils/url), so we add the suffix ourselves: VITE_API_BASE may
+// be an origin (production: https://www.versevault.ca) or an
+// origin-relative subpath prefix like `/vv`. Better Auth also validates
+// baseURL via `new URL(...)`, which rejects relative inputs, so a prefix is
+// absolutized against `window.location.origin`. VITE_API_URL is the legacy
+// absolute-origin form, kept as a fallback.
 const apiBase =
   import.meta.env.VITE_API_BASE ??
   import.meta.env.VITE_API_URL ??

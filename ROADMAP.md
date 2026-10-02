@@ -87,16 +87,17 @@ Each sub-phase is its own mergeable workstream, comparable in scope to any of 3A
 
 The Vue SPA in `apps/web/` is structured to ship to three surfaces from the same bundle:
 
-* **web** (shipping now, thin client) — `VITE_BASE_PATH=/vv/`, no service worker
+* **web** (shipping now, thin client) — served at the root (`VITE_BASE_PATH` unset), no service
+  worker
 * **PWA** (post-launch, not yet an issue) — same source as web + `vite-plugin-pwa` registers a
   service worker; `apps/web/public/_redirects` already provides the SPA fallback PWAs need.
   Mobile-installable.
 * **Tauri desktop** (#12) — `VITE_BASE_PATH=/`, absolute API URL, SW skipped via `__TAURI__` guard
 
-All three share the same Better Auth login flow; cross-origin variants (Tauri, and the web client
-once the subdomain cutover happens) will need a Better Auth cookie strategy decision —
-`SameSite=None` cookies vs bearer tokens. The natural moment to decide is when the subdomain cutover
-happens (see `docs/deployment.md` "Future: cutting over to subdomains").
+All three share the same Better Auth login flow; cross-origin variants (Tauri, and the web client if
+it ever moves to a separate subdomain from the API) will need a Better Auth cookie strategy decision
+— `SameSite=None` cookies vs bearer tokens. The web client is same-origin with the API at the root
+of www.versevault.ca, so Tauri is the first variant that forces the decision.
 
 ## Phase 3 tech debt ✅
 

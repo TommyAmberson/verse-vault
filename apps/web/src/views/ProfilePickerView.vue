@@ -68,9 +68,9 @@ function redirectTarget(): string {
 
 /** Absolute same-origin URL for the destination, for OAuth callbackURLs.
  *  `router.resolve(...).href` re-applies the history base
- *  (`VITE_BASE_PATH=/vv/` in production) that router paths strip —
- *  `origin + redirectTarget()` alone would 302 to `/review` instead of
- *  `/vv/review`, landing outside the SPA. */
+ *  (`VITE_BASE_PATH`, `/` in production) that router paths strip, so a
+ *  subpath build would otherwise 302 to `/review` instead of
+ *  `<base>/review`, landing outside the SPA. */
 function redirectCallbackUrl(): string {
   return window.location.origin + router.resolve(redirectTarget()).href
 }

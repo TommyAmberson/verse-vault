@@ -6,9 +6,9 @@ import wasm from 'vite-plugin-wasm'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  // VITE_BASE_PATH lets the production build emit asset URLs prefixed for a
-  // subpath deploy (e.g. `/vv/` while we co-host under versevault.ca). Local
-  // dev and root-domain builds get the default `/`.
+  // VITE_BASE_PATH lets a build emit asset URLs prefixed for a subpath deploy
+  // (production used `/vv/` before it moved to the root). Local dev and
+  // root-domain builds, production included, get the default `/`.
   base: process.env.VITE_BASE_PATH ?? '/',
   // verse-vault-wasm-web is built with `wasm-pack --target bundler`,
   // which emits an ESM module that imports the .wasm binary directly.

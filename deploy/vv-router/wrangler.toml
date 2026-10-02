@@ -2,12 +2,11 @@ name = "vv-router"
 main = "src/index.ts"
 compatibility_date = "2026-05-01"
 
-# Mount under /vv on the apex. Cloudflare evaluates Worker routes
-# longest-prefix-first, so this co-exists with qzr-api's /api/* route and the
-# qzr-sheet Pages catch-all at /*. Two patterns: `/vv` matches the bare prefix
-# (so the Worker — not the qzr-sheet Pages fallback — handles a no-trailing-
-# slash visit and redirects to `/vv/`), and `/vv/*` matches everything under
-# it.
+# The root of www.versevault.ca is the CF Pages project (custom domain); these
+# routes carve out what it can't serve. Each prefix needs two patterns: the bare
+# path (`/vv`, `/api`) and everything under it. `/api/*` was qzr-api's until
+# qzr moved to /qzr/api/*, and Cloudflare refuses a route another Worker holds,
+# so this deploys only after qzr-api has dropped it.
 [[routes]]
 pattern = "www.versevault.ca/vv"
 zone_name = "versevault.ca"
@@ -16,10 +15,14 @@ zone_name = "versevault.ca"
 pattern = "www.versevault.ca/vv/*"
 zone_name = "versevault.ca"
 
-[vars]
-# Public hostname of the CF Pages project that hosts the SPA bundle.
-# Set this to whatever Pages assigned (e.g. "verse-vault-web.pages.dev").
-PAGES_HOST = "verse-vault-web.pages.dev"
+[[routes]]
+pattern = "www.versevault.ca/api"
+zone_name = "versevault.ca"
 
+[[routes]]
+pattern = "www.versevault.ca/api/*"
+zone_name = "versevault.ca"
+
+[vars]
 # Tunnel-fronted API hostname (from `cloudflared tunnel route dns`).
 API_HOST = "vv-api.versevault.ca"

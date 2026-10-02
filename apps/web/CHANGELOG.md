@@ -9,6 +9,28 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-02
+
+MINOR: the app moves from www.versevault.ca/vv/ to the root of www.versevault.ca, now that qzr lives
+under /qzr/.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+* `verse-vault-wasm@0.12.0`: unchanged.
+
+### Changed
+
+* Served at the root: the production build drops `VITE_BASE_PATH=/vv/`, and `VITE_API_BASE` becomes
+  the absolute origin `https://www.versevault.ca` (an empty base would read as unset in the auth
+  client). Old `/vv/...` addresses are redirected by vv-router 0.2.0.
+
+### Added
+
+* Unknown paths go to qzr: a catch-all route sends any address the app doesn't know to `/qzr/<path>`
+  with a full page load, before the sign-in redirect. Old qzr links such as meet slugs
+  (`/fall-2025`), which can't be listed in advance, keep working.
+
 ## [0.9.26] - 2026-10-02
 
 MINOR: typed answers read as a proofread page instead of a red word diff (spec

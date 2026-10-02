@@ -10,6 +10,24 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.44] - 2026-10-02
+
+PATCH: comments only. Deployed with the move from `/vv/` to the root of www.versevault.ca, which
+needs `API_BASE_URL` and `WEB_BASE_URL` in `/etc/verse-vault.env` set to
+`https://www.versevault.ca`.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+* `verse-vault-wasm@0.12.0`: unchanged.
+
+### Changed
+
+* Comments that described requests under `/vv` and root `/api/auth/*` paths going to the sibling
+  qzr-api Worker now describe the root layout, where vv-router sends `/api/*` here unchanged. No
+  behaviour change: the Google `redirectURI` override and the profile-picker `errorURL` stay, and
+  both follow `API_BASE_URL` / `WEB_BASE_URL`.
+
 ## [0.1.43] - 2026-10-01
 
 PATCH: Memorize follows the schedule. The memorize count and the memorize session now read one

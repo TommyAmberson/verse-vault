@@ -69,7 +69,7 @@ export function createApp(deps: AppDeps) {
   });
   const isProd = process.env.NODE_ENV === 'production';
   // Browser-sent Origin headers are scheme+host+port only. Strip any path
-  // (e.g. `/vv` for subpath deployments) from the configured webOrigin so
+  // (a subpath deploy, as production's `/vv` was) from the configured webOrigin so
   // the equality check works.
   const webOrigin = new URL(deps.authEnv.webOrigin).origin;
   // CORS runs OUTERMOST. Hono's cors() sets `Access-Control-Allow-Origin`

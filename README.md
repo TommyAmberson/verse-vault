@@ -24,7 +24,7 @@ is implemented in `crates/core` rather than pulled from a crate — see
 
 ## Status
 
-Live at `www.versevault.ca/vv`. The Vue SPA runs the Rust engine as WASM in the browser and syncs
+Live at `www.versevault.ca`. The Vue SPA runs the Rust engine as WASM in the browser and syncs
 review events to a Hono API on a small VPS; the simulation crate stays around for validating
 scheduling changes against synthetic learners before they ship. See
 [`docs/deployment.md`](./docs/deployment.md) for the topology and
