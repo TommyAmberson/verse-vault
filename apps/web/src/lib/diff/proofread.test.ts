@@ -71,6 +71,30 @@ describe('toSegments', () => {
   });
 });
 
+// Long and trailing edits take the same form as any other (FR-006), so
+// the segments carry nothing about length or position.
+describe('long and trailing edits', () => {
+  it('reads stopping early as one trailing skip', () => {
+    const rest = JOHN_1_10.split(' ').slice(4);
+
+    expect(segments(JOHN_1_10, 'He was in the')).toEqual([
+      { kind: 'match', words: ['He', 'was', 'in', 'the'] },
+      { kind: 'skip', expected: rest },
+    ]);
+    expect(rest).toHaveLength(15);
+  });
+
+  it('reads a wrong word then stopping early as a replacement and a skip', () => {
+    const verse = 'All things were made through Him, and without Him nothing was made that was made.';
+    const typed = 'All things were made by Him, and without Him nothing was made';
+
+    expect(edits(verse, typed)).toEqual([
+      { kind: 'replace', typed: ['by'], expected: ['through'] },
+      { kind: 'skip', expected: ['that', 'was', 'made.'] },
+    ]);
+  });
+});
+
 describe('wrongVerse', () => {
   function check(expected: string, typed: string) {
     return wrongVerse(wordDiff(expected, typed));

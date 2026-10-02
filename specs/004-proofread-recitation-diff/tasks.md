@@ -125,7 +125,7 @@ US3 adds no rule: FR-006 gives every edit one form, and T005's in-flow stack alr
 
 ### Tests for User Story 3
 
-- [ ] T009 [US3] Extend the edit module's tests: "He was in the" on John 1:10 yields four matched words then a single trailing `skip` of the remaining fifteen expected words; the John 1:3 case yields a `replace` ("by" against "through") and a trailing `skip` ("that was made."); neither edit carries any length- or position-dependent marking (data-model.md, Edit: a `skip` is shown as "caret, expected words in a label above").
+- [X] T009 [US3] Extend the edit module's tests: "He was in the" on John 1:10 yields four matched words then a single trailing `skip` of the remaining fifteen expected words; the John 1:3 case yields a `replace` ("by" against "through") and a trailing `skip` ("that was made."); neither edit carries any length- or position-dependent marking (data-model.md, Edit: a `skip` is shown as "caret, expected words in a label above").
 
 ### Implementation for User Story 3
 
