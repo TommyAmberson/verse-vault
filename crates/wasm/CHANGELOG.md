@@ -22,6 +22,22 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-10-02
+
+PATCH: a memorize session's extra cards come only from memorized verses.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+
+### Fixed
+
+* `memorize_session_v2` offered a verse's optional cards (first words, which heading, which club) as
+  extras when the verse was outside the session, whether or not it had been memorized. A learner
+  behind on one club was asked to continue verses of another club they had never learned, starting
+  with the first-words cards of their owed Club 300 verses. Those cards now ride along only once
+  their verse is memorized; before that they come with the verse's own session.
+
 ## [0.12.0] - 2026-10-01
 
 MINOR: bundles core 0.12.0, whose memorize count and queue follow the schedule.

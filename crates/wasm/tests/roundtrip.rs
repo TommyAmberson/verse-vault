@@ -443,3 +443,51 @@ fn memorize_session_attaches_hp_and_ccl_by_session_order() {
         "{json}"
     );
 }
+
+// Two verses, each with a first-words card.
+const MATERIAL_TWO_FTV_JSON: &str = r#"{
+    "year": 3,
+    "books": ["John"],
+    "chapters": [{"book": "John", "number": 3, "start_verse": 16, "end_verse": 17}],
+    "verses": [
+        {"book": "John", "chapter": 3, "verse": 16, "phraseWordCounts": [2, 2], "annotations": [], "ftvWordCount": 2, "clubs": []},
+        {"book": "John", "chapter": 3, "verse": 17, "phraseWordCounts": [2, 3], "annotations": [], "ftvWordCount": 2, "clubs": []}
+    ],
+    "headings": []
+}"#;
+
+fn orphan_kinds_and_verses(engine: &WasmEngine) -> Vec<(String, u64)> {
+    let json = engine.memorize_session_v2(1, 0).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    // `orphans` is left out of the JSON when there are none.
+    let orphans = session["orphans"].as_array().cloned().unwrap_or_default();
+    orphans
+        .iter()
+        .map(|id| {
+            let render: serde_json::Value =
+                serde_json::from_str(&engine.get_card_render(id.as_u64().unwrap() as u32).unwrap())
+                    .unwrap();
+            (
+                render["kind"].as_str().unwrap().to_string(),
+                render["verse"]["verse"].as_u64().unwrap(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn memorize_session_orphans_only_cards_of_memorized_verses() {
+    // A batch of one serves 3:16. 3:17 is outside the session and not yet
+    // memorized, so its first-words card must not ride along as an extra:
+    // the learner would be asked to continue a verse they never learned.
+    let mut engine = WasmEngine::new(MATERIAL_TWO_FTV_JSON, "", "", "", 0).unwrap();
+    assert_eq!(orphan_kinds_and_verses(&engine), vec![]);
+
+    // Once 3:17 is memorized with its first-words card still new, that card
+    // is a proper extra.
+    engine.graduate_verse(1);
+    assert_eq!(
+        orphan_kinds_and_verses(&engine),
+        vec![("Ftv".to_string(), 17)]
+    );
+}
