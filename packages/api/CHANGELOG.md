@@ -10,6 +10,25 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.47] - 2026-10-02
+
+PATCH: memorize sessions carry fewer extra cards, and skip the which-book card in a single-book
+year.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.14.0`: the engine says which cards ask only a given; the unused progressive
+  reveal is removed.
+* `verse-vault-wasm@0.13.0`: a session's extras share two budgets; single-book decks leave the
+  which-book card out of a verse's `cardIds`.
+
+### Changed
+
+* `GET /api/cards/memorize/session` carries at most `max` heading and chapter-list cards together,
+  the session's own first, and at most `max` first-words, which-heading and which-club orphans
+  together, instead of up to `max` of each kind. In a deck drawn from one book (John, Luke), a
+  verse's `cardIds` no longer hold its which-book card; graduating the verse still memorizes it.
+
 ## [0.1.46] - 2026-10-02
 
 PATCH: in a single-book year (John, Luke), the which-book test starts at maximum memory.
