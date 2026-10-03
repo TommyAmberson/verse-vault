@@ -22,6 +22,21 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-02
+
+MAJOR: in a deck drawn from one book, the book binding of every verse starts at maximum memory.
+Replaying the review events of such a deck (John, Luke) yields different `VerseBook` states than
+0.12.0.
+
+### Changed
+
+* `build_with_config` seeds each `VerseBook` test with the new `TestState::new_at_max_memory`
+  (stability `S_MAX`, difficulty `D_MIN`) when every verse with content comes from one book. The
+  which-book question has only one answer there, so its card stays but is never due early, and a
+  missed recitation or citation puts almost none of the blame on the book. Other decks still seed
+  every test with `new_unseen`. Persisted states still override seeds, so a book test already
+  reviewed keeps its state until its events are replayed.
+
 ## [0.12.0] - 2026-10-01
 
 MINOR: the memorize count and queue follow the schedule (`specs/003-memorize-by-schedule`). What the

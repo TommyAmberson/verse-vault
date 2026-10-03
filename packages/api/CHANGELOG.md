@@ -10,6 +10,21 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.46] - 2026-10-02
+
+PATCH: in a single-book year (John, Luke), the which-book test starts at maximum memory.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.13.0`: a single-book deck seeds its `VerseBook` tests at maximum memory.
+* `verse-vault-wasm@0.12.1`: unchanged.
+
+### Changed
+
+* Engines built for a deck drawn from one book seed every `VerseBook` test at maximum memory, so
+  review queues and counts no longer include its which-book cards early. Persisted states still win
+  over seeds.
+
 ## [0.1.45] - 2026-10-02
 
 PATCH: memorize sessions offer extra cards only from memorized verses.

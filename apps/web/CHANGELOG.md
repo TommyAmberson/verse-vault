@@ -9,6 +9,21 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-10-02
+
+PATCH: in a single-book year (John, Luke), the which-book card starts as already known.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.13.0`: a single-book deck seeds its `VerseBook` tests at maximum memory.
+* `verse-vault-wasm@0.12.1`: unchanged.
+
+### Changed
+
+* The which-book card of a verse in John or Luke starts at maximum memory, so it no longer comes due
+  right after memorizing, and missing a full recitation barely counts against the book. The card
+  still exists, and the recitation and citation cards still ask for the book.
+
 ## [0.10.2] - 2026-10-02
 
 PATCH: the Memorize page offers extra cards only from memorized verses.

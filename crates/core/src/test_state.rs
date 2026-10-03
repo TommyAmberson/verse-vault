@@ -53,6 +53,20 @@ impl TestState {
         }
     }
 
+    /// Construct a state at maximum memory: ceiling stability and floor
+    /// difficulty, for a test whose answer the learner cannot get wrong,
+    /// such as the book of a verse in a single-book deck. Its timestamps
+    /// match [`new_unseen`](Self::new_unseen), so replaying reviews from
+    /// any time in the past year never sees a future `last_seen_secs`;
+    /// recall a year on from this stability is still about 0.99.
+    pub fn new_at_max_memory(now_secs: i64) -> Self {
+        TestState {
+            stability: crate::fsrs_bridge::S_MAX,
+            difficulty: crate::fsrs_bridge::D_MIN,
+            ..Self::new_unseen(now_secs)
+        }
+    }
+
     /// Days elapsed since `last_seen_secs` — the input the FSRS forgetting
     /// curve takes. Mirrors HSRS's `now - state.lastSeen`. Clamped at zero
     /// so future-dated timestamps don't yield negative elapsed.
