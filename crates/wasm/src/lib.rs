@@ -534,6 +534,17 @@ impl WasmEngine {
             .filter(|c| self.engine.verse_active_for_memorize(c.verse_id))
             .map(|c| c.verse_id)
             .collect();
+        // Verses whose content cards are not all memorized yet. A verse's
+        // optional cards only ride along as extras once the verse itself
+        // is memorized; before that they come with the verse's own session.
+        let unmemorized_verses: HashSet<u32> = cards
+            .iter()
+            .filter(|c| {
+                matches!(c.state, CardState::New)
+                    && verse_vault_core::engine::is_bulk_graduable(&c.kind)
+            })
+            .map(|c| c.verse_id)
+            .collect();
 
         // Verse anchors come from the schedule-aware queue, one kind per
         // session: owed verses, else working ahead by schedule week, else
@@ -754,7 +765,8 @@ impl WasmEngine {
         //   * HP overflow (`hp_pending` minus what fit in `verse_order`).
         //   * CCL overflow (same).
         //   * Conditional verse-bound kinds (Ftv / VerseInHeading /
-        //     VerseInClub) New on a verse that isn't a session-verse —
+        //     VerseInClub) New on a memorized verse that isn't a
+        //     session-verse —
         //     deduped by `heading_idx` / `tier` so multiple orphans of
         //     the same heading/tier collapse to one.
         let cap = limit as usize;
@@ -805,7 +817,9 @@ impl WasmEngine {
             if !memorize_active_verses.contains(&card.verse_id) {
                 continue;
             }
-            if session_verses.contains(&card.verse_id) {
+            if session_verses.contains(&card.verse_id)
+                || unmemorized_verses.contains(&card.verse_id)
+            {
                 continue;
             }
             match card.kind {

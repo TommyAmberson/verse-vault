@@ -10,6 +10,20 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.45] - 2026-10-02
+
+PATCH: memorize sessions offer extra cards only from memorized verses.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+* `verse-vault-wasm@0.12.1`: a session's extras come only from memorized verses.
+
+### Fixed
+
+* `GET /api/cards/memorize/session` could include first-words, which-heading and which-club cards
+  for verses the learner had not memorized yet, as extras.
+
 ## [0.1.44] - 2026-10-02
 
 PATCH: comments only. Deployed with the move from `/vv/` to the root of www.versevault.ca, which
