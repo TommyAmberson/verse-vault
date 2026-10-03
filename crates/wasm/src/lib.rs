@@ -436,9 +436,8 @@ impl WasmEngine {
         schedule_learned_verse_count(&self.engine, threshold_days)
     }
 
-    /// Pick the next New card for the memorize queue. The caller walks the
-    /// per-verse progression client-side (see `new_verse_progression` on
-    /// the core `Session`) then calls `graduate_verse` to commit.
+    /// Pick the next New card for the memorize queue. The caller drills the
+    /// verse (docs/memorize.md) then calls `graduate_verse` to commit.
     pub fn next_memorize_card(&self, now_secs: i64) -> Option<u32> {
         schedule_next_memorize_card(&self.engine, now_secs).map(|c| c.0)
     }

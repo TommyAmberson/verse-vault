@@ -209,7 +209,7 @@ quickstart.md manual step 2 behaves as described.
 **Independent Test**: quickstart.md "Docs" checks pass; `grep -rn new_verse_progression crates docs`
 finds nothing.
 
-- [ ] T011 [US4] Remove `Session::new_verse_progression` and its test from
+- [X] T011 [US4] Remove `Session::new_verse_progression` and its test from
       `crates/core/src/session.rs`, and the module comment's progressive-reveal clause. Reword the
       comments that cite it: `next_memorize_card` in `crates/core/src/schedule.rs`, `CardKind::Reading`
       in `crates/core/src/card.rs` (nothing emits it now), and `next_memorize_card` in

@@ -266,9 +266,8 @@ pub fn due_review_count(engine: &ReviewEngine, now_secs: i64) -> u32 {
 }
 
 /// Pick the next card from the memorize queue: any `New` card. Returns one
-/// canonical card per call; the caller is expected to walk the per-verse
-/// progression client-side (see [`crate::session::Session::new_verse_progression`])
-/// and then graduate the verse via [`ReviewEngine::graduate_verse`].
+/// canonical card per call; the caller is expected to drill the verse
+/// (docs/memorize.md) and then graduate it via [`ReviewEngine::graduate_verse`].
 ///
 /// Cooldown and FSRS due time don't apply — `New` cards have never been
 /// reviewed. Ties broken by ascending verse id (the batch fill sorts

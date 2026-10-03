@@ -24,14 +24,19 @@ Bumps follow semver semantics:
 
 ## [0.14.0] - 2026-10-02
 
-MINOR: the engine says which cards ask only a given (`specs/005-memorize-session-flow`). Additive;
-no state or replay change.
+MINOR: the engine says which cards ask only a given, and the unused progressive reveal is retired
+(`specs/005-memorize-session-flow`). No state or replay change.
 
 ### Added
 
 * `ReviewEngine::is_given(&Card)`: whether every test a card asks is a given in its deck, today the
   book of a verse in a deck drawn from one book. Seeding and this predicate share one rule, so the
   memorize session can leave the which-book card out of the drill without deciding it a second time.
+
+### Removed
+
+* `Session::new_verse_progression`, the progressive reveal (Reading, each blank, Recitation) for a
+  new verse. No client ran it; the memorize drill in `docs/memorize.md` is the progression.
 
 ## [0.13.0] - 2026-10-02
 

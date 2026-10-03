@@ -69,9 +69,9 @@ pub enum CardKind {
     HeadingPassage {
         heading_idx: u16,
     },
-    /// UX-only: progressive-reveal entry that shows the verse text to the
-    /// learner. Carries no FSRS state and is never emitted by `builder::build`;
-    /// it only appears in `Session::new_verse_progression`.
+    /// UX-only: an entry that shows the verse text to the learner. Carries
+    /// no FSRS state, and nothing emits it since the progressive reveal it
+    /// served was retired; kept because it is part of the card wire shape.
     Reading,
 }
 
