@@ -215,7 +215,7 @@ finds nothing.
       in `crates/core/src/card.rs` (nothing emits it now), and `next_memorize_card` in
       `crates/wasm/src/lib.rs`. Record the removal in the core CHANGELOG section from T008 (research
       D6); covered by `cargo test` still passing
-- [ ] T012 [P] [US4] Add the session flow to `docs/memorize.md` (research D7): items and the two
+- [X] T012 [P] [US4] Add the session flow to `docs/memorize.md` (research D7): items and the two
       extras budgets per year, own before catch-ups, the which-book card left out of single-book
       years' drills, the read phase with "Already memorized", the drill's pick-and-swap rule and
       no-echo (research D2, D3), Good and Again, the closing read with Graduate and Not yet, and the
