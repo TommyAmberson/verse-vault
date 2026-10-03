@@ -59,7 +59,9 @@ it.
 
 `now_secs` is used to seed every fresh `TestState::new_unseen` — the seeded states have
 `last_base_secs = now_secs - 365 days`, which puts them well below the target retention so the
-scheduler will treat them as immediately due.
+scheduler will treat them as immediately due. The exception is a deck drawn from one book: its
+`VerseBook` tests are seeded with `TestState::new_at_max_memory`, the same timestamps at the ceiling
+stability, so the which-book card is never due early.
 
 Throws a JS `Error` (mapped from `JsError`) on malformed JSON.
 

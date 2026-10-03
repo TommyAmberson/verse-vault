@@ -15,9 +15,10 @@ const S_MIN: f32 = 0.001;
 /// Hard ceiling on stability. Effectively unreachable through update paths
 /// because `apply_stability_clamp`'s `soft_clamp` pulls anything large back
 /// toward `STABILITY_SOFT_CAP`. Kept as the saturation return value for
-/// `invert_r` when `r ≈ 1.0` (its caller then re-applies `soft_clamp`).
-const S_MAX: f32 = 36500.0;
-const D_MIN: f32 = 1.0;
+/// `invert_r` when `r ≈ 1.0` (its caller then re-applies `soft_clamp`), and
+/// as the seed of `TestState::new_at_max_memory`.
+pub(crate) const S_MAX: f32 = 36500.0;
+pub(crate) const D_MIN: f32 = 1.0;
 const D_MAX: f32 = 10.0;
 
 /// Asymptotic ceiling for stability (in days). Updates are linear up to

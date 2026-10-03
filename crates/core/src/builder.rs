@@ -5,7 +5,7 @@ use crate::content::{HeadingData, MaterialData};
 use crate::element::ClubTier;
 use crate::material_config::MaterialConfig;
 use crate::render::{HeadingRender, VerseRender};
-use crate::test_kind::TestKey;
+use crate::test_kind::{TestKey, TestKind};
 use crate::test_state::TestState;
 use crate::types::CardId;
 use crate::verse_index::{VerseElements, VerseIndex};
@@ -384,7 +384,8 @@ pub fn build(data: &MaterialData, now_secs: i64) -> BuildResult {
 ///
 /// Verses are assigned `verse_id`s in `data.verses_with_content()` order
 /// starting at 0. `now_secs` is used to seed `TestState::new_unseen` for every
-/// test reachable from any emitted card.
+/// test reachable from any emitted card, except the book bindings of a deck
+/// drawn from one book, which get `TestState::new_at_max_memory`.
 ///
 /// `config` controls which card kinds the builder emits. See
 /// [`MaterialConfig`] for the toggles and the always-on cards that ignore
@@ -579,6 +580,10 @@ pub fn build_with_config(
     );
 
     // Seed `TestState::new_unseen` for every TestKey reachable from any card.
+    // In a deck drawn from one book the book binding is a given, so it starts
+    // at maximum memory: its card stays, but is never due early, and a missed
+    // recitation or citation puts almost none of the blame on the book.
+    let single_book = book_index.len() == 1;
     let mut tests: HashMap<TestKey, TestState> = HashMap::new();
     let mut seen: HashSet<TestKey> = HashSet::new();
     for card in &cards {
@@ -588,7 +593,12 @@ pub fn build_with_config(
         };
         for tk in card.tests(atoms) {
             if seen.insert(tk) {
-                tests.insert(tk, TestState::new_unseen(now_secs));
+                let state = if single_book && tk.kind == TestKind::VerseBook {
+                    TestState::new_at_max_memory(now_secs)
+                } else {
+                    TestState::new_unseen(now_secs)
+                };
+                tests.insert(tk, state);
             }
         }
     }
@@ -609,7 +619,6 @@ mod tests {
     use super::*;
     use crate::element::ElementId;
     use crate::material_config::ChapterListScope;
-    use crate::test_kind::TestKind;
 
     fn material_one_verse_simple() -> MaterialData {
         serde_json::from_str(
@@ -854,6 +863,66 @@ mod tests {
         for state in r.tests.values() {
             assert!(state.last_seen_secs <= now);
         }
+    }
+
+    fn material_two_verses(second_book: &str) -> MaterialData {
+        serde_json::from_str(&format!(
+            r#"{{
+                "year": 3,
+                "books": ["John", "{second_book}"],
+                "chapters": [],
+                "verses": [
+                    {{
+                        "book": "John", "chapter": 3, "verse": 16,
+                        "phraseWordCounts": [2, 2],
+                        "annotations": [],
+                        "ftvWordCount": null,
+                        "clubs": []
+                    }},
+                    {{
+                        "book": "{second_book}", "chapter": 3, "verse": 17,
+                        "phraseWordCounts": [2, 2],
+                        "annotations": [],
+                        "ftvWordCount": null,
+                        "clubs": []
+                    }}
+                ],
+                "headings": []
+            }}"#
+        ))
+        .unwrap()
+    }
+
+    fn seeded_stabilities(r: &BuildResult, kind: TestKind) -> Vec<f32> {
+        r.tests
+            .iter()
+            .filter(|(tk, _)| tk.kind == kind)
+            .map(|(_, s)| s.stability)
+            .collect()
+    }
+
+    #[test]
+    fn single_book_deck_seeds_book_tests_at_max_memory() {
+        let now = 86400 * 365;
+        let r = build(&material_two_verses("John"), now);
+        let max = TestState::new_at_max_memory(now).stability;
+        let book = seeded_stabilities(&r, TestKind::VerseBook);
+        assert_eq!(book.len(), 2);
+        assert!(book.iter().all(|&s| s == max));
+        // Only the book binding is a given; everything else starts unseen.
+        let unseen = TestState::new_unseen(now).stability;
+        let chapter = seeded_stabilities(&r, TestKind::VerseChapter);
+        assert!(chapter.iter().all(|&s| s == unseen));
+    }
+
+    #[test]
+    fn multi_book_deck_seeds_book_tests_unseen() {
+        let now = 86400 * 365;
+        let r = build(&material_two_verses("Luke"), now);
+        let unseen = TestState::new_unseen(now).stability;
+        let book = seeded_stabilities(&r, TestKind::VerseBook);
+        assert_eq!(book.len(), 2);
+        assert!(book.iter().all(|&s| s == unseen));
     }
 
     #[test]

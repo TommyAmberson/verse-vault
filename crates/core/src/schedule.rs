@@ -1288,7 +1288,8 @@ mod tests {
     fn due_review_count_matches_next_card_eligibility() {
         // Build at t0=0 then jump forward a year — every active card's
         // retrievability has decayed well below default 0.9, so every
-        // active card should count as due.
+        // active card should count as due. The exception is the which-book
+        // card: the deck is John-only, so its test starts at max memory.
         let m = sample_material_two_verses();
         let r = crate::builder::build(&m, 0);
         let mut engine = ReviewEngine::new(r, 0.9);
@@ -1299,6 +1300,7 @@ mod tests {
             .cards
             .iter()
             .filter(|c| matches!(c.state, CardState::Active))
+            .filter(|c| c.kind != CardKind::VerseInBook)
             .count() as u32;
         assert!(active > 0, "test material must produce active cards");
         assert_eq!(due_review_count(&engine, now), active);
@@ -1339,13 +1341,19 @@ mod tests {
         engine.graduate_all();
 
         // Default seed leaves every test at stability 1.0 — every active
-        // card lands in `learning` (>=1, <7). Nothing in any other bucket.
+        // card lands in `learning` (>=1, <7). The John-only deck's
+        // which-book cards start at max memory and land in `mastered`.
+        let book_cards = engine
+            .cards
+            .iter()
+            .filter(|c| c.kind == CardKind::VerseInBook)
+            .count() as u32;
         let h = card_stability_histogram(&engine);
         assert!(h.learning > 0);
         assert_eq!(h.weak, 0);
         assert_eq!(h.familiar, 0);
         assert_eq!(h.strong, 0);
-        assert_eq!(h.mastered, 0);
+        assert_eq!(h.mastered, book_cards);
 
         // Boost one test's stability into `mastered` and confirm the
         // affected card moves to mastered iff that's its weakest test.
@@ -1363,7 +1371,11 @@ mod tests {
         }
 
         let h2 = card_stability_histogram(&engine);
-        assert_eq!(h2.mastered, 1, "the boosted card must land in mastered");
+        assert_eq!(
+            h2.mastered,
+            book_cards + 1,
+            "the boosted card must land in mastered"
+        );
         assert_eq!(h2.learning, h.learning - 1);
     }
 
