@@ -558,6 +558,13 @@ export function cardCountByClub(materialId: string): ClubCounts {
   return JSON.parse(session.engine.card_count_by_club()) as ClubCounts
 }
 
+/** A card's kind (`PhraseFill`, `Recitation`, `Ftv`, ...) from the local
+ *  engine's structural render, so no passage text and no network. */
+export function cardKind(materialId: string, cardId: number): string {
+  const session = requireSession(materialId, 'cardKind')
+  return (JSON.parse(session.engine.get_card_render(cardId)) as { kind: string }).kind
+}
+
 /** Fetch a card's render — IDB cache first, network fallback. Stores
  *  the network result in IDB for offline replay. Honours the 30-day
  *  MAUA TTL via `getRender`'s freshness check. */

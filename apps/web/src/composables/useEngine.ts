@@ -295,6 +295,10 @@ export function useEngine() {
     return engineStore.cardCountByClub(materialId)
   }
 
+  function cardKind(materialId: string, cardId: number): string {
+    return engineStore.cardKind(materialId, cardId)
+  }
+
   async function getCardRender(materialId: string, cardId: number): Promise<CardRender> {
     return engineStore.getCardRender(materialId, cardId, nowSecs())
   }
@@ -357,6 +361,7 @@ export function useEngine() {
     memorizeSession,
     newCardCount,
     cardCountByClub,
+    cardKind,
     getCardRender,
     flush: flushAll,
     confirmMerge,
