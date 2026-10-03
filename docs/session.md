@@ -1,8 +1,9 @@
 # Sessions
 
-How within-session flow works: re-drills after lapses, progressive reveal for new verses. Memory
-state lives entirely on the engine's per-test `TestState` table — see [`review.md`](review.md) for
-the review pipeline and [`scheduling.md`](scheduling.md) for card selection.
+How within-session review flow works: re-drills after lapses and the FTV queue. Memory state lives
+entirely on the engine's per-test `TestState` table — see [`review.md`](review.md) for the review
+pipeline and [`scheduling.md`](scheduling.md) for card selection. A memorize session (reading new
+verses, drilling them, graduating them) is in [`memorize.md`](memorize.md#the-session).
 
 ## Design principle
 
@@ -48,35 +49,6 @@ pub enum ReDrillKind {
 `next_drill_after(grade)` returns `Some(SessionAction::ReDrill { SameCard })` on `Grade::Again` and
 `None` otherwise. The earlier "fill-in-blank vs. full-recitation" branching depended on per-phrase
 grades the new pipeline doesn't produce; it has been removed.
-
-## Progressive reveal (new verses)
-
-`Session::new_verse_progression(verse_id, phrase_count)` returns the staged sequence used to
-introduce a new verse:
-
-```
-[ Reading, PhraseFill 0, ..., PhraseFill N-1, Recitation ]
-```
-
-* **Reading** — has no contained tests; the engine treats it as a no-op review. The frontend uses it
-  to display the full verse.
-* **PhraseFill 0..N-1** — atomic cards, one per phrase position. Each one is a vanilla FSRS step on
-  `PhraseFromContext` for that phrase.
-* **Recitation** — composite card containing every phrase plus the citation triple
-  (`VerseRefPosition`, `VerseChapter`, `VerseBook`). One grade decomposes across all of them via the
-  engine's Bayesian-share weights.
-
-The progression is just a list of `CardKind`s; the session walks it in order, gating advancement
-through the same `next_drill_after` machinery any other review uses.
-
-## Memorize drill in the web client
-
-The web Memorize page does not walk this progression. A session reads every item, drills every card
-in one shuffled queue, then reads the items again and graduates each. In that queue each verse's
-blanks (`PhraseFill`) come before the cards that ask for the whole verse (`Recitation`, `Ftv`); its
-other cards go anywhere. A missed card goes to the back, and a missed blank takes its verse's
-still-queued whole-verse cards behind it. `apps/web/src/lib/drillOrder.ts` holds the rule. The
-memorize session flow as a whole has no owning spec yet.
 
 ## FTV priority queue
 

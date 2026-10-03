@@ -220,7 +220,7 @@ finds nothing.
       years' drills, the read phase with "Already memorized", the drill's pick-and-swap rule and
       no-echo (research D2, D3), Good and Again, the closing read with Graduate and Not yet, and the
       summary. Point its opening at the new section instead of at `docs/session.md`
-- [ ] T013 [P] [US4] In `docs/session.md`, drop the "Progressive reveal (new verses)" and "Memorize
+- [X] T013 [P] [US4] In `docs/session.md`, drop the "Progressive reveal (new verses)" and "Memorize
       drill in the web client" sections and the progressive-reveal mention in its opening, pointing
       memorize readers at `docs/memorize.md`. In `docs/wasm-api.md`, state the shared budgets and
       the single-book `cardIds` for `memorize_session_v2`. In `docs/unspecced.md`, drop the claim
