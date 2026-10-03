@@ -494,7 +494,10 @@ impl WasmEngine {
         #[serde(rename_all = "camelCase")]
         struct Entry {
             verse_id: u32,
-            /// Verse-bound cards drilled with this verse.
+            /// Verse-bound cards drilled with this verse, less any whose
+            /// answer is a given (`ReviewEngine::is_given`: the which-book
+            /// card of a single-book deck); `graduate_verse` still
+            /// graduates those.
             card_ids: Vec<u32>,
             /// Subset of `card_ids` that need an explicit `graduate_card`
             /// on step-3 verse graduation. `graduate_verse` already flips
@@ -723,6 +726,9 @@ impl WasmEngine {
             let mut card_ids: Vec<u32> = Vec::new();
             let mut conditional_card_ids: Vec<u32> = Vec::new();
             for card in cards.iter().filter(|c| c.verse_id == verse_id) {
+                if self.engine.is_given(card) {
+                    continue;
+                }
                 match card.kind {
                     CardKind::ChapterClubList { .. }
                     | CardKind::HeadingPassage { .. }

@@ -29,7 +29,8 @@ MINOR: a memorize session's extra cards share two budgets instead of one per kin
 
 ### Bundled algorithm contract
 
-* `verse-vault-core@0.13.0`: single-book decks seed their book tests at maximum memory.
+* `verse-vault-core@0.14.0`: single-book decks seed their book tests at maximum memory (0.13.0), and
+  the engine says which cards ask only a given (0.14.0).
 
 ### Changed
 
@@ -38,6 +39,10 @@ MINOR: a memorize session's extra cards share two budgets instead of one per kin
   `limit`, filled with the session's own cards (those attaching to a session verse) before
   catch-ups, and the first-words, which-heading and which-club orphans share another. A card the
   budget leaves out stays New and comes back in a later session.
+* A which-heading card coming with a session verse no longer also comes as an orphan for the same
+  heading, which would drill the question twice and spend an orphan slot.
+* In a deck drawn from one book (John, Luke), a session verse's `cardIds` leave out its which-book
+  card, whose one answer is a given. `graduate_verse` still graduates it with the verse.
 
 ## [0.12.1] - 2026-10-02
 

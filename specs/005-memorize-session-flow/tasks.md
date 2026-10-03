@@ -151,7 +151,7 @@ quickstart.md manual step 2 behaves as described.
       picks among several missed blanks. Cover the spec's edge cases: a verse with no blanks, a
       verse with no whole-verse cards, one verse left, and two orphans of one memorized verse kept
       apart (research D3). Keep the `drillStage` suite
-- [ ] T005 [US2] In `crates/wasm/tests/roundtrip.rs`, add a test that in a single-book deck no
+- [X] T005 [US2] In `crates/wasm/tests/roundtrip.rs`, add a test that in a single-book deck no
       verse's `cardIds` from `memorize_session_v2` hold its `VerseInBook` card and `graduate_verse`
       still makes that card Active, and that a deck drawing from two books keeps it in `cardIds`.
       The existing `MATERIAL_JSON` fixtures are John-only; add a two-book inline material shaped
@@ -173,13 +173,14 @@ quickstart.md manual step 2 behaves as described.
       keep the `submitting` guard, let `graduateItem` drop the item's cards, drive "N of M" from a
       done-count against the total at drill start, and update the phase and `buildSession` comments
       that describe the old ordering; covered by T004 and quickstart.md manual step 2
-- [ ] T008 [US2] Expose, from `crates/core`, whether a material's deck draws every verse from one
-      book, decided once where core 0.13.0 decides it for seeding in `crates/core/src/builder.rs`, so
-      the seeding and the session builder read the same answer (research D9). Extend the
-      single-book and multi-book builder tests there to assert the exposed answer. Bump core MINOR
-      with a dated section in `crates/core/CHANGELOG.md` and `crates/core/Cargo.toml`. Needs T001
-- [ ] T009 [US2] In `memorize_session_v2` in `crates/wasm/src/lib.rs`, leave a verse's
-      `VerseInBook` card out of its `cardIds` when T008's answer says the deck is single-book
+- [X] T008 [US2] Expose, from `crates/core`, whether a card asks only given tests (the book of a
+      verse in a single-book deck), from one rule shared with core 0.13.0's seeding in
+      `crates/core/src/builder.rs`, so the seeding and the session builder can't disagree (research
+      D9). Extend the single-book and multi-book builder tests there to assert which cards are a
+      given. Bump core MINOR with a dated section in `crates/core/CHANGELOG.md` and
+      `crates/core/Cargo.toml`. Needs T001
+- [X] T009 [US2] In `memorize_session_v2` in `crates/wasm/src/lib.rs`, leave a verse's
+      `VerseInBook` card out of its `cardIds` when T008's predicate says the card is a given
       (contracts/memorize-session.md rule 6); `graduate_verse` is unchanged. Update the `card_ids`
       field comment, and extend the wasm CHANGELOG section from T003; covered by T005
 

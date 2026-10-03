@@ -22,6 +22,17 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-02
+
+MINOR: the engine says which cards ask only a given (`specs/005-memorize-session-flow`). Additive;
+no state or replay change.
+
+### Added
+
+* `ReviewEngine::is_given(&Card)`: whether every test a card asks is a given in its deck, today the
+  book of a verse in a deck drawn from one book. Seeding and this predicate share one rule, so the
+  memorize session can leave the which-book card out of the drill without deciding it a second time.
+
 ## [0.13.0] - 2026-10-02
 
 MAJOR: in a deck drawn from one book, the book binding of every verse starts at maximum memory.

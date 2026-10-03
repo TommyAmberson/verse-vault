@@ -742,3 +742,91 @@ fn memorize_session_offers_a_which_heading_card_once() {
         .count();
     assert_eq!(which_heading, 1, "{json}");
 }
+
+// One verse each from John and Luke: a deck that draws from two books, so
+// "which book is this verse in?" has more than one answer.
+const MATERIAL_TWO_BOOKS_JSON: &str = r#"{
+    "year": 3,
+    "books": ["John", "Luke"],
+    "chapters": [
+        {"book": "John", "number": 3, "start_verse": 16, "end_verse": 16},
+        {"book": "Luke", "number": 2, "start_verse": 11, "end_verse": 11}
+    ],
+    "verses": [
+        {"book": "John", "chapter": 3, "verse": 16, "phraseWordCounts": [2, 2], "annotations": [], "clubs": []},
+        {"book": "Luke", "chapter": 2, "verse": 11, "phraseWordCounts": [2, 3], "annotations": [], "clubs": []}
+    ],
+    "headings": []
+}"#;
+
+/// The kinds of the cards each session verse drills, by verse id.
+fn drilled_kinds(engine: &WasmEngine) -> Vec<(u64, Vec<String>)> {
+    let kinds = card_kinds(engine);
+    let session: serde_json::Value =
+        serde_json::from_str(&engine.memorize_session_v2(10, 0).unwrap()).unwrap();
+    session["verses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| {
+            let drilled = e["cardIds"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|id| kinds[&id.as_u64().unwrap()].clone())
+                .collect();
+            (e["verseId"].as_u64().unwrap(), drilled)
+        })
+        .collect()
+}
+
+#[test]
+fn memorize_session_skips_which_book_card_in_single_book_deck() {
+    // A John-only deck: the which-book card has one possible answer, so the
+    // drill leaves it out. Graduating the verse still memorizes it, so the
+    // verse doesn't come back as un-memorized.
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 0).unwrap();
+    let drilled = drilled_kinds(&engine);
+    assert_eq!(drilled.len(), 1);
+    assert!(
+        !drilled[0].1.iter().any(|k| k == "VerseInBook"),
+        "{drilled:?}"
+    );
+    assert!(
+        drilled[0].1.iter().any(|k| k == "VerseInChapter"),
+        "{drilled:?}"
+    );
+    engine.graduate_verse(0);
+    assert_eq!(drilled_kinds(&engine), vec![]);
+}
+
+#[test]
+fn memorize_session_keeps_which_book_card_in_multi_book_deck() {
+    let engine = WasmEngine::new(MATERIAL_TWO_BOOKS_JSON, "", "", "", 0).unwrap();
+    let drilled = drilled_kinds(&engine);
+    assert_eq!(drilled.len(), 2);
+    for (verse_id, kinds) in &drilled {
+        assert!(
+            kinds.iter().any(|k| k == "VerseInBook"),
+            "{verse_id}: {kinds:?}"
+        );
+    }
+}
+
+#[test]
+fn memorize_session_keeps_a_verse_whose_only_new_card_is_a_given() {
+    // A partly graduated verse in a single-book deck: everything but its
+    // which-book card already Active. The verse must still come with cards
+    // to drill, so graduating it can flip the last one; an empty `cardIds`
+    // would leave it served on every press.
+    let mut engine = WasmEngine::new(MATERIAL_JSON, "", "", "", 0).unwrap();
+    let kinds = card_kinds(&engine);
+    for (&id, kind) in &kinds {
+        if kind != "VerseInBook" {
+            engine.graduate_card(id as u32);
+        }
+    }
+    let drilled = drilled_kinds(&engine);
+    assert_eq!(drilled.len(), 1, "{drilled:?}");
+    assert!(!drilled[0].1.is_empty(), "{drilled:?}");
+}

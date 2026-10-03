@@ -16,6 +16,8 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
   Good, and a missed blank comes back at random without holding up the verse's next blank. The same
   verse never comes up twice in a row while another verse's card is left
   (`specs/005-memorize-session-flow`).
+* In a single-book year (John, Luke), the Memorize drill no longer asks which book a verse is in.
+  The which-book card is still memorized with the verse.
 
 ## [0.10.3] - 2026-10-02
 
