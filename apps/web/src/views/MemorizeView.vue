@@ -5,6 +5,7 @@ import type { CardRender, MemorizeSessionVerse } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 import StaleMergeModal from '@/components/StaleMergeModal.vue'
 import { useEngine } from '@/composables/useEngine'
+import { drillStage, orderDrill, requeueMissed, type DrillCard } from '@/lib/drillOrder'
 
 // MemorizeView spans every enrolled year with new cards. useEngine
 // supports multiple materials in one session — each year's verses get
@@ -13,7 +14,8 @@ import { useEngine } from '@/composables/useEngine'
 const engine = useEngine()
 
 // One session walks three phases: read every item first, drill every
-// card in random order, then walk the items again and graduate each
+// card in random order, with each verse's blanks before the cards that
+// ask for the whole verse, then walk the items again and graduate each
 // one. None of this is FSRS-graded — memorize stays pure-intro.
 type Phase = 'reading_start' | 'drilling' | 'reading_end' | 'done'
 
@@ -43,12 +45,8 @@ interface StandaloneItem {
 
 type ReadingItem = VerseItem | StandaloneItem
 
-interface DrillEntry {
+interface DrillEntry extends DrillCard {
   materialId: string
-  cardId: number
-  /** Index into `items` so a step-1 "Already memorized" on an item
-   *  can drop every drill entry sourced from that item in one filter. */
-  itemIdx: number
 }
 
 const items = ref<ReadingItem[]>([])
@@ -80,16 +78,6 @@ const currentDrill = computed<DrillEntry | null>(() => drillQueue.value[0] ?? nu
 const graduatedCount = computed(
   () => items.value.filter((i) => i.kind === 'verse' && i.graduated).length,
 )
-
-/** Fisher–Yates shuffle, non-mutating. */
-function shuffle<T>(arr: T[]): T[] {
-  const out = arr.slice()
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[out[i]!, out[j]!] = [out[j]!, out[i]!]
-  }
-  return out
-}
 
 async function buildSession() {
   // Each enrolled year contributes up to its lessonBatchSize verses.
@@ -127,8 +115,9 @@ async function buildSession() {
   // Flatten the session into reading items: each verse anchors its
   // own item with HP / CCL items appended after it; top-level orphan
   // cards (the verse-less standalone overflow) follow at the end of
-  // the year's chunk. The drill queue is a flat shuffle across every
-  // card the user will encounter.
+  // the year's chunk. The drill queue is a shuffle across every card the
+  // user will encounter, with each verse's blanks before its whole-verse
+  // cards (see `orderDrill`).
   const collected: ReadingItem[] = []
   const drillPool: DrillEntry[] = []
   for (const { materialId, verses: ys, orphans } of sessions) {
@@ -148,7 +137,8 @@ async function buildSession() {
         graduated: false,
       })
       for (const cardId of v.cardIds) {
-        drillPool.push({ materialId, cardId, itemIdx: verseIdx })
+        const stage = drillStage(engine.cardKind(materialId, cardId))
+        drillPool.push({ materialId, cardId, itemIdx: verseIdx, stage })
       }
       if (v.hpCardId !== undefined) {
         const idx = collected.length
@@ -160,7 +150,7 @@ async function buildSession() {
           anchor: null,
           graduated: false,
         })
-        drillPool.push({ materialId, cardId: v.hpCardId, itemIdx: idx })
+        drillPool.push({ materialId, cardId: v.hpCardId, itemIdx: idx, stage: 'other' })
       }
       if (v.cclCardId !== undefined) {
         const idx = collected.length
@@ -172,7 +162,7 @@ async function buildSession() {
           anchor: null,
           graduated: false,
         })
-        drillPool.push({ materialId, cardId: v.cclCardId, itemIdx: idx })
+        drillPool.push({ materialId, cardId: v.cclCardId, itemIdx: idx, stage: 'other' })
       }
     }
     for (const orphanId of orphans) {
@@ -185,7 +175,7 @@ async function buildSession() {
         anchor: null,
         graduated: false,
       })
-      drillPool.push({ materialId, cardId: orphanId, itemIdx: idx })
+      drillPool.push({ materialId, cardId: orphanId, itemIdx: idx, stage: 'other' })
     }
   }
   items.value = collected
@@ -200,7 +190,7 @@ async function buildSession() {
     }),
   )
 
-  const drill = shuffle(drillPool)
+  const drill = orderDrill(drillPool)
   drillQueue.value = drill
   totalDrillCards.value = drill.length
 }
@@ -244,8 +234,7 @@ async function gradeAgain() {
   // input rotated the drill queue twice and silently skipped a card.
   submitting.value = true
   try {
-    const entry = drillQueue.value.shift()
-    if (entry) drillQueue.value.push(entry)
+    drillQueue.value = requeueMissed(drillQueue.value)
     await loadDrillCard()
   } finally {
     submitting.value = false

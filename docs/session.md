@@ -69,6 +69,15 @@ introduce a new verse:
 The progression is just a list of `CardKind`s; the session walks it in order, gating advancement
 through the same `next_drill_after` machinery any other review uses.
 
+## Memorize drill in the web client
+
+The web Memorize page does not walk this progression. A session reads every item, drills every card
+in one shuffled queue, then reads the items again and graduates each. In that queue each verse's
+blanks (`PhraseFill`) come before the cards that ask for the whole verse (`Recitation`, `Ftv`); its
+other cards go anywhere. A missed card goes to the back, and a missed blank takes its verse's
+still-queued whole-verse cards behind it. `apps/web/src/lib/drillOrder.ts` holds the rule. The
+memorize session flow as a whole has no owning spec yet.
+
 ## FTV priority queue
 
 `Session::start` seeds an `upcoming_cards` queue with every `Ftv` card the engine emitted (one per

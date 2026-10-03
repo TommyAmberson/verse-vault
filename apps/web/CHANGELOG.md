@@ -9,6 +9,21 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-02
+
+PATCH: in the Memorize drill, a verse's blanks come before its full typing.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+* `verse-vault-wasm@0.12.0`: unchanged.
+
+### Fixed
+
+* The drill shuffled every card into one queue, so a verse's recitation or FTV could ask for the
+  whole verse before its blanks. Each verse's blanks now come first, while verses still interleave
+  at random; a missed blank keeps its verse's whole-verse cards behind it.
+
 ## [0.10.0] - 2026-10-02
 
 MINOR: the app moves from www.versevault.ca/vv/ to the root of www.versevault.ca, now that qzr lives
