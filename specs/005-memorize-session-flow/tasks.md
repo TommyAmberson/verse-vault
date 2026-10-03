@@ -140,7 +140,7 @@ quickstart.md manual step 2 behaves as described.
 
 ### Tests for User Story 2
 
-- [ ] T004 [P] [US2] In `apps/web/src/lib/drillOrder.test.ts`, replace the `orderDrill` and
+- [X] T004 [P] [US2] In `apps/web/src/lib/drillOrder.test.ts`, replace the `orderDrill` and
       `requeueMissed` suites with property tests of the pick rule in
       [contracts/drill.md](./contracts/drill.md), reusing the file's `seeded` random source and card
       builder. Drive at least 1,000 seeded drills over pools mixing several verses, location cards
@@ -159,19 +159,19 @@ quickstart.md manual step 2 behaves as described.
 
 ### Implementation for User Story 2
 
-- [ ] T006 [US2] In `apps/web/src/lib/drillOrder.ts`, replace `orderDrill` and `requeueMissed` with
+- [X] T006 [US2] In `apps/web/src/lib/drillOrder.ts`, replace `orderDrill` and `requeueMissed` with
       the pick rule of research D2 and contracts/drill.md: draw uniformly from cards not yet Good,
       leaving out the last-shown verse's cards while others remain, then swap by the D2 table. A
       drill card carries the data-model.md fields (item, verse, stage, phrase, shown), extending
       `DrillCard`; keep `drillStage`. Good removes the shown card, Again keeps it and a blank stays
       shown. Randomness stays injectable for tests; covered by T004
-- [ ] T007 [US2] Wire the picker into the memorize view. Extend `cardKind` in
+- [X] T007 [US2] Wire the picker into the memorize view. Extend `cardKind` (now `cardDrillInfo`) in
       `apps/web/src/lib/engine/engineStore.ts` (and its `useEngine.ts` pass-through) to return the
       blank's phrase `position` and the card's `verseId` from the `get_card_render` JSON it already
       parses (research D3, D4). In `apps/web/src/views/MemorizeView.vue`, build drill cards with
       the verse key "material + verse id", ask the picker for each next card on Good and Again,
-      keep the `submitting` guard, let `graduateItem` drop the item's cards, drive the
-      remaining-cards count from the cards left, and update the phase and `buildSession` comments
+      keep the `submitting` guard, let `graduateItem` drop the item's cards, drive "N of M" from a
+      done-count against the total at drill start, and update the phase and `buildSession` comments
       that describe the old ordering; covered by T004 and quickstart.md manual step 2
 - [ ] T008 [US2] Expose, from `crates/core`, whether a material's deck draws every verse from one
       book, decided once where core 0.13.0 decides it for seeding in `crates/core/src/builder.rs`, so
@@ -193,7 +193,7 @@ quickstart.md manual step 2 behaves as described.
 
 **Independent Test**: The spec's US3 scenarios, run by hand as in quickstart.md manual step 3.
 
-- [ ] T010 [US3] Check, in `apps/web/src/views/MemorizeView.vue` after T007, that marking an item
+- [X] T010 [US3] Check, in `apps/web/src/views/MemorizeView.vue` after T007, that marking an item
       "Already memorized" in the read phase removes its cards before the drill starts, that a
       session where every item was marked ends without a drill, and that "Not yet" at the closing
       read leaves the item unmemorized. Fix any break T007 introduced in the same commit as T007;

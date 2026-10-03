@@ -2,14 +2,19 @@
  *  asks for the whole verse (Recitation, Ftv), or anything else. */
 export type DrillStage = 'blank' | 'whole' | 'other'
 
-/** What the memorize drill needs to order a card. */
+/** What the memorize drill needs to pick a card. */
 export interface DrillCard {
   /** Index into the session's reading items (a verse, or a standalone
-   *  heading, chapter-list or orphan card), so graduating an item can
-   *  drop every drill entry sourced from it in one filter. */
+   *  heading, chapter-list or orphan card). A verse's build-up runs over
+   *  its item's cards, and graduating an item drops them all. */
   itemIdx: number
   cardId: number
   stage: DrillStage
+  /** The card's verse, for no-echo: cards that share it never come up
+   *  back to back while another verse's card is left. */
+  verse: string
+  /** The blank's phrase position; blanks only. */
+  phrase?: number
 }
 
 /** A card kind's drill stage. Ftv counts as whole-verse: it asks for the
@@ -20,50 +25,63 @@ export function drillStage(kind: string): DrillStage {
   return 'other'
 }
 
-/** Fisher–Yates shuffle, non-mutating. */
-function shuffle<T>(arr: T[], random: () => number): T[] {
-  const out = arr.slice()
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1))
-    ;[out[i]!, out[j]!] = [out[j]!, out[i]!]
-  }
-  return out
-}
+/** The memorize drill (docs/memorize.md). Each pick draws at random from
+ *  the cards not yet answered Good, leaving out the verse just shown, and
+ *  swaps a draw its verse isn't ready for with the card it is ready for,
+ *  so every verse builds up blank by blank while verses mix at random.
+ *  Again needs no call: the card stays among the cards left. */
+export class Drill<T extends DrillCard> {
+  private left: T[]
+  private readonly shownBlanks = new Set<T>()
+  private current: T | null = null
 
-/** Shuffle the drill so each verse's blanks come before the cards that
- *  ask for the whole verse. Within each verse, the blanks take the
- *  earliest of the places its blank and whole-verse cards landed in, and
- *  the whole-verse cards the rest, so verses still interleave at random
- *  and other cards stay where the shuffle put them. */
-export function orderDrill<T extends DrillCard>(pool: T[], random: () => number = Math.random): T[] {
-  const out = shuffle(pool, random)
-  const slotsByItem = new Map<number, number[]>()
-  out.forEach((card, i) => {
-    if (card.stage === 'other') return
-    const slots = slotsByItem.get(card.itemIdx) ?? []
-    slots.push(i)
-    slotsByItem.set(card.itemIdx, slots)
-  })
-  for (const slots of slotsByItem.values()) {
-    const cards = slots.map((i) => out[i]!)
-    const ordered = [
-      ...cards.filter((c) => c.stage === 'blank'),
-      ...cards.filter((c) => c.stage === 'whole'),
-    ]
-    slots.forEach((slot, k) => {
-      out[slot] = ordered[k]!
-    })
+  constructor(
+    cards: readonly T[],
+    private readonly random: () => number = Math.random,
+  ) {
+    this.left = [...cards]
   }
-  return out
-}
 
-/** Send the card at the front of the queue to the back after a miss. A
- *  missed blank also takes its verse's still-queued whole-verse cards to
- *  the back behind it, so they stay after the verse's blanks. */
-export function requeueMissed<T extends DrillCard>(queue: T[]): T[] {
-  const [missed, ...rest] = queue
-  if (missed === undefined) return queue
-  if (missed.stage !== 'blank') return [...rest, missed]
-  const trailing = (c: T) => c.itemIdx === missed.itemIdx && c.stage === 'whole'
-  return [...rest.filter((c) => !trailing(c)), missed, ...rest.filter(trailing)]
+  /** Cards not yet answered Good. */
+  get remaining(): number {
+    return this.left.length
+  }
+
+  /** The next card to show, or null once every card is answered Good. */
+  next(): T | null {
+    const others = this.left.filter((c) => c.verse !== this.current?.verse)
+    const pool = others.length > 0 ? others : this.left
+    this.current = pool.length > 0 ? this.readyCard(this.pickFrom(pool)) : null
+    if (this.current?.stage === 'blank') this.shownBlanks.add(this.current)
+    return this.current
+  }
+
+  /** The learner answered Good on the current card: done with it for the
+   *  session. */
+  good(): void {
+    this.left = this.left.filter((c) => c !== this.current)
+  }
+
+  /** Drop every card of a reading item, such as one already memorized. */
+  dropItem(itemIdx: number): void {
+    this.left = this.left.filter((c) => c.itemIdx !== itemIdx)
+  }
+
+  /** The card the drawn card's verse is ready for. Unshown blanks come in
+   *  phrase order, and whole-verse cards wait until every blank is Good;
+   *  while missed blanks wait, a drawn whole-verse card stands in for one. */
+  private readyCard(drawn: T): T {
+    if (drawn.stage === 'other' || this.shownBlanks.has(drawn)) return drawn
+    const blanks = this.left.filter((c) => c.itemIdx === drawn.itemIdx && c.stage === 'blank')
+    const unshown = blanks
+      .filter((c) => !this.shownBlanks.has(c))
+      .sort((a, b) => (a.phrase ?? 0) - (b.phrase ?? 0))
+    if (unshown.length > 0) return unshown[0]!
+    if (blanks.length > 0) return this.pickFrom(blanks)
+    return drawn
+  }
+
+  private pickFrom(cards: readonly T[]): T {
+    return cards[Math.floor(this.random() * cards.length)]!
+  }
 }

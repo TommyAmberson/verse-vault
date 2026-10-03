@@ -39,7 +39,7 @@ import { api, type CardRender, type Grade, type YearView } from '../api'
 import { getCachedSchedule, getCachedYears } from '../lib/apiCache'
 import { hasEnabledClub, hasReviewableClub } from '../lib/clubs'
 import * as engineStore from '../lib/engine/engineStore'
-import type { FlushResult } from '../lib/engine/engineStore'
+import type { CardDrillInfo, FlushResult } from '../lib/engine/engineStore'
 import type { StaleMergeSummary, WireMaterialConfig } from '../lib/engine/types'
 
 /** Debounce window for the auto-flush trigger after a grade — long enough
@@ -295,8 +295,8 @@ export function useEngine() {
     return engineStore.cardCountByClub(materialId)
   }
 
-  function cardKind(materialId: string, cardId: number): string {
-    return engineStore.cardKind(materialId, cardId)
+  function cardDrillInfo(materialId: string, cardId: number): CardDrillInfo {
+    return engineStore.cardDrillInfo(materialId, cardId)
   }
 
   async function getCardRender(materialId: string, cardId: number): Promise<CardRender> {
@@ -361,7 +361,7 @@ export function useEngine() {
     memorizeSession,
     newCardCount,
     cardCountByClub,
-    cardKind,
+    cardDrillInfo,
     getCardRender,
     flush: flushAll,
     confirmMerge,

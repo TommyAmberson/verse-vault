@@ -5,7 +5,7 @@ import type { CardRender, MemorizeSessionVerse } from '@/api'
 import CardPrompt from '@/components/CardPrompt.vue'
 import StaleMergeModal from '@/components/StaleMergeModal.vue'
 import { useEngine } from '@/composables/useEngine'
-import { drillStage, orderDrill, requeueMissed, type DrillCard } from '@/lib/drillOrder'
+import { Drill, drillStage, type DrillCard } from '@/lib/drillOrder'
 
 // MemorizeView spans every enrolled year with new cards. useEngine
 // supports multiple materials in one session — each year's verses get
@@ -14,9 +14,10 @@ import { drillStage, orderDrill, requeueMissed, type DrillCard } from '@/lib/dri
 const engine = useEngine()
 
 // One session walks three phases: read every item first, drill every
-// card in random order, with each verse's blanks before the cards that
-// ask for the whole verse, then walk the items again and graduate each
-// one. None of this is FSRS-graded — memorize stays pure-intro.
+// card (`Drill` picks them at random, building each verse up blank by
+// blank before the cards that ask for the whole verse), then walk the
+// items again and graduate each one. None of this is FSRS-graded —
+// memorize stays pure-intro.
 type Phase = 'reading_start' | 'drilling' | 'reading_end' | 'done'
 
 interface VerseItem {
@@ -52,8 +53,9 @@ interface DrillEntry extends DrillCard {
 const items = ref<ReadingItem[]>([])
 const phase = ref<Phase>('reading_start')
 const readingIndex = ref(0)
-const drillQueue = ref<DrillEntry[]>([])
+let drill = new Drill<DrillEntry>([])
 const totalDrillCards = ref(0)
+const drillCardsDone = ref(0)
 const drillCard = ref<CardRender | null>(null)
 const drillRevealed = ref(false)
 const error = ref<string | null>(null)
@@ -68,13 +70,11 @@ watch(phase, (p) => {
 
 const empty = computed(() => phase.value !== 'done' && items.value.length === 0)
 const totalItems = computed(() => items.value.length)
-const remainingDrillCards = computed(() => drillQueue.value.length)
 
 const currentReadingItem = computed<ReadingItem | null>(() =>
   items.value[readingIndex.value] ?? null,
 )
 const onLastReading = computed(() => readingIndex.value === items.value.length - 1)
-const currentDrill = computed<DrillEntry | null>(() => drillQueue.value[0] ?? null)
 const graduatedCount = computed(
   () => items.value.filter((i) => i.kind === 'verse' && i.graduated).length,
 )
@@ -115,11 +115,21 @@ async function buildSession() {
   // Flatten the session into reading items: each verse anchors its
   // own item with HP / CCL items appended after it; top-level orphan
   // cards (the verse-less standalone overflow) follow at the end of
-  // the year's chunk. The drill queue is a shuffle across every card the
-  // user will encounter, with each verse's blanks before its whole-verse
-  // cards (see `orderDrill`).
+  // the year's chunk. The drill holds every card the user will
+  // encounter.
   const collected: ReadingItem[] = []
   const drillPool: DrillEntry[] = []
+  const drillEntry = (materialId: string, cardId: number, itemIdx: number): DrillEntry => {
+    const { kind, position, verseId } = engine.cardDrillInfo(materialId, cardId)
+    return {
+      materialId,
+      cardId,
+      itemIdx,
+      stage: drillStage(kind),
+      phrase: position,
+      verse: `${materialId}:${verseId}`,
+    }
+  }
   for (const { materialId, verses: ys, orphans } of sessions) {
     for (const v of ys) {
       if (v.cardIds.length === 0 && v.hpCardId === undefined && v.cclCardId === undefined) {
@@ -137,8 +147,7 @@ async function buildSession() {
         graduated: false,
       })
       for (const cardId of v.cardIds) {
-        const stage = drillStage(engine.cardKind(materialId, cardId))
-        drillPool.push({ materialId, cardId, itemIdx: verseIdx, stage })
+        drillPool.push(drillEntry(materialId, cardId, verseIdx))
       }
       if (v.hpCardId !== undefined) {
         const idx = collected.length
@@ -150,7 +159,7 @@ async function buildSession() {
           anchor: null,
           graduated: false,
         })
-        drillPool.push({ materialId, cardId: v.hpCardId, itemIdx: idx, stage: 'other' })
+        drillPool.push(drillEntry(materialId, v.hpCardId, idx))
       }
       if (v.cclCardId !== undefined) {
         const idx = collected.length
@@ -162,7 +171,7 @@ async function buildSession() {
           anchor: null,
           graduated: false,
         })
-        drillPool.push({ materialId, cardId: v.cclCardId, itemIdx: idx, stage: 'other' })
+        drillPool.push(drillEntry(materialId, v.cclCardId, idx))
       }
     }
     for (const orphanId of orphans) {
@@ -175,7 +184,7 @@ async function buildSession() {
         anchor: null,
         graduated: false,
       })
-      drillPool.push({ materialId, cardId: orphanId, itemIdx: idx, stage: 'other' })
+      drillPool.push(drillEntry(materialId, orphanId, idx))
     }
   }
   items.value = collected
@@ -190,31 +199,35 @@ async function buildSession() {
     }),
   )
 
-  const drill = orderDrill(drillPool)
-  drillQueue.value = drill
-  totalDrillCards.value = drill.length
+  drill = new Drill(drillPool)
 }
 
 async function startDrilling() {
   // If every item was already-memorized'd in the read-through, there's
   // nothing to drill and nothing to re-confirm — skip straight to done.
-  if (drillQueue.value.length === 0) {
+  if (drill.remaining === 0) {
     phase.value = 'done'
     return
   }
   phase.value = 'drilling'
+  totalDrillCards.value = drill.remaining
+  drillCardsDone.value = 0
   drillRevealed.value = false
   await loadDrillCard()
 }
 
 async function loadDrillCard() {
-  const entry = currentDrill.value
+  const entry = drill.next()
   if (!entry) return
   loading.value = true
   try {
     drillCard.value = await engine.getCardRender(entry.materialId, entry.cardId)
     drillRevealed.value = false
   } catch (err) {
+    // The drill has moved on to a card that never rendered, so take the
+    // previous card off screen rather than let a grade land on the wrong one.
+    drillCard.value = null
+    drillRevealed.value = false
     error.value = formatError(err)
   } finally {
     loading.value = false
@@ -227,14 +240,14 @@ function revealDrill() {
 
 async function gradeAgain() {
   if (submitting.value) return
-  // Set `submitting` BEFORE the queue mutation so a key-repeat or
+  // Set `submitting` BEFORE the drill moves on so a key-repeat or
   // double-click on the Again button (or '1' key) can't fire twice
   // before `loadDrillCard` finishes — the grade handlers were
   // previously gated on `submitting` but never set it, so rapid
-  // input rotated the drill queue twice and silently skipped a card.
+  // input moved the drill on twice and silently skipped a card.
   submitting.value = true
   try {
-    drillQueue.value = requeueMissed(drillQueue.value)
+    // The missed card stays in the drill, to come up again at random.
     await loadDrillCard()
   } finally {
     submitting.value = false
@@ -245,8 +258,9 @@ async function gradeGood() {
   if (submitting.value) return
   submitting.value = true
   try {
-    drillQueue.value.shift()
-    if (drillQueue.value.length === 0) {
+    drill.good()
+    drillCardsDone.value += 1
+    if (drill.remaining === 0) {
       enterReadingEnd()
       return
     }
@@ -267,8 +281,7 @@ async function graduateItem(item: ReadingItem, itemIdx: number): Promise<void> {
     await engine.submitCardGraduation(item.materialId, item.cardId)
   }
   item.graduated = true
-  drillQueue.value = drillQueue.value.filter((e) => e.itemIdx !== itemIdx)
-  totalDrillCards.value = drillQueue.value.length
+  drill.dropItem(itemIdx)
 }
 
 /** Position the reading_end cursor at the first item that still
@@ -464,7 +477,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
 
     <div v-else-if="phase === 'drilling' && drillCard" class="card">
       <div class="meta">
-        Drilling · {{ totalDrillCards - remainingDrillCards + 1 }} of
+        Drilling · {{ drillCardsDone + 1 }} of
         {{ totalDrillCards }} cards
       </div>
       <CardPrompt :card="drillCard" :revealed="drillRevealed" />

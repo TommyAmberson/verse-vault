@@ -9,6 +9,14 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+### Changed
+
+* The Memorize drill picks each card at random from the cards left instead of walking a shuffled
+  queue. A verse's blanks come in phrase order, its recitation and FTV only once every blank is
+  Good, and a missed blank comes back at random without holding up the verse's next blank. The same
+  verse never comes up twice in a row while another verse's card is left
+  (`specs/005-memorize-session-flow`).
+
 ## [0.10.3] - 2026-10-02
 
 PATCH: in a single-book year (John, Luke), the which-book card starts as already known.
