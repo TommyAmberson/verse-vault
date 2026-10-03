@@ -9,6 +9,20 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-02
+
+PATCH: the Memorize page offers extra cards only from memorized verses.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.12.0`: unchanged.
+* `verse-vault-wasm@0.12.1`: a session's extras come only from memorized verses.
+
+### Fixed
+
+* A session could show "continue from these first words" for a verse the learner had never
+  memorized, as an extra card. Extras now come only from verses already memorized.
+
 ## [0.10.1] - 2026-10-02
 
 PATCH: in the Memorize drill, a verse's blanks come before its full typing.
