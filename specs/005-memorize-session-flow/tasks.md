@@ -104,7 +104,7 @@ catch-ups, strict cap) and at most the batch size of orphans together.
 
 ### Tests for User Story 1
 
-- [ ] T002 [US1] In `crates/wasm/tests/roundtrip.rs`, add cap tests next to the existing
+- [X] T002 [US1] In `crates/wasm/tests/roundtrip.rs`, add cap tests next to the existing
       `memorize_session_*` tests, extending `MATERIAL_HP_CCL_JSON` and the config JSON they use
       (or a larger inline material of the same shape when that one has too few headings, chapters
       or optional cards to exceed a small `limit`). With `limit` below the outstanding counts,
@@ -119,7 +119,7 @@ catch-ups, strict cap) and at most the batch size of orphans together.
 
 ### Implementation for User Story 1
 
-- [ ] T003 [US1] Replace the per-kind caps in `memorize_session_v2` in `crates/wasm/src/lib.rs`
+- [X] T003 [US1] Replace the per-kind caps in `memorize_session_v2` in `crates/wasm/src/lib.rs`
       with the two shared budgets of contracts/memorize-session.md rules 1-5, reusing its attach
       pass, pending pools and orphan loop; own heading and chapter-list cards fill their budget
       before catch-ups. Update the doc comments on the function and its `orphans` field ("Per-kind

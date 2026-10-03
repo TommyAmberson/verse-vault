@@ -459,9 +459,12 @@ impl WasmEngine {
     ///   chapter+tier's last in-session member (or capacity).
     /// * Conditional verse-bound kinds (`Ftv`, `VerseInHeading`,
     ///   `VerseInClub`) New on a verse whose unconditional content is
-    ///   already Active surface as orphans in `orphan_card_ids`
-    ///   (deduped by heading_idx / club tier so one per kind per
-    ///   session, round-robined across session-verses).
+    ///   already Active surface in `orphans` (deduped by heading_idx /
+    ///   club tier).
+    ///
+    /// Heading and chapter-list cards share a budget of `limit`, the
+    /// session's own before catch-ups, and the conditional orphans share
+    /// another.
     ///
     /// The web client treats all of those slots as their own reading
     /// / drill / graduation steps. Graduation goes through
@@ -515,7 +518,7 @@ impl WasmEngine {
             /// Standalone cards that don't anchor to a session-verse:
             /// HP/CCL whose attach point overflowed `verse_order` plus
             /// conditional verse-bound orphans (Ftv/VerseInHeading/
-            /// VerseInClub New on Active verses). Per-kind cap = `limit`.
+            /// VerseInClub New on Active verses), in that order.
             #[serde(skip_serializing_if = "Vec::is_empty")]
             orphans: Vec<u32>,
         }
@@ -567,17 +570,18 @@ impl WasmEngine {
         //
         //   * HeadingPassage: introduce when at least one heading member
         //     is "started" (Active before this session or being graduated
-        //     in it). Attach to the earliest member in this session's
-        //     `verse_order` — or, when conditions are met purely from
-        //     prior Actives (orphan / catch-up after a settings flip),
-        //     attach to whichever session verse still has capacity.
+        //     in it). It belongs with the earliest member in this
+        //     session's `verse_order`; when only prior Actives qualify it
+        //     (a settings flip, or a card an earlier session left out),
+        //     it is a catch-up.
         //   * ChapterClubList: introduce when every chapter+tier member
-        //     is started by end-of-session. Attach to the latest member
-        //     in `verse_order`, or to remaining capacity as a catch-up.
+        //     is started by end-of-session. It belongs with the latest
+        //     member in `verse_order`, or is a catch-up.
         //
-        // Cap at 1 of each kind per session-verse so a backlog of orphan
-        // cards doesn't pile onto the first verse — they spread across
-        // `verse_order` and the overflow defers to the next session.
+        // The two kinds share one budget of `limit`, filled with the
+        // session's own cards in session order before any catch-up
+        // (docs/memorize.md). A card the budget leaves out stays New, so a
+        // later session offers it as a catch-up.
         let session_verses: HashSet<u32> = verse_order.iter().copied().collect();
         // The reading walkthrough follows `verse_order`, which the queue
         // no longer keeps ascending (calendar cascade, working ahead by
@@ -605,10 +609,10 @@ impl WasmEngine {
             None,
         }
 
-        let mut hp_assigned: HashMap<u32, u32> = HashMap::new();
-        let mut ccl_assigned: HashMap<u32, u32> = HashMap::new();
-        let mut hp_pending: Vec<u32> = Vec::new();
-        let mut ccl_pending: Vec<u32> = Vec::new();
+        // Own cards as (is_hp, attach verse, card id); catch-ups as
+        // (is_hp, card id).
+        let mut own: Vec<(bool, u32, u32)> = Vec::new();
+        let mut catch_ups: Vec<(bool, u32)> = Vec::new();
 
         for card in cards.iter() {
             if !matches!(card.state, CardState::New) {
@@ -667,46 +671,48 @@ impl WasmEngine {
                 }
                 _ => continue,
             };
-            let (assigned, pending) = if is_hp {
-                (&mut hp_assigned, &mut hp_pending)
-            } else {
-                (&mut ccl_assigned, &mut ccl_pending)
-            };
             match intent {
-                AttachIntent::Normal(v) => match assigned.entry(v) {
-                    std::collections::hash_map::Entry::Vacant(e) => {
-                        e.insert(card.id.0);
-                    }
-                    // Clash: another card of the same kind already claimed
-                    // this verse. Defer to the pending pool; the second
-                    // pass places it on the next session-verse with
-                    // capacity.
-                    std::collections::hash_map::Entry::Occupied(_) => {
-                        pending.push(card.id.0);
-                    }
-                },
-                AttachIntent::Orphan => pending.push(card.id.0),
+                AttachIntent::Normal(v) => own.push((is_hp, v, card.id.0)),
+                AttachIntent::Orphan => catch_ups.push((is_hp, card.id.0)),
                 AttachIntent::None => {}
             }
         }
+        // Session order, with a verse's heading card before its chapter list.
+        own.sort_by_key(|&(is_hp, v, _)| (position[&v], !is_hp));
 
-        // Second pass: drain the pending pool into remaining capacity in
-        // `verse_order` order so catch-ups land at the start of the
-        // session.
-        let mut hp_idx = 0usize;
-        let mut ccl_idx = 0usize;
-        for &verse_id in &verse_order {
-            if hp_idx < hp_pending.len()
-                && let std::collections::hash_map::Entry::Vacant(e) = hp_assigned.entry(verse_id)
-            {
-                e.insert(hp_pending[hp_idx]);
-                hp_idx += 1;
+        let cap = limit as usize;
+        // Placed cards by (is_hp, session verse).
+        let mut assigned: HashMap<(bool, u32), u32> = HashMap::new();
+        // Budgeted cards with no slot yet: an own card whose verse already
+        // holds one of its kind, or a catch-up.
+        let mut unplaced: Vec<(bool, u32)> = Vec::new();
+        let budgeted = own
+            .iter()
+            .map(|&(is_hp, v, id)| (is_hp, Some(v), id))
+            .chain(catch_ups.iter().map(|&(is_hp, id)| (is_hp, None, id)))
+            .take(cap);
+        for (is_hp, verse, id) in budgeted {
+            match verse.map(|v| assigned.entry((is_hp, v))) {
+                Some(std::collections::hash_map::Entry::Vacant(e)) => {
+                    e.insert(id);
+                }
+                _ => unplaced.push((is_hp, id)),
             }
-            if ccl_idx < ccl_pending.len()
-                && let std::collections::hash_map::Entry::Vacant(e) = ccl_assigned.entry(verse_id)
+        }
+        // At most one of each kind per session verse, so a backlog doesn't
+        // pile onto one verse. Unplaced cards take the first session verse
+        // with room, so catch-ups land at the start of the session; the
+        // rest read as standalone orphans after the verses.
+        let mut orphans: Vec<u32> = Vec::new();
+        for (is_hp, id) in unplaced {
+            match verse_order
+                .iter()
+                .find(|&&v| !assigned.contains_key(&(is_hp, v)))
             {
-                e.insert(ccl_pending[ccl_idx]);
-                ccl_idx += 1;
+                Some(&v) => {
+                    assigned.insert((is_hp, v), id);
+                }
+                None => orphans.push(id),
             }
         }
 
@@ -742,8 +748,8 @@ impl WasmEngine {
                     _ => card_ids.push(card.id.0),
                 }
             }
-            let hp_card_id = hp_assigned.get(&verse_id).copied();
-            let ccl_card_id = ccl_assigned.get(&verse_id).copied();
+            let hp_card_id = assigned.get(&(true, verse_id)).copied();
+            let ccl_card_id = assigned.get(&(false, verse_id)).copied();
             let recitation_card_id = cards
                 .iter()
                 .find(|c| c.verse_id == verse_id && matches!(c.kind, CardKind::Recitation))
@@ -758,50 +764,19 @@ impl WasmEngine {
             });
         }
 
-        // Build the top-level orphan pool. Five sources, each capped
-        // at `limit` so the session honours the configured max even
-        // when there are no fresh verses to anchor against:
-        //
-        //   * HP overflow (`hp_pending` minus what fit in `verse_order`).
-        //   * CCL overflow (same).
-        //   * Conditional verse-bound kinds (Ftv / VerseInHeading /
-        //     VerseInClub) New on a memorized verse that isn't a
-        //     session-verse —
-        //     deduped by `heading_idx` / `tier` so multiple orphans of
-        //     the same heading/tier collapse to one.
-        let cap = limit as usize;
-        let mut orphans: Vec<u32> = Vec::new();
-        // HP overflow: ids in `hp_pending` that didn't end up in
-        // `hp_assigned` after the second pass. Budget caps total HP
-        // (placed + overflow) at `limit` per session.
-        let hp_placed_ids: HashSet<u32> = hp_assigned.values().copied().collect();
-        let hp_budget = cap.saturating_sub(hp_placed_ids.len());
-        for &id in hp_pending
-            .iter()
-            .filter(|id| !hp_placed_ids.contains(id))
-            .take(hp_budget)
-        {
-            orphans.push(id);
-        }
-        // CCL overflow, same shape.
-        let ccl_placed_ids: HashSet<u32> = ccl_assigned.values().copied().collect();
-        let ccl_budget = cap.saturating_sub(ccl_placed_ids.len());
-        for &id in ccl_pending
-            .iter()
-            .filter(|id| !ccl_placed_ids.contains(id))
-            .take(ccl_budget)
-        {
-            orphans.push(id);
-        }
-        // Conditional orphans. Each kind capped at `limit`; dedup by
-        // heading_idx / tier so we don't burn the cap on multiple
-        // orphans for the same heading or club.
-        let mut ftv_count = 0usize;
-        let mut vih_count = 0usize;
-        let mut vic_count = 0usize;
-        let mut seen_orphan_headings: HashSet<u16> = HashSet::new();
+        // Then the conditional verse-bound kinds (Ftv / VerseInHeading /
+        // VerseInClub) New on a memorized verse outside the session. They
+        // share their own budget of `limit`, and dedup by heading_idx /
+        // tier so one heading or club doesn't spend it several times over.
+        let mut conditional_orphans = 0usize;
+        // A heading whose which-heading card already comes with a session
+        // verse counts as seen.
+        let mut seen_orphan_headings = session_headings;
         let mut seen_orphan_tiers: HashSet<ClubTier> = HashSet::new();
         for card in cards.iter() {
+            if conditional_orphans == cap {
+                break;
+            }
             if !matches!(card.state, CardState::New) {
                 continue;
             }
@@ -822,24 +797,17 @@ impl WasmEngine {
             {
                 continue;
             }
-            match card.kind {
-                CardKind::Ftv { .. } if ftv_count < cap => {
-                    orphans.push(card.id.0);
-                    ftv_count += 1;
+            let fresh = match card.kind {
+                CardKind::Ftv { .. } => true,
+                CardKind::VerseInHeading { heading_idx } => {
+                    seen_orphan_headings.insert(heading_idx)
                 }
-                CardKind::VerseInHeading { heading_idx }
-                    if seen_orphan_headings.insert(heading_idx) && vih_count < cap =>
-                {
-                    orphans.push(card.id.0);
-                    vih_count += 1;
-                }
-                CardKind::VerseInClub { tier }
-                    if seen_orphan_tiers.insert(tier) && vic_count < cap =>
-                {
-                    orphans.push(card.id.0);
-                    vic_count += 1;
-                }
-                _ => {}
+                CardKind::VerseInClub { tier } => seen_orphan_tiers.insert(tier),
+                _ => false,
+            };
+            if fresh {
+                orphans.push(card.id.0);
+                conditional_orphans += 1;
             }
         }
 

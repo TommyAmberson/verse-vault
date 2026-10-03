@@ -491,3 +491,254 @@ fn memorize_session_orphans_only_cards_of_memorized_verses() {
         vec![("Ftv".to_string(), 17)]
     );
 }
+
+// Six Club150 verses, each alone in its chapter and under its own heading,
+// so every verse brings a heading card, a chapter-list card and, with the
+// config below, a first-words, which-heading and which-club card: enough of
+// each extra to overrun a small batch.
+const MATERIAL_SIX_EXTRAS_JSON: &str = r#"{
+    "year": 3,
+    "books": ["John"],
+    "chapters": [
+        {"book": "John", "number": 1, "start_verse": 1, "end_verse": 1},
+        {"book": "John", "number": 2, "start_verse": 1, "end_verse": 1},
+        {"book": "John", "number": 3, "start_verse": 1, "end_verse": 1},
+        {"book": "John", "number": 4, "start_verse": 1, "end_verse": 1},
+        {"book": "John", "number": 5, "start_verse": 1, "end_verse": 1},
+        {"book": "John", "number": 6, "start_verse": 1, "end_verse": 1}
+    ],
+    "verses": [
+        {"book": "John", "chapter": 1, "verse": 1, "phraseWordCounts": [2, 2], "annotations": [], "ftvWordCount": 2, "clubs": [150]},
+        {"book": "John", "chapter": 2, "verse": 1, "phraseWordCounts": [2, 2], "annotations": [], "ftvWordCount": 2, "clubs": [150]},
+        {"book": "John", "chapter": 3, "verse": 1, "phraseWordCounts": [2, 2], "annotations": [], "ftvWordCount": 2, "clubs": [150]},
+        {"book": "John", "chapter": 4, "verse": 1, "phraseWordCounts": [2, 2], "annotations": [], "ftvWordCount": 2, "clubs": [150]},
+        {"book": "John", "chapter": 5, "verse": 1, "phraseWordCounts": [2, 2], "annotations": [], "ftvWordCount": 2, "clubs": [150]},
+        {"book": "John", "chapter": 6, "verse": 1, "phraseWordCounts": [2, 2], "annotations": [], "ftvWordCount": 2, "clubs": [150]}
+    ],
+    "headings": [
+        {"book": "John", "startChapter": 1, "startVerse": 1, "endChapter": 1, "endVerse": 1},
+        {"book": "John", "startChapter": 2, "startVerse": 1, "endChapter": 2, "endVerse": 1},
+        {"book": "John", "startChapter": 3, "startVerse": 1, "endChapter": 3, "endVerse": 1},
+        {"book": "John", "startChapter": 4, "startVerse": 1, "endChapter": 4, "endVerse": 1},
+        {"book": "John", "startChapter": 5, "startVerse": 1, "endChapter": 5, "endVerse": 1},
+        {"book": "John", "startChapter": 6, "startVerse": 1, "endChapter": 6, "endVerse": 1}
+    ]
+}"#;
+
+const CONFIG_ALL_EXTRAS_JSON: &str = r#"{
+    "heading_card": true,
+    "heading_passage_card": true,
+    "ftv": true,
+    "new_scope": "all",
+    "review_scope": "all",
+    "club_card_scope": "all",
+    "chapter_list_scope": "up150",
+    "clubs": {"Club150": "Active"}
+}"#;
+
+const SIX_VERSES: u32 = 6;
+
+fn six_extras_engine() -> WasmEngine {
+    WasmEngine::new(MATERIAL_SIX_EXTRAS_JSON, CONFIG_ALL_EXTRAS_JSON, "", "", 0).unwrap()
+}
+
+fn card_kinds(engine: &WasmEngine) -> std::collections::HashMap<u64, String> {
+    let renders: serde_json::Value =
+        serde_json::from_str(&engine.all_card_renders_for_test()).unwrap();
+    renders
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            (
+                r["cardId"].as_u64().unwrap(),
+                r["kind"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect()
+}
+
+fn is_heading_or_chapter_list(kind: &str) -> bool {
+    matches!(kind, "HeadingPassage" | "ChapterClubList")
+}
+
+fn is_conditional(kind: &str) -> bool {
+    matches!(kind, "Ftv" | "VerseInHeading" | "VerseInClub")
+}
+
+/// One session's extras: heading and chapter-list cards attached to a
+/// session verse, and every id in `orphans`.
+struct Extras {
+    attached: Vec<u64>,
+    orphans: Vec<u64>,
+}
+
+fn session_extras(session: &serde_json::Value) -> Extras {
+    let attached = session["verses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|e| ["hpCardId", "cclCardId"].map(|slot| e.get(slot).and_then(|v| v.as_u64())))
+        .flatten()
+        .collect();
+    let orphans = session["orphans"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|v| v.as_u64().unwrap())
+        .collect();
+    Extras { attached, orphans }
+}
+
+#[test]
+fn memorize_session_caps_heading_and_chapter_list_cards_together() {
+    // A batch of two serves two verses, whose own heading and chapter-list
+    // cards number four. The cap holds: the first verse's two come, the
+    // second verse's wait.
+    let engine = six_extras_engine();
+    let kinds = card_kinds(&engine);
+    let json = engine.memorize_session_v2(2, 0).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let entries = session["verses"].as_array().unwrap();
+    assert_eq!(entries.len(), 2, "{json}");
+    let extras = session_extras(&session);
+    let heading_and_lists = extras
+        .attached
+        .iter()
+        .chain(&extras.orphans)
+        .filter(|id| is_heading_or_chapter_list(&kinds[id]))
+        .count();
+    assert_eq!(heading_and_lists, 2, "{json}");
+    assert!(entries[0].get("hpCardId").is_some(), "{json}");
+    assert!(entries[0].get("cclCardId").is_some(), "{json}");
+    assert!(entries[1].get("hpCardId").is_none(), "{json}");
+    assert!(entries[1].get("cclCardId").is_none(), "{json}");
+}
+
+#[test]
+fn memorize_session_prefers_own_heading_and_chapter_list_cards() {
+    // The first session's verses are memorized without their heading and
+    // chapter-list cards, which leaves those waiting as catch-ups. The next
+    // session's own cards still fill the cap first.
+    let mut engine = six_extras_engine();
+    let kinds = card_kinds(&engine);
+    let first: serde_json::Value =
+        serde_json::from_str(&engine.memorize_session_v2(2, 0).unwrap()).unwrap();
+    for e in first["verses"].as_array().unwrap() {
+        engine.graduate_verse(e["verseId"].as_u64().unwrap() as u32);
+    }
+    let json = engine.memorize_session_v2(2, 0).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let extras = session_extras(&session);
+    assert_eq!(extras.attached.len(), 2, "{json}");
+    assert!(
+        !extras
+            .orphans
+            .iter()
+            .any(|id| is_heading_or_chapter_list(&kinds[id])),
+        "catch-ups must wait while own cards fill the cap: {json}"
+    );
+}
+
+#[test]
+fn memorize_session_caps_orphans_together() {
+    // Every verse memorized without its optional cards, so no verses are
+    // left to serve and the session is extras alone. Each group stays
+    // within the batch size: heading and chapter-list cards together, and
+    // first-words, which-heading and which-club cards together.
+    let mut engine = six_extras_engine();
+    let kinds = card_kinds(&engine);
+    for verse_id in 0..SIX_VERSES {
+        engine.graduate_verse(verse_id);
+    }
+    let json = engine.memorize_session_v2(2, 0).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert!(session["verses"].as_array().unwrap().is_empty(), "{json}");
+    let extras = session_extras(&session);
+    let count =
+        |pred: fn(&str) -> bool| extras.orphans.iter().filter(|id| pred(&kinds[id])).count();
+    assert_eq!(count(is_heading_or_chapter_list), 2, "{json}");
+    assert_eq!(count(is_conditional), 2, "{json}");
+    // Heading and chapter-list catch-ups read before the other orphans.
+    let first_conditional = extras
+        .orphans
+        .iter()
+        .position(|id| is_conditional(&kinds[id]))
+        .unwrap();
+    assert!(
+        extras.orphans[first_conditional..]
+            .iter()
+            .all(|id| is_conditional(&kinds[id])),
+        "{json}"
+    );
+}
+
+#[test]
+fn memorize_sessions_eventually_offer_every_extra() {
+    // Sessions that memorize everything they serve drain every extra: the
+    // caps defer cards, never drop them.
+    let mut engine = six_extras_engine();
+    let kinds = card_kinds(&engine);
+    let mut offered: std::collections::HashMap<String, usize> = Default::default();
+    let mut drained = false;
+    for _ in 0..50 {
+        let session: serde_json::Value =
+            serde_json::from_str(&engine.memorize_session_v2(2, 0).unwrap()).unwrap();
+        let entries = session["verses"].as_array().unwrap();
+        let extras = session_extras(&session);
+        if entries.is_empty() && extras.orphans.is_empty() {
+            drained = true;
+            break;
+        }
+        for e in entries {
+            engine.graduate_verse(e["verseId"].as_u64().unwrap() as u32);
+            for id in e["conditionalCardIds"].as_array().into_iter().flatten() {
+                let id = id.as_u64().unwrap();
+                *offered.entry(kinds[&id].clone()).or_default() += 1;
+                engine.graduate_card(id as u32);
+            }
+        }
+        for &id in extras.attached.iter().chain(&extras.orphans) {
+            *offered.entry(kinds[&id].clone()).or_default() += 1;
+            engine.graduate_card(id as u32);
+        }
+    }
+    assert!(drained, "sessions never ran out of extras: {offered:?}");
+    for kind in [
+        "HeadingPassage",
+        "ChapterClubList",
+        "Ftv",
+        "VerseInHeading",
+        "VerseInClub",
+    ] {
+        assert_eq!(
+            offered.get(kind).copied().unwrap_or(0),
+            SIX_VERSES as usize,
+            "{kind}: {offered:?}"
+        );
+    }
+}
+
+#[test]
+fn memorize_session_offers_a_which_heading_card_once() {
+    // Both verses share a heading. Verse 0 is memorized while its
+    // which-heading card stays New; verse 1's own which-heading card then
+    // comes with verse 1, so verse 0's must not also come as an orphan.
+    let mut engine =
+        WasmEngine::new(MATERIAL_HP_CCL_JSON, CONFIG_ALL_EXTRAS_JSON, "", "", 0).unwrap();
+    let kinds = card_kinds(&engine);
+    engine.graduate_verse(0);
+    let json = engine.memorize_session_v2(10, 0).unwrap();
+    let session: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let verse_cards = session["verses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|e| e["cardIds"].as_array().unwrap().iter())
+        .map(|v| v.as_u64().unwrap());
+    let which_heading = verse_cards
+        .chain(session_extras(&session).orphans)
+        .filter(|id| kinds[id] == "VerseInHeading")
+        .count();
+    assert_eq!(which_heading, 1, "{json}");
+}
