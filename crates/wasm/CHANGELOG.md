@@ -22,6 +22,28 @@ The contract is documented in `docs/wasm-api.md`.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-02
+
+MINOR: a memorize session's extra cards share two budgets instead of one per kind
+(`specs/005-memorize-session-flow`). What a session carries changes; the wire shape does not.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.14.0`: single-book decks seed their book tests at maximum memory (0.13.0), and
+  the engine says which cards ask only a given (0.14.0).
+
+### Changed
+
+* `memorize_session_v2` capped each kind of extra at `limit` separately, so a batch of 3 could carry
+  about 15 extras alongside 3 verses. Heading and chapter-list cards now share one budget of
+  `limit`, filled with the session's own cards (those attaching to a session verse) before
+  catch-ups, and the first-words, which-heading and which-club orphans share another. A card the
+  budget leaves out stays New and comes back in a later session.
+* A which-heading card coming with a session verse no longer also comes as an orphan for the same
+  heading, which would drill the question twice and spend an orphan slot.
+* In a deck drawn from one book (John, Luke), a session verse's `cardIds` leave out its which-book
+  card, whose one answer is a given. `graduate_verse` still graduates it with the verse.
+
 ## [0.12.1] - 2026-10-02
 
 PATCH: a memorize session's extra cards come only from memorized verses.

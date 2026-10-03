@@ -41,8 +41,8 @@ FTV handling.
   `packages/api/src/lib/render.ts`, `GET /api/materials/:id/renders`,
   `GET /api/materials/:id/passages`
 * **Coverage:** `docs/wasm-api.md` documents the render JSON shape at the boundary and
-  `docs/session.md` covers progressive reveal within a session. Neither explains where the HTML
-  comes from, how api.bible passages are cached and patched, or what the markup means
+  `docs/memorize.md` covers the memorize session. Neither explains where the HTML comes from, how
+  api.bible passages are cached and patched, or what the markup means
 
 ## Spelling dialects
 

@@ -154,6 +154,13 @@ working ahead a week at a time in schedule order; else verses no week assigns. A
 verses holds only those, even when fewer than `limit`. `limit` is a firm cap. `now_secs` places
 verses against the schedule's weeks and evaluates gates that reference dated checkpoints.
 
+Alongside the verses, heading and chapter-list cards share a budget of `limit` (the session's own,
+attached to a session verse by session order, before catch-ups), and the conditional orphans (`Ftv`,
+`VerseInHeading`, `VerseInClub` still new on memorized verses outside the session) share another;
+whatever doesn't fit stays `New` for a later call. In a deck drawn from one book a verse's `cardIds`
+leave out its `VerseInBook` card, which `graduate_verse` still graduates. See
+[`memorize.md`](memorize.md#the-session).
+
 `memorize_session` calls `memorize_session_v2(limit, 0)`, which reads as before any season: with a
 schedule bound it serves in schedule order from the first week, without one in rank and then deck
 order. No client calls it.

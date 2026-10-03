@@ -1,9 +1,10 @@
 # Memorize
 
 How the engine decides which new verses to hand out, and how many it says are waiting. Reviewing
-memorized verses is a separate queue; see [`scheduling.md`](scheduling.md). Within a memorize
-session see [`session.md`](session.md). The design and its validation live in
-[`specs/003-memorize-by-schedule/`](../specs/003-memorize-by-schedule/).
+memorized verses is a separate queue; see [`scheduling.md`](scheduling.md). What the learner does
+with the verses a press hands out is in [The session](#the-session). The designs and their
+validation live in [`specs/003-memorize-by-schedule/`](../specs/003-memorize-by-schedule/) (the
+queue) and [`specs/005-memorize-session-flow/`](../specs/005-memorize-session-flow/) (the session).
 
 The rule a learner would state is the rule the engine follows:
 
@@ -94,6 +95,69 @@ until its next page load.
 The memorize simulation (`cargo run -p verse-vault-sim --release -- --memorize`) checks these
 properties across every bundled season and setting; see
 [`specs/003-memorize-by-schedule/quickstart.md`](../specs/003-memorize-by-schedule/quickstart.md).
+
+## The session
+
+Pressing Memorize builds one session from every enrolled year with memorize enabled, and walks it in
+three phases. The web client runs it on its own engine; `memorize_session_v2` in
+`crates/wasm/src/lib.rs` builds each year's part and `apps/web/src/views/MemorizeView.vue` runs it.
+
+### What a session holds
+
+Each year contributes a batch from the queue above, up to its lesson batch size. While any year owes
+verses, only the years that owe verses contribute, so a session never mixes one year's owed verses
+with another's work-ahead.
+
+* **A verse** brings every new card it has: its blanks (one per phrase), its recitation, its
+  citation and location cards, and the optional cards its settings turn on (first words, which
+  heading, which club). In a deck drawn from one book (John, Luke) the which-book card is left out
+  of the drill, since it has one answer; it is still memorized with the verse.
+* **Heading and chapter-list cards.** A heading's passage card comes with the first of its verses in
+  the session, a chapter's club-list card with the last of its verses once every verse of that
+  chapter and club is memorized or in the session, both by session order. Either can also come as a
+  catch-up, riding on a session verse with room, when its verses were memorized earlier. Together
+  they number at most the batch size, the session's own before catch-ups; the rest wait for a later
+  session.
+* **Orphans.** Optional cards still new on verses memorized earlier (a first-words card switched on
+  after the verse was memorized, say). At most the batch size of them, from memorized verses only,
+  with at most one which-heading card per heading and one which-club card per club.
+
+Each budget is per year. A year's items read as one block: its verses with their heading and
+chapter-list cards, then its orphans. Nothing a budget leaves out is changed, so a later session
+offers it. With no verses left to introduce, a session can be extras alone.
+
+### Read, drill, read again
+
+1. **Read.** The learner reads every item in turn, a verse as its full text and an extra as itself.
+   "Already memorized" memorizes an item at once and drops it from the rest of the session. If every
+   item is dropped, the session ends here.
+2. **Drill.** Every card of every remaining item is drilled until answered Good once. Again keeps
+   the card in the drill. Drill answers are not recorded as reviews: memory tracking starts once a
+   verse is memorized.
+3. **Read again.** The learner walks the remaining items and chooses Graduate (memorized now) or Not
+   yet (left unmemorized, offered again in a later session).
+
+The session ends on a summary of how many verses were memorized. Leaving part-way memorizes nothing
+the learner didn't confirm.
+
+### How the drill picks
+
+Each pick draws at random from the cards not yet answered Good, leaving out the verse just shown
+while any other verse's card is left. If the draw is a card its verse is not ready for, the verse's
+ready card comes up instead:
+
+| Drawn card                                                       | Shown                                     |
+| ---------------------------------------------------------------- | ----------------------------------------- |
+| a blank not yet shown                                            | the verse's lowest-position unshown blank |
+| a recitation or first-words card, blanks still unshown           | the verse's lowest-position unshown blank |
+| a recitation or first-words card, every blank shown, some missed | one of the missed blanks, at random       |
+| anything else                                                    | itself                                    |
+
+So a verse's blanks first appear in phrase order, its recitation and first-words card wait until
+every blank is Good, a missed blank comes back at random without holding up the next blank, and,
+apart from the verse just shown, each verse is drawn in proportion to the cards it has left.
+Location cards and extras come up as themselves. `Drill` in `apps/web/src/lib/drillOrder.ts` holds
+the rule; it lives in the web client because the drill changes no memory state.
 
 ## Open question: verses a row moves to another week
 

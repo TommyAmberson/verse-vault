@@ -248,8 +248,8 @@ asserts parity between the online and sync paths on an identical event.
   test state reflects "server state before + offline events in timestamp order within the batch."
   This is correct for single-device offline usage; truly concurrent multi-device edits with
   overlapping timelines are out of scope.
-* **Reading cards aren't logged.** A client that lost its progressive-reveal progress will start
-  from the beginning on reconnect; only drill grades are preserved.
+* **Memorize sessions aren't logged.** Reading and drilling record nothing, so a client that leaves
+  a memorize session part-way starts it over; only graduations are preserved.
 * **Element-shape drift on snapshot bumps.** Legacy positional `Phrase` rows are translated to the
   range form on load, but a `phraseWordCounts` change that _shifts_ a phrase's boundaries (rather
   than just renumbering) drops the old row's FSRS state — the phrase becomes a different element and

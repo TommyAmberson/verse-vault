@@ -9,6 +9,31 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.4] - 2026-10-02
+
+PATCH: the Memorize drill picks cards at random while building each verse up, and sessions carry
+fewer extra cards.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.14.0`: the engine says which cards ask only a given; the unused progressive
+  reveal is removed.
+* `verse-vault-wasm@0.13.0`: a session's extras share two budgets; single-book decks leave the
+  which-book card out of a verse's `cardIds`.
+
+### Changed
+
+* A Memorize session carries at most a batch's worth of heading and chapter-list cards together, the
+  ones for its own verses first, and at most a batch's worth of the other extra cards together.
+  Before, each kind of extra had its own cap, so a batch of 3 verses could bring about 15 extras.
+* The Memorize drill picks each card at random from the cards left instead of walking a shuffled
+  queue. A verse's blanks come in phrase order, its recitation and FTV only once every blank is
+  Good, and a missed blank comes back at random without holding up the verse's next blank. The same
+  verse never comes up twice in a row while another verse's card is left
+  (`specs/005-memorize-session-flow`).
+* In a single-book year (John, Luke), the Memorize drill no longer asks which book a verse is in.
+  The which-book card is still memorized with the verse.
+
 ## [0.10.3] - 2026-10-02
 
 PATCH: in a single-book year (John, Luke), the which-book card starts as already known.

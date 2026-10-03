@@ -95,6 +95,16 @@ pub struct BuildResult {
     /// with. Consumed by the API's one-time data migration via the wasm
     /// `legacy_card_id_map` export.
     pub legacy_card_id_map: Vec<CardId>,
+    /// Every verse comes from one book; see [`test_is_given`].
+    pub(crate) single_book: bool,
+}
+
+/// Whether a test's answer is a given in its deck: the book of a verse,
+/// when every verse comes from one book. A given test starts at maximum
+/// memory, and a card that asks only given tests teaches nothing to drill
+/// (`ReviewEngine::is_given`).
+pub(crate) fn test_is_given(kind: TestKind, single_book: bool) -> bool {
+    single_book && kind == TestKind::VerseBook
 }
 
 /// Parse a raw tier list (as written in `VerseData.clubs`) into the
@@ -580,9 +590,9 @@ pub fn build_with_config(
     );
 
     // Seed `TestState::new_unseen` for every TestKey reachable from any card.
-    // In a deck drawn from one book the book binding is a given, so it starts
-    // at maximum memory: its card stays, but is never due early, and a missed
-    // recitation or citation puts almost none of the blame on the book.
+    // A given test (`test_is_given`) starts at maximum memory instead: its
+    // card stays, but is never due early, and a missed recitation or
+    // citation puts almost none of the blame on it.
     let single_book = book_index.len() == 1;
     let mut tests: HashMap<TestKey, TestState> = HashMap::new();
     let mut seen: HashSet<TestKey> = HashSet::new();
@@ -593,7 +603,7 @@ pub fn build_with_config(
         };
         for tk in card.tests(atoms) {
             if seen.insert(tk) {
-                let state = if single_book && tk.kind == TestKind::VerseBook {
+                let state = if test_is_given(tk.kind, single_book) {
                     TestState::new_at_max_memory(now_secs)
                 } else {
                     TestState::new_unseen(now_secs)
@@ -611,6 +621,7 @@ pub fn build_with_config(
         verse_render_data: verse_render_by_id,
         material_config: *config,
         legacy_card_id_map,
+        single_book,
     }
 }
 
@@ -893,6 +904,16 @@ mod tests {
         .unwrap()
     }
 
+    /// Each card's kind, and whether the engine counts it as a given.
+    fn is_given_by_kind(r: BuildResult) -> Vec<(CardKind, bool)> {
+        let engine = crate::engine::ReviewEngine::new(r, 0.9);
+        engine
+            .cards
+            .iter()
+            .map(|c| (c.kind, engine.is_given(c)))
+            .collect()
+    }
+
     fn seeded_stabilities(r: &BuildResult, kind: TestKind) -> Vec<f32> {
         r.tests
             .iter()
@@ -909,6 +930,13 @@ mod tests {
         let book = seeded_stabilities(&r, TestKind::VerseBook);
         assert_eq!(book.len(), 2);
         assert!(book.iter().all(|&s| s == max));
+        // The which-book card asks only the given test, so it is a given;
+        // cards that also ask anything else are not.
+        assert!(
+            is_given_by_kind(build(&material_two_verses("John"), now))
+                .iter()
+                .all(|(kind, given)| *given == matches!(kind, CardKind::VerseInBook))
+        );
         // Only the book binding is a given; everything else starts unseen.
         let unseen = TestState::new_unseen(now).stability;
         let chapter = seeded_stabilities(&r, TestKind::VerseChapter);
@@ -923,6 +951,7 @@ mod tests {
         let book = seeded_stabilities(&r, TestKind::VerseBook);
         assert_eq!(book.len(), 2);
         assert!(book.iter().all(|&s| s == unseen));
+        assert!(is_given_by_kind(r).iter().all(|(_, given)| !given));
     }
 
     #[test]

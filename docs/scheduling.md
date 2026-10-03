@@ -132,9 +132,10 @@ interprets that as "you're caught up".
 
 ## Sessions
 
-Within-session behaviour (composite-card re-drilling, progressive reveal of new verses, FTV cards)
-lives in [`session.md`](session.md) and `crates/core/src/session.rs`. The scheduler proper is
-stateless across sessions; the session layer adds short-lived in-memory queueing on top.
+Within-session behaviour (composite-card re-drilling, FTV cards) lives in [`session.md`](session.md)
+and `crates/core/src/session.rs`; a memorize session is in [`memorize.md`](memorize.md#the-session).
+The scheduler proper is stateless across sessions; the session layer adds short-lived in-memory
+queueing on top.
 
 ## ScheduleParams
 

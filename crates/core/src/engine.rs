@@ -94,6 +94,8 @@ pub struct ReviewEngine {
     /// releases (whose ids were emission indices). See
     /// `BuildResult::legacy_card_id_map`.
     pub legacy_card_id_map: Vec<CardId>,
+    /// See `BuildResult::single_book`.
+    single_book: bool,
 }
 
 impl ReviewEngine {
@@ -111,6 +113,7 @@ impl ReviewEngine {
             verse_render_data: b.verse_render_data,
             material_config: b.material_config,
             legacy_card_id_map: b.legacy_card_id_map,
+            single_book: b.single_book,
         }
     }
 
@@ -154,6 +157,21 @@ impl ReviewEngine {
     /// isn't in the catalog.
     pub fn verse_render(&self, verse_id: u32) -> Option<&VerseRender> {
         self.verse_render_data.get(&verse_id)
+    }
+
+    /// Whether every test a card asks is a given in this deck
+    /// ([`crate::builder::test_is_given`]), so drilling the card teaches
+    /// nothing: the which-book card of a deck drawn from one book.
+    pub fn is_given(&self, card: &Card) -> bool {
+        // Only a single-book deck has given tests; skip the atoms clone.
+        if !self.single_book {
+            return false;
+        }
+        let tests = card.tests(&self.atoms_for(card.verse_id));
+        !tests.is_empty()
+            && tests
+                .iter()
+                .all(|t| crate::builder::test_is_given(t.kind, self.single_book))
     }
 
     /// Look up a card by id. Linear scan — fine for the few-thousand-card
