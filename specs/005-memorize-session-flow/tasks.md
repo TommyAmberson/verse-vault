@@ -233,10 +233,10 @@ finds nothing.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T014 Release api PATCH to ship the wasm and core changes: `packages/api/package.json`, and in
+- [X] T014 Release api PATCH to ship the wasm and core changes: `packages/api/package.json`, and in
       `packages/api/CHANGELOG.md` promote `[Unreleased]` to the dated version section in the same
       commit, restating the bundled core and wasm versions under `### Bundled algorithm contract`
-- [ ] T015 Release web PATCH the same way in `apps/web/package.json` and `apps/web/CHANGELOG.md`,
+- [X] T015 Release web PATCH the same way in `apps/web/package.json` and `apps/web/CHANGELOG.md`,
       also recording the drill picker
 - [ ] T016 Run quickstart.md: the automated block (`cargo test`, `cargo clippy --all-targets -- -D
       warnings`, `pnpm test`, `dprint check`, `typos`) and the manual web check, on an account with
