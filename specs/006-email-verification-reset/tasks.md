@@ -60,7 +60,7 @@ is Phases 7 to 9 (User Stories 4 and 5) and starts after PR 1 merges.
 
 **Purpose**: deploy-side configuration the sender needs
 
-- [ ] T001 [P] Add an optional, hidden `RESEND_API_KEY` prompt after the Google prompts in `deploy/provision.sh` (reuse `prompt_secret`), and list `RESEND_API_KEY` with the optional variables in `docs/deployment.md`, noting that without it the API logs links instead of sending (research D10)
+- [X] T001 [P] Add an optional, hidden `RESEND_API_KEY` prompt after the Google prompts in `deploy/provision.sh` (reuse `prompt_secret`), and list `RESEND_API_KEY` with the optional variables in `docs/deployment.md`, noting that without it the API logs links instead of sending (research D10)
 
 ---
 

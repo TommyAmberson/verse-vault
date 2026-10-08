@@ -139,6 +139,10 @@ NKJV_BIBLE_ID=de4e12af7f28f599-02
 
 # american | british | canadian (default canadian)
 RENDER_DIALECT=canadian
+
+# Sends password-reset and verification email from no-reply@versevault.ca
+# through Resend. Without it the API logs each link instead of sending.
+RESEND_API_KEY=...
 ```
 
 ### 3. systemd unit
