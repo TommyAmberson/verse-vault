@@ -11,7 +11,8 @@ describe('socialSignInError', () => {
   it('points a refused link at the password form', () => {
     const result = socialSignInError('?error=account_not_linked')
     expect(result?.passwordAccount).toBe(true)
-    expect(result?.message).toMatch(/password account/)
+    expect(result?.message).toMatch(/verify/)
+    expect(result?.message).toMatch(/reset/)
   })
 
   it('reports other codes as a generic failure', () => {

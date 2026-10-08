@@ -7,8 +7,9 @@ export interface SocialSignInError {
   passwordAccount: boolean
 }
 
-/** Since better-auth 1.6.11, Google sign-in refuses to merge into a password
- *  account whose email is unverified, and ours never are. */
+/** Google sign-in refuses to merge into a password account unless both the
+ *  account's email and Google's are verified. The learner can fix the first
+ *  by signing in and verifying, or by resetting the password. */
 const ACCOUNT_NOT_LINKED = 'account_not_linked'
 
 export function socialSignInError(search: string): SocialSignInError | null {
@@ -17,7 +18,8 @@ export function socialSignInError(search: string): SocialSignInError | null {
   if (code === ACCOUNT_NOT_LINKED) {
     return {
       message:
-        'This email already has a password account. Sign in with your email and password instead.',
+        "This email already has a password account that Google can't join yet. Sign in with your " +
+        'password and verify your email in settings, or reset your password, then try Google again.',
       passwordAccount: true,
     }
   }
