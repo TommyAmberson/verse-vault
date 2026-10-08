@@ -27,14 +27,16 @@ depend on the env vars set on the server (`GOOGLE_CLIENT_ID`, etc. — see
 
 Useful endpoints (Better Auth defaults):
 
-| method | path                               | purpose                                       |
-| ------ | ---------------------------------- | --------------------------------------------- |
-| GET    | `/api/auth/get-session`            | current session or null                       |
-| POST   | `/api/auth/sign-in/email`          | password sign-in                              |
-| POST   | `/api/auth/sign-out`               | clear session cookie                          |
-| GET    | `/api/auth/callback/<provider>`    | OAuth provider callback (per provider config) |
-| POST   | `/api/auth/request-password-reset` | `{ email }`; emails a reset link              |
-| POST   | `/api/auth/reset-password`         | `{ token, newPassword }`; sets the password   |
+| method | path                                | purpose                                          |
+| ------ | ----------------------------------- | ------------------------------------------------ |
+| GET    | `/api/auth/get-session`             | current session or null                          |
+| POST   | `/api/auth/sign-in/email`           | password sign-in                                 |
+| POST   | `/api/auth/sign-out`                | clear session cookie                             |
+| GET    | `/api/auth/callback/<provider>`     | OAuth provider callback (per provider config)    |
+| POST   | `/api/auth/request-password-reset`  | `{ email }`; emails a reset link                 |
+| POST   | `/api/auth/reset-password`          | `{ token, newPassword }`; sets the password      |
+| GET    | `/api/auth/verify-email`            | `?token=`; verifies, with that account's session |
+| POST   | `/api/auth/send-verification-email` | `{ email }`; emails a new verification link      |
 
 ### Password reset
 
@@ -57,6 +59,30 @@ Completing a reset:
 * deletes the account's other outstanding reset tokens, so an older link can't be used later.
 
 An account with only Google sign-in gets its first password this way.
+
+### Email verification
+
+Signing up with a password sends a verification email; the account works before it is verified, and
+nothing requires verification to sign in. Google sign-ups arrive verified. A verified address is
+what lets Google sign-in link into a password account (see `accountLinking` in
+`packages/api/src/lib/auth.ts`).
+
+The link opens the web app at `<WEB_BASE_URL>/verify-email?token=…&email=…`. The page makes the
+link's account the active session, switching profile or asking for sign-in, then calls
+`GET /api/auth/verify-email?token=…` with that session and no `callbackURL`, so the answer is JSON:
+
+* `200` and the address is verified, when the session belongs to the token's account;
+* `403`, verifying nothing, for no session or another account's session;
+* `401` with `TOKEN_EXPIRED`, `INVALID_TOKEN`, or `USER_NOT_FOUND` for a bad token.
+
+The session requirement is deliberate. Better Auth's verify route only sets the flag, so verifying
+from a signed-out click would let someone who registered another person's address get that person to
+verify it from the genuine email, leaving the registrant's password on an account that then accepts
+the owner's Google sign-in. Signing in proves the password; the email proves the inbox.
+
+Tokens are signed and not stored, valid for 24 hours, and can be used again within that time, which
+only re-sets a flag already set. A learner signs in and asks for a new link with
+`POST /api/auth/send-verification-email`, which answers the same way for every address.
 
 ### `GET /api/me`
 
