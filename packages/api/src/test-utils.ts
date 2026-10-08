@@ -7,6 +7,7 @@ import { expect } from 'vitest';
 
 import { createApp } from './app.js';
 import { type DB, createDb } from './db/client.js';
+import type { EmailMessage, SendEmail } from './lib/email.js';
 import { user } from './db/schema.js';
 import { MIGRATIONS_FOLDER, runMigrations } from './db/migrate.js';
 import type { ObservabilityOptions } from './middleware/observability.js';
@@ -43,6 +44,9 @@ export interface CreateTestAppOptions {
   /** Override observability middleware defaults. Useful for tests that
    *  need tight rate-limit tiers or want to capture logged JSON lines. */
   observability?: Partial<ObservabilityOptions>;
+  /** Replaces the recording sender, e.g. to wrap a real sender with a
+   *  stalled `fetch`. */
+  sendEmail?: SendEmail;
 }
 
 /** Permissive rate-limit defaults so existing route tests (which fire
@@ -68,12 +72,22 @@ export function createTestApp(opts: CreateTestAppOptions = {}) {
   // Pull `engines` so tests can clear() / inspect it if they want.
   // We deliberately don't call `engines.start()` here — tests run in
   // milliseconds and have no use for the 60 s idle reaper.
+  // Every email an auth flow sends lands here, so a test can follow its link.
+  const emails: EmailMessage[] = [];
   const { app, engines } = createApp({
     db: test.db,
     authEnv: TEST_AUTH_ENV,
     observability: { ...TEST_DEFAULT_OBSERVABILITY, ...opts.observability },
+    sendEmail: opts.sendEmail ?? ((message) => emails.push(message)),
   });
-  return { app, engines, ...test };
+  return { app, engines, emails, ...test };
+}
+
+/** The link in a recorded email's plain-text body. */
+export function emailLink(message: EmailMessage): string {
+  const match = /https?:\/\/\S+/.exec(message.text);
+  if (!match) throw new Error(`no link in email: ${message.subject}`);
+  return match[0];
 }
 
 export type TestApp = ReturnType<typeof createTestApp>;

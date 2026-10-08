@@ -34,6 +34,7 @@ const authEnv = {
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         }
       : undefined,
+  resendApiKey: process.env.RESEND_API_KEY,
 };
 
 const dbPath = process.env.DATABASE_PATH ?? resolve(import.meta.dirname, '../data/verse-vault.db');

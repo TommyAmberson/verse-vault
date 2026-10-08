@@ -1,15 +1,20 @@
+import { and, eq, like } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { multiSession } from 'better-auth/plugins';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
+import { type SendEmail, resetPasswordEmail } from './email.js';
 
 export interface AuthEnv {
   baseUrl: string;
   secret: string;
   webOrigin: string;
   googleOAuth?: { clientId: string; clientSecret: string };
+  /** Resend API key. Without it, reset and verification links are logged
+   *  instead of emailed. */
+  resendApiKey?: string;
 }
 
 /** Origins served inside the Tauri desktop shell — one per webview
@@ -21,7 +26,7 @@ export interface AuthEnv {
  *  origin (CORS, Better Auth `trustedOrigins`). */
 export const TAURI_ORIGINS = ['tauri://localhost', 'https://tauri.localhost'] as const;
 
-export function createAuth(db: DB, env: AuthEnv) {
+export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const isProd = process.env.NODE_ENV === 'production';
   // Browsers send Origin headers as scheme+host+port only — never a path.
   // env.webOrigin may include a subpath (production used
@@ -48,6 +53,11 @@ export function createAuth(db: DB, env: AuthEnv) {
   // elsewhere for things like OAuth-flow URL construction).
   const betterAuthBaseURL = new URL(env.baseUrl).origin;
 
+  // Email links always open the public web app, whichever client asked:
+  // a desktop client's own origin (tauri://…) means nothing to the mail
+  // client's browser.
+  const webBase = env.webOrigin.replace(/\/$/, '');
+
   return betterAuth({
     baseURL: betterAuthBaseURL,
     secret: env.secret,
@@ -59,8 +69,33 @@ export function createAuth(db: DB, env: AuthEnv) {
     // shows it. force=1 keeps the
     // router guard from forwarding a signed-in user off the picker (and
     // dropping `?error=`); Better Auth appends `&error=<code>`.
-    onAPIError: { errorURL: `${env.webOrigin.replace(/\/$/, '')}/profiles?force=1` },
-    emailAndPassword: { enabled: true },
+    onAPIError: { errorURL: `${webBase}/profiles?force=1` },
+    emailAndPassword: {
+      enabled: true,
+      // sendEmail starts the send and returns, so a real address answers as
+      // fast as an unknown one, for which Better Auth only fakes the work.
+      sendResetPassword: async ({ user, token }) =>
+        sendEmail(resetPasswordEmail(user.email, `${webBase}/reset-password?token=${token}`)),
+      revokeSessionsOnPasswordReset: true,
+      onPasswordReset: async ({ user }) => {
+        // Receiving the reset email proves the inbox, so the address counts
+        // as verified.
+        await db
+          .update(schema.user)
+          .set({ emailVerified: true, updatedAt: new Date() })
+          .where(eq(schema.user.id, user.id));
+        // Better Auth consumes only the token just used; any older reset
+        // link for this user would otherwise still work until it expired.
+        await db
+          .delete(schema.verification)
+          .where(
+            and(
+              like(schema.verification.identifier, 'reset-password:%'),
+              eq(schema.verification.value, user.id),
+            ),
+          );
+      },
+    },
     socialProviders: env.googleOAuth
       ? {
           google: {
