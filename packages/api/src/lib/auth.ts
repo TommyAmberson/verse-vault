@@ -1,11 +1,12 @@
 import { and, eq, like } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
+import { APIError } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { multiSession } from 'better-auth/plugins';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { type SendEmail, resetPasswordEmail } from './email.js';
+import { type SendEmail, resetPasswordEmail, verifyEmail } from './email.js';
 
 export interface AuthEnv {
   baseUrl: string;
@@ -58,7 +59,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   // client's browser.
   const webBase = env.webOrigin.replace(/\/$/, '');
 
-  return betterAuth({
+  const auth = betterAuth({
     baseURL: betterAuthBaseURL,
     secret: env.secret,
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
@@ -94,6 +95,33 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
               eq(schema.verification.value, user.id),
             ),
           );
+      },
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      expiresIn: 24 * 60 * 60,
+      // Link to the web app's page rather than the API: the page signs the
+      // learner in to the right account first, then verifies. The address
+      // rides along so the page knows which account that is; the token
+      // already carries it, so this exposes nothing new.
+      sendVerificationEmail: async ({ user, token }) =>
+        sendEmail(
+          verifyEmail(
+            user.email,
+            `${webBase}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`,
+          ),
+        ),
+      // Verify only for that account's own session. Better Auth's verify
+      // route sets the flag and nothing else, so a signed-out click would
+      // verify an address someone else registered, leaving their password
+      // on an account that then accepts the owner's Google sign-in.
+      beforeEmailVerification: async (user, request) => {
+        const current = request ? await auth.api.getSession({ headers: request.headers }) : null;
+        if (current?.user.id !== user.id) {
+          throw new APIError('FORBIDDEN', {
+            message: 'Sign in to this account to verify its email.',
+          });
+        }
       },
     },
     socialProviders: env.googleOAuth
@@ -132,6 +160,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
     // disturbing the others. Schema-compatible — no new tables.
     plugins: [multiSession()],
   });
+  return auth;
 }
 
 export type Auth = ReturnType<typeof createAuth>;

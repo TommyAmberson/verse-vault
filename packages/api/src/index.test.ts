@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { account, user, verification } from './db/schema.js';
+import { account, session, user, verification } from './db/schema.js';
 import { createEmailSender } from './lib/email.js';
 import {
   type TestApp,
@@ -196,5 +196,109 @@ describe('password reset', () => {
     expect(test.emails.at(-1)?.to).toBe('google-only@example.com');
     expect((await resetPassword(test, resetToken(test), 'firstPassword123!')).status).toBe(200);
     expect((await signIn(test, 'google-only@example.com', 'firstPassword123!')).status).toBe(200);
+  });
+});
+
+describe('email verification', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  const VERIFY_PAGE = 'http://localhost:5173/verify-email';
+
+  /** The token in the newest verification email, which opens the web app's
+   *  verification page rather than the API. */
+  function verifyToken(test: TestApp): string {
+    const message = test.emails.filter((m) => m.subject === 'Verify your VerseVault email').at(-1);
+    const link = new URL(emailLink(message!));
+    expect(`${link.origin}${link.pathname}`).toBe(VERIFY_PAGE);
+    expect(link.searchParams.get('email')).toBe(message!.to);
+    return link.searchParams.get('token')!;
+  }
+
+  function verify(test: TestApp, token: string, cookie?: string) {
+    return test.app.request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
+      headers: cookie ? { cookie } : {},
+    });
+  }
+
+  function isVerified(test: TestApp, userId: string): boolean | undefined {
+    return test.db.select().from(user).where(eq(user.id, userId)).get()?.emailVerified;
+  }
+
+  it('emails a verification link at sign-up and lets the account sign in unverified', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { userId } = await signUpTestUser(test, 'new@example.com', 'newPassword123!');
+
+    const sent = test.emails.filter((m) => m.subject === 'Verify your VerseVault email');
+    expect(sent.map((m) => m.to)).toEqual(['new@example.com']);
+    expect(isVerified(test, userId)).toBe(false);
+    const signIn = await test.app.request('/api/auth/sign-in/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'new@example.com', password: 'newPassword123!' }),
+    });
+    expect(signIn.status).toBe(200);
+  });
+
+  it("verifies with the account's own session and creates no session", async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'own@example.com');
+    const sessionsBefore = test.db.select().from(session).all().length;
+
+    const res = await verify(test, verifyToken(test), cookie);
+
+    expect(res.status).toBe(200);
+    expect(isVerified(test, userId)).toBe(true);
+    expect(test.db.select().from(session).all()).toHaveLength(sessionsBefore);
+  });
+
+  it('refuses a link opened without a session, so a pre-registered address stays unverified', async () => {
+    // The attack this guards against: someone signs up with another
+    // person's address; if that person clicks the genuine email while
+    // signed out, the account must not become verified with the other
+    // person's password still on it.
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { userId } = await signUpTestUser(test, 'victim@example.com');
+
+    const res = await verify(test, verifyToken(test));
+
+    expect(res.status).toBe(403);
+    expect(isVerified(test, userId)).toBe(false);
+  });
+
+  it("refuses a link opened with another account's session", async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { userId } = await signUpTestUser(test, 'target@example.com');
+    const token = verifyToken(test);
+    const other = await signUpTestUser(test, 'other@example.com');
+
+    const res = await verify(test, token, other.cookie);
+
+    expect(res.status).toBe(403);
+    expect(isVerified(test, userId)).toBe(false);
+  });
+
+  it('rejects a malformed token', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'bad@example.com');
+    const res = await verify(test, 'not-a-token', cookie);
+    expect(res.status).toBe(401);
+  });
+
+  it('accepts the same link twice from the right session', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'twice-verify@example.com');
+    const token = verifyToken(test);
+    expect((await verify(test, token, cookie)).status).toBe(200);
+    expect((await verify(test, token, cookie)).status).toBe(200);
   });
 });
