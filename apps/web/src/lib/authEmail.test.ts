@@ -12,6 +12,11 @@ describe('emailRequestMessage', () => {
     expect(emailRequestMessage(throttled, RESET_SENT)).toBe('Try again later.')
   })
 
+  it('says so when the address turns out to be verified already', () => {
+    const verified = { error: { status: 400, code: 'EMAIL_ALREADY_VERIFIED' } }
+    expect(emailRequestMessage(verified, RESET_SENT)).toBe('This address is already verified.')
+  })
+
   it('reports any other failure instead of claiming it was sent', () => {
     expect(emailRequestMessage({ error: { status: 500 } }, RESET_SENT)).not.toBe(RESET_SENT)
   })
