@@ -613,6 +613,8 @@ export function useAuth() {
     signInSocial: factoryShape.signInSocial,
     signInEmail,
     signUpEmail,
+    requestPasswordReset: factoryShape.requestPasswordReset,
+    resetPassword: factoryShape.resetPassword,
     activeProfile: computed(() => activeProfile.value),
     profiles: computed(() => profilesList.value),
     syncState: computed(() => syncState.value),

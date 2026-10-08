@@ -16,6 +16,7 @@ const {
   signInSocial,
   signInEmail,
   signUpEmail,
+  requestPasswordReset,
   signOut,
   enterProfile,
   deleteProfile,
@@ -188,6 +189,7 @@ async function onSignInSuccess() {
         :sign-in-social="signInSocialToDestination"
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
+        :request-password-reset="requestPasswordReset"
         :key="reauthTarget?.profileId ?? ''"
         :reauth="reauthTarget ?? undefined"
         @success="onSignInSuccess"

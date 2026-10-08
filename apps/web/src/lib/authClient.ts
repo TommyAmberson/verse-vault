@@ -89,7 +89,25 @@ export function createAppAuthClient(baseURL: string) {
       authClient.signOut()
     }
 
-    return { session, signInSocial, signInEmail, signUpEmail, signOut }
+    // The server builds the emailed link from its own web origin, so no
+    // redirect target is sent from here.
+    async function requestPasswordReset(email: string) {
+      return authClient.requestPasswordReset({ email })
+    }
+
+    async function resetPassword(token: string, newPassword: string) {
+      return authClient.resetPassword({ token, newPassword })
+    }
+
+    return {
+      session,
+      signInSocial,
+      signInEmail,
+      signUpEmail,
+      signOut,
+      requestPasswordReset,
+      resetPassword,
+    }
   }
 
   return { authClient, useAuth }

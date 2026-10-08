@@ -2,16 +2,18 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { RESET_SENT, emailRequestMessage } from '@/lib/authEmail'
 import { readPendingProvider, type SocialProvider } from '@/lib/authClient'
 import type { AuthProvider } from '@/lib/engine/registry'
 import { socialSignInError } from '@/lib/socialSignInError'
 
-type SignInResult = { error?: { message?: string | null } | null } | undefined
+type SignInResult = { error?: { message?: string | null; status?: number } | null } | undefined
 
 const props = defineProps<{
   signInSocial: (provider: SocialProvider) => void
   signInEmail: (email: string, password: string) => Promise<SignInResult>
   signUpEmail: (email: string, password: string) => Promise<SignInResult>
+  requestPasswordReset: (email: string) => Promise<SignInResult>
   /** The signed-out profile being re-authenticated, if any. Its email
    *  prefills the form; a known `email` provider skips the provider
    *  picker. An unknown provider may be an OAuth account, so it still
@@ -39,13 +41,27 @@ if (oauthError) {
   void router.replace({ query })
 }
 
-const mode = ref<'pick' | 'signin' | 'signup'>(
+const mode = ref<'pick' | 'signin' | 'signup' | 'forgot'>(
   props.reauth?.provider === 'email' || oauthError?.passwordAccount ? 'signin' : 'pick',
 )
 const email = ref(props.reauth?.email ?? '')
 const password = ref('')
 const error = ref(oauthError?.message ?? '')
 const pending = ref(false)
+const notice = ref('')
+
+function openForgot() {
+  error.value = ''
+  notice.value = ''
+  mode.value = 'forgot'
+}
+
+async function submitForgot() {
+  pending.value = true
+  const result = await props.requestPasswordReset(email.value)
+  pending.value = false
+  notice.value = emailRequestMessage(result, RESET_SENT)
+}
 
 async function submitEmail() {
   error.value = ''
@@ -91,6 +107,25 @@ async function submitEmail() {
       <button class="email-toggle" @click="mode = 'signup'">Create account</button>
     </template>
 
+    <template v-else-if="mode === 'forgot'">
+      <button class="back-btn" @click="mode = 'signin'">← Back</button>
+      <p class="form-title">Reset your password</p>
+      <form @submit.prevent="submitForgot">
+        <input
+          v-model="email"
+          type="email"
+          placeholder="Email"
+          autocomplete="email"
+          required
+          class="field"
+        />
+        <p v-if="notice" class="notice-msg" role="status">{{ notice }}</p>
+        <button type="submit" class="submit-btn" :disabled="pending">
+          {{ pending ? 'Please wait…' : 'Email me a reset link' }}
+        </button>
+      </form>
+    </template>
+
     <template v-else>
       <button class="back-btn" @click="mode = 'pick'">← Back</button>
       <p class="form-title">{{ mode === 'signup' ? 'Create account' : 'Sign in' }}</p>
@@ -116,6 +151,9 @@ async function submitEmail() {
           {{ pending ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in' }}
         </button>
       </form>
+      <button v-if="mode === 'signin'" type="button" class="link-btn" @click="openForgot">
+        Forgot password?
+      </button>
     </template>
   </div>
 </template>
@@ -230,6 +268,28 @@ form {
 .field:focus {
   outline: none;
   border-color: var(--color-accent);
+}
+
+.notice-msg {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  align-self: flex-start;
+  text-decoration: underline;
+}
+
+.link-btn:hover {
+  color: var(--color-text);
 }
 
 .error-msg {
