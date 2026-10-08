@@ -222,3 +222,27 @@ export async function clearSessionTokenIfMatches(
   await transactionComplete(tx)
   return updated
 }
+
+/** Set only `emailVerified`, reading and writing the row in one
+ *  transaction, so a concurrent token write (the session watcher) can't
+ *  be undone by a stale copy of the row. Returns the updated row, or null
+ *  when the profile is gone or already held that value. */
+export async function setEmailVerified(
+  profileId: string,
+  emailVerified: boolean,
+): Promise<ProfileRow | null> {
+  const db = await openRegistry()
+  const tx = db.transaction(STORE.Profiles, 'readwrite')
+  const store = tx.objectStore(STORE.Profiles)
+  let updated: ProfileRow | null = null
+  const getReq = store.get(profileId)
+  getReq.onsuccess = () => {
+    const existing = getReq.result as ProfileRow | undefined
+    if (existing && existing.emailVerified !== emailVerified) {
+      updated = { ...existing, emailVerified }
+      store.put(updated)
+    }
+  }
+  await transactionComplete(tx)
+  return updated
+}

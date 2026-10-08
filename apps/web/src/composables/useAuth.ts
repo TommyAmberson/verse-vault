@@ -579,7 +579,7 @@ export async function reconcileDeviceSessions(): Promise<void> {
         }
         return applyProfileRowUpdate(
           row.profileId,
-          await registry.updateProfile(row.profileId, { emailVerified: user.emailVerified }),
+          await registry.setEmailVerified(row.profileId, user.emailVerified),
         )
       }),
     )
