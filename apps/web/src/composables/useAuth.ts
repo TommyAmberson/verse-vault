@@ -585,7 +585,7 @@ export async function reconcileDeviceSessions(): Promise<void> {
     )
     const liveTokens = new Set(
       sessions
-        .map((entry: { session?: { token?: string } }) => entry.session?.token)
+        .map((entry) => entry.session?.token)
         .filter((t): t is string => typeof t === 'string'),
     )
     const stale = profiles.filter(

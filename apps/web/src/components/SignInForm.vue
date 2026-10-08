@@ -2,7 +2,8 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { RESET_SENT, emailRequestMessage } from '@/lib/authEmail'
+import { useEmailRequest } from '@/composables/useEmailRequest'
+import { RESET_SENT } from '@/lib/authEmail'
 import { readPendingProvider, type SocialProvider } from '@/lib/authClient'
 import type { AuthProvider } from '@/lib/engine/registry'
 import { socialSignInError } from '@/lib/socialSignInError'
@@ -24,9 +25,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'success'): void
-  /** An email sign-in or sign-up is under way; the form must stay mounted
-   *  until it emits `success`, even once the new profile appears. */
-  (e: 'submitting'): void
+  /** A sign-up is under way; the form must stay mounted until it emits
+   *  `success`, even once the new profile appears. */
+  (e: 'signing-up'): void
 }>()
 
 // A social sign-in that failed comes back here with `?error=`; show why once.
@@ -53,7 +54,14 @@ const email = ref(props.reauth?.email ?? '')
 const password = ref('')
 const error = ref(oauthError?.message ?? '')
 const pending = ref(false)
-const notice = ref('')
+const {
+  pending: forgotPending,
+  notice,
+  run: submitForgot,
+} = useEmailRequest(
+  () => props.requestPasswordReset(email.value),
+  () => RESET_SENT,
+)
 
 function openForgot() {
   error.value = ''
@@ -61,17 +69,12 @@ function openForgot() {
   mode.value = 'forgot'
 }
 
-async function submitForgot() {
-  pending.value = true
-  const result = await props.requestPasswordReset(email.value)
-  pending.value = false
-  notice.value = emailRequestMessage(result, RESET_SENT)
-}
-
 async function submitEmail() {
   error.value = ''
   pending.value = true
-  emit('submitting')
+  // Sign-up ends on a note in this form, so the parent must keep it mounted
+  // even once the new profile appears.
+  if (mode.value === 'signup') emit('signing-up')
   const fn = mode.value === 'signup' ? props.signUpEmail : props.signInEmail
   const result = await fn(email.value, password.value)
   pending.value = false
@@ -89,7 +92,7 @@ async function submitEmail() {
 <template>
   <div class="auth-card">
     <template v-if="mode === 'pick'">
-      <p v-if="error" class="error-msg">{{ error }}</p>
+      <p v-if="error" class="auth-error">{{ error }}</p>
       <button class="provider-btn" @click="signInSocial('google')">
         <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -118,11 +121,11 @@ async function submitEmail() {
 
     <template v-else-if="mode === 'signedUp'">
       <p class="form-title">Account created</p>
-      <p class="notice-msg" role="status">
+      <p class="auth-notice" role="status">
         We sent a verification email to {{ email }}. You can use the app now; verify when you're
         ready.
       </p>
-      <button type="button" class="submit-btn" @click="emit('success')">Continue</button>
+      <button type="button" class="auth-submit" @click="emit('success')">Continue</button>
     </template>
 
     <template v-else-if="mode === 'forgot'">
@@ -135,11 +138,11 @@ async function submitEmail() {
           placeholder="Email"
           autocomplete="email"
           required
-          class="field"
+          class="auth-field"
         />
-        <p v-if="notice" class="notice-msg" role="status">{{ notice }}</p>
-        <button type="submit" class="submit-btn" :disabled="pending">
-          {{ pending ? 'Please wait…' : 'Email me a reset link' }}
+        <p v-if="notice" class="auth-notice" role="status">{{ notice }}</p>
+        <button type="submit" class="auth-submit" :disabled="forgotPending">
+          {{ forgotPending ? 'Please wait…' : 'Email me a reset link' }}
         </button>
       </form>
     </template>
@@ -154,7 +157,7 @@ async function submitEmail() {
           placeholder="Email"
           autocomplete="email"
           required
-          class="field"
+          class="auth-field"
         />
         <input
           v-model="password"
@@ -162,10 +165,10 @@ async function submitEmail() {
           placeholder="Password"
           autocomplete="current-password"
           required
-          class="field"
+          class="auth-field"
         />
-        <p v-if="error" class="error-msg">{{ error }}</p>
-        <button type="submit" class="submit-btn" :disabled="pending">
+        <p v-if="error" class="auth-error">{{ error }}</p>
+        <button type="submit" class="auth-submit" :disabled="pending">
           {{ pending ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in' }}
         </button>
       </form>
@@ -177,18 +180,6 @@ async function submitEmail() {
 </template>
 
 <style scoped>
-.auth-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 22rem;
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-
 .provider-btn {
   display: flex;
   align-items: center;
@@ -272,28 +263,6 @@ form {
   gap: 0.5rem;
 }
 
-.field {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  font-size: 0.9rem;
-  font-family: inherit;
-}
-
-.field:focus {
-  outline: none;
-  border-color: var(--color-accent);
-}
-
-.notice-msg {
-  font-size: 0.8rem;
-  color: var(--color-muted);
-  margin: 0;
-}
-
 .link-btn {
   background: none;
   border: none;
@@ -308,32 +277,5 @@ form {
 
 .link-btn:hover {
   color: var(--color-text);
-}
-
-.error-msg {
-  font-size: 0.8rem;
-  color: var(--color-error);
-  margin: 0;
-}
-
-.submit-btn {
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  background: var(--color-accent);
-  border: none;
-  border-radius: 6px;
-  color: var(--color-on-accent);
-  font-size: 0.9rem;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.submit-btn:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-}
-
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 </style>

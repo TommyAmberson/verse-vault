@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 
 import './assets/colors.css'
+import './assets/auth-form.css'
 import { setUnauthorizedHandler } from './api'
 import App from './App.vue'
 import router from './router'

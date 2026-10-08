@@ -3,8 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import SignInForm from '@/components/SignInForm.vue'
-import { reconcileDeviceSessions, useAuth } from '@/composables/useAuth'
-import { VERIFY_SENT, emailRequestMessage, verificationTokenEmail } from '@/lib/authEmail'
+import { useAuth } from '@/composables/useAuth'
+import { useEmailRequest } from '@/composables/useEmailRequest'
+import { VERIFY_SENT } from '@/lib/authEmail'
 
 const {
   activeProfile,
@@ -20,16 +21,25 @@ const {
 const route = useRoute()
 
 const token = typeof route.query.token === 'string' ? route.query.token : ''
-const email = verificationTokenEmail(token)
+// The emailed link names its account so this page knows whom to sign in;
+// the server checks the token and the session regardless.
+const email = typeof route.query.email === 'string' ? route.query.email : ''
 const state = ref<'checking' | 'switch' | 'signin' | 'done' | 'invalid'>('checking')
 const error = ref('')
-const notice = ref('')
 const pending = ref(false)
+const {
+  pending: newLinkPending,
+  notice: newLinkNotice,
+  run: sendNewLink,
+} = useEmailRequest(
+  () => sendVerificationEmail(email),
+  () => VERIFY_SENT,
+)
 
 // A profile on this device that is signed in as the link's address.
 const target = computed(() =>
   profiles.value.find(
-    (p) => p.sessionToken !== null && p.email.toLowerCase() === email?.toLowerCase(),
+    (p) => p.sessionToken !== null && p.email.toLowerCase() === email.toLowerCase(),
   ),
 )
 
@@ -37,7 +47,7 @@ const target = computed(() =>
 // the active session first: switch to it if this device holds it,
 // otherwise ask for sign-in. Never sign the active profile out.
 onMounted(() => {
-  if (!email) {
+  if (!token || !email) {
     state.value = 'invalid'
   } else if (target.value && activeProfile.value?.profileId === target.value.profileId) {
     void runVerify()
@@ -60,9 +70,9 @@ async function runVerify() {
   state.value = 'checking'
   const result = await verifyEmail(token)
   if (!result?.error) {
+    // Better Auth refetches the session after verifying, and the session
+    // watcher in useAuth copies the new status onto the profile row.
     state.value = 'done'
-    // Pull the new status into the profile cache so the picker's badge clears.
-    void reconcileDeviceSessions()
   } else if (result.error.status === 403) {
     error.value = 'Sign in to this account to verify its email.'
     state.value = 'signin'
@@ -73,56 +83,48 @@ async function runVerify() {
     state.value = 'signin'
   }
 }
-
-async function sendNewLink() {
-  if (!email) return
-  pending.value = true
-  const result = await sendVerificationEmail(email)
-  pending.value = false
-  notice.value = emailRequestMessage(result, VERIFY_SENT)
-}
 </script>
 
 <template>
   <div class="verify">
     <h2>Verify your email</h2>
 
-    <p v-if="state === 'checking'" class="muted">Checking your link…</p>
+    <p v-if="state === 'checking'" class="auth-notice">Checking your link…</p>
 
-    <div v-else-if="state === 'switch'" class="card">
+    <div v-else-if="state === 'switch'" class="auth-card">
       <p>This link is for <strong>{{ email }}</strong>. Switch to that profile to verify it.</p>
-      <button type="button" class="submit-btn" :disabled="pending" @click="switchAndVerify">
+      <button type="button" class="auth-submit" :disabled="pending" @click="switchAndVerify">
         Switch and verify
       </button>
     </div>
 
     <template v-else-if="state === 'signin'">
-      <p class="muted">Sign in as <strong>{{ email }}</strong> to finish verifying.</p>
-      <p v-if="error" class="error-msg">{{ error }}</p>
+      <p class="auth-notice">Sign in as <strong>{{ email }}</strong> to finish verifying.</p>
+      <p v-if="error" class="auth-error">{{ error }}</p>
       <SignInForm
         :sign-in-social="signInSocial"
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
         :request-password-reset="requestPasswordReset"
-        :reauth="{ email: email ?? '', provider: 'email' }"
+        :reauth="{ email, provider: 'email' }"
         @success="runVerify"
       />
     </template>
 
-    <div v-else-if="state === 'done'" class="card">
+    <div v-else-if="state === 'done'" class="auth-card">
       <p>Your address <strong>{{ email }}</strong> is verified.</p>
-      <RouterLink to="/home" class="submit-btn">Continue</RouterLink>
+      <RouterLink to="/home" class="auth-submit">Continue</RouterLink>
     </div>
 
-    <div v-else class="card">
+    <div v-else class="auth-card">
       <p>This link is no longer valid.</p>
       <template v-if="email">
-        <p v-if="notice" class="muted" role="status">{{ notice }}</p>
-        <button type="button" class="submit-btn" :disabled="pending" @click="sendNewLink">
+        <p v-if="newLinkNotice" class="auth-notice" role="status">{{ newLinkNotice }}</p>
+        <button type="button" class="auth-submit" :disabled="newLinkPending" @click="sendNewLink">
           Send a new link
         </button>
       </template>
-      <p v-else class="muted">Request a new one from account settings.</p>
+      <p v-else class="auth-notice">Request a new one from account settings.</p>
     </div>
   </div>
 </template>
@@ -134,55 +136,5 @@ async function sendNewLink() {
   gap: 1rem;
   width: 100%;
   max-width: 22rem;
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-
-.card p,
-.muted,
-.error-msg {
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.muted {
-  color: var(--color-muted);
-}
-
-.error-msg {
-  color: var(--color-error);
-  font-size: 0.8rem;
-}
-
-.submit-btn {
-  display: block;
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  background: var(--color-accent);
-  border: none;
-  border-radius: 6px;
-  color: var(--color-on-accent);
-  font-size: 0.9rem;
-  font-family: inherit;
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.submit-btn:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-}
-
-.submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 </style>

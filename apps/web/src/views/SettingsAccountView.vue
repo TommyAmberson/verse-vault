@@ -7,8 +7,8 @@ import ImportResultDialog from '@/components/ImportResultDialog.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import TypeToConfirmDialog from '@/components/TypeToConfirmDialog.vue'
 import { useAuth } from '@/composables/useAuth'
+import { useEmailRequest } from '@/composables/useEmailRequest'
 import { downloadJson, exportFilename, readJsonFile } from '@/lib/account-file'
-import { emailRequestMessage } from '@/lib/authEmail'
 
 const { activeProfile, resetProfileLocalData, sendVerificationEmail } = useAuth()
 
@@ -34,15 +34,14 @@ const deleteProgressBusy = ref(false)
 const email = computed(() => activeProfile.value?.email ?? '')
 
 // Verification
-const verifyBusy = ref(false)
-const verifyNotice = ref('')
-
-async function onSendVerification() {
-  verifyBusy.value = true
-  const result = await sendVerificationEmail(email.value)
-  verifyBusy.value = false
-  verifyNotice.value = emailRequestMessage(result, `Verification email sent to ${email.value}.`)
-}
+const {
+  pending: verifyBusy,
+  notice: verifyNotice,
+  run: onSendVerification,
+} = useEmailRequest(
+  () => sendVerificationEmail(email.value),
+  () => `Verification email sent to ${email.value}.`,
+)
 
 async function downloadActiveExport() {
   const targetEmail = activeProfile.value?.email ?? 'account'
