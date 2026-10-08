@@ -130,7 +130,7 @@ is Phases 7 to 9 (User Stories 4 and 5) and starts after PR 1 merges.
 ### Implementation for User Story 3
 
 - [X] T013 [US3] Carry `emailVerified` from the session user into the cached profile row: add the optional field to the row in `apps/web/src/lib/engine/registry.ts` and write it where `apps/web/src/composables/useAuth.ts` writes rows (`signInComplete` and `reconcileDeviceSessions`); absent means unknown (data-model.md, research D9)
-- [ ] T014 [P] [US3] In `apps/web/src/views/SettingsAccountView.vue`, show "Verified" or "Not verified" for the address; when not verified, a "Send verification email" button (re-send call added to `apps/web/src/lib/authClient.ts`, 429 handled as in T005) and the warning "Until you verify, anyone with access to this inbox can take over this account." (FR-010, FR-022; the Google part of the warning arrives with the takeover in T025). Depends on T013
+- [X] T014 [P] [US3] In `apps/web/src/views/SettingsAccountView.vue`, show "Verified" or "Not verified" for the address; when not verified, a "Send verification email" button (re-send call added to `apps/web/src/lib/authClient.ts`, 429 handled as in T005) and the warning "Until you verify, anyone with access to this inbox can take over this account." (FR-010, FR-022; the Google part of the warning arrives with the takeover in T025). Depends on T013
 - [ ] T015 [P] [US3] Show an "Unverified" badge on `apps/web/src/components/ProfileCard.vue` when the row's `emailVerified` is false, and nothing when true or absent (FR-026). Depends on T013
 - [ ] T016 [US3] Document the settings status, warning, and badge in `docs/web-nav.md` (FR-017)
 
