@@ -1,11 +1,15 @@
+import { getIp } from 'better-auth/api';
 import { eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { account, session, user, verification } from './db/schema.js';
+import { createAuth } from './lib/auth.js';
 import { createEmailSender } from './lib/email.js';
 import {
   type TestApp,
+  TEST_AUTH_ENV,
   createTestApp,
+  createTestDb,
   createTestUser,
   emailLink,
   signUpTestUser,
@@ -336,5 +340,50 @@ describe('verifying an existing account', () => {
     });
     expect(verified.status).toBe(200);
     expect((await sessionUser(test, cookie)).emailVerified).toBe(true);
+  });
+});
+
+describe('email request throttling', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  function post(test: TestApp, path: string, email: string) {
+    return test.app.request(`/api/auth/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  it('refuses a fourth request for one address within the hour, account or not', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'busy@example.com');
+
+    for (const email of ['busy@example.com', 'ghost@example.com']) {
+      expect((await post(test, 'request-password-reset', email)).status).toBe(200);
+      expect((await post(test, 'send-verification-email', email)).status).toBe(200);
+      expect((await post(test, 'request-password-reset', email.toUpperCase())).status).toBe(200);
+      const fourth = await post(test, 'request-password-reset', email);
+      expect(fourth.status).toBe(429);
+      expect(Number(fourth.headers.get('Retry-After'))).toBeGreaterThan(0);
+    }
+    expect((await post(test, 'request-password-reset', 'fresh@example.com')).status).toBe(200);
+  });
+
+  it("reads the client IP from Cloudflare's header for Better Auth's own limits", () => {
+    // Requests reach the API through Cloudflare Tunnel with CF-Connecting-IP
+    // and no X-Forwarded-For; read only Better Auth's default header and
+    // every production client would share one rate-limit bucket.
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    const auth = createAuth(test.db, TEST_AUTH_ENV, () => {});
+    const request = new Request('http://localhost:3000/api/auth/request-password-reset', {
+      headers: { 'cf-connecting-ip': '203.0.113.7' },
+    });
+    expect(getIp(request, auth.options)).toBe('203.0.113.7');
   });
 });

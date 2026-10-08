@@ -1,12 +1,13 @@
 import { and, eq, like } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
-import { APIError } from 'better-auth/api';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { multiSession } from 'better-auth/plugins';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import { type SendEmail, resetPasswordEmail, verifyEmail } from './email.js';
+import { type RateLimitTier, TokenBucketStore } from './rate-limit.js';
 
 export interface AuthEnv {
   baseUrl: string;
@@ -26,6 +27,12 @@ export interface AuthEnv {
  *  values must be allowlisted on every server surface that gates by
  *  origin (CORS, Better Auth `trustedOrigins`). */
 export const TAURI_ORIGINS = ['tauri://localhost', 'https://tauri.localhost'] as const;
+
+/** Requests that email an address: reset links and verification links. */
+const EMAILING_PATHS = new Set(['/request-password-reset', '/send-verification-email']);
+
+/** At most 3 such requests per address per hour, across both paths. */
+const PER_ADDRESS_TIER: RateLimitTier = { capacity: 3, refillPerSec: 3 / 3600 };
 
 export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const isProd = process.env.NODE_ENV === 'production';
@@ -58,6 +65,12 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   // a desktop client's own origin (tauri://…) means nothing to the mail
   // client's browser.
   const webBase = env.webOrigin.replace(/\/$/, '');
+
+  // Better Auth limits per IP; this adds a limit per address, so one inbox
+  // can't be flooded from many IPs and the free sending allowance holds.
+  // It counts requests, not sends, so it reveals nothing about which
+  // addresses have accounts.
+  const addressBuckets = new TokenBucketStore();
 
   const auth = betterAuth({
     baseURL: betterAuthBaseURL,
@@ -158,6 +171,29 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
     // uses `multiSession.{listDeviceSessions,setActive,revoke}` to
     // swap between accounts and to sign out a single profile without
     // disturbing the others. Schema-compatible — no new tables.
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (!EMAILING_PATHS.has(ctx.path)) return;
+        const email = (ctx.body as { email?: unknown } | undefined)?.email;
+        if (typeof email !== 'string') return;
+        const { allowed, retryAfterSec } = addressBuckets.consume(
+          `email:${email.trim().toLowerCase()}`,
+          PER_ADDRESS_TIER,
+        );
+        if (allowed) return;
+        throw new APIError(
+          'TOO_MANY_REQUESTS',
+          { message: 'Too many requests for this address. Try again later.' },
+          { 'Retry-After': String(Math.ceil(retryAfterSec)) },
+        );
+      }),
+    },
+    advanced: {
+      // Cloudflare Tunnel delivers the client's address in CF-Connecting-IP
+      // without X-Forwarded-For, Better Auth's only default; reading neither
+      // would put every production client in one rate-limit bucket.
+      ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
+    },
     plugins: [multiSession()],
   });
   return auth;

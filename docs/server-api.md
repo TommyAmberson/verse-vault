@@ -636,6 +636,19 @@ siblings sharing a NAT currently share a bucket.
 Failed Better Auth attempts (e.g. 401 from `/api/auth/sign-in/email` with a bad password) still
 consume a token. That's intentional brute-force protection.
 
+Two more limits sit inside Better Auth (`packages/api/src/lib/auth.ts`):
+
+* **Better Auth's own per-IP limits**, on in production only, including 3 per minute on
+  `/request-password-reset` and `/send-verification-email`. It reads the client IP from
+  `CF-Connecting-IP`, then `X-Forwarded-For`; with neither it would key every client to one shared
+  bucket.
+* **Per address**: at most 3 requests an hour for any one address, across reset and verification
+  emails together, keyed by the lowercased `email` in the body. It counts requests, not emails sent,
+  so throttling looks the same whether or not the address has an account. Over the limit:
+  `429 { code: "TOO_MANY_REQUESTS", message }` with `Retry-After`. The bucket lives in memory and
+  resets on restart, which is fine for an abuse guard. Sign-up's own verification email isn't
+  counted; sign-up is already IP-limited and can't repeat for an address.
+
 Tuneable via env vars at boot:
 
 * `RATE_LIMIT_AUTHED_PER_MIN` — default 120.
