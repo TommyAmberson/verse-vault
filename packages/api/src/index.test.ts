@@ -17,6 +17,27 @@ import {
   signUpTestUser,
 } from './test-utils.js';
 
+/** POSTs a JSON body to a Better Auth route under `/api/auth`. */
+function postAuth(test: TestApp, path: string, body: object, cookie?: string) {
+  return test.app.request(`/api/auth/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(cookie ? { cookie } : {}) },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Follows a verification token the way the web page does, with whatever
+ *  session `cookie` carries. */
+function verify(test: TestApp, token: string, cookie?: string) {
+  return test.app.request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
+    headers: cookie ? { cookie } : {},
+  });
+}
+
+function isVerified(test: TestApp, userId: string): boolean | undefined {
+  return test.db.select().from(user).where(eq(user.id, userId)).get()?.emailVerified;
+}
+
 describe('health', () => {
   let cleanup: (() => void) | null = null;
   afterEach(() => {
@@ -84,29 +105,12 @@ describe('password reset', () => {
 
   const REDIRECT = 'http://localhost:5173/reset-password';
 
-  function requestReset(test: TestApp, email: string) {
-    return test.app.request('/api/auth/request-password-reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-  }
-
-  function resetPassword(test: TestApp, token: string, newPassword: string) {
-    return test.app.request('/api/auth/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, newPassword }),
-    });
-  }
-
-  function signIn(test: TestApp, email: string, password: string) {
-    return test.app.request('/api/auth/sign-in/email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-  }
+  const requestReset = (test: TestApp, email: string) =>
+    postAuth(test, 'request-password-reset', { email });
+  const resetPassword = (test: TestApp, token: string, newPassword: string) =>
+    postAuth(test, 'reset-password', { token, newPassword });
+  const signIn = (test: TestApp, email: string, password: string) =>
+    postAuth(test, 'sign-in/email', { email, password });
 
   /** The token in the reset link, which opens the web app's reset page. */
   function resetToken(test: TestApp): string {
@@ -154,8 +158,7 @@ describe('password reset', () => {
     expect((await signIn(test, 'change@example.com', 'oldPassword123!')).status).toBe(401);
     expect((await signIn(test, 'change@example.com', 'newPassword123!')).status).toBe(200);
     expect((await test.app.request('/api/me', { headers: { cookie } })).status).toBe(401);
-    const row = test.db.select().from(user).where(eq(user.id, userId)).get();
-    expect(row?.emailVerified).toBe(true);
+    expect(isVerified(test, userId)).toBe(true);
   });
 
   it('rejects an older link once a newer one is used, and a link used twice', async () => {
@@ -224,15 +227,6 @@ describe('email verification', () => {
     return link.searchParams.get('token')!;
   }
 
-  function verify(test: TestApp, token: string, cookie?: string) {
-    return test.app.request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
-      headers: cookie ? { cookie } : {},
-    });
-  }
-
-  function isVerified(test: TestApp, userId: string): boolean | undefined {
-    return test.db.select().from(user).where(eq(user.id, userId)).get()?.emailVerified;
-  }
 
   it('emails a verification link at sign-up and lets the account sign in unverified', async () => {
     const test = createTestApp();
@@ -242,10 +236,9 @@ describe('email verification', () => {
     const sent = test.emails.filter((m) => m.subject === 'Verify your VerseVault email');
     expect(sent.map((m) => m.to)).toEqual(['new@example.com']);
     expect(isVerified(test, userId)).toBe(false);
-    const signIn = await test.app.request('/api/auth/sign-in/email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'new@example.com', password: 'newPassword123!' }),
+    const signIn = await postAuth(test, 'sign-in/email', {
+      email: 'new@example.com',
+      password: 'newPassword123!',
     });
     expect(signIn.status).toBe(200);
   });
@@ -328,19 +321,17 @@ describe('verifying an existing account', () => {
     test.emails.length = 0;
     expect((await sessionUser(test, cookie)).emailVerified).toBe(false);
 
-    const res = await test.app.request('/api/auth/send-verification-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ email: 'later@example.com' }),
-    });
+    const res = await postAuth(
+      test,
+      'send-verification-email',
+      { email: 'later@example.com' },
+      cookie,
+    );
     expect(res.status).toBe(200);
     expect(test.emails.map((m) => m.to)).toEqual(['later@example.com']);
 
     const token = new URL(emailLink(test.emails[0]!)).searchParams.get('token')!;
-    const verified = await test.app.request(`/api/auth/verify-email?token=${token}`, {
-      headers: { cookie },
-    });
-    expect(verified.status).toBe(200);
+    expect((await verify(test, token, cookie)).status).toBe(200);
     expect((await sessionUser(test, cookie)).emailVerified).toBe(true);
   });
 });
@@ -352,13 +343,7 @@ describe('email request throttling', () => {
     cleanup = null;
   });
 
-  function post(test: TestApp, path: string, email: string) {
-    return test.app.request(`/api/auth/${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-  }
+  const post = (test: TestApp, path: string, email: string) => postAuth(test, path, { email });
 
   it('refuses a fourth request for one address within the hour, account or not', async () => {
     const test = createTestApp();

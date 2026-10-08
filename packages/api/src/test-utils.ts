@@ -182,21 +182,16 @@ export interface GoogleProfile {
   sub: string;
   email: string;
   email_verified: boolean;
-  name?: string;
 }
 
 /** Runs a Google sign-in through Better Auth's real callback, with only
  *  Google's token endpoint stubbed: it answers with an unsigned ID token
  *  for `profile`, which Better Auth decodes without verifying. Returns the
  *  callback's response, whose `Location` says where the browser lands. */
-export async function googleSignIn(
-  test: TestApp,
-  profile: GoogleProfile,
-  cookie = '',
-): Promise<Response> {
+export async function googleSignIn(test: TestApp, profile: GoogleProfile): Promise<Response> {
   const start = await test.app.request('/api/auth/sign-in/social', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', cookie },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       provider: 'google',
       callbackURL: 'http://localhost:5173/home',
@@ -225,7 +220,7 @@ export async function googleSignIn(
   });
   try {
     return await test.app.request(`/api/auth/callback/google?code=test-code&state=${state}`, {
-      headers: { cookie: [cookie, stateCookie].filter(Boolean).join('; ') },
+      headers: { cookie: stateCookie },
     });
   } finally {
     spy.mockRestore();
