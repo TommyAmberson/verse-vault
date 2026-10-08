@@ -99,6 +99,16 @@ export function createAppAuthClient(baseURL: string) {
       return authClient.resetPassword({ token, newPassword })
     }
 
+    // Sent with the active session; the server verifies only when that
+    // session belongs to the token's account.
+    async function verifyEmail(token: string) {
+      return authClient.verifyEmail({ query: { token } })
+    }
+
+    async function sendVerificationEmail(email: string) {
+      return authClient.sendVerificationEmail({ email })
+    }
+
     return {
       session,
       signInSocial,
@@ -107,6 +117,8 @@ export function createAppAuthClient(baseURL: string) {
       signOut,
       requestPasswordReset,
       resetPassword,
+      verifyEmail,
+      sendVerificationEmail,
     }
   }
 

@@ -14,3 +14,20 @@ export function emailRequestMessage(result: EmailRequestResult, sent: string): s
 }
 
 export const RESET_SENT = 'If an account exists for that address, a reset email is on its way.'
+
+export const VERIFY_SENT = 'If that address still needs verifying, a new link is on its way.'
+
+/** The address a verification link is for, read from its token's payload.
+ *  Only used to pick which profile to sign in as: the server checks the
+ *  token's signature and the session itself. */
+export function verificationTokenEmail(token: string): string | null {
+  const payload = token.split('.')[1]
+  if (!payload) return null
+  try {
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+    const email = (JSON.parse(json) as { email?: unknown }).email
+    return typeof email === 'string' ? email : null
+  } catch {
+    return null
+  }
+}

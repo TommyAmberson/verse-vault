@@ -615,6 +615,8 @@ export function useAuth() {
     signUpEmail,
     requestPasswordReset: factoryShape.requestPasswordReset,
     resetPassword: factoryShape.resetPassword,
+    verifyEmail: factoryShape.verifyEmail,
+    sendVerificationEmail: factoryShape.sendVerificationEmail,
     activeProfile: computed(() => activeProfile.value),
     profiles: computed(() => profilesList.value),
     syncState: computed(() => syncState.value),

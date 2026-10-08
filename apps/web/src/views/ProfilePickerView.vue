@@ -34,6 +34,9 @@ const mode = ref<'empty' | 'cards' | 'add'>(
 const reauthTarget = ref<ProfileRow | null>(null)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)
+// Set while the sign-in form is mid-submit, so the watcher below doesn't
+// swap it for the cards before it can show its post-sign-up note.
+const holdForm = ref(false)
 
 // Populated when we arrive here from a redirect: an expired/revoked
 // session (`reason=expired`, set by the 401 handler in main.ts) or a
@@ -57,7 +60,7 @@ const banner = ref<string | null>(
 watch(
   profiles,
   (rows) => {
-    if (mode.value === 'add') return
+    if (mode.value === 'add' || holdForm.value) return
     mode.value = rows.length === 0 ? 'empty' : 'cards'
   },
   { immediate: true },
@@ -193,6 +196,7 @@ async function onSignInSuccess() {
         :key="reauthTarget?.profileId ?? ''"
         :reauth="reauthTarget ?? undefined"
         @success="onSignInSuccess"
+        @submitting="holdForm = true"
       />
       <button v-if="mode === 'add'" type="button" class="back-btn" @click="cancelAdd">
         ← Back to profiles

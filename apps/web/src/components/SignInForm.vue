@@ -22,7 +22,12 @@ const props = defineProps<{
   reauth?: { email: string; provider?: AuthProvider }
 }>()
 
-const emit = defineEmits<{ (e: 'success'): void }>()
+const emit = defineEmits<{
+  (e: 'success'): void
+  /** An email sign-in or sign-up is under way; the form must stay mounted
+   *  until it emits `success`, even once the new profile appears. */
+  (e: 'submitting'): void
+}>()
 
 // A social sign-in that failed comes back here with `?error=`; show why once.
 // Clear the provider stashed for that round-trip (readPendingProvider also
@@ -41,7 +46,7 @@ if (oauthError) {
   void router.replace({ query })
 }
 
-const mode = ref<'pick' | 'signin' | 'signup' | 'forgot'>(
+const mode = ref<'pick' | 'signin' | 'signup' | 'forgot' | 'signedUp'>(
   props.reauth?.provider === 'email' || oauthError?.passwordAccount ? 'signin' : 'pick',
 )
 const email = ref(props.reauth?.email ?? '')
@@ -66,11 +71,15 @@ async function submitForgot() {
 async function submitEmail() {
   error.value = ''
   pending.value = true
+  emit('submitting')
   const fn = mode.value === 'signup' ? props.signUpEmail : props.signInEmail
   const result = await fn(email.value, password.value)
   pending.value = false
   if (result?.error) {
     error.value = result.error.message ?? 'Something went wrong'
+  } else if (mode.value === 'signup') {
+    // Sign-up sent a verification email; say so before moving on.
+    mode.value = 'signedUp'
   } else {
     emit('success')
   }
@@ -105,6 +114,15 @@ async function submitEmail() {
       <div class="divider"><span>or</span></div>
       <button class="email-toggle" @click="mode = 'signin'">Sign in with email</button>
       <button class="email-toggle" @click="mode = 'signup'">Create account</button>
+    </template>
+
+    <template v-else-if="mode === 'signedUp'">
+      <p class="form-title">Account created</p>
+      <p class="notice-msg" role="status">
+        We sent a verification email to {{ email }}. You can use the app now; verify when you're
+        ready.
+      </p>
+      <button type="button" class="submit-btn" @click="emit('success')">Continue</button>
     </template>
 
     <template v-else-if="mode === 'forgot'">
