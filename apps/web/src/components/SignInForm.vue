@@ -25,9 +25,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'success'): void
-  /** A sign-up is under way; the form must stay mounted until it emits
-   *  `success`, even once the new profile appears. */
-  (e: 'signing-up'): void
+  /** True while a sign-up is under way and the form must stay mounted
+   *  until it emits `success`, even once the new profile appears; false
+   *  when it fails and the form no longer needs holding. */
+  (e: 'hold', held: boolean): void
 }>()
 
 // A social sign-in that failed comes back here with `?error=`; show why once.
@@ -74,12 +75,13 @@ async function submitEmail() {
   pending.value = true
   // Sign-up ends on a note in this form, so the parent must keep it mounted
   // even once the new profile appears.
-  if (mode.value === 'signup') emit('signing-up')
+  if (mode.value === 'signup') emit('hold', true)
   const fn = mode.value === 'signup' ? props.signUpEmail : props.signInEmail
   const result = await fn(email.value, password.value)
   pending.value = false
   if (result?.error) {
     error.value = result.error.message ?? 'Something went wrong'
+    emit('hold', false)
   } else if (mode.value === 'signup') {
     // Sign-up sent a verification email; say so before moving on.
     mode.value = 'signedUp'

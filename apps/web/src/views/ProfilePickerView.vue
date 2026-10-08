@@ -34,7 +34,7 @@ const mode = ref<'empty' | 'cards' | 'add'>(
 const reauthTarget = ref<ProfileRow | null>(null)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)
-// Set once a sign-up starts, so the watcher below doesn't
+// Set while a sign-up is under way, so the watcher below doesn't
 // swap it for the cards before it can show its post-sign-up note.
 const holdForm = ref(false)
 
@@ -152,6 +152,7 @@ function startAdd() {
 
 function cancelAdd() {
   reauthTarget.value = null
+  holdForm.value = false
   mode.value = profiles.value.length === 0 ? 'empty' : 'cards'
 }
 
@@ -196,7 +197,7 @@ async function onSignInSuccess() {
         :key="reauthTarget?.profileId ?? ''"
         :reauth="reauthTarget ?? undefined"
         @success="onSignInSuccess"
-        @signing-up="holdForm = true"
+        @hold="holdForm = $event"
       />
       <button v-if="mode === 'add'" type="button" class="back-btn" @click="cancelAdd">
         ← Back to profiles
