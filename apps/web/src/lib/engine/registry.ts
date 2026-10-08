@@ -48,6 +48,10 @@ export interface ProfileRow {
   /** Sign-in method last used for this profile; `undefined` on legacy
    *  rows written before it was tracked. */
   provider?: AuthProvider
+  /** Whether the server reports this address verified, cached from the
+   *  session user on sign-in and boot reconcile. `undefined` means not
+   *  yet known, and shows nothing. */
+  emailVerified?: boolean
 }
 
 interface MetaRow {

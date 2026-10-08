@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import SignInForm from '@/components/SignInForm.vue'
-import { useAuth } from '@/composables/useAuth'
+import { reconcileDeviceSessions, useAuth } from '@/composables/useAuth'
 import { VERIFY_SENT, emailRequestMessage, verificationTokenEmail } from '@/lib/authEmail'
 
 const {
@@ -61,6 +61,8 @@ async function runVerify() {
   const result = await verifyEmail(token)
   if (!result?.error) {
     state.value = 'done'
+    // Pull the new status into the profile cache so the picker's badge clears.
+    void reconcileDeviceSessions()
   } else if (result.error.status === 403) {
     error.value = 'Sign in to this account to verify its email.'
     state.value = 'signin'
