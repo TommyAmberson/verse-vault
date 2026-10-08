@@ -27,12 +27,36 @@ depend on the env vars set on the server (`GOOGLE_CLIENT_ID`, etc. — see
 
 Useful endpoints (Better Auth defaults):
 
-| method | path                            | purpose                                       |
-| ------ | ------------------------------- | --------------------------------------------- |
-| GET    | `/api/auth/get-session`         | current session or null                       |
-| POST   | `/api/auth/sign-in/email`       | password sign-in                              |
-| POST   | `/api/auth/sign-out`            | clear session cookie                          |
-| GET    | `/api/auth/callback/<provider>` | OAuth provider callback (per provider config) |
+| method | path                               | purpose                                       |
+| ------ | ---------------------------------- | --------------------------------------------- |
+| GET    | `/api/auth/get-session`            | current session or null                       |
+| POST   | `/api/auth/sign-in/email`          | password sign-in                              |
+| POST   | `/api/auth/sign-out`               | clear session cookie                          |
+| GET    | `/api/auth/callback/<provider>`    | OAuth provider callback (per provider config) |
+| POST   | `/api/auth/request-password-reset` | `{ email }`; emails a reset link              |
+| POST   | `/api/auth/reset-password`         | `{ token, newPassword }`; sets the password   |
+
+### Password reset
+
+`POST /api/auth/request-password-reset` answers `200 { status: true, message }` for every address,
+and Better Auth does dummy work for an unknown one so the reply takes as long. The email is sent
+from `no-reply@versevault.ca` through Resend (`RESEND_API_KEY`; without it the API logs the link
+instead). The send starts and the request returns without waiting for it, so a real address isn't
+measurably slower, and a failed send is logged rather than surfaced.
+
+The link opens the web app at `<WEB_BASE_URL>/reset-password?token=…`, never the requesting client's
+own origin, since a desktop client's `tauri://` origin means nothing to a browser. The page posts
+the token with the new password to `POST /api/auth/reset-password`, which answers `400` with
+`INVALID_TOKEN` for an unknown, used, or expired token. A token is valid for one hour and works
+once.
+
+Completing a reset:
+
+* ends every session for the account on every device;
+* marks the address verified, since receiving the email proves the inbox;
+* deletes the account's other outstanding reset tokens, so an older link can't be used later.
+
+An account with only Google sign-in gets its first password this way.
 
 ### `GET /api/me`
 
