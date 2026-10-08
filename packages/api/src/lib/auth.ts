@@ -154,15 +154,16 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       : {},
     account: {
       accountLinking: {
-        // Trusting Google skips only the provider-side email check.
-        // better-auth >= 1.6.11 still refuses to auto-link onto a local
-        // account whose own email is unverified (`requireLocalEmailVerified`,
-        // default true), which blocks pre-registering a victim's email with a
-        // password (GHSA-g38m-r43w-p2q7). Email/password accounts are never
-        // verified here, so Google sign-in no longer merges into one; don't
-        // turn that off without adding email verification first.
+        // A Google sign-in links into an existing account only when both
+        // sides have proven the address. Better Auth checks the local side
+        // (`requireLocalEmailVerified`, default true since 1.6.11), which
+        // stops someone pre-registering another person's address with a
+        // password (GHSA-g38m-r43w-p2q7); email verification above is how a
+        // password account gets there. Google stays out of
+        // `trustedProviders` so the provider side is checked too: trusting
+        // it would accept a Google account whose own `email_verified` is
+        // false, i.e. an address Google never confirmed.
         enabled: true,
-        trustedProviders: ['google'],
       },
     },
     // Multi-session lets the device hold cookies for several signed-in

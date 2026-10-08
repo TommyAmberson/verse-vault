@@ -8,10 +8,12 @@ import { createEmailSender } from './lib/email.js';
 import {
   type TestApp,
   TEST_AUTH_ENV,
+  TEST_GOOGLE_ENV,
   createTestApp,
   createTestDb,
   createTestUser,
   emailLink,
+  googleSignIn,
   signUpTestUser,
 } from './test-utils.js';
 
@@ -385,5 +387,57 @@ describe('email request throttling', () => {
       headers: { 'cf-connecting-ip': '203.0.113.7' },
     });
     expect(getIp(request, auth.options)).toBe('203.0.113.7');
+  });
+});
+
+describe('Google sign-in onto a password account', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  async function verifiedPasswordUser(test: TestApp, email: string): Promise<string> {
+    const { userId } = await signUpTestUser(test, email);
+    test.db.update(user).set({ emailVerified: true }).where(eq(user.id, userId)).run();
+    return userId;
+  }
+
+  function googleAccounts(test: TestApp, userId: string) {
+    return test.db
+      .select()
+      .from(account)
+      .all()
+      .filter((a) => a.userId === userId && a.providerId === 'google');
+  }
+
+  it('links when Google reports the address verified', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const userId = await verifiedPasswordUser(test, 'linked@example.com');
+
+    const res = await googleSignIn(test, {
+      sub: 'google-linked',
+      email: 'linked@example.com',
+      email_verified: true,
+    });
+
+    expect(res.headers.get('location')).toBe('http://localhost:5173/home');
+    expect(googleAccounts(test, userId)).toHaveLength(1);
+  });
+
+  it("refuses when Google hasn't verified the address", async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const userId = await verifiedPasswordUser(test, 'claimed@example.com');
+
+    const res = await googleSignIn(test, {
+      sub: 'google-unverified',
+      email: 'claimed@example.com',
+      email_verified: false,
+    });
+
+    expect(res.headers.get('location')).toContain('error=account_not_linked');
+    expect(googleAccounts(test, userId)).toHaveLength(0);
   });
 });
