@@ -125,7 +125,7 @@ is Phases 7 to 9 (User Stories 4 and 5) and starts after PR 1 merges.
 
 ### Tests for User Story 3
 
-- [ ] T012 [P] [US3] In `packages/api/src/index.test.ts`'s `auth` block, test that a signed-in unverified user can request a verification email and receives one, and that the session user carries `emailVerified` false then true after following the link (the field the web reads in T013)
+- [X] T012 [P] [US3] In `packages/api/src/index.test.ts`'s `auth` block, test that a signed-in unverified user can request a verification email and receives one, and that the session user carries `emailVerified` false then true after following the link (the field the web reads in T013)
 
 ### Implementation for User Story 3
 

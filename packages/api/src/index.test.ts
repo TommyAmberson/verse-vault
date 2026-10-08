@@ -302,3 +302,39 @@ describe('email verification', () => {
     expect((await verify(test, token, cookie)).status).toBe(200);
   });
 });
+
+describe('verifying an existing account', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  async function sessionUser(test: TestApp, cookie: string) {
+    const res = await test.app.request('/api/auth/get-session', { headers: { cookie } });
+    return ((await res.json()) as { user: { emailVerified: boolean } }).user;
+  }
+
+  it('sends a fresh link to a signed-in learner and reports the status on the session', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'later@example.com');
+    test.emails.length = 0;
+    expect((await sessionUser(test, cookie)).emailVerified).toBe(false);
+
+    const res = await test.app.request('/api/auth/send-verification-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ email: 'later@example.com' }),
+    });
+    expect(res.status).toBe(200);
+    expect(test.emails.map((m) => m.to)).toEqual(['later@example.com']);
+
+    const token = new URL(emailLink(test.emails[0]!)).searchParams.get('token')!;
+    const verified = await test.app.request(`/api/auth/verify-email?token=${token}`, {
+      headers: { cookie },
+    });
+    expect(verified.status).toBe(200);
+    expect((await sessionUser(test, cookie)).emailVerified).toBe(true);
+  });
+});
