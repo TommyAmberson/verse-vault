@@ -9,6 +9,32 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.5] - 2026-10-09
+
+PATCH: forgot-password and email verification pages, and verification status on profiles.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.14.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Added
+
+* "Forgot password?" in email sign-in, and a `/reset-password` page for the emailed link that sets a
+  new password or offers a fresh link when the old one has expired or been used.
+* A `/verify-email` page for the emailed link. It verifies when the link's account is the active
+  profile, offers to switch when the device holds that profile, and otherwise asks the learner to
+  sign in first. It never signs the active profile out.
+* After sign-up, the form says a verification email was sent before moving on.
+* Account settings show whether the address is verified; an unverified one gets a warning that
+  anyone with the inbox can take the account over, and a "Send verification email" button.
+* Profiles with an unverified address carry an "Unverified" chip in the profile picker.
+
+### Changed
+
+* A refused Google sign-in (`account_not_linked`) now points to verifying the email or resetting the
+  password, rather than to signing in with a password the learner may not have.
+
 ## [0.10.4] - 2026-10-02
 
 PATCH: the Memorize drill picks cards at random while building each verse up, and sessions carry
