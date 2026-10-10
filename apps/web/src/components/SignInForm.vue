@@ -138,6 +138,7 @@ async function submitEmail() {
           v-model="email"
           type="email"
           placeholder="Email"
+          aria-label="Email"
           autocomplete="email"
           required
           class="auth-field"
@@ -157,6 +158,7 @@ async function submitEmail() {
           v-model="email"
           type="email"
           placeholder="Email"
+          aria-label="Email"
           autocomplete="email"
           required
           class="auth-field"
@@ -165,6 +167,7 @@ async function submitEmail() {
           v-model="password"
           type="password"
           placeholder="Password"
+          aria-label="Password"
           :autocomplete="mode === 'signup' ? 'new-password' : 'current-password'"
           required
           class="auth-field"

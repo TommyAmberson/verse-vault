@@ -60,6 +60,7 @@ async function submitPassword() {
         v-model="password"
         type="password"
         placeholder="New password"
+        aria-label="New password"
         autocomplete="new-password"
         required
         class="auth-field"
@@ -81,6 +82,7 @@ async function submitPassword() {
         v-model="email"
         type="email"
         placeholder="Email"
+        aria-label="Email"
         autocomplete="email"
         required
         class="auth-field"
