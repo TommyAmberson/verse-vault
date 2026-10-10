@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { useAuth } from '@/composables/useAuth'
+import { reconcileDeviceSessions, useAuth } from '@/composables/useAuth'
 import { useEmailRequest } from '@/composables/useEmailRequest'
 import { RESET_SENT } from '@/lib/authEmail'
 
@@ -30,6 +30,11 @@ async function submitPassword() {
   let result
   try {
     result = await resetPassword(token, password.value)
+    // The reset ended every session for this account, including any this
+    // device still holds. Drop them now so "Sign in" doesn't land on a
+    // dead session. The button stays disabled meanwhile: a second submit
+    // would find the token spent and report the link invalid.
+    if (!result?.error) await reconcileDeviceSessions()
   } catch {
     error.value = 'Something went wrong. Try again.'
     return
@@ -66,8 +71,8 @@ async function submitPassword() {
     </form>
 
     <div v-else-if="state === 'done'" class="auth-card">
-      <p>Password changed. You've been signed out everywhere else.</p>
-      <RouterLink to="/profiles" class="auth-submit">Sign in</RouterLink>
+      <p>Password changed. You've been signed out everywhere.</p>
+      <RouterLink to="/profiles?force=1" class="auth-submit">Sign in</RouterLink>
     </div>
 
     <form v-else class="auth-card" @submit.prevent="sendNewLink">
