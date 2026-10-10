@@ -35,6 +35,12 @@ PATCH: forgot-password and email verification pages, and verification status on 
 * A refused Google sign-in (`account_not_linked`) now points to verifying the email or resetting the
   password, rather than to signing in with a password the learner may not have.
 
+### Fixed
+
+* The sign-up password field asks password managers for a new password instead of offering a saved
+  one.
+* The sign-in, sign-up and reset fields carry accessible names, not just placeholders.
+
 ## [0.10.4] - 2026-10-02
 
 PATCH: the Memorize drill picks cards at random while building each verse up, and sessions carry
