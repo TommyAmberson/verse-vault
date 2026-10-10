@@ -209,3 +209,33 @@ straight into them, and in phase 2 it could reach the takeover. **Fix**: remove 
 `trustedProviders`, so Better Auth requires the claim for linking; write `pending-google` rows only
 when the stashed claim is `true`; the takeover route refuses an already verified user. Gmail and
 Workspace addresses always report `true`, so honest users lose nothing.
+
+## D13. Known limitations (2026-10-10)
+
+Accepted after the implementation reviews of phase 1. Each is a deliberate tradeoff, not an
+oversight.
+
+**The per-address throttle can block the owner.** The bucket is keyed by address alone and shared by
+both paths, so anyone sending one request every 20 minutes for an address keeps its owner from
+getting reset or verification email. A per-IP-per-address limit would avoid it but adds a second
+store and still falls to an attacker with several IPs. Every refused request is logged with its
+status and IP, so a sustained block shows up in the logs.
+
+**Tokens stay in the address bar.** `/reset-password` and `/verify-email` leave `?token=` in place
+after reading it. Reset tokens are single-use and verification needs the account's own session, so
+the exposure is small, and keeping it means a reload retries the link, which is the recovery path
+when verifying fails offline or on a server error.
+
+**A failed verify falls back to sign-in.** When checking the link fails offline or with a 5xx, the
+page asks the learner to sign in, even if they already are. Signing in again (or reloading) finishes
+it; a dedicated retry button wasn't worth the extra state for a rare case.
+
+**`onPasswordReset` runs before sessions are revoked.** Better Auth sets the new password, then
+calls `onPasswordReset`, then revokes sessions (BA/api/routes/password.mjs:168-172). If the hook's
+writes (mark verified, delete older reset links) failed, the reset would answer 500 with the new
+password live and old sessions intact. Catching the error instead would leave older reset links
+silently valid. With a local SQLite file neither write is expected to fail, so the hook is left to
+throw.
+
+Follow-up cleanups found in review are filed as #190 (rate limiter eviction and a shared 429
+helper), #191 (syncing server-owned profile fields) and #192 (the profile picker's mode changes).
