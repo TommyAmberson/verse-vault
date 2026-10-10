@@ -175,6 +175,19 @@ describe('password reset', () => {
     expect((await resetPassword(test, older, 'thirdReset123!')).status).toBe(400);
   });
 
+  it("leaves other users' reset links working", async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'first@example.com');
+    await signUpTestUser(test, 'second@example.com');
+    await requestReset(test, 'second@example.com');
+    const second = resetToken(test);
+    await requestReset(test, 'first@example.com');
+
+    expect((await resetPassword(test, resetToken(test), 'firstReset123!')).status).toBe(200);
+    expect((await resetPassword(test, second, 'secondReset123!')).status).toBe(200);
+  });
+
   it('rejects an expired link', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
