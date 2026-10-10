@@ -68,7 +68,14 @@ async function switchAndVerify() {
 async function runVerify() {
   error.value = ''
   state.value = 'checking'
-  const result = await verifyEmail(token)
+  let result
+  try {
+    result = await verifyEmail(token)
+  } catch {
+    error.value = 'Something went wrong. Try again.'
+    state.value = 'signin'
+    return
+  }
   if (!result?.error) {
     // Better Auth refetches the session after verifying, and the session
     // watcher in useAuth copies the new status onto the profile row.

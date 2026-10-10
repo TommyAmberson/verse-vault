@@ -12,6 +12,9 @@ export function useEmailRequest(send: () => Promise<EmailRequestResult>, sent: (
     pending.value = true
     try {
       notice.value = emailRequestMessage(await send(), sent())
+    } catch {
+      // Offline, or the server never answered.
+      notice.value = emailRequestMessage({ error: {} }, sent())
     } finally {
       pending.value = false
     }

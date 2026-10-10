@@ -27,8 +27,15 @@ const {
 async function submitPassword() {
   error.value = ''
   pending.value = true
-  const result = await resetPassword(token, password.value)
-  pending.value = false
+  let result
+  try {
+    result = await resetPassword(token, password.value)
+  } catch {
+    error.value = 'Something went wrong. Try again.'
+    return
+  } finally {
+    pending.value = false
+  }
   if (!result?.error) {
     state.value = 'done'
   } else if (result.error.code === 'INVALID_TOKEN') {
