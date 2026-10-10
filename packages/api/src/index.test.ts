@@ -361,6 +361,15 @@ describe('email request throttling', () => {
     expect((await post(test, 'request-password-reset', 'fresh@example.com')).status).toBe(200);
   });
 
+  it('never counts a body too long to be an address', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const junk = `${'x'.repeat(300)}@example.com`;
+    for (let i = 0; i < 4; i++) {
+      expect((await post(test, 'request-password-reset', junk)).status).not.toBe(429);
+    }
+  });
+
   it("reads the client IP from Cloudflare's header for Better Auth's own limits", () => {
     // Requests reach the API through Cloudflare Tunnel with CF-Connecting-IP
     // and no X-Forwarded-For; read only Better Auth's default header and

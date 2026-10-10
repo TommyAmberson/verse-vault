@@ -34,6 +34,8 @@ const EMAILING_PATHS = new Set(['/request-password-reset', '/send-verification-e
 /** At most 3 such requests per address per hour, across both paths. */
 const PER_ADDRESS_TIER: RateLimitTier = { capacity: 3, refillPerSec: 3 / 3600 };
 
+const MAX_EMAIL_LENGTH = 254;
+
 export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const isProd = process.env.NODE_ENV === 'production';
   // Browsers send Origin headers as scheme+host+port only — never a path.
@@ -176,7 +178,10 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       before: createAuthMiddleware(async (ctx) => {
         if (!EMAILING_PATHS.has(ctx.path)) return;
         const email = (ctx.body as { email?: unknown } | undefined)?.email;
-        if (typeof email !== 'string') return;
+        // The body isn't validated yet. Anything longer than an address can
+        // be (254 characters) matches no account, so skip it rather than
+        // let oversized junk fill the bucket store.
+        if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH) return;
         const { allowed, retryAfterSec } = addressBuckets.consume(
           `email:${email.trim().toLowerCase()}`,
           PER_ADDRESS_TIER,
