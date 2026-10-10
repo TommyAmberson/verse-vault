@@ -16,7 +16,7 @@ Group=verse-vault
 # the bundle root.
 WorkingDirectory=/opt/verse-vault/app
 EnvironmentFile=/etc/verse-vault.env
-# Hono binds 0.0.0.0:$PORT but the host runs `ufw default deny incoming`,
+# Hono binds 127.0.0.1:$PORT and the host runs `ufw default deny incoming`,
 # so the only path in is the Cloudflare Tunnel proxying to 127.0.0.1:3000
 # (see deploy/cloudflared/config.yml).
 ExecStart=/usr/bin/node dist/index.js

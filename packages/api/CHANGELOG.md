@@ -43,6 +43,9 @@ PATCH: password reset and email verification, sent from no-reply@versevault.ca.
 * Google sign-in links into an existing account only when Google reports the address verified.
   Google was a trusted provider, which skipped that check; harmless while no password account was
   ever verified, but not once verification exists.
+* The server listens on 127.0.0.1 instead of every interface. The Cloudflare Tunnel already connects
+  there, and the trusted `CF-Connecting-IP` header could be forged by anything that reached the port
+  directly.
 
 ## [0.1.47] - 2026-10-02
 
