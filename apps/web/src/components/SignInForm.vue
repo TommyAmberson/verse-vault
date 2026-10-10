@@ -165,7 +165,7 @@ async function submitEmail() {
           v-model="password"
           type="password"
           placeholder="Password"
-          autocomplete="current-password"
+          :autocomplete="mode === 'signup' ? 'new-password' : 'current-password'"
           required
           class="auth-field"
         />
