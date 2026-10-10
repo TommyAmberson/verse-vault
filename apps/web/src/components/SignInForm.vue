@@ -77,8 +77,15 @@ async function submitEmail() {
   // even once the new profile appears.
   if (mode.value === 'signup') emit('hold', true)
   const fn = mode.value === 'signup' ? props.signUpEmail : props.signInEmail
-  const result = await fn(email.value, password.value)
-  pending.value = false
+  let result
+  try {
+    result = await fn(email.value, password.value)
+  } catch {
+    // Offline, or the server never answered.
+    result = { error: { message: 'Something went wrong. Try again.' } }
+  } finally {
+    pending.value = false
+  }
   if (result?.error) {
     error.value = result.error.message ?? 'Something went wrong'
     emit('hold', false)
