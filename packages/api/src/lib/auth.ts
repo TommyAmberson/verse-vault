@@ -69,9 +69,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const webBase = env.webOrigin.replace(/\/$/, '');
 
   // Better Auth limits per IP; this adds a limit per address, so one inbox
-  // can't be flooded from many IPs and the free sending allowance holds.
-  // It counts requests, not sends, so it reveals nothing about which
-  // addresses have accounts.
+  // can't be flooded from many IPs. It doesn't cap total sends, which is a
+  // known limitation (research D13). It counts requests, not sends, so it
+  // reveals nothing about which addresses have accounts.
   const addressBuckets = new TokenBucketStore();
 
   const auth = betterAuth({

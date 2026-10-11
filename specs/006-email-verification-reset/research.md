@@ -221,6 +221,15 @@ getting reset or verification email. A per-IP-per-address limit would avoid it b
 store and still falls to an attacker with several IPs. Every refused request is logged with its
 status and IP, so a sustained block shows up in the logs.
 
+**Nothing caps total sends.** The per-address throttle stops one inbox being flooded, but every new
+address has its own allowance, so the sending quota (Resend's free plan: 100 a day) is guarded only
+by Better Auth's per-IP defaults. Those allow 3 sign-ups per 10 seconds, each sending a verification
+email, so one IP could spend the day's quota in minutes. After that every reset and verification
+email fails until the next day, logged but otherwise silent. A daily cap in the API wouldn't help,
+since email would stop at our cap instead of Resend's. The real defences are a stricter per-IP
+sign-up limit, Cloudflare Turnstile on the forms, or an alert when Resend refuses for quota, left
+for a follow-up.
+
 **Tokens stay in the address bar.** `/reset-password` and `/verify-email` leave `?token=` in place
 after reading it. Reset tokens are single-use and verification needs the account's own session, so
 the exposure is small, and keeping it means a reload retries the link, which is the recovery path

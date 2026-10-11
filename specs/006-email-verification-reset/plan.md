@@ -41,8 +41,9 @@ browsers and the Tauri shell (email links open in the system browser)
 existing and unknown addresses (SC-003); email arrives within a minute (SC-002, provider-bound)
 
 **Constraints**: no account enumeration through wording, timing, errors, or throttling (FR-002);
-sending within Resend's free allowance (100 a day, 3,000 a month) via 3 requests per address per
-hour (FR-012); no send failure may fail or slow a request
+normal sending within Resend's free allowance (100 a day, 3,000 a month), with 3 requests per
+address per hour so no inbox can be flooded (FR-012; total sends are not capped, research D13); no
+send failure may fail or slow a request
 
 **Scale/Scope**: phase 1 touches `lib/auth.ts`, one new sender module, the app's env wiring, five
 web files and two new web pages, four docs, and the provision script. Phase 2 adds two API routes,

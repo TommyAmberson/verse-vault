@@ -249,8 +249,8 @@ the same sign-in methods still work.
 * **Wrong password on "That's me".** It behaves like a failed sign-in, with the same throttling, and
   offers the reset path.
 * **Repeated requests.** Requests for reset or verification emails to the same address are
-  throttled, so the form cannot be used to flood an inbox or exhaust the daily sending allowance.
-  When throttled, the learner is told to wait and try again later.
+  throttled, so the form cannot be used to flood an inbox. When throttled, the learner is told to
+  wait and try again later.
 * **Several reset emails in a row.** Only the most recent reset link needs to work; using any link
   must not leave an older one usable afterwards.
 * **Sending fails.** If the email provider is down or rejects the message, the learner sees the same
