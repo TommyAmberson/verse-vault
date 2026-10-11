@@ -13,7 +13,8 @@
 
 * Email sign-in mode gains "Forgot password?", opening a mode with one address field.
 * After submit, always: "If an account exists for that address, a reset email is on its way."
-* 429: the server's message, "Too many requests for this address. Try again later."
+* 429: the server's message, "Too many requests for this address. Try again later." (or "from this
+  network", for the per-IP daily limit, which also covers sign-up).
 * After a successful sign-up, the form stays up with "Account created. We sent a verification email
   to <address>. You can use the app now; verify when you're ready." and a Continue button.
 

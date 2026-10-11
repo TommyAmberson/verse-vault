@@ -1,6 +1,6 @@
 import { and, eq, like } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware, getIp } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { multiSession } from 'better-auth/plugins';
 
@@ -33,6 +33,12 @@ const EMAILING_PATHS = new Set(['/request-password-reset', '/send-verification-e
 
 /** At most 3 such requests per address per hour, across both paths. */
 const PER_ADDRESS_TIER: RateLimitTier = { capacity: 3, refillPerSec: 3 / 3600 };
+
+/** Every request that can send an email, sign-up included. */
+const SENDING_PATHS = new Set([...EMAILING_PATHS, '/sign-up/email']);
+
+/** At most 10 such requests per IP per day, across all three paths. */
+const PER_IP_TIER: RateLimitTier = { capacity: 10, refillPerSec: 10 / (24 * 3600) };
 
 const MAX_EMAIL_LENGTH = 254;
 
@@ -68,11 +74,14 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   // client's browser.
   const webBase = env.webOrigin.replace(/\/$/, '');
 
-  // Better Auth limits per IP; this adds a limit per address, so one inbox
-  // can't be flooded from many IPs. It doesn't cap total sends, which is a
-  // known limitation (research D13). It counts requests, not sends, so it
-  // reveals nothing about which addresses have accounts.
-  const addressBuckets = new TokenBucketStore();
+  // Two limits on top of Better Auth's own, which reset within a minute.
+  // Per address, so one inbox can't be flooded from many IPs. Per IP per
+  // day, so one client can't spend the provider's daily quota (100 on
+  // Resend's free plan) by signing up many addresses or resetting its own
+  // accounts. Many IPs together still can (research D13). Both count
+  // requests, not sends, so they reveal nothing about which addresses have
+  // accounts.
+  const sendBuckets = new TokenBucketStore();
 
   const auth = betterAuth({
     baseURL: betterAuthBaseURL,
@@ -176,13 +185,25 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
     // disturbing the others. Schema-compatible — no new tables.
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        if (!SENDING_PATHS.has(ctx.path)) return;
+        const ip = ctx.request ? getIp(ctx.request, ctx.context.options) : null;
+        if (ip) {
+          const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
+          if (!perIp.allowed) {
+            throw new APIError(
+              'TOO_MANY_REQUESTS',
+              { message: 'Too many requests from this network. Try again later.' },
+              { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
+            );
+          }
+        }
         if (!EMAILING_PATHS.has(ctx.path)) return;
         const email = (ctx.body as { email?: unknown } | undefined)?.email;
         // The body isn't validated yet. Anything longer than an address can
         // be (254 characters) matches no account, so skip it rather than
         // let oversized junk fill the bucket store.
         if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH) return;
-        const { allowed, retryAfterSec } = addressBuckets.consume(
+        const { allowed, retryAfterSec } = sendBuckets.consume(
           `email:${email.trim().toLowerCase()}`,
           PER_ADDRESS_TIER,
         );

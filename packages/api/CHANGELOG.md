@@ -32,6 +32,8 @@ PATCH: password reset and email verification, sent from no-reply@versevault.ca.
 * Email goes through Resend's HTTPS API (`RESEND_API_KEY`); without a key the API logs each link
   instead.
 * At most 3 reset or verification requests per address per hour (429 with `Retry-After`).
+* At most 10 requests that can send email (sign-up, reset, verification) per IP per day, so one
+  client can't spend the email provider's daily quota.
 
 ### Fixed
 

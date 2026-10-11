@@ -42,8 +42,8 @@ existing and unknown addresses (SC-003); email arrives within a minute (SC-002, 
 
 **Constraints**: no account enumeration through wording, timing, errors, or throttling (FR-002);
 normal sending within Resend's free allowance (100 a day, 3,000 a month), with 3 requests per
-address per hour so no inbox can be flooded (FR-012; total sends are not capped, research D13); no
-send failure may fail or slow a request
+address per hour so no inbox can be flooded (FR-012) and 10 per IP per day so no one client can
+spend the quota (research D5, D13); no send failure may fail or slow a request
 
 **Scale/Scope**: phase 1 touches `lib/auth.ts`, one new sender module, the app's env wiring, five
 web files and two new web pages, four docs, and the provision script. Phase 2 adds two API routes,
@@ -125,7 +125,7 @@ docs/{server-api,persistence,deployment,web-nav}.md
 | What reset and verification do                           | Better Auth, configured in `createAuth` (`lib/auth.ts`)                                 | `emailAndPassword`, `emailVerification`, `revokeSessionsOnPasswordReset`                       |
 | Address verified on reset; older reset links invalidated | `onPasswordReset` in `lib/auth.ts`                                                      | Drizzle on `user` and `verification` (no Better Auth user-update hooks exist to bypass)        |
 | 3 requests per address per hour                          | a `hooks.before` in `lib/auth.ts`                                                       | `TokenBucketStore` from `lib/rate-limit.ts`                                                    |
-| Per-client throttling                                    | unchanged: Better Auth's built-in limiter and `middleware/observability.ts`             | both, as configured today                                                                      |
+| Per-client throttling                                    | Better Auth's limiter, `observability.ts`, and 10 per IP per day in `hooks.before` (D5) | both, as configured today                                                                      |
 | Who may complete a verification                          | `emailVerification.beforeEmailVerification` in `lib/auth.ts` (D12)                      | the request's session via `auth.api.getSession`                                                |
 | Which Google identities may link                         | `account.accountLinking` in `lib/auth.ts`: Google removed from `trustedProviders` (D12) | Better Auth's provider `email_verified` check                                                  |
 | A matching Google link verifies the address (phase 2)    | a `databaseHooks.account.create.after` in `lib/auth.ts`                                 | `internalAdapter.updateUser`                                                                   |

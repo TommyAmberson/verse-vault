@@ -97,6 +97,12 @@ and in production with no IP every request shares one bucket
 (checked in T017). Sign-up's own verification email is not counted: sign-up is already IP-limited,
 and one account can only be created once.
 
+**Per IP per day** (added in review, 2026-10-10): Better Auth's per-IP windows reset within a
+minute, so they bound bursts, not a day's total. The same hook therefore also allows each IP 10
+requests a day across sign-up, reset and verification, so one client can't spend the provider's
+daily quota by signing up many addresses or resetting its own accounts. Ten covers a household or a
+small group signing up on one network; a larger group would need to spread over a day.
+
 **Alternatives considered**: Better Auth `rateLimit.storage: "database"` (still IP-keyed); a new
 limiter (the existing store already does token buckets).
 
@@ -221,14 +227,12 @@ getting reset or verification email. A per-IP-per-address limit would avoid it b
 store and still falls to an attacker with several IPs. Every refused request is logged with its
 status and IP, so a sustained block shows up in the logs.
 
-**Nothing caps total sends.** The per-address throttle stops one inbox being flooded, but every new
-address has its own allowance, so the sending quota (Resend's free plan: 100 a day) is guarded only
-by Better Auth's per-IP defaults. Those allow 3 sign-ups per 10 seconds, each sending a verification
-email, so one IP could spend the day's quota in minutes. After that every reset and verification
-email fails until the next day, logged but otherwise silent. A daily cap in the API wouldn't help,
-since email would stop at our cap instead of Resend's. The real defences are a stricter per-IP
-sign-up limit, Cloudflare Turnstile on the forms, or an alert when Resend refuses for quota, left
-for a follow-up.
+**Many clients together can still spend the sending quota.** The per-IP daily limit (D5) stops one
+client, but not requests spread across many IPs. Once the provider's daily quota is gone, reset and
+verification email fails until the next day, logged but otherwise silent. A global daily cap in the
+API wouldn't help, since email would stop at our cap instead of the provider's. The defences are a
+challenge on the forms (Better Auth's captcha plugin supports Cloudflare Turnstile) and an alert
+when the provider refuses for quota, left for a follow-up.
 
 **Tokens stay in the address bar.** `/reset-password` and `/verify-email` leave `?token=` in place
 after reading it. Reset tokens are single-use and verification needs the account's own session, so

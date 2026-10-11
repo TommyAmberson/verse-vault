@@ -647,7 +647,12 @@ Two more limits sit inside Better Auth (`packages/api/src/lib/auth.ts`):
   so throttling looks the same whether or not the address has an account. Over the limit:
   `429 { code: "TOO_MANY_REQUESTS", message }` with `Retry-After`. The bucket lives in memory and
   resets on restart, which is fine for an abuse guard. Sign-up's own verification email isn't
-  counted; sign-up is already IP-limited and can't repeat for an address.
+  counted; sign-up can't repeat for an address.
+* **Per IP per day**: at most 10 requests that can send email (`/sign-up/email`,
+  `/request-password-reset`, `/send-verification-email`) per client IP a day, counted together and
+  checked before the per-address limit. It keeps one client from spending the email provider's daily
+  quota. Over the limit: the same 429 shape with "Too many requests from this network." Shares the
+  per-address limit's in-memory store.
 
 Tuneable via env vars at boot:
 
