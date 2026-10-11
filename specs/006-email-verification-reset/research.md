@@ -232,7 +232,7 @@ client, but not requests spread across many IPs. Once the provider's daily quota
 verification email fails until the next day, logged but otherwise silent. A global daily cap in the
 API wouldn't help, since email would stop at our cap instead of the provider's. The defences are a
 challenge on the forms (Better Auth's captcha plugin supports Cloudflare Turnstile) and an alert
-when the provider refuses for quota, left for a follow-up.
+when the provider refuses for quota, filed as #194.
 
 **Tokens stay in the address bar.** `/reset-password` and `/verify-email` leave `?token=` in place
 after reading it. Reset tokens are single-use and verification needs the account's own session, so
