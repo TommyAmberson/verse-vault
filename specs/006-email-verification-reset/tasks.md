@@ -13,8 +13,10 @@ description: "Task list for email verification and password reset"
 with the fake sender from T002, following the recorded link. Web tests cover pure helpers only (the
 suite has no component tests).
 
-**Organization**: Two pull requests (clarified). PR 1 is Phases 1 to 6 (User Stories 1 to 3). PR 2
-is Phases 7 to 9 (User Stories 4 and 5) and starts after PR 1 merges.
+**Organization**: PR 1 (merged) is Phases 1 to 6 (User Stories 1 to 3, with links). Phases 7 to 9
+(T021 to T033) were built on `feat/google-linking-reset-account` before the 2026-10-13 revision; their
+code carries over as noted below. The revision ships as three pull requests (research D18): **2a** is
+Phase 10, **2b** is Phases 11 to 13, **2c** is Phase 14.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -151,7 +153,7 @@ is Phases 7 to 9 (User Stories 4 and 5) and starts after PR 1 merges.
 
 ---
 
-## Phase 7: User Story 4 - Add Google sign-in to a password account (Priority: P3, PR 2)
+## Phase 7: User Story 4 - Add Google sign-in to a password account (built before the revision)
 
 **Goal**: password learners connect Google from settings, and a signed-out Google sign-in onto an unverified password account offers "That's me" or "That's not me".
 
@@ -159,22 +161,25 @@ is Phases 7 to 9 (User Stories 4 and 5) and starts after PR 1 merges.
 
 ### Tests for User Story 4
 
-- [ ] T021 [US4] Write the end-to-end test of the refused Google callback first, in `packages/api/src/index.test.ts`, stubbing Google's token and profile responses: a Google sign-in for an unverified password account's address redirects to `/profiles?force=1&pending=<token>` instead of `?error=account_not_linked`, and a pending record exists for 10 minutes (research D7 risk, FR-021); with `email_verified: false` from Google it still redirects with `?error=account_not_linked` and writes no pending record (research D12). Then test the two routes from contracts/http.md: claim with a session links Google, keeps the password, and verifies; claim with a mismatched address is refused; takeover removes the password and every session, links Google, and verifies; takeover of a user who became verified after the pending record was written returns the same 400 and changes nothing (research D12); a used, expired, or unknown token gets the same 400 (FR-021); and linking a matching Google account through `/link-social` verifies the user (FR-018)
+- [X] T021 [US4] Write the end-to-end test of the refused Google callback first, in `packages/api/src/index.test.ts`, stubbing Google's token and profile responses: a Google sign-in for an unverified password account's address redirects to `/profiles?force=1&pending=<token>` on the origin of the client's `errorCallbackURL`, including when sign-in started from another page such as `/verify-email`, instead of `?error=account_not_linked`, and a pending record exists for 10 minutes (research D7 risk, FR-021); with `email_verified: false` from Google it still redirects with `?error=account_not_linked` and writes no pending record (research D12). Then test the two routes from contracts/http.md: claim with a session links Google, keeps the password, and verifies; claim with a mismatched address is refused; takeover removes the password and every session, links Google, and verifies; takeover of a user who became verified after the pending record was written returns the same 400 and changes nothing (research D12); a used, expired, or unknown token gets the same 400 (FR-021); and linking a matching Google account through `/link-social` verifies the user (FR-018)
 
 ### Implementation for User Story 4
 
-- [ ] T022 [US4] In `packages/api/src/lib/auth.ts`, stash the Google profile during the callback and, in a `hooks.after` on the callback, when the stashed Google `email_verified` is `true`, turn the `account_not_linked` redirect into a pending verification row `pending-google:<token>` (value: user id, Google `sub`, email; 10 minutes) and a redirect to `/profiles?force=1&pending=<token>` (owner per plan.md; research D7; data-model.md). Covered by T021
-- [ ] T023 [US4] Add a `databaseHooks.account.create.after` in `packages/api/src/lib/auth.ts` that marks the user verified when a Google account is linked; this relies on T018 having removed Google from `trustedProviders`, so Better Auth only creates such rows for addresses Google verified, and `linkSocial` already enforces the same address (owner per plan.md; research D6, D12). Covered by T021
-- [ ] T024 [US4] Add `POST /api/account/google/claim` (session) and `POST /api/account/google/takeover` (no session) to `packages/api/src/routes/account.ts` per contracts/http.md, consuming the pending row once with `consumeVerificationValue`; takeover refuses an already verified user with the same 400, then uses `revokeUnprovenAccountAccess`, links Google, and verifies; claim also verifies (research D7, D12). Covered by T021
-- [ ] T025 [US4] In `apps/web/src/views/ProfilePickerView.vue`, handle `?pending=`: show the choice from contracts/ui.md; "That's me" opens email sign-in for that address and claims on success; "That's not me" shows the warning (whoever set the password loses access, the account may hold someone else's progress), requires confirmation, calls takeover, then starts Google sign-in again (FR-019, FR-020), and extend the settings warning from T014 to "Until you verify, anyone with access to this inbox or its Google account can take over this account." (FR-022), and afterwards shows the notice pointing to Delete all progress and Reset account (FR-023). Reuse `ConfirmDialog` for the warning. Remove the interim `account_not_linked` text from `apps/web/src/lib/socialSignInError.ts` if no longer reachable, updating its test
-- [ ] T026 [P] [US4] Add "Connect Google" to `apps/web/src/views/SettingsAccountView.vue` when the account has no Google link, calling `linkSocial` through a wrapper in `apps/web/src/lib/authClient.ts`; a mismatched address shows Better Auth's refusal (FR-018, US4 scenario 3)
-- [ ] T027 [US4] Document the choice screen, both routes, Connect Google, and the pending rows in `docs/server-api.md`, `docs/persistence.md`, and `docs/web-nav.md`; update the Better Auth gotchas in `CLAUDE.md` with the inferred-hook dependency (FR-017)
+- [X] T022 [US4] In `packages/api/src/lib/auth.ts` (adding `@better-auth/core` at the same version as `better-auth` to `packages/api/package.json` for the request state, research D7), stash the Google profile during the callback and, in a `hooks.after` on the callback, when the stashed Google `email_verified` is `true`, turn the `account_not_linked` redirect into a pending verification row `pending-google:<token>` (value: user id, Google `sub`, email; 10 minutes) and a redirect to `/profiles?force=1&pending=<token>` on the origin of the refused redirect's `Location` (contracts/http.md) (owner per plan.md; research D7; data-model.md). Covered by T021
+- [X] T023 [US4] In the T022 after hook in `packages/api/src/lib/auth.ts`, mark the user verified when a successful callback leaves that account holding the Google identity Google verified (this covers `linkSocial`, which never sets the flag; a `databaseHooks.account.create.after` hook was tried first and dropped, research D6); this relies on T018 having removed Google from `trustedProviders`, so Better Auth only creates such rows for addresses Google verified, and `linkSocial` already enforces the same address (owner per plan.md; research D6, D12). Covered by T021
+- [X] T024 [US4] Add `POST /api/account/google/claim` (session) and `POST /api/account/google/takeover` (no session) per contracts/http.md, in `packages/api/src/routes/account.ts`. That router applies `requireAuth()` to every route, so mount takeover ahead of it or in its own small router, and pass `auth` into the route dependencies from `app.ts`: both routes need Better Auth's context (`await auth.$context`) for `consumeVerificationValue`, `linkAccount`, and the steps of `revokeUnprovenAccountAccess` (delete the credential account and every session). Both consume the pending row once. Takeover refuses an already verified user with the same 400, then removes the password and sessions, links Google, and verifies. Claim also verifies (research D7, D12). Covered by T021
+- [X] T025 [US4] In `apps/web/src/views/ProfilePickerView.vue`, handle `?pending=`: show the choice from contracts/ui.md; "That's me" opens email sign-in for that address and claims on success; "That's not me" shows the warning (whoever set the password loses access, the account may hold someone else's progress), requires confirmation, calls takeover, then starts Google sign-in again with a `callbackURL` carrying `?taken-over=1` (FR-019, FR-020), and extend the settings warning from T014 to "Until you verify, anyone with access to this inbox or its Google account can take over this account." (FR-022), and on `?taken-over=1`, read once and cleared from the URL, shows the notice pointing to Delete all progress and Reset account (FR-023; contracts/ui.md). Reuse `ConfirmDialog` for the warning. Reword the `account_not_linked` message in `apps/web/src/lib/socialSignInError.ts` for the case still reachable, a Google account whose address Google hasn't verified (FR-014), updating its test
+- [X] T026 [P] [US4] Add "Connect Google" to `apps/web/src/views/SettingsAccountView.vue` when the account has no Google link, calling `linkSocial` through a wrapper in `apps/web/src/lib/authClient.ts`; a mismatched address shows Better Auth's refusal (FR-018, US4 scenario 3)
+- [X] T027 [US4] Document the choice screen, both routes, Connect Google, and the pending rows in `docs/server-api.md`, `docs/persistence.md`, and `docs/web-nav.md`; update the Better Auth gotchas in `CLAUDE.md` with the inferred-hook dependency (FR-017)
 
-**Checkpoint**: Google linking and takeover work
+**Carried over**: the callback after hook, pending rows, claim and takeover, the picker choice, Connect
+Google, and their docs move into 2b and are amended by Phase 12. The test helper commit stays.
+
+**Checkpoint**: Google linking and takeover work (old design)
 
 ---
 
-## Phase 8: User Story 5 - Clear an account's contents (Priority: P3, PR 2)
+## Phase 8: User Story 5 - Clear an account's contents (built before the revision; ships as 2c)
 
 **Goal**: "Reset account" beside "Delete all progress", both confirmed by typing the address.
 
@@ -182,22 +187,87 @@ is Phases 7 to 9 (User Stories 4 and 5) and starts after PR 1 merges.
 
 ### Tests for User Story 5
 
-- [ ] T028 [P] [US5] Extend `packages/api/src/routes/account.test.ts` (next to the existing Delete all progress tests): `DELETE /api/account` requires auth, removes progress plus `user_materials`, `user_year_settings`, `material_schedules`, and `graph_snapshots`, and leaves the user, its accounts, and its sessions (FR-024)
+- [X] T028 [P] [US5] Extend `packages/api/src/routes/account.test.ts` (next to the existing Delete all progress tests): `DELETE /api/account/data` requires auth, removes progress plus `user_materials`, `user_year_settings`, `material_schedules`, and `graph_snapshots`, and leaves the user, its accounts, and its sessions (FR-024)
 
 ### Implementation for User Story 5
 
-- [ ] T029 [US5] Extend `packages/api/src/lib/reset.ts` with the full reset, reusing `deleteAccountProgress`'s engine lock and invalidation (owner per plan.md; research D8), and expose it as `DELETE /api/account` in `packages/api/src/routes/account.ts` returning the same summary shape. Covered by T028
-- [ ] T030 [US5] Add a "Reset account" card to `apps/web/src/views/SettingsAccountView.vue` beside Delete all progress, reusing `TypeToConfirmDialog` with the address as `match-text` and the existing backup button, and running `resetProfileLocalData` afterwards as Delete all progress does (FR-024, FR-025, Principle VI). Add the API call in `apps/web/src/api.ts` next to the progress delete
-- [ ] T031 [US5] Document `DELETE /api/account` in `docs/server-api.md` §Account data and the card in `docs/web-nav.md` (FR-017)
+- [X] T029 [US5] Extend `packages/api/src/lib/reset.ts` with the full reset, reusing `deleteAccountProgress`'s engine lock and invalidation (owner per plan.md; research D8), and expose it as `DELETE /api/account/data` in `packages/api/src/routes/account.ts` returning the same summary shape. Covered by T028
+- [X] T030 [US5] Add a "Reset account" card to `apps/web/src/views/SettingsAccountView.vue` beside Delete all progress, reusing `TypeToConfirmDialog` with the address as `match-text` and the existing backup button, and running `resetProfileLocalData` afterwards as Delete all progress does (FR-024, FR-025, Principle VI). Add the API call in `apps/web/src/api.ts` next to the progress delete
+- [X] T031 [US5] Document `DELETE /api/account/data` in `docs/server-api.md` §Account data and the card in `docs/web-nav.md` (FR-017)
 
 **Checkpoint**: Stories 4 and 5 complete
 
 ---
 
-## Phase 9: PR 2 polish and release
+## Phase 9: Old PR 2 polish and release (superseded)
 
-- [ ] T032 Run quickstart.md's phase 2 checks, `pnpm test`, `dprint check`, and `typos`
-- [ ] T033 Release: api PATCH and web PATCH, one bump commit each with a CHANGELOG entry
+- [X] T032 Run quickstart.md's phase 2 checks, `pnpm test`, `dprint check`, and `typos`
+- [X] T033 Release: api PATCH and web PATCH, one bump commit each with a CHANGELOG entry (these bump commits are dropped when the branch is split, T041)
+
+---
+
+## Phase 10: Phase 2a - Only authoritative Google addresses count as verified (PR 2a, fixes production)
+
+**Goal**: a Google sign-in links into, verifies, or signs up verified only for an address Google is authoritative for (FR-014, research D14).
+
+**Independent Test**: through the stubbed Google callback, a Gmail address and a Workspace account (`hd` present) link into a verified account as before; an outside address with `email_verified: true` does not link, does not verify, and signs up unverified.
+
+- [X] T034 [US4] On a new branch `fix/google-authoritative-email` off master, write the tests first in `packages/api/src/index.test.ts`, extending the Google stub in `packages/api/src/test-utils.ts` (`googleSignIn` and its profile type) to carry an optional `hd` claim: a Gmail address with no `hd` and a Workspace address whose `hd` equals its domain each sign into a verified password account and sign up verified; an outside address (`email_verified: true`, no `hd`) is refused with `account_not_linked`, links nothing, leaves the account unverified, and a new sign-up on it starts unverified; a Workspace account whose `hd` differs from the address's domain counts as outside. Update the existing Google tests' profiles so they stay authoritative
+- [X] T035 [US4] In `packages/api/src/lib/auth.ts`, make the Google provider report its address verified only when Google is authoritative for it (`email_verified` and an `@gmail.com` or `@googlemail.com` address, or `hd` equal to the address's domain), through `mapProfileToUser`, the single owner of this rule (plan.md; research D14). Rewrite the `accountLinking` comment to say why. Covered by T034
+- [X] T036 [P] [US4] Reword the `account_not_linked` message in `apps/web/src/lib/socialSignInError.ts` to contracts/ui.md's phase 2a text ("Google can't sign in to yet"), updating `apps/web/src/lib/socialSignInError.test.ts` first
+- [X] T037 [US4] Document the rule in `docs/server-api.md` §Auth (which Google sign-ins prove the inbox, citing Google's guidance) and record the production gap it closes in `packages/api/CHANGELOG.md`; run `pnpm test`, `dprint check`, `typos`, then release api PATCH and web PATCH, one bump commit each
+
+**Checkpoint**: PR 2a ready; open it, merge, deploy
+
+---
+
+## Phase 11: Phase 2b - Codes instead of links (User Stories 1 to 3, PR 2b)
+
+**Goal**: verification and reset emails carry a 6-digit code entered where it was asked for (FR-003, FR-004, FR-008, FR-011, FR-013, research D15).
+
+**Independent Test**: sign up and enter the logged code to verify; request a reset, enter the code with a new password, and sign in with it; old link URLs show the "request a code" page.
+
+- [ ] T038 Restructure `feat/google-linking-reset-account` onto master after 2a merges: keep the design, docs, and Google commits (T021 to T027, the test helper), move the Reset account commits (T028 to T031) to a new branch for 2c, and drop the old release bumps (T033); `pnpm test` passes at each commit
+- [ ] T039 [US1] Tests first in `packages/api/src/index.test.ts`, replacing the link-following tests from T003, T008, T012 and T017 with code equivalents through the fake sender: sign-up emails a 6-digit code and the account works unverified; entering it with that account's session verifies, with no session or another account's session returns 403 and verifies nothing (D12); a wrong code is refused and the third wrong try ends the code; an expired code is refused; a newer code replaces the older; reset by code sets the password, ends every session, verifies, and creates a first password for a Google-only account; an unknown address gets the same reply and no email, and the reset request is not slower for a real address (send not awaited); the refused plugin routes (code sign-in, `type: "sign-in"` and `"change-email"` on the send route, email change, the deprecated reset alias) return 404; the per-address and per-IP limits apply to the new send and reset routes, and sign-up's code still counts per IP only once the account exists
+- [ ] T040 [US1] In `packages/api/src/lib/auth.ts`, add Better Auth's `emailOTP` plugin per research D15 (`expiresIn: 600`, `storeOTP: 'hashed'`, `overrideDefaultEmailVerification: true`; the 6-digit length and 3 attempts are the plugin's defaults and are not set), sending through the existing sender; remove `sendResetPassword`, `sendVerificationEmail`, and `onPasswordReset`, which the plugin now covers; refuse the out-of-scope plugin routes and point the per-address and per-IP limits at the new paths in the existing `hooks.before`; move the sign-up per-IP count into the code sender. In `packages/api/src/lib/email.ts`, replace the two link messages with code messages per contracts/ui.md §Emails (code prominent, 10 minutes, "VerseVault never asks for this code"), logging the code instead of the link with no key (FR-016), with its unit tests updated. Covered by T039
+- [ ] T041 [P] [US1] In `apps/web/src/components/SignInForm.vue` and `apps/web/src/lib/authClient.ts`, turn "Forgot password?" into: the address, then the code and a new password in the same form, signing in on success; after sign-up, show the code field from contracts/ui.md §Codes with "Send a new code"; handle the plugin's error codes in `apps/web/src/lib/authEmail.ts` (wrong, expired, too many tries) with its tests updated first
+- [ ] T042 [US3] In `apps/web/src/views/SettingsAccountView.vue`, replace "Send verification email" with "Send verification code" and a code field that verifies the active account (contracts/ui.md §Codes), reusing the code field from T041
+- [ ] T043 [P] [US2] Turn `apps/web/src/views/ResetPasswordView.vue` and `apps/web/src/views/VerifyEmailView.vue` into the "Emails now carry a code" pages from contracts/ui.md (FR-011), removing the token handling and profile switching they no longer need
+- [ ] T044 Update `docs/server-api.md` (§Password reset, §Email verification, §Rate limiting), `docs/persistence.md` (code rows), and `docs/web-nav.md` (code fields, the two pages) for codes (FR-017)
+
+**Checkpoint**: codes work end to end; links are gone
+
+---
+
+## Phase 12: Phase 2b - The Google code step (User Story 4, PR 2b)
+
+**Goal**: a non-authoritative Google sign-in proves the inbox with an emailed code before it links or reaches the choice; Connect Google needs a verified account unless Google is authoritative (FR-014, FR-018, FR-019, FR-021, research D16, D17).
+
+**Independent Test**: a non-authoritative Google sign-in onto a verified account sends a code and, once confirmed, links; onto an unverified account, the confirmed code leads to the choice; claim and takeover refuse an unproven token.
+
+- [ ] T045 [US4] Tests first in `packages/api/src/index.test.ts`, amending the T021 suite: a refused non-authoritative Google sign-in (raw `email_verified` true) emails a code to the address and redirects to the picker with `pending`, `email`, and `code=1`; `POST /api/account/google/confirm` with a wrong code is refused and three wrong tries end it; with the right code it links Google to a verified account and returns `{ signIn: true }`, or marks the row proven for an unverified one and returns `{ choice: true }`; claim and takeover refuse a token that is not proven yet with the same 400; an authoritative sign-in onto an unverified account is proven at once; the code email counts towards the per-address limit; Google sign-in with `email_verified: false` is still refused with no code. For Connect Google: a verified account links a non-authoritative Google account with the same address; an unverified account comes back with `?error=verify_email_first` and links nothing
+- [ ] T046 [US4] In `packages/api/src/lib/auth.ts`'s callback after hook and `packages/api/src/routes/account.ts`, implement research D16 and D17: the after hook marks the pending row proven or not, sends the code through the plugin's send route when it isn't, and adds `code=1`; the confirm route checks the code with the plugin's `checkVerificationOTP` and then deletes the code row so it works once; claim and takeover require a proven row; the after hook links a non-authoritative Google account to a verified signed-in account, and refuses an unverified one with `verify_email_first`. Covered by T045
+- [ ] T047 [US4] In `apps/web/src/views/ProfilePickerView.vue`, show the code step for `?code=1` before the choice (contracts/ui.md §Phase 2b: Google), reusing the T041 code field: on `{ signIn: true }` run Google sign-in again, on `{ choice: true }` show the choice; add `verify_email_first` to `apps/web/src/lib/socialSignInError.ts` with its test, and show it in settings next to the verification controls
+- [ ] T048 Update `docs/server-api.md` (§Google sign-in onto a password account: the code step, the confirm route, proven rows, Connect Google's rule), `docs/persistence.md` (the proven flag), and `docs/web-nav.md` (the picker's code step) (FR-017)
+
+**Checkpoint**: every way Google links goes through inbox proof
+
+---
+
+## Phase 13: Phase 2b polish and release
+
+- [ ] T049 Run quickstart.md's phase 2b checks (placeholder Google credentials and inserted pending rows locally), `pnpm test`, `dprint check`, and `typos`; update `CLAUDE.md`'s Better Auth gotcha if the after hook's reliance on internals changed
+- [ ] T050 Release: api PATCH and web PATCH, one bump commit each with a CHANGELOG entry; the PR body lists the production checks from quickstart.md (a reset code in the inbox passing SPF, DKIM, DMARC; a non-Gmail Google sign-in's code step)
+
+---
+
+## Phase 14: Phase 2c - Reset account (User Story 5, PR 2c)
+
+**Goal**: ship Reset account (T028 to T031, already built) on its own.
+
+**Independent Test**: as Phase 8.
+
+- [ ] T051 [US5] On the branch from T038, rebased on master, run Phase 8's tests and quickstart.md's phase 2c check, then release api PATCH and web PATCH, one bump commit each with a CHANGELOG entry
 
 ---
 
@@ -207,6 +277,9 @@ is Phases 7 to 9 (User Stories 4 and 5) and starts after PR 1 merges.
 - US1 (T003 to T007), US2 (T008 to T011), and US3 (T012 to T016) depend only on T002. T009 and T004 edit the same `createAuth` call, so run them in sequence. US3's web tasks need T013 first.
 - T017 needs T004 and T009 (both paths must exist). T020 closes PR 1.
 - PR 2 starts after PR 1 merges. T021 before T022 to T024. T025 needs T022 and T024. US5 is independent of US4 within PR 2.
+- 2a (T034 to T037) goes first, off master. T034 before T035.
+- 2b starts with T038 once 2a merges. T039 before T040; T041 to T043 need T040, and T042 needs T041; T045 before T046; T047 needs T041 and T046. T050 closes 2b.
+- 2c (T051) only needs the T038 split; it can merge before or after 2b.
 
 ### Parallel Opportunities
 
@@ -215,6 +288,9 @@ is Phases 7 to 9 (User Stories 4 and 5) and starts after PR 1 merges.
 - Within US3: T014 and T015 after T013.
 - T018 after T017 (both edit `packages/api/src/lib/auth.ts`).
 - US5 (T028 to T031) alongside US4.
+- T036 alongside T034 and T035.
+- T041 and T043 together after T040 (different web files); T042 after T041, whose code field it reuses.
+- T051 (2c) alongside 2b.
 
 ## Parallel Example: User Story 1
 
@@ -228,6 +304,7 @@ Task: "Reset page in apps/web/src/views/ResetPasswordView.vue"
 1. MVP: T001, T002, then User Story 1. Reset alone already fixes the worst gap.
 2. Add US2 and US3, then the throttle (T017) before opening PR 1, since the reset form is public.
 3. PR 2: US4 test-first because it relies on inferred Better Auth hooks, then US5.
+4. After the revision: 2a first, since it closes a gap already in production; then 2b codes (Phase 11) before the Google code step (Phase 12), which reuses them; 2c whenever convenient.
 
 ## Notes
 

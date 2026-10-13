@@ -1,5 +1,9 @@
 # Research: Email Verification and Password Reset
 
+D1 to D13 record phase 1 as built (links). The 2026-10-13 clarifications replace links with codes
+and require proof of the inbox before Google links; D14 to D18 record that design, and say which
+earlier decisions they supersede.
+
 Findings come from better-auth 1.6.33 as installed (`packages/api/node_modules/better-auth`, which
 resolves to `node_modules/.pnpm/better-auth@1.6.33*/node_modules/better-auth/dist`, cited below as
 `BA/`) and from the verse-vault code at the point this feature branched (master 271afd0).
@@ -21,6 +25,8 @@ DigitalOcean droplets, see issue #171).
 
 ## D2. Not awaiting the send
 
+_Still holds in phase 2b: the code sender returns at once the same way._
+
 **Decision**: the Better Auth callbacks (`sendResetPassword`, `sendVerificationEmail`) start the
 send with `void` and return at once. No `advanced.backgroundTasks` handler.
 
@@ -35,6 +41,9 @@ long-lived Node process, so an unawaited promise completes.
 re-sending verification, so two mechanisms for one rule).
 
 ## D3. Password reset options
+
+_Superseded in phase 2b by D15: reset is by code, and the plugin verifies the address and rotates
+codes itself, so `onPasswordReset` goes._
 
 **Decision**: in `emailAndPassword`: `sendResetPassword`, `resetPasswordTokenExpiresIn` left at its
 3600 s default, `revokeSessionsOnPasswordReset: true` (FR-005), and an `onPasswordReset` callback
@@ -53,6 +62,8 @@ that marks the address verified (FR-006) and deletes the user's other outstandin
 * Unknown addresses already get an identical response with fake work (L60-72).
 
 ## D4. Verification options
+
+_Superseded in phase 2b by D15: verification is by code; `beforeEmailVerification` stays._
 
 **Decision**: `emailVerification` with `sendVerificationEmail`, `sendOnSignUp: true`,
 `expiresIn: 86400` (FR-008), and `autoSignInAfterVerification` left unset, which is off (clarified:
@@ -112,13 +123,16 @@ limiter (the existing store already does token buckets).
 
 ## D6. Connect Google from settings (phase 2)
 
-**Decision**: the web client calls `authClient.linkSocial({ provider: 'google' })`. A
-`databaseHooks.account.create.after` hook marks the user verified when a Google account is linked
-(FR-018). This is only sound because D12 removes Google from `trustedProviders`: Better Auth then
-creates a Google account row through sign-in or `linkSocial` only when Google reports the address
-verified, and `linkSocial` already enforces the same address. The hook sees only the account row, so
-it must not be relied on for any path that bypasses those checks; the claim and takeover routes (D7)
-verify the user themselves.
+**Decision**: the web client calls `authClient.linkSocial({ provider: 'google' })`. The D7 after
+hook on the callback marks the user verified when the callback succeeded, Google reported the
+address verified, and the account with that address now holds that Google `sub` (FR-018). This is
+only sound because D12 removes Google from `trustedProviders`, and `linkSocial` already enforces the
+same address. The claim and takeover routes (D7) verify the user themselves.
+
+An earlier draft used a `databaseHooks.account.create.after` hook instead. It fired for every Google
+account row created anywhere, including the takeover's own link, which verified the user before the
+takeover could revoke the old password: a hidden ordering rule between two files, and a trap for any
+later code that creates a Google account. Scoping it to the callback removes both.
 
 **Rationale**: `/link-social` requires a session, enforces the same address unless
 `allowDifferentEmails` is set (BA/api/routes/account.mjs:69-222, callback.mjs:102), and does not
@@ -131,7 +145,10 @@ hook.
 `error=account_not_linked`:
 
 1. Wrap the Google provider's `mapProfileToUser` to stash the Google profile (`sub`, `email`,
-   `email_verified`) in Better Auth request state.
+   `email_verified`) in Better Auth request state. Request state comes from
+   `@better-auth/core/context` (`defineRequestState`); `better-auth` doesn't export it, so phase 2
+   adds `@better-auth/core` as a direct dependency pinned to the same version as `better-auth`, and
+   upgrades move both together.
 2. A `hooks.after` on `/callback/:id` sees the `account_not_linked` redirect and, only when the
    stashed `email_verified` is `true` (D12), writes a verification row `pending-google:<random>`
    holding the user id, the Google `sub`, and the address, expiring after 10 minutes (FR-021), and
@@ -140,9 +157,9 @@ hook.
    client calls a new authenticated route that consumes the token and links the stored Google `sub`
    to the session's user if the addresses match.
 4. "That's not me": the client calls a new unauthenticated route with the token. It consumes the
-   token, refuses if the user is already verified (`revokeUnprovenAccountAccess` silently does
-   nothing then), removes the credential account and every session (`revokeUnprovenAccountAccess`
-   from `better-auth/db`, which does exactly this for an unverified user), links the Google `sub`,
+   token, refuses if the user is already verified, removes the credential account and every session
+   (what `revokeUnprovenAccountAccess` from `better-auth/db` does, done directly through the
+   internal adapter since the route has no Better Auth endpoint context), links the Google `sub`,
    and verifies the address. The client then starts Google sign-in again, which now finds the linked
    account and signs in normally.
 
@@ -231,6 +248,11 @@ getting reset or verification email. A per-IP-per-address limit would avoid it b
 store and still falls to an attacker with several IPs. Every refused request is logged with its
 status and IP, so a sustained block shows up in the logs.
 
+From phase 2b the Google code step shares the address's verification code (D16), so the same person,
+or anyone signed in to an unverified account through a password they set, can also request a new
+verification code and so replace the one the owner was emailed for Google. Password reset still gets
+the owner in.
+
 **Many clients together can still spend the sending quota.** The per-IP daily limit (D5) stops one
 client, but not requests spread across many IPs. Once the provider's daily quota is gone, reset and
 verification email fails until the next day, logged but otherwise silent. A global daily cap in the
@@ -256,3 +278,134 @@ throw.
 
 Follow-up cleanups found in review are filed as #190 (rate limiter eviction and a shared 429
 helper), #191 (syncing server-owned profile fields) and #192 (the profile picker's mode changes).
+
+## Phase 2 revision (2026-10-13)
+
+## D14. Which Google sign-ins prove the inbox (phase 2a)
+
+**Decision**: the Google provider's `mapProfileToUser` returns `emailVerified` as true only when
+Google is authoritative for the address: Google reports `email_verified` and the address ends in
+`@gmail.com` or `@googlemail.com` (older UK and German Gmail), or the token carries an `hd` claim (a
+Workspace account; an organization proves it owns a domain before giving users addresses on it, so
+`hd` names only the primary one). It also stashes the raw `email_verified` alongside, for D16.
+
+**Rationale**: Google's guidance ("Verify the Google ID token on your server side": "Using the
+email, email_verified and hd fields") is authoritative only for Gmail and Workspace accounts; for
+any other address `email_verified` records a check made when the Google account was created, and
+"ownership of the third party email account may have since changed". Better Auth spreads the mapped
+fields over the user info (CORE/social-providers/google.mjs:113-122), and every decision that trusts
+Google's address reads that one value:
+
+* implicit linking into an existing account (BA/oauth2/link-account.mjs:23) and the `emailVerified`
+  it then sets (L46);
+* `linkSocial`'s check for an untrusted provider (BA/api/routes/callback.mjs:97);
+* a new Google user's `emailVerified` at sign-up.
+
+So one rule in one place closes the gap in production, where a Google account on someone's old Yahoo
+address would sign straight into their verified VerseVault account. Gmail usernames are never
+reissued. A lapsed Workspace domain that is re-registered hands over its inboxes too, so this is no
+weaker than any email-based recovery.
+
+**Alternatives considered**: checking in the callback after hook (it runs after Better Auth has
+already linked or created the user); trusting `email_verified` for every address (the gap above).
+
+## D15. Codes instead of links (phase 2b)
+
+**Decision**: Better Auth's `emailOTP` plugin, with `overrideDefaultEmailVerification: true` so
+verification on sign-up and on request sends a code instead of a link, `expiresIn: 600`, and
+`storeOTP: 'hashed'`; the plugin's defaults already give 6 digits and 3 wrong attempts. Its
+`sendVerificationOTP` callback sends through the D1 sender with a template per `type`. Reset uses
+the plugin's code routes; `sendResetPassword`, `sendVerificationEmail`, and `onPasswordReset` go. A
+`hooks.before` refuses the plugin routes outside this spec: code sign-in (`/sign-in/email-otp`, and
+`type: 'sign-in'` on the send route), changing email (`/email-otp/request-email-change`,
+`/email-otp/change-email`), and the deprecated `/forget-password/email-otp`. The `/reset-password`
+and `/verify-email` web pages stay as routes that tell anyone arriving from an older email to
+request a code (FR-011).
+
+**Rationale**:
+
+* Verify by code calls `beforeEmailVerification` (BA/plugins/email-otp/routes.mjs:325), so the D12
+  rule, verified only for that account's own session, holds unchanged.
+* Reset by code creates a first password for a Google-only account, marks the address verified, and
+  ends every session when `revokeSessionsOnPasswordReset` is set (routes.mjs:590-600), so FR-003,
+  FR-005, and FR-006 need no code of ours.
+* There is one row per address and type (`<type>-otp-<email>`), and a new request replaces it
+  (`resolveOTP`, rotate strategy), so only the newest code works, which is what `onPasswordReset`
+  used to enforce for links.
+* Wrong attempts are counted on the row and lock it after three (`atomicVerifyOTP`, routes.mjs:760).
+* Unknown addresses get `{ success: true }` and no send on both the reset and verification send
+  routes, after the same store-and-delete work (routes.mjs:100-110, 478-490). SC-003's timing test
+  covers the reset route as before.
+* With the override, the plugin replaces `emailVerification.sendVerificationEmail`
+  (BA/plugins/email-otp/index.mjs:22-34), so sign-up's existing `sendOnSignUp` sends a code. The
+  per-IP count for sign-up moves into `sendVerificationOTP`, which still sees the sign-up request.
+* Codes resolve two D13 limitations: no token sits in the address bar, and verification needs no
+  profile switching page, since the code is typed into the account that asked for it.
+
+**Alternatives considered**: keeping links for verification and reset (two mechanisms; the
+clarification chose codes); writing our own code store (the plugin already hashes, rotates, counts
+attempts, and expires codes).
+
+## D16. The Google code step (phase 2b)
+
+**Decision**: the callback after hook (D7) also handles a refused Google sign-in whose raw
+`email_verified` is true but which D14 found non-authoritative. It writes the pending row as before,
+marked as not yet proven, sends a verification code to the address through the plugin's send route
+(`type: 'email-verification'`), and redirects to the picker with `&code=1`. A new route,
+`POST /api/account/google/confirm { token, code }`, checks the code with the plugin's
+`checkVerificationOTP`, deletes the code row so it cannot be used twice, and then:
+
+* verified account: links the Google `sub` and returns `{ signIn: true }`; the client runs Google
+  sign-in again, which now finds the account linked;
+* unverified account: marks the pending row proven and returns `{ choice: true }`; the picker shows
+  "That's me" / "That's not me".
+
+Claim and takeover refuse a pending row that is not proven. An authoritative refusal writes it
+proven from the start, as phase 2 already does.
+
+**Rationale**: the pending row already ties the proof to one Google identity and one account, and
+the plugin already stores, hashes, counts, and expires codes for an address, so the step reuses both
+rather than adding a second code store. Sending through the plugin's route also puts these emails
+under the same per-address and per-IP limits (FR-012). Checking and deleting are two steps, so two
+requests with the right code at the same moment could both pass; that is harmless, since both prove
+the same inbox for the same pending row. Checking with `checkVerificationOTP` and then deleting the
+row matches the plugin's single-use rule without going through `/email-otp/verify-email`, which
+would verify the address and needs that account's session.
+
+**Alternatives considered**: a code stored on the pending row (duplicates the plugin's hashing and
+attempt counting); signing the learner in directly after the code (the multi-session cookies argue
+for re-running Google sign-in, as D7 did for takeover).
+
+## D17. Connect Google from settings (phase 2b)
+
+**Decision**: with D14 in place, `linkSocial` links an authoritative Google account as before, and
+the D6 verify in the after hook still applies. For a non-authoritative one Better Auth refuses with
+`unable_to_link_account` (BA/api/routes/callback.mjs:97-100); the after hook turns that into a link
+when the signed-in account is already verified, the Google address matches it, and that Google `sub`
+is not linked elsewhere. An unverified account instead comes back with an error the settings page
+explains: verify the address with a code first, then connect Google. That code is the D15
+verification code, so it verifies the address on the way (clarification 2026-10-13).
+
+**Rationale**: the session proves the account and a verified account has already proven the inbox,
+so a verified account needs nothing more. An unverified one must prove the inbox before gaining a
+sign-in method, or whoever pre-registered the address could attach their own Google account, which a
+reset would not remove.
+
+**Alternatives considered**: a separate code step inside Connect Google (the verification code in
+settings is the same proof, already built).
+
+## D18. Delivery (2a, 2b, 2c)
+
+**Decision**: three pull requests, each with api and web PATCH releases where they touch them.
+
+* **2a** (`fix/google-authoritative-email`, off master): D14, with tests that an authoritative Gmail
+  or Workspace sign-in links as before and an outside address does not link, does not verify, and
+  signs up unverified; the `account_not_linked` message reworded for the new reason. No web pages
+  change.
+* **2b** (the current branch, restructured): D15 to D17, the choice screen, takeover, and Connect
+  Google. Already-built work carries over: the callback after hook and pending rows, claim and
+  takeover, the picker choice, Connect Google, and the docs for them.
+* **2c**: Reset account (User Story 5), whose commits move off the current branch unchanged.
+
+**Rationale**: 2a closes a gap already live and is small, so it should not wait on the code rework.
+Reset account is independent of the Google work.
