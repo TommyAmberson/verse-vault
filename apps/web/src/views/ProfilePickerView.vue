@@ -395,7 +395,8 @@ async function onTakeover() {
     <p v-if="choiceError" class="banner" role="alert">{{ choiceError }}</p>
     <p v-if="takenOver" class="banner" role="status">
       The account is yours now. It may still hold progress someone else recorded; clear it with
-      Delete all progress in <RouterLink to="/settings/account">account settings</RouterLink>.
+      Delete all progress or Reset account in
+      <RouterLink to="/settings/account">account settings</RouterLink>.
     </p>
 
     <form v-if="codeStep" class="choice" @submit.prevent="onConfirmCode">

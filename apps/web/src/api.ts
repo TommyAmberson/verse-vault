@@ -450,6 +450,9 @@ export interface ApiClient {
   resendGoogleCode(email: string): Promise<{ sent: true } | { proven: true }>
   /** Removes every Google account and ends every other session (FR-018). */
   disconnectGoogle(): Promise<{ ok: true }>
+  /** Reset account: progress plus enrolled decks, per-year settings,
+   *  schedules, and snapshots; keeps sign-in (DELETE /api/account/data). */
+  resetAccount(): Promise<ProgressDeletionSummary>
 }
 
 let onUnauthorized: (() => void) | null = null
@@ -585,6 +588,7 @@ export function createApiClient(apiUrl: string): ApiClient {
     confirmGoogle: (email, code) => request('POST', '/api/account/google/confirm', { email, code }),
     resendGoogleCode: (email) => request('POST', '/api/account/google/resend', { email }),
     disconnectGoogle: () => request('POST', '/api/account/google/disconnect'),
+    resetAccount: () => request('DELETE', '/api/account/data'),
   }
 }
 
