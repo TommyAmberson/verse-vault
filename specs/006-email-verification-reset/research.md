@@ -98,10 +98,14 @@ and in production with no IP every request shares one bucket
 and one account can only be created once.
 
 **Per IP per day** (added in review, 2026-10-10): Better Auth's per-IP windows reset within a
-minute, so they bound bursts, not a day's total. The same hook therefore also allows each IP 10
-requests a day across sign-up, reset and verification, so one client can't spend the provider's
-daily quota by signing up many addresses or resetting its own accounts. Ten covers a household or a
-small group signing up on one network; a larger group would need to spread over a day.
+minute, so they bound bursts, not a day's total. Each IP therefore also gets 10 emails a day, so one
+client can't spend the provider's daily quota by signing up many addresses or resetting its own
+accounts. Reset and verification requests count in the same hook when they arrive. A sign-up counts
+in `sendVerificationEmail`, once its account exists, and over the limit it skips the email rather
+than refusing: a team signing up together on one church or school network all get accounts, failed
+attempts cost nothing, and anyone who missed the email sends it later from settings. The sign-up
+note therefore points to the email rather than promising it. Refusing sign-ups instead would block
+the 11th person on a shared network, and sooner when attempts fail.
 
 **Alternatives considered**: Better Auth `rateLimit.storage: "database"` (still IP-keyed); a new
 limiter (the existing store already does token buckets).

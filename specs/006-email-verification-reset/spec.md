@@ -290,8 +290,10 @@ the same sign-in methods still work.
 * **FR-005**: Completing a reset MUST end every existing session for that account, on every device.
 * **FR-006**: Completing a reset MUST mark the account's address as verified, since receiving the
   email proves ownership of the inbox.
-* **FR-007**: Creating a password account MUST send a verification email to its address. The account
-  MUST be usable immediately, before verification.
+* **FR-007**: Creating a password account MUST send a verification email to its address, unless the
+  client has reached its daily email limit (FR-012), in which case the account is still created and
+  the learner can send the email later from settings. The account MUST be usable immediately, before
+  verification.
 * **FR-008**: A verification email MUST contain a link that expires after a limited time (24 hours
   by default). Following it MUST mark the address verified only when the learner is signed in to
   that account; otherwise the app MUST ask them to sign in to it first and verify only after they
@@ -307,7 +309,9 @@ the same sign-in methods still work.
   to a raw error.
 * **FR-012**: Requests that send email (reset and verification) MUST be throttled to at most 3
   requests per address per hour (reset and verification combined; the email sent at sign-up is not
-  counted) and also per client, and a throttled request MUST tell the learner to try again later.
+  counted) and also per client, at most 10 emails per client per day including those sent at
+  sign-up, and a throttled request MUST tell the learner to try again later. Sign-up itself is never
+  refused for this limit.
 * **FR-013**: All outgoing email MUST come from `VerseVault <no-reply@versevault.ca>`, contain the
   link as plain text as well as a button, and say why it was sent and what to do if the recipient
   did not ask for it.

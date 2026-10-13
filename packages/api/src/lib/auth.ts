@@ -34,10 +34,8 @@ const EMAILING_PATHS = new Set(['/request-password-reset', '/send-verification-e
 /** At most 3 such requests per address per hour, across both paths. */
 const PER_ADDRESS_TIER: RateLimitTier = { capacity: 3, refillPerSec: 3 / 3600 };
 
-/** Every request that can send an email, sign-up included. */
-const SENDING_PATHS = new Set([...EMAILING_PATHS, '/sign-up/email']);
-
-/** At most 10 such requests per IP per day, across all three paths. */
+/** At most 10 emails per IP per day: requests on those paths, plus
+ *  verification emails sent at sign-up. */
 const PER_IP_TIER: RateLimitTier = { capacity: 10, refillPerSec: 10 / (24 * 3600) };
 
 const MAX_EMAIL_LENGTH = 254;
@@ -78,9 +76,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   // Per address, so one inbox can't be flooded from many IPs. Per IP per
   // day, so one client can't spend the provider's daily quota (100 on
   // Resend's free plan) by signing up many addresses or resetting its own
-  // accounts. Many IPs together still can (research D13). Both count
-  // requests, not sends, so they reveal nothing about which addresses have
-  // accounts.
+  // accounts. Many IPs together still can (research D13). Reset and
+  // verification requests count when they arrive, not when they send, so
+  // throttling reveals nothing about which addresses have accounts.
   const sendBuckets = new TokenBucketStore();
 
   const auth = betterAuth({
@@ -128,13 +126,25 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       // learner in to the right account first, then verifies. The address
       // rides along so the page knows which account that is; the token
       // already carries it, so this exposes nothing new.
-      sendVerificationEmail: async ({ user, token }) =>
+      sendVerificationEmail: async ({ user, token }, request) => {
+        // A sign-up counts towards its IP's daily limit only once the account
+        // exists, and over the limit it skips the email instead of refusing:
+        // a group signing up on one network still gets in, and can send the
+        // email later from settings. The response is the same either way.
+        if (request && new URL(request.url).pathname.endsWith('/sign-up/email')) {
+          const ip = getIp(request, auth.options);
+          if (ip && !sendBuckets.consume(`ip:${ip}`, PER_IP_TIER).allowed) {
+            console.warn(`[email] sign-up verification skipped: daily limit reached for ${ip}`);
+            return;
+          }
+        }
         sendEmail(
           verifyEmail(
             user.email,
             `${webBase}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`,
           ),
-        ),
+        );
+      },
       // Verify only for that account's own session. Better Auth's verify
       // route sets the flag and nothing else, so a signed-out click would
       // verify an address someone else registered, leaving their password
@@ -185,7 +195,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
     // disturbing the others. Schema-compatible — no new tables.
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (!SENDING_PATHS.has(ctx.path)) return;
+        if (!EMAILING_PATHS.has(ctx.path)) return;
         const ip = ctx.request ? getIp(ctx.request, ctx.context.options) : null;
         if (ip) {
           const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
@@ -197,7 +207,6 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
             );
           }
         }
-        if (!EMAILING_PATHS.has(ctx.path)) return;
         const email = (ctx.body as { email?: unknown } | undefined)?.email;
         // The body isn't validated yet. Anything longer than an address can
         // be (254 characters) matches no account, so skip it rather than

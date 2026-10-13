@@ -374,7 +374,7 @@ describe('email request throttling', () => {
     expect((await post(test, 'request-password-reset', 'fresh@example.com')).status).toBe(200);
   });
 
-  it('caps requests that send email at 10 per IP per day', async () => {
+  it('sends at most 10 emails per IP per day, never refusing a sign-up', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const from = (ip: string, path: string, body: object) =>
@@ -386,19 +386,24 @@ describe('email request throttling', () => {
     const signUp = (ip: string, email: string) =>
       from(ip, 'sign-up/email', { email, password: 'superSecret123!', name: email });
 
-    // Fresh addresses each time, so only the per-IP limit can refuse.
-    for (let i = 0; i < 4; i++) {
+    expect((await signUp('203.0.113.7', 'new0@example.com')).status).toBe(200);
+    // A sign-up that creates no account sends nothing and costs nothing.
+    expect((await signUp('203.0.113.7', 'new0@example.com')).status).not.toBe(200);
+    expect((await from('203.0.113.7', 'request-password-reset', { email: 'new0@example.com' })).status)
+      .toBe(200);
+    for (let i = 1; i < 9; i++) {
       expect((await signUp('203.0.113.7', `new${i}@example.com`)).status).toBe(200);
     }
-    for (let i = 0; i < 3; i++) {
-      const email = `new${i}@example.com`;
-      expect((await from('203.0.113.7', 'request-password-reset', { email })).status).toBe(200);
-      expect((await from('203.0.113.7', 'send-verification-email', { email })).status).toBe(200);
-    }
-    const eleventh = await signUp('203.0.113.7', 'new9@example.com');
-    expect(eleventh.status).toBe(429);
-    expect(Number(eleventh.headers.get('Retry-After'))).toBeGreaterThan(3600);
+    // That's 10 emails. Past the limit, sign-up still works but sends no email.
+    expect((await signUp('203.0.113.7', 'late@example.com')).status).toBe(200);
+    expect(test.emails).toHaveLength(10);
+    expect(test.emails.some((m) => m.to === 'late@example.com')).toBe(false);
+
+    const reset = await from('203.0.113.7', 'request-password-reset', { email: 'new1@example.com' });
+    expect(reset.status).toBe(429);
+    expect(Number(reset.headers.get('Retry-After'))).toBeGreaterThan(3600);
     expect((await signUp('198.51.100.4', 'other@example.com')).status).toBe(200);
+    expect(test.emails.at(-1)?.to).toBe('other@example.com');
   });
 
   it('never counts a body too long to be an address', async () => {

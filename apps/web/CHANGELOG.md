@@ -25,7 +25,7 @@ PATCH: forgot-password and email verification pages, and verification status on 
 * A `/verify-email` page for the emailed link. It verifies when the link's account is the active
   profile, offers to switch when the device holds that profile, and otherwise asks the learner to
   sign in first. It never signs the active profile out.
-* After sign-up, the form says a verification email was sent before moving on.
+* After sign-up, the form points to the verification email before moving on.
 * Account settings show whether the address is verified; an unverified one gets a warning that
   anyone with the inbox can take the account over, and a "Send verification email" button.
 * Profiles with an unverified address carry an "Unverified" chip in the profile picker.

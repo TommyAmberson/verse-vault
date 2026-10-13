@@ -90,7 +90,8 @@ async function submitEmail() {
     error.value = result.error.message ?? 'Something went wrong'
     emit('hold', false)
   } else if (mode.value === 'signup') {
-    // Sign-up sent a verification email; say so before moving on.
+    // Sign-up normally sends a verification email (not past the network's
+    // daily limit); point to it before moving on.
     mode.value = 'signedUp'
   } else {
     emit('success')
@@ -131,8 +132,8 @@ async function submitEmail() {
     <template v-else-if="mode === 'signedUp'">
       <p class="form-title">Account created</p>
       <p class="auth-notice" role="status">
-        We sent a verification email to {{ email }}. You can use the app now; verify when you're
-        ready.
+        Check {{ email }} for a verification email. You can use the app now; verify when you're
+        ready. If none arrives, send another from account settings.
       </p>
       <button type="button" class="auth-submit" @click="emit('success')">Continue</button>
     </template>
