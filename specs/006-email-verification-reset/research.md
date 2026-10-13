@@ -182,8 +182,13 @@ disabling `requireLocalEmailVerified` (reopens GHSA-g38m-r43w-p2q7).
 **Decision**: extend `packages/api/src/lib/reset.ts` so the full reset also deletes the user's
 `user_materials`, `user_year_settings`, `material_schedules`, and `graph_snapshots` rows, under the
 same engine lock and invalidation that `deleteAccountProgress` uses, behind a new route next to
-`DELETE /api/account/progress`. The web reuses `TypeToConfirmDialog` with the address as
-`match-text` and the existing backup button (FR-025).
+`DELETE /api/account/progress`. Because the reset also clears enrolment, it repeats its per-deck
+pass (up to three times) while any deck is still enrolled, so a deck enrolled on another device
+during the reset is cleared too rather than left half-deleted. A deck enrolled after the last pass
+stays enrolled with its state whole. It then sweeps, under each deck's lock, the rows left for decks
+no longer enrolled, including those written by a review that was waiting on a cleared deck, which
+would otherwise block enrolling that deck again. The web reuses `TypeToConfirmDialog` with the
+address as `match-text` and the existing backup button (FR-025).
 
 **Rationale**: there are no server-side preferences today (`SettingsPreferencesView.vue` is empty),
 so "preferences" in FR-024 means the per-year settings. "Delete all progress" already confirms by
