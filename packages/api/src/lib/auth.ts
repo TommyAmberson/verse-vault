@@ -170,6 +170,20 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
             // the in-app `callbackURL`) but isn't smoke-tested yet — see
             // the Known limitations entry in apps/web/CHANGELOG.md.
             redirectURI: `${env.baseUrl}/api/auth/callback/google`,
+            // Better Auth trusts this flag to link a Google sign-in into an
+            // existing account and to start a new account verified. Google
+            // only speaks for an address whose mail it hosts: Gmail, or a
+            // Workspace account (the token carries its `hd` claim; an
+            // organization proves it owns a domain before putting users on
+            // it). For any other address,
+            // `email_verified` records a check made when the Google account
+            // was created, and the address may since have changed hands.
+            mapProfileToUser: (profile) => ({
+              emailVerified:
+                profile.email_verified &&
+                (/@(gmail|googlemail)\.com$/.test(profile.email.toLowerCase()) ||
+                  !!profile.hd),
+            }),
           },
         }
       : {},
@@ -183,7 +197,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         // password account gets there. Google stays out of
         // `trustedProviders` so the provider side is checked too: trusting
         // it would accept a Google account whose own `email_verified` is
-        // false, i.e. an address Google never confirmed.
+        // false, i.e. an address Google never confirmed, and the provider
+        // config above narrows Google's flag to addresses it is
+        // authoritative for.
         enabled: true,
       },
     },

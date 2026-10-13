@@ -182,6 +182,8 @@ export interface GoogleProfile {
   sub: string;
   email: string;
   email_verified: boolean;
+  /** The Workspace domain, for a Google Workspace account. */
+  hd?: string;
 }
 
 /** Runs a Google sign-in through Better Auth's real callback, with only
