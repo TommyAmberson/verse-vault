@@ -196,31 +196,32 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (!EMAILING_PATHS.has(ctx.path)) return;
-        const ip = ctx.request ? getIp(ctx.request, ctx.context.options) : null;
-        if (ip) {
-          const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
-          if (!perIp.allowed) {
-            throw new APIError(
-              'TOO_MANY_REQUESTS',
-              { message: 'Too many requests from this network. Try again later.' },
-              { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
-            );
-          }
-        }
         const email = (ctx.body as { email?: unknown } | undefined)?.email;
         // The body isn't validated yet. Anything longer than an address can
         // be (254 characters) matches no account, so skip it rather than
         // let oversized junk fill the bucket store.
         if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH) return;
-        const { allowed, retryAfterSec } = sendBuckets.consume(
+        const perAddress = sendBuckets.consume(
           `email:${email.trim().toLowerCase()}`,
           PER_ADDRESS_TIER,
         );
-        if (allowed) return;
+        if (!perAddress.allowed) {
+          throw new APIError(
+            'TOO_MANY_REQUESTS',
+            { message: 'Too many requests for this address. Try again later.' },
+            { 'Retry-After': String(Math.ceil(perAddress.retryAfterSec)) },
+          );
+        }
+        // Checked second, so requests the address limit refuses don't use up
+        // the whole network's allowance.
+        const ip = ctx.request ? getIp(ctx.request, ctx.context.options) : null;
+        if (!ip) return;
+        const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
+        if (perIp.allowed) return;
         throw new APIError(
           'TOO_MANY_REQUESTS',
-          { message: 'Too many requests for this address. Try again later.' },
-          { 'Retry-After': String(Math.ceil(retryAfterSec)) },
+          { message: 'Too many requests from this network. Try again later.' },
+          { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
         );
       }),
     },

@@ -406,6 +406,23 @@ describe('email request throttling', () => {
     expect(test.emails.at(-1)?.to).toBe('other@example.com');
   });
 
+  it("doesn't charge the network for requests the address limit refuses", async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const reset = (email: string) =>
+      test.app.request('/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.7' },
+        body: JSON.stringify({ email }),
+      });
+    for (let i = 0; i < 10; i++) await reset('impatient@example.com');
+    // Only 3 of those counted for the network, so 7 more addresses fit.
+    for (let i = 0; i < 7; i++) {
+      expect((await reset(`other${i}@example.com`)).status).toBe(200);
+    }
+    expect((await reset('one-too-many@example.com')).status).toBe(429);
+  });
+
   it('never counts a body too long to be an address', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
