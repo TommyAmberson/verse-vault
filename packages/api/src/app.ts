@@ -5,6 +5,7 @@ import { cors } from 'hono/cors';
 import type { DB } from './db/client.js';
 import { ApibibleCache } from './lib/apibible-cache.js';
 import { TAURI_ORIGINS, type AuthEnv, createAuth } from './lib/auth.js';
+import { type SendEmail, createEmailSender } from './lib/email.js';
 import { EngineStore } from './lib/engine.js';
 import { type Dialect } from './lib/spelling.js';
 import {
@@ -47,10 +48,14 @@ export interface AppDeps {
    *  cap + captured log callback; production uses the env-var-driven
    *  shape from `src/index.ts`. */
   observability?: Partial<ObservabilityOptions>;
+  /** Replaces the Resend sender built from `authEnv.resendApiKey`, so
+   *  tests can read the links an auth flow sends. */
+  sendEmail?: SendEmail;
 }
 
 export function createApp(deps: AppDeps) {
-  const auth = createAuth(deps.db, deps.authEnv);
+  const sendEmail = deps.sendEmail ?? createEmailSender(deps.authEnv.resendApiKey);
+  const auth = createAuth(deps.db, deps.authEnv, sendEmail);
   // EngineStore's idle reaper is intentionally NOT started here.
   // `createApp` constructs the wiring; lifecycle hooks (start the
   // reaper, listen on a port) live in the production entry point

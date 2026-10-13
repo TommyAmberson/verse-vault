@@ -16,6 +16,7 @@ const {
   signInSocial,
   signInEmail,
   signUpEmail,
+  requestPasswordReset,
   signOut,
   enterProfile,
   deleteProfile,
@@ -33,6 +34,9 @@ const mode = ref<'empty' | 'cards' | 'add'>(
 const reauthTarget = ref<ProfileRow | null>(null)
 const pendingDelete = ref<ProfileRow | null>(null)
 const deleteBusy = ref(false)
+// Set while a sign-up is under way, so the watcher below doesn't
+// swap it for the cards before it can show its post-sign-up note.
+const holdForm = ref(false)
 
 // Populated when we arrive here from a redirect: an expired/revoked
 // session (`reason=expired`, set by the 401 handler in main.ts) or a
@@ -56,7 +60,7 @@ const banner = ref<string | null>(
 watch(
   profiles,
   (rows) => {
-    if (mode.value === 'add') return
+    if (mode.value === 'add' || holdForm.value) return
     mode.value = rows.length === 0 ? 'empty' : 'cards'
   },
   { immediate: true },
@@ -148,6 +152,7 @@ function startAdd() {
 
 function cancelAdd() {
   reauthTarget.value = null
+  holdForm.value = false
   mode.value = profiles.value.length === 0 ? 'empty' : 'cards'
 }
 
@@ -188,9 +193,11 @@ async function onSignInSuccess() {
         :sign-in-social="signInSocialToDestination"
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
+        :request-password-reset="requestPasswordReset"
         :key="reauthTarget?.profileId ?? ''"
         :reauth="reauthTarget ?? undefined"
         @success="onSignInSuccess"
+        @hold="holdForm = $event"
       />
       <button v-if="mode === 'add'" type="button" class="back-btn" @click="cancelAdd">
         ← Back to profiles

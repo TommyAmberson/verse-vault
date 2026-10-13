@@ -3,10 +3,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import Database from 'better-sqlite3';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 
 import { createApp } from './app.js';
 import { type DB, createDb } from './db/client.js';
+import type { AuthEnv } from './lib/auth.js';
+import type { EmailMessage, SendEmail } from './lib/email.js';
 import { user } from './db/schema.js';
 import { MIGRATIONS_FOLDER, runMigrations } from './db/migrate.js';
 import type { ObservabilityOptions } from './middleware/observability.js';
@@ -43,6 +45,11 @@ export interface CreateTestAppOptions {
   /** Override observability middleware defaults. Useful for tests that
    *  need tight rate-limit tiers or want to capture logged JSON lines. */
   observability?: Partial<ObservabilityOptions>;
+  /** Replaces the recording sender, e.g. to wrap a real sender with a
+   *  stalled `fetch`. */
+  sendEmail?: SendEmail;
+  /** Merged over `TEST_AUTH_ENV`, e.g. to configure Google sign-in. */
+  authEnv?: Partial<AuthEnv>;
 }
 
 /** Permissive rate-limit defaults so existing route tests (which fire
@@ -68,12 +75,22 @@ export function createTestApp(opts: CreateTestAppOptions = {}) {
   // Pull `engines` so tests can clear() / inspect it if they want.
   // We deliberately don't call `engines.start()` here — tests run in
   // milliseconds and have no use for the 60 s idle reaper.
+  // Every email an auth flow sends lands here, so a test can follow its link.
+  const emails: EmailMessage[] = [];
   const { app, engines } = createApp({
     db: test.db,
-    authEnv: TEST_AUTH_ENV,
+    authEnv: { ...TEST_AUTH_ENV, ...opts.authEnv },
     observability: { ...TEST_DEFAULT_OBSERVABILITY, ...opts.observability },
+    sendEmail: opts.sendEmail ?? ((message) => emails.push(message)),
   });
-  return { app, engines, ...test };
+  return { app, engines, emails, ...test };
+}
+
+/** The link in a recorded email's plain-text body. */
+export function emailLink(message: EmailMessage): string {
+  const match = /https?:\/\/\S+/.exec(message.text);
+  if (!match) throw new Error(`no link in email: ${message.subject}`);
+  return match[0];
 }
 
 export type TestApp = ReturnType<typeof createTestApp>;
@@ -154,4 +171,58 @@ export async function enrollViaApi(
     body: JSON.stringify({ materialId, clubTier }),
   });
   expect(res.status).toBe(200);
+}
+
+/** Google sign-in config for `createTestApp({ authEnv })`. */
+export const TEST_GOOGLE_ENV: Partial<AuthEnv> = {
+  googleOAuth: { clientId: 'test-client-id', clientSecret: 'test-client-secret' },
+};
+
+export interface GoogleProfile {
+  sub: string;
+  email: string;
+  email_verified: boolean;
+}
+
+/** Runs a Google sign-in through Better Auth's real callback, with only
+ *  Google's token endpoint stubbed: it answers with an unsigned ID token
+ *  for `profile`, which Better Auth decodes without verifying. Returns the
+ *  callback's response, whose `Location` says where the browser lands. */
+export async function googleSignIn(test: TestApp, profile: GoogleProfile): Promise<Response> {
+  const start = await test.app.request('/api/auth/sign-in/social', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider: 'google',
+      callbackURL: 'http://localhost:5173/home',
+      errorCallbackURL: 'http://localhost:5173/profiles',
+    }),
+  });
+  expect(start.status).toBe(200);
+  const { url } = (await start.json()) as { url: string };
+  const state = new URL(url).searchParams.get('state')!;
+  const stateCookie = start.headers.get('set-cookie') ?? '';
+
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const idToken = `${encode({ alg: 'none', typ: 'JWT' })}.${encode(profile)}.`;
+  const realFetch = globalThis.fetch;
+  const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    const href = input instanceof Request ? input.url : String(input);
+    if (href.startsWith('https://oauth2.googleapis.com/token')) {
+      return Response.json({
+        access_token: 'test-access-token',
+        id_token: idToken,
+        token_type: 'Bearer',
+        expires_in: 3600,
+      });
+    }
+    return realFetch(input, init);
+  });
+  try {
+    return await test.app.request(`/api/auth/callback/google?code=test-code&state=${state}`, {
+      headers: { cookie: stateCookie },
+    });
+  } finally {
+    spy.mockRestore();
+  }
 }

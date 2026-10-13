@@ -83,6 +83,7 @@ interface UserPayload {
   email: string
   name?: string
   image?: string | null
+  emailVerified?: boolean
 }
 
 /** Non-null when Better Auth returns a different user than the
@@ -243,6 +244,7 @@ export async function signInComplete(
     email: string
     name?: string
     image?: string | null
+    emailVerified?: boolean
   },
   sessionToken: string | null = null,
   provider?: registry.AuthProvider,
@@ -300,6 +302,7 @@ export async function signInComplete(
     // Same fallback for the method: a restored-session watcher fire
     // carries no provider, so keep whatever the first sign-in recorded.
     provider: provider ?? existing?.provider,
+    emailVerified: user.emailVerified ?? existing?.emailVerified,
   }
   await registry.upsertProfile(row)
   await registry.setLastActiveProfileId(user.id)
@@ -500,7 +503,7 @@ watch(
     const pendingProvider = readPendingProvider()
     const sessionToken = data?.session?.token ?? null
     if (activeProfile.value?.profileId === user.id) {
-      void refreshActiveProfileAuth(user.id, sessionToken, pendingProvider)
+      void refreshActiveProfileAuth(user.id, sessionToken, pendingProvider, user.emailVerified)
       return
     }
     void signInComplete(user, sessionToken, pendingProvider)
@@ -516,8 +519,12 @@ async function refreshActiveProfileAuth(
   profileId: string,
   sessionToken: string | null,
   provider: registry.AuthProvider | undefined,
+  emailVerified: boolean | undefined,
 ): Promise<void> {
   const patch: Partial<registry.ProfileRow> = {}
+  if (emailVerified !== undefined && activeProfile.value?.emailVerified !== emailVerified) {
+    patch.emailVerified = emailVerified
+  }
   if (sessionToken && activeProfile.value?.sessionToken !== sessionToken) {
     patch.sessionToken = sessionToken
   }
@@ -559,10 +566,26 @@ export async function reconcileDeviceSessions(): Promise<void> {
     // stale and wiped — the same freshly-issued-token hazard as #127.
     const profiles = await registry.listProfiles()
     const result = await authClient.multiSession.listDeviceSessions()
-    const sessions = result?.data ?? []
+    const sessions: { session?: { token?: string }; user?: { id?: string; emailVerified?: boolean } }[] =
+      result?.data ?? []
+    // Refresh each live profile's cached verification status while the
+    // server's answer is in hand: an address verified in another browser
+    // shows up here on the next launch.
+    const verifiedChanged = await Promise.all(
+      sessions.map(async ({ user }) => {
+        const row = profiles.find((p) => p.profileId === user?.id)
+        if (!row || user?.emailVerified === undefined || row.emailVerified === user.emailVerified) {
+          return false
+        }
+        return applyProfileRowUpdate(
+          row.profileId,
+          await registry.setEmailVerified(row.profileId, user.emailVerified),
+        )
+      }),
+    )
     const liveTokens = new Set(
       sessions
-        .map((entry: { session?: { token?: string } }) => entry.session?.token)
+        .map((entry) => entry.session?.token)
         .filter((t): t is string => typeof t === 'string'),
     )
     const stale = profiles.filter(
@@ -572,7 +595,7 @@ export async function reconcileDeviceSessions(): Promise<void> {
     const cleared = await Promise.all(
       stale.map((p) => clearStaleProfileToken(p.profileId, p.sessionToken)),
     )
-    if (cleared.some(Boolean)) await refreshProfilesList()
+    if (cleared.some(Boolean) || verifiedChanged.some(Boolean)) await refreshProfilesList()
   } catch {
     // Offline — leave stored tokens alone; next boot will retry.
   }
@@ -613,6 +636,10 @@ export function useAuth() {
     signInSocial: factoryShape.signInSocial,
     signInEmail,
     signUpEmail,
+    requestPasswordReset: factoryShape.requestPasswordReset,
+    resetPassword: factoryShape.resetPassword,
+    verifyEmail: factoryShape.verifyEmail,
+    sendVerificationEmail: factoryShape.sendVerificationEmail,
     activeProfile: computed(() => activeProfile.value),
     profiles: computed(() => profilesList.value),
     syncState: computed(() => syncState.value),

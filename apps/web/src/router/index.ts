@@ -36,6 +36,18 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('@/views/ResetPasswordView.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: () => import('@/views/VerifyEmailView.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/home',
       name: 'home',
       component: () => import('@/views/HomeView.vue'),

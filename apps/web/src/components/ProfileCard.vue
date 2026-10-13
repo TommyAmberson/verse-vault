@@ -108,7 +108,12 @@ function onCardKeydown(ev: KeyboardEvent) {
           {{ signedIn ? 'Signed in' : 'Signed out' }}
         </StatusChip>
       </p>
-      <p class="email">{{ profile.email }}</p>
+      <p class="email">
+        {{ profile.email }}
+        <StatusChip v-if="profile.emailVerified === false" variant="warning" size="xs">
+          Unverified
+        </StatusChip>
+      </p>
       <p class="last-used">Last used {{ lastUsedLabel }}</p>
     </div>
     <div class="kebab-wrap" @click.stop>

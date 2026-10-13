@@ -139,6 +139,10 @@ NKJV_BIBLE_ID=de4e12af7f28f599-02
 
 # american | british | canadian (default canadian)
 RENDER_DIALECT=canadian
+
+# Sends password-reset and verification email from no-reply@versevault.ca
+# through Resend. Without it the API logs each link instead of sending.
+RESEND_API_KEY=...
 ```
 
 ### 3. systemd unit
@@ -154,9 +158,10 @@ systemctl daemon-reload
 
 The unit runs `node dist/index.js` as the `verse-vault` user with
 `WorkingDirectory=/opt/verse-vault/app` (a symlink the CI workflow flips between releases). Hono
-binds 0.0.0.0:3000; the only path in is the Cloudflare Tunnel proxying to 127.0.0.1:3000 because
-`ufw` blocks everything else inbound. Drizzle migrations run on each boot (`runMigrations` in
-`packages/api/src/index.ts`).
+binds 127.0.0.1:3000, so the only path in is the Cloudflare Tunnel proxying to it, and `ufw` blocks
+everything else inbound as a second layer. The API trusts the tunnel's `CF-Connecting-IP` header for
+the client address, which only holds while nothing else can reach the port. Drizzle migrations run
+on each boot (`runMigrations` in `packages/api/src/index.ts`).
 
 ### 4. Cloudflare Tunnel
 

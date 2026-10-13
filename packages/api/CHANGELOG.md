@@ -10,6 +10,46 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.48] - 2026-10-09
+
+PATCH: password reset and email verification, sent from no-reply@versevault.ca.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.14.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Added
+
+* Password reset: `POST /api/auth/request-password-reset` emails a one-hour, single-use link to the
+  web app's `/reset-password` page. Completing it ends every session for the account, marks the
+  address verified, and invalidates the account's older reset links. A Google-only account gets its
+  first password this way. Every address gets the same reply, and the send never delays it.
+* Email verification: sign-up sends a 24-hour link to the web app's `/verify-email` page, and a
+  signed-in learner can ask for another with `POST /api/auth/send-verification-email`. Verifying
+  needs a session belonging to that account, so a signed-out click on the genuine email can't verify
+  an address someone else registered. Unverified accounts still sign in as before.
+* Email goes through Resend's HTTPS API (`RESEND_API_KEY`); without a key the API logs each link
+  instead.
+* At most 3 reset or verification requests per address per hour (429 with `Retry-After`).
+* At most 10 emails per IP per day, so one client can't spend the email provider's daily quota.
+  Reset and verification requests over it get a 429; sign-ups over it still succeed but skip the
+  verification email.
+
+### Fixed
+
+* Better Auth's own rate limits read the client IP from `CF-Connecting-IP`. Its default reads only
+  `X-Forwarded-For`, and with no IP it puts every client in one shared bucket.
+
+### Changed
+
+* Google sign-in links into an existing account only when Google reports the address verified.
+  Google was a trusted provider, which skipped that check; harmless while no password account was
+  ever verified, but not once verification exists.
+* The server listens on 127.0.0.1 instead of every interface. The Cloudflare Tunnel already connects
+  there, and the trusted `CF-Connecting-IP` header could be forged by anything that reached the port
+  directly.
+
 ## [0.1.47] - 2026-10-02
 
 PATCH: memorize sessions carry fewer extra cards, and skip the which-book card in a single-book

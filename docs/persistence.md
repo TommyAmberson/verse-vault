@@ -17,6 +17,11 @@ configurable via `DATABASE_PATH` (defaults to `packages/api/data/verse-vault.db`
 schema so FK constraints from domain tables can reference `user.id`. Regenerate via
 `pnpm dlx @better-auth/cli generate` if the upstream shape changes.
 
+`verification` holds one row per outstanding password reset: `identifier` is
+`reset-password:<token>`, `value` the user id, and `expires_at` one hour out. Better Auth deletes
+the row it consumes; completing a reset also deletes the user's other `reset-password:*` rows (see
+[`server-api.md`](server-api.md#password-reset)).
+
 ### `user_materials`
 
 Which materials a user has enrolled in. Primary key `(user_id, material_id)`. `club_tier` is

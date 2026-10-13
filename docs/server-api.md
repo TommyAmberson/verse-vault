@@ -27,12 +27,62 @@ depend on the env vars set on the server (`GOOGLE_CLIENT_ID`, etc. — see
 
 Useful endpoints (Better Auth defaults):
 
-| method | path                            | purpose                                       |
-| ------ | ------------------------------- | --------------------------------------------- |
-| GET    | `/api/auth/get-session`         | current session or null                       |
-| POST   | `/api/auth/sign-in/email`       | password sign-in                              |
-| POST   | `/api/auth/sign-out`            | clear session cookie                          |
-| GET    | `/api/auth/callback/<provider>` | OAuth provider callback (per provider config) |
+| method | path                                | purpose                                          |
+| ------ | ----------------------------------- | ------------------------------------------------ |
+| GET    | `/api/auth/get-session`             | current session or null                          |
+| POST   | `/api/auth/sign-in/email`           | password sign-in                                 |
+| POST   | `/api/auth/sign-out`                | clear session cookie                             |
+| GET    | `/api/auth/callback/<provider>`     | OAuth provider callback (per provider config)    |
+| POST   | `/api/auth/request-password-reset`  | `{ email }`; emails a reset link                 |
+| POST   | `/api/auth/reset-password`          | `{ token, newPassword }`; sets the password      |
+| GET    | `/api/auth/verify-email`            | `?token=`; verifies, with that account's session |
+| POST   | `/api/auth/send-verification-email` | `{ email }`; emails a new verification link      |
+
+### Password reset
+
+`POST /api/auth/request-password-reset` answers `200 { status: true, message }` for every address,
+and Better Auth does dummy work for an unknown one so the reply takes as long. The email is sent
+from `no-reply@versevault.ca` through Resend (`RESEND_API_KEY`; without it the API logs the link
+instead). The send starts and the request returns without waiting for it, so a real address isn't
+measurably slower, and a failed send is logged rather than surfaced.
+
+The link opens the web app at `<WEB_BASE_URL>/reset-password?token=…`, never the requesting client's
+own origin, since a desktop client's `tauri://` origin means nothing to a browser. The page posts
+the token with the new password to `POST /api/auth/reset-password`, which answers `400` with
+`INVALID_TOKEN` for an unknown, used, or expired token. A token is valid for one hour and works
+once.
+
+Completing a reset:
+
+* ends every session for the account on every device;
+* marks the address verified, since receiving the email proves the inbox;
+* deletes the account's other outstanding reset tokens, so an older link can't be used later.
+
+An account with only Google sign-in gets its first password this way.
+
+### Email verification
+
+Signing up with a password sends a verification email; the account works before it is verified, and
+nothing requires verification to sign in. Google sign-ups arrive verified. A verified address is
+what lets Google sign-in link into a password account (see `accountLinking` in
+`packages/api/src/lib/auth.ts`).
+
+The link opens the web app at `<WEB_BASE_URL>/verify-email?token=…&email=…`. The page makes the
+link's account the active session, switching profile or asking for sign-in, then calls
+`GET /api/auth/verify-email?token=…` with that session and no `callbackURL`, so the answer is JSON:
+
+* `200` and the address is verified, when the session belongs to the token's account;
+* `403`, verifying nothing, for no session or another account's session;
+* `401` with `TOKEN_EXPIRED`, `INVALID_TOKEN`, or `USER_NOT_FOUND` for a bad token.
+
+The session requirement is deliberate. Better Auth's verify route only sets the flag, so verifying
+from a signed-out click would let someone who registered another person's address get that person to
+verify it from the genuine email, leaving the registrant's password on an account that then accepts
+the owner's Google sign-in. Signing in proves the password; the email proves the inbox.
+
+Tokens are signed and not stored, valid for 24 hours, and can be used again within that time, which
+only re-sets a flag already set. A learner signs in and asks for a new link with
+`POST /api/auth/send-verification-email`, which answers the same way for every address.
 
 ### `GET /api/me`
 
@@ -585,6 +635,26 @@ siblings sharing a NAT currently share a bucket.
 
 Failed Better Auth attempts (e.g. 401 from `/api/auth/sign-in/email` with a bad password) still
 consume a token. That's intentional brute-force protection.
+
+Two more limits sit inside Better Auth (`packages/api/src/lib/auth.ts`):
+
+* **Better Auth's own per-IP limits**, on in production only, including 3 per minute on
+  `/request-password-reset` and `/send-verification-email`. It reads the client IP from
+  `CF-Connecting-IP`, then `X-Forwarded-For`; with neither it would key every client to one shared
+  bucket.
+* **Per address**: at most 3 requests an hour for any one address, across reset and verification
+  emails together, keyed by the lowercased `email` in the body. It counts requests, not emails sent,
+  so throttling looks the same whether or not the address has an account. Over the limit:
+  `429 { code: "TOO_MANY_REQUESTS", message }` with `Retry-After`. The bucket lives in memory and
+  resets on restart, which is fine for an abuse guard. Sign-up's own verification email isn't
+  counted; sign-up can't repeat for an address.
+* **Per IP per day**: at most 10 emails per client IP a day, so one client can't spend the email
+  provider's daily quota. Requests to `/request-password-reset` and `/send-verification-email` count
+  when they arrive, once they pass the per-address limit; over the limit they get the same 429 shape
+  with "Too many requests from this network." A sign-up counts only once its account is created, and
+  over the limit it succeeds without sending the verification email (logged as
+  `[email] sign-up verification skipped`), so a group on one network is never refused. Shares the
+  per-address limit's in-memory store.
 
 Tuneable via env vars at boot:
 

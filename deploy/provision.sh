@@ -296,6 +296,10 @@ NKJV_BIBLE_ID=63097d2a0a2f7db3-01
 #GOOGLE_CLIENT_ID=
 #GOOGLE_CLIENT_SECRET=
 
+# Resend, for password-reset and verification email. Optional; without it
+# the API logs each link instead of sending.
+#RESEND_API_KEY=
+
 # american | british | canadian (default canadian if unset)
 RENDER_DIALECT=canadian
 EOF
@@ -411,6 +415,13 @@ if prompt_secret GOOGLE_CLIENT_ID "GOOGLE_CLIENT_ID (enter to skip)"; then
 	echo "  Google sign-in fails, a separate Tauri callback URI may need to"
 	echo "  be registered here (see apps/web/CHANGELOG.md Known limitations)."
 fi
+
+echo ""
+echo "  RESEND_API_KEY sends password-reset and verification emails from"
+echo "  no-reply@versevault.ca. Optional: without it the API logs each link"
+echo "  instead of sending, so learners can't reset or verify on their own."
+echo ""
+prompt_secret RESEND_API_KEY "RESEND_API_KEY (hidden, enter to skip)" 1 || true
 
 # If the service is already running (re-run after a previous deploy),
 # restart it to pick up the new env.

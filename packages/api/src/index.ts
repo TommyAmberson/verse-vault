@@ -34,6 +34,7 @@ const authEnv = {
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         }
       : undefined,
+  resendApiKey: process.env.RESEND_API_KEY,
 };
 
 const dbPath = process.env.DATABASE_PATH ?? resolve(import.meta.dirname, '../data/verse-vault.db');
@@ -79,6 +80,10 @@ engines.start();
 await runDataMigrations(db, engines);
 
 const port = Number(process.env.PORT ?? 3000);
-serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`verse-vault API listening on http://localhost:${info.port}`);
+// Loopback only: production traffic arrives through the Cloudflare Tunnel on
+// 127.0.0.1, and the client IP comes from its CF-Connecting-IP header, which
+// a direct caller could forge.
+const hostname = '127.0.0.1';
+serve({ fetch: app.fetch, port, hostname }, (info) => {
+  console.log(`verse-vault API listening on http://${hostname}:${info.port}`);
 });

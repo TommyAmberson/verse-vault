@@ -4,11 +4,13 @@ import { computed, ref } from 'vue'
 import { api, ApiError, type ImportSummary } from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ImportResultDialog from '@/components/ImportResultDialog.vue'
+import StatusChip from '@/components/StatusChip.vue'
 import TypeToConfirmDialog from '@/components/TypeToConfirmDialog.vue'
 import { useAuth } from '@/composables/useAuth'
+import { useEmailRequest } from '@/composables/useEmailRequest'
 import { downloadJson, exportFilename, readJsonFile } from '@/lib/account-file'
 
-const { activeProfile, resetProfileLocalData } = useAuth()
+const { activeProfile, resetProfileLocalData, sendVerificationEmail } = useAuth()
 
 const banner = ref<{ kind: 'info' | 'error'; text: string } | null>(null)
 
@@ -30,6 +32,16 @@ const showDeleteProgress = ref(false)
 const deleteProgressBusy = ref(false)
 
 const email = computed(() => activeProfile.value?.email ?? '')
+
+// Verification
+const {
+  pending: verifyBusy,
+  notice: verifyNotice,
+  run: onSendVerification,
+} = useEmailRequest(
+  () => sendVerificationEmail(email.value),
+  () => `Verification email sent to ${email.value}.`,
+)
 
 async function downloadActiveExport() {
   const targetEmail = activeProfile.value?.email ?? 'account'
@@ -155,6 +167,30 @@ async function onBackupInsideDialog() {
     <p v-if="!activeProfile" class="status">No active profile.</p>
     <template v-else>
       <p v-if="banner" :class="['banner', `banner-${banner.kind}`]">{{ banner.text }}</p>
+
+      <article class="action-card">
+        <header>
+          <h3>Email address</h3>
+          <p>
+            {{ email }}
+            <StatusChip v-if="activeProfile.emailVerified === true" variant="accent">
+              Verified
+            </StatusChip>
+            <StatusChip v-else-if="activeProfile.emailVerified === false" variant="warning">
+              Not verified
+            </StatusChip>
+          </p>
+          <p v-if="activeProfile.emailVerified === false">
+            Until you verify, anyone with access to this inbox can take over this account.
+          </p>
+        </header>
+        <template v-if="activeProfile.emailVerified === false">
+          <p v-if="verifyNotice" role="status">{{ verifyNotice }}</p>
+          <button type="button" class="btn" :disabled="verifyBusy" @click="onSendVerification">
+            {{ verifyBusy ? 'Sending…' : 'Send verification email' }}
+          </button>
+        </template>
+      </article>
 
       <article class="action-card">
         <header>

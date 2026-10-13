@@ -1,15 +1,22 @@
+import { and, eq, like } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
+import { APIError, createAuthMiddleware, getIp } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { multiSession } from 'better-auth/plugins';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
+import { type SendEmail, resetPasswordEmail, verifyEmail } from './email.js';
+import { type RateLimitTier, TokenBucketStore } from './rate-limit.js';
 
 export interface AuthEnv {
   baseUrl: string;
   secret: string;
   webOrigin: string;
   googleOAuth?: { clientId: string; clientSecret: string };
+  /** Resend API key. Without it, reset and verification links are logged
+   *  instead of emailed. */
+  resendApiKey?: string;
 }
 
 /** Origins served inside the Tauri desktop shell — one per webview
@@ -21,7 +28,19 @@ export interface AuthEnv {
  *  origin (CORS, Better Auth `trustedOrigins`). */
 export const TAURI_ORIGINS = ['tauri://localhost', 'https://tauri.localhost'] as const;
 
-export function createAuth(db: DB, env: AuthEnv) {
+/** Requests that email an address: reset links and verification links. */
+const EMAILING_PATHS = new Set(['/request-password-reset', '/send-verification-email']);
+
+/** At most 3 such requests per address per hour, across both paths. */
+const PER_ADDRESS_TIER: RateLimitTier = { capacity: 3, refillPerSec: 3 / 3600 };
+
+/** At most 10 emails per IP per day: requests on those paths, plus
+ *  verification emails sent at sign-up. */
+const PER_IP_TIER: RateLimitTier = { capacity: 10, refillPerSec: 10 / (24 * 3600) };
+
+const MAX_EMAIL_LENGTH = 254;
+
+export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const isProd = process.env.NODE_ENV === 'production';
   // Browsers send Origin headers as scheme+host+port only — never a path.
   // env.webOrigin may include a subpath (production used
@@ -48,7 +67,21 @@ export function createAuth(db: DB, env: AuthEnv) {
   // elsewhere for things like OAuth-flow URL construction).
   const betterAuthBaseURL = new URL(env.baseUrl).origin;
 
-  return betterAuth({
+  // Email links always open the public web app, whichever client asked:
+  // a desktop client's own origin (tauri://…) means nothing to the mail
+  // client's browser.
+  const webBase = env.webOrigin.replace(/\/$/, '');
+
+  // Two limits on top of Better Auth's own, which reset within a minute.
+  // Per address, so one inbox can't be flooded from many IPs. Per IP per
+  // day, so one client can't spend the provider's daily quota (100 on
+  // Resend's free plan) by signing up many addresses or resetting its own
+  // accounts. Many IPs together still can (research D13). Reset and
+  // verification requests count when they arrive, not when they send, so
+  // throttling reveals nothing about which addresses have accounts.
+  const sendBuckets = new TokenBucketStore();
+
+  const auth = betterAuth({
     baseURL: betterAuthBaseURL,
     secret: env.secret,
     database: drizzleAdapter(db, { provider: 'sqlite', schema }),
@@ -59,8 +92,72 @@ export function createAuth(db: DB, env: AuthEnv) {
     // shows it. force=1 keeps the
     // router guard from forwarding a signed-in user off the picker (and
     // dropping `?error=`); Better Auth appends `&error=<code>`.
-    onAPIError: { errorURL: `${env.webOrigin.replace(/\/$/, '')}/profiles?force=1` },
-    emailAndPassword: { enabled: true },
+    onAPIError: { errorURL: `${webBase}/profiles?force=1` },
+    emailAndPassword: {
+      enabled: true,
+      // sendEmail starts the send and returns, so a real address answers as
+      // fast as an unknown one, for which Better Auth only fakes the work.
+      sendResetPassword: async ({ user, token }) =>
+        sendEmail(resetPasswordEmail(user.email, `${webBase}/reset-password?token=${token}`)),
+      revokeSessionsOnPasswordReset: true,
+      onPasswordReset: async ({ user }) => {
+        // Receiving the reset email proves the inbox, so the address counts
+        // as verified.
+        await db
+          .update(schema.user)
+          .set({ emailVerified: true, updatedAt: new Date() })
+          .where(eq(schema.user.id, user.id));
+        // Better Auth consumes only the token just used; any older reset
+        // link for this user would otherwise still work until it expired.
+        await db
+          .delete(schema.verification)
+          .where(
+            and(
+              like(schema.verification.identifier, 'reset-password:%'),
+              eq(schema.verification.value, user.id),
+            ),
+          );
+      },
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      expiresIn: 24 * 60 * 60,
+      // Link to the web app's page rather than the API: the page signs the
+      // learner in to the right account first, then verifies. The address
+      // rides along so the page knows which account that is; the token
+      // already carries it, so this exposes nothing new.
+      sendVerificationEmail: async ({ user, token }, request) => {
+        // A sign-up counts towards its IP's daily limit only once the account
+        // exists, and over the limit it skips the email instead of refusing:
+        // a group signing up on one network still gets in, and can send the
+        // email later from settings. The response is the same either way.
+        if (request && new URL(request.url).pathname.endsWith('/sign-up/email')) {
+          const ip = getIp(request, auth.options);
+          if (ip && !sendBuckets.consume(`ip:${ip}`, PER_IP_TIER).allowed) {
+            console.warn(`[email] sign-up verification skipped: daily limit reached for ${ip}`);
+            return;
+          }
+        }
+        sendEmail(
+          verifyEmail(
+            user.email,
+            `${webBase}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`,
+          ),
+        );
+      },
+      // Verify only for that account's own session. Better Auth's verify
+      // route sets the flag and nothing else, so a signed-out click would
+      // verify an address someone else registered, leaving their password
+      // on an account that then accepts the owner's Google sign-in.
+      beforeEmailVerification: async (user, request) => {
+        const current = request ? await auth.api.getSession({ headers: request.headers }) : null;
+        if (current?.user.id !== user.id) {
+          throw new APIError('FORBIDDEN', {
+            message: 'Sign in to this account to verify its email.',
+          });
+        }
+      },
+    },
     socialProviders: env.googleOAuth
       ? {
           google: {
@@ -78,15 +175,16 @@ export function createAuth(db: DB, env: AuthEnv) {
       : {},
     account: {
       accountLinking: {
-        // Trusting Google skips only the provider-side email check.
-        // better-auth >= 1.6.11 still refuses to auto-link onto a local
-        // account whose own email is unverified (`requireLocalEmailVerified`,
-        // default true), which blocks pre-registering a victim's email with a
-        // password (GHSA-g38m-r43w-p2q7). Email/password accounts are never
-        // verified here, so Google sign-in no longer merges into one; don't
-        // turn that off without adding email verification first.
+        // A Google sign-in links into an existing account only when both
+        // sides have proven the address. Better Auth checks the local side
+        // (`requireLocalEmailVerified`, default true since 1.6.11), which
+        // stops someone pre-registering another person's address with a
+        // password (GHSA-g38m-r43w-p2q7); email verification above is how a
+        // password account gets there. Google stays out of
+        // `trustedProviders` so the provider side is checked too: trusting
+        // it would accept a Google account whose own `email_verified` is
+        // false, i.e. an address Google never confirmed.
         enabled: true,
-        trustedProviders: ['google'],
       },
     },
     // Multi-session lets the device hold cookies for several signed-in
@@ -95,8 +193,47 @@ export function createAuth(db: DB, env: AuthEnv) {
     // uses `multiSession.{listDeviceSessions,setActive,revoke}` to
     // swap between accounts and to sign out a single profile without
     // disturbing the others. Schema-compatible — no new tables.
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (!EMAILING_PATHS.has(ctx.path)) return;
+        const email = (ctx.body as { email?: unknown } | undefined)?.email;
+        // The body isn't validated yet. Anything longer than an address can
+        // be (254 characters) matches no account, so skip it rather than
+        // let oversized junk fill the bucket store.
+        if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH) return;
+        const perAddress = sendBuckets.consume(
+          `email:${email.trim().toLowerCase()}`,
+          PER_ADDRESS_TIER,
+        );
+        if (!perAddress.allowed) {
+          throw new APIError(
+            'TOO_MANY_REQUESTS',
+            { message: 'Too many requests for this address. Try again later.' },
+            { 'Retry-After': String(Math.ceil(perAddress.retryAfterSec)) },
+          );
+        }
+        // Checked second, so requests the address limit refuses don't use up
+        // the whole network's allowance.
+        const ip = ctx.request ? getIp(ctx.request, ctx.context.options) : null;
+        if (!ip) return;
+        const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
+        if (perIp.allowed) return;
+        throw new APIError(
+          'TOO_MANY_REQUESTS',
+          { message: 'Too many requests from this network. Try again later.' },
+          { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
+        );
+      }),
+    },
+    advanced: {
+      // Cloudflare Tunnel delivers the client's address in CF-Connecting-IP
+      // without X-Forwarded-For, Better Auth's only default; reading neither
+      // would put every production client in one rate-limit bucket.
+      ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
+    },
     plugins: [multiSession()],
   });
+  return auth;
 }
 
 export type Auth = ReturnType<typeof createAuth>;
