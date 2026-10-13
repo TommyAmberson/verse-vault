@@ -1,5 +1,8 @@
+import { eq, getTableColumns, getTableName, is } from 'drizzle-orm';
+import { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import * as schema from '../db/schema.js';
 import type { AccountExport, ImportSummary } from '../lib/export-format.js';
 import { seedUserWithFixture } from '../test-fixtures.js';
 import { createTestApp, signUpTestUser, type TestApp } from '../test-utils.js';
@@ -154,5 +157,100 @@ describe('account routes', () => {
     };
     expect(payload.materials).toHaveLength(1);
     expect(payload.materials[0]!.reviewEvents).toHaveLength(0);
+  });
+
+  it('DELETE /api/account/data requires auth', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const res = await test.app.request('/api/account/data', { method: 'DELETE' });
+    expect(res.status).toBe(401);
+  });
+
+  it('resets the account to new, keeping sign-in and other accounts', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie, userId } = await enroll(test, 'fresh@example.com');
+    const other = await enroll(test, 'other@example.com');
+    for (const id of [userId, other.userId]) {
+      test.db
+        .insert(schema.userYearSettings)
+        .values({
+          userId: id,
+          materialId: MATERIAL_ID,
+          headingCard: true,
+          headingPassageCard: true,
+          ftv: true,
+          newScope: 'all',
+          reviewScope: 'all',
+          clubCardScope: 'all',
+          chapterListScope: 'all',
+          lessonBatchSize: 5,
+          updatedAt: 1,
+        })
+        .run();
+      test.db
+        .insert(schema.materialSchedules)
+        .values({ userId: id, materialId: MATERIAL_ID, scheduleJson: '{}', updatedAt: 1 })
+        .run();
+    }
+    // Progress left for a deck no longer enrolled, as a review waiting on
+    // the deck's lock can write after its pass: it would block enrolling
+    // that deck again.
+    test.db
+      .insert(schema.testStates)
+      .values({
+        userId,
+        materialId: 'dropped-deck',
+        testKind: 'verse',
+        element: '1',
+        stability: 1,
+        difficulty: 5,
+        lastSeenSecs: 1,
+        lastBaseSecs: 1,
+        lastRootSecs: 1,
+      })
+      .run();
+    const userTables = [
+      schema.userMaterials,
+      schema.userYearSettings,
+      schema.materialSchedules,
+      schema.graphSnapshots,
+      schema.reviewEvents,
+      schema.testStates,
+      schema.graduatedVerses,
+      schema.graduatedCards,
+      schema.pendingEvents,
+    ];
+    // Every table holding a learner's rows for a material, read from the
+    // schema: a table added later fails here until it joins the list above
+    // and Reset account clears it.
+    const inSchema = (Object.values(schema) as unknown[])
+      .filter((table): table is SQLiteTable => is(table, SQLiteTable))
+      .filter((table) => {
+        const columns = getTableColumns(table);
+        return 'userId' in columns && 'materialId' in columns;
+      });
+    expect(inSchema.map(getTableName).sort()).toEqual(userTables.map(getTableName).sort());
+    const rowsFor = (id: string) =>
+      userTables.map((table) => test.db.select().from(table).where(eq(table.userId, id)).all().length);
+    expect(rowsFor(userId).some((n) => n > 0)).toBe(true);
+    const otherBefore = rowsFor(other.userId);
+
+    const res = await test.app.request('/api/account/data', { method: 'DELETE', headers: { cookie } });
+    expect(res.status).toBe(200);
+    const summary = (await res.json()) as Record<string, number>;
+    expect(Object.keys(summary).sort()).toEqual(
+      ['eventsDeleted', 'graduationsDeleted', 'materialsReset'].sort(),
+    );
+
+    expect(rowsFor(userId).every((n) => n === 0)).toBe(true);
+    expect(rowsFor(other.userId)).toEqual(otherBefore);
+    // The address, its sign-in methods, and its sessions stay.
+    expect(test.db.select().from(schema.user).where(eq(schema.user.id, userId)).all()).toHaveLength(1);
+    expect(
+      test.db.select().from(schema.account).where(eq(schema.account.userId, userId)).all(),
+    ).toHaveLength(1);
+    const session = await test.app.request('/api/auth/get-session', { headers: { cookie } });
+    expect(await session.json()).not.toBeNull();
   });
 });
