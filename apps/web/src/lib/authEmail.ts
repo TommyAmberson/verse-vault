@@ -12,6 +12,11 @@ export function emailRequestMessage(result: EmailRequestResult, sent: string): s
   // Only a signed-in request can get this, for its own address, so it
   // reveals nothing either.
   if (result.error.code === 'EMAIL_ALREADY_VERIFIED') return 'This address is already verified.'
+  // A signed-in request for another account's address; retrying can't help
+  // until the learner switches to that account.
+  if (result.error.code === 'EMAIL_MISMATCH') {
+    return "You're signed in to a different account. Switch to this address's profile first."
+  }
   if (result.error.status === 429) {
     return result.error.message || 'Too many requests for this address. Try again later.'
   }

@@ -17,6 +17,11 @@ describe('emailRequestMessage', () => {
     expect(emailRequestMessage(verified, RESET_SENT)).toBe('This address is already verified.')
   })
 
+  it('says to switch accounts when signed in as someone else', () => {
+    const mismatch = { error: { status: 400, code: 'EMAIL_MISMATCH' } }
+    expect(emailRequestMessage(mismatch, RESET_SENT)).toMatch(/signed in to a different account/)
+  })
+
   it('reports any other failure instead of claiming it was sent', () => {
     expect(emailRequestMessage({ error: { status: 500 } }, RESET_SENT)).not.toBe(RESET_SENT)
   })
