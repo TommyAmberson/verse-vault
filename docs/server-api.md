@@ -63,9 +63,9 @@ An account with only Google sign-in gets its first password this way.
 ### Email verification
 
 Signing up with a password sends a verification email; the account works before it is verified, and
-nothing requires verification to sign in. Google sign-ups arrive verified. A verified address is
-what lets Google sign-in link into a password account (see `accountLinking` in
-`packages/api/src/lib/auth.ts`).
+nothing requires verification to sign in. Google sign-ups arrive verified when Google is
+authoritative for the address (below). A verified address is what lets Google sign-in link into a
+password account (see `accountLinking` in `packages/api/src/lib/auth.ts`).
 
 The link opens the web app at `<WEB_BASE_URL>/verify-email?token=…&email=…`. The page makes the
 link's account the active session, switching profile or asking for sign-in, then calls
@@ -83,6 +83,20 @@ the owner's Google sign-in. Signing in proves the password; the email proves the
 Tokens are signed and not stored, valid for 24 hours, and can be used again within that time, which
 only re-sets a flag already set. A learner signs in and asks for a new link with
 `POST /api/auth/send-verification-email`, which answers the same way for every address.
+
+### Google sign-in and the address
+
+Google's `email_verified` claim is trusted only where Google hosts the mail: an `@gmail.com` or
+`@googlemail.com` address, or a Workspace account, whose ID token carries an `hd` claim naming the
+organization's domain. That follows Google's own guidance ("Verify the Google ID token on your
+server side"): for any other address Google checked ownership once, when the Google account was
+created, and the address may since have changed hands. The Google provider's `mapProfileToUser` in
+`packages/api/src/lib/auth.ts` applies the rule, and Better Auth uses the result everywhere it
+trusts Google's address:
+
+* a Google sign-in links into an existing account only when that account is verified and Google is
+  authoritative; otherwise it is refused with `?error=account_not_linked`;
+* a new Google sign-up starts verified only when Google is authoritative.
 
 ### `GET /api/me`
 
