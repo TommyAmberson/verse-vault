@@ -9,6 +9,20 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.6] - 2026-10-13
+
+PATCH: a plainer message when Google can't sign in to an existing account.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.14.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Changed
+
+* A refused Google sign-in (`account_not_linked`) now says Google can't sign in to the account yet
+  and points to the password or a reset, rather than to verifying and trying Google again.
+
 ## [0.10.5] - 2026-10-09
 
 PATCH: forgot-password and email verification pages, and verification status on profiles.

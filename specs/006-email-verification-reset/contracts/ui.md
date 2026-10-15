@@ -31,30 +31,68 @@
 
 * Each profile with `emailVerified === false` shows an "Unverified" badge (FR-026).
 
-## Google refused (phase 1 interim)
+## Google refused
 
-* `account_not_linked`: "This email already has a password account that Google can't join yet. Sign
-  in with your password and verify your email in settings, or reset your password, then try Google
-  again." It covers both refusals: an unverified local account, and a Google account whose own
-  address Google hasn't verified.
+* Phase 1, `account_not_linked`: "This email already has a password account that Google can't join
+  yet. Sign in with your password and verify your email in settings, or reset your password, then
+  try Google again."
+* Phase 2a, `account_not_linked` (any refusal onto an existing account: an unverified account, or
+  Google not being authoritative for the address): "This email already has a VerseVault account that
+  Google can't sign in to yet. Sign in with your password instead, or reset it."
+* Phase 2b, when only Google never having verified the address remains: "Google hasn't verified this
+  email address, so it can't sign in to the account that uses it. Sign in with your password
+  instead, or reset it."
 
-## Phase 2
+## Codes (phase 2b)
 
-* Profile picker with `?pending=`: "An unverified account with this email already exists. Is it
-  yours?" with "That's me" (opens email sign-in for that address, then claims) and "That's not me".
+One code field everywhere: 6 digits, numeric keyboard on mobile, `autocomplete="one-time-code"`,
+with "Send a new code" beside it. A wrong code: "That code isn't right." Expired, used, or three
+wrong tries: "That code has expired. Send a new one." (FR-011).
+
+* Sign-in form, "Forgot password?": the address, then "If an account exists for that address, we
+  sent it a code", then the code and a new password in the same form. On success the learner is
+  signed in with the new password.
+* After sign-up: "Account created. Enter the code we sent to <address> to verify it, or skip and
+  verify later from account settings." with the code field and a Continue button. Past the network's
+  daily limit no code is sent, and the note says to send one from settings.
+* Account settings, unverified: "Send verification code", then the code field. Verified on success.
+* `/reset-password` and `/verify-email` (links from emails sent before 2b): "Emails now carry a code
+  instead of a link." with a way to request one (reset form, or settings for verification).
+
+## Phase 2b: Google
+
+* Picker with `?pending=&email=&code=1`: "To connect Google, enter the code we sent to <address>."
+  with the code field. A verified account then signs in with Google; an unverified one goes on to
+  the choice below. A learner who can't enter the code sees nothing more about the account.
+* Picker with `?pending=&email=` (Google authoritative, or code confirmed): "An unverified account
+  for <address> already exists. Is it yours?" with "That's me" (opens email sign-in for that
+  address, then claims) and "That's not me".
 * "That's not me": warning that whoever set the password loses access and the account may hold
-  someone else's progress; explicit confirm; then Google sign-in runs again.
-* After a takeover: a notice pointing to "Delete all progress" and "Reset account" (FR-023).
-* Account settings: "Connect Google" when the account has no Google link; "Reset account" card
-  beside "Delete all progress", both through `TypeToConfirmDialog` matching the address.
+  someone else's progress; explicit confirm; then Google sign-in runs again with `callbackURL` set
+  to the picker with `?taken-over=1`.
+* After a takeover: the picker reads `?taken-over=1` once, removes it from the URL, and shows a
+  notice pointing to "Delete all progress" and "Reset account" in settings (FR-023). The flag only
+  shows text and grants nothing, so a hand-typed one is harmless.
+* Account settings: "Connect Google" when the account has no Google link. Coming back with
+  `?error=verify_email_first`: "Verify your email address first, then connect Google." next to the
+  verification code controls. A different Google address: "That Google account uses a different
+  email address."
+
+## Phase 2c
+
+* Account settings: "Reset account" card beside "Delete all progress", both through
+  `TypeToConfirmDialog` matching the address, sharing one dialog.
 
 ## Emails
 
-From `VerseVault <no-reply@versevault.ca>`. Plain text plus a minimal HTML part with a button. Each
-says why it was sent, gives the link as plain text, states the expiry, and says to ignore it if the
-recipient did not ask.
+From `VerseVault <no-reply@versevault.ca>`. Plain text plus a minimal HTML part. Each says why it
+was sent and what to do if the recipient did not ask.
 
-| Email        | Subject                        | Link target                               | Expiry   |
-| ------------ | ------------------------------ | ----------------------------------------- | -------- |
-| Reset        | Reset your VerseVault password | `<web origin>/reset-password?token=`      | 1 hour   |
-| Verification | Verify your VerseVault email   | `<web origin>/verify-email?token=&email=` | 24 hours |
+| Email                  | Subject                        | Carries                                                    | Expiry     |
+| ---------------------- | ------------------------------ | ---------------------------------------------------------- | ---------- |
+| Reset (phase 1)        | Reset your VerseVault password | link to `<web origin>/reset-password?token=`               | 1 hour     |
+| Verification (phase 1) | Verify your VerseVault email   | link to `<web origin>/verify-email?token=&email=`          | 24 hours   |
+| Reset (2b)             | Your VerseVault reset code     | the code, prominent; "VerseVault never asks for this code" | 10 minutes |
+| Verification (2b)      | Your VerseVault code           | the code, prominent; the same warning                      | 10 minutes |
+
+The Google code step sends the verification email; it says the code confirms the address.

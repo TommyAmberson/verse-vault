@@ -10,6 +10,28 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.49] - 2026-10-13
+
+PATCH: trust Google's verified address only where Google hosts the mail.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.14.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Security
+
+* A Google sign-in counts its address as verified only for a Gmail address or a Google Workspace
+  account. Before, any Google account whose address Google had once verified could sign into a
+  verified VerseVault account with that address, including a stale Google account on an old Yahoo or
+  work address now owned by someone else. Such sign-ins are now refused, and new Google sign-ups on
+  those addresses start unverified. Existing accounts keep their verified flag.
+
+### Fixed
+
+* A new Google sign-up that starts unverified gets the verification email a password sign-up gets,
+  and that email counts towards the per-IP daily limit the same way.
+
 ## [0.1.48] - 2026-10-09
 
 PATCH: password reset and email verification, sent from no-reply@versevault.ca.

@@ -467,7 +467,26 @@ describe('Google sign-in onto a password account', () => {
       .filter((a) => a.userId === userId && a.providerId === 'google');
   }
 
-  it('links when Google reports the address verified', async () => {
+  function userRow(test: TestApp, email: string) {
+    return test.db.select().from(user).all().find((u) => u.email === email);
+  }
+
+  // Google speaks for an address only when it hosts the mail: a Gmail
+  // address, or a Workspace account.
+  it('links a Gmail account into a verified account', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+
+    // Older UK and German Gmail accounts still use googlemail.com.
+    for (const email of ['learner@gmail.com', 'learner@googlemail.com']) {
+      const userId = await verifiedPasswordUser(test, email);
+      const res = await googleSignIn(test, { sub: `google-${email}`, email, email_verified: true });
+      expect(res.headers.get('location')).toBe('http://localhost:5173/home');
+      expect(googleAccounts(test, userId)).toHaveLength(1);
+    }
+  });
+
+  it('links a Workspace account whose domain matches the address', async () => {
     const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
     cleanup = test.cleanup;
     const userId = await verifiedPasswordUser(test, 'linked@example.com');
@@ -476,6 +495,7 @@ describe('Google sign-in onto a password account', () => {
       sub: 'google-linked',
       email: 'linked@example.com',
       email_verified: true,
+      hd: 'example.com',
     });
 
     expect(res.headers.get('location')).toBe('http://localhost:5173/home');
@@ -491,9 +511,81 @@ describe('Google sign-in onto a password account', () => {
       sub: 'google-unverified',
       email: 'claimed@example.com',
       email_verified: false,
+      hd: 'example.com',
     });
 
     expect(res.headers.get('location')).toContain('error=account_not_linked');
     expect(googleAccounts(test, userId)).toHaveLength(0);
+  });
+
+  // Google checked an outside address only once, when the Google account
+  // was made; whoever holds it now may not hold the inbox.
+  it('refuses an outside address Google reports verified', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const userId = await verifiedPasswordUser(test, 'owner@example.com');
+
+    const res = await googleSignIn(test, {
+      sub: 'google-owner',
+      email: 'owner@example.com',
+      email_verified: true,
+    });
+
+    expect(res.headers.get('location')).toContain('error=account_not_linked');
+    expect(googleAccounts(test, userId)).toHaveLength(0);
+  });
+
+  // A Workspace organization can give users addresses on any domain it has
+  // proven it owns; `hd` names only its primary domain.
+  it('links a Workspace account on a secondary domain', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const userId = await verifiedPasswordUser(test, 'alias@example.com');
+
+    const res = await googleSignIn(test, {
+      sub: 'google-alias',
+      email: 'alias@example.com',
+      email_verified: true,
+      hd: 'corp.example',
+    });
+
+    expect(res.headers.get('location')).toBe('http://localhost:5173/home');
+    expect(googleAccounts(test, userId)).toHaveLength(1);
+  });
+
+  it('counts a new outside-address Google sign-up towards the daily email limit', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const outside = (n: number) => ({
+      sub: `g-outside-${n}`,
+      email: `outside${n}@example.com`,
+      email_verified: true,
+    });
+
+    // Unverified, so it gets the verification email like a password sign-up.
+    await googleSignIn(test, outside(0));
+    expect(test.emails.map((m) => m.to)).toEqual(['outside0@example.com']);
+
+    for (let i = 1; i < 10; i++) await signUpTestUser(test, `fill${i}@example.com`);
+    const res = await googleSignIn(test, outside(1));
+    expect(res.headers.get('location')).toBe('http://localhost:5173/home');
+    expect(test.emails.some((m) => m.to === 'outside1@example.com')).toBe(false);
+  });
+
+  it('starts a new Google sign-up verified only where Google is authoritative', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+
+    for (const profile of [
+      { sub: 'g-new-gmail', email: 'new@gmail.com', email_verified: true },
+      { sub: 'g-new-ws', email: 'new@example.com', email_verified: true, hd: 'example.com' },
+      { sub: 'g-new-outside', email: 'new@outside.example', email_verified: true },
+    ]) {
+      const res = await googleSignIn(test, profile);
+      expect(res.headers.get('location')).toBe('http://localhost:5173/home');
+    }
+    expect(userRow(test, 'new@gmail.com')?.emailVerified).toBe(true);
+    expect(userRow(test, 'new@example.com')?.emailVerified).toBe(true);
+    expect(userRow(test, 'new@outside.example')?.emailVerified).toBe(false);
   });
 });
