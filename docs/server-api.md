@@ -665,10 +665,10 @@ Two more limits sit inside Better Auth (`packages/api/src/lib/auth.ts`):
 * **Per IP per day**: at most 10 emails per client IP a day, so one client can't spend the email
   provider's daily quota. Requests to `/request-password-reset` and `/send-verification-email` count
   when they arrive, once they pass the per-address limit; over the limit they get the same 429 shape
-  with "Too many requests from this network." A sign-up counts only once its account is created, and
-  over the limit it succeeds without sending the verification email (logged as
-  `[email] sign-up verification skipped`), so a group on one network is never refused. Shares the
-  per-address limit's in-memory store.
+  with "Too many requests from this network." A sign-up, with a password or with Google, counts only
+  once its account is created, and over the limit it succeeds without sending the verification email
+  (logged as `[email] sign-up verification skipped`), so a group on one network is never refused.
+  Shares the per-address limit's in-memory store.
 
 Tuneable via env vars at boot:
 

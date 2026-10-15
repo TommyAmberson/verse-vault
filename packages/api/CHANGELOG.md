@@ -27,6 +27,11 @@ PATCH: trust Google's verified address only where Google hosts the mail.
   work address now owned by someone else. Such sign-ins are now refused, and new Google sign-ups on
   those addresses start unverified. Existing accounts keep their verified flag.
 
+### Fixed
+
+* A new Google sign-up that starts unverified gets the verification email a password sign-up gets,
+  and that email counts towards the per-IP daily limit the same way.
+
 ## [0.1.48] - 2026-10-09
 
 PATCH: password reset and email verification, sent from no-reply@versevault.ca.

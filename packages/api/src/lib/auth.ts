@@ -127,11 +127,13 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       // rides along so the page knows which account that is; the token
       // already carries it, so this exposes nothing new.
       sendVerificationEmail: async ({ user, token }, request) => {
-        // A sign-up counts towards its IP's daily limit only once the account
-        // exists, and over the limit it skips the email instead of refusing:
-        // a group signing up on one network still gets in, and can send the
-        // email later from settings. The response is the same either way.
-        if (request && new URL(request.url).pathname.endsWith('/sign-up/email')) {
+        // A verification email sent on its own, at sign-up with a password or
+        // with Google, counts towards its IP's daily limit only once the
+        // account exists, and over the limit it skips the email instead of
+        // refusing: a group signing up on one network still gets in, and can
+        // send the email later from settings. The response is the same either
+        // way. Requests to send one were counted on arrival.
+        if (request && !new URL(request.url).pathname.endsWith('/send-verification-email')) {
           const ip = getIp(request, auth.options);
           if (ip && !sendBuckets.consume(`ip:${ip}`, PER_IP_TIER).allowed) {
             console.warn(`[email] sign-up verification skipped: daily limit reached for ${ip}`);

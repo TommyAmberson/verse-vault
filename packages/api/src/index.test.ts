@@ -553,6 +553,25 @@ describe('Google sign-in onto a password account', () => {
     expect(googleAccounts(test, userId)).toHaveLength(1);
   });
 
+  it('counts a new outside-address Google sign-up towards the daily email limit', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const outside = (n: number) => ({
+      sub: `g-outside-${n}`,
+      email: `outside${n}@example.com`,
+      email_verified: true,
+    });
+
+    // Unverified, so it gets the verification email like a password sign-up.
+    await googleSignIn(test, outside(0));
+    expect(test.emails.map((m) => m.to)).toEqual(['outside0@example.com']);
+
+    for (let i = 1; i < 10; i++) await signUpTestUser(test, `fill${i}@example.com`);
+    const res = await googleSignIn(test, outside(1));
+    expect(res.headers.get('location')).toBe('http://localhost:5173/home');
+    expect(test.emails.some((m) => m.to === 'outside1@example.com')).toBe(false);
+  });
+
   it('starts a new Google sign-up verified only where Google is authoritative', async () => {
     const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
     cleanup = test.cleanup;
