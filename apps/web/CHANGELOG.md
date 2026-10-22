@@ -9,6 +9,20 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.7] - 2026-10-26
+
+PATCH: the cross-club gates default to this week's checkpoint.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: the cross-club gates default to `AfterMinorCheckpoint`.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Changed
+
+* Memorize falls back to "Caught up to this week" for a year with no saved gates, matching the API,
+  so this week's Club 150 verses come before Club 300's older backlog.
+
 ## [0.10.6] - 2026-10-13
 
 PATCH: a plainer message when Google can't sign in to an existing account.
