@@ -10,6 +10,21 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.50] - 2026-10-26
+
+PATCH: the cross-club gates default to this week's checkpoint.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: the cross-club gates default to `AfterMinorCheckpoint`.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Changed
+
+* A year with no saved gates starts both at `afterMinorCheckpoint` ("Caught up to this week")
+  instead of `caughtUp`. A learner caught up to last week on Club 150 now gets this week's Club 150
+  verses before Club 300's older backlog. Saved settings keep the gates they hold.
+
 ## [0.1.49] - 2026-10-13
 
 PATCH: trust Google's verified address only where Google hosts the mail.
