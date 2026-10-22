@@ -22,6 +22,18 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-26
+
+MINOR: the cross-club gates default to this week's checkpoint. No state or replay change; a stored
+gate is read as before.
+
+### Changed
+
+* `MoveToNextGate` defaults to `AfterMinorCheckpoint` instead of `CaughtUp`. Under `CaughtUp`, a
+  learner caught up to last week on Club 150 had Club 300's older backlog served in deck order ahead
+  of this week's Club 150 verses. Now the lower club ranks after the higher one until the higher
+  club's verses through this week are memorized, so this week's Club 150 verses come first.
+
 ## [0.14.0] - 2026-10-02
 
 MINOR: the engine says which cards ask only a given, and the unused progressive reveal is retired

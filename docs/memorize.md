@@ -62,6 +62,10 @@ one has nothing owed, gate met or not. A gate that can never open (a checkpoint 
 schedule, fully memorized over an empty club) only orders. While the count is above zero the queue
 is never empty.
 
+Both gates default to after the minor checkpoint (`afterMinorCheckpoint`, "Caught up to this week"
+in settings). A learner caught up to last week on Club 150 still gets this week's Club 150 verses
+before Club 300's backlog, which caught up (`caughtUp`) would serve first in deck order.
+
 ### Calendar cascade is "this week first"
 
 A club's catch-up setting reorders its own owed backlog. On calendar cascade, its owed verses from

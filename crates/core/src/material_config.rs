@@ -147,12 +147,14 @@ pub enum MoveToNextGate {
     /// Met once the higher's verses through the most recent past meet
     /// are all memorized. Never met before the season's first meet.
     AfterMajorCheckpoint,
-    /// Met once the higher's this-week row is done.
+    /// Met once the higher's this-week row is done. The default, so a
+    /// learner who has fallen behind on the lower club still learns the
+    /// higher club's verses for this week first.
+    #[default]
     AfterMinorCheckpoint,
     /// Met whenever the higher's user position is at or past the
-    /// previous week's checkpoint. Met by default at season start (no
-    /// previous checkpoint yet).
-    #[default]
+    /// previous week's checkpoint. Met at season start (no previous
+    /// checkpoint yet).
     CaughtUp,
     /// No gate: always met.
     Always,
@@ -568,10 +570,16 @@ mod tests {
         // Default retention 0.8, batch 1.
         assert_eq!(c.target_r_for(ClubTier::Club150), DEFAULT_REVIEW_RETENTION);
         assert_eq!(c.lesson_batch_size, DEFAULT_LESSON_BATCH_SIZE);
-        // Gates default to CaughtUp.
+        // Gates default to this week's checkpoint.
         assert_eq!(c.gate_to(ClubTier::Club150), None);
-        assert_eq!(c.gate_to(ClubTier::Club300), Some(MoveToNextGate::CaughtUp));
-        assert_eq!(c.gate_to(ClubTier::Full), Some(MoveToNextGate::CaughtUp));
+        assert_eq!(
+            c.gate_to(ClubTier::Club300),
+            Some(MoveToNextGate::AfterMinorCheckpoint)
+        );
+        assert_eq!(
+            c.gate_to(ClubTier::Full),
+            Some(MoveToNextGate::AfterMinorCheckpoint)
+        );
         // Effective status reflects the new shape: 150 Active, others Paused.
         assert_eq!(c.effective_status(ClubTier::Club150), ClubStatus::Active);
         assert_eq!(c.effective_status(ClubTier::Club300), ClubStatus::Paused);
