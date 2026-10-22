@@ -197,7 +197,7 @@ describe('years routes', () => {
     const year = body.years.find((y) => y.materialId === MATERIAL_ID)!;
     // legacyToNew of ENROLLED_DEFAULTS (newScope=all, reviewScope=all,
     // desiredRetention=0.8) → every club enabled, sequential catchUp,
-    // CaughtUp gates.
+    // gates at this week's checkpoint.
     expect(year.perClub).toEqual({
       headingCard: false,
       headingPassageCard: true,
@@ -214,7 +214,7 @@ describe('years routes', () => {
         club300: { enabled: true, desiredRetention: 0.8 },
         full: { enabled: true, desiredRetention: 0.8 },
       },
-      moveToNext: { p150To300: 'caughtUp', p300ToFull: 'caughtUp' },
+      moveToNext: { p150To300: 'afterMinorCheckpoint', p300ToFull: 'afterMinorCheckpoint' },
       lessonBatchSize: 3,
     });
   });

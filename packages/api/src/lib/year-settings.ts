@@ -224,7 +224,7 @@ function reviewFromScope(scope: TierScope, retention: number): ClubReviewMap {
  *  Retention values above `MAX_DESIRED_RETENTION` (a common pre-Phase 1
  *  preference of 0.95) clamp to 0.9; below `MIN_DESIRED_RETENTION` clamp
  *  to 0.5. Catch-up defaults to Sequential on every club, and the
- *  cross-club gates default to CaughtUp on every pair. */
+ *  cross-club gates default to AfterMinorCheckpoint on every pair. */
 export function legacyToNew(old: YearSettings): PerClubYearSettings {
   return {
     headingCard: old.headingCard,
@@ -234,7 +234,7 @@ export function legacyToNew(old: YearSettings): PerClubYearSettings {
     chapterListScope: old.chapterListScope,
     memorize: memorizeFromScope(old.newScope),
     review: reviewFromScope(old.reviewScope, old.desiredRetention),
-    moveToNext: { p150To300: 'caughtUp', p300ToFull: 'caughtUp' },
+    moveToNext: { p150To300: 'afterMinorCheckpoint', p300ToFull: 'afterMinorCheckpoint' },
     lessonBatchSize: old.lessonBatchSize,
   };
 }
