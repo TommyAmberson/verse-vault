@@ -2005,6 +2005,16 @@ mod tests {
     }
 
     #[test]
+    fn default_gates_serve_this_weeks_higher_club_first() {
+        // Being caught up to last week isn't enough: by default the lower
+        // club's verses wait until the higher club's for this week are in.
+        let defaults = MoveToNextConfig::default();
+        let (engine, sched) = lower_club_first((defaults.p150_to_300, defaults.p300_to_full));
+        let batch = next_memorize_batch(&engine, Some(&sched), day_secs("2025-09-08"), 1);
+        assert_eq!(batch_verse_ids(&engine, batch), vec![1]);
+    }
+
+    #[test]
     fn unmet_gate_serves_the_lower_club_once_the_higher_is_done() {
         // A major-checkpoint gate stays shut with no meet behind it, yet
         // the lower club's owed verse comes next once Club 150 is done.
