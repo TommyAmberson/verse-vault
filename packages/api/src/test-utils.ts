@@ -189,17 +189,45 @@ export interface GoogleProfile {
 /** Runs a Google sign-in through Better Auth's real callback, with only
  *  Google's token endpoint stubbed: it answers with an unsigned ID token
  *  for `profile`, which Better Auth decodes without verifying. Returns the
- *  callback's response, whose `Location` says where the browser lands. */
-export async function googleSignIn(test: TestApp, profile: GoogleProfile): Promise<Response> {
+ *  callback's response, whose `Location` says where the browser lands.
+ *  `errorCallbackURL` is the page the client started from. */
+export async function googleSignIn(
+  test: TestApp,
+  profile: GoogleProfile,
+  errorCallbackURL = 'http://localhost:5173/profiles',
+): Promise<Response> {
   const start = await test.app.request('/api/auth/sign-in/social', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       provider: 'google',
       callbackURL: 'http://localhost:5173/home',
-      errorCallbackURL: 'http://localhost:5173/profiles',
+      errorCallbackURL,
     }),
   });
+  return googleCallback(test, start, profile);
+}
+
+/** Connects Google to the account `cookie` is signed in to, through
+ *  `/link-social` and the same stubbed callback as `googleSignIn`. */
+export async function googleLink(
+  test: TestApp,
+  cookie: string,
+  profile: GoogleProfile,
+): Promise<Response> {
+  const start = await test.app.request('/api/auth/link-social', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({ provider: 'google', callbackURL: 'http://localhost:5173/settings' }),
+  });
+  return googleCallback(test, start, profile);
+}
+
+async function googleCallback(
+  test: TestApp,
+  start: Response,
+  profile: GoogleProfile,
+): Promise<Response> {
   expect(start.status).toBe(200);
   const { url } = (await start.json()) as { url: string };
   const state = new URL(url).searchParams.get('state')!;
