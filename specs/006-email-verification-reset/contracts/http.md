@@ -44,8 +44,10 @@ digits, last 10 minutes, and allow 3 wrong attempts.
 
 Refused with 404 so they cannot be used (outside this spec): `POST /api/auth/sign-in/email-otp`, the
 send route with `type: "sign-in"` or `"change-email"`,
-`POST /api/auth/email-otp/request-email-change`, `POST /api/auth/email-otp/change-email`, and the
-deprecated `POST /api/auth/forget-password/email-otp`. The phase 1 link routes stop sending:
+`POST /api/auth/email-otp/request-email-change`, `POST /api/auth/email-otp/change-email`, the
+deprecated `POST /api/auth/forget-password/email-otp`, and
+`POST /api/auth/email-otp/check-verification-otp`, whose attempt count does not hold against guesses
+sent at the same moment (research D15). The phase 1 link routes stop sending:
 `POST /api/auth/request-password-reset` has no sender, and verification sends codes.
 
 Code emails count towards the same limits as phase 1's emails: 3 per address per hour and 10 per IP
@@ -62,11 +64,11 @@ per day (FR-012).
 
 Mounted with the account routes at `/api`.
 
-| Method and path                     | Auth    | Body              | Effect                                                                                                                                                                 | Errors                                                                   |
-| ----------------------------------- | ------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `POST /api/account/google/confirm`  | none    | `{ token, code }` | checks the emailed code for the pending record's address; then links Google to a verified account (`{ signIn: true }`) or marks the record proven (`{ choice: true }`) | 400 invalid or expired token or code; 403 too many attempts              |
-| `POST /api/account/google/claim`    | session | `{ token }`       | consumes a proven pending record; links its Google `sub` to the session user if they match; verifies                                                                   | 400 invalid, expired, or unproven token; 403 another account's session   |
-| `POST /api/account/google/takeover` | none    | `{ token }`       | consumes a proven pending record; deletes the password and every session; links Google; verifies                                                                       | 400 invalid, expired, or unproven token, or the user is already verified |
+| Method and path                     | Auth    | Body              | Effect                                                                                                                                                                 | Errors                                                                                           |
+| ----------------------------------- | ------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `POST /api/account/google/confirm`  | none    | `{ token, code }` | checks the emailed code for the pending record's address; then links Google to a verified account (`{ signIn: true }`) or marks the record proven (`{ choice: true }`) | 400 invalid or expired token or code; 403 too many attempts; 429 when the per-IP bucket is empty |
+| `POST /api/account/google/claim`    | session | `{ token }`       | consumes a proven pending record; links its Google `sub` to the session user if they match; verifies                                                                   | 400 invalid, expired, or unproven token; 403 another account's session                           |
+| `POST /api/account/google/takeover` | none    | `{ token }`       | consumes a proven pending record; deletes the password and every session; links Google; verifies                                                                       | 400 invalid, expired, or unproven token, or the user is already verified                         |
 
 An invalid, used, expired, or unproven token returns the same 400 body in every case, revealing
 nothing about the account (FR-021).

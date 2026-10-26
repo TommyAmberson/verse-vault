@@ -318,9 +318,11 @@ verification on sign-up and on request sends a code instead of a link, `expiresI
 the plugin's code routes; `sendResetPassword`, `sendVerificationEmail`, and `onPasswordReset` go. A
 `hooks.before` refuses the plugin routes outside this spec: code sign-in (`/sign-in/email-otp`, and
 `type: 'sign-in'` on the send route), changing email (`/email-otp/request-email-change`,
-`/email-otp/change-email`), and the deprecated `/forget-password/email-otp`. The `/reset-password`
-and `/verify-email` web pages stay as routes that tell anyone arriving from an older email to
-request a code (FR-011).
+`/email-otp/change-email`), the deprecated `/forget-password/email-otp`, and checking a code without
+using it (`/email-otp/check-verification-otp`). It refuses only requests that arrive over HTTP
+(`ctx.request` is set); D16's confirm route calls the check through `auth.api`. The
+`/reset-password` and `/verify-email` web pages stay as routes that tell anyone arriving from an
+older email to request a code (FR-011).
 
 **Rationale**:
 
@@ -333,6 +335,13 @@ request a code (FR-011).
   (`resolveOTP`, rotate strategy), so only the newest code works, which is what `onPasswordReset`
   used to enforce for links.
 * Wrong attempts are counted on the row and lock it after three (`atomicVerifyOTP`, routes.mjs:760).
+  The verify and reset routes consume the row before comparing and recreate it on a wrong guess, so
+  guesses sent at the same moment still get three tries between them.
+* The check route is different: it reads the row, compares, and writes the new count back as
+  separate steps (routes.mjs:239-252), so guesses sent at the same moment each see the old count.
+  Its own limit is 3 per 60 s per IP, so guesses spread over many networks get far more than three
+  tries at one code, including a reset code someone else requested for the address, which the reset
+  route then accepts. Nothing in the client needs it, so it is refused.
 * Unknown addresses get `{ success: true }` and no send on both the reset and verification send
   routes, after the same store-and-delete work (routes.mjs:100-110, 478-490). SC-003's timing test
   covers the reset route as before.
@@ -353,12 +362,17 @@ attempts, and expires codes).
 marked as not yet proven, sends a verification code to the address through the plugin's send route
 (`type: 'email-verification'`), and redirects to the picker with `&code=1`. A new route,
 `POST /api/account/google/confirm { token, code }`, checks the code with the plugin's
-`checkVerificationOTP`, deletes the code row so it cannot be used twice, and then:
+`checkVerificationOTP` (a server call through `auth.api`, since D15 refuses it over HTTP), deletes
+the code row so it cannot be used twice, and then:
 
 * verified account: links the Google `sub` and returns `{ signIn: true }`; the client runs Google
   sign-in again, which now finds the account linked;
 * unverified account: marks the pending row proven and returns `{ choice: true }`; the picker shows
   "That's me" / "That's not me".
+
+The route runs one check at a time per address, holding an in-process lock keyed on the address from
+the check through the delete, so each guess sees the count the one before it wrote. The
+observability middleware puts the route in the tight per-IP bucket that `/api/auth/*` uses.
 
 Claim and takeover refuse a pending row that is not proven. An authoritative refusal writes it
 proven from the start, as phase 2 already does.
@@ -366,14 +380,23 @@ proven from the start, as phase 2 already does.
 **Rationale**: the pending row already ties the proof to one Google identity and one account, and
 the plugin already stores, hashes, counts, and expires codes for an address, so the step reuses both
 rather than adding a second code store. Sending through the plugin's route also puts these emails
-under the same per-address and per-IP limits (FR-012). Checking and deleting are two steps, so two
-requests with the right code at the same moment could both pass; that is harmless, since both prove
-the same inbox for the same pending row. Checking with `checkVerificationOTP` and then deleting the
-row matches the plugin's single-use rule without going through `/email-otp/verify-email`, which
-would verify the address and needs that account's session.
+under the same per-address and per-IP limits (FR-012). `checkVerificationOTP` counts wrong guesses
+without consuming the row (D15), so guesses sent at the same moment would each pass the attempt
+check and a 6-digit code could be brute-forced; the lock closes that, and it is enough because the
+API runs as one Node process against one SQLite file (`deploy/verse-vault.service`). The lock also
+means only one request with the right code passes before the row is deleted. Checking with
+`checkVerificationOTP` and then deleting the row matches the plugin's single-use rule without going
+through `/email-otp/verify-email`, which would verify the address and needs that account's session.
+That route shares the code row but not the lock, so guesses sent through both at the same moment can
+overwrite each other's count, giving roughly six tries instead of three. That needs a session on the
+account as well as a pending Google row for its address, and new codes stay under the per-address
+limit, so it is accepted.
 
 **Alternatives considered**: a code stored on the pending row (duplicates the plugin's hashing and
-attempt counting); signing the learner in directly after the code (the multi-session cookies argue
+attempt counting); consuming the row and recreating it on a wrong guess, as the plugin's own
+`atomicVerifyOTP` does (that function isn't exported, so the route would copy the plugin's hashing
+and row format, which a Better Auth upgrade could change; worth revisiting if the API ever runs as
+several processes); signing the learner in directly after the code (the multi-session cookies argue
 for re-running Google sign-in, as D7 did for takeover).
 
 ## D17. Connect Google from settings (phase 2b)
@@ -402,10 +425,12 @@ settings is the same proof, already built).
   or Workspace sign-in links as before and an outside address does not link, does not verify, and
   signs up unverified; the `account_not_linked` message reworded for the new reason. No web pages
   change.
-* **2b** (the current branch, restructured): D15 to D17, the choice screen, takeover, and Connect
-  Google. Already-built work carries over: the callback after hook and pending rows, claim and
-  takeover, the picker choice, Connect Google, and the docs for them.
-* **2c**: Reset account (User Story 5), whose commits move off the current branch unchanged.
+* **2b** (`feat/inbox-codes`, off master, carrying the Google commits from the earlier branch): D15
+  to D17, the choice screen, takeover, and Connect Google. Already-built work carries over: the
+  callback after hook and pending rows, claim and takeover, the picker choice, Connect Google, and
+  the docs for them.
+* **2c** (`feat/reset-account`, off master): Reset account (User Story 5), whose commits move over
+  unchanged.
 
 **Rationale**: 2a closes a gap already live and is small, so it should not wait on the code rework.
 Reset account is independent of the Google work.

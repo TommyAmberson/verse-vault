@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-06
 
-**Status**: Draft
+**Status**: In progress (phase 1 and 2a shipped)
 
 **Input**: User description: "adding email verification and password reset"
 (TommyAmberson/verse-vault#171)
