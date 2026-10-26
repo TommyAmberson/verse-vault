@@ -88,11 +88,11 @@ wrong tries: "That code has expired. Send a new one." (FR-011).
 From `VerseVault <no-reply@versevault.ca>`. Plain text plus a minimal HTML part. Each says why it
 was sent and what to do if the recipient did not ask.
 
-| Email                  | Subject                        | Carries                                                    | Expiry     |
-| ---------------------- | ------------------------------ | ---------------------------------------------------------- | ---------- |
-| Reset (phase 1)        | Reset your VerseVault password | link to `<web origin>/reset-password?token=`               | 1 hour     |
-| Verification (phase 1) | Verify your VerseVault email   | link to `<web origin>/verify-email?token=&email=`          | 24 hours   |
-| Reset (2b)             | Your VerseVault reset code     | the code, prominent; "VerseVault never asks for this code" | 10 minutes |
-| Verification (2b)      | Your VerseVault code           | the code, prominent; the same warning                      | 10 minutes |
+| Email                  | Subject                        | Carries                                           | Expiry     |
+| ---------------------- | ------------------------------ | ------------------------------------------------- | ---------- |
+| Reset (phase 1)        | Reset your VerseVault password | link to `<web origin>/reset-password?token=`      | 1 hour     |
+| Verification (phase 1) | Verify your VerseVault email   | link to `<web origin>/verify-email?token=&email=` | 24 hours   |
+| Reset (2b)             | Your VerseVault reset code     | the code, prominent; "Don't share it with anyone" | 10 minutes |
+| Verification (2b)      | Your VerseVault code           | the code, prominent; the same warning             | 10 minutes |
 
 The Google code step sends the verification email; it says the code confirms the address.

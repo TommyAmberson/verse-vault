@@ -75,7 +75,7 @@ export function createTestApp(opts: CreateTestAppOptions = {}) {
   // Pull `engines` so tests can clear() / inspect it if they want.
   // We deliberately don't call `engines.start()` here — tests run in
   // milliseconds and have no use for the 60 s idle reaper.
-  // Every email an auth flow sends lands here, so a test can follow its link.
+  // Every email an auth flow sends lands here, so a test can read its code.
   const emails: EmailMessage[] = [];
   const { app, engines } = createApp({
     db: test.db,
@@ -86,10 +86,11 @@ export function createTestApp(opts: CreateTestAppOptions = {}) {
   return { app, engines, emails, ...test };
 }
 
-/** The link in a recorded email's plain-text body. */
-export function emailLink(message: EmailMessage): string {
-  const match = /https?:\/\/\S+/.exec(message.text);
-  if (!match) throw new Error(`no link in email: ${message.subject}`);
+/** The code in the newest email recorded for `to`. */
+export function emailCode(emails: EmailMessage[], to: string): string {
+  const message = emails.filter((m) => m.to === to).at(-1);
+  const match = /\b\d{6}\b/.exec(message?.text ?? '');
+  if (!match) throw new Error(`no code emailed to ${to}`);
   return match[0];
 }
 

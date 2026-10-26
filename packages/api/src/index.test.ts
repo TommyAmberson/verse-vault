@@ -12,7 +12,7 @@ import {
   createTestApp,
   createTestDb,
   createTestUser,
-  emailLink,
+  emailCode,
   googleLink,
   googleSignIn,
   signUpTestUser,
@@ -27,13 +27,8 @@ function postAuth(test: TestApp, path: string, body: object, cookie?: string) {
   });
 }
 
-/** Follows a verification token the way the web page does, with whatever
- *  session `cookie` carries. */
-function verify(test: TestApp, token: string, cookie?: string) {
-  return test.app.request(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
-    headers: cookie ? { cookie } : {},
-  });
-}
+/** A code that isn't `code`. */
+const wrongFor = (code: string) => (code === '000000' ? '111111' : '000000');
 
 function isVerified(test: TestApp, userId: string): boolean | undefined {
   return test.db.select().from(user).where(eq(user.id, userId)).get()?.emailVerified;
@@ -114,23 +109,14 @@ describe('password reset', () => {
     cleanup = null;
   });
 
-  const REDIRECT = 'http://localhost:5173/reset-password';
-
   const requestReset = (test: TestApp, email: string) =>
-    postAuth(test, 'request-password-reset', { email });
-  const resetPassword = (test: TestApp, token: string, newPassword: string) =>
-    postAuth(test, 'reset-password', { token, newPassword });
+    postAuth(test, 'email-otp/request-password-reset', { email });
+  const resetPassword = (test: TestApp, email: string, otp: string, password: string) =>
+    postAuth(test, 'email-otp/reset-password', { email, otp, password });
   const signIn = (test: TestApp, email: string, password: string) =>
     postAuth(test, 'sign-in/email', { email, password });
 
-  /** The token in the reset link, which opens the web app's reset page. */
-  function resetToken(test: TestApp): string {
-    const link = new URL(emailLink(test.emails.at(-1)!));
-    expect(`${link.origin}${link.pathname}`).toBe(REDIRECT);
-    return link.searchParams.get('token')!;
-  }
-
-  it('emails a link for an existing address and answers an unknown one identically', async () => {
+  it('emails a code for an existing address and answers an unknown one identically', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     await signUpTestUser(test, 'reset@example.com');
@@ -145,7 +131,8 @@ describe('password reset', () => {
     const sent = test.emails.slice(before);
     expect(sent).toHaveLength(1);
     expect(sent[0]!.to).toBe('reset@example.com');
-    expect(sent[0]!.subject).toBe('Reset your VerseVault password');
+    expect(sent[0]!.subject).toBe('Your VerseVault reset code');
+    expect(emailCode(sent, 'reset@example.com')).toMatch(/^\d{6}$/);
   });
 
   it('answers without waiting for the email provider', async () => {
@@ -163,7 +150,8 @@ describe('password reset', () => {
     const { cookie, userId } = await signUpTestUser(test, 'change@example.com', 'oldPassword123!');
     await requestReset(test, 'change@example.com');
 
-    const res = await resetPassword(test, resetToken(test), 'newPassword123!');
+    const code = emailCode(test.emails, 'change@example.com');
+    const res = await resetPassword(test, 'change@example.com', code, 'newPassword123!');
     expect(res.status).toBe(200);
 
     expect((await signIn(test, 'change@example.com', 'oldPassword123!')).status).toBe(401);
@@ -172,40 +160,67 @@ describe('password reset', () => {
     expect(isVerified(test, userId)).toBe(true);
   });
 
-  it('rejects an older link once a newer one is used, and a link used twice', async () => {
+  it('accepts only the newest code, and only once', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     await signUpTestUser(test, 'twice@example.com');
     await requestReset(test, 'twice@example.com');
-    const older = resetToken(test);
+    const older = emailCode(test.emails, 'twice@example.com');
     await requestReset(test, 'twice@example.com');
-    const newer = resetToken(test);
+    const newer = emailCode(test.emails, 'twice@example.com');
 
-    expect((await resetPassword(test, newer, 'firstReset123!')).status).toBe(200);
-    expect((await resetPassword(test, newer, 'secondReset123!')).status).toBe(400);
-    expect((await resetPassword(test, older, 'thirdReset123!')).status).toBe(400);
+    // Two six-digit codes can match by chance; then "older" is the newer one.
+    if (older !== newer) {
+      expect((await resetPassword(test, 'twice@example.com', older, 'olderReset123!')).status)
+        .toBe(400);
+    }
+    expect((await resetPassword(test, 'twice@example.com', newer, 'firstReset123!')).status)
+      .toBe(200);
+    expect((await resetPassword(test, 'twice@example.com', newer, 'secondReset123!')).status)
+      .toBe(400);
   });
 
-  it("leaves other users' reset links working", async () => {
+  it('ends the code after three wrong tries', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'guess@example.com', 'oldPassword123!');
+    await requestReset(test, 'guess@example.com');
+    const code = emailCode(test.emails, 'guess@example.com');
+    const wrong = wrongFor(code);
+
+    for (let i = 0; i < 3; i++) {
+      const res = await resetPassword(test, 'guess@example.com', wrong, 'guessed123!');
+      expect(res.status).toBe(400);
+    }
+    const late = await resetPassword(test, 'guess@example.com', code, 'newPassword123!');
+    expect(late.status).toBe(403);
+    expect((await signIn(test, 'guess@example.com', 'oldPassword123!')).status).toBe(200);
+  });
+
+  it("leaves other users' reset codes working", async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     await signUpTestUser(test, 'first@example.com');
     await signUpTestUser(test, 'second@example.com');
     await requestReset(test, 'second@example.com');
-    const second = resetToken(test);
     await requestReset(test, 'first@example.com');
 
-    expect((await resetPassword(test, resetToken(test), 'firstReset123!')).status).toBe(200);
-    expect((await resetPassword(test, second, 'secondReset123!')).status).toBe(200);
+    const first = emailCode(test.emails, 'first@example.com');
+    const second = emailCode(test.emails, 'second@example.com');
+    expect((await resetPassword(test, 'first@example.com', first, 'firstReset123!')).status)
+      .toBe(200);
+    expect((await resetPassword(test, 'second@example.com', second, 'secondReset123!')).status)
+      .toBe(200);
   });
 
-  it('rejects an expired link', async () => {
+  it('rejects an expired code', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     await signUpTestUser(test, 'late@example.com');
     await requestReset(test, 'late@example.com');
     test.db.update(verification).set({ expiresAt: new Date(Date.now() - 1000) }).run();
-    expect((await resetPassword(test, resetToken(test), 'tooLate123!')).status).toBe(400);
+    const code = emailCode(test.emails, 'late@example.com');
+    expect((await resetPassword(test, 'late@example.com', code, 'tooLate123!')).status).toBe(400);
   });
 
   it('lets a Google-only account set its first password', async () => {
@@ -226,8 +241,9 @@ describe('password reset', () => {
       .run();
 
     await requestReset(test, 'google-only@example.com');
-    expect(test.emails.at(-1)?.to).toBe('google-only@example.com');
-    expect((await resetPassword(test, resetToken(test), 'firstPassword123!')).status).toBe(200);
+    const code = emailCode(test.emails, 'google-only@example.com');
+    const res = await resetPassword(test, 'google-only@example.com', code, 'firstPassword123!');
+    expect(res.status).toBe(200);
     expect((await signIn(test, 'google-only@example.com', 'firstPassword123!')).status).toBe(200);
   });
 });
@@ -239,26 +255,17 @@ describe('email verification', () => {
     cleanup = null;
   });
 
-  const VERIFY_PAGE = 'http://localhost:5173/verify-email';
+  const verify = (test: TestApp, email: string, otp: string, cookie?: string) =>
+    postAuth(test, 'email-otp/verify-email', { email, otp }, cookie);
 
-  /** The token in the newest verification email, which opens the web app's
-   *  verification page rather than the API. */
-  function verifyToken(test: TestApp): string {
-    const message = test.emails.filter((m) => m.subject === 'Verify your VerseVault email').at(-1);
-    const link = new URL(emailLink(message!));
-    expect(`${link.origin}${link.pathname}`).toBe(VERIFY_PAGE);
-    expect(link.searchParams.get('email')).toBe(message!.to);
-    return link.searchParams.get('token')!;
-  }
-
-
-  it('emails a verification link at sign-up and lets the account sign in unverified', async () => {
+  it('emails a code at sign-up and lets the account sign in unverified', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { userId } = await signUpTestUser(test, 'new@example.com', 'newPassword123!');
 
-    const sent = test.emails.filter((m) => m.subject === 'Verify your VerseVault email');
+    const sent = test.emails.filter((m) => m.subject === 'Your VerseVault code');
     expect(sent.map((m) => m.to)).toEqual(['new@example.com']);
+    expect(emailCode(sent, 'new@example.com')).toMatch(/^\d{6}$/);
     expect(isVerified(test, userId)).toBe(false);
     const signIn = await postAuth(test, 'sign-in/email', {
       email: 'new@example.com',
@@ -273,56 +280,64 @@ describe('email verification', () => {
     const { cookie, userId } = await signUpTestUser(test, 'own@example.com');
     const sessionsBefore = test.db.select().from(session).all().length;
 
-    const res = await verify(test, verifyToken(test), cookie);
+    const res = await verify(test, 'own@example.com', emailCode(test.emails, 'own@example.com'), cookie);
 
     expect(res.status).toBe(200);
     expect(isVerified(test, userId)).toBe(true);
     expect(test.db.select().from(session).all()).toHaveLength(sessionsBefore);
   });
 
-  it('refuses a link opened without a session, so a pre-registered address stays unverified', async () => {
+  it('refuses a code entered without a session, so a pre-registered address stays unverified', async () => {
     // The attack this guards against: someone signs up with another
-    // person's address; if that person clicks the genuine email while
+    // person's address; if that person enters the genuine code while
     // signed out, the account must not become verified with the other
     // person's password still on it.
     const test = createTestApp();
     cleanup = test.cleanup;
     const { userId } = await signUpTestUser(test, 'victim@example.com');
 
-    const res = await verify(test, verifyToken(test));
+    const res = await verify(test, 'victim@example.com', emailCode(test.emails, 'victim@example.com'));
 
     expect(res.status).toBe(403);
     expect(isVerified(test, userId)).toBe(false);
   });
 
-  it("refuses a link opened with another account's session", async () => {
+  it("refuses a code entered with another account's session", async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { userId } = await signUpTestUser(test, 'target@example.com');
-    const token = verifyToken(test);
+    const code = emailCode(test.emails, 'target@example.com');
     const other = await signUpTestUser(test, 'other@example.com');
 
-    const res = await verify(test, token, other.cookie);
+    const res = await verify(test, 'target@example.com', code, other.cookie);
 
     expect(res.status).toBe(403);
     expect(isVerified(test, userId)).toBe(false);
   });
 
-  it('rejects a malformed token', async () => {
+  it("doesn't count a signed-out guess, refusing it before comparing", async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'guarded@example.com');
+    const code = emailCode(test.emails, 'guarded@example.com');
+
+    for (let i = 0; i < 3; i++) {
+      expect((await verify(test, 'guarded@example.com', wrongFor(code))).status).toBe(403);
+    }
+    expect((await verify(test, 'guarded@example.com', code, cookie)).status).toBe(200);
+    expect(isVerified(test, userId)).toBe(true);
+  });
+
+  it('refuses a wrong code, and a code used once already', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'bad@example.com');
-    const res = await verify(test, 'not-a-token', cookie);
-    expect(res.status).toBe(401);
-  });
+    const code = emailCode(test.emails, 'bad@example.com');
+    const wrong = wrongFor(code);
 
-  it('accepts the same link twice from the right session', async () => {
-    const test = createTestApp();
-    cleanup = test.cleanup;
-    const { cookie } = await signUpTestUser(test, 'twice-verify@example.com');
-    const token = verifyToken(test);
-    expect((await verify(test, token, cookie)).status).toBe(200);
-    expect((await verify(test, token, cookie)).status).toBe(200);
+    expect((await verify(test, 'bad@example.com', wrong, cookie)).status).toBe(400);
+    expect((await verify(test, 'bad@example.com', code, cookie)).status).toBe(200);
+    expect((await verify(test, 'bad@example.com', code, cookie)).status).toBe(400);
   });
 });
 
@@ -338,25 +353,98 @@ describe('verifying an existing account', () => {
     return ((await res.json()) as { user: { emailVerified: boolean } }).user;
   }
 
-  it('sends a fresh link to a signed-in learner and reports the status on the session', async () => {
+  const sendCode = (test: TestApp, email: string, cookie?: string) =>
+    postAuth(test, 'email-otp/send-verification-otp', { email, type: 'email-verification' }, cookie);
+
+  it('sends a fresh code to a signed-in learner and reports the status on the session', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const { cookie } = await signUpTestUser(test, 'later@example.com');
     test.emails.length = 0;
     expect((await sessionUser(test, cookie)).emailVerified).toBe(false);
 
-    const res = await postAuth(
-      test,
-      'send-verification-email',
-      { email: 'later@example.com' },
-      cookie,
-    );
+    const res = await sendCode(test, 'later@example.com', cookie);
     expect(res.status).toBe(200);
     expect(test.emails.map((m) => m.to)).toEqual(['later@example.com']);
 
-    const token = new URL(emailLink(test.emails[0]!)).searchParams.get('token')!;
-    expect((await verify(test, token, cookie)).status).toBe(200);
+    const code = emailCode(test.emails, 'later@example.com');
+    const verified = await postAuth(
+      test,
+      'email-otp/verify-email',
+      { email: 'later@example.com', otp: code },
+      cookie,
+    );
+    expect(verified.status).toBe(200);
     expect((await sessionUser(test, cookie)).emailVerified).toBe(true);
+  });
+
+  it('replaces the older code with the newer one', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'resend@example.com');
+    const older = emailCode(test.emails, 'resend@example.com');
+    await sendCode(test, 'resend@example.com', cookie);
+    const newer = emailCode(test.emails, 'resend@example.com');
+    const verify = (otp: string) =>
+      postAuth(test, 'email-otp/verify-email', { email: 'resend@example.com', otp }, cookie);
+
+    if (older !== newer) expect((await verify(older)).status).toBe(400);
+    expect((await verify(newer)).status).toBe(200);
+  });
+
+  it('answers an unknown address the same way and sends nothing', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'known@example.com');
+    test.emails.length = 0;
+
+    const known = await sendCode(test, 'known@example.com');
+    const unknown = await sendCode(test, 'unknown@example.com');
+    expect(await unknown.json()).toEqual(await known.json());
+    expect(test.emails.map((m) => m.to)).toEqual(['known@example.com']);
+  });
+});
+
+describe('refused code routes', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  it('refuses the plugin routes this app does not use, and sends nothing', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'routes@example.com');
+    test.emails.length = 0;
+    const email = 'routes@example.com';
+
+    const refused: [string, object][] = [
+      ['sign-in/email-otp', { email, otp: '123456' }],
+      ['email-otp/send-verification-otp', { email, type: 'sign-in' }],
+      ['email-otp/send-verification-otp', { email, type: 'change-email' }],
+      ['email-otp/request-email-change', { newEmail: 'new@example.com' }],
+      ['email-otp/change-email', { newEmail: 'new@example.com', otp: '123456' }],
+      ['forget-password/email-otp', { email }],
+      ['email-otp/check-verification-otp', { email, type: 'forget-password', otp: '123456' }],
+    ];
+    for (const [path, body] of refused) {
+      const res = await postAuth(test, path, body);
+      expect(res.status, path).toBe(404);
+    }
+    expect(test.emails).toHaveLength(0);
+  });
+
+  it("refuses phase 1's link routes, so links in older emails stop working", async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const email = 'old-link@example.com';
+    await signUpTestUser(test, email);
+
+    expect((await postAuth(test, 'request-password-reset', { email })).status).toBe(404);
+    const reset = await postAuth(test, 'reset-password', { token: 'old', newPassword: 'x'.repeat(12) });
+    expect(reset.status).toBe(404);
+    expect((await test.app.request('/api/auth/verify-email?token=old')).status).toBe(404);
   });
 });
 
@@ -367,7 +455,10 @@ describe('email request throttling', () => {
     cleanup = null;
   });
 
-  const post = (test: TestApp, path: string, email: string) => postAuth(test, path, { email });
+  const RESET = 'email-otp/request-password-reset';
+  const SEND_CODE = 'email-otp/send-verification-otp';
+  const post = (test: TestApp, path: string, email: string) =>
+    postAuth(test, path, path === SEND_CODE ? { email, type: 'email-verification' } : { email });
 
   it('refuses a fourth request for one address within the hour, account or not', async () => {
     const test = createTestApp();
@@ -375,14 +466,14 @@ describe('email request throttling', () => {
     await signUpTestUser(test, 'busy@example.com');
 
     for (const email of ['busy@example.com', 'ghost@example.com']) {
-      expect((await post(test, 'request-password-reset', email)).status).toBe(200);
-      expect((await post(test, 'send-verification-email', email)).status).toBe(200);
-      expect((await post(test, 'request-password-reset', email.toUpperCase())).status).toBe(200);
-      const fourth = await post(test, 'request-password-reset', email);
+      expect((await post(test, RESET, email)).status).toBe(200);
+      expect((await post(test, SEND_CODE, email)).status).toBe(200);
+      expect((await post(test, RESET, email.toUpperCase())).status).toBe(200);
+      const fourth = await post(test, RESET, email);
       expect(fourth.status).toBe(429);
       expect(Number(fourth.headers.get('Retry-After'))).toBeGreaterThan(0);
     }
-    expect((await post(test, 'request-password-reset', 'fresh@example.com')).status).toBe(200);
+    expect((await post(test, RESET, 'fresh@example.com')).status).toBe(200);
   });
 
   it('sends at most 10 emails per IP per day, never refusing a sign-up', async () => {
@@ -400,7 +491,7 @@ describe('email request throttling', () => {
     expect((await signUp('203.0.113.7', 'new0@example.com')).status).toBe(200);
     // A sign-up that creates no account sends nothing and costs nothing.
     expect((await signUp('203.0.113.7', 'new0@example.com')).status).not.toBe(200);
-    expect((await from('203.0.113.7', 'request-password-reset', { email: 'new0@example.com' })).status)
+    expect((await from('203.0.113.7', RESET, { email: 'new0@example.com' })).status)
       .toBe(200);
     for (let i = 1; i < 9; i++) {
       expect((await signUp('203.0.113.7', `new${i}@example.com`)).status).toBe(200);
@@ -410,7 +501,7 @@ describe('email request throttling', () => {
     expect(test.emails).toHaveLength(10);
     expect(test.emails.some((m) => m.to === 'late@example.com')).toBe(false);
 
-    const reset = await from('203.0.113.7', 'request-password-reset', { email: 'new1@example.com' });
+    const reset = await from('203.0.113.7', RESET, { email: 'new1@example.com' });
     expect(reset.status).toBe(429);
     expect(Number(reset.headers.get('Retry-After'))).toBeGreaterThan(3600);
     expect((await signUp('198.51.100.4', 'other@example.com')).status).toBe(200);
@@ -421,7 +512,7 @@ describe('email request throttling', () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const reset = (email: string) =>
-      test.app.request('/api/auth/request-password-reset', {
+      test.app.request(`/api/auth/${RESET}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.7' },
         body: JSON.stringify({ email }),
@@ -439,7 +530,7 @@ describe('email request throttling', () => {
     cleanup = test.cleanup;
     const junk = `${'x'.repeat(300)}@example.com`;
     for (let i = 0; i < 4; i++) {
-      expect((await post(test, 'request-password-reset', junk)).status).not.toBe(429);
+      expect((await post(test, RESET, junk)).status).not.toBe(429);
     }
   });
 

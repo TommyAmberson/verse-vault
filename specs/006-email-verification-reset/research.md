@@ -315,14 +315,15 @@ already linked or created the user); trusting `email_verified` for every address
 verification on sign-up and on request sends a code instead of a link, `expiresIn: 600`, and
 `storeOTP: 'hashed'`; the plugin's defaults already give 6 digits and 3 wrong attempts. Its
 `sendVerificationOTP` callback sends through the D1 sender with a template per `type`. Reset uses
-the plugin's code routes; `sendResetPassword`, `sendVerificationEmail`, and `onPasswordReset` go. A
-`hooks.before` refuses the plugin routes outside this spec: code sign-in (`/sign-in/email-otp`, and
-`type: 'sign-in'` on the send route), changing email (`/email-otp/request-email-change`,
+the plugin's code routes; `sendResetPassword`, `sendVerificationEmail`, and `onPasswordReset` go.
+Better Auth's `disabledPaths` refuses the plugin routes outside this spec: code sign-in
+(`/sign-in/email-otp`), changing email (`/email-otp/request-email-change`,
 `/email-otp/change-email`), the deprecated `/forget-password/email-otp`, and checking a code without
-using it (`/email-otp/check-verification-otp`). It refuses only requests that arrive over HTTP
-(`ctx.request` is set); D16's confirm route calls the check through `auth.api`. The
-`/reset-password` and `/verify-email` web pages stay as routes that tell anyone arriving from an
-older email to request a code (FR-011).
+using it (`/email-otp/check-verification-otp`). The router checks it, so it refuses only requests
+that arrive over HTTP; D16's confirm route calls the check through `auth.api`. A `hooks.before`
+refuses `type: 'sign-in'` and `'change-email'` on the send route the same way. The `/reset-password`
+and `/verify-email` web pages stay as routes that tell anyone arriving from an older email to
+request a code (FR-011).
 
 **Rationale**:
 
@@ -333,7 +334,9 @@ older email to request a code (FR-011).
   FR-005, and FR-006 need no code of ours.
 * There is one row per address and type (`<type>-otp-<email>`), and a new request replaces it
   (`resolveOTP`, rotate strategy), so only the newest code works, which is what `onPasswordReset`
-  used to enforce for links.
+  used to enforce for links. The plugin replaces the row only when creating the new one fails on a
+  unique `identifier`, so migration 0030 makes that index unique; without it a resend kept both
+  rows, and lookups that take the newest by `created_at` (whole seconds) could pick either.
 * Wrong attempts are counted on the row and lock it after three (`atomicVerifyOTP`, routes.mjs:760).
   The verify and reset routes consume the row before comparing and recreate it on a wrong guess, so
   guesses sent at the same moment still get three tries between them.

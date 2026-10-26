@@ -27,6 +27,8 @@ No migration. Every server-side record below already exists in `packages/api/src
 
 ### verification (Better Auth)
 
+`identifier` is unique from 2b (migration 0030), which is how a resent code replaces the older one.
+
 | identifier                         | value                                                                    | expires    | written by                                      | consumed by                                                            |
 | ---------------------------------- | ------------------------------------------------------------------------ | ---------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
 | `email-verification-otp-<address>` | hashed code and wrong-attempt count                                      | 10 minutes | the email-code plugin (2b); replaced on resend  | verify by code, or the Google confirm route (2b); 3 wrong tries end it |
