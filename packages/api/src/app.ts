@@ -160,7 +160,7 @@ export function createApp(deps: AppDeps) {
   app.route('/api/materials', schedulesRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/stats', statsRoutes({ db: deps.db, engines, now: deps.now }));
   app.route('/api/activity', activityRoutes({ db: deps.db, now: deps.now }));
-  app.route('/api', accountRoutes({ db: deps.db, engines, now: deps.now }));
+  app.route('/api', accountRoutes({ db: deps.db, auth, engines, now: deps.now }));
 
   return { app, engines };
 }

@@ -1,6 +1,8 @@
+import { defineRequestState } from '@better-auth/core/context';
 import { and, eq, like } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware, getIp } from 'better-auth/api';
+import { generateRandomString } from 'better-auth/crypto';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { multiSession } from 'better-auth/plugins';
 
@@ -39,6 +41,30 @@ const PER_ADDRESS_TIER: RateLimitTier = { capacity: 3, refillPerSec: 3 / 3600 };
 const PER_IP_TIER: RateLimitTier = { capacity: 10, refillPerSec: 10 / (24 * 3600) };
 
 const MAX_EMAIL_LENGTH = 254;
+
+/** Verification rows that let a refused Google sign-in choose "That's me"
+ *  or "That's not me" (research D7). */
+export const PENDING_GOOGLE_PREFIX = 'pending-google:';
+
+/** What a pending row holds: the account the sign-in matched, and the
+ *  Google identity to link to it. */
+export interface PendingGoogle {
+  userId: string;
+  sub: string;
+  email: string;
+}
+
+const PENDING_GOOGLE_TTL_MS = 10 * 60 * 1000;
+
+/** The Google profile the current callback signed in with, its
+ *  `emailVerified` true only where Google speaks for the address. Better
+ *  Auth passes the refused-link path nothing but a redirect, so the profile
+ *  is kept here for the after hook. */
+const googleProfile = defineRequestState<{
+  sub: string;
+  email: string;
+  emailVerified: boolean;
+} | null>(() => null);
 
 export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const isProd = process.env.NODE_ENV === 'production';
@@ -180,12 +206,12 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
             // it). For any other address,
             // `email_verified` records a check made when the Google account
             // was created, and the address may since have changed hands.
-            mapProfileToUser: (profile) => ({
-              emailVerified:
-                profile.email_verified &&
-                (/@(gmail|googlemail)\.com$/.test(profile.email.toLowerCase()) ||
-                  !!profile.hd),
-            }),
+            mapProfileToUser: async (profile) => {
+              const emailVerified = profile.email_verified &&
+                (/@(gmail|googlemail)\.com$/.test(profile.email.toLowerCase()) || !!profile.hd);
+              await googleProfile.set({ sub: profile.sub, email: profile.email, emailVerified });
+              return { emailVerified };
+            },
           },
         }
       : {},
@@ -241,6 +267,54 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           { message: 'Too many requests from this network. Try again later.' },
           { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
         );
+      }),
+      // Two follow-ups to a Google callback, both only when Google speaks
+      // for the address.
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/callback/:id') return;
+        const location = ctx.context.responseHeaders?.get('location');
+        const profile = await googleProfile.get();
+        if (!location || !profile?.emailVerified) return;
+        const found = await ctx.context.internalAdapter.findUserByEmail(profile.email, {
+          includeAccounts: true,
+        });
+        if (!found || found.user.emailVerified) return;
+        const redirect = new URL(location, webBase);
+        if (redirect.searchParams.get('error') !== 'account_not_linked') {
+          // Connecting Google from settings (`linkSocial`) links it without
+          // verifying the address, though `linkSocial` refuses a different
+          // one. Verify it here.
+          const linked = found.accounts.some(
+            (a) => a.providerId === 'google' && a.accountId === profile.sub,
+          );
+          if (linked) {
+            await ctx.context.internalAdapter.updateUser(found.user.id, { emailVerified: true });
+          }
+          return;
+        }
+        // Refused onto an unverified password account: offer the learner
+        // "That's me" or "That's not me" instead, through a short-lived
+        // pending row. The picker on the client's own origin handles it,
+        // whichever page sign-in started from. The address rides along so
+        // "That's me" can prefill sign-in; it's the one the learner just
+        // signed in to Google with, so it tells them nothing new.
+        const token = generateRandomString(32);
+        const pending: PendingGoogle = {
+          userId: found.user.id,
+          sub: profile.sub,
+          email: found.user.email,
+        };
+        await ctx.context.internalAdapter.createVerificationValue({
+          identifier: `${PENDING_GOOGLE_PREFIX}${token}`,
+          value: JSON.stringify(pending),
+          expiresAt: new Date(Date.now() + PENDING_GOOGLE_TTL_MS),
+        });
+        // On the web app's own origin, keep its base path (a subpath deploy).
+        const base = redirect.origin === new URL(webBase).origin ? webBase : redirect.origin;
+        const picker = new URL(`${base}/profiles`);
+        picker.search = new URLSearchParams({ force: '1', pending: token, email: pending.email })
+          .toString();
+        throw ctx.redirect(picker.toString());
       }),
     },
     advanced: {

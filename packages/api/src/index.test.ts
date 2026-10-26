@@ -13,6 +13,7 @@ import {
   createTestDb,
   createTestUser,
   emailLink,
+  googleLink,
   googleSignIn,
   signUpTestUser,
 } from './test-utils.js';
@@ -36,6 +37,16 @@ function verify(test: TestApp, token: string, cookie?: string) {
 
 function isVerified(test: TestApp, userId: string): boolean | undefined {
   return test.db.select().from(user).where(eq(user.id, userId)).get()?.emailVerified;
+}
+
+/** The account's sign-in methods: `credential` for a password, `google`. */
+function providers(test: TestApp, userId: string): string[] {
+  return test.db
+    .select()
+    .from(account)
+    .where(eq(account.userId, userId))
+    .all()
+    .map((a) => a.providerId);
 }
 
 describe('health', () => {
@@ -499,7 +510,7 @@ describe('Google sign-in onto a password account', () => {
     });
 
     expect(res.headers.get('location')).toBe('http://localhost:5173/home');
-    expect(googleAccounts(test, userId)).toHaveLength(1);
+    expect(providers(test, userId)).toContain('google');
   });
 
   it("refuses when Google hasn't verified the address", async () => {
@@ -515,7 +526,7 @@ describe('Google sign-in onto a password account', () => {
     });
 
     expect(res.headers.get('location')).toContain('error=account_not_linked');
-    expect(googleAccounts(test, userId)).toHaveLength(0);
+    expect(providers(test, userId)).not.toContain('google');
   });
 
   // Google checked an outside address only once, when the Google account
@@ -587,5 +598,257 @@ describe('Google sign-in onto a password account', () => {
     expect(userRow(test, 'new@gmail.com')?.emailVerified).toBe(true);
     expect(userRow(test, 'new@example.com')?.emailVerified).toBe(true);
     expect(userRow(test, 'new@outside.example')?.emailVerified).toBe(false);
+  });
+});
+
+describe('Google sign-in onto an unverified password account', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  const PASSWORD = 'superSecret123!';
+  // A Workspace account on the address's domain, so Google speaks for the
+  // address.
+  const google = (email: string, emailVerified = true) => ({
+    sub: `google-${email}`,
+    email,
+    email_verified: emailVerified,
+    hd: 'example.com',
+  });
+
+  function pendingRows(test: TestApp) {
+    return test.db
+      .select()
+      .from(verification)
+      .all()
+      .filter((v) => v.identifier.startsWith('pending-google:'));
+  }
+
+  async function signedIn(test: TestApp, cookie: string) {
+    const res = await test.app.request('/api/auth/get-session', { headers: { cookie } });
+    return (await res.json()) !== null;
+  }
+
+  /** Signs in with Google and returns the pending token from the redirect. */
+  async function pendingToken(test: TestApp, email: string): Promise<string> {
+    const res = await googleSignIn(test, google(email));
+    const token = new URL(res.headers.get('location')!).searchParams.get('pending');
+    expect(token).toBeTruthy();
+    return token!;
+  }
+
+  const claim = (test: TestApp, token: string, cookie: string) =>
+    test.app.request('/api/account/google/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie },
+      body: JSON.stringify({ token }),
+    });
+
+  const takeover = (test: TestApp, token: string) =>
+    test.app.request('/api/account/google/takeover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+
+  it('offers the choice instead of refusing, for 10 minutes', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'mine@example.com');
+
+    const res = await googleSignIn(test, google('mine@example.com'));
+    const location = new URL(res.headers.get('location')!);
+    expect(`${location.origin}${location.pathname}`).toBe('http://localhost:5173/profiles');
+    expect(location.searchParams.get('force')).toBe('1');
+    expect(location.searchParams.get('error')).toBeNull();
+    expect(location.searchParams.get('email')).toBe('mine@example.com');
+    const rows = pendingRows(test);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.identifier).toBe(`pending-google:${location.searchParams.get('pending')}`);
+    const minutes = (rows[0]!.expiresAt.getTime() - Date.now()) / 60_000;
+    expect(minutes).toBeGreaterThan(9);
+    expect(minutes).toBeLessThanOrEqual(10);
+  });
+
+  it('sends the choice to the picker whichever page sign-in started from', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'elsewhere@example.com');
+
+    const res = await googleSignIn(
+      test,
+      google('elsewhere@example.com'),
+      'http://localhost:5173/verify-email?token=t&email=elsewhere%40example.com',
+    );
+    const location = new URL(res.headers.get('location')!);
+    expect(`${location.origin}${location.pathname}`).toBe('http://localhost:5173/profiles');
+    expect(location.searchParams.get('pending')).toBeTruthy();
+  });
+
+  it("still refuses when Google hasn't verified the address", async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'unproven@example.com');
+
+    const res = await googleSignIn(test, google('unproven@example.com', false));
+    expect(res.headers.get('location')).toContain('error=account_not_linked');
+    expect(pendingRows(test)).toHaveLength(0);
+  });
+
+  it("links on \"That's me\", keeping the password and verifying", async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'me@example.com', PASSWORD);
+    const token = await pendingToken(test, 'me@example.com');
+
+    expect((await claim(test, token, cookie)).status).toBe(200);
+    expect(providers(test, userId)).toContain('google');
+    expect(isVerified(test, userId)).toBe(true);
+    const signIn = await postAuth(test, 'sign-in/email', {
+      email: 'me@example.com',
+      password: PASSWORD,
+    });
+    expect(signIn.status).toBe(200);
+    // Google now signs straight in.
+    const again = await googleSignIn(test, google('me@example.com'));
+    expect(again.headers.get('location')).toBe('http://localhost:5173/home');
+  });
+
+  it("refuses \"That's me\" from a different account", async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { userId } = await signUpTestUser(test, 'target@example.com');
+    const { cookie } = await signUpTestUser(test, 'someone@example.com');
+    const token = await pendingToken(test, 'target@example.com');
+
+    expect((await claim(test, token, cookie)).status).toBe(403);
+    expect(providers(test, userId)).not.toContain('google');
+    expect(isVerified(test, userId)).toBe(false);
+  });
+
+  it("takes over on \"That's not me\", removing the password and every session", async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'stolen@example.com', PASSWORD);
+    const token = await pendingToken(test, 'stolen@example.com');
+
+    expect((await takeover(test, token)).status).toBe(200);
+    expect(providers(test, userId)).not.toContain('credential');
+    expect(await signedIn(test, cookie)).toBe(false);
+    expect(providers(test, userId)).toContain('google');
+    expect(isVerified(test, userId)).toBe(true);
+    const oldPassword = await postAuth(test, 'sign-in/email', {
+      email: 'stolen@example.com',
+      password: PASSWORD,
+    });
+    expect(oldPassword.status).not.toBe(200);
+    // The client then signs in with Google again, which now just works.
+    const again = await googleSignIn(test, google('stolen@example.com'));
+    expect(again.headers.get('location')).toBe('http://localhost:5173/home');
+  });
+
+  it('refuses a takeover once the account is verified, changing nothing', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'late@example.com');
+    const token = await pendingToken(test, 'late@example.com');
+    test.db.update(user).set({ emailVerified: true }).where(eq(user.id, userId)).run();
+
+    const res = await takeover(test, token);
+    expect(res.status).toBe(400);
+    expect(providers(test, userId)).toContain('credential');
+    expect(await signedIn(test, cookie)).toBe(true);
+    expect(providers(test, userId)).not.toContain('google');
+  });
+
+  it('changes nothing when the Google account went to someone else meanwhile', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'contested@example.com');
+    const token = await pendingToken(test, 'contested@example.com');
+    const other = await signUpTestUser(test, 'other@example.com');
+    test.db
+      .insert(account)
+      .values({
+        id: 'contested-google',
+        accountId: google('contested@example.com').sub,
+        providerId: 'google',
+        userId: other.userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .run();
+
+    expect((await takeover(test, token)).status).toBe(400);
+    expect(providers(test, userId)).toContain('credential');
+    expect(await signedIn(test, cookie)).toBe(true);
+  });
+
+  it('keeps a subpath base in the redirect to the choice', async () => {
+    const test = createTestApp({
+      authEnv: { ...TEST_GOOGLE_ENV, webOrigin: 'http://localhost:5173/vv' },
+    });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'base@example.com');
+
+    const res = await googleSignIn(
+      test,
+      google('base@example.com'),
+      'http://localhost:5173/vv/profiles',
+    );
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/vv/profiles');
+  });
+
+  it('answers a used, expired, or unknown token the same way', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'tokens@example.com');
+    const used = await pendingToken(test, 'tokens@example.com');
+    expect((await claim(test, used, cookie)).status).toBe(200);
+
+    await signUpTestUser(test, 'expired@example.com');
+    const expired = await pendingToken(test, 'expired@example.com');
+    test.db
+      .update(verification)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .where(eq(verification.identifier, `pending-google:${expired}`))
+      .run();
+
+    const answers = await Promise.all(
+      [used, expired, 'unknown'].map(async (token) => {
+        const res = await takeover(test, token);
+        return { status: res.status, body: await res.text() };
+      }),
+    );
+    expect(answers[0]!.status).toBe(400);
+    expect(answers[1]).toEqual(answers[0]);
+    expect(answers[2]).toEqual(answers[0]);
+    const claimed = await claim(test, 'unknown', cookie);
+    expect(claimed.status).toBe(400);
+  });
+
+  it('verifies the address when Google is connected from settings', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'connect@example.com', PASSWORD);
+
+    const res = await googleLink(test, cookie, google('connect@example.com'));
+    expect(res.headers.get('location')).toBe('http://localhost:5173/settings');
+    expect(providers(test, userId)).toContain('google');
+    expect(isVerified(test, userId)).toBe(true);
+    expect(providers(test, userId)).toContain('credential');
+  });
+
+  it('refuses to connect a Google account with a different address', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'mismatch@example.com');
+
+    const res = await googleLink(test, cookie, google('other@example.com'));
+    expect(res.headers.get('location')).toContain('error=');
+    expect(providers(test, userId)).not.toContain('google');
+    expect(isVerified(test, userId)).toBe(false);
   });
 });
