@@ -1,3 +1,5 @@
+import type { LocationQuery } from 'vue-router'
+
 /** Better Auth's OAuth callback reports a failed social sign-in by sending the
  *  browser back to `errorCallbackURL` with `?error=<code>`. */
 export interface SocialSignInError {
@@ -7,10 +9,10 @@ export interface SocialSignInError {
   passwordAccount: boolean
 }
 
-/** A Google sign-in onto an existing account is refused unless the account
- *  is verified and Google is authoritative for the address (Gmail, or a
- *  Workspace account). Until Google can join, the password
- *  or a reset gets the learner in. */
+/** A Google sign-in onto an existing account is refused unless Google is
+ *  authoritative for the address (Gmail, or a Workspace account); an
+ *  unverified account then gets the choice on the picker instead. Until
+ *  Google can join, the password or a reset gets the learner in. */
 const ACCOUNT_NOT_LINKED = 'account_not_linked'
 
 export function socialSignInError(search: string): SocialSignInError | null {
@@ -25,6 +27,12 @@ export function socialSignInError(search: string): SocialSignInError | null {
     }
   }
   return { message: 'Google sign-in failed. Please try again.', passwordAccount: false }
+}
+
+/** `query` without `keys`, for dropping one-shot parameters through the
+ *  router once they're read. */
+export function queryWithout(query: LocationQuery, ...keys: string[]): LocationQuery {
+  return Object.fromEntries(Object.entries(query).filter(([key]) => !keys.includes(key)))
 }
 
 /** `href` without the `error` query parameter, so a reload or a later

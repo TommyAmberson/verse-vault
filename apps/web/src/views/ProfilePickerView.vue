@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { type RouteLocationRaw, RouterLink, useRoute, useRouter } from 'vue-router'
 
+import { api } from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProfileCard from '@/components/ProfileCard.vue'
 import SignInForm from '@/components/SignInForm.vue'
-import { socialSignInError } from '@/lib/socialSignInError'
-import { useAuth } from '@/composables/useAuth'
+import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
+import { reconcileDeviceSessions, useAuth } from '@/composables/useAuth'
 import { safeRedirect } from '@/router'
 import type { ProfileRow } from '@/lib/engine/registry'
 
@@ -50,6 +51,60 @@ const banner = ref<string | null>(
       : null,
 )
 
+// A Google sign-in onto an unverified password account comes back with
+// `?pending=` and the address: the learner says whether the account is
+// theirs. The token is single-use proof of that Google sign-in.
+// The token stays in the URL until the choice is done: email sign-in
+// reloads the page, so "That's me" is also remembered for this tab.
+const pendingToken = typeof route.query.pending === 'string' ? route.query.pending : null
+const pendingEmail = typeof route.query.email === 'string' ? route.query.email : ''
+const CLAIM_KEY = 'vv:google-claim'
+function rememberedClaim(): string | null {
+  try {
+    return sessionStorage.getItem(CLAIM_KEY)
+  } catch {
+    return null
+  }
+}
+function rememberClaim(token: string | null) {
+  try {
+    if (token) sessionStorage.setItem(CLAIM_KEY, token)
+    else sessionStorage.removeItem(CLAIM_KEY)
+  } catch {
+    // Storage blocked: the learner just chooses again after the reload.
+  }
+}
+const choice = ref<'ask' | 'mine' | null>(
+  pendingToken ? (rememberedClaim() === pendingToken ? 'mine' : 'ask') : null,
+)
+watch(choice, (c) => rememberClaim(c === 'mine' ? pendingToken : null))
+const confirmTakeover = ref(false)
+const choiceBusy = ref(false)
+const choiceError = ref('')
+const CHOICE_EXPIRED = 'That choice has expired. Sign in with Google again.'
+
+// Set by the Google sign-in that finishes a takeover. Read once, so a
+// reload doesn't repeat the notice.
+const takenOver = route.query['taken-over'] === '1'
+if (takenOver) void router.replace({ query: queryWithout(route.query, 'taken-over') })
+
+// "That's me" claims once the account is the active profile: right after
+// signing in, or, since that reloads the page, once the active profile is
+// restored after this view mounts.
+watch(
+  activeProfile,
+  (active) => {
+    if (
+      choice.value === 'mine' &&
+      active?.sessionToken &&
+      active.email.toLowerCase() === pendingEmail.toLowerCase()
+    ) {
+      void onMineSignedIn()
+    }
+  },
+  { immediate: true },
+)
+
 // Keep mode in sync with the shared profiles list (reconcile, sign-in
 // from another flow, etc.). Skip when the user is mid-add — don't
 // yank them out of the sign-in form just because a chip flipped.
@@ -75,8 +130,8 @@ function redirectTarget(): string {
  *  (`VITE_BASE_PATH`, `/` in production) that router paths strip, so a
  *  subpath build would otherwise 302 to `/review` instead of
  *  `<base>/review`, landing outside the SPA. */
-function redirectCallbackUrl(): string {
-  return window.location.origin + router.resolve(redirectTarget()).href
+function redirectCallbackUrl(to: RouteLocationRaw = redirectTarget()): string {
+  return window.location.origin + router.resolve(to).href
 }
 
 /** Social sign-in from this picker returns to the destination, matching
@@ -159,6 +214,54 @@ function cancelAdd() {
 async function onSignInSuccess() {
   await router.replace(redirectTarget())
 }
+
+function dropChoiceQuery() {
+  return router.replace({ query: queryWithout(route.query, 'pending', 'email') })
+}
+
+function leaveChoice(error = '') {
+  choice.value = null
+  choiceError.value = error
+  void dropChoiceQuery()
+}
+
+// "That's me": signed in with the account's password, so link Google to it.
+async function onMineSignedIn() {
+  if (!pendingToken || choiceBusy.value) return
+  choiceBusy.value = true
+  try {
+    await api.claimGoogle(pendingToken)
+    rememberClaim(null)
+    // Pick up the now-verified address on this device's profile rows.
+    await reconcileDeviceSessions()
+    await router.replace(redirectTarget())
+  } catch {
+    leaveChoice(CHOICE_EXPIRED)
+  } finally {
+    choiceBusy.value = false
+  }
+}
+
+// "That's not me", confirmed: take the account over, then sign in with
+// Google again, which now finds it linked.
+async function onTakeover() {
+  if (!pendingToken) return
+  choiceBusy.value = true
+  try {
+    await api.takeOverWithGoogle(pendingToken)
+  } catch {
+    confirmTakeover.value = false
+    choiceBusy.value = false
+    leaveChoice(CHOICE_EXPIRED)
+    return
+  }
+  // Drop the used token first: a failed Google sign-in returns to this URL.
+  await dropChoiceQuery()
+  signInSocial(
+    'google',
+    redirectCallbackUrl({ path: '/profiles', query: { force: '1', 'taken-over': '1' } }),
+  )
+}
 </script>
 
 <template>
@@ -168,8 +271,40 @@ async function onSignInSuccess() {
     <h2 v-else>Sign in</h2>
 
     <p v-if="banner" class="banner">{{ banner }}</p>
+    <p v-if="choiceError" class="banner" role="alert">{{ choiceError }}</p>
+    <p v-if="takenOver" class="banner" role="status">
+      The account is yours now. It may still hold progress someone else recorded; clear it with
+      Delete all progress in <RouterLink to="/settings/account">account settings</RouterLink>.
+    </p>
 
-    <template v-if="mode === 'cards'">
+    <div v-if="choice === 'ask'" class="choice">
+      <p>
+        An unverified account for <strong>{{ pendingEmail }}</strong> already exists. Is it
+        yours?
+      </p>
+      <button type="button" class="choice-btn" @click="choice = 'mine'">
+        That's me: sign in with its password
+      </button>
+      <button type="button" class="choice-btn" @click="confirmTakeover = true">
+        That's not me
+      </button>
+      <button type="button" class="back-btn" @click="leaveChoice()">Cancel</button>
+    </div>
+
+    <template v-else-if="choice === 'mine'">
+      <SignInForm
+        :sign-in-social="signInSocialToDestination"
+        :sign-in-email="signInEmail"
+        :sign-up-email="signUpEmail"
+        :request-password-reset="requestPasswordReset"
+        :reauth="{ email: pendingEmail, provider: 'email' }"
+      />
+      <button type="button" class="back-btn" :disabled="choiceBusy" @click="choice = 'ask'">
+        ← Back
+      </button>
+    </template>
+
+    <template v-else-if="mode === 'cards'">
       <div class="cards">
         <ProfileCard
           v-for="p in profiles"
@@ -217,6 +352,25 @@ async function onSignInSuccess() {
         Permanently remove <strong>{{ pendingDelete.email }}</strong>
         from this device. Cached review history will be deleted. You
         can sign in again later to start fresh.
+      </p>
+    </ConfirmDialog>
+
+    <ConfirmDialog
+      v-if="confirmTakeover"
+      title="Take over this account?"
+      confirm-label="Take over"
+      destructive
+      :busy="choiceBusy"
+      @confirm="onTakeover"
+      @cancel="confirmTakeover = false"
+    >
+      <p>
+        Whoever set this account's password loses access, and every device signed in to it is
+        signed out. The account may hold someone else's progress, which you can clear afterwards.
+      </p>
+      <p>
+        If it's actually yours, you lose only the password: your progress stays, and Google or a
+        password reset still gets you in.
       </p>
     </ConfirmDialog>
   </div>
@@ -274,6 +428,32 @@ h2 {
 
 .back-btn:hover {
   color: var(--color-text);
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.choice p {
+  margin: 0;
+}
+
+.choice-btn {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.choice-btn:hover {
+  border-color: var(--color-accent);
 }
 
 .banner {

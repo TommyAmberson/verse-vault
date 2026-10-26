@@ -437,6 +437,12 @@ export interface ApiClient {
   /** Wipe all review history / graduations across decks; keeps
    *  enrollments + settings (DELETE /api/account/progress). */
   deleteAllProgress(): Promise<ProgressDeletionSummary>
+  /** "That's me" on the Google choice: link Google to the account just
+   *  signed in to with its password. */
+  claimGoogle(token: string): Promise<{ ok: true }>
+  /** "That's not me": remove the account's password and sessions and link
+   *  Google. Needs no session. */
+  takeOverWithGoogle(token: string): Promise<{ ok: true }>
 }
 
 let onUnauthorized: (() => void) | null = null
@@ -564,6 +570,8 @@ export function createApiClient(apiUrl: string): ApiClient {
     exportAccount: () => request('GET', '/api/export'),
     importAccount: (payload) => request('POST', '/api/import', payload),
     deleteAllProgress: () => request('DELETE', '/api/account/progress'),
+    claimGoogle: (token) => request('POST', '/api/account/google/claim', { token }),
+    takeOverWithGoogle: (token) => request('POST', '/api/account/google/takeover', { token }),
   }
 }
 

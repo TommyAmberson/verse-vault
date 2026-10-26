@@ -181,7 +181,8 @@ async function onBackupInsideDialog() {
             </StatusChip>
           </p>
           <p v-if="activeProfile.emailVerified === false">
-            Until you verify, anyone with access to this inbox can take over this account.
+            Until you verify, anyone with access to this inbox or its Google account can take
+            over this account.
           </p>
         </header>
         <template v-if="activeProfile.emailVerified === false">

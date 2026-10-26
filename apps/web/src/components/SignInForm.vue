@@ -6,7 +6,7 @@ import { useEmailRequest } from '@/composables/useEmailRequest'
 import { RESET_SENT } from '@/lib/authEmail'
 import { readPendingProvider, type SocialProvider } from '@/lib/authClient'
 import type { AuthProvider } from '@/lib/engine/registry'
-import { socialSignInError } from '@/lib/socialSignInError'
+import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
 
 type SignInResult = { error?: { message?: string | null; status?: number } | null } | undefined
 
@@ -42,10 +42,7 @@ const router = useRouter()
 const oauthError = socialSignInError(window.location.search)
 if (oauthError) {
   readPendingProvider()
-  const query = Object.fromEntries(
-    Object.entries(route.query).filter(([key]) => key !== 'error' && key !== 'error_description'),
-  )
-  void router.replace({ query })
+  void router.replace({ query: queryWithout(route.query, 'error', 'error_description') })
 }
 
 const mode = ref<'pick' | 'signin' | 'signup' | 'forgot' | 'signedUp'>(
