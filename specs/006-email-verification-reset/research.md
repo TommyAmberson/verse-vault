@@ -345,6 +345,14 @@ request a code (FR-011).
   Its own limit is 3 per 60 s per IP, so guesses spread over many networks get far more than three
   tries at one code, including a reset code someone else requested for the address, which the reset
   route then accepts. Nothing in the client needs it, so it is refused.
+* Anyone can ask for a code for any address, and a new code replaces the older one, so someone else
+  can replace the code a learner is about to type. The codes go only to the learner's inbox, so the
+  newest one still works, and the per-address limit (3 an hour) caps how long they can be held up:
+  about 20 minutes, while the other party keeps at it. This matches how major providers do it (Auth0
+  invalidates earlier email codes; Supabase waits 60 seconds between sends per user), and OWASP's
+  concern is flooding the owner's inbox, which the per-address limit covers. Keeping the older code
+  (the plugin's `resendStrategy: 'reuse'`) needs codes stored decryptably, so the fields say "Only
+  the code in the newest email works" instead.
 * Unknown addresses get `{ success: true }` and no send on both the reset and verification send
   routes, after the same store-and-delete work (routes.mjs:100-110, 478-490). SC-003's timing test
   covers the reset route as before.

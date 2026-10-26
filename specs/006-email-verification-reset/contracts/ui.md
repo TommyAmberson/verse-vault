@@ -46,8 +46,9 @@
 ## Codes (phase 2b)
 
 One code field everywhere: 6 digits, numeric keyboard on mobile, `autocomplete="one-time-code"`,
-with "Send a new code" beside it. A wrong code: "That code isn't right." Expired, used, or three
-wrong tries: "That code has expired. Send a new one." (FR-011).
+with "Send a new code" beside it and "Only the code in the newest email works." under it. A wrong
+code: "That code isn't right." Expired, used, or three wrong tries: "That code has expired. Send a
+new one." (FR-011).
 
 * Sign-in form, "Forgot password?": the address, then "If an account exists for that address, we
   sent it a code", then the code and a new password in the same form. On success the learner is
@@ -62,8 +63,10 @@ wrong tries: "That code has expired. Send a new one." (FR-011).
 ## Phase 2b: Google
 
 * Picker with `?pending=&email=&code=1`: "To connect Google, enter the code we sent to <address>."
-  with the code field. A verified account then signs in with Google; an unverified one goes on to
-  the choice below. A learner who can't enter the code sees nothing more about the account.
+  with the code field; with `&sent=0`, it says no code could be sent just now and to try "Send a new
+  code" in a few minutes. The picker moves the token from the URL into the tab's session storage on
+  arrival. A verified account then signs in with Google; an unverified one goes on to the choice
+  below. A learner who can't enter the code sees nothing more about the account.
 * Picker with `?pending=&email=` (Google authoritative, or code confirmed): "An unverified account
   for <address> already exists. Is it yours?" with "That's me" (opens email sign-in for that
   address, then claims) and "That's not me".

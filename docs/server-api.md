@@ -112,24 +112,53 @@ created, and the address may since have changed hands. The Google provider's `ma
 trusts Google's address:
 
 * a Google sign-in links into an existing account only when that account is verified and Google is
-  authoritative; otherwise it is refused with `?error=account_not_linked`, except for the choice
-  below;
+  authoritative; otherwise Better Auth refuses it with `account_not_linked`, which the steps below
+  take over wherever Google at least says it checked the address;
 * a new Google sign-up starts verified only when Google is authoritative.
 
 ### Google sign-in onto a password account
 
 * **Verified account, Google authoritative**: the Google sign-in links and signs in.
-* **Google not authoritative**: refused with `?error=account_not_linked`.
-* **Unverified account, Google authoritative**: Better Auth refuses with `account_not_linked`, and
-  an after hook on the callback turns that into a redirect to
-  `/profiles?force=1&pending=<token>&email=…` on the origin of the client's `errorCallbackURL`. The
-  token names a `pending-google:*` verification row holding the user id, the Google `sub`, and the
-  address, valid for 10 minutes. The Google profile reaches the hook through Better Auth's request
-  state, set in `mapProfileToUser`.
+* **Google never checked the address** (`email_verified` false): refused with
+  `?error=account_not_linked`.
+* **Google checked the address but isn't authoritative**: the inbox still needs proving, so the code
+  step comes first, for a verified account or not.
+* **Unverified account, Google authoritative**: straight to the choice.
+
+An after hook on the callback turns Better Auth's `account_not_linked` into a redirect to
+`/profiles?force=1&pending=<token>&email=…` on the origin of the client's `errorCallbackURL`, adding
+`&code=1` when the code step comes first. The token names a `pending-google:*` verification row
+holding the user id, the Google `sub`, the address, and whether the inbox is proven yet, valid for
+10 minutes. The Google profile reaches the hook through Better Auth's request state, set in
+`mapProfileToUser`. For the code step the hook also emails a verification code, under the
+per-address and then the per-IP limit; over either it adds `&sent=0`, and the picker says no code
+went out.
+
+Anyone can ask for a code for an address, and each new code replaces the older one, so someone
+else's requests can replace the code a learner is holding. The codes go only to the learner's inbox,
+so the newest email's code still works, and the per-address limit caps the delay at about 20
+minutes. Major providers accept the same trade-off (research D15).
+
+`POST /api/account/google/confirm` `{ token, code }`, no session, checks the code against the
+address's verification code. It runs one check at a time per address, holding an in-process lock
+through the check and the delete that makes the code single-use, because the plugin's check counts
+wrong tries in separate read and write steps; the lock is enough while the API runs as one process.
+It takes the tight per-IP bucket. Answers:
+
+* `{ signIn: true }` for a verified account: the Google `sub` is linked, and the client runs Google
+  sign-in again, which now finds it;
+* `{ choice: true }` for an unverified one: the row is marked proven and gets a fresh 10 minutes for
+  the choice;
+* `400 { error, code }` with `INVALID_OTP` or `OTP_EXPIRED`, `403` with `TOO_MANY_ATTEMPTS`, and
+  `400 { error }` for a used, expired, unknown, or already proven token.
+
+Every route checks the account and who holds the Google account before using up the code or the row,
+so a refusal leaves both for a retry. `account(provider_id, account_id)` is unique (migration 0031),
+so two links racing for one Google account can't both land.
 
 The picker then asks whether the account is the learner's, and acts through one of two routes. Both
-consume the token once and answer every used, expired, or unknown token with the same
-`400 { error }`.
+consume a proven token once and answer every used, expired, unknown, or unproven token with the same
+`400 { error }`, leaving an unproven row for the code step.
 
 * `POST /api/account/google/claim` `{ token }` ("That's me"), with the session from signing in with
   the account's password: links the Google `sub`, keeps the password, and verifies. `403` when the
@@ -140,9 +169,12 @@ consume the token once and answer every used, expired, or unknown token with the
   in with Google again, which now finds the account linked.
 
 Connecting Google from account settings (`POST /api/auth/link-social`) needs a session and a Google
-account with the same address, for which Google is authoritative. Better Auth's link route doesn't
-verify the address, so the same callback after hook does, when the account now holds that Google
-identity.
+account with the same address. Where Google is authoritative, Better Auth links it, and the same
+after hook verifies the address, since the link route doesn't. Where it isn't, Better Auth refuses
+with `unable_to_link_account`, and the after hook, reading the connecting account from the OAuth
+state, links it when that account is verified and otherwise redirects with
+`?error=verify_email_first`: the account proves the inbox with a verification code first, which also
+verifies it.
 
 ### `GET /api/me`
 

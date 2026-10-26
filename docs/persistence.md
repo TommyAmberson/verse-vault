@@ -13,9 +13,10 @@ configurable via `DATABASE_PATH` (defaults to `packages/api/data/verse-vault.db`
 
 ### Auth (Better Auth)
 
-`user`, `session`, `account`, `verification` are owned by Better Auth. They live in the Drizzle
-schema so FK constraints from domain tables can reference `user.id`. Regenerate via
-`pnpm dlx @better-auth/cli generate` if the upstream shape changes.
+`user`, `session`, `account`, `verification` are owned by Better Auth.
+`account(provider_id, account_id)` is unique (migration 0031), so one sign-in identity belongs to
+one user. They live in the Drizzle schema so FK constraints from domain tables can reference
+`user.id`. Regenerate via `pnpm dlx @better-auth/cli generate` if the upstream shape changes.
 
 `verification` holds one row per outstanding email code: `identifier` is
 `email-verification-otp-<address>` or `forget-password-otp-<address>`, `value` the hashed code and
@@ -24,10 +25,13 @@ its wrong-try count (`<hash>:<tries>`), and `expires_at` 10 minutes out. `identi
 Using a code deletes its row (see [`server-api.md`](server-api.md#codes)). Rows from phase 1 reset
 links, `reset-password:<token>`, are no longer written.
 
-It also holds `pending-google:<token>` rows, written when a Google sign-in, for an address Google is
-authoritative for, meets an unverified password account: `value` is JSON with the user id, the
-Google `sub`, and the address, and `expires_at` is 10 minutes out. The choice routes consume one
-atomically (see [`server-api.md`](server-api.md#google-sign-in-onto-a-password-account)).
+It also holds `pending-google:<token>` rows, written when a Google sign-in is refused onto a
+password account (an unverified one, or any where Google isn't authoritative): `value` is JSON with
+the user id, the Google `sub`, the address, and `proven`, whether the inbox is proven yet, by Google
+being authoritative or by the emailed code the confirm route checks. `expires_at` is 10 minutes out,
+and confirming the code restarts it, so the choice gets its own 10 minutes. The choice routes
+consume a proven one atomically (see
+[`server-api.md`](server-api.md#google-sign-in-onto-a-password-account)).
 
 ### `user_materials`
 

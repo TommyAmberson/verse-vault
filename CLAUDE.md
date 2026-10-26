@@ -215,12 +215,18 @@ from the code or design docs.
   component.** With baseURL `/vv`, route calls land at `/vv/sign-up/email` (405) instead of
   `/vv/api/auth/sign-up/email`. Add `/api/auth` to `baseURL` explicitly when constructing the
   client. See `apps/web/CHANGELOG.md` [0.1.6].
-* **The Google takeover choice rests on Better Auth internals, not documented API.** An after hook
-  on `/callback/:id` rewrites the `account_not_linked` redirect, reading the Google profile that
-  `mapProfileToUser` stashed in request state from `@better-auth/core/context`. Keep
-  `@better-auth/core` on the same version as `better-auth`, and when upgrading run the "Google
-  sign-in onto an unverified password account" tests in `packages/api/src/index.test.ts` first: they
-  drive the real callback and fail if either piece moves.
+* **The Google choice and code step rest on Better Auth internals, not documented API.** An after
+  hook on `/callback/:id` rewrites the `account_not_linked` and `unable_to_link_account` redirects,
+  reading the Google profile that `mapProfileToUser` stashed in request state from
+  `@better-auth/core/context`, and the OAuth state (`getOAuthState`). The confirm route deletes the
+  email-code plugin's row by its identifier format (`email-verification-otp-<address>`) and relies
+  on `checkVerificationOTP` not using the code up. Keep `@better-auth/core` on the same version as
+  `better-auth`, and when upgrading run the Google suites in `packages/api/src/index.test.ts` first
+  ("onto an unverified password account" and "the Google code step"): they drive the real callback
+  and fail if any piece moves.
+* **The email-code plugin needs `verification.identifier` unique.** It replaces an older code only
+  when creating the new row fails on that constraint (migration 0030). Without it a resend keeps
+  both codes and lookups pick either.
 * **`VITE_API_BASE` is the API's origin or a subpath prefix, never including `/api`**
   (`https://www.versevault.ca` in production; it was `/vv` before the move to the root). The api
   client adds `/api/...` itself; doubling it produces `.../api/api/...` 404s. Don't set it to an
