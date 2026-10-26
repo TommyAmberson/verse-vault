@@ -233,7 +233,7 @@ Google, and their docs move into 2b and are amended by Phase 12. The test helper
 - [X] T041 [P] [US1] In `apps/web/src/components/SignInForm.vue` and `apps/web/src/lib/authClient.ts`, turn "Forgot password?" into: the address, then the code and a new password in the same form, signing in on success; after sign-up, show the code field from contracts/ui.md §Codes with "Send a new code"; handle the plugin's error codes in `apps/web/src/lib/authEmail.ts` (wrong, expired, too many tries) with its tests updated first
 - [X] T042 [US3] In `apps/web/src/views/SettingsAccountView.vue`, replace "Send verification email" with "Send verification code" and a code field that verifies the active account (contracts/ui.md §Codes), reusing the code field from T041
 - [X] T043 [P] [US2] Turn `apps/web/src/views/ResetPasswordView.vue` and `apps/web/src/views/VerifyEmailView.vue` into the "Emails now carry a code" pages from contracts/ui.md (FR-011), removing the token handling and profile switching they no longer need
-- [ ] T044 Update `docs/server-api.md` (§Password reset, §Email verification, §Rate limiting), `docs/persistence.md` (code rows), and `docs/web-nav.md` (code fields, the two pages) for codes (FR-017)
+- [X] T044 Update `docs/server-api.md` (§Password reset, §Email verification, §Rate limiting), `docs/persistence.md` (code rows), and `docs/web-nav.md` (code fields, the two pages) for codes (FR-017)
 
 **Checkpoint**: codes work end to end; links are gone
 

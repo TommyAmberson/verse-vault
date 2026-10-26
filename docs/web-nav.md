@@ -28,30 +28,30 @@ items inside `ProfilePickerView`'s profile cards, not surfaced anywhere in the n
 
 Source of truth: `apps/web/src/router/index.ts`.
 
-| Route             | View                | Purpose                                                                                      | Cadence      |
-| ----------------- | ------------------- | -------------------------------------------------------------------------------------------- | ------------ |
-| `/home`           | `HomeView`          | At-a-glance landing: stability, recent activity, empty-state CTA                             | daily glance |
-| `/review`         | `ReviewView`        | Run a review session (single-grade pipeline)                                                 | daily action |
-| `/memorize`       | `MemorizeView`      | Read → drill new-card walkthrough across enrolled years                                      | daily-ish    |
-| `/settings`       | `SettingsView`      | Per-year scope sliders, headings/ftv toggles, offline-mode                                   | weekly+      |
-| `/stats`          | `StatsView`         | Activity heatmap and aggregate stats                                                         | weekly+      |
-| `/profiles`       | `ProfilePickerView` | Sign-in form + multi-profile picker; **also** the secret home of account export/import/reset | rare         |
-| `/reset-password` | `ResetPasswordView` | Public. Set a new password from an emailed reset link, or ask for a fresh link               | rare         |
-| `/verify-email`   | `VerifyEmailView`   | Public. Verify an address from an emailed link, after making that account the active session | rare         |
+| Route             | View                | Purpose                                                                                           | Cadence      |
+| ----------------- | ------------------- | ------------------------------------------------------------------------------------------------- | ------------ |
+| `/home`           | `HomeView`          | At-a-glance landing: stability, recent activity, empty-state CTA                                  | daily glance |
+| `/review`         | `ReviewView`        | Run a review session (single-grade pipeline)                                                      | daily action |
+| `/memorize`       | `MemorizeView`      | Read → drill new-card walkthrough across enrolled years                                           | daily-ish    |
+| `/settings`       | `SettingsView`      | Per-year scope sliders, headings/ftv toggles, offline-mode                                        | weekly+      |
+| `/stats`          | `StatsView`         | Activity heatmap and aggregate stats                                                              | weekly+      |
+| `/profiles`       | `ProfilePickerView` | Sign-in form + multi-profile picker; **also** the secret home of account export/import/reset      | rare         |
+| `/reset-password` | `ResetPasswordView` | Public. Reached from reset links in older emails: says emails carry a code, offers the reset form | rare         |
+| `/verify-email`   | `VerifyEmailView`   | Public. Reached from verification links in older emails: points to account settings               | rare         |
 
 Aliases (redirects): `/` → `/home`, `/session` → `/review`, `/signin` → `/profiles`, `/material` →
 `/settings`, `/dashboard` → `/home`.
 
-Both email pages are linked only from email, so they sit outside the nav. The emailed links always
-point at the public web app, even when the desktop app sent the request. `/verify-email` verifies
-only for a signed-in session belonging to the link's account: it verifies straight away when that
-profile is active, offers to switch when the device holds it, and otherwise shows the sign-in form
-prefilled with the address (see [`server-api.md`](server-api.md#email-verification)).
+Emails carry a 6-digit code, entered where it was asked for, through one `CodeField` (number pad,
+`autocomplete="one-time-code"`, "Send a new code"). The sign-in form's "Forgot password?" takes the
+address, then the code and a new password, and signs in. After sign-up the form asks for the
+verification code, with "Skip for now". Both email pages are linked only from emails sent before
+codes, so they sit outside the nav (see [`server-api.md`](server-api.md#codes)).
 
 Verification status shows in two places: an "Unverified" chip on the profile's card in `/profiles`,
 and an Email address card at the top of `/settings` → Account, with a warning and a "Send
-verification email" button while the address is unverified. Both read the status cached on the
-profile row, refreshed from the server at sign-in and at launch.
+verification code" button, then the code field, while the address is unverified. Both read the
+status cached on the profile row, refreshed from the server at sign-in and at launch.
 
 A Google sign-in onto an unverified password account, for an address Google is authoritative for,
 lands on `/profiles?force=1&pending=…` with a choice instead of an error. "That's me" opens the

@@ -17,10 +17,12 @@ configurable via `DATABASE_PATH` (defaults to `packages/api/data/verse-vault.db`
 schema so FK constraints from domain tables can reference `user.id`. Regenerate via
 `pnpm dlx @better-auth/cli generate` if the upstream shape changes.
 
-`verification` holds one row per outstanding password reset: `identifier` is
-`reset-password:<token>`, `value` the user id, and `expires_at` one hour out. Better Auth deletes
-the row it consumes; completing a reset also deletes the user's other `reset-password:*` rows (see
-[`server-api.md`](server-api.md#password-reset)).
+`verification` holds one row per outstanding email code: `identifier` is
+`email-verification-otp-<address>` or `forget-password-otp-<address>`, `value` the hashed code and
+its wrong-try count (`<hash>:<tries>`), and `expires_at` 10 minutes out. `identifier` is unique
+(migration 0030), which is how a new code replaces the older one for the same address and purpose.
+Using a code deletes its row (see [`server-api.md`](server-api.md#codes)). Rows from phase 1 reset
+links, `reset-password:<token>`, are no longer written.
 
 It also holds `pending-google:<token>` rows, written when a Google sign-in, for an address Google is
 authoritative for, meets an unverified password account: `value` is JSON with the user id, the

@@ -27,63 +27,79 @@ depend on the env vars set on the server (`GOOGLE_CLIENT_ID`, etc. — see
 
 Useful endpoints (Better Auth defaults):
 
-| method | path                                | purpose                                          |
-| ------ | ----------------------------------- | ------------------------------------------------ |
-| GET    | `/api/auth/get-session`             | current session or null                          |
-| POST   | `/api/auth/sign-in/email`           | password sign-in                                 |
-| POST   | `/api/auth/sign-out`                | clear session cookie                             |
-| GET    | `/api/auth/callback/<provider>`     | OAuth provider callback (per provider config)    |
-| POST   | `/api/auth/request-password-reset`  | `{ email }`; emails a reset link                 |
-| POST   | `/api/auth/reset-password`          | `{ token, newPassword }`; sets the password      |
-| GET    | `/api/auth/verify-email`            | `?token=`; verifies, with that account's session |
-| POST   | `/api/auth/send-verification-email` | `{ email }`; emails a new verification link      |
-| POST   | `/api/auth/link-social`             | connects Google to the signed-in account         |
+| method | path                                         | purpose                                                 |
+| ------ | -------------------------------------------- | ------------------------------------------------------- |
+| GET    | `/api/auth/get-session`                      | current session or null                                 |
+| POST   | `/api/auth/sign-in/email`                    | password sign-in                                        |
+| POST   | `/api/auth/sign-out`                         | clear session cookie                                    |
+| GET    | `/api/auth/callback/<provider>`              | OAuth provider callback (per provider config)           |
+| POST   | `/api/auth/email-otp/request-password-reset` | `{ email }`; emails a reset code                        |
+| POST   | `/api/auth/email-otp/reset-password`         | `{ email, otp, password }`; sets the password           |
+| POST   | `/api/auth/email-otp/send-verification-otp`  | `{ email, type: "email-verification" }`; emails a code  |
+| POST   | `/api/auth/email-otp/verify-email`           | `{ email, otp }`; verifies, with that account's session |
+| POST   | `/api/auth/link-social`                      | connects Google to the signed-in account                |
+
+### Codes
+
+Reset and verification emails carry a 6-digit code, from Better Auth's `emailOTP` plugin. A code
+lasts 10 minutes, is stored hashed in `verification`, and allows 3 wrong tries; the next try after
+the third answers `403 TOO_MANY_ATTEMPTS` and the code is gone. Asking again replaces the older
+code, so only the newest works, and a code works once. A wrong code answers `400 INVALID_OTP`, an
+expired one `400 OTP_EXPIRED`.
+
+Emails are sent from `no-reply@versevault.ca` through Resend (`RESEND_API_KEY`; without it the API
+logs the message, code included, instead). The send starts and the request returns without waiting
+for it, so a real address isn't measurably slower, and a failed send is logged rather than surfaced.
+Both send routes answer `200 { success: true }` for every address and email only an account's
+address.
+
+The plugin's other routes are refused with `404` when they arrive over HTTP: code sign-in
+(`/sign-in/email-otp`, and `type: "sign-in"` on the send route), changing the address
+(`/email-otp/request-email-change`, `/email-otp/change-email`, and `type: "change-email"`), the
+deprecated `/forget-password/email-otp`, and `/email-otp/check-verification-otp`. The check route
+counts wrong tries without using up the code, so tries sent at the same moment each see the old
+count; the API calls it only from its own code.
 
 ### Password reset
 
-`POST /api/auth/request-password-reset` answers `200 { status: true, message }` for every address,
-and Better Auth does dummy work for an unknown one so the reply takes as long. The email is sent
-from `no-reply@versevault.ca` through Resend (`RESEND_API_KEY`; without it the API logs the link
-instead). The send starts and the request returns without waiting for it, so a real address isn't
-measurably slower, and a failed send is logged rather than surfaced.
-
-The link opens the web app at `<WEB_BASE_URL>/reset-password?token=…`, never the requesting client's
-own origin, since a desktop client's `tauri://` origin means nothing to a browser. The page posts
-the token with the new password to `POST /api/auth/reset-password`, which answers `400` with
-`INVALID_TOKEN` for an unknown, used, or expired token. A token is valid for one hour and works
-once.
-
-Completing a reset:
+`POST /api/auth/email-otp/request-password-reset` emails a reset code. The learner enters it with a
+new password in the same form, which posts `POST /api/auth/email-otp/reset-password`. Completing a
+reset:
 
 * ends every session for the account on every device;
-* marks the address verified, since receiving the email proves the inbox;
-* deletes the account's other outstanding reset tokens, so an older link can't be used later.
+* marks the address verified, since receiving the code proves the inbox.
 
 An account with only Google sign-in gets its first password this way.
 
+Reset links from emails sent before codes still open `<WEB_BASE_URL>/reset-password`, which now says
+emails carry a code and offers the reset form.
+
 ### Email verification
 
-Signing up with a password sends a verification email; the account works before it is verified, and
+Signing up with a password sends a verification code; the account works before it is verified, and
 nothing requires verification to sign in. Google sign-ups arrive verified when Google is
 authoritative for the address (below). A verified address is what lets Google sign-in link into a
 password account (see `accountLinking` in `packages/api/src/lib/auth.ts`).
 
-The link opens the web app at `<WEB_BASE_URL>/verify-email?token=…&email=…`. The page makes the
-link's account the active session, switching profile or asking for sign-in, then calls
-`GET /api/auth/verify-email?token=…` with that session and no `callbackURL`, so the answer is JSON:
+The learner enters the code after sign-up, or sends one from account settings with
+`POST /api/auth/email-otp/send-verification-otp` and enters it there.
+`POST /api/auth/email-otp/verify-email` verifies:
 
-* `200` and the address is verified, when the session belongs to the token's account;
-* `403`, verifying nothing, for no session or another account's session;
-* `401` with `TOKEN_EXPIRED`, `INVALID_TOKEN`, or `USER_NOT_FOUND` for a bad token.
+* `200` and the address is verified, when the session belongs to the address's account;
+* `403`, verifying nothing, for no session or another account's session.
 
-The session requirement is deliberate. Better Auth's verify route only sets the flag, so verifying
-from a signed-out click would let someone who registered another person's address get that person to
-verify it from the genuine email, leaving the registrant's password on an account that then accepts
-the owner's Google sign-in. Signing in proves the password; the email proves the inbox.
+The session requirement is deliberate (`beforeEmailVerification`). The verify route only sets the
+flag, so verifying without the account's session would let someone who registered another person's
+address get that person to verify it with the genuine code, leaving the registrant's password on an
+account that then accepts the owner's Google sign-in. Signing in proves the password; the code
+proves the inbox. The plugin compares the code before checking the session, so a `hooks.before`
+refuses a request without that account's session first, and a signed-out guess neither counts nor
+tells a right code from a wrong one. The phase 1 route `POST /api/auth/send-verification-email`
+still works and now sends a code too; the phase 1 link routes (`/request-password-reset`,
+`/reset-password`, `/verify-email`) answer `404`, so links in older emails stop working.
 
-Tokens are signed and not stored, valid for 24 hours, and can be used again within that time, which
-only re-sets a flag already set. A learner signs in and asks for a new link with
-`POST /api/auth/send-verification-email`, which answers the same way for every address.
+Verification links from emails sent before codes open `<WEB_BASE_URL>/verify-email`, which now
+points to account settings.
 
 ### Google sign-in and the address
 
@@ -682,23 +698,25 @@ consume a token. That's intentional brute-force protection.
 
 Two more limits sit inside Better Auth (`packages/api/src/lib/auth.ts`):
 
-* **Better Auth's own per-IP limits**, on in production only, including 3 per minute on
-  `/request-password-reset` and `/send-verification-email`. It reads the client IP from
+* **Better Auth's own per-IP limits**, on in production only, including 3 per minute on each code
+  route (`/email-otp/request-password-reset`, `/email-otp/send-verification-otp`,
+  `/email-otp/verify-email`, `/email-otp/reset-password`). It reads the client IP from
   `CF-Connecting-IP`, then `X-Forwarded-For`; with neither it would key every client to one shared
   bucket.
 * **Per address**: at most 3 requests an hour for any one address, across reset and verification
-  emails together, keyed by the lowercased `email` in the body. It counts requests, not emails sent,
-  so throttling looks the same whether or not the address has an account. Over the limit:
-  `429 { code: "TOO_MANY_REQUESTS", message }` with `Retry-After`. The bucket lives in memory and
-  resets on restart, which is fine for an abuse guard. Sign-up's own verification email isn't
-  counted; sign-up can't repeat for an address.
+  codes together (`/email-otp/request-password-reset`, `/email-otp/send-verification-otp`, and the
+  phase 1 `/send-verification-email`), keyed by the lowercased `email` in the body. It counts
+  requests, not emails sent, so throttling looks the same whether or not the address has an account.
+  Over the limit: `429 { code: "TOO_MANY_REQUESTS", message }` with `Retry-After`. The bucket lives
+  in memory and resets on restart, which is fine for an abuse guard. Sign-up's own verification code
+  isn't counted; sign-up can't repeat for an address.
 * **Per IP per day**: at most 10 emails per client IP a day, so one client can't spend the email
-  provider's daily quota. Requests to `/request-password-reset` and `/send-verification-email` count
-  when they arrive, once they pass the per-address limit; over the limit they get the same 429 shape
-  with "Too many requests from this network." A sign-up, with a password or with Google, counts only
-  once its account is created, and over the limit it succeeds without sending the verification email
-  (logged as `[email] sign-up verification skipped`), so a group on one network is never refused.
-  Shares the per-address limit's in-memory store.
+  provider's daily quota. Requests to the routes above count when they arrive, once they pass the
+  per-address limit; over the limit they get the same 429 shape with "Too many requests from this
+  network." A sign-up, with a password or with Google, counts only once its account is created, and
+  over the limit it succeeds without sending the verification code (logged as
+  `[email] sign-up verification skipped`), so a group on one network is never refused. Shares the
+  per-address limit's in-memory store.
 
 Tuneable via env vars at boot:
 
