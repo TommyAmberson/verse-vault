@@ -1,5 +1,5 @@
-/* Shared by the sign-in form and the email-link pages (reset password,
-   verify email), which share one look. Prefixed so they don't collide
+/* Shared by the sign-in form, the code field, and the pages for links in
+   older emails (reset password, verify email), which share one look. Prefixed so they don't collide
    with view-scoped classes such as ScheduleEditorView's `.field`. Button
    cursor, font, and disabled styling come from colors.css. */
 
@@ -65,4 +65,21 @@
 
 .auth-error {
   color: var(--color-error);
+}
+
+/* A text-style button under a form: "Forgot password?", "Send a new code". */
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  align-self: flex-start;
+  text-decoration: underline;
+}
+
+.link-btn:hover:not(:disabled) {
+  color: var(--color-text);
 }

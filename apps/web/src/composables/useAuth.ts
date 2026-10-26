@@ -639,7 +639,7 @@ export function useAuth() {
     requestPasswordReset: factoryShape.requestPasswordReset,
     resetPassword: factoryShape.resetPassword,
     verifyEmail: factoryShape.verifyEmail,
-    sendVerificationEmail: factoryShape.sendVerificationEmail,
+    sendVerificationCode: factoryShape.sendVerificationCode,
     linkGoogle: factoryShape.linkGoogle,
     hasGoogleAccount: factoryShape.hasGoogleAccount,
     activeProfile: computed(() => activeProfile.value),

@@ -18,6 +18,9 @@ const {
   signInEmail,
   signUpEmail,
   requestPasswordReset,
+  resetPassword,
+  verifyEmail,
+  sendVerificationCode,
   signOut,
   enterProfile,
   deleteProfile,
@@ -297,6 +300,9 @@ async function onTakeover() {
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
         :request-password-reset="requestPasswordReset"
+        :reset-password="resetPassword"
+        :verify-email="verifyEmail"
+        :send-verification-code="sendVerificationCode"
         :reauth="{ email: pendingEmail, provider: 'email' }"
       />
       <button type="button" class="back-btn" :disabled="choiceBusy" @click="choice = 'ask'">
@@ -329,6 +335,9 @@ async function onTakeover() {
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
         :request-password-reset="requestPasswordReset"
+        :reset-password="resetPassword"
+        :verify-email="verifyEmail"
+        :send-verification-code="sendVerificationCode"
         :key="reauthTarget?.profileId ?? ''"
         :reauth="reauthTarget ?? undefined"
         @success="onSignInSuccess"

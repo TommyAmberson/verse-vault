@@ -1,4 +1,4 @@
-import { multiSessionClient } from 'better-auth/client/plugins'
+import { emailOTPClient, multiSessionClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 
 import type { AuthProvider } from '@/lib/engine/registry'
@@ -51,7 +51,7 @@ export function readPendingProvider(): AuthProvider | undefined {
 export function createAppAuthClient(baseURL: string) {
   const authClient = createAuthClient({
     baseURL,
-    plugins: [multiSessionClient()],
+    plugins: [multiSessionClient(), emailOTPClient()],
   })
 
   function useAuth() {
@@ -89,24 +89,24 @@ export function createAppAuthClient(baseURL: string) {
       authClient.signOut()
     }
 
-    // The server builds the emailed link from its own web origin, so no
-    // redirect target is sent from here.
     async function requestPasswordReset(email: string) {
-      return authClient.requestPasswordReset({ email })
+      return authClient.emailOtp.requestPasswordReset({ email })
     }
 
-    async function resetPassword(token: string, newPassword: string) {
-      return authClient.resetPassword({ token, newPassword })
+    // Sets the password (or a first one for a Google-only account),
+    // verifies the address, and ends every session for the account.
+    async function resetPassword(email: string, code: string, password: string) {
+      return authClient.emailOtp.resetPassword({ email, otp: code, password })
     }
 
     // Sent with the active session; the server verifies only when that
-    // session belongs to the token's account.
-    async function verifyEmail(token: string) {
-      return authClient.verifyEmail({ query: { token } })
+    // session belongs to the address's account.
+    async function verifyEmail(email: string, code: string) {
+      return authClient.emailOtp.verifyEmail({ email, otp: code })
     }
 
-    async function sendVerificationEmail(email: string) {
-      return authClient.sendVerificationEmail({ email })
+    async function sendVerificationCode(email: string) {
+      return authClient.emailOtp.sendVerificationOtp({ email, type: 'email-verification' })
     }
 
     // Connects Google to the active account and returns here. The server
@@ -136,7 +136,7 @@ export function createAppAuthClient(baseURL: string) {
       requestPasswordReset,
       resetPassword,
       verifyEmail,
-      sendVerificationEmail,
+      sendVerificationCode,
       linkGoogle,
       hasGoogleAccount,
     }

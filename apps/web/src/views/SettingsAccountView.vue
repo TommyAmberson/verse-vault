@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api, ApiError, type ImportSummary } from '@/api'
+import CodeField from '@/components/CodeField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ImportResultDialog from '@/components/ImportResultDialog.vue'
 import StatusChip from '@/components/StatusChip.vue'
@@ -10,10 +11,17 @@ import TypeToConfirmDialog from '@/components/TypeToConfirmDialog.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useEmailRequest } from '@/composables/useEmailRequest'
 import { downloadJson, exportFilename, readJsonFile } from '@/lib/account-file'
+import { codeErrorMessage } from '@/lib/authEmail'
 import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
 
-const { activeProfile, resetProfileLocalData, sendVerificationEmail, linkGoogle, hasGoogleAccount } =
-  useAuth()
+const {
+  activeProfile,
+  resetProfileLocalData,
+  sendVerificationCode,
+  verifyEmail,
+  linkGoogle,
+  hasGoogleAccount,
+} = useAuth()
 const route = useRoute()
 const router = useRouter()
 
@@ -75,15 +83,56 @@ const deleteProgressBusy = ref(false)
 
 const email = computed(() => activeProfile.value?.email ?? '')
 
-// Verification
+// Verification: send a code, then enter it here, with the active session
+// the server needs.
 const {
   pending: verifyBusy,
   notice: verifyNotice,
-  run: onSendVerification,
+  run: requestVerificationCode,
 } = useEmailRequest(
-  () => sendVerificationEmail(email.value),
-  () => `Verification email sent to ${email.value}.`,
+  () => sendVerificationCode(email.value),
+  () => `We sent a code to ${email.value}.`,
 )
+const verificationCodeSent = ref(false)
+const verificationCode = ref('')
+const verifyError = ref('')
+const checkingCode = ref(false)
+// A code belongs to one account, so start over when the profile changes.
+watch(
+  () => activeProfile.value?.profileId,
+  () => {
+    verificationCodeSent.value = false
+    verificationCode.value = ''
+    verifyError.value = ''
+    verifyNotice.value = ''
+  },
+)
+
+async function onSendVerification() {
+  verifyError.value = ''
+  const profileId = activeProfile.value?.profileId
+  if ((await requestVerificationCode()) && activeProfile.value?.profileId === profileId) {
+    verificationCode.value = ''
+    verificationCodeSent.value = true
+  }
+}
+
+async function onVerifyCode() {
+  verifyError.value = ''
+  checkingCode.value = true
+  const profileId = activeProfile.value?.profileId
+  let message: string
+  try {
+    // On success Better Auth refetches the session, and the session watcher
+    // in useAuth copies the new status onto the profile row.
+    message = codeErrorMessage(await verifyEmail(email.value, verificationCode.value)) ?? ''
+  } catch {
+    message = 'Something went wrong. Try again.'
+  } finally {
+    checkingCode.value = false
+  }
+  if (activeProfile.value?.profileId === profileId) verifyError.value = message
+}
 
 async function downloadActiveExport() {
   const targetEmail = activeProfile.value?.email ?? 'account'
@@ -229,8 +278,29 @@ async function onBackupInsideDialog() {
         </header>
         <template v-if="activeProfile.emailVerified === false">
           <p v-if="verifyNotice" role="status">{{ verifyNotice }}</p>
-          <button type="button" class="btn" :disabled="verifyBusy" @click="onSendVerification">
-            {{ verifyBusy ? 'Sending…' : 'Send verification email' }}
+          <form
+            v-if="verificationCodeSent"
+            class="verify-code"
+            @submit.prevent="onVerifyCode"
+          >
+            <CodeField
+              v-model="verificationCode"
+              :resending="verifyBusy"
+              @resend="onSendVerification"
+            />
+            <p v-if="verifyError" class="verify-error" role="alert">{{ verifyError }}</p>
+            <button type="submit" class="btn" :disabled="checkingCode">
+              {{ checkingCode ? 'Checking…' : 'Verify' }}
+            </button>
+          </form>
+          <button
+            v-else
+            type="button"
+            class="btn"
+            :disabled="verifyBusy"
+            @click="onSendVerification"
+          >
+            {{ verifyBusy ? 'Sending…' : 'Send verification code' }}
           </button>
         </template>
       </article>
@@ -344,6 +414,18 @@ async function onBackupInsideDialog() {
 </template>
 
 <style scoped>
+.verify-code {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 22rem;
+}
+
+.verify-error {
+  color: var(--color-error);
+  margin: 0;
+}
+
 .account {
   display: flex;
   flex-direction: column;
