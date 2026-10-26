@@ -32,9 +32,11 @@ const banner = ref<{ kind: 'info' | 'error'; text: string } | null>(null)
 const hasGoogle = ref<boolean | null>(null)
 const connectBusy = ref(false)
 // A refused link comes back here with `?error=`.
+// Asked to verify first, the message sits with the verification controls.
 const linkError = socialSignInError(window.location.search)
+const verifyFirst = ref(linkError?.code === 'verify_email_first' ? linkError.message : '')
 if (linkError) {
-  banner.value = { kind: 'error', text: linkError.message }
+  if (!verifyFirst.value) banner.value = { kind: 'error', text: linkError.message }
   void router.replace({ query: queryWithout(route.query, 'error', 'error_description') })
 }
 // Per account, so reload when the active profile changes.
@@ -105,6 +107,8 @@ watch(
     verificationCode.value = ''
     verifyError.value = ''
     verifyNotice.value = ''
+    // Asked of the profile that tried to connect Google, not this one.
+    verifyFirst.value = ''
   },
 )
 
@@ -277,6 +281,7 @@ async function onBackupInsideDialog() {
           </p>
         </header>
         <template v-if="activeProfile.emailVerified === false">
+          <p v-if="verifyFirst" class="verify-error" role="alert">{{ verifyFirst }}</p>
           <p v-if="verifyNotice" role="status">{{ verifyNotice }}</p>
           <form
             v-if="verificationCodeSent"

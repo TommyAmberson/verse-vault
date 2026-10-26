@@ -21,6 +21,12 @@ describe('socialSignInError', () => {
     expect(result?.message).toMatch(/different email address/)
   })
 
+  it('asks an unverified account to verify before connecting Google', () => {
+    const result = socialSignInError('?error=verify_email_first')
+    expect(result?.code).toBe('verify_email_first')
+    expect(result?.message).toMatch(/Verify your email address/)
+  })
+
   it('reports other codes as a generic failure', () => {
     const result = socialSignInError('?error=invalid_code&error_description=bad')
     expect(result?.passwordAccount).toBe(false)

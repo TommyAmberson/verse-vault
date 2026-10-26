@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { type RouteLocationRaw, RouterLink, useRoute, useRouter } from 'vue-router'
 
-import { api } from '@/api'
+import { api, ApiError } from '@/api'
+import CodeField from '@/components/CodeField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProfileCard from '@/components/ProfileCard.vue'
 import SignInForm from '@/components/SignInForm.vue'
 import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
 import { reconcileDeviceSessions, useAuth } from '@/composables/useAuth'
+import { useEmailRequest } from '@/composables/useEmailRequest'
+import { CODE_FAILURES, codeErrorMessage } from '@/lib/authEmail'
 import { safeRedirect } from '@/router'
 import type { ProfileRow } from '@/lib/engine/registry'
 
@@ -56,35 +59,100 @@ const banner = ref<string | null>(
 
 // A Google sign-in onto an unverified password account comes back with
 // `?pending=` and the address: the learner says whether the account is
-// theirs. The token is single-use proof of that Google sign-in.
-// The token stays in the URL until the choice is done: email sign-in
-// reloads the page, so "That's me" is also remembered for this tab.
-const pendingToken = typeof route.query.pending === 'string' ? route.query.pending : null
-const pendingEmail = typeof route.query.email === 'string' ? route.query.email : ''
-const CLAIM_KEY = 'vv:google-claim'
-function rememberedClaim(): string | null {
+// theirs. The token is single-use proof of that Google sign-in. Where
+// Google doesn't speak for the address, `code=1` asks first for the code
+// emailed to it, which proves the inbox (research D16); `sent=0` means a
+// limit stopped that code. Once proven, the token alone can take the
+// account over, so it moves out of the URL (history, synced tabs) into this
+// tab's storage, which also carries it across the reload email sign-in
+// causes.
+interface PendingChoice {
+  token: string
+  email: string
+  step: 'code' | 'ask' | 'mine'
+  unsent: boolean
+  savedAt: number
+}
+const PENDING_KEY = 'vv:google-pending'
+// Past the server's 10 minutes, plus the code step's own 10.
+const PENDING_MAX_AGE_MS = 20 * 60 * 1000
+function loadPending(): PendingChoice | null {
   try {
-    return sessionStorage.getItem(CLAIM_KEY)
+    const saved = JSON.parse(sessionStorage.getItem(PENDING_KEY) ?? 'null') as PendingChoice | null
+    return saved && Date.now() - saved.savedAt < PENDING_MAX_AGE_MS ? saved : null
   } catch {
     return null
   }
 }
-function rememberClaim(token: string | null) {
+function savePending(pending: PendingChoice | null) {
   try {
-    if (token) sessionStorage.setItem(CLAIM_KEY, token)
-    else sessionStorage.removeItem(CLAIM_KEY)
+    if (pending) sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending))
+    else sessionStorage.removeItem(PENDING_KEY)
   } catch {
-    // Storage blocked: the learner just chooses again after the reload.
+    // Storage blocked: after a reload the learner signs in with Google again.
   }
 }
-const choice = ref<'ask' | 'mine' | null>(
-  pendingToken ? (rememberedClaim() === pendingToken ? 'mine' : 'ask') : null,
+const fromUrl: PendingChoice | null = typeof route.query.pending === 'string'
+  ? {
+    token: route.query.pending,
+    email: typeof route.query.email === 'string' ? route.query.email : '',
+    step: route.query.code === '1' ? 'code' : 'ask',
+    unsent: route.query.sent === '0',
+    savedAt: Date.now(),
+  }
+  : null
+const savedChoice = fromUrl ?? loadPending()
+if (fromUrl) {
+  savePending(fromUrl)
+  void router.replace({ query: queryWithout(route.query, 'pending', 'email', 'code', 'sent') })
+}
+const pendingToken = savedChoice?.token ?? null
+const pendingEmail = savedChoice?.email ?? ''
+const codeUnsent = ref(savedChoice?.unsent ?? false)
+const codeStep = ref(savedChoice?.step === 'code')
+const googleCode = ref('')
+const codeBusy = ref(false)
+const {
+  pending: codeResending,
+  notice: codeNotice,
+  run: resendGoogleCode,
+} = useEmailRequest(
+  () => sendVerificationCode(pendingEmail),
+  () => `We sent a new code to ${pendingEmail}.`,
 )
-watch(choice, (c) => rememberClaim(c === 'mine' ? pendingToken : null))
+const choice = ref<'ask' | 'mine' | null>(
+  savedChoice && savedChoice.step !== 'code' ? savedChoice.step : null,
+)
+// Keep the stored step in line, so a reload lands where the learner was.
+watch([codeStep, choice, codeUnsent], ([code, chosen, unsent]) => {
+  if (!savedChoice) return
+  const step = code ? 'code' : chosen
+  savePending(step ? { ...savedChoice, step, unsent } : null)
+})
 const confirmTakeover = ref(false)
 const choiceBusy = ref(false)
 const choiceError = ref('')
 const CHOICE_EXPIRED = 'That choice has expired. Sign in with Google again.'
+
+async function onResendCode() {
+  if (await resendGoogleCode()) codeUnsent.value = false
+}
+
+/** Says why a choice request failed. Only a 400 means the token is gone;
+ *  after anything else it still works, so the step stays for a retry. */
+function choiceFailed(err: unknown) {
+  if (err instanceof ApiError && err.status === 400) {
+    leaveChoice(CHOICE_EXPIRED)
+  } else if (err instanceof ApiError && err.status === 403) {
+    choiceError.value = "You're signed in to a different account. Sign in with this address."
+  } else if (err instanceof ApiError && err.status === 401) {
+    choiceError.value = 'Your session has ended. Sign in with the password again.'
+  } else if (err instanceof ApiError && err.status === 429) {
+    choiceError.value = 'Too many tries. Try again later.'
+  } else {
+    choiceError.value = 'Something went wrong. Try again.'
+  }
+}
 
 // Set by the Google sign-in that finishes a takeover. Read once, so a
 // reload doesn't repeat the notice.
@@ -92,18 +160,20 @@ const takenOver = route.query['taken-over'] === '1'
 if (takenOver) void router.replace({ query: queryWithout(route.query, 'taken-over') })
 
 // "That's me" claims once the account is the active profile: right after
-// signing in, or, since that reloads the page, once the active profile is
-// restored after this view mounts.
+// signing in, once the active profile is restored after the reload sign-in
+// causes, or at once when it was active already.
+const mineReady = computed(
+  () =>
+    choice.value === 'mine' &&
+    !!activeProfile.value?.sessionToken &&
+    activeProfile.value.email.toLowerCase() === pendingEmail.toLowerCase(),
+)
+// Keyed on the session token too, so signing in again after a session
+// ended elsewhere retries the claim.
 watch(
-  activeProfile,
-  (active) => {
-    if (
-      choice.value === 'mine' &&
-      active?.sessionToken &&
-      active.email.toLowerCase() === pendingEmail.toLowerCase()
-    ) {
-      void onMineSignedIn()
-    }
+  () => (mineReady.value ? activeProfile.value?.sessionToken : null),
+  (token) => {
+    if (token) void onMineSignedIn()
   },
   { immediate: true },
 )
@@ -218,14 +288,40 @@ async function onSignInSuccess() {
   await router.replace(redirectTarget())
 }
 
-function dropChoiceQuery() {
-  return router.replace({ query: queryWithout(route.query, 'pending', 'email') })
-}
-
 function leaveChoice(error = '') {
+  codeStep.value = false
   choice.value = null
   choiceError.value = error
-  void dropChoiceQuery()
+  savePending(null)
+}
+
+// The code step: a verified account is now linked, so sign in with Google
+// again; an unverified one goes on to the choice. A learner who can't
+// enter the code sees nothing more about the account.
+async function onConfirmCode() {
+  if (!pendingToken) return
+  choiceError.value = ''
+  codeBusy.value = true
+  let result
+  try {
+    result = await api.confirmGoogle(pendingToken, googleCode.value)
+  } catch (err) {
+    // The code's own failures get their messages; anything else, such as a
+    // code the plugin adds later, falls back to the token's handling.
+    const codeFailure = err instanceof ApiError && CODE_FAILURES.has(err.code ?? '')
+    if (codeFailure) choiceError.value = codeErrorMessage({ error: { code: err.code } }) ?? ''
+    else choiceFailed(err)
+    return
+  } finally {
+    codeBusy.value = false
+  }
+  if (result.signIn) {
+    leaveChoice()
+    signInSocialToDestination('google')
+    return
+  }
+  codeStep.value = false
+  choice.value = 'ask'
 }
 
 // "That's me": signed in with the account's password, so link Google to it.
@@ -234,12 +330,12 @@ async function onMineSignedIn() {
   choiceBusy.value = true
   try {
     await api.claimGoogle(pendingToken)
-    rememberClaim(null)
+    leaveChoice()
     // Pick up the now-verified address on this device's profile rows.
     await reconcileDeviceSessions()
     await router.replace(redirectTarget())
-  } catch {
-    leaveChoice(CHOICE_EXPIRED)
+  } catch (err) {
+    choiceFailed(err)
   } finally {
     choiceBusy.value = false
   }
@@ -252,14 +348,14 @@ async function onTakeover() {
   choiceBusy.value = true
   try {
     await api.takeOverWithGoogle(pendingToken)
-  } catch {
+  } catch (err) {
     confirmTakeover.value = false
     choiceBusy.value = false
-    leaveChoice(CHOICE_EXPIRED)
+    choiceFailed(err)
     return
   }
-  // Drop the used token first: a failed Google sign-in returns to this URL.
-  await dropChoiceQuery()
+  // Drop the used token first: a failed Google sign-in returns here.
+  leaveChoice()
   signInSocial(
     'google',
     redirectCallbackUrl({ path: '/profiles', query: { force: '1', 'taken-over': '1' } }),
@@ -280,7 +376,23 @@ async function onTakeover() {
       Delete all progress in <RouterLink to="/settings/account">account settings</RouterLink>.
     </p>
 
-    <div v-if="choice === 'ask'" class="choice">
+    <form v-if="codeStep" class="choice" @submit.prevent="onConfirmCode">
+      <p v-if="codeUnsent">
+        To connect Google, enter a code sent to <strong>{{ pendingEmail }}</strong>. We couldn't
+        send one just now; try "Send a new code" in a few minutes.
+      </p>
+      <p v-else>
+        To connect Google, enter the code we sent to <strong>{{ pendingEmail }}</strong>.
+      </p>
+      <CodeField v-model="googleCode" :resending="codeResending" @resend="onResendCode" />
+      <p v-if="codeNotice" class="auth-notice" role="status">{{ codeNotice }}</p>
+      <button type="submit" class="choice-btn" :disabled="codeBusy">
+        {{ codeBusy ? 'Checking…' : 'Continue' }}
+      </button>
+      <button type="button" class="back-btn" @click="leaveChoice()">Cancel</button>
+    </form>
+
+    <div v-else-if="choice === 'ask'" class="choice">
       <p>
         An unverified account for <strong>{{ pendingEmail }}</strong> already exists. Is it
         yours?
@@ -305,6 +417,16 @@ async function onTakeover() {
         :send-verification-code="sendVerificationCode"
         :reauth="{ email: pendingEmail, provider: 'email' }"
       />
+      <!-- Signed in already, so a failed claim retries from here. -->
+      <button
+        v-if="mineReady && choiceError"
+        type="button"
+        class="choice-btn"
+        :disabled="choiceBusy"
+        @click="onMineSignedIn"
+      >
+        Try again
+      </button>
       <button type="button" class="back-btn" :disabled="choiceBusy" @click="choice = 'ask'">
         ← Back
       </button>

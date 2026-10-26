@@ -443,6 +443,9 @@ export interface ApiClient {
   /** "That's not me": remove the account's password and sessions and link
    *  Google. Needs no session. */
   takeOverWithGoogle(token: string): Promise<{ ok: true }>
+  /** The Google code step: the emailed code proves the inbox. A verified
+   *  account is linked (`signIn`); an unverified one goes on to the choice. */
+  confirmGoogle(token: string, code: string): Promise<{ signIn?: true; choice?: true }>
 }
 
 let onUnauthorized: (() => void) | null = null
@@ -572,16 +575,27 @@ export function createApiClient(apiUrl: string): ApiClient {
     deleteAllProgress: () => request('DELETE', '/api/account/progress'),
     claimGoogle: (token) => request('POST', '/api/account/google/claim', { token }),
     takeOverWithGoogle: (token) => request('POST', '/api/account/google/takeover', { token }),
+    confirmGoogle: (token, code) =>
+      request('POST', '/api/account/google/confirm', { token, code }),
   }
 }
 
 export class ApiError extends Error {
+  /** The `code` in a JSON error body, when the server sent one. */
+  readonly code: string | undefined
+
   constructor(
     public readonly status: number,
     message: string,
   ) {
     super(`API error ${status}: ${message}`)
     this.name = 'ApiError'
+    try {
+      const code = (JSON.parse(message) as { code?: unknown }).code
+      this.code = typeof code === 'string' ? code : undefined
+    } catch {
+      this.code = undefined
+    }
   }
 }
 
