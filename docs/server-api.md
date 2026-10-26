@@ -37,6 +37,7 @@ Useful endpoints (Better Auth defaults):
 | POST   | `/api/auth/reset-password`          | `{ token, newPassword }`; sets the password      |
 | GET    | `/api/auth/verify-email`            | `?token=`; verifies, with that account's session |
 | POST   | `/api/auth/send-verification-email` | `{ email }`; emails a new verification link      |
+| POST   | `/api/auth/link-social`             | connects Google to the signed-in account         |
 
 ### Password reset
 
@@ -95,8 +96,37 @@ created, and the address may since have changed hands. The Google provider's `ma
 trusts Google's address:
 
 * a Google sign-in links into an existing account only when that account is verified and Google is
-  authoritative; otherwise it is refused with `?error=account_not_linked`;
+  authoritative; otherwise it is refused with `?error=account_not_linked`, except for the choice
+  below;
 * a new Google sign-up starts verified only when Google is authoritative.
+
+### Google sign-in onto a password account
+
+* **Verified account, Google authoritative**: the Google sign-in links and signs in.
+* **Google not authoritative**: refused with `?error=account_not_linked`.
+* **Unverified account, Google authoritative**: Better Auth refuses with `account_not_linked`, and
+  an after hook on the callback turns that into a redirect to
+  `/profiles?force=1&pending=<token>&email=…` on the origin of the client's `errorCallbackURL`. The
+  token names a `pending-google:*` verification row holding the user id, the Google `sub`, and the
+  address, valid for 10 minutes. The Google profile reaches the hook through Better Auth's request
+  state, set in `mapProfileToUser`.
+
+The picker then asks whether the account is the learner's, and acts through one of two routes. Both
+consume the token once and answer every used, expired, or unknown token with the same
+`400 { error }`.
+
+* `POST /api/account/google/claim` `{ token }` ("That's me"), with the session from signing in with
+  the account's password: links the Google `sub`, keeps the password, and verifies. `403` when the
+  session belongs to a different account.
+* `POST /api/account/google/takeover` `{ token }` ("That's not me"), no session: refuses an account
+  verified since the token was issued, then deletes the password and every session (as Better Auth's
+  `revokeUnprovenAccountAccess` does), links the Google `sub`, and verifies. The client then signs
+  in with Google again, which now finds the account linked.
+
+Connecting Google from account settings (`POST /api/auth/link-social`) needs a session and a Google
+account with the same address, for which Google is authoritative. Better Auth's link route doesn't
+verify the address, so the same callback after hook does, when the account now holds that Google
+identity.
 
 ### `GET /api/me`
 

@@ -22,6 +22,11 @@ schema so FK constraints from domain tables can reference `user.id`. Regenerate 
 the row it consumes; completing a reset also deletes the user's other `reset-password:*` rows (see
 [`server-api.md`](server-api.md#password-reset)).
 
+It also holds `pending-google:<token>` rows, written when a Google sign-in, for an address Google is
+authoritative for, meets an unverified password account: `value` is JSON with the user id, the
+Google `sub`, and the address, and `expires_at` is 10 minutes out. The choice routes consume one
+atomically (see [`server-api.md`](server-api.md#google-sign-in-onto-a-password-account)).
+
 ### `user_materials`
 
 Which materials a user has enrolled in. Primary key `(user_id, material_id)`. `club_tier` is

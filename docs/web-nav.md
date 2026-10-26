@@ -53,6 +53,14 @@ and an Email address card at the top of `/settings` → Account, with a warning 
 verification email" button while the address is unverified. Both read the status cached on the
 profile row, refreshed from the server at sign-in and at launch.
 
+A Google sign-in onto an unverified password account, for an address Google is authoritative for,
+lands on `/profiles?force=1&pending=…` with a choice instead of an error. "That's me" opens the
+sign-in form prefilled with the address and, once the password works, connects Google. "That's not
+me" warns that whoever set the password loses access, then takes the account over and runs Google
+sign-in again, landing on a notice that points to Delete all progress (see
+[`server-api.md`](server-api.md#google-sign-in-onto-a-password-account)). An account without Google
+also gets a "Connect Google" card in `/settings` → Account.
+
 ### Future surfaces to leave room for
 
 Not building these now — but the nav design must not preclude them:

@@ -215,6 +215,12 @@ from the code or design docs.
   component.** With baseURL `/vv`, route calls land at `/vv/sign-up/email` (405) instead of
   `/vv/api/auth/sign-up/email`. Add `/api/auth` to `baseURL` explicitly when constructing the
   client. See `apps/web/CHANGELOG.md` [0.1.6].
+* **The Google takeover choice rests on Better Auth internals, not documented API.** An after hook
+  on `/callback/:id` rewrites the `account_not_linked` redirect, reading the Google profile that
+  `mapProfileToUser` stashed in request state from `@better-auth/core/context`. Keep
+  `@better-auth/core` on the same version as `better-auth`, and when upgrading run the "Google
+  sign-in onto an unverified password account" tests in `packages/api/src/index.test.ts` first: they
+  drive the real callback and fail if either piece moves.
 * **`VITE_API_BASE` is the API's origin or a subpath prefix, never including `/api`**
   (`https://www.versevault.ca` in production; it was `/vv` before the move to the root). The api
   client adds `/api/...` itself; doubling it produces `.../api/api/...` 404s. Don't set it to an
