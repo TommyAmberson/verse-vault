@@ -16,6 +16,11 @@ describe('socialSignInError', () => {
     expect(result?.message).toMatch(/reset/)
   })
 
+  it('explains a Google account with a different address', () => {
+    const result = socialSignInError("?error=email_doesn't_match")
+    expect(result?.message).toMatch(/different email address/)
+  })
+
   it('reports other codes as a generic failure', () => {
     const result = socialSignInError('?error=invalid_code&error_description=bad')
     expect(result?.passwordAccount).toBe(false)

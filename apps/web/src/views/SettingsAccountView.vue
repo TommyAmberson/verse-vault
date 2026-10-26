@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { api, ApiError, type ImportSummary } from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -9,10 +10,51 @@ import TypeToConfirmDialog from '@/components/TypeToConfirmDialog.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useEmailRequest } from '@/composables/useEmailRequest'
 import { downloadJson, exportFilename, readJsonFile } from '@/lib/account-file'
+import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
 
-const { activeProfile, resetProfileLocalData, sendVerificationEmail } = useAuth()
+const { activeProfile, resetProfileLocalData, sendVerificationEmail, linkGoogle, hasGoogleAccount } =
+  useAuth()
+const route = useRoute()
+const router = useRouter()
 
 const banner = ref<{ kind: 'info' | 'error'; text: string } | null>(null)
+
+// Connect Google. Unknown (null) until the account list loads, so the card
+// doesn't flash up for an account that already has Google.
+const hasGoogle = ref<boolean | null>(null)
+const connectBusy = ref(false)
+// A refused link comes back here with `?error=`.
+const linkError = socialSignInError(window.location.search)
+if (linkError) {
+  banner.value = { kind: 'error', text: linkError.message }
+  void router.replace({ query: queryWithout(route.query, 'error', 'error_description') })
+}
+// Per account, so reload when the active profile changes.
+watch(
+  () => activeProfile.value?.profileId,
+  async (profileId) => {
+    hasGoogle.value = null
+    try {
+      const has = await hasGoogleAccount()
+      // A slower answer for the profile before a switch must not land here.
+      if (activeProfile.value?.profileId === profileId) hasGoogle.value = has
+    } catch {
+      // Offline: leave the card hidden.
+    }
+  },
+  { immediate: true },
+)
+
+async function onConnectGoogle() {
+  banner.value = null
+  connectBusy.value = true
+  // On success the browser leaves for Google.
+  const result = await linkGoogle().catch(() => null)
+  if (!result || result.error) {
+    banner.value = { kind: 'error', text: "Couldn't connect Google. Try again." }
+    connectBusy.value = false
+  }
+}
 
 // Export
 const exportBusy = ref(false)
@@ -191,6 +233,19 @@ async function onBackupInsideDialog() {
             {{ verifyBusy ? 'Sending…' : 'Send verification email' }}
           </button>
         </template>
+      </article>
+
+      <article v-if="hasGoogle === false" class="action-card">
+        <header>
+          <h3>Sign in with Google</h3>
+          <p>
+            Connect a Google account that uses {{ email }} to sign in with it as well as your
+            password. Connecting also verifies your address.
+          </p>
+        </header>
+        <button type="button" class="btn" :disabled="connectBusy" @click="onConnectGoogle">
+          {{ connectBusy ? 'Connecting…' : 'Connect Google' }}
+        </button>
       </article>
 
       <article class="action-card">

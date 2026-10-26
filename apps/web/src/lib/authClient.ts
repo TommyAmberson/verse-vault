@@ -109,6 +109,24 @@ export function createAppAuthClient(baseURL: string) {
       return authClient.sendVerificationEmail({ email })
     }
 
+    // Connects Google to the active account and returns here. The server
+    // refuses a Google account with a different address, and verifies the
+    // address when it links.
+    function linkGoogle() {
+      return authClient.linkSocial({
+        provider: 'google',
+        callbackURL: withoutErrorParam(window.location.href),
+        errorCallbackURL: withoutErrorParam(window.location.href),
+      })
+    }
+
+    // Throws when the list can't be read, rather than reporting no Google.
+    async function hasGoogleAccount(): Promise<boolean> {
+      const { data, error } = await authClient.listAccounts()
+      if (error || !data) throw new Error(error?.message ?? 'Could not list accounts')
+      return data.some((a) => a.providerId === 'google')
+    }
+
     return {
       session,
       signInSocial,
@@ -119,6 +137,8 @@ export function createAppAuthClient(baseURL: string) {
       resetPassword,
       verifyEmail,
       sendVerificationEmail,
+      linkGoogle,
+      hasGoogleAccount,
     }
   }
 

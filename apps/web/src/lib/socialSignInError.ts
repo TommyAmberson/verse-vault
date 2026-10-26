@@ -1,7 +1,7 @@
 import type { LocationQuery } from 'vue-router'
 
-/** Better Auth's OAuth callback reports a failed social sign-in by sending the
- *  browser back to `errorCallbackURL` with `?error=<code>`. */
+/** Better Auth's OAuth callback reports a failed social sign-in or link by
+ *  sending the browser back to `errorCallbackURL` with `?error=<code>`. */
 export interface SocialSignInError {
   message: string
   /** The address already belongs to an email and password account, so the
@@ -26,7 +26,15 @@ export function socialSignInError(search: string): SocialSignInError | null {
       passwordAccount: true,
     }
   }
-  return { message: 'Google sign-in failed. Please try again.', passwordAccount: false }
+  const message = LINK_ERRORS[code] ?? 'Google sign-in failed. Please try again.'
+  return { message, passwordAccount: false }
+}
+
+/** Codes from connecting Google to a signed-in account (`linkSocial`). */
+const LINK_ERRORS: Record<string, string> = {
+  "email_doesn't_match": 'That Google account uses a different email address.',
+  account_already_linked_to_different_user:
+    'That Google account is already connected to a different account.',
 }
 
 /** `query` without `keys`, for dropping one-shot parameters through the
