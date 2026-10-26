@@ -73,10 +73,10 @@ export const verification = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp' }),
     updatedAt: integer('updated_at', { mode: 'timestamp' }),
   },
-  // Better Auth queries verification rows by identifier (email) during
-  // email verification and password reset flows.
+  // Better Auth looks rows up by identifier. Unique so the email-code
+  // plugin's resend replaces the older code (migration 0030).
   (t) => ({
-    identifierIdx: index('idx_verification_identifier').on(t.identifier),
+    identifierIdx: uniqueIndex('idx_verification_identifier').on(t.identifier),
   }),
 );
 
