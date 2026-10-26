@@ -133,6 +133,12 @@ One logical change per commit, and each commit should build on its own. Commit a
 chunk compiles and its tests pass, commit it rather than batching everything at the end. The target
 is that `git blame` on any line lands on a commit whose message explains that line.
 
+CI checks only the branch tip, and checking the tip is the default locally too. Checking each commit
+is optional: worth it when the checks are quick, rarely otherwise, since a broken intermediate
+commit only costs `git bisect` a skip. When you do check after a rewrite, the commits whose own diff
+changed (a fixup target, a conflict resolution) are the ones that need it; `git range-diff` lists
+them.
+
 ### Pull requests
 
 PRs are feature-sized and carry several logical commits: many atomic commits, few PRs. A substantive
