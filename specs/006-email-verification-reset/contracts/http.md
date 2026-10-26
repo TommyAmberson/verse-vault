@@ -47,8 +47,11 @@ send route with `type: "sign-in"` or `"change-email"`,
 `POST /api/auth/email-otp/request-email-change`, `POST /api/auth/email-otp/change-email`, the
 deprecated `POST /api/auth/forget-password/email-otp`, and
 `POST /api/auth/email-otp/check-verification-otp`, whose attempt count does not hold against guesses
-sent at the same moment (research D15). The phase 1 link routes stop sending:
-`POST /api/auth/request-password-reset` has no sender, and verification sends codes.
+sent at the same moment (research D15). The phase 1 link routes,
+`POST /api/auth/request-password-reset`, `POST /api/auth/reset-password`, and
+`GET /api/auth/verify-email`, are refused with 404 too, so links in older emails stop working.
+`POST /api/auth/email-otp/verify-email` without that account's session is refused with 403 before
+the code is compared, so a signed-out guess doesn't count.
 
 Code emails count towards the same limits as phase 1's emails: 3 per address per hour and 10 per IP
 per day (FR-012).

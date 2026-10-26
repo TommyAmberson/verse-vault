@@ -391,9 +391,11 @@ means only one request with the right code passes before the row is deleted. Che
 `checkVerificationOTP` and then deleting the row matches the plugin's single-use rule without going
 through `/email-otp/verify-email`, which would verify the address and needs that account's session.
 That route shares the code row but not the lock, so guesses sent through both at the same moment can
-overwrite each other's count, giving roughly six tries instead of three. That needs a session on the
-account as well as a pending Google row for its address, and new codes stay under the per-address
-limit, so it is accepted.
+overwrite each other's count, giving roughly six tries instead of three. The plugin compares a code
+before checking the session, so a `hooks.before` refuses a verify-email request without that
+account's session before it is compared. Mixing the two routes then needs a session on the account
+as well as a pending Google row for its address, and new codes stay under the per-address limit, so
+it is accepted.
 
 **Alternatives considered**: a code stored on the pending row (duplicates the plugin's hashing and
 attempt counting); consuming the row and recreating it on a wrong guess, as the plugin's own

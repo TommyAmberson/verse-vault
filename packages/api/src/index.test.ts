@@ -6,6 +6,7 @@ import { account, session, user, verification } from './db/schema.js';
 import { createAuth } from './lib/auth.js';
 import { createEmailSender } from './lib/email.js';
 import {
+  type GoogleProfile,
   type TestApp,
   TEST_AUTH_ENV,
   TEST_GOOGLE_ENV,
@@ -622,7 +623,7 @@ describe('Google sign-in onto a password account', () => {
 
   // Google checked an outside address only once, when the Google account
   // was made; whoever holds it now may not hold the inbox.
-  it('refuses an outside address Google reports verified', async () => {
+  it("doesn't link an outside address Google reports verified, asking for a code instead", async () => {
     const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
     cleanup = test.cleanup;
     const userId = await verifiedPasswordUser(test, 'owner@example.com');
@@ -633,7 +634,7 @@ describe('Google sign-in onto a password account', () => {
       email_verified: true,
     });
 
-    expect(res.headers.get('location')).toContain('error=account_not_linked');
+    expect(new URL(res.headers.get('location')!).searchParams.get('code')).toBe('1');
     expect(googleAccounts(test, userId)).toHaveLength(0);
   });
 
@@ -939,6 +940,377 @@ describe('Google sign-in onto an unverified password account', () => {
 
     const res = await googleLink(test, cookie, google('other@example.com'));
     expect(res.headers.get('location')).toContain('error=');
+    expect(providers(test, userId)).not.toContain('google');
+    expect(isVerified(test, userId)).toBe(false);
+  });
+});
+
+describe('the Google code step', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  const PASSWORD = 'superSecret123!';
+  // Google says it checked these addresses but hosts none of them, so the
+  // inbox still needs proving.
+  const outside = (email: string) => ({ sub: `google-${email}`, email, email_verified: true });
+
+  async function verifiedUser(test: TestApp, email: string): Promise<string> {
+    const { userId } = await signUpTestUser(test, email, PASSWORD);
+    test.db.update(user).set({ emailVerified: true }).where(eq(user.id, userId)).run();
+    return userId;
+  }
+
+  function pendingRow(test: TestApp, token: string) {
+    const row = test.db
+      .select()
+      .from(verification)
+      .all()
+      .find((v) => v.identifier === `pending-google:${token}`);
+    return row ? (JSON.parse(row.value) as { proven: boolean }) : undefined;
+  }
+
+  /** Signs in with Google and returns the redirect's query. */
+  async function signIn(test: TestApp, profile: GoogleProfile) {
+    const res = await googleSignIn(test, profile);
+    return new URL(res.headers.get('location')!).searchParams;
+  }
+
+  const confirm = (test: TestApp, token: string, code: string) =>
+    test.app.request('/api/account/google/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, code }),
+    });
+
+  const tokenPost = (test: TestApp, path: string, token: string, cookie?: string) =>
+    test.app.request(`/api/account/google/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(cookie ? { cookie } : {}) },
+      body: JSON.stringify({ token }),
+    });
+
+  it('emails a code and sends the learner to the code step', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await verifiedUser(test, 'step@example.com');
+    test.emails.length = 0;
+
+    const query = await signIn(test, outside('step@example.com'));
+
+    expect(query.get('code')).toBe('1');
+    expect(query.get('sent')).toBeNull();
+    expect(query.get('email')).toBe('step@example.com');
+    expect(pendingRow(test, query.get('pending')!)?.proven).toBe(false);
+    expect(test.emails.map((m) => [m.to, m.subject])).toEqual([
+      ['step@example.com', 'Your VerseVault code'],
+    ]);
+  });
+
+  it('links a verified account once the code is confirmed', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const userId = await verifiedUser(test, 'linkme@example.com');
+    const query = await signIn(test, outside('linkme@example.com'));
+
+    const res = await confirm(test, query.get('pending')!, emailCode(test.emails, 'linkme@example.com'));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ signIn: true });
+    expect(providers(test, userId)).toContain('google');
+
+    const again = await googleSignIn(test, outside('linkme@example.com'));
+    expect(again.headers.get('location')).toBe('http://localhost:5173/home');
+  });
+
+  it('leads an unverified account to the choice once the code is confirmed', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { userId, cookie } = await signUpTestUser(test, 'choose@example.com', PASSWORD);
+    const query = await signIn(test, outside('choose@example.com'));
+    const token = query.get('pending')!;
+
+    const res = await confirm(test, token, emailCode(test.emails, 'choose@example.com'));
+    expect(await res.json()).toEqual({ choice: true });
+    expect(pendingRow(test, token)?.proven).toBe(true);
+    expect(providers(test, userId)).not.toContain('google');
+
+    expect((await tokenPost(test, 'claim', token, cookie)).status).toBe(200);
+    expect(providers(test, userId)).toContain('google');
+    expect(isVerified(test, userId)).toBe(true);
+  });
+
+  it('refuses claim and takeover before the code is confirmed, keeping the row', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { userId, cookie } = await signUpTestUser(test, 'early@example.com', PASSWORD);
+    const query = await signIn(test, outside('early@example.com'));
+    const token = query.get('pending')!;
+
+    const takeover = await tokenPost(test, 'takeover', token);
+    const claim = await tokenPost(test, 'claim', token, cookie);
+    expect(takeover.status).toBe(400);
+    expect(claim.status).toBe(400);
+    expect(await claim.json()).toEqual(await takeover.json());
+    expect(providers(test, userId)).toContain('credential');
+    expect(pendingRow(test, token)?.proven).toBe(false);
+  });
+
+  it('ends the code after three wrong tries', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const userId = await verifiedUser(test, 'guess@example.com');
+    const token = (await signIn(test, outside('guess@example.com'))).get('pending')!;
+    const code = emailCode(test.emails, 'guess@example.com');
+
+    for (let i = 0; i < 3; i++) {
+      expect((await confirm(test, token, wrongFor(code))).status).toBe(400);
+    }
+    expect((await confirm(test, token, code)).status).toBe(403);
+    expect(providers(test, userId)).not.toContain('google');
+  });
+
+  it('counts wrong codes sent at the same moment', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const userId = await verifiedUser(test, 'burst@example.com');
+    const token = (await signIn(test, outside('burst@example.com'))).get('pending')!;
+    const code = emailCode(test.emails, 'burst@example.com');
+    const guesses = Array.from({ length: 10 }, (_, i) => String(i).repeat(6))
+      .filter((guess) => guess !== code)
+      .slice(0, 8);
+
+    const answers = await Promise.all(guesses.map((guess) => confirm(test, token, guess)));
+    expect(answers.every((res) => res.status !== 200)).toBe(true);
+    expect((await confirm(test, token, code)).status).not.toBe(200);
+    expect(providers(test, userId)).not.toContain('google');
+  });
+
+  it('accepts the right code once, even sent twice at the same moment', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'double@example.com', PASSWORD);
+    const token = (await signIn(test, outside('double@example.com'))).get('pending')!;
+    const code = emailCode(test.emails, 'double@example.com');
+
+    const answers = await Promise.all([confirm(test, token, code), confirm(test, token, code)]);
+    expect(answers.map((res) => res.status).sort()).toEqual([200, 400]);
+  });
+
+  it('answers 429 once the per-IP bucket is empty', async () => {
+    const test = createTestApp({
+      authEnv: TEST_GOOGLE_ENV,
+      observability: { unauthedAuthTier: { capacity: 2, refillPerSec: 0 } },
+    });
+    cleanup = test.cleanup;
+    const post = () =>
+      test.app.request('/api/account/google/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.9' },
+        body: JSON.stringify({ token: 'nope', code: '123456' }),
+      });
+    expect((await post()).status).toBe(400);
+    expect((await post()).status).toBe(400);
+    expect((await post()).status).toBe(429);
+  });
+
+  it('proves an authoritative sign-in onto an unverified account at once', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'hosted@example.com', PASSWORD);
+    test.emails.length = 0;
+
+    const query = await signIn(test, { ...outside('hosted@example.com'), hd: 'example.com' });
+
+    expect(query.get('code')).toBeNull();
+    expect(pendingRow(test, query.get('pending')!)?.proven).toBe(true);
+    expect(test.emails).toHaveLength(0);
+  });
+
+  it('counts the code email towards the per-address limit', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await verifiedUser(test, 'limit@example.com');
+    await signIn(test, outside('limit@example.com'));
+
+    const reset = () => postAuth(test, 'email-otp/request-password-reset', { email: 'limit@example.com' });
+    expect((await reset()).status).toBe(200);
+    expect((await reset()).status).toBe(200);
+    expect((await reset()).status).toBe(429);
+  });
+
+  it('keeps the destination sign-in started with', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await verifiedUser(test, 'deep@example.com');
+
+    const res = await googleSignIn(
+      test,
+      outside('deep@example.com'),
+      'http://localhost:5173/profiles?redirect=%2Fsettings%2Faccount',
+    );
+    const query = new URL(res.headers.get('location')!).searchParams;
+    expect(query.get('redirect')).toBe('/settings/account');
+    expect(query.get('code')).toBe('1');
+  });
+
+  it("keeps a desktop client's tauri:// origin in the redirect", async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await verifiedUser(test, 'desktop@example.com');
+
+    const res = await googleSignIn(test, outside('desktop@example.com'), 'tauri://localhost/profiles');
+    expect(res.headers.get('location')).toMatch(/^tauri:\/\/localhost\/profiles\?.*code=1/);
+  });
+
+  it('replaces the older code when Google sends another', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await verifiedUser(test, 'twice@example.com');
+    await signIn(test, outside('twice@example.com'));
+    const older = emailCode(test.emails, 'twice@example.com');
+    const token = (await signIn(test, outside('twice@example.com'))).get('pending')!;
+    const newer = emailCode(test.emails, 'twice@example.com');
+
+    if (older !== newer) expect((await confirm(test, token, older)).status).toBe(400);
+    expect((await confirm(test, token, newer)).status).toBe(200);
+  });
+
+  it('sends no code past the per-address limit, and still goes to the code step', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await verifiedUser(test, 'spent@example.com');
+    for (let i = 0; i < 3; i++) {
+      await postAuth(test, 'email-otp/request-password-reset', { email: 'spent@example.com' });
+    }
+    test.emails.length = 0;
+
+    const query = await signIn(test, outside('spent@example.com'));
+    expect(query.get('code')).toBe('1');
+    expect(query.get('sent')).toBe('0');
+    expect(test.emails).toHaveLength(0);
+  });
+
+  it('leaves the code and the row when the Google account belongs to someone else', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'taken@example.com', PASSWORD);
+    test.db.update(user).set({ emailVerified: true }).where(eq(user.id, userId)).run();
+    const token = (await signIn(test, outside('taken@example.com'))).get('pending')!;
+    const code = emailCode(test.emails, 'taken@example.com');
+    const other = await signUpTestUser(test, 'other-owner@example.com');
+    test.db
+      .update(account)
+      .set({ accountId: 'google-taken@example.com', providerId: 'google' })
+      .where(eq(account.userId, other.userId))
+      .run();
+
+    expect((await confirm(test, token, code)).status).toBe(400);
+    expect(pendingRow(test, token)).toBeDefined();
+    const verifyRes = await postAuth(
+      test,
+      'email-otp/verify-email',
+      { email: 'taken@example.com', otp: code },
+      cookie,
+    );
+    expect(verifyRes.status).toBe(200);
+  });
+
+  it('keeps a proven row for the right account when another account claims it', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'mine@example.com', PASSWORD);
+    const query = await signIn(test, { ...outside('mine@example.com'), hd: 'example.com' });
+    const token = query.get('pending')!;
+    const other = await signUpTestUser(test, 'not-mine@example.com');
+
+    expect((await tokenPost(test, 'claim', token, other.cookie)).status).toBe(403);
+    expect((await tokenPost(test, 'claim', token, cookie)).status).toBe(200);
+    expect(providers(test, userId)).toContain('google');
+  });
+
+  /** Hands the Google account `sub` to a new user, as if linked meanwhile. */
+  async function ownedElsewhere(test: TestApp, sub: string) {
+    const other = await signUpTestUser(test, `owner-${sub.replace(/\W/g, '-')}@example.com`);
+    test.db.insert(account).values({
+      id: `acc-${sub}`,
+      userId: other.userId,
+      accountId: sub,
+      providerId: 'google',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).run();
+  }
+
+  it('keeps an unverified account\'s code when the Google account belongs to someone else', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'held@example.com', PASSWORD);
+    const token = (await signIn(test, outside('held@example.com'))).get('pending')!;
+    await ownedElsewhere(test, 'google-held@example.com');
+
+    const code = emailCode(test.emails, 'held@example.com');
+    expect((await confirm(test, token, code)).status).toBe(400);
+    expect(pendingRow(test, token)?.proven).toBe(false);
+  });
+
+  it('gives the choice its own 10 minutes once the code is confirmed', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'slow@example.com', PASSWORD);
+    const token = (await signIn(test, outside('slow@example.com'))).get('pending')!;
+    test.db
+      .update(verification)
+      .set({ expiresAt: new Date(Date.now() + 60_000) })
+      .where(eq(verification.identifier, `pending-google:${token}`))
+      .run();
+
+    await confirm(test, token, emailCode(test.emails, 'slow@example.com'));
+    const row = test.db
+      .select()
+      .from(verification)
+      .all()
+      .find((v) => v.identifier === `pending-google:${token}`)!;
+    expect(row.expiresAt.getTime()).toBeGreaterThan(Date.now() + 9 * 60_000);
+  });
+
+  it('keeps a proven row when the takeover or claim is refused', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'kept@example.com', PASSWORD);
+    const profile = { ...outside('kept@example.com'), hd: 'example.com' };
+    const token = (await signIn(test, profile)).get('pending')!;
+
+    // Verified meanwhile: the takeover is refused.
+    test.db.update(user).set({ emailVerified: true }).where(eq(user.id, userId)).run();
+    expect((await tokenPost(test, 'takeover', token)).status).toBe(400);
+    expect(pendingRow(test, token)?.proven).toBe(true);
+
+    // The Google account linked elsewhere meanwhile: the claim is refused.
+    await ownedElsewhere(test, profile.sub);
+    expect((await tokenPost(test, 'claim', token, cookie)).status).toBe(400);
+    expect(pendingRow(test, token)?.proven).toBe(true);
+  });
+
+  it('connects an outside Google account to a verified account from settings', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'connect@example.com', PASSWORD);
+    test.db.update(user).set({ emailVerified: true }).where(eq(user.id, userId)).run();
+
+    const res = await googleLink(test, cookie, outside('connect@example.com'));
+    expect(res.headers.get('location')).toBe('http://localhost:5173/settings');
+    expect(providers(test, userId)).toContain('google');
+  });
+
+  it('asks an unverified account to verify before connecting an outside Google account', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'first@example.com', PASSWORD);
+
+    const res = await googleLink(test, cookie, outside('first@example.com'));
+    expect(res.headers.get('location')).toContain('error=verify_email_first');
     expect(providers(test, userId)).not.toContain('google');
     expect(isVerified(test, userId)).toBe(false);
   });

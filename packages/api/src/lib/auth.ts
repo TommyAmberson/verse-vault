@@ -4,6 +4,7 @@ import {
   APIError,
   createAuthMiddleware,
   getIp,
+  getOAuthState,
   getSessionFromCtx,
 } from 'better-auth/api';
 import { generateRandomString } from 'better-auth/crypto';
@@ -78,28 +79,35 @@ const PER_IP_TIER: RateLimitTier = { capacity: 10, refillPerSec: 10 / (24 * 3600
 
 const MAX_EMAIL_LENGTH = 254;
 
-/** Verification rows that let a refused Google sign-in choose "That's me"
- *  or "That's not me" (research D7). */
+/** Verification rows for a refused Google sign-in: the code step, then
+ *  "That's me" or "That's not me" (research D7, D16). */
 export const PENDING_GOOGLE_PREFIX = 'pending-google:';
 
-/** What a pending row holds: the account the sign-in matched, and the
- *  Google identity to link to it. */
+/** What a pending row holds: the account the sign-in matched, the Google
+ *  identity to link to it, and whether the inbox is proven yet, by Google
+ *  being authoritative for the address or by an emailed code. */
 export interface PendingGoogle {
   userId: string;
   sub: string;
   email: string;
+  proven: boolean;
 }
 
-const PENDING_GOOGLE_TTL_MS = 10 * 60 * 1000;
+/** The plugin's row for an address's verification code. */
+export const verificationCodeIdentifier = (email: string) =>
+  `email-verification-otp-${email.toLowerCase()}`;
 
-/** The Google profile the current callback signed in with, its
- *  `emailVerified` true only where Google speaks for the address. Better
- *  Auth passes the refused-link path nothing but a redirect, so the profile
- *  is kept here for the after hook. */
+export const PENDING_GOOGLE_TTL_MS = 10 * 60 * 1000;
+
+/** The Google profile the current callback signed in with: whether Google
+ *  says it checked the address, and whether it speaks for it. Better Auth
+ *  passes the refused-link path nothing but a redirect, so the profile is
+ *  kept here for the after hook. */
 const googleProfile = defineRequestState<{
   sub: string;
   email: string;
   emailVerified: boolean;
+  authoritative: boolean;
 } | null>(() => null);
 
 export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
@@ -131,6 +139,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
 
   // OAuth errors and the Google choice open the public web app.
   const webBase = env.webOrigin.replace(/\/$/, '');
+  const webBaseOrigin = new URL(webBase).origin;
 
   // Two limits on top of Better Auth's own, which reset within a minute.
   // Per address, so one inbox can't be flooded from many IPs. Per IP per
@@ -219,10 +228,15 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
             // `email_verified` records a check made when the Google account
             // was created, and the address may since have changed hands.
             mapProfileToUser: async (profile) => {
-              const emailVerified = profile.email_verified &&
+              const authoritative = profile.email_verified &&
                 (/@(gmail|googlemail)\.com$/.test(profile.email.toLowerCase()) || !!profile.hd);
-              await googleProfile.set({ sub: profile.sub, email: profile.email, emailVerified });
-              return { emailVerified };
+              await googleProfile.set({
+                sub: profile.sub,
+                email: profile.email,
+                emailVerified: profile.email_verified,
+                authoritative,
+              });
+              return { emailVerified: authoritative };
             },
           },
         }
@@ -282,52 +296,115 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         );
         if (refused) throw refused;
       }),
-      // Two follow-ups to a Google callback, both only when Google speaks
-      // for the address.
+      // Follow-ups to a Google callback, all only when Google says it
+      // checked the address. Where it doesn't speak for the address, the
+      // inbox still needs proving (research D16, D17).
       after: createAuthMiddleware(async (ctx) => {
         if (ctx.path !== '/callback/:id') return;
         const location = ctx.context.responseHeaders?.get('location');
         const profile = await googleProfile.get();
         if (!location || !profile?.emailVerified) return;
-        const found = await ctx.context.internalAdapter.findUserByEmail(profile.email, {
-          includeAccounts: true,
-        });
-        if (!found || found.user.emailVerified) return;
+        const internal = ctx.context.internalAdapter;
         const redirect = new URL(location, webBase);
-        if (redirect.searchParams.get('error') !== 'account_not_linked') {
-          // Connecting Google from settings (`linkSocial`) links it without
-          // verifying the address, though `linkSocial` refuses a different
-          // one. Verify it here.
+        const error = redirect.searchParams.get('error');
+        // A sign-in that went through needs nothing more unless it was
+        // Google connecting from settings, where Google speaks for the address.
+        if (!error && !profile.authoritative) return;
+        const found = await internal.findUserByEmail(profile.email, { includeAccounts: true });
+        if (!found) return;
+
+        if (error === 'unable_to_link_account' && !profile.authoritative) {
+          // Connecting Google from settings, which Better Auth refused since
+          // Google doesn't speak for the address. A verified account has
+          // proven the inbox already, so link it; an unverified one proves it
+          // with a code first. The OAuth state names the account connecting.
+          const state = await getOAuthState();
+          if (!state?.link || state.link.userId !== found.user.id) return;
+          if (!found.user.emailVerified) {
+            redirect.searchParams.set('error', 'verify_email_first');
+            throw ctx.redirect(redirect.toString());
+          }
+          const owner = await internal.findAccountByProviderId(profile.sub, 'google');
+          if (owner) return;
+          // The unique index refuses a link that raced another for the same
+          // Google account; Better Auth's refusal then stands.
+          const linked = await internal
+            .linkAccount({ providerId: 'google', accountId: profile.sub, userId: found.user.id })
+            .then(() => true, () => false);
+          if (!linked) return;
+          throw ctx.redirect(state.callbackURL);
+        }
+
+        if (error !== 'account_not_linked') {
+          // Connecting Google from settings (`linkSocial`) links an
+          // authoritative account without verifying the address, though
+          // `linkSocial` refuses a different one. Verify it here.
           const linked = found.accounts.some(
             (a) => a.providerId === 'google' && a.accountId === profile.sub,
           );
-          if (linked) {
-            await ctx.context.internalAdapter.updateUser(found.user.id, { emailVerified: true });
+          if (linked && profile.authoritative && !found.user.emailVerified) {
+            await internal.updateUser(found.user.id, { emailVerified: true });
           }
           return;
         }
-        // Refused onto an unverified password account: offer the learner
-        // "That's me" or "That's not me" instead, through a short-lived
-        // pending row. The picker on the client's own origin handles it,
-        // whichever page sign-in started from. The address rides along so
-        // "That's me" can prefill sign-in; it's the one the learner just
-        // signed in to Google with, so it tells them nothing new.
+
+        // A refused sign-in. Where Google speaks for the address the account
+        // is unverified, so offer the learner "That's me" or "That's not me".
+        // Otherwise email a code to prove the inbox first, through the
+        // plugin's send route so the per-address limit applies; the confirm
+        // route then links a verified account or leads to the choice. Both go
+        // through a short-lived pending row, handled by the picker on the
+        // client's own origin, whichever page sign-in started from. The
+        // address rides along to prefill sign-in and name where the code
+        // went; it's the one the learner just signed in to Google with, so
+        // it tells them nothing new.
         const token = generateRandomString(32);
         const pending: PendingGoogle = {
           userId: found.user.id,
           sub: profile.sub,
           email: found.user.email,
+          proven: profile.authoritative,
         };
-        await ctx.context.internalAdapter.createVerificationValue({
+        await internal.createVerificationValue({
           identifier: `${PENDING_GOOGLE_PREFIX}${token}`,
           value: JSON.stringify(pending),
           expiresAt: new Date(Date.now() + PENDING_GOOGLE_TTL_MS),
         });
+        let codeSent = false;
+        if (!pending.proven) {
+          // Under both email limits, as the send route is. Over either no
+          // code goes out, and the learner can ask for a new one from the
+          // code step. A new code replaces any older one for the address.
+          const ip = ctx.request ? getIp(ctx.request, ctx.context.options) : null;
+          if (!chargeSend(pending.email, ip)) {
+            await internal.deleteVerificationByIdentifier(verificationCodeIdentifier(pending.email));
+            // A send for the address that lands between the delete and the
+            // create wins the unique identifier; its code went out instead.
+            const code = await auth.api
+              .createVerificationOTP({ body: { email: pending.email, type: 'email-verification' } })
+              .catch(() => null);
+            if (code) {
+              sendEmail(verificationCodeEmail(pending.email, code, CODE_TTL_S / 60));
+              codeSent = true;
+            }
+          }
+        }
         // On the web app's own origin, keep its base path (a subpath deploy).
-        const base = redirect.origin === new URL(webBase).origin ? webBase : redirect.origin;
+        // A desktop client's `tauri://localhost` has the opaque origin
+        // "null", so rebuild it from the scheme and host.
+        const origin = redirect.origin === 'null'
+          ? `${redirect.protocol}//${redirect.host}`
+          : redirect.origin;
+        const base = origin === webBaseOrigin ? webBase : origin;
         const picker = new URL(`${base}/profiles`);
-        picker.search = new URLSearchParams({ force: '1', pending: token, email: pending.email })
-          .toString();
+        const query: Record<string, string> = { force: '1', pending: token, email: pending.email };
+        if (!pending.proven) query.code = '1';
+        // Keep where the learner was going when sign-in started.
+        const destination = redirect.searchParams.get('redirect');
+        if (destination) query.redirect = destination;
+        // Over a limit no code went out; the picker says so.
+        if (!pending.proven && !codeSent) query.sent = '0';
+        picker.search = new URLSearchParams(query).toString();
         throw ctx.redirect(picker.toString());
       }),
     },

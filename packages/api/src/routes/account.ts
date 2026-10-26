@@ -1,8 +1,15 @@
+import { APIError } from 'better-auth/api';
 import { type Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 
 import type { DB } from '../db/client.js';
-import { type Auth, PENDING_GOOGLE_PREFIX, type PendingGoogle } from '../lib/auth.js';
+import {
+  type Auth,
+  PENDING_GOOGLE_PREFIX,
+  PENDING_GOOGLE_TTL_MS,
+  type PendingGoogle,
+  verificationCodeIdentifier,
+} from '../lib/auth.js';
 import { EngineStore } from '../lib/engine.js';
 import type { AccountExport } from '../lib/export-format.js';
 import { buildAccountExport } from '../lib/export.js';
@@ -36,54 +43,140 @@ export function accountRoutes(deps: AccountRoutesDeps) {
 
   const adapter = async () => (await deps.auth.$context).internalAdapter;
 
-  // Consumes a pending Google row once, as the choice screen's proof that a
-  // Google sign-in for that address just completed.
-  async function consumePending(c: Context): Promise<PendingGoogle | null> {
+  // The pending Google row a request's `token` names, if it is still live.
+  async function readPending(token: unknown) {
+    if (typeof token !== 'string') return null;
+    const identifier = `${PENDING_GOOGLE_PREFIX}${token}`;
+    const row = await (await adapter()).findVerificationValue(identifier);
+    if (!row || row.expiresAt < new Date()) return null;
+    return { identifier, pending: JSON.parse(row.value) as PendingGoogle };
+  }
+
+  // A proven pending Google row, the choice screen's proof that a Google
+  // sign-in for that address just completed and the inbox is the learner's.
+  // An unproven row is for the code step. Nothing marks a row unproven again.
+  async function readProven(c: Context) {
     const body = await c.req.json<{ token?: unknown }>().catch(() => null);
-    if (typeof body?.token !== 'string') return null;
-    const row = await (await adapter()).consumeVerificationValue(
-      `${PENDING_GOOGLE_PREFIX}${body.token}`,
-    );
-    return row ? (JSON.parse(row.value) as PendingGoogle) : null;
+    const found = await readPending(body?.token);
+    return found?.pending.proven ? found : null;
+  }
+
+  // Uses a row up, once every check has passed, so a refusal leaves it for a
+  // retry. False when another request used it first.
+  async function consume(identifier: string): Promise<boolean> {
+    return (await (await adapter()).consumeVerificationValue(identifier)) !== null;
+  }
+
+  // The confirm route checks one code at a time per address, so each guess
+  // sees the attempt count the one before it wrote: the plugin's check
+  // reads, compares, and writes the count as separate steps (research
+  // D16). A lock in this process suffices, as the API runs as one process.
+  const codeLocks = new Map<string, Promise<unknown>>();
+  async function oneAtATime<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const run = (codeLocks.get(key) ?? Promise.resolve()).then(fn);
+    const settled = run.catch(() => {});
+    codeLocks.set(key, settled);
+    try {
+      return await run;
+    } finally {
+      if (codeLocks.get(key) === settled) codeLocks.delete(key);
+    }
   }
 
   // Links the pending Google identity and verifies the address. Null,
   // changing nothing, when that Google account already belongs to someone
-  // else; otherwise a function that does the linking, so the takeover can
-  // check before it removes anything.
+  // else; otherwise a function that does the linking, so a route can check
+  // before it uses anything up. The linking resolves false when a link for
+  // the same Google account won a race in between: the unique index on
+  // account refuses the second.
   async function googleLinker(pending: PendingGoogle) {
     const internal = await adapter();
     const existing = await internal.findAccountByProviderId(pending.sub, 'google');
     if (existing && existing.userId !== pending.userId) return null;
-    return async () => {
+    return async (): Promise<boolean> => {
       if (!existing) {
-        await internal.linkAccount({
-          providerId: 'google',
-          accountId: pending.sub,
-          userId: pending.userId,
-        });
+        const linked = await internal
+          .linkAccount({ providerId: 'google', accountId: pending.sub, userId: pending.userId })
+          .then(() => true, () => false);
+        if (!linked) return false;
       }
       await internal.updateUser(pending.userId, { emailVerified: true });
+      return true;
     };
   }
+
+  // The Google code step: the emailed code proves the inbox for a pending
+  // row Google couldn't prove. Signed out, like takeover, so it sits ahead
+  // of the session check below.
+  app.post('/account/google/confirm', async (c) => {
+    const body = await c.req.json<{ token?: unknown; code?: unknown }>().catch(() => null);
+    const found = await readPending(body?.token);
+    const code = body?.code;
+    if (!found || found.pending.proven || typeof code !== 'string') return invalidToken(c);
+    const { identifier, pending } = found;
+    const internal = await adapter();
+    const user = await internal.findUserById(pending.userId);
+    if (!user) return invalidToken(c);
+    // Checked before the code is used, so a Google account that belongs to
+    // someone else leaves the code and the row as they were.
+    const link = await googleLinker(pending);
+    if (!link) return invalidToken(c);
+
+    const refused = await oneAtATime(pending.email.toLowerCase(), async () => {
+      try {
+        // A server call: the HTTP route is refused (research D15).
+        await deps.auth.api.checkVerificationOTP({
+          body: { email: pending.email, type: 'email-verification', otp: code },
+        });
+      } catch (err) {
+        if (err instanceof APIError) return err;
+        throw err;
+      }
+      // The check doesn't use the code up; delete it so it works once.
+      await internal.deleteVerificationByIdentifier(verificationCodeIdentifier(pending.email));
+      return null;
+    });
+    if (refused) {
+      return c.json(
+        { error: refused.body?.message ?? 'invalid code', code: refused.body?.code },
+        refused.statusCode === 403 ? 403 : 400,
+      );
+    }
+
+    if (!user.emailVerified) {
+      // The choice gets its own 10 minutes, whatever the code step took.
+      await internal.updateVerificationByIdentifier(identifier, {
+        value: JSON.stringify({ ...pending, proven: true } satisfies PendingGoogle),
+        expiresAt: new Date(Date.now() + PENDING_GOOGLE_TTL_MS),
+      });
+      return c.json({ choice: true });
+    }
+    // A verified account: link, and the client signs in with Google again.
+    await internal.deleteVerificationByIdentifier(identifier);
+    if (!(await link())) return invalidToken(c);
+    return c.json({ signIn: true });
+  });
 
   // "That's not me" is how a signed-out learner gets in, so it sits ahead of
   // the session check below.
   app.post('/account/google/takeover', async (c) => {
-    const pending = await consumePending(c);
-    if (!pending) return invalidToken(c);
+    const found = await readProven(c);
+    if (!found) return invalidToken(c);
+    const { pending } = found;
     const internal = await adapter();
     const target = await internal.findUserById(pending.userId);
     if (!target || target.emailVerified) return invalidToken(c);
     const link = await googleLinker(pending);
-    if (!link) return invalidToken(c);
+    if (!link || !(await consume(found.identifier))) return invalidToken(c);
+    // Linked first, so a link refused because another request took the
+    // same Google account in between leaves the password and sessions.
+    if (!(await link())) return invalidToken(c);
     // Whoever set the password loses it and every session, as Better Auth's
     // `revokeUnprovenAccountAccess` does for an unverified account.
     for (const account of await internal.findAccounts(pending.userId)) {
       if (account.providerId === 'credential') await internal.deleteAccount(account.id);
     }
     await internal.deleteUserSessions(pending.userId);
-    await link();
     return c.json({ ok: true });
   });
 
@@ -91,14 +184,14 @@ export function accountRoutes(deps: AccountRoutesDeps) {
 
   // "That's me": the learner has just signed in with the account's password.
   app.post('/account/google/claim', async (c) => {
-    const pending = await consumePending(c);
-    if (!pending) return invalidToken(c);
-    if (pending.userId !== getUser(c).id) {
+    const found = await readProven(c);
+    if (!found) return invalidToken(c);
+    if (found.pending.userId !== getUser(c).id) {
       return c.json({ error: 'signed in to a different account' }, 403);
     }
-    const link = await googleLinker(pending);
-    if (!link) return invalidToken(c);
-    await link();
+    const link = await googleLinker(found.pending);
+    if (!link || !(await consume(found.identifier))) return invalidToken(c);
+    if (!(await link())) return invalidToken(c);
     return c.json({ ok: true });
   });
 
