@@ -1,4 +1,5 @@
 import { defineRequestState } from '@better-auth/core/context';
+import { and, eq, ne } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import {
   APIError,
@@ -13,7 +14,13 @@ import { emailOTP, multiSession } from 'better-auth/plugins';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
-import { type SendEmail, resetCodeEmail, verificationCodeEmail } from './email.js';
+import {
+  type SendEmail,
+  googleCodeEmail,
+  googleLinkedEmail,
+  resetCodeEmail,
+  verificationCodeEmail,
+} from './email.js';
 import { type RateLimitTier, TokenBucketStore } from './rate-limit.js';
 
 export interface AuthEnv {
@@ -99,6 +106,12 @@ export const verificationCodeIdentifier = (email: string) =>
 
 export const PENDING_GOOGLE_TTL_MS = 10 * 60 * 1000;
 
+/** The cookie that carries a pending row's token, set on the callback's
+ *  response and sent only to the Google routes. The token stays in the
+ *  browser that signed in with Google: a copied page address carries none,
+ *  so it can't be handed to the inbox's owner to finish someone else's link. */
+export const PENDING_GOOGLE_COOKIE = 'pending_google';
+
 /** The Google profile the current callback signed in with: whether Google
  *  says it checked the address, and whether it speaks for it. Better Auth
  *  passes the refused-link path nothing but a redirect, so the profile is
@@ -140,6 +153,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   // OAuth errors and the Google choice open the public web app.
   const webBase = env.webOrigin.replace(/\/$/, '');
   const webBaseOrigin = new URL(webBase).origin;
+  // The Google routes as the browser addresses them, under any path prefix
+  // the public API URL carries, so the pending cookie reaches them.
+  const pendingCookiePath = `${new URL(env.baseUrl).pathname.replace(/\/$/, '')}/api/account/google`;
 
   // Two limits on top of Better Auth's own, which reset within a minute.
   // Per address, so one inbox can't be flooded from many IPs. Per IP per
@@ -370,25 +386,16 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           value: JSON.stringify(pending),
           expiresAt: new Date(Date.now() + PENDING_GOOGLE_TTL_MS),
         });
-        let codeSent = false;
-        if (!pending.proven) {
-          // Under both email limits, as the send route is. Over either no
-          // code goes out, and the learner can ask for a new one from the
-          // code step. A new code replaces any older one for the address.
-          const ip = ctx.request ? getIp(ctx.request, ctx.context.options) : null;
-          if (!chargeSend(pending.email, ip)) {
-            await internal.deleteVerificationByIdentifier(verificationCodeIdentifier(pending.email));
-            // A send for the address that lands between the delete and the
-            // create wins the unique identifier; its code went out instead.
-            const code = await auth.api
-              .createVerificationOTP({ body: { email: pending.email, type: 'email-verification' } })
-              .catch(() => null);
-            if (code) {
-              sendEmail(verificationCodeEmail(pending.email, code, CODE_TTL_S / 60));
-              codeSent = true;
-            }
-          }
-        }
+        const cookie = ctx.context.createAuthCookie(PENDING_GOOGLE_COOKIE, {
+          maxAge: PENDING_GOOGLE_TTL_MS / 1000,
+          path: pendingCookiePath,
+        });
+        ctx.setCookie(cookie.name, token, cookie.attributes);
+        // A code the inbox already holds proves it as well as a new one, so
+        // it is kept rather than replaced under the owner.
+        const sent = pending.proven
+          ? 'sent'
+          : await sendGoogleCode(pending.email, ctx.request ?? null, { keepLive: true });
         // On the web app's own origin, keep its base path (a subpath deploy).
         // A desktop client's `tauri://localhost` has the opaque origin
         // "null", so rebuild it from the scheme and host.
@@ -397,16 +404,39 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           : redirect.origin;
         const base = origin === webBaseOrigin ? webBase : origin;
         const picker = new URL(`${base}/profiles`);
-        const query: Record<string, string> = { force: '1', pending: token, email: pending.email };
+        const query: Record<string, string> = { force: '1', pending: '1', email: pending.email };
         if (!pending.proven) query.code = '1';
         // Keep where the learner was going when sign-in started.
         const destination = redirect.searchParams.get('redirect');
         if (destination) query.redirect = destination;
         // Over a limit no code went out; the picker says so.
-        if (!pending.proven && !codeSent) query.sent = '0';
+        if (sent === 'limited') query.sent = '0';
         picker.search = new URLSearchParams(query).toString();
         throw ctx.redirect(picker.toString());
       }),
+    },
+    databaseHooks: {
+      account: {
+        create: {
+          // Google joining an account that already signs in another way,
+          // by any route (choice, code step, Connect Google, or Better Auth
+          // linking an authoritative sign-in): tell the owner.
+          after: async (account) => {
+            if (account.providerId !== 'google') return;
+            const others = db
+              .select()
+              .from(schema.account)
+              .where(
+                and(eq(schema.account.userId, account.userId), ne(schema.account.providerId, 'google')),
+              )
+              .all();
+            if (others.length === 0) return;
+            const owner = db.select().from(schema.user).where(eq(schema.user.id, account.userId))
+              .get();
+            if (owner) sendEmail(googleLinkedEmail(owner.email));
+          },
+        },
+      },
     },
     advanced: {
       // Cloudflare Tunnel delivers the client's address in CF-Connecting-IP
@@ -448,7 +478,35 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       }),
     ],
   });
-  return auth;
+  /** Emails a Google code-step code for `email`, under both email limits.
+   *  With `keepLive`, an address that already holds a usable code keeps it
+   *  instead. `limited` when a limit stopped the send. */
+  async function sendGoogleCode(
+    email: string,
+    request: Request | null,
+    { keepLive }: { keepLive: boolean },
+  ): Promise<'sent' | 'kept' | 'limited'> {
+    const internal = (await auth.$context).internalAdapter;
+    const identifier = verificationCodeIdentifier(email);
+    if (keepLive) {
+      const live = await internal.findVerificationValue(identifier);
+      const tries = Number(live?.value.split(':').at(-1) ?? 0);
+      if (live && live.expiresAt > new Date() && tries < 3) return 'kept';
+    }
+    const ip = request ? getIp(request, auth.options) : null;
+    if (chargeSend(email, ip)) return 'limited';
+    await internal.deleteVerificationByIdentifier(identifier);
+    // A send for the address that lands between the delete and the create
+    // wins the unique identifier; its code went out instead.
+    const code = await auth.api
+      .createVerificationOTP({ body: { email, type: 'email-verification' } })
+      .catch(() => null);
+    if (!code) return 'kept';
+    sendEmail(googleCodeEmail(email, code, CODE_TTL_S / 60));
+    return 'sent';
+  }
+
+  return Object.assign(auth, { sendGoogleCode, pendingCookiePath });
 }
 
 export type Auth = ReturnType<typeof createAuth>;

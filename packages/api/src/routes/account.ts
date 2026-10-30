@@ -1,10 +1,12 @@
 import { APIError } from 'better-auth/api';
 import { type Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 
 import type { DB } from '../db/client.js';
 import {
   type Auth,
+  PENDING_GOOGLE_COOKIE,
   PENDING_GOOGLE_PREFIX,
   PENDING_GOOGLE_TTL_MS,
   type PendingGoogle,
@@ -43,28 +45,50 @@ export function accountRoutes(deps: AccountRoutesDeps) {
 
   const adapter = async () => (await deps.auth.$context).internalAdapter;
 
-  // The pending Google row a request's `token` names, if it is still live.
-  async function readPending(token: unknown) {
-    if (typeof token !== 'string') return null;
+  // The pending row's token travels in a cookie set when Google sign-in
+  // came back, never in a page address, so only that browser can act on it.
+  async function pendingCookie() {
+    const cookie = (await deps.auth.$context).createAuthCookie(PENDING_GOOGLE_COOKIE, {
+      maxAge: PENDING_GOOGLE_TTL_MS / 1000,
+      path: deps.auth.pendingCookiePath,
+    });
+    return { name: cookie.name, options: cookie.attributes as Parameters<typeof setCookie>[3] };
+  }
+
+  // The pending Google row this browser's cookie names, if it is still live.
+  // The browser holds one such cookie, but each tab remembers its own step,
+  // so a request naming the address its tab is on must match the row: a
+  // Google sign-in in another tab can't re-point this one.
+  async function readPending(c: Context) {
+    const token = getCookie(c, (await pendingCookie()).name);
+    if (!token) return null;
     const identifier = `${PENDING_GOOGLE_PREFIX}${token}`;
     const row = await (await adapter()).findVerificationValue(identifier);
     if (!row || row.expiresAt < new Date()) return null;
-    return { identifier, pending: JSON.parse(row.value) as PendingGoogle };
+    const pending = JSON.parse(row.value) as PendingGoogle;
+    const body = await c.req.json<{ email?: unknown }>().catch(() => null);
+    const expected = typeof body?.email === 'string' ? body.email.toLowerCase() : null;
+    if (expected && expected !== pending.email.toLowerCase()) return null;
+    return { token, identifier, pending };
   }
 
   // A proven pending Google row, the choice screen's proof that a Google
   // sign-in for that address just completed and the inbox is the learner's.
   // An unproven row is for the code step. Nothing marks a row unproven again.
   async function readProven(c: Context) {
-    const body = await c.req.json<{ token?: unknown }>().catch(() => null);
-    const found = await readPending(body?.token);
+    const found = await readPending(c);
     return found?.pending.proven ? found : null;
   }
 
   // Uses a row up, once every check has passed, so a refusal leaves it for a
-  // retry. False when another request used it first.
-  async function consume(identifier: string): Promise<boolean> {
-    return (await (await adapter()).consumeVerificationValue(identifier)) !== null;
+  // retry, and drops the cookie. False when another request used it first.
+  async function consume(c: Context, identifier: string): Promise<boolean> {
+    const used = (await (await adapter()).consumeVerificationValue(identifier)) !== null;
+    if (used) {
+      const { name, options } = await pendingCookie();
+      deleteCookie(c, name, options);
+    }
+    return used;
   }
 
   // The confirm route checks one code at a time per address, so each guess
@@ -109,8 +133,8 @@ export function accountRoutes(deps: AccountRoutesDeps) {
   // row Google couldn't prove. Signed out, like takeover, so it sits ahead
   // of the session check below.
   app.post('/account/google/confirm', async (c) => {
-    const body = await c.req.json<{ token?: unknown; code?: unknown }>().catch(() => null);
-    const found = await readPending(body?.token);
+    const body = await c.req.json<{ code?: unknown }>().catch(() => null);
+    const found = await readPending(c);
     const code = body?.code;
     if (!found || found.pending.proven || typeof code !== 'string') return invalidToken(c);
     const { identifier, pending } = found;
@@ -149,12 +173,30 @@ export function accountRoutes(deps: AccountRoutesDeps) {
         value: JSON.stringify({ ...pending, proven: true } satisfies PendingGoogle),
         expiresAt: new Date(Date.now() + PENDING_GOOGLE_TTL_MS),
       });
+      const { name, options } = await pendingCookie();
+      setCookie(c, name, found.token, options);
       return c.json({ choice: true });
     }
-    // A verified account: link, and the client signs in with Google again.
-    await internal.deleteVerificationByIdentifier(identifier);
+    // A verified account: link, then use the row up, so a link that loses a
+    // race leaves the row for another try. The client signs in with Google
+    // again.
     if (!(await link())) return invalidToken(c);
+    await consume(c, identifier);
     return c.json({ signIn: true });
+  });
+
+  // "Send a new code" on the Google code step: the code-step email again,
+  // which says what the code is for, under the same limits.
+  app.post('/account/google/resend', async (c) => {
+    const found = await readPending(c);
+    if (!found || found.pending.proven) return invalidToken(c);
+    const sent = await deps.auth.sendGoogleCode(found.pending.email, c.req.raw, {
+      keepLive: false,
+    });
+    if (sent === 'limited') {
+      return c.json({ error: 'Too many requests for this address. Try again later.' }, 429);
+    }
+    return c.json({ sent: true });
   });
 
   // "That's not me" is how a signed-out learner gets in, so it sits ahead of
@@ -167,7 +209,7 @@ export function accountRoutes(deps: AccountRoutesDeps) {
     const target = await internal.findUserById(pending.userId);
     if (!target || target.emailVerified) return invalidToken(c);
     const link = await googleLinker(pending);
-    if (!link || !(await consume(found.identifier))) return invalidToken(c);
+    if (!link || !(await consume(c, found.identifier))) return invalidToken(c);
     // Linked first, so a link refused because another request took the
     // same Google account in between leaves the password and sessions.
     if (!(await link())) return invalidToken(c);
@@ -190,7 +232,7 @@ export function accountRoutes(deps: AccountRoutesDeps) {
       return c.json({ error: 'signed in to a different account' }, 403);
     }
     const link = await googleLinker(found.pending);
-    if (!link || !(await consume(found.identifier))) return invalidToken(c);
+    if (!link || !(await consume(c, found.identifier))) return invalidToken(c);
     if (!(await link())) return invalidToken(c);
     return c.json({ ok: true });
   });

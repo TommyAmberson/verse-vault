@@ -16,6 +16,8 @@ import {
   emailCode,
   googleLink,
   googleSignIn,
+  pendingCookie,
+  pendingTokenFrom,
   signUpTestUser,
 } from './test-utils.js';
 
@@ -726,7 +728,7 @@ describe('Google sign-in onto an unverified password account', () => {
   /** Signs in with Google and returns the pending token from the redirect. */
   async function pendingToken(test: TestApp, email: string): Promise<string> {
     const res = await googleSignIn(test, google(email));
-    const token = new URL(res.headers.get('location')!).searchParams.get('pending');
+    const token = pendingTokenFrom(res);
     expect(token).toBeTruthy();
     return token!;
   }
@@ -734,15 +736,13 @@ describe('Google sign-in onto an unverified password account', () => {
   const claim = (test: TestApp, token: string, cookie: string) =>
     test.app.request('/api/account/google/claim', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', cookie },
-      body: JSON.stringify({ token }),
+      headers: { cookie: `${cookie}; ${pendingCookie(token)}` },
     });
 
   const takeover = (test: TestApp, token: string) =>
     test.app.request('/api/account/google/takeover', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
+      headers: { cookie: pendingCookie(token) },
     });
 
   it('offers the choice instead of refusing, for 10 minutes', async () => {
@@ -758,7 +758,8 @@ describe('Google sign-in onto an unverified password account', () => {
     expect(location.searchParams.get('email')).toBe('mine@example.com');
     const rows = pendingRows(test);
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.identifier).toBe(`pending-google:${location.searchParams.get('pending')}`);
+    expect(location.searchParams.get('pending')).toBe('1');
+    expect(rows[0]!.identifier).toBe(`pending-google:${pendingTokenFrom(res)}`);
     const minutes = (rows[0]!.expiresAt.getTime() - Date.now()) / 60_000;
     expect(minutes).toBeGreaterThan(9);
     expect(minutes).toBeLessThanOrEqual(10);
@@ -957,9 +958,12 @@ describe('the Google code step', () => {
   // inbox still needs proving.
   const outside = (email: string) => ({ sub: `google-${email}`, email, email_verified: true });
 
+  // Verified as by its code, which verifying uses up.
   async function verifiedUser(test: TestApp, email: string): Promise<string> {
     const { userId } = await signUpTestUser(test, email, PASSWORD);
     test.db.update(user).set({ emailVerified: true }).where(eq(user.id, userId)).run();
+    test.db.delete(verification).where(eq(verification.identifier, `email-verification-otp-${email}`))
+      .run();
     return userId;
   }
 
@@ -972,24 +976,27 @@ describe('the Google code step', () => {
     return row ? (JSON.parse(row.value) as { proven: boolean }) : undefined;
   }
 
-  /** Signs in with Google and returns the redirect's query. */
+  /** Signs in with Google and returns the redirect's query, with `pending`
+   *  set to the token from the cookie (the address itself carries only "1"). */
   async function signIn(test: TestApp, profile: GoogleProfile) {
     const res = await googleSignIn(test, profile);
-    return new URL(res.headers.get('location')!).searchParams;
+    const query = new URL(res.headers.get('location')!).searchParams;
+    const token = pendingTokenFrom(res);
+    if (token) query.set('pending', token);
+    return query;
   }
 
-  const confirm = (test: TestApp, token: string, code: string) =>
+  const confirm = (test: TestApp, token: string | null, code: string) =>
     test.app.request('/api/account/google/confirm', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, code }),
+      headers: { 'Content-Type': 'application/json', ...(token ? { cookie: pendingCookie(token) } : {}) },
+      body: JSON.stringify({ code }),
     });
 
   const tokenPost = (test: TestApp, path: string, token: string, cookie?: string) =>
     test.app.request(`/api/account/google/${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(cookie ? { cookie } : {}) },
-      body: JSON.stringify({ token }),
+      headers: { cookie: [cookie, pendingCookie(token)].filter(Boolean).join('; ') },
     });
 
   it('emails a code and sends the learner to the code step', async () => {
@@ -1005,8 +1012,9 @@ describe('the Google code step', () => {
     expect(query.get('email')).toBe('step@example.com');
     expect(pendingRow(test, query.get('pending')!)?.proven).toBe(false);
     expect(test.emails.map((m) => [m.to, m.subject])).toEqual([
-      ['step@example.com', 'Your VerseVault code'],
+      ['step@example.com', 'Your VerseVault code to connect Google'],
     ]);
+    expect(test.emails[0]!.text).toMatch(/connecting a Google account/);
   });
 
   it('links a verified account once the code is confirmed', async () => {
@@ -1107,8 +1115,12 @@ describe('the Google code step', () => {
     const post = () =>
       test.app.request('/api/account/google/confirm', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.9' },
-        body: JSON.stringify({ token: 'nope', code: '123456' }),
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': '203.0.113.9',
+          cookie: pendingCookie('nope'),
+        },
+        body: JSON.stringify({ code: '123456' }),
       });
     expect((await post()).status).toBe(400);
     expect((await post()).status).toBe(400);
@@ -1138,6 +1150,95 @@ describe('the Google code step', () => {
     expect((await reset()).status).toBe(200);
     expect((await reset()).status).toBe(200);
     expect((await reset()).status).toBe(429);
+  });
+
+  it('acts only for the browser that signed in with Google', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const userId = await verifiedUser(test, 'phish@example.com');
+    const res = await googleSignIn(test, outside('phish@example.com'));
+    // The page address carries no token to hand on.
+    expect(new URL(res.headers.get('location')!).searchParams.get('pending')).toBe('1');
+
+    const code = emailCode(test.emails, 'phish@example.com');
+    expect((await confirm(test, null, code)).status).toBe(400);
+    expect(providers(test, userId)).not.toContain('google');
+  });
+
+  it('sends a new code-step code on request, saying what it is for', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await verifiedUser(test, 'again@example.com');
+    const token = (await signIn(test, outside('again@example.com'))).get('pending')!;
+    const older = emailCode(test.emails, 'again@example.com');
+
+    const res = await tokenPost(test, 'resend', token);
+    expect(res.status).toBe(200);
+    expect(test.emails.at(-1)?.subject).toBe('Your VerseVault code to connect Google');
+    const newer = emailCode(test.emails, 'again@example.com');
+    if (older !== newer) expect((await confirm(test, token, older)).status).toBe(400);
+    expect((await confirm(test, token, newer)).status).toBe(200);
+  });
+
+  it("keeps a code the owner already holds rather than replacing it", async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'holding@example.com', PASSWORD);
+    const held = emailCode(test.emails, 'holding@example.com');
+    test.emails.length = 0;
+
+    await signIn(test, outside('holding@example.com'));
+    expect(test.emails).toHaveLength(0);
+    const res = await postAuth(
+      test,
+      'email-otp/verify-email',
+      { email: 'holding@example.com', otp: held },
+      cookie,
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('tells the owner when Google joins an account that signs in another way', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await verifiedUser(test, 'told@example.com');
+    const token = (await signIn(test, outside('told@example.com'))).get('pending')!;
+
+    await confirm(test, token, emailCode(test.emails, 'told@example.com'));
+    expect(test.emails.at(-1)?.subject).toBe('Google was connected to your VerseVault account');
+    expect(test.emails.at(-1)?.to).toBe('told@example.com');
+
+    // A new Google-only sign-up has nothing to warn about.
+    test.emails.length = 0;
+    await googleSignIn(test, { sub: 'g-new', email: 'brand-new@gmail.com', email_verified: true });
+    expect(test.emails.filter((m) => m.subject.startsWith('Google was connected'))).toHaveLength(0);
+  });
+
+  it('refuses a request naming a different pending sign-in than the cookie', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'tab-b@example.com', PASSWORD);
+    const token = (await signIn(test, { ...outside('tab-b@example.com'), hd: 'example.com' }))
+      .get('pending')!;
+
+    // Tab A still shows a choice about another address.
+    const res = await test.app.request('/api/account/google/takeover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: pendingCookie(token) },
+      body: JSON.stringify({ email: 'tab-a@example.com' }),
+    });
+    expect(res.status).toBe(400);
+    expect(pendingRow(test, token)?.proven).toBe(true);
+  });
+
+  it('sets the pending cookie for the Google routes under a prefixed API URL', async () => {
+    const test = createTestApp({ authEnv: { ...TEST_GOOGLE_ENV, baseUrl: 'http://localhost:3000/vv' } });
+    cleanup = test.cleanup;
+    await verifiedUser(test, 'prefixed@example.com');
+    const res = await googleSignIn(test, outside('prefixed@example.com'));
+    expect(res.headers.get('set-cookie')).toMatch(
+      /better-auth\.pending_google=[^;]+;[^,]*Path=\/vv\/api\/account\/google/,
+    );
   });
 
   it('keeps the destination sign-in started with', async () => {

@@ -66,6 +66,35 @@ export function verificationCodeEmail(to: string, code: string, ttlMinutes: numb
   });
 }
 
+/** The Google code step's code, which says what it is for, so a code the
+ *  learner didn't ask for isn't typed in on someone else's say-so. */
+export function googleCodeEmail(to: string, code: string, ttlMinutes: number): EmailMessage {
+  return codeEmail(to, ttlMinutes, {
+    subject: 'Your VerseVault code to connect Google',
+    reason: 'Someone is connecting a Google account to your VerseVault account. Enter this code ' +
+      'only if you just did that yourself; otherwise ignore this email, and your account stays as ' +
+      'it is:',
+    code,
+  });
+}
+
+/** Sent whenever Google joins an account that already had another way to
+ *  sign in, so the owner hears of a link they didn't make. */
+export function googleLinkedEmail(to: string): EmailMessage {
+  const subject = 'Google was connected to your VerseVault account';
+  const lines = [
+    'A Google account was just connected to your VerseVault account, so it can now be used to ' +
+    'sign in.',
+    'If this wasn\'t you, reset your password from the sign-in page ("Forgot password?").',
+  ];
+  return {
+    to,
+    subject,
+    text: lines.join('\n\n'),
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('\n'),
+  };
+}
+
 interface CodeEmailParts {
   subject: string;
   reason: string;

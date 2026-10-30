@@ -257,3 +257,12 @@ async function googleCallback(
     spy.mockRestore();
   }
 }
+
+/** The pending Google token a refused callback set in its cookie; the
+ *  redirect itself carries none (research D16). */
+export function pendingTokenFrom(res: Response): string | null {
+  return /better-auth\.pending_google=([^;]+)/.exec(res.headers.get('set-cookie') ?? '')?.[1] ?? null;
+}
+
+/** The cookie that carries a pending Google token back to the API. */
+export const pendingCookie = (token: string) => `better-auth.pending_google=${token}`;
