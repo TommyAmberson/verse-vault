@@ -75,7 +75,7 @@ export function createTestApp(opts: CreateTestAppOptions = {}) {
   // Pull `engines` so tests can clear() / inspect it if they want.
   // We deliberately don't call `engines.start()` here — tests run in
   // milliseconds and have no use for the 60 s idle reaper.
-  // Every email an auth flow sends lands here, so a test can follow its link.
+  // Every email an auth flow sends lands here, so a test can read its code.
   const emails: EmailMessage[] = [];
   const { app, engines } = createApp({
     db: test.db,
@@ -86,10 +86,11 @@ export function createTestApp(opts: CreateTestAppOptions = {}) {
   return { app, engines, emails, ...test };
 }
 
-/** The link in a recorded email's plain-text body. */
-export function emailLink(message: EmailMessage): string {
-  const match = /https?:\/\/\S+/.exec(message.text);
-  if (!match) throw new Error(`no link in email: ${message.subject}`);
+/** The code in the newest email recorded for `to`. */
+export function emailCode(emails: EmailMessage[], to: string): string {
+  const message = emails.filter((m) => m.to === to).at(-1);
+  const match = /\b\d{6}\b/.exec(message?.text ?? '');
+  if (!match) throw new Error(`no code emailed to ${to}`);
   return match[0];
 }
 
@@ -189,17 +190,45 @@ export interface GoogleProfile {
 /** Runs a Google sign-in through Better Auth's real callback, with only
  *  Google's token endpoint stubbed: it answers with an unsigned ID token
  *  for `profile`, which Better Auth decodes without verifying. Returns the
- *  callback's response, whose `Location` says where the browser lands. */
-export async function googleSignIn(test: TestApp, profile: GoogleProfile): Promise<Response> {
+ *  callback's response, whose `Location` says where the browser lands.
+ *  `errorCallbackURL` is the page the client started from. */
+export async function googleSignIn(
+  test: TestApp,
+  profile: GoogleProfile,
+  errorCallbackURL = 'http://localhost:5173/profiles',
+): Promise<Response> {
   const start = await test.app.request('/api/auth/sign-in/social', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       provider: 'google',
       callbackURL: 'http://localhost:5173/home',
-      errorCallbackURL: 'http://localhost:5173/profiles',
+      errorCallbackURL,
     }),
   });
+  return googleCallback(test, start, profile);
+}
+
+/** Connects Google to the account `cookie` is signed in to, through
+ *  `/link-social` and the same stubbed callback as `googleSignIn`. */
+export async function googleLink(
+  test: TestApp,
+  cookie: string,
+  profile: GoogleProfile,
+): Promise<Response> {
+  const start = await test.app.request('/api/auth/link-social', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({ provider: 'google', callbackURL: 'http://localhost:5173/settings' }),
+  });
+  return googleCallback(test, start, profile);
+}
+
+async function googleCallback(
+  test: TestApp,
+  start: Response,
+  profile: GoogleProfile,
+): Promise<Response> {
   expect(start.status).toBe(200);
   const { url } = (await start.json()) as { url: string };
   const state = new URL(url).searchParams.get('state')!;
@@ -228,3 +257,12 @@ export async function googleSignIn(test: TestApp, profile: GoogleProfile): Promi
     spy.mockRestore();
   }
 }
+
+/** The pending Google token a refused callback set in its cookie; the
+ *  redirect itself carries none (research D16). */
+export function pendingTokenFrom(res: Response): string | null {
+  return /better-auth\.pending_google=([^;]+)/.exec(res.headers.get('set-cookie') ?? '')?.[1] ?? null;
+}
+
+/** The cookie that carries a pending Google token back to the API. */
+export const pendingCookie = (token: string) => `better-auth.pending_google=${token}`;

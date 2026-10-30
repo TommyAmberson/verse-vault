@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { type RouteLocationRaw, RouterLink, useRoute, useRouter } from 'vue-router'
 
+import { api, ApiError } from '@/api'
+import CodeField from '@/components/CodeField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProfileCard from '@/components/ProfileCard.vue'
 import SignInForm from '@/components/SignInForm.vue'
-import { socialSignInError } from '@/lib/socialSignInError'
-import { useAuth } from '@/composables/useAuth'
+import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
+import { readPendingProvider } from '@/lib/authClient'
+import { reconcileDeviceSessions, useAuth } from '@/composables/useAuth'
+import { useEmailRequest } from '@/composables/useEmailRequest'
+import { CODE_FAILURES, codeErrorMessage } from '@/lib/authEmail'
 import { safeRedirect } from '@/router'
 import type { ProfileRow } from '@/lib/engine/registry'
 
@@ -17,6 +22,9 @@ const {
   signInEmail,
   signUpEmail,
   requestPasswordReset,
+  resetPassword,
+  verifyEmail,
+  sendVerificationCode,
   signOut,
   enterProfile,
   deleteProfile,
@@ -50,6 +58,153 @@ const banner = ref<string | null>(
       : null,
 )
 
+// A Google sign-in onto an unverified password account comes back with
+// `?pending=1` and the address: the learner says whether the account is
+// theirs. The single-use proof of that Google sign-in is a cookie the API
+// set, so only this browser can act on it. Where Google doesn't speak for
+// the address, `code=1` asks first for the code emailed to it, which proves
+// the inbox (research D16); `sent=0` means a limit stopped that code. The
+// step is kept in this tab's storage across the reload email sign-in
+// causes.
+interface PendingChoice {
+  email: string
+  step: 'code' | 'ask' | 'mine'
+  /** Which limit stopped the code, if one did. */
+  unsent: '' | 'address' | 'network'
+  savedAt: number
+}
+const PENDING_KEY = 'vv:google-pending'
+// Past the server's 10 minutes, plus the code step's own 10.
+const PENDING_MAX_AGE_MS = 20 * 60 * 1000
+function loadPending(): PendingChoice | null {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(PENDING_KEY) ?? 'null') as PendingChoice | null
+    return saved && Date.now() - saved.savedAt < PENDING_MAX_AGE_MS ? saved : null
+  } catch {
+    return null
+  }
+}
+function savePending(pending: PendingChoice | null) {
+  try {
+    // Each save restarts the age, as the server restarts the row's 10 minutes
+    // on a resend or a confirmed code.
+    if (pending) sessionStorage.setItem(PENDING_KEY, JSON.stringify({ ...pending, savedAt: Date.now() }))
+    else sessionStorage.removeItem(PENDING_KEY)
+  } catch {
+    // Storage blocked: after a reload the learner signs in with Google again.
+  }
+}
+const fromUrl: PendingChoice | null = route.query.pending === '1'
+  ? {
+    email: typeof route.query.email === 'string' ? route.query.email : '',
+    step: route.query.code === '1' ? 'code' : 'ask',
+    unsent: route.query.sent === 'network' ? 'network' : route.query.sent === '0' ? 'address' : '',
+    savedAt: Date.now(),
+  }
+  : null
+const savedChoice = fromUrl ?? loadPending()
+if (fromUrl) {
+  savePending(fromUrl)
+  void router.replace({ query: queryWithout(route.query, 'pending', 'email', 'code', 'sent') })
+  // The refused Google round trip left its provider stashed without an
+  // `?error=` to discard it; drop it so no profile is recorded as Google.
+  readPendingProvider()
+}
+const hasPending = savedChoice !== null
+const pendingEmail = savedChoice?.email ?? ''
+const codeUnsent = ref<PendingChoice['unsent']>(savedChoice?.unsent ?? '')
+const codeStep = ref(savedChoice?.step === 'code')
+const googleCode = ref('')
+const codeBusy = ref(false)
+const {
+  pending: codeResending,
+  notice: codeNotice,
+  run: resendGoogleCode,
+} = useEmailRequest(
+  () =>
+    api.resendGoogleCode(pendingEmail).then(
+      (result) => {
+        // Confirmed already, in another tab: go on to the choice.
+        if ('proven' in result) {
+          codeStep.value = false
+          choice.value = 'ask'
+        }
+        return { error: null }
+      },
+      (err: unknown) => {
+        // The step has expired; say so and leave it, as confirming would.
+        if (err instanceof ApiError && err.status === 400) leaveChoice(CHOICE_EXPIRED)
+        const status = err instanceof ApiError ? err.status : undefined
+        // The network's limit lasts the day, the address's about 20 minutes.
+        const message = err instanceof ApiError && err.message.includes('network')
+          ? 'Too many requests from this network. Try again tomorrow.'
+          : undefined
+        return { error: { status, message } }
+      },
+    ),
+  () => `We sent a new code to ${pendingEmail}.`,
+)
+const choice = ref<'ask' | 'mine' | null>(
+  savedChoice && savedChoice.step !== 'code' ? savedChoice.step : null,
+)
+// Keep the stored step in line, so a reload lands where the learner was.
+watch([codeStep, choice, codeUnsent], ([code, chosen, unsent]) => {
+  if (!savedChoice) return
+  const step = code ? 'code' : chosen
+  savePending(step ? { ...savedChoice, step, unsent } : null)
+})
+const confirmTakeover = ref(false)
+const choiceBusy = ref(false)
+const choiceError = ref('')
+const CHOICE_EXPIRED = 'That choice has expired. Sign in with Google again.'
+
+async function onResendCode() {
+  if (!(await resendGoogleCode())) return
+  codeUnsent.value = ''
+  // The server gave the new code 10 minutes; restart the stored step's age.
+  if (savedChoice && codeStep.value) savePending({ ...savedChoice, step: 'code', unsent: '' })
+}
+
+/** Says why a choice request failed. Only a 400 means the token is gone;
+ *  after anything else it still works, so the step stays for a retry. */
+function choiceFailed(err: unknown) {
+  if (err instanceof ApiError && err.status === 400) {
+    leaveChoice(CHOICE_EXPIRED)
+  } else if (err instanceof ApiError && err.status === 403) {
+    choiceError.value = "You're signed in to a different account. Sign in with this address."
+  } else if (err instanceof ApiError && err.status === 401) {
+    choiceError.value = 'Your session has ended. Sign in with the password again.'
+  } else if (err instanceof ApiError && err.status === 429) {
+    choiceError.value = 'Too many tries. Try again later.'
+  } else {
+    choiceError.value = 'Something went wrong. Try again.'
+  }
+}
+
+// Set by the Google sign-in that finishes a takeover. Read once, so a
+// reload doesn't repeat the notice.
+const takenOver = route.query['taken-over'] === '1'
+if (takenOver) void router.replace({ query: queryWithout(route.query, 'taken-over') })
+
+// "That's me" claims once the account is the active profile: right after
+// signing in, once the active profile is restored after the reload sign-in
+// causes, or at once when it was active already.
+const mineReady = computed(
+  () =>
+    choice.value === 'mine' &&
+    !!activeProfile.value?.sessionToken &&
+    activeProfile.value.email.toLowerCase() === pendingEmail.toLowerCase(),
+)
+// Keyed on the session token too, so signing in again after a session
+// ended elsewhere retries the claim.
+watch(
+  () => (mineReady.value ? activeProfile.value?.sessionToken : null),
+  (token) => {
+    if (token) void onMineSignedIn()
+  },
+  { immediate: true },
+)
+
 // Keep mode in sync with the shared profiles list (reconcile, sign-in
 // from another flow, etc.). Skip when the user is mid-add — don't
 // yank them out of the sign-in form just because a chip flipped.
@@ -75,8 +230,8 @@ function redirectTarget(): string {
  *  (`VITE_BASE_PATH`, `/` in production) that router paths strip, so a
  *  subpath build would otherwise 302 to `/review` instead of
  *  `<base>/review`, landing outside the SPA. */
-function redirectCallbackUrl(): string {
-  return window.location.origin + router.resolve(redirectTarget()).href
+function redirectCallbackUrl(to: RouteLocationRaw = redirectTarget()): string {
+  return window.location.origin + router.resolve(to).href
 }
 
 /** Social sign-in from this picker returns to the destination, matching
@@ -159,6 +314,75 @@ function cancelAdd() {
 async function onSignInSuccess() {
   await router.replace(redirectTarget())
 }
+
+function leaveChoice(error = '') {
+  codeStep.value = false
+  choice.value = null
+  choiceError.value = error
+  savePending(null)
+}
+
+// The code step, for an unverified account: a confirmed code goes on to the
+// choice. A learner who can't enter the code sees nothing more about the
+// account.
+async function onConfirmCode() {
+  if (!hasPending) return
+  choiceError.value = ''
+  codeBusy.value = true
+  let result
+  try {
+    result = await api.confirmGoogle(pendingEmail, googleCode.value)
+  } catch (err) {
+    // The code's own failures get their messages; anything else, such as a
+    // code the plugin adds later, falls back to the token's handling.
+    const codeFailure = err instanceof ApiError && CODE_FAILURES.has(err.code ?? '')
+    if (codeFailure) choiceError.value = codeErrorMessage({ error: { code: err.code } }) ?? ''
+    else choiceFailed(err)
+    return
+  } finally {
+    codeBusy.value = false
+  }
+  codeStep.value = false
+  choice.value = 'ask'
+}
+
+// "That's me": signed in with the account's password, so link Google to it.
+async function onMineSignedIn() {
+  if (!hasPending || choiceBusy.value) return
+  choiceBusy.value = true
+  try {
+    await api.claimGoogle(pendingEmail)
+    leaveChoice()
+    // Pick up the now-verified address on this device's profile rows.
+    await reconcileDeviceSessions()
+    await router.replace(redirectTarget())
+  } catch (err) {
+    choiceFailed(err)
+  } finally {
+    choiceBusy.value = false
+  }
+}
+
+// "That's not me", confirmed: take the account over, then sign in with
+// Google again, which now finds it linked.
+async function onTakeover() {
+  if (!hasPending) return
+  choiceBusy.value = true
+  try {
+    await api.takeOverWithGoogle(pendingEmail)
+  } catch (err) {
+    confirmTakeover.value = false
+    choiceBusy.value = false
+    choiceFailed(err)
+    return
+  }
+  // Drop the used token first: a failed Google sign-in returns here.
+  leaveChoice()
+  signInSocial(
+    'google',
+    redirectCallbackUrl({ path: '/profiles', query: { force: '1', 'taken-over': '1' } }),
+  )
+}
 </script>
 
 <template>
@@ -168,8 +392,73 @@ async function onSignInSuccess() {
     <h2 v-else>Sign in</h2>
 
     <p v-if="banner" class="banner">{{ banner }}</p>
+    <p v-if="choiceError" class="banner" role="alert">{{ choiceError }}</p>
+    <p v-if="takenOver" class="banner" role="status">
+      The account is yours now. It may still hold progress someone else recorded; clear it with
+      Delete all progress in <RouterLink to="/settings/account">account settings</RouterLink>.
+    </p>
 
-    <template v-if="mode === 'cards'">
+    <form v-if="codeStep" class="choice" @submit.prevent="onConfirmCode">
+      <p v-if="codeUnsent === 'address'">
+        We couldn't send a code to <strong>{{ pendingEmail }}</strong> just now: too many were asked
+        for that address. Sign in with Google again in about 20 minutes.
+      </p>
+      <p v-else-if="codeUnsent === 'network'">
+        We couldn't send a code to <strong>{{ pendingEmail }}</strong>: this network has sent its
+        emails for today. Sign in with Google again tomorrow.
+      </p>
+      <p v-else>
+        To connect Google, enter the code we sent to <strong>{{ pendingEmail }}</strong>.
+      </p>
+      <CodeField v-model="googleCode" :resending="codeResending" @resend="onResendCode" />
+      <p v-if="codeNotice" class="auth-notice" role="status">{{ codeNotice }}</p>
+      <button type="submit" class="choice-btn" :disabled="codeBusy">
+        {{ codeBusy ? 'Checking…' : 'Continue' }}
+      </button>
+      <button type="button" class="back-btn" @click="leaveChoice()">Cancel</button>
+    </form>
+
+    <div v-else-if="choice === 'ask'" class="choice">
+      <p>
+        An unverified account for <strong>{{ pendingEmail }}</strong> already exists. Is it
+        yours?
+      </p>
+      <button type="button" class="choice-btn" @click="choice = 'mine'">
+        That's me: sign in with its password
+      </button>
+      <button type="button" class="choice-btn" @click="confirmTakeover = true">
+        That's not me
+      </button>
+      <button type="button" class="back-btn" @click="leaveChoice()">Cancel</button>
+    </div>
+
+    <template v-else-if="choice === 'mine'">
+      <SignInForm
+        :sign-in-social="signInSocialToDestination"
+        :sign-in-email="signInEmail"
+        :sign-up-email="signUpEmail"
+        :request-password-reset="requestPasswordReset"
+        :reset-password="resetPassword"
+        :verify-email="verifyEmail"
+        :send-verification-code="sendVerificationCode"
+        :reauth="{ email: pendingEmail, provider: 'email' }"
+      />
+      <!-- Signed in already, so a failed claim retries from here. -->
+      <button
+        v-if="mineReady && choiceError"
+        type="button"
+        class="choice-btn"
+        :disabled="choiceBusy"
+        @click="onMineSignedIn"
+      >
+        Try again
+      </button>
+      <button type="button" class="back-btn" :disabled="choiceBusy" @click="choice = 'ask'">
+        ← Back
+      </button>
+    </template>
+
+    <template v-else-if="mode === 'cards'">
       <div class="cards">
         <ProfileCard
           v-for="p in profiles"
@@ -194,6 +483,9 @@ async function onSignInSuccess() {
         :sign-in-email="signInEmail"
         :sign-up-email="signUpEmail"
         :request-password-reset="requestPasswordReset"
+        :reset-password="resetPassword"
+        :verify-email="verifyEmail"
+        :send-verification-code="sendVerificationCode"
         :key="reauthTarget?.profileId ?? ''"
         :reauth="reauthTarget ?? undefined"
         @success="onSignInSuccess"
@@ -217,6 +509,25 @@ async function onSignInSuccess() {
         Permanently remove <strong>{{ pendingDelete.email }}</strong>
         from this device. Cached review history will be deleted. You
         can sign in again later to start fresh.
+      </p>
+    </ConfirmDialog>
+
+    <ConfirmDialog
+      v-if="confirmTakeover"
+      title="Take over this account?"
+      confirm-label="Take over"
+      destructive
+      :busy="choiceBusy"
+      @confirm="onTakeover"
+      @cancel="confirmTakeover = false"
+    >
+      <p>
+        Whoever set this account's password loses access, and every device signed in to it is
+        signed out. The account may hold someone else's progress, which you can clear afterwards.
+      </p>
+      <p>
+        If it's actually yours, you lose only the password: your progress stays, and Google or a
+        password reset still gets you in.
       </p>
     </ConfirmDialog>
   </div>
@@ -274,6 +585,32 @@ h2 {
 
 .back-btn:hover {
   color: var(--color-text);
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.choice p {
+  margin: 0;
+}
+
+.choice-btn {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.choice-btn:hover {
+  border-color: var(--color-accent);
 }
 
 .banner {

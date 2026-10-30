@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { api, ApiError, type ImportSummary } from '@/api'
+import CodeField from '@/components/CodeField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ImportResultDialog from '@/components/ImportResultDialog.vue'
 import StatusChip from '@/components/StatusChip.vue'
@@ -9,10 +11,97 @@ import TypeToConfirmDialog from '@/components/TypeToConfirmDialog.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useEmailRequest } from '@/composables/useEmailRequest'
 import { downloadJson, exportFilename, readJsonFile } from '@/lib/account-file'
+import { codeErrorMessage } from '@/lib/authEmail'
+import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
 
-const { activeProfile, resetProfileLocalData, sendVerificationEmail } = useAuth()
+const {
+  activeProfile,
+  resetProfileLocalData,
+  sendVerificationCode,
+  verifyEmail,
+  linkGoogle,
+  signInMethods,
+} = useAuth()
+const route = useRoute()
+const router = useRouter()
 
 const banner = ref<{ kind: 'info' | 'error'; text: string } | null>(null)
+
+// Connect Google. Unknown (null) until the account list loads, so the card
+// doesn't flash up for an account that already has Google.
+const methods = ref<string[] | null>(null)
+const hasGoogle = computed(() => (methods.value ? methods.value.includes('google') : null))
+// Disconnecting is offered only while a password remains to sign in with.
+const canDisconnectGoogle = computed(
+  () => !!methods.value?.includes('google') && methods.value.includes('credential'),
+)
+const disconnectBusy = ref(false)
+const connectBusy = ref(false)
+// A refused link comes back here with `?error=`.
+// Asked to verify first, the message sits with the verification controls.
+const linkError = socialSignInError(window.location.search)
+const verifyFirst = ref(linkError?.code === 'verify_email_first' ? linkError.message : '')
+if (linkError) {
+  if (!verifyFirst.value) banner.value = { kind: 'error', text: linkError.message }
+  void router.replace({ query: queryWithout(route.query, 'error', 'error_description') })
+}
+// Per account, so reload when the active profile changes.
+watch(
+  () => activeProfile.value?.profileId,
+  async (profileId) => {
+    methods.value = null
+    try {
+      const found = await signInMethods()
+      // A slower answer for the profile before a switch must not land here.
+      if (activeProfile.value?.profileId === profileId) methods.value = found
+    } catch {
+      // Offline: leave the card hidden.
+    }
+  },
+  { immediate: true },
+)
+
+async function onDisconnectGoogle() {
+  banner.value = null
+  disconnectBusy.value = true
+  try {
+    await api.disconnectGoogle()
+  } catch (err) {
+    const stale = err instanceof ApiError && err.code === 'SESSION_NOT_FRESH'
+    banner.value = {
+      kind: 'error',
+      text: stale
+        ? 'For safety, sign out and sign in again with your password, then disconnect Google.'
+        : "Couldn't disconnect Google. Try again.",
+    }
+    return
+  } finally {
+    disconnectBusy.value = false
+  }
+  methods.value = methods.value?.filter((m) => m !== 'google') ?? null
+  banner.value = {
+    kind: 'info',
+    text: 'Google disconnected, and your other devices were signed out. Sign in with your password.',
+  }
+}
+
+async function onConnectGoogle() {
+  banner.value = null
+  connectBusy.value = true
+  // On success the browser leaves for Google.
+  const result = await linkGoogle().catch(() => null)
+  if (!result || result.error) {
+    // Connecting asks for a sign-in within the last day.
+    const stale = result?.error?.code === 'SESSION_NOT_FRESH'
+    banner.value = {
+      kind: 'error',
+      text: stale
+        ? 'For safety, sign out and sign in again with your password, then connect Google.'
+        : "Couldn't connect Google. Try again.",
+    }
+    connectBusy.value = false
+  }
+}
 
 // Export
 const exportBusy = ref(false)
@@ -33,15 +122,58 @@ const deleteProgressBusy = ref(false)
 
 const email = computed(() => activeProfile.value?.email ?? '')
 
-// Verification
+// Verification: send a code, then enter it here, with the active session
+// the server needs.
 const {
   pending: verifyBusy,
   notice: verifyNotice,
-  run: onSendVerification,
+  run: requestVerificationCode,
 } = useEmailRequest(
-  () => sendVerificationEmail(email.value),
-  () => `Verification email sent to ${email.value}.`,
+  () => sendVerificationCode(email.value),
+  () => `We sent a code to ${email.value}.`,
 )
+const verificationCodeSent = ref(false)
+const verificationCode = ref('')
+const verifyError = ref('')
+const checkingCode = ref(false)
+// A code belongs to one account, so start over when the profile changes.
+watch(
+  () => activeProfile.value?.profileId,
+  () => {
+    verificationCodeSent.value = false
+    verificationCode.value = ''
+    verifyError.value = ''
+    verifyNotice.value = ''
+    // Asked of the profile that tried to connect Google, not this one.
+    verifyFirst.value = ''
+  },
+)
+
+async function onSendVerification() {
+  verifyError.value = ''
+  const profileId = activeProfile.value?.profileId
+  if ((await requestVerificationCode()) && activeProfile.value?.profileId === profileId) {
+    verificationCode.value = ''
+    verificationCodeSent.value = true
+  }
+}
+
+async function onVerifyCode() {
+  verifyError.value = ''
+  checkingCode.value = true
+  const profileId = activeProfile.value?.profileId
+  let message: string
+  try {
+    // On success Better Auth refetches the session, and the session watcher
+    // in useAuth copies the new status onto the profile row.
+    message = codeErrorMessage(await verifyEmail(email.value, verificationCode.value)) ?? ''
+  } catch {
+    message = 'Something went wrong. Try again.'
+  } finally {
+    checkingCode.value = false
+  }
+  if (activeProfile.value?.profileId === profileId) verifyError.value = message
+}
 
 async function downloadActiveExport() {
   const targetEmail = activeProfile.value?.email ?? 'account'
@@ -181,15 +313,64 @@ async function onBackupInsideDialog() {
             </StatusChip>
           </p>
           <p v-if="activeProfile.emailVerified === false">
-            Until you verify, anyone with access to this inbox can take over this account.
+            Until you verify, anyone with access to this inbox or its Google account can take
+            over this account.
           </p>
         </header>
         <template v-if="activeProfile.emailVerified === false">
+          <p v-if="verifyFirst" class="verify-error" role="alert">{{ verifyFirst }}</p>
           <p v-if="verifyNotice" role="status">{{ verifyNotice }}</p>
-          <button type="button" class="btn" :disabled="verifyBusy" @click="onSendVerification">
-            {{ verifyBusy ? 'Sending…' : 'Send verification email' }}
+          <form
+            v-if="verificationCodeSent"
+            class="verify-code"
+            @submit.prevent="onVerifyCode"
+          >
+            <CodeField
+              v-model="verificationCode"
+              :resending="verifyBusy"
+              @resend="onSendVerification"
+            />
+            <p v-if="verifyError" class="verify-error" role="alert">{{ verifyError }}</p>
+            <button type="submit" class="btn" :disabled="checkingCode">
+              {{ checkingCode ? 'Checking…' : 'Verify' }}
+            </button>
+          </form>
+          <button
+            v-else
+            type="button"
+            class="btn"
+            :disabled="verifyBusy"
+            @click="onSendVerification"
+          >
+            {{ verifyBusy ? 'Sending…' : 'Send verification code' }}
           </button>
         </template>
+      </article>
+
+      <article v-if="canDisconnectGoogle" class="action-card">
+        <header>
+          <h3>Sign in with Google</h3>
+          <p>
+            A Google account is connected, so you can sign in with it as well as your password.
+            If you didn't connect it, disconnect it here.
+          </p>
+        </header>
+        <button type="button" class="btn" :disabled="disconnectBusy" @click="onDisconnectGoogle">
+          {{ disconnectBusy ? 'Disconnecting…' : 'Disconnect Google' }}
+        </button>
+      </article>
+
+      <article v-if="hasGoogle === false" class="action-card">
+        <header>
+          <h3>Sign in with Google</h3>
+          <p>
+            Connect a Google account that uses {{ email }} to sign in with it as well as your
+            password. Connecting also verifies your address.
+          </p>
+        </header>
+        <button type="button" class="btn" :disabled="connectBusy" @click="onConnectGoogle">
+          {{ connectBusy ? 'Connecting…' : 'Connect Google' }}
+        </button>
       </article>
 
       <article class="action-card">
@@ -288,6 +469,18 @@ async function onBackupInsideDialog() {
 </template>
 
 <style scoped>
+.verify-code {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 22rem;
+}
+
+.verify-error {
+  color: var(--color-error);
+  margin: 0;
+}
+
 .account {
   display: flex;
   flex-direction: column;

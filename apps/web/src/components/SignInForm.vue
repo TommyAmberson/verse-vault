@@ -2,25 +2,34 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import CodeField from '@/components/CodeField.vue'
+import { reconcileDeviceSessions } from '@/composables/useAuth'
 import { useEmailRequest } from '@/composables/useEmailRequest'
-import { RESET_SENT } from '@/lib/authEmail'
+import { RESET_SENT, codeErrorMessage } from '@/lib/authEmail'
 import { readPendingProvider, type SocialProvider } from '@/lib/authClient'
 import type { AuthProvider } from '@/lib/engine/registry'
-import { socialSignInError } from '@/lib/socialSignInError'
+import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
 
-type SignInResult = { error?: { message?: string | null; status?: number } | null } | undefined
+type SignInResult =
+  | { error?: { message?: string | null; status?: number; code?: string } | null }
+  | undefined
 
 const props = defineProps<{
   signInSocial: (provider: SocialProvider) => void
   signInEmail: (email: string, password: string) => Promise<SignInResult>
   signUpEmail: (email: string, password: string) => Promise<SignInResult>
   requestPasswordReset: (email: string) => Promise<SignInResult>
+  resetPassword: (email: string, code: string, password: string) => Promise<SignInResult>
+  verifyEmail: (email: string, code: string) => Promise<SignInResult>
+  sendVerificationCode: (email: string) => Promise<SignInResult>
   /** The signed-out profile being re-authenticated, if any. Its email
    *  prefills the form; a known `email` provider skips the provider
    *  picker. An unknown provider may be an OAuth account, so it still
    *  sees Google. Read once at mount: the picker re-keys the form per
    *  target. */
   reauth?: { email: string; provider?: AuthProvider }
+  /** Open on "Forgot password?" rather than the provider picker. */
+  forgot?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -42,32 +51,108 @@ const router = useRouter()
 const oauthError = socialSignInError(window.location.search)
 if (oauthError) {
   readPendingProvider()
-  const query = Object.fromEntries(
-    Object.entries(route.query).filter(([key]) => key !== 'error' && key !== 'error_description'),
-  )
-  void router.replace({ query })
+  void router.replace({ query: queryWithout(route.query, 'error', 'error_description') })
 }
 
 const mode = ref<'pick' | 'signin' | 'signup' | 'forgot' | 'signedUp'>(
-  props.reauth?.provider === 'email' || oauthError?.passwordAccount ? 'signin' : 'pick',
+  props.forgot
+    ? 'forgot'
+    : props.reauth?.provider === 'email' || oauthError?.passwordAccount
+      ? 'signin'
+      : 'pick',
 )
 const email = ref(props.reauth?.email ?? '')
 const password = ref('')
+const code = ref('')
 const error = ref(oauthError?.message ?? '')
 const pending = ref(false)
+
+// "Forgot password?": the address, then the code and a new password.
+const resetCodeSent = ref(false)
 const {
   pending: forgotPending,
   notice,
-  run: submitForgot,
+  run: requestResetCode,
 } = useEmailRequest(
   () => props.requestPasswordReset(email.value),
   () => RESET_SENT,
 )
 
+// After sign-up: the verification code, or skip.
+const {
+  pending: verifyResending,
+  notice: verifyNotice,
+  run: resendVerification,
+} = useEmailRequest(
+  () => props.sendVerificationCode(email.value),
+  () => `We sent a new code to ${email.value}.`,
+)
+
 function openForgot() {
   error.value = ''
   notice.value = ''
+  // The new password is chosen afresh, not carried over from a failed sign-in.
+  password.value = ''
+  resetCodeSent.value = false
   mode.value = 'forgot'
+}
+
+async function sendResetCode() {
+  error.value = ''
+  if (await requestResetCode()) {
+    code.value = ''
+    resetCodeSent.value = true
+  }
+}
+
+/** Sets the new password with the code, then signs in with it. */
+async function submitReset() {
+  error.value = ''
+  pending.value = true
+  try {
+    const result = await props.resetPassword(email.value, code.value, password.value)
+    error.value = codeErrorMessage(result) ?? ''
+  } catch {
+    // Offline, or the server never answered.
+    error.value = 'Something went wrong. Try again.'
+  }
+  if (error.value) {
+    pending.value = false
+    return
+  }
+  // The password has changed and the code is spent, so anything failing from
+  // here sends the learner to sign in with the new password.
+  try {
+    // The reset ended every session for this account, including any this
+    // device still holds; drop them before signing in afresh.
+    await reconcileDeviceSessions()
+    const signedIn = await props.signInEmail(email.value, password.value)
+    if (!signedIn?.error) {
+      emit('success')
+      return
+    }
+  } catch {
+    // Fall through to the sign-in form.
+  } finally {
+    pending.value = false
+  }
+  mode.value = 'signin'
+  error.value = 'Password changed. Sign in with it.'
+}
+
+async function submitVerify() {
+  error.value = ''
+  pending.value = true
+  try {
+    // The new account's session is the active one, which the server needs.
+    const result = await props.verifyEmail(email.value, code.value)
+    error.value = codeErrorMessage(result) ?? ''
+  } catch {
+    error.value = 'Something went wrong. Try again.'
+  } finally {
+    pending.value = false
+  }
+  if (!error.value) emit('success')
 }
 
 async function submitEmail() {
@@ -90,8 +175,9 @@ async function submitEmail() {
     error.value = result.error.message ?? 'Something went wrong'
     emit('hold', false)
   } else if (mode.value === 'signup') {
-    // Sign-up normally sends a verification email (not past the network's
-    // daily limit); point to it before moving on.
+    // Sign-up normally sends a verification code (not past the network's
+    // daily limit); offer to enter it before moving on.
+    code.value = ''
     mode.value = 'signedUp'
   } else {
     emit('success')
@@ -132,16 +218,24 @@ async function submitEmail() {
     <template v-else-if="mode === 'signedUp'">
       <p class="form-title">Account created</p>
       <p class="auth-notice" role="status">
-        Check {{ email }} for a verification email. You can use the app now; verify when you're
-        ready. If none arrives, send another from account settings.
+        Enter the code we sent to {{ email }} to verify it, or skip and verify later from account
+        settings.
       </p>
-      <button type="button" class="auth-submit" @click="emit('success')">Continue</button>
+      <form @submit.prevent="submitVerify">
+        <CodeField v-model="code" :resending="verifyResending" @resend="resendVerification" />
+        <p v-if="verifyNotice" class="auth-notice" role="status">{{ verifyNotice }}</p>
+        <p v-if="error" class="auth-error">{{ error }}</p>
+        <button type="submit" class="auth-submit" :disabled="pending">
+          {{ pending ? 'Please wait…' : 'Continue' }}
+        </button>
+      </form>
+      <button type="button" class="link-btn" @click="emit('success')">Skip for now</button>
     </template>
 
     <template v-else-if="mode === 'forgot'">
       <button class="back-btn" @click="mode = 'signin'">← Back</button>
       <p class="form-title">Reset your password</p>
-      <form @submit.prevent="submitForgot">
+      <form v-if="!resetCodeSent" @submit.prevent="sendResetCode">
         <input
           v-model="email"
           type="email"
@@ -153,7 +247,24 @@ async function submitEmail() {
         />
         <p v-if="notice" class="auth-notice" role="status">{{ notice }}</p>
         <button type="submit" class="auth-submit" :disabled="forgotPending">
-          {{ forgotPending ? 'Please wait…' : 'Email me a reset link' }}
+          {{ forgotPending ? 'Please wait…' : 'Email me a code' }}
+        </button>
+      </form>
+      <form v-else @submit.prevent="submitReset">
+        <p class="auth-notice" role="status">{{ notice }}</p>
+        <CodeField v-model="code" :resending="forgotPending" @resend="sendResetCode" />
+        <input
+          v-model="password"
+          type="password"
+          placeholder="New password"
+          aria-label="New password"
+          autocomplete="new-password"
+          required
+          class="auth-field"
+        />
+        <p v-if="error" class="auth-error">{{ error }}</p>
+        <button type="submit" class="auth-submit" :disabled="pending">
+          {{ pending ? 'Please wait…' : 'Set password and sign in' }}
         </button>
       </form>
     </template>
@@ -274,21 +385,5 @@ form {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.link-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--color-muted);
-  font-size: 0.8rem;
-  font-family: inherit;
-  cursor: pointer;
-  align-self: flex-start;
-  text-decoration: underline;
-}
-
-.link-btn:hover {
-  color: var(--color-text);
 }
 </style>

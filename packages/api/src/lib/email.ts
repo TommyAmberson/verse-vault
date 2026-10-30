@@ -25,13 +25,13 @@ export function createEmailSender(
   fetchImpl: FetchImpl = fetch,
 ): SendEmail {
   if (!apiKey) {
-    // Local dev has no provider: print the link so sign-up, reset and
+    // Local dev has no provider: print the code so sign-up, reset and
     // verification can still be walked through by hand.
     return (message) => log(`[email] not sent (no RESEND_API_KEY) to ${message.to}:\n${message.text}`);
   }
   return (message) => {
     void deliver(apiKey, message, fetchImpl).catch((err: unknown) => {
-      // The body holds a live token, so log only who and what failed.
+      // The body holds a live code, so log only who and what failed.
       log(`[email] send failed to ${message.to} (${message.subject}): ${String(err)}`);
     });
   };
@@ -49,43 +49,84 @@ async function deliver(apiKey: string, message: EmailMessage, fetchImpl: FetchIm
   }
 }
 
-export function resetPasswordEmail(to: string, url: string): EmailMessage {
-  return linkEmail(to, {
-    subject: 'Reset your VerseVault password',
-    reason: 'Someone asked to reset the password for your VerseVault account.',
-    action: 'Reset password',
-    expiry: 'This link works once and expires in 1 hour.',
-    url,
+export function resetCodeEmail(to: string, code: string, ttlMinutes: number): EmailMessage {
+  return codeEmail(to, ttlMinutes, {
+    subject: 'Your VerseVault reset code',
+    reason: 'Someone asked to reset the password for your VerseVault account. Enter this code with ' +
+      'your new password:',
+    code,
   });
 }
 
-export function verifyEmail(to: string, url: string): EmailMessage {
-  return linkEmail(to, {
-    subject: 'Verify your VerseVault email',
-    reason: 'Confirm that this address belongs to your VerseVault account.',
-    action: 'Verify email',
-    expiry: 'This link expires in 24 hours. You will be asked to sign in first if you are not already.',
-    url,
+export function verificationCodeEmail(to: string, code: string, ttlMinutes: number): EmailMessage {
+  return codeEmail(to, ttlMinutes, {
+    subject: 'Your VerseVault code',
+    reason: 'Enter this code in VerseVault to confirm that this address is yours:',
+    code,
   });
 }
 
-interface LinkEmailParts {
+/** The Google code step's code, which says what it is for, so a code the
+ *  learner didn't ask for isn't typed in on someone else's say-so. */
+export function googleCodeEmail(to: string, code: string, ttlMinutes: number): EmailMessage {
+  return codeEmail(to, ttlMinutes, {
+    subject: 'Your VerseVault code to connect Google',
+    reason: 'Someone is connecting a Google account to your VerseVault account. Enter this code ' +
+      'only if you just did that yourself; otherwise ignore this email, and your account stays as ' +
+      'it is:',
+    code,
+  });
+}
+
+/** Sent whenever Google joins an account that already had another way to
+ *  sign in, so the owner hears of a link they didn't make. */
+export function googleLinkedEmail(to: string): EmailMessage {
+  const subject = 'Google was connected to your VerseVault account';
+  const lines = [
+    'A Google account was just connected to your VerseVault account, so it can now be used to ' +
+    'sign in.',
+    'If this wasn\'t you, sign in with your password (reset it from the sign-in page with ' +
+    '"Forgot password?" if you need to), then disconnect Google in account settings.',
+  ];
+  return {
+    to,
+    subject,
+    text: lines.join('\n\n'),
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('\n'),
+  };
+}
+
+/** Sent when Google is disconnected while the account stays. */
+export function googleUnlinkedEmail(to: string): EmailMessage {
+  const subject = 'Google was disconnected from your VerseVault account';
+  const lines = [
+    'A Google account was just disconnected from your VerseVault account, and every other ' +
+    'session was signed out.',
+    "If this wasn't you, reset your password from the sign-in page (\"Forgot password?\").",
+  ];
+  return {
+    to,
+    subject,
+    text: lines.join('\n\n'),
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('\n'),
+  };
+}
+
+interface CodeEmailParts {
   subject: string;
   reason: string;
-  action: string;
-  expiry: string;
-  url: string;
+  code: string;
 }
 
-function linkEmail(to: string, parts: LinkEmailParts): EmailMessage {
+function codeEmail(to: string, ttlMinutes: number, parts: CodeEmailParts): EmailMessage {
+  // Warns against handing the code over, not against the app asking for it.
+  const expiry = `The code expires in ${ttlMinutes} minutes. Don't share it with anyone.`;
   const ignore = "If you didn't ask for this, you can ignore this email.";
-  const text = [parts.reason, '', `${parts.action}: ${parts.url}`, '', parts.expiry, ignore].join('\n');
-  const href = escapeHtml(parts.url);
+  const text = [parts.reason, '', parts.code, '', expiry, ignore].join('\n');
   const html = [
     `<p>${escapeHtml(parts.reason)}</p>`,
-    `<p><a href="${href}" style="display:inline-block;padding:10px 18px;background:#2f5d50;color:#fff;border-radius:6px;text-decoration:none">${escapeHtml(parts.action)}</a></p>`,
-    `<p>Or open this link:<br>${href}</p>`,
-    `<p>${escapeHtml(parts.expiry)} ${escapeHtml(ignore)}</p>`,
+    `<p style="font-size:28px;font-weight:bold;letter-spacing:6px">${escapeHtml(parts.code)}</p>`,
+    `<p>${escapeHtml(expiry)} ${escapeHtml(ignore)}</p>`,
   ].join('\n');
   return { to, subject: parts.subject, text, html };
 }

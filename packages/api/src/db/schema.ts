@@ -59,7 +59,8 @@ export const account = sqliteTable(
   // Better Auth looks up accounts by (provider_id, account_id) on every
   // OAuth callback to resolve an existing linked identity.
   (t) => ({
-    providerIdx: index('idx_account_provider').on(t.providerId, t.accountId),
+    // Unique, so one sign-in identity belongs to one user (migration 0031).
+    providerIdx: uniqueIndex('idx_account_provider').on(t.providerId, t.accountId),
   }),
 );
 
@@ -73,10 +74,10 @@ export const verification = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp' }),
     updatedAt: integer('updated_at', { mode: 'timestamp' }),
   },
-  // Better Auth queries verification rows by identifier (email) during
-  // email verification and password reset flows.
+  // Better Auth looks rows up by identifier. Unique so the email-code
+  // plugin's resend replaces the older code (migration 0030).
   (t) => ({
-    identifierIdx: index('idx_verification_identifier').on(t.identifier),
+    identifierIdx: uniqueIndex('idx_verification_identifier').on(t.identifier),
   }),
 );
 

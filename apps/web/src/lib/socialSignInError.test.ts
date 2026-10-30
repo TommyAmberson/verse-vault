@@ -11,9 +11,20 @@ describe('socialSignInError', () => {
   it('points a refused link at the password form', () => {
     const result = socialSignInError('?error=account_not_linked')
     expect(result?.passwordAccount).toBe(true)
-    expect(result?.message).toMatch(/can't sign in to yet/)
+    expect(result?.message).toMatch(/connect Google in account settings/)
     expect(result?.message).toMatch(/password/)
     expect(result?.message).toMatch(/reset/)
+  })
+
+  it('explains a Google account with a different address', () => {
+    const result = socialSignInError("?error=email_doesn't_match")
+    expect(result?.message).toMatch(/different email address/)
+  })
+
+  it('asks an unverified account to verify before connecting Google', () => {
+    const result = socialSignInError('?error=verify_email_first')
+    expect(result?.code).toBe('verify_email_first')
+    expect(result?.message).toMatch(/Verify your email address/)
   })
 
   it('reports other codes as a generic failure', () => {

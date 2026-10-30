@@ -9,6 +9,38 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.8] - 2026-10-26
+
+PATCH: emailed codes replace links, and the picker asks for a code before Google joins where Google
+doesn't host the address.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Added
+
+* The Google code step on the picker (`?code=1`): enter the emailed code, then a verified account
+  signs in with Google and an unverified one goes on to the choice.
+* A message for `verify_email_first`, shown in account settings beside the verification controls.
+* The code field notes that only the code in the newest email works.
+* Account settings offers "Disconnect Google" while the account also has a password, and then signs
+  out every other device.
+* A refused Google sign-in onto a verified account says to sign in with the password and connect
+  Google in account settings.
+
+### Changed
+
+* "Forgot password?" asks for the address, then the emailed code and a new password, and signs in.
+* After sign-up the form asks for the verification code, or the learner can skip.
+* Account settings sends a verification code and takes it there.
+* The picker never holds the pending Google token (the API keeps it in a cookie), says when no code
+  could be sent, and keeps the step after a throttled or failed request. "Send a new code" on the
+  Google step uses its own route.
+* `/reset-password` and `/verify-email` now serve links in older emails: one offers the reset form,
+  the other points to account settings.
+
 ## [0.10.7] - 2026-10-26
 
 PATCH: the cross-club gates default to this week's checkpoint.

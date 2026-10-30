@@ -437,6 +437,19 @@ export interface ApiClient {
   /** Wipe all review history / graduations across decks; keeps
    *  enrollments + settings (DELETE /api/account/progress). */
   deleteAllProgress(): Promise<ProgressDeletionSummary>
+  /** "That's me" on the Google choice: link Google to the account just
+   *  signed in to with its password. */
+  claimGoogle(email: string): Promise<{ ok: true }>
+  /** "That's not me": remove the account's password and sessions and link
+   *  Google. Needs no session. */
+  takeOverWithGoogle(email: string): Promise<{ ok: true }>
+  /** The Google code step, for an unverified account: the emailed code
+   *  proves the inbox, and the learner goes on to the choice. */
+  confirmGoogle(email: string, code: string): Promise<{ choice: true }>
+  /** "Send a new code" on the Google code step. */
+  resendGoogleCode(email: string): Promise<{ sent: true } | { proven: true }>
+  /** Removes every Google account and ends every other session (FR-018). */
+  disconnectGoogle(): Promise<{ ok: true }>
 }
 
 let onUnauthorized: (() => void) | null = null
@@ -564,16 +577,33 @@ export function createApiClient(apiUrl: string): ApiClient {
     exportAccount: () => request('GET', '/api/export'),
     importAccount: (payload) => request('POST', '/api/import', payload),
     deleteAllProgress: () => request('DELETE', '/api/account/progress'),
+    // The pending token rides in a cookie the API set on Google's return,
+    // never in the request, so only the browser that signed in can act. The
+    // address names which pending sign-in this tab is on.
+    claimGoogle: (email) => request('POST', '/api/account/google/claim', { email }),
+    takeOverWithGoogle: (email) => request('POST', '/api/account/google/takeover', { email }),
+    confirmGoogle: (email, code) => request('POST', '/api/account/google/confirm', { email, code }),
+    resendGoogleCode: (email) => request('POST', '/api/account/google/resend', { email }),
+    disconnectGoogle: () => request('POST', '/api/account/google/disconnect'),
   }
 }
 
 export class ApiError extends Error {
+  /** The `code` in a JSON error body, when the server sent one. */
+  readonly code: string | undefined
+
   constructor(
     public readonly status: number,
     message: string,
   ) {
     super(`API error ${status}: ${message}`)
     this.name = 'ApiError'
+    try {
+      const code = (JSON.parse(message) as { code?: unknown }).code
+      this.code = typeof code === 'string' ? code : undefined
+    } catch {
+      this.code = undefined
+    }
   }
 }
 

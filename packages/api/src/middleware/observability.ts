@@ -115,6 +115,10 @@ const AUTH_LOOSE_PATHS = new Set<string>([
   '/api/auth/multi-session/list-device-sessions',
 ]);
 
+/** Credential surfaces outside `/api/auth/*` that take the tight tier: the
+ *  Google code step's routes check and send emailed codes. */
+const TIGHT_PATHS = new Set<string>(['/api/account/google/confirm', '/api/account/google/resend']);
+
 /** IP source: Cloudflare Tunnel → standard proxy header → fallback.
  *  In tests the harness doesn't synthesise a socket; injecting
  *  `CF-Connecting-IP` per request keeps test buckets isolated. */
@@ -157,7 +161,8 @@ export function observabilityMiddleware(
     // sign-out, multi-session state-change ops. Frequent session-state
     // reads (see AUTH_LOOSE_PATHS) fall back to the looser `authedTier`
     // so a refresher isn't rate-limited like an attacker.
-    const isAuthTight = path.startsWith('/api/auth/') && !AUTH_LOOSE_PATHS.has(path);
+    const isAuthTight = (path.startsWith('/api/auth/') && !AUTH_LOOSE_PATHS.has(path)) ||
+      TIGHT_PATHS.has(path);
     // In local dev nothing injects CF-Connecting-IP / X-Forwarded-For,
     // so every unauthenticated request shares the `ip:unknown` bucket
     // and a couple of page refreshes exhaust it. See

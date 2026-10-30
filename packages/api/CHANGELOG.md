@@ -10,6 +10,60 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.51] - 2026-10-26
+
+PATCH: emailed codes replace links, and Google proves the inbox with a code where it doesn't host
+the mail.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Added
+
+* Reset and verification emails carry a 6-digit code (Better Auth's `emailOTP` plugin): 10 minutes,
+  hashed at rest, 3 wrong tries, and a resend replaces the older code. Verifying still needs that
+  account's own session; reset sets or creates the password, verifies, and ends every session.
+* `POST /api/account/google/confirm`: a Google sign-in that Google checked but doesn't host (not
+  Gmail or Workspace) emails a code and goes to the picker's code step. The right code links Google
+  to a verified account, or leads an unverified one to the choice. One check runs at a time per
+  address, and the route takes the tight per-IP bucket.
+* Connecting such a Google account from settings links it to a verified account; an unverified one
+  comes back with `?error=verify_email_first`.
+
+### Changed
+
+* Verifying by code without that account's session is refused before the code is compared, so a
+  signed-out guess doesn't count.
+* The per-address and per-IP email limits apply to the code routes. The plugin routes this app
+  doesn't use answer `404` over HTTP, including checking a code without using it.
+* Pending Google rows record whether the inbox is proven; claim and takeover refuse an unproven one.
+* Migration 0030 makes `verification.identifier` unique, keeping the newest of any duplicates, so a
+  resent code replaces the older one.
+* The Google code step is bound to the browser that signed in: the pending token is an HTTP-only
+  cookie sent only to `/api/account/google`, never in the picker's address, so a forwarded page
+  can't be finished by the inbox's owner. Its email says a Google account is being connected;
+  `POST /api/account/google/resend` sends a new one, replacing any older code.
+* A Google sign-in Google doesn't speak for, onto a verified account, is refused: the learner signs
+  in with the password and connects Google from settings (OWASP: adding a sign-in method needs a
+  session). The code step is for unverified accounts, and its code lives on the pending row, so it
+  works for that step only.
+* Emails tell the owner when Google joins or leaves an account, with how to disconnect it.
+  `POST /api/account/google/disconnect` removes every Google account and ends every other session.
+  "That's not me" removes every other way in, including a Google account the registrant linked.
+* Migration 0031 makes `account(provider_id, account_id)` unique, so one Google account can't be
+  linked to two users. It fails to apply if production already holds such a pair.
+* The Google routes check the account and who holds the Google account before using up a code or a
+  pending row, so a refusal leaves both for a retry; confirming a code gives the choice a fresh 10
+  minutes; a Google code stopped by a limit redirects with `&sent=0`.
+
+### Removed
+
+* Reset and verification links: `sendResetPassword`, `onPasswordReset`, and the link emails. Their
+  routes (`/request-password-reset`, `/reset-password`, `/verify-email`) answer `404`, so links in
+  emails sent before the deploy stop working.
+
 ## [0.1.50] - 2026-10-26
 
 PATCH: the cross-club gates default to this week's checkpoint.

@@ -1,6 +1,6 @@
 {
   "name": "@verse-vault/api",
-  "version": "0.1.50",
+  "version": "0.1.51",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,6 +15,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@better-auth/core": "~1.6.33",
     "@hono/node-server": "^1.13.0",
     "better-auth": "~1.6.33",
     "better-sqlite3": "^11.0.0",

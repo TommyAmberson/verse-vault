@@ -1,4 +1,4 @@
-import { multiSessionClient } from 'better-auth/client/plugins'
+import { emailOTPClient, multiSessionClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 
 import type { AuthProvider } from '@/lib/engine/registry'
@@ -39,7 +39,10 @@ export function readPendingProvider(): AuthProvider | undefined {
     const v = sessionStorage.getItem(PENDING_PROVIDER_KEY)
     if (v) {
       sessionStorage.removeItem(PENDING_PROVIDER_KEY)
-      if (socialSignInError(window.location.search)) return undefined
+      // A refused Google sign-in that went on to the picker's code step or
+      // choice comes back with `pending=1` rather than `?error=`.
+      const search = window.location.search
+      if (socialSignInError(search) || new URLSearchParams(search).has('pending')) return undefined
       return v as AuthProvider
     }
   } catch {
@@ -51,7 +54,7 @@ export function readPendingProvider(): AuthProvider | undefined {
 export function createAppAuthClient(baseURL: string) {
   const authClient = createAuthClient({
     baseURL,
-    plugins: [multiSessionClient()],
+    plugins: [multiSessionClient(), emailOTPClient()],
   })
 
   function useAuth() {
@@ -89,25 +92,45 @@ export function createAppAuthClient(baseURL: string) {
       authClient.signOut()
     }
 
-    // The server builds the emailed link from its own web origin, so no
-    // redirect target is sent from here.
     async function requestPasswordReset(email: string) {
-      return authClient.requestPasswordReset({ email })
+      return authClient.emailOtp.requestPasswordReset({ email })
     }
 
-    async function resetPassword(token: string, newPassword: string) {
-      return authClient.resetPassword({ token, newPassword })
+    // Sets the password (or a first one for a Google-only account),
+    // verifies the address, and ends every session for the account.
+    async function resetPassword(email: string, code: string, password: string) {
+      return authClient.emailOtp.resetPassword({ email, otp: code, password })
     }
 
     // Sent with the active session; the server verifies only when that
-    // session belongs to the token's account.
-    async function verifyEmail(token: string) {
-      return authClient.verifyEmail({ query: { token } })
+    // session belongs to the address's account.
+    async function verifyEmail(email: string, code: string) {
+      return authClient.emailOtp.verifyEmail({ email, otp: code })
     }
 
-    async function sendVerificationEmail(email: string) {
-      return authClient.sendVerificationEmail({ email })
+    async function sendVerificationCode(email: string) {
+      return authClient.emailOtp.sendVerificationOtp({ email, type: 'email-verification' })
     }
+
+    // Connects Google to the active account and returns here. The server
+    // refuses a Google account with a different address, and verifies the
+    // address when it links.
+    function linkGoogle() {
+      return authClient.linkSocial({
+        provider: 'google',
+        callbackURL: withoutErrorParam(window.location.href),
+        errorCallbackURL: withoutErrorParam(window.location.href),
+      })
+    }
+
+    // The account's ways to sign in: `credential` for a password, `google`.
+    // Throws when the list can't be read, rather than reporting none.
+    async function signInMethods(): Promise<string[]> {
+      const { data, error } = await authClient.listAccounts()
+      if (error || !data) throw new Error(error?.message ?? 'Could not list accounts')
+      return data.map((a) => a.providerId)
+    }
+
 
     return {
       session,
@@ -118,7 +141,9 @@ export function createAppAuthClient(baseURL: string) {
       requestPasswordReset,
       resetPassword,
       verifyEmail,
-      sendVerificationEmail,
+      sendVerificationCode,
+      linkGoogle,
+      signInMethods,
     }
   }
 

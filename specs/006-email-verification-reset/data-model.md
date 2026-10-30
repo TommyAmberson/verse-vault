@@ -20,6 +20,8 @@ No migration. Every server-side record below already exists in `packages/api/src
   (first password) or updates it. A takeover deletes it (phase 2).
 * A row with `providerId = 'google'`, `accountId = <Google sub>` is created by sign-up, by
   `linkSocial`, or by the claim and takeover routes (phase 2).
+* `(providerId, accountId)` is unique from 2b (migration 0031), so a Google account belongs to one
+  user; a link that loses a race is refused and treated as owned elsewhere.
 
 ### session (Better Auth)
 
@@ -27,12 +29,14 @@ No migration. Every server-side record below already exists in `packages/api/src
 
 ### verification (Better Auth)
 
-| identifier                         | value                                                                    | expires    | written by                                      | consumed by                                                            |
-| ---------------------------------- | ------------------------------------------------------------------------ | ---------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
-| `email-verification-otp-<address>` | hashed code and wrong-attempt count                                      | 10 minutes | the email-code plugin (2b); replaced on resend  | verify by code, or the Google confirm route (2b); 3 wrong tries end it |
-| `forget-password-otp-<address>`    | hashed code and wrong-attempt count                                      | 10 minutes | the email-code plugin (2b); replaced on resend  | reset by code (2b); 3 wrong tries end it                               |
-| `pending-google:<token>`           | JSON: user id, Google `sub`, email, whether the inbox is proven yet (2b) | 10 minutes | the callback after hook                         | confirm marks it proven; claim or takeover consume it once             |
-| `reset-password:<token>`           | user id                                                                  | 1 hour     | phase 1 only (links); no longer written from 2b | phase 1 reset                                                          |
+`identifier` is unique from 2b (migration 0030), which is how a resent code replaces the older one.
+
+| identifier                         | value                                                                                                                           | expires                                          | written by                                      | consumed by                                                            |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| `email-verification-otp-<address>` | hashed code and wrong-attempt count                                                                                             | 10 minutes                                       | the email-code plugin (2b); replaced on resend  | verify by code, or the Google confirm route (2b); 3 wrong tries end it |
+| `forget-password-otp-<address>`    | hashed code and wrong-attempt count                                                                                             | 10 minutes                                       | the email-code plugin (2b); replaced on resend  | reset by code (2b); 3 wrong tries end it                               |
+| `pending-google:<token>`           | JSON: user id, Google `sub`, email, whether the inbox is proven yet, and for the code step the code's hash and wrong tries (2b) | 10 minutes, restarted when the code is confirmed | the callback after hook                         | confirm marks it proven; claim or takeover consume it once             |
+| `reset-password:<token>`           | user id                                                                                                                         | 1 hour                                           | phase 1 only (links); no longer written from 2b | phase 1 reset                                                          |
 
 ## In memory
 
@@ -53,7 +57,8 @@ Codes are not held in memory; the plugin keeps them in `verification`.
 password account:  unverified --verify code | reset | Google link with inbox proof | takeover--> verified
 Google sign-in onto an existing account:
   authoritative ------------------------------> linked (verified account) | choice (unverified)
-  not authoritative --emailed code confirmed--> linked (verified account) | choice (unverified)
+  not authoritative, verified account --------> refused: sign in with the password, connect Google
+  not authoritative, unverified --code-step code confirmed--> choice
   Google never verified the address ----------> refused
 takeover:          unverified + password + sessions --"That's not me"--> verified, no password,
                    no sessions, Google linked
