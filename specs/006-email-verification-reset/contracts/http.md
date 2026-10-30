@@ -67,14 +67,19 @@ per day (FR-012).
 
 Mounted with the account routes at `/api`.
 
-| Method and path                     | Auth    | Body              | Effect                                                                                                                                                                 | Errors                                                                                           |
-| ----------------------------------- | ------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `POST /api/account/google/confirm`  | none    | `{ token, code }` | checks the emailed code for the pending record's address; then links Google to a verified account (`{ signIn: true }`) or marks the record proven (`{ choice: true }`) | 400 invalid or expired token or code; 403 too many attempts; 429 when the per-IP bucket is empty |
-| `POST /api/account/google/claim`    | session | `{ token }`       | consumes a proven pending record; links its Google `sub` to the session user if they match; verifies                                                                   | 400 invalid, expired, or unproven token; 403 another account's session                           |
-| `POST /api/account/google/takeover` | none    | `{ token }`       | consumes a proven pending record; deletes the password and every session; links Google; verifies                                                                       | 400 invalid, expired, or unproven token, or the user is already verified                         |
+| Method and path                     | Auth                    | Body       | Effect                                                                                                                                                                 | Errors                                                                                           |
+| ----------------------------------- | ----------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `POST /api/account/google/confirm`  | pending cookie          | `{ code }` | checks the emailed code for the pending record's address; then links Google to a verified account (`{ signIn: true }`) or marks the record proven (`{ choice: true }`) | 400 invalid or expired token or code; 403 too many attempts; 429 when the per-IP bucket is empty |
+| `POST /api/account/google/claim`    | session, pending cookie | none       | consumes a proven pending record; links its Google `sub` to the session user if they match; verifies                                                                   | 400 invalid, expired, or unproven token; 403 another account's session                           |
+| `POST /api/account/google/takeover` | pending cookie          | none       | consumes a proven pending record; deletes the password and every session; links Google; verifies                                                                       | 400 invalid, expired, or unproven token, or the user is already verified                         |
 
-An invalid, used, expired, or unproven token returns the same 400 body in every case, revealing
-nothing about the account (FR-021).
+`POST /api/account/google/resend`, with the pending cookie, sends a new code-step code under the
+email limits (`429` past them). The pending token is never in a body or a page address: the callback
+sets it in an HTTP-only cookie sent only to `/api/account/google`, so only the browser that signed
+in with Google can use it.
+
+A missing, invalid, used, expired, or unproven token returns the same 400 body in every case,
+revealing nothing about the account (FR-021).
 
 ## New routes (phase 2c)
 

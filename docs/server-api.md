@@ -126,24 +126,34 @@ trusts Google's address:
 * **Unverified account, Google authoritative**: straight to the choice.
 
 An after hook on the callback turns Better Auth's `account_not_linked` into a redirect to
-`/profiles?force=1&pending=<token>&email=…` on the origin of the client's `errorCallbackURL`, adding
-`&code=1` when the code step comes first. The token names a `pending-google:*` verification row
-holding the user id, the Google `sub`, the address, and whether the inbox is proven yet, valid for
-10 minutes. The Google profile reaches the hook through Better Auth's request state, set in
-`mapProfileToUser`. For the code step the hook also emails a verification code, under the
-per-address and then the per-IP limit; over either it adds `&sent=0`, and the picker says no code
-went out.
+`/profiles?force=1&pending=1&email=…` on the origin of the client's `errorCallbackURL`, adding
+`&code=1` when the code step comes first and keeping the client's `redirect`. It writes a
+`pending-google:<token>` verification row holding the user id, the Google `sub`, the address, and
+whether the inbox is proven yet, valid for 10 minutes, and sets the token in a cookie
+(`better-auth.pending_google`, HTTP-only, sent only to `/api/account/google`, 10 minutes). The page
+address carries no token, so it can't be handed to the inbox's owner to finish someone else's link;
+only the browser that signed in with Google can act. The Google profile reaches the hook through
+Better Auth's request state, set in `mapProfileToUser`.
+
+For the code step the hook emails a code saying a Google account is being connected and to enter it
+only if the reader did that, under the per-address and then the per-IP limit; over either it adds
+`&sent=0`, and the picker says no code went out. A code the address already holds is kept rather
+than replaced. `POST /api/account/google/resend` sends a new one, under the same limits (`429` past
+them).
+
+Whenever Google joins an account that already signs in another way, by any route, the owner gets an
+email saying so (a `databaseHooks.account.create.after` hook).
 
 Anyone can ask for a code for an address, and each new code replaces the older one, so someone
 else's requests can replace the code a learner is holding. The codes go only to the learner's inbox,
 so the newest email's code still works, and the per-address limit caps the delay at about 20
 minutes. Major providers accept the same trade-off (research D15).
 
-`POST /api/account/google/confirm` `{ token, code }`, no session, checks the code against the
-address's verification code. It runs one check at a time per address, holding an in-process lock
-through the check and the delete that makes the code single-use, because the plugin's check counts
-wrong tries in separate read and write steps; the lock is enough while the API runs as one process.
-It takes the tight per-IP bucket. Answers:
+`POST /api/account/google/confirm` `{ code }`, with the pending cookie and no session, checks the
+code against the address's verification code. It runs one check at a time per address, holding an
+in-process lock through the check and the delete that makes the code single-use, because the
+plugin's check counts wrong tries in separate read and write steps; the lock is enough while the API
+runs as one process. It takes the tight per-IP bucket. Answers:
 
 * `{ signIn: true }` for a verified account: the Google `sub` is linked, and the client runs Google
   sign-in again, which now finds it;
@@ -160,13 +170,13 @@ The picker then asks whether the account is the learner's, and acts through one 
 consume a proven token once and answer every used, expired, unknown, or unproven token with the same
 `400 { error }`, leaving an unproven row for the code step.
 
-* `POST /api/account/google/claim` `{ token }` ("That's me"), with the session from signing in with
-  the account's password: links the Google `sub`, keeps the password, and verifies. `403` when the
-  session belongs to a different account.
-* `POST /api/account/google/takeover` `{ token }` ("That's not me"), no session: refuses an account
-  verified since the token was issued, then deletes the password and every session (as Better Auth's
-  `revokeUnprovenAccountAccess` does), links the Google `sub`, and verifies. The client then signs
-  in with Google again, which now finds the account linked.
+* `POST /api/account/google/claim` ("That's me"), with the pending cookie with the session from
+  signing in with the account's password: links the Google `sub`, keeps the password, and verifies.
+  `403` when the session belongs to a different account.
+* `POST /api/account/google/takeover` ("That's not me"), with the pending cookie and no session:
+  refuses an account verified since the token was issued, then deletes the password and every
+  session (as Better Auth's `revokeUnprovenAccountAccess` does), links the Google `sub`, and
+  verifies. The client then signs in with Google again, which now finds the account linked.
 
 Connecting Google from account settings (`POST /api/auth/link-social`) needs a session and a Google
 account with the same address. Where Google is authoritative, Better Auth links it, and the same

@@ -372,7 +372,7 @@ attempts, and expires codes).
 `email_verified` is true but which D14 found non-authoritative. It writes the pending row as before,
 marked as not yet proven, sends a verification code to the address through the plugin's send route
 (`type: 'email-verification'`), and redirects to the picker with `&code=1`. A new route,
-`POST /api/account/google/confirm { token, code }`, checks the code with the plugin's
+`POST /api/account/google/confirm { code }`, checks the code with the plugin's
 `checkVerificationOTP` (a server call through `auth.api`, since D15 refuses it over HTTP), deletes
 the code row so it cannot be used twice, and then:
 
@@ -384,6 +384,17 @@ the code row so it cannot be used twice, and then:
 The route runs one check at a time per address, holding an in-process lock keyed on the address from
 the check through the delete, so each guess sees the count the one before it wrote. The
 observability middleware puts the route in the tight per-IP bucket that `/api/auth/*` uses.
+
+The pending token goes in an HTTP-only cookie sent only to `/api/account/google`, not in the
+picker's address, so only the browser that signed in with Google can act on the row. Otherwise
+whoever holds a stale Google account for an address could forward their picker address to the
+inbox's owner, who would enter the code just emailed and link the stranger's Google account. That
+code's email says a Google account is being connected and to enter it only if the reader did that,
+and the owner is told by email whenever Google joins an account that already signs in another way,
+as [Ory](https://www.ory.com/blog/secure-account-linking-iam-sso-oidc-saml) and
+[WorkOS](https://workos.com/blog/oauth-auto-link-email-account-takeover) recommend. A code the
+address already holds is kept rather than replaced, so a Google sign-in can't cancel the owner's own
+code.
 
 Claim and takeover refuse a pending row that is not proven. An authoritative refusal writes it
 proven from the start, as phase 2 already does.

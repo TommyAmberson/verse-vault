@@ -56,8 +56,9 @@ as before.
 
 Real Google sign-in only works in production. Locally, start the API with placeholder
 `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to see the redirect to Google, and insert
-`pending-google:*` rows into the dev database to drive the picker (the API tests cover the callback
-itself).
+`pending-google:*` rows into the dev database to drive the picker, with the matching
+`better-auth.pending_google` cookie set for `/api/account/google` in the browser (the API tests
+cover the callback itself).
 
 1. Sign up: the log shows a code; enter it after sign-up, and the picker badge clears. Enter a wrong
    code three times: "That code has expired. Send a new one."

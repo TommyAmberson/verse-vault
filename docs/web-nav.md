@@ -53,17 +53,18 @@ and an Email address card at the top of `/settings` → Account, with a warning 
 verification code" button, then the code field, while the address is unverified. Both read the
 status cached on the profile row, refreshed from the server at sign-in and at launch.
 
-A Google sign-in for an address Google doesn't host lands on `/profiles?force=1&pending=…&code=1`
-first: "To connect Google, enter the code we sent to …", with the code field. The picker moves the
-token from the URL into the tab's session storage at once, since a proven token can take an
-unverified account over; it also survives the reload a password sign-in causes. A verified account
-then signs in with Google; an unverified one goes on to the choice. A Google sign-in onto an
-unverified password account lands on the choice instead of an error, straight away when Google hosts
-the address. "That's me" opens the sign-in form prefilled with the address and, once the password
-works, connects Google. "That's not me" warns that whoever set the password loses access, then takes
-the account over and runs Google sign-in again, landing on a notice that points to Delete all
-progress (see [`server-api.md`](server-api.md#google-sign-in-onto-a-password-account)). An account
-without Google also gets a "Connect Google" card in `/settings` → Account.
+A Google sign-in for an address Google doesn't host lands on `/profiles?force=1&pending=1&code=1`
+first: "To connect Google, enter the code we sent to …", with the code field. The pending token
+stays in a cookie the API set, so only this browser can act on it; the picker keeps just the step
+and the address in the tab's session storage, across the reload a password sign-in causes. A
+verified account then signs in with Google; an unverified one goes on to the choice. A Google
+sign-in onto an unverified password account lands on the choice instead of an error, straight away
+when Google hosts the address. "That's me" opens the sign-in form prefilled with the address and,
+once the password works, connects Google. "That's not me" warns that whoever set the password loses
+access, then takes the account over and runs Google sign-in again, landing on a notice that points
+to Delete all progress (see
+[`server-api.md`](server-api.md#google-sign-in-onto-a-password-account)). An account without Google
+also gets a "Connect Google" card in `/settings` → Account.
 
 ### Future surfaces to leave room for
 

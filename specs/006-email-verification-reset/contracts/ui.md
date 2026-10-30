@@ -62,12 +62,12 @@ new one." (FR-011).
 
 ## Phase 2b: Google
 
-* Picker with `?pending=&email=&code=1`: "To connect Google, enter the code we sent to <address>."
-  with the code field; with `&sent=0`, it says no code could be sent just now and to try "Send a new
-  code" in a few minutes. The picker moves the token from the URL into the tab's session storage on
-  arrival. A verified account then signs in with Google; an unverified one goes on to the choice
-  below. A learner who can't enter the code sees nothing more about the account.
-* Picker with `?pending=&email=` (Google authoritative, or code confirmed): "An unverified account
+* Picker with `?pending=1&email=&code=1`: "To connect Google, enter the code we sent to <address>."
+  with the code field; with `&sent=0`, it says no code could be sent because too many were asked for
+  the address, and to sign in with Google again in about 20 minutes. The pending token is a cookie
+  the page never sees. A verified account then signs in with Google; an unverified one goes on to
+  the choice below. A learner who can't enter the code sees nothing more about the account.
+* Picker with `?pending=1&email=` (Google authoritative, or code confirmed): "An unverified account
   for <address> already exists. Is it yours?" with "That's me" (opens email sign-in for that
   address, then claims) and "That's not me".
 * "That's not me": warning that whoever set the password loses access and the account may hold
@@ -91,11 +91,13 @@ new one." (FR-011).
 From `VerseVault <no-reply@versevault.ca>`. Plain text plus a minimal HTML part. Each says why it
 was sent and what to do if the recipient did not ask.
 
-| Email                  | Subject                        | Carries                                           | Expiry     |
-| ---------------------- | ------------------------------ | ------------------------------------------------- | ---------- |
-| Reset (phase 1)        | Reset your VerseVault password | link to `<web origin>/reset-password?token=`      | 1 hour     |
-| Verification (phase 1) | Verify your VerseVault email   | link to `<web origin>/verify-email?token=&email=` | 24 hours   |
-| Reset (2b)             | Your VerseVault reset code     | the code, prominent; "Don't share it with anyone" | 10 minutes |
-| Verification (2b)      | Your VerseVault code           | the code, prominent; the same warning             | 10 minutes |
+| Email                  | Subject                                         | Carries                                                                                         | Expiry     |
+| ---------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------- |
+| Reset (phase 1)        | Reset your VerseVault password                  | link to `<web origin>/reset-password?token=`                                                    | 1 hour     |
+| Verification (phase 1) | Verify your VerseVault email                    | link to `<web origin>/verify-email?token=&email=`                                               | 24 hours   |
+| Reset (2b)             | Your VerseVault reset code                      | the code, prominent; "Don't share it with anyone"                                               | 10 minutes |
+| Verification (2b)      | Your VerseVault code                            | the code, prominent; the same warning                                                           |            |
+| Google code step (2b)  | Your VerseVault code to connect Google          | the code; says a Google account is being connected, and to enter it only if the reader did that |            |
+| Google connected (2b)  | Google was connected to your VerseVault account | no code; if this wasn't the reader, reset the password                                          | 10 minutes |
 
 The Google code step sends the verification email; it says the code confirms the address.
