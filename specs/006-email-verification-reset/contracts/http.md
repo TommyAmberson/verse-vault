@@ -73,6 +73,9 @@ Mounted with the account routes at `/api`.
 | `POST /api/account/google/claim`    | session, pending cookie | none       | consumes a proven pending record; links its Google `sub` to the session user if they match; verifies                                                                   | 400 invalid, expired, or unproven token; 403 another account's session                           |
 | `POST /api/account/google/takeover` | pending cookie          | none       | consumes a proven pending record; deletes the password and every session; links Google; verifies                                                                       | 400 invalid, expired, or unproven token, or the user is already verified                         |
 
+Disconnecting Google uses Better Auth's `POST /api/auth/unlink-account` `{ providerId: "google" }`
+with a session; it refuses the last way to sign in with `400 FAILED_TO_UNLINK_LAST_ACCOUNT`.
+
 `POST /api/account/google/resend`, with the pending cookie, sends a new code-step code under the
 email limits (`429` past them). The pending token is never in a body or a page address: the callback
 sets it in an HTTP-only cookie sent only to `/api/account/google`, so only the browser that signed

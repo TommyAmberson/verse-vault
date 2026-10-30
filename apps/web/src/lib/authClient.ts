@@ -123,11 +123,17 @@ export function createAppAuthClient(baseURL: string) {
       })
     }
 
-    // Throws when the list can't be read, rather than reporting no Google.
-    async function hasGoogleAccount(): Promise<boolean> {
+    // The account's ways to sign in: `credential` for a password, `google`.
+    // Throws when the list can't be read, rather than reporting none.
+    async function signInMethods(): Promise<string[]> {
       const { data, error } = await authClient.listAccounts()
       if (error || !data) throw new Error(error?.message ?? 'Could not list accounts')
-      return data.some((a) => a.providerId === 'google')
+      return data.map((a) => a.providerId)
+    }
+
+    // Better Auth refuses to remove the last way to sign in.
+    function unlinkGoogle() {
+      return authClient.unlinkAccount({ providerId: 'google' })
     }
 
     return {
@@ -141,7 +147,8 @@ export function createAppAuthClient(baseURL: string) {
       verifyEmail,
       sendVerificationCode,
       linkGoogle,
-      hasGoogleAccount,
+      signInMethods,
+      unlinkGoogle,
     }
   }
 

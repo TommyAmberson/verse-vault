@@ -20,7 +20,8 @@ const {
   sendVerificationCode,
   verifyEmail,
   linkGoogle,
-  hasGoogleAccount,
+  signInMethods,
+  unlinkGoogle,
 } = useAuth()
 const route = useRoute()
 const router = useRouter()
@@ -29,7 +30,13 @@ const banner = ref<{ kind: 'info' | 'error'; text: string } | null>(null)
 
 // Connect Google. Unknown (null) until the account list loads, so the card
 // doesn't flash up for an account that already has Google.
-const hasGoogle = ref<boolean | null>(null)
+const methods = ref<string[] | null>(null)
+const hasGoogle = computed(() => (methods.value ? methods.value.includes('google') : null))
+// Disconnecting is offered only while a password remains to sign in with.
+const canDisconnectGoogle = computed(
+  () => !!methods.value?.includes('google') && methods.value.includes('credential'),
+)
+const disconnectBusy = ref(false)
 const connectBusy = ref(false)
 // A refused link comes back here with `?error=`.
 // Asked to verify first, the message sits with the verification controls.
@@ -43,17 +50,30 @@ if (linkError) {
 watch(
   () => activeProfile.value?.profileId,
   async (profileId) => {
-    hasGoogle.value = null
+    methods.value = null
     try {
-      const has = await hasGoogleAccount()
+      const found = await signInMethods()
       // A slower answer for the profile before a switch must not land here.
-      if (activeProfile.value?.profileId === profileId) hasGoogle.value = has
+      if (activeProfile.value?.profileId === profileId) methods.value = found
     } catch {
       // Offline: leave the card hidden.
     }
   },
   { immediate: true },
 )
+
+async function onDisconnectGoogle() {
+  banner.value = null
+  disconnectBusy.value = true
+  const result = await unlinkGoogle().catch(() => null)
+  disconnectBusy.value = false
+  if (!result || result.error) {
+    banner.value = { kind: 'error', text: "Couldn't disconnect Google. Try again." }
+    return
+  }
+  methods.value = methods.value?.filter((m) => m !== 'google') ?? null
+  banner.value = { kind: 'info', text: 'Google disconnected. Sign in with your password from now on.' }
+}
 
 async function onConnectGoogle() {
   banner.value = null
@@ -308,6 +328,19 @@ async function onBackupInsideDialog() {
             {{ verifyBusy ? 'Sending…' : 'Send verification code' }}
           </button>
         </template>
+      </article>
+
+      <article v-if="canDisconnectGoogle" class="action-card">
+        <header>
+          <h3>Sign in with Google</h3>
+          <p>
+            A Google account is connected, so you can sign in with it as well as your password.
+            If you didn't connect it, disconnect it here.
+          </p>
+        </header>
+        <button type="button" class="btn" :disabled="disconnectBusy" @click="onDisconnectGoogle">
+          {{ disconnectBusy ? 'Disconnecting…' : 'Disconnect Google' }}
+        </button>
       </article>
 
       <article v-if="hasGoogle === false" class="action-card">

@@ -57,6 +57,8 @@ new one." (FR-011).
   verify later from account settings." with the code field and a Continue button. Past the network's
   daily limit no code is sent, and the note says to send one from settings.
 * Account settings, unverified: "Send verification code", then the code field. Verified on success.
+* Account settings, Google and a password: "A Google account is connected…" with "Disconnect
+  Google"; without Google: "Connect Google". The "Google was connected" email points here.
 * `/reset-password` and `/verify-email` (links from emails sent before 2b): "Emails now carry a code
   instead of a link." with a way to request one (reset form, or settings for verification).
 

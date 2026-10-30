@@ -137,9 +137,9 @@ Better Auth's request state, set in `mapProfileToUser`.
 
 For the code step the hook emails a code saying a Google account is being connected and to enter it
 only if the reader did that, under the per-address and then the per-IP limit; over either it adds
-`&sent=0`, and the picker says no code went out. A code the address already holds is kept rather
-than replaced. `POST /api/account/google/resend` sends a new one, under the same limits (`429` past
-them).
+`&sent=0`, and the picker says no code went out. The step always sends its own code, replacing any
+older one, so the code in the inbox comes with the warning. `POST /api/account/google/resend` sends
+a new one, under the same limits (`429` past them).
 
 Whenever Google joins an account that already signs in another way, by any route, the owner gets an
 email saying so (a `databaseHooks.account.create.after` hook).
@@ -185,6 +185,11 @@ with `unable_to_link_account`, and the after hook, reading the connecting accoun
 state, links it when that account is verified and otherwise redirects with
 `?error=verify_email_first`: the account proves the inbox with a verification code first, which also
 verifies it.
+
+Disconnecting Google from account settings is Better Auth's `POST /api/auth/unlink-account`
+`{ providerId: "google" }`, with a session. It refuses to remove the last way to sign in
+(`400 FAILED_TO_UNLINK_LAST_ACCOUNT`), so settings offers it only while the account has a password.
+The "Google was connected" email points there.
 
 ### `GET /api/me`
 
