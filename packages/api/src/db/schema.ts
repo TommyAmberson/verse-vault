@@ -59,7 +59,8 @@ export const account = sqliteTable(
   // Better Auth looks up accounts by (provider_id, account_id) on every
   // OAuth callback to resolve an existing linked identity.
   (t) => ({
-    providerIdx: index('idx_account_provider').on(t.providerId, t.accountId),
+    // Unique, so one sign-in identity belongs to one user (migration 0031).
+    providerIdx: uniqueIndex('idx_account_provider').on(t.providerId, t.accountId),
   }),
 );
 

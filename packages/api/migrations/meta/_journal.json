@@ -218,6 +218,13 @@
       "when": 1790294400000,
       "tag": "0030_verification_identifier_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1790337600000,
+      "tag": "0031_account_provider_unique",
+      "breakpoints": true
     }
   ]
 }

@@ -1293,6 +1293,23 @@ describe('the Google code step', () => {
     expect(pendingRow(test, token)?.proven).toBe(true);
   });
 
+  it('refuses a second user for the same Google account in the database', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await ownedElsewhere(test, 'google-shared');
+    const second = await signUpTestUser(test, 'second@example.com');
+    const insert = () =>
+      test.db.insert(account).values({
+        id: 'acc-second',
+        userId: second.userId,
+        accountId: 'google-shared',
+        providerId: 'google',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).run();
+    expect(insert).toThrow(/UNIQUE/);
+  });
+
   it('connects an outside Google account to a verified account from settings', async () => {
     const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
     cleanup = test.cleanup;
