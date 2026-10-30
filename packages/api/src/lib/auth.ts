@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { defineRequestState } from '@better-auth/core/context';
 import { and, eq, ne } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
@@ -18,6 +20,7 @@ import {
   type SendEmail,
   googleCodeEmail,
   googleLinkedEmail,
+  googleUnlinkedEmail,
   resetCodeEmail,
   verificationCodeEmail,
 } from './email.js';
@@ -62,6 +65,8 @@ const REFUSED_PATHS = [
   '/email-otp/change-email',
   '/forget-password/email-otp',
   '/email-otp/check-verification-otp',
+  // Disconnecting Google is our own route, which also ends other sessions.
+  '/unlink-account',
 ];
 
 /** Phase 1's link routes. Links emailed before codes would otherwise keep
@@ -79,6 +84,9 @@ const CODE_TTL_S = 10 * 60;
 
 /** At most 3 such requests per address per hour, across both paths. */
 const PER_ADDRESS_TIER: RateLimitTier = { capacity: 3, refillPerSec: 3 / 3600 };
+
+/** Better Auth's default for "a recent sign-in". */
+export const FRESH_SESSION_MS = 24 * 60 * 60 * 1000;
 
 /** At most 10 emails per IP per day: requests on those paths, plus
  *  verification emails sent at sign-up. */
@@ -98,11 +106,37 @@ export interface PendingGoogle {
   sub: string;
   email: string;
   proven: boolean;
+  /** The code step's code, hashed, and its wrong tries. The code lives here
+   *  rather than in the email-code plugin's shared row, so it works for this
+   *  step only (FR-021). */
+  codeHash?: string;
+  tries?: number;
 }
 
-/** The plugin's row for an address's verification code. */
-export const verificationCodeIdentifier = (email: string) =>
-  `email-verification-otp-${email.toLowerCase()}`;
+/** How a code is stored: SHA-256, base64url. */
+export const hashCode = (code: string) => createHash('sha256').update(code).digest('base64url');
+
+/** Users whose Google links and unlinks should send no notice: the
+ *  learner's own takeover, which also removes the password a notice would
+ *  point to. */
+const quietLinks = new Set<string>();
+
+/** One step at a time per pending Google row: the code step's checks and
+ *  sends read and write the same row, so each must see what the one before
+ *  it wrote (research D16). A lock in this process suffices, as the API
+ *  runs as one process. */
+const pendingLocks = new Map<string, Promise<unknown>>();
+export async function onePendingAtATime<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const run = (pendingLocks.get(key) ?? Promise.resolve()).then(fn);
+  const settled = run.catch(() => {});
+  pendingLocks.set(key, settled);
+  try {
+    return await run;
+  } finally {
+    if (pendingLocks.get(key) === settled) pendingLocks.delete(key);
+  }
+}
+
 
 export const PENDING_GOOGLE_TTL_MS = 10 * 60 * 1000;
 
@@ -168,24 +202,34 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
 
   /** Counts a request to email `email` against both limits, the address
    *  first so requests it refuses don't use up the whole network's
-   *  allowance. The refusal, or null when the email may go. */
-  function chargeSend(email: string, ip: string | null): APIError | null {
+   *  allowance. Which limit refused it, with the error to answer, or null
+   *  when the email may go. */
+  function chargeSend(
+    email: string,
+    ip: string | null,
+  ): { limit: 'address' | 'network'; error: APIError } | null {
     const perAddress = sendBuckets.consume(`email:${email.trim().toLowerCase()}`, PER_ADDRESS_TIER);
     if (!perAddress.allowed) {
-      return new APIError(
-        'TOO_MANY_REQUESTS',
-        { message: 'Too many requests for this address. Try again later.' },
-        { 'Retry-After': String(Math.ceil(perAddress.retryAfterSec)) },
-      );
+      return {
+        limit: 'address',
+        error: new APIError(
+          'TOO_MANY_REQUESTS',
+          { message: 'Too many requests for this address. Try again later.' },
+          { 'Retry-After': String(Math.ceil(perAddress.retryAfterSec)) },
+        ),
+      };
     }
     if (!ip) return null;
     const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
     if (perIp.allowed) return null;
-    return new APIError(
-      'TOO_MANY_REQUESTS',
-      { message: 'Too many requests from this network. Try again later.' },
-      { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
-    );
+    return {
+      limit: 'network',
+      error: new APIError(
+        'TOO_MANY_REQUESTS',
+        { message: 'Too many requests from this network. Try again later.' },
+        { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
+      ),
+    };
   }
 
   const auth = betterAuth({
@@ -300,6 +344,18 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
             });
           }
         }
+        // Adding a sign-in method asks for a sign-in within the last day, as
+        // disconnecting does (OWASP: re-authenticate before linking).
+        if (ctx.request && ctx.path === '/link-social') {
+          const session = await getSessionFromCtx(ctx);
+          const age = session ? Date.now() - new Date(session.session.createdAt).getTime() : 0;
+          if (age > FRESH_SESSION_MS) {
+            throw new APIError('FORBIDDEN', {
+              message: 'Sign in again to connect Google.',
+              code: 'SESSION_NOT_FRESH',
+            });
+          }
+        }
         if (!EMAILING_PATHS.has(ctx.path)) return;
         const email = (ctx.body as { email?: unknown } | undefined)?.email;
         // The body isn't validated yet. Anything longer than an address can
@@ -310,7 +366,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           email,
           ctx.request ? getIp(ctx.request, ctx.context.options) : null,
         );
-        if (refused) throw refused;
+        if (refused) throw refused.error;
       }),
       // Follow-ups to a Google callback, all only when Google says it
       // checked the address. Where it doesn't speak for the address, the
@@ -341,7 +397,13 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
             throw ctx.redirect(redirect.toString());
           }
           const owner = await internal.findAccountByProviderId(profile.sub, 'google');
-          if (owner) return;
+          // Linked already: back where Connect Google started, as Better Auth
+          // does for an existing link of its own.
+          if (owner?.userId === found.user.id) throw ctx.redirect(state.callbackURL);
+          if (owner) {
+            redirect.searchParams.set('error', 'account_already_linked_to_different_user');
+            throw ctx.redirect(redirect.toString());
+          }
           // The unique index refuses a link that raced another for the same
           // Google account; Better Auth's refusal then stands.
           const linked = await internal
@@ -364,16 +426,19 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           return;
         }
 
-        // A refused sign-in. Where Google speaks for the address the account
-        // is unverified, so offer the learner "That's me" or "That's not me".
-        // Otherwise email a code to prove the inbox first, through the
-        // plugin's send route so the per-address limit applies; the confirm
-        // route then links a verified account or leads to the choice. Both go
-        // through a short-lived pending row, handled by the picker on the
-        // client's own origin, whichever page sign-in started from. The
-        // address rides along to prefill sign-in and name where the code
-        // went; it's the one the learner just signed in to Google with, so
-        // it tells them nothing new.
+        // A refused sign-in onto a verified account, where Google doesn't
+        // speak for the address, stays refused: adding a sign-in method needs
+        // a session on the account (FR-014, OWASP), so the learner signs in
+        // with the password and connects Google from settings.
+        if (found.user.emailVerified) return;
+        // Onto an unverified account: where Google speaks for the address,
+        // offer the learner "That's me" or "That's not me". Otherwise email a
+        // code-step code to prove the inbox first; the confirm route then
+        // leads to the choice. Both go through a short-lived pending row,
+        // handled by the picker on the client's own origin, whichever page
+        // sign-in started from. The address rides along to prefill sign-in
+        // and name where the code went; it's the one the learner just signed
+        // in to Google with, so it tells them nothing new.
         const token = generateRandomString(32);
         const pending: PendingGoogle = {
           userId: found.user.id,
@@ -391,9 +456,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           path: pendingCookiePath,
         });
         ctx.setCookie(cookie.name, token, cookie.attributes);
-        // Always this step's own code, which says what it is for, replacing
-        // any older one (research D16).
-        const sent = pending.proven ? 'sent' : await sendGoogleCode(pending.email, ctx.request ?? null);
+        const sent = pending.proven
+          ? 'sent'
+          : await sendGoogleCode(`${PENDING_GOOGLE_PREFIX}${token}`, ctx.request ?? null);
         // On the web app's own origin, keep its base path (a subpath deploy).
         // A desktop client's `tauri://localhost` has the opaque origin
         // "null", so rebuild it from the scheme and host.
@@ -407,8 +472,8 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         // Keep where the learner was going when sign-in started.
         const destination = redirect.searchParams.get('redirect');
         if (destination) query.redirect = destination;
-        // Over a limit no code went out; the picker says so.
-        if (sent === 'limited') query.sent = '0';
+        // Over a limit no code went out; the picker says which.
+        if (sent !== 'sent') query.sent = sent === 'network' ? 'network' : '0';
         picker.search = new URLSearchParams(query).toString();
         throw ctx.redirect(picker.toString());
       }),
@@ -416,22 +481,31 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
     databaseHooks: {
       account: {
         create: {
-          // Google joining an account that already signs in another way,
-          // by any route (choice, code step, Connect Google, or Better Auth
-          // linking an authoritative sign-in): tell the owner.
+          // A Google account joining an account that already has a way to
+          // sign in, by any route (choice, Connect Google, or Better Auth
+          // linking an authoritative sign-in): tell the owner (FR-027). Not
+          // for a new Google sign-up, which has nothing else, nor the
+          // learner's own takeover.
           after: async (account) => {
-            if (account.providerId !== 'google') return;
+            if (account.providerId !== 'google' || quietLinks.has(account.userId)) return;
             const others = db
               .select()
               .from(schema.account)
-              .where(
-                and(eq(schema.account.userId, account.userId), ne(schema.account.providerId, 'google')),
-              )
+              .where(and(eq(schema.account.userId, account.userId), ne(schema.account.id, account.id)))
               .all();
             if (others.length === 0) return;
             const owner = db.select().from(schema.user).where(eq(schema.user.id, account.userId))
               .get();
             if (owner) sendEmail(googleLinkedEmail(owner.email));
+          },
+        },
+        delete: {
+          // Google disconnected while the account stays: tell the owner too.
+          after: async (account) => {
+            if (account.providerId !== 'google' || quietLinks.has(account.userId)) return;
+            const owner = db.select().from(schema.user).where(eq(schema.user.id, account.userId))
+              .get();
+            if (owner) sendEmail(googleUnlinkedEmail(owner.email));
           },
         },
       },
@@ -476,28 +550,47 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       }),
     ],
   });
-  /** Emails a Google code-step code for `email`, under both email limits,
-   *  replacing any older code. `limited` when a limit stopped the send. */
+  /** Emails a new code-step code for the pending row `identifier` and
+   *  stores its hash there, replacing any older one, under both email
+   *  limits. `address` or `network` when that limit stopped the send. */
   async function sendGoogleCode(
-    email: string,
+    identifier: string,
     request: Request | null,
-  ): Promise<'sent' | 'raced' | 'limited'> {
+  ): Promise<'sent' | 'address' | 'network' | 'gone' | 'proven'> {
     const internal = (await auth.$context).internalAdapter;
-    const identifier = verificationCodeIdentifier(email);
-    const ip = request ? getIp(request, auth.options) : null;
-    if (chargeSend(email, ip)) return 'limited';
-    await internal.deleteVerificationByIdentifier(identifier);
-    // A send for the address that lands between the delete and the create
-    // wins the unique identifier; its code went out instead.
-    const code = await auth.api
-      .createVerificationOTP({ body: { email, type: 'email-verification' } })
-      .catch(() => null);
-    if (!code) return 'raced';
-    sendEmail(googleCodeEmail(email, code, CODE_TTL_S / 60));
-    return 'sent';
+    return onePendingAtATime(identifier, async () => {
+      const row = await internal.findVerificationValue(identifier);
+      if (!row || row.expiresAt < new Date()) return 'gone';
+      const pending = JSON.parse(row.value) as PendingGoogle;
+      // Confirmed meanwhile: nothing to send, and the row stays proven.
+      if (pending.proven) return 'proven';
+      const ip = request ? getIp(request, auth.options) : null;
+      const refused = chargeSend(pending.email, ip);
+      if (refused) return refused.limit;
+      const code = generateRandomString(6, '0-9');
+      // The code lasts 10 minutes from now, as its email says, and so does
+      // the row it lives on.
+      await internal.updateVerificationByIdentifier(identifier, {
+        value: JSON.stringify({ ...pending, codeHash: hashCode(code), tries: 0 } satisfies PendingGoogle),
+        expiresAt: new Date(Date.now() + PENDING_GOOGLE_TTL_MS),
+      });
+      sendEmail(googleCodeEmail(pending.email, code, CODE_TTL_S / 60));
+      return 'sent';
+    });
   }
 
-  return Object.assign(auth, { sendGoogleCode, pendingCookiePath });
+  /** Runs `link` without the "Google was connected" or "disconnected"
+   *  notices. */
+  async function withoutLinkNotice<T>(userId: string, link: () => Promise<T>): Promise<T> {
+    quietLinks.add(userId);
+    try {
+      return await link();
+    } finally {
+      quietLinks.delete(userId);
+    }
+  }
+
+  return Object.assign(auth, { sendGoogleCode, withoutLinkNotice, pendingCookiePath });
 }
 
 export type Auth = ReturnType<typeof createAuth>;

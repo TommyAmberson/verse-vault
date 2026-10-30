@@ -218,12 +218,12 @@ from the code or design docs.
 * **The Google choice and code step rest on Better Auth internals, not documented API.** An after
   hook on `/callback/:id` rewrites the `account_not_linked` and `unable_to_link_account` redirects,
   reading the Google profile that `mapProfileToUser` stashed in request state from
-  `@better-auth/core/context`, and the OAuth state (`getOAuthState`). The confirm route deletes the
-  email-code plugin's row by its identifier format (`email-verification-otp-<address>`) and relies
-  on `checkVerificationOTP` not using the code up. Keep `@better-auth/core` on the same version as
-  `better-auth`, and when upgrading run the Google suites in `packages/api/src/index.test.ts` first
-  ("onto an unverified password account" and "the Google code step"): they drive the real callback
-  and fail if any piece moves.
+  `@better-auth/core/context`, and the OAuth state (`getOAuthState`). The "Google was connected" and
+  "disconnected" notices come from `databaseHooks` on account create and delete, which every linking
+  route goes through. Keep `@better-auth/core` on the same version as `better-auth`, and when
+  upgrading run the Google suites in `packages/api/src/index.test.ts` first ("onto an unverified
+  password account" and "the Google code step"): they drive the real callback and fail if any piece
+  moves.
 * **The email-code plugin needs `verification.identifier` unique.** It replaces an older code only
   when creating the new row fails on that constraint (migration 0030). Without it a resend keeps
   both codes and lookups pick either.

@@ -96,6 +96,22 @@ export function googleLinkedEmail(to: string): EmailMessage {
   };
 }
 
+/** Sent when Google is disconnected while the account stays. */
+export function googleUnlinkedEmail(to: string): EmailMessage {
+  const subject = 'Google was disconnected from your VerseVault account';
+  const lines = [
+    'A Google account was just disconnected from your VerseVault account, and every other ' +
+    'session was signed out.',
+    "If this wasn't you, reset your password from the sign-in page (\"Forgot password?\").",
+  ];
+  return {
+    to,
+    subject,
+    text: lines.join('\n\n'),
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('\n'),
+  };
+}
+
 interface CodeEmailParts {
   subject: string;
   reason: string;

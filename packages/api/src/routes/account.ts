@@ -1,4 +1,5 @@
-import { APIError } from 'better-auth/api';
+import { timingSafeEqual } from 'node:crypto';
+
 import { type Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
@@ -6,11 +7,13 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import type { DB } from '../db/client.js';
 import {
   type Auth,
+  FRESH_SESSION_MS,
   PENDING_GOOGLE_COOKIE,
   PENDING_GOOGLE_PREFIX,
   PENDING_GOOGLE_TTL_MS,
   type PendingGoogle,
-  verificationCodeIdentifier,
+  hashCode,
+  onePendingAtATime,
 } from '../lib/auth.js';
 import { EngineStore } from '../lib/engine.js';
 import type { AccountExport } from '../lib/export-format.js';
@@ -91,21 +94,9 @@ export function accountRoutes(deps: AccountRoutesDeps) {
     return used;
   }
 
-  // The confirm route checks one code at a time per address, so each guess
-  // sees the attempt count the one before it wrote: the plugin's check
-  // reads, compares, and writes the count as separate steps (research
-  // D16). A lock in this process suffices, as the API runs as one process.
-  const codeLocks = new Map<string, Promise<unknown>>();
-  async function oneAtATime<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    const run = (codeLocks.get(key) ?? Promise.resolve()).then(fn);
-    const settled = run.catch(() => {});
-    codeLocks.set(key, settled);
-    try {
-      return await run;
-    } finally {
-      if (codeLocks.get(key) === settled) codeLocks.delete(key);
-    }
-  }
+  const MAX_CODE_TRIES = 3;
+  const sameHash = (a: string, b: string) =>
+    a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
   // Links the pending Google identity and verifies the address. Null,
   // changing nothing, when that Google account already belongs to someone
@@ -136,64 +127,70 @@ export function accountRoutes(deps: AccountRoutesDeps) {
     const body = await c.req.json<{ code?: unknown }>().catch(() => null);
     const found = await readPending(c);
     const code = body?.code;
-    if (!found || found.pending.proven || typeof code !== 'string') return invalidToken(c);
-    const { identifier, pending } = found;
-    const internal = await adapter();
-    const user = await internal.findUserById(pending.userId);
-    if (!user) return invalidToken(c);
-    // Checked before the code is used, so a Google account that belongs to
-    // someone else leaves the code and the row as they were.
-    const link = await googleLinker(pending);
-    if (!link) return invalidToken(c);
-
-    const refused = await oneAtATime(pending.email.toLowerCase(), async () => {
-      try {
-        // A server call: the HTTP route is refused (research D15).
-        await deps.auth.api.checkVerificationOTP({
-          body: { email: pending.email, type: 'email-verification', otp: code },
-        });
-      } catch (err) {
-        if (err instanceof APIError) return err;
-        throw err;
-      }
-      // The check doesn't use the code up; delete it so it works once.
-      await internal.deleteVerificationByIdentifier(verificationCodeIdentifier(pending.email));
-      return null;
-    });
-    if (refused) {
-      return c.json(
-        { error: refused.body?.message ?? 'invalid code', code: refused.body?.code },
-        refused.statusCode === 403 ? 403 : 400,
-      );
-    }
-
-    if (!user.emailVerified) {
-      // The choice gets its own 10 minutes, whatever the code step took.
-      await internal.updateVerificationByIdentifier(identifier, {
-        value: JSON.stringify({ ...pending, proven: true } satisfies PendingGoogle),
-        expiresAt: new Date(Date.now() + PENDING_GOOGLE_TTL_MS),
-      });
+    if (!found || typeof code !== 'string') return invalidToken(c);
+    // Already proven, by an earlier try whose answer was lost: go on.
+    if (found.pending.proven) {
       const { name, options } = await pendingCookie();
       setCookie(c, name, found.token, options);
       return c.json({ choice: true });
     }
-    // A verified account: link, then use the row up, so a link that loses a
-    // race leaves the row for another try. The client signs in with Google
-    // again.
-    if (!(await link())) return invalidToken(c);
-    await consume(c, identifier);
-    return c.json({ signIn: true });
+    const { identifier, pending } = found;
+    const internal = await adapter();
+    // Checked before the code is used, so a Google account that belongs to
+    // someone else leaves the code and the row as they were.
+    if (!(await googleLinker(pending))) return invalidToken(c);
+
+    const outcome = await onePendingAtATime(identifier, async () => {
+      // Read again under the lock, so each try sees the count the one
+      // before it wrote.
+      const row = await internal.findVerificationValue(identifier);
+      if (!row || row.expiresAt < new Date()) return 'gone';
+      const current = JSON.parse(row.value) as PendingGoogle;
+      const tries = current.tries ?? 0;
+      if (current.proven) return 'proven';
+      if (tries >= MAX_CODE_TRIES) return 'locked';
+      if (!current.codeHash || !sameHash(hashCode(code), current.codeHash)) {
+        await internal.updateVerificationByIdentifier(identifier, {
+          value: JSON.stringify({ ...current, tries: tries + 1 } satisfies PendingGoogle),
+        });
+        return 'wrong';
+      }
+      // Proven; the code is spent, and the choice gets its own 10 minutes.
+      const { codeHash: _spent, tries: _count, ...rest } = current;
+      await internal.updateVerificationByIdentifier(identifier, {
+        value: JSON.stringify({ ...rest, proven: true } satisfies PendingGoogle),
+        expiresAt: new Date(Date.now() + PENDING_GOOGLE_TTL_MS),
+      });
+      return 'proven';
+    });
+    if (outcome === 'gone') return invalidToken(c);
+    if (outcome === 'locked') {
+      return c.json({ error: 'Too many attempts', code: 'TOO_MANY_ATTEMPTS' }, 403);
+    }
+    if (outcome === 'wrong') return c.json({ error: 'Invalid code', code: 'INVALID_OTP' }, 400);
+    const { name, options } = await pendingCookie();
+    setCookie(c, name, found.token, options);
+    return c.json({ choice: true });
   });
 
   // "Send a new code" on the Google code step: the code-step email again,
   // which says what the code is for, under the same limits.
   app.post('/account/google/resend', async (c) => {
     const found = await readPending(c);
-    if (!found || found.pending.proven) return invalidToken(c);
-    const sent = await deps.auth.sendGoogleCode(found.pending.email, c.req.raw);
-    if (sent === 'limited') {
-      return c.json({ error: 'Too many requests for this address. Try again later.' }, 429);
+    if (!found) return invalidToken(c);
+    // Confirmed already, here or in another tab: nothing to send.
+    if (found.pending.proven) return c.json({ proven: true });
+    const sent = await deps.auth.sendGoogleCode(found.identifier, c.req.raw);
+    if (sent === 'gone') return invalidToken(c);
+    if (sent === 'proven') return c.json({ proven: true });
+    if (sent === 'address' || sent === 'network') {
+      const from = sent === 'network' ? 'this network' : 'this address';
+      return c.json({ error: `Too many requests for ${from}. Try again later.` }, 429);
     }
+    // The new code and its row last 10 minutes from now, and so does the
+    // cookie, as the email says.
+    const { name, options } = await pendingCookie();
+    setCookie(c, name, found.token, options);
     return c.json({ sent: true });
   });
 
@@ -209,13 +206,21 @@ export function accountRoutes(deps: AccountRoutesDeps) {
     const link = await googleLinker(pending);
     if (!link || !(await consume(c, found.identifier))) return invalidToken(c);
     // Linked first, so a link refused because another request took the
-    // same Google account in between leaves the password and sessions.
-    if (!(await link())) return invalidToken(c);
+    // same Google account in between leaves the password and sessions. No
+    // "Google was connected" notice: the learner did this, and the password
+    // it would point to goes next.
+    if (!(await deps.auth.withoutLinkNotice(pending.userId, link))) return invalidToken(c);
     // Whoever set the password loses it and every session, as Better Auth's
     // `revokeUnprovenAccountAccess` does for an unverified account.
-    for (const account of await internal.findAccounts(pending.userId)) {
-      if (account.providerId === 'credential') await internal.deleteAccount(account.id);
-    }
+    // Every other way in goes, not only the password: a Google account the
+    // registrant linked would otherwise keep its access.
+    // Quietly: the learner did this, so no "Google was disconnected" email.
+    await deps.auth.withoutLinkNotice(pending.userId, async () => {
+      for (const account of await internal.findAccounts(pending.userId)) {
+        const isNewLink = account.providerId === 'google' && account.accountId === pending.sub;
+        if (!isNewLink) await internal.deleteAccount(account.id);
+      }
+    });
     await internal.deleteUserSessions(pending.userId);
     return c.json({ ok: true });
   });
@@ -232,6 +237,33 @@ export function accountRoutes(deps: AccountRoutesDeps) {
     const link = await googleLinker(found.pending);
     if (!link || !(await consume(c, found.identifier))) return invalidToken(c);
     if (!(await link())) return invalidToken(c);
+    return c.json({ ok: true });
+  });
+
+  // Disconnect Google: every Google account on this account goes, and every
+  // other session ends, so the account is no longer reachable through
+  // Google (FR-018, OWASP). Done here rather than by Better Auth's unlink
+  // route, which removes one account and leaves sessions alone. Needs a
+  // sign-in within the last day and a password to keep signing in with.
+  app.post('/account/google/disconnect', async (c) => {
+    const user = getUser(c);
+    const current = await deps.auth.api.getSession({ headers: c.req.raw.headers });
+    if (!current) return c.json({ error: 'not signed in' }, 401);
+    const age = Date.now() - new Date(current.session.createdAt).getTime();
+    if (age > FRESH_SESSION_MS) {
+      return c.json({ error: 'sign in again first', code: 'SESSION_NOT_FRESH' }, 403);
+    }
+    const internal = await adapter();
+    const accounts = await internal.findAccounts(user.id);
+    if (!accounts.some((a) => a.providerId === 'credential')) {
+      return c.json({ error: 'no other way to sign in', code: 'FAILED_TO_UNLINK_LAST_ACCOUNT' }, 400);
+    }
+    for (const account of accounts) {
+      if (account.providerId === 'google') await internal.deleteAccount(account.id);
+    }
+    for (const session of await internal.listSessions(user.id)) {
+      if (session.token !== current.session.token) await internal.deleteSession(session.token);
+    }
     return c.json({ ok: true });
   });
 
