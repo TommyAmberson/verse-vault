@@ -262,6 +262,14 @@ the same sign-in methods still work.
 
 ### Edge Cases
 
+* **The address already has an account here (accepted).** Signing up with a taken address says so,
+  and a Google sign-in that matches an account lands on the matching step, so both reveal that an
+  account exists. OWASP prefers generic answers at sign-up too; that would need a confirmation email
+  before every new account, which this spec does not take on. Reset requests stay generic (FR-002).
+* **A password I set left a session open.** "That's me" needs the account's password, so whoever
+  holds a session on it already holds the password; joining Google doesn't need to end it. Takeover
+  and reset end every session (FR-005, FR-020), as the pre-hijacking research recommends.
+
 * **Someone else registered my address.** The real owner either resets the password, which only they
   can complete because only they receive the email, or signs in with Google and chooses "That's not
   me". Both end the other person's sessions, verify the address, and give the owner the account.
@@ -344,14 +352,19 @@ the same sign-in methods still work.
   Sign-up itself is never refused for this limit.
 * **FR-013**: All outgoing email MUST come from `VerseVault <no-reply@versevault.ca>`, show the code
   prominently, say why it was sent, how long it lasts, not to share it, and what to do if the
-  recipient did not ask for it. The code that lets a Google account join an account MUST say that a
-  Google account is being connected and to enter it only if the reader did that themselves.
+  recipient did not ask for it. Each code MUST work only for the purpose its email names. The code
+  that lets a Google account join an account MUST say that a Google account is being connected and
+  to enter it only if the reader did that themselves.
 * **FR-014**: A Google sign-in links to an existing account with the same address only with proof
   that the learner controls the inbox now: Google is authoritative for the address (a Gmail address,
-  or a Workspace account, shown by an `hd` claim), or the learner enters a code emailed to the
-  address. With that proof, a verified account is signed in to, and an unverified password account
-  gets the choice in FR-019. Without it, nothing links, verifies, or takes over. A Google sign-up
-  that matches no account starts verified only when Google is authoritative for its address.
+  or a Workspace account, shown by an `hd` claim), or, for an unverified password account only, the
+  learner enters a code emailed to the address. With Google authoritative, a verified account is
+  signed in to; an unverified password account gets the choice in FR-019, after the code when Google
+  isn't authoritative. A verified account is never linked on a code alone: a Google sign-in Google
+  isn't authoritative for is refused with "Sign in with your password, then connect Google in
+  account settings" (FR-018), since adding a sign-in method needs a session on the account (OWASP).
+  Without proof, nothing links, verifies, or takes over. A Google sign-up that matches no account
+  starts verified only when Google is authoritative for its address.
 * **FR-015**: Failures to send email MUST be logged on the server with enough detail for the
   operator to diagnose them, without logging the code itself in production.
 * **FR-016**: When no email provider is configured, the server MUST log the code instead of sending,
@@ -362,8 +375,11 @@ the same sign-in methods still work.
   account. The Google account's address MUST match the account's address, and connecting keeps the
   password. For an unverified account, connecting needs inbox proof (FR-014): a Google account
   authoritative for the address, or the emailed code; either marks the address verified. A verified
-  account connects on its session alone. Account settings MUST also let a learner disconnect Google,
-  but only while the account keeps another way to sign in (a password).
+  account connects on its session alone, from a sign-in within the last day (OWASP: re-authenticate
+  before linking). Account settings MUST also let a learner disconnect Google, but only while the
+  account keeps another way to sign in (a password), and only from a sign-in within the last day
+  (Better Auth's fresh-session rule). Disconnecting MUST end every other session on the account, so
+  the account is no longer reachable through Google (OWASP).
 * **FR-019**: When a signed-out Google sign-in with inbox proof (FR-014) matches an unverified
   password account, the app MUST say that an unverified account with this address already exists and
   ask whether it is theirs. "That's me" MUST ask for the account's password and, on success, behave
@@ -376,7 +392,9 @@ the same sign-in methods still work.
   that exact address (a completed Google sign-in Google is authoritative for, or the confirmed
   emailed code, itself within 10 minutes of the sign-in), and MUST NOT reveal anything about the
   account otherwise. When Google isn't authoritative for the address, the emailed code comes first;
-  a learner who can't enter it gets no choice and no information about the account.
+  a learner who can't enter it gets no choice and no information about the account. That code MUST
+  work for this step only: a code sent for anything else (verification, reset) does not pass it, and
+  it passes nothing else (FR-013).
 * **FR-022**: Account settings MUST warn, next to an unverified address, that until it is verified
   anyone with access to the inbox or its Google account can take the account over.
 * **FR-023**: After a takeover, the app MUST tell the learner that the account may hold someone
@@ -387,10 +405,12 @@ the same sign-in methods still work.
 * **FR-025**: "Delete all progress" and "Reset account" MUST each require the learner to type the
   account's email address as a challenge phrase, matching exactly, before running, and MUST offer a
   backup download first.
-* **FR-027**: When Google joins an account that already has another way to sign in, by any route,
-  the app MUST email the account's address saying so, and how to undo it if it wasn't them: sign in
-  with the password (resetting it if needed) and disconnect Google in account settings (FR-018).
-  NIST SP 800-63B-4 requires such a notice whenever an authenticator is added.
+* **FR-027**: When a Google account joins an account, by any route other than the learner's own
+  takeover (FR-020) or a new Google sign-up, the app MUST email the account's address saying so, and
+  how to undo it if it wasn't them: sign in with the password (resetting it if needed) and
+  disconnect Google in account settings (FR-018). Disconnecting Google MUST send a notice too. NIST
+  SP 800-63B-4 requires a notice whenever an authenticator is added, and OWASP when a linked
+  identity is added or removed.
 
 ### Key Entities
 

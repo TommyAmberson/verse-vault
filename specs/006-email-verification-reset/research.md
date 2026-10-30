@@ -369,17 +369,22 @@ attempts, and expires codes).
 ## D16. The Google code step (phase 2b)
 
 **Decision**: the callback after hook (D7) also handles a refused Google sign-in whose raw
-`email_verified` is true but which D14 found non-authoritative. It writes the pending row as before,
-marked as not yet proven, sends a verification code to the address through the plugin's send route
-(`type: 'email-verification'`), and redirects to the picker with `&code=1`. A new route,
-`POST /api/account/google/confirm { code }`, checks the code with the plugin's
-`checkVerificationOTP` (a server call through `auth.api`, since D15 refuses it over HTTP), deletes
-the code row so it cannot be used twice, and then:
+`email_verified` is true but which D14 found non-authoritative.
 
-* verified account: links the Google `sub` and returns `{ signIn: true }`; the client runs Google
-  sign-in again, which now finds the account linked;
-* unverified account: marks the pending row proven and returns `{ choice: true }`; the picker shows
-  "That's me" / "That's not me".
+* Verified account: refused with a message to sign in with the password and connect Google from
+  settings (D17). OWASP's account-linking guidance asks for an authenticated session on the account
+  before adding a linked identity, and an emailed code alone would let anyone who can get the owner
+  to read out a code link a Google account they control.
+* Unverified password account: the code step. The hook writes the pending row, marked as not yet
+  proven, with the hash of a new code and its wrong-try count, emails that code in a message saying
+  a Google account is being connected, and redirects to the picker with `&code=1`.
+  `POST /api/account/google/confirm { code }` checks it against the row, then marks the row proven
+  and returns `{ choice: true }`; the picker shows "That's me" / "That's not me".
+
+The code lives in the pending row rather than the email-code plugin's shared verification row, so it
+works for this step only and a code sent for anything else can't pass it (purpose binding, as in
+[Bird's OTP guidance](https://bird.com/blog/what-does-otp-mean)), and a Google sign-in never
+replaces the owner's own verification code.
 
 The route runs one check at a time per address, holding an in-process lock keyed on the address from
 the check through the delete, so each guess sees the count the one before it wrote. The
@@ -407,28 +412,23 @@ the owner resets, signs in, and disconnects.
 Claim and takeover refuse a pending row that is not proven. An authoritative refusal writes it
 proven from the start, as phase 2 already does.
 
-**Rationale**: the pending row already ties the proof to one Google identity and one account, and
-the plugin already stores, hashes, counts, and expires codes for an address, so the step reuses both
-rather than adding a second code store. Sending through the plugin's route also puts these emails
-under the same per-address and per-IP limits (FR-012). `checkVerificationOTP` counts wrong guesses
-without consuming the row (D15), so guesses sent at the same moment would each pass the attempt
-check and a 6-digit code could be brute-forced; the lock closes that, and it is enough because the
-API runs as one Node process against one SQLite file (`deploy/verse-vault.service`). The lock also
-means only one request with the right code passes before the row is deleted. Checking with
-`checkVerificationOTP` and then deleting the row matches the plugin's single-use rule without going
-through `/email-otp/verify-email`, which would verify the address and needs that account's session.
-That route shares the code row but not the lock, so guesses sent through both at the same moment can
-overwrite each other's count, giving roughly six tries instead of three. The plugin compares a code
-before checking the session, so a `hooks.before` refuses a verify-email request without that
-account's session before it is compared. Mixing the two routes then needs a session on the account
-as well as a pending Google row for its address, and new codes stay under the per-address limit, so
-it is accepted.
+**Rationale**: the pending row already ties the proof to one Google identity and one account, so it
+is the natural home for the code that proves the inbox for that sign-in. The confirm route compares
+the code's SHA-256 hash in constant time and counts wrong tries on the row; it runs one check at a
+time per address, holding an in-process lock, so tries sent at the same moment each see the count
+the one before wrote, and only one right code passes. The lock is enough because the API runs as one
+Node process against one SQLite file (`deploy/verse-vault.service`). The send goes through the same
+per-address and per-IP limits as the plugin's routes (FR-012).
 
-**Alternatives considered**: a code stored on the pending row (duplicates the plugin's hashing and
-attempt counting); consuming the row and recreating it on a wrong guess, as the plugin's own
-`atomicVerifyOTP` does (that function isn't exported, so the route would copy the plugin's hashing
-and row format, which a Better Auth upgrade could change; worth revisiting if the API ever runs as
-several processes); signing the learner in directly after the code (the multi-session cookies argue
+Disconnecting Google ends every other session, as OWASP asks ("the account must no longer be
+accessible through that identity"); Better Auth's `unlinkAccount` only deletes the link, so the
+settings flow also calls `revokeOtherSessions`. Better Auth doesn't record how a session started, so
+every other session ends, not only those started through Google.
+
+**Alternatives considered**: the email-code plugin's shared verification row (the first design: a
+code sent for verification could pass the Google step, and a Google sign-in replaced the owner's own
+code); linking a verified account on the code alone (the first design too, dropped for OWASP's
+session rule above); signing the learner in directly after the code (the multi-session cookies argue
 for re-running Google sign-in, as D7 did for takeover).
 
 ## D17. Connect Google from settings (phase 2b)

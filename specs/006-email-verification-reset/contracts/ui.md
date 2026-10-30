@@ -39,6 +39,9 @@
 * Phase 2a, `account_not_linked` (any refusal onto an existing account: an unverified account, or
   Google not being authoritative for the address): "This email already has a VerseVault account that
   Google can't sign in to yet. Sign in with your password instead, or reset it."
+* Phase 2b, a Google sign-in Google isn't authoritative for onto a verified account
+  (`account_not_linked`): "This email already has a VerseVault account. Sign in with your password,
+  then connect Google in account settings."
 * Phase 2b, when only Google never having verified the address remains: "Google hasn't verified this
   email address, so it can't sign in to the account that uses it. Sign in with your password
   instead, or reset it."
@@ -67,8 +70,8 @@ new one." (FR-011).
 * Picker with `?pending=1&email=&code=1`: "To connect Google, enter the code we sent to <address>."
   with the code field; with `&sent=0`, it says no code could be sent because too many were asked for
   the address, and to sign in with Google again in about 20 minutes. The pending token is a cookie
-  the page never sees. A verified account then signs in with Google; an unverified one goes on to
-  the choice below. A learner who can't enter the code sees nothing more about the account.
+  the page never sees. The step is only for unverified accounts; a confirmed code goes on to the
+  choice below. A learner who can't enter the code sees nothing more about the account.
 * Picker with `?pending=1&email=` (Google authoritative, or code confirmed): "An unverified account
   for <address> already exists. Is it yours?" with "That's me" (opens email sign-in for that
   address, then claims) and "That's not me".

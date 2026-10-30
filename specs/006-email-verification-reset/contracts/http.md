@@ -47,11 +47,11 @@ send route with `type: "sign-in"` or `"change-email"`,
 `POST /api/auth/email-otp/request-email-change`, `POST /api/auth/email-otp/change-email`, the
 deprecated `POST /api/auth/forget-password/email-otp`, and
 `POST /api/auth/email-otp/check-verification-otp`, whose attempt count does not hold against guesses
-sent at the same moment (research D15). The phase 1 link routes,
-`POST /api/auth/request-password-reset`, `POST /api/auth/reset-password`, and
-`GET /api/auth/verify-email`, are refused with 404 too, so links in older emails stop working.
-`POST /api/auth/email-otp/verify-email` without that account's session is refused with 403 before
-the code is compared, so a signed-out guess doesn't count.
+sent at the same moment (research D15), and `POST /api/auth/unlink-account`, which Disconnect Google
+replaces. The phase 1 link routes, `POST /api/auth/request-password-reset`,
+`POST /api/auth/reset-password`, and `GET /api/auth/verify-email`, are refused with 404 too, so
+links in older emails stop working. `POST /api/auth/email-otp/verify-email` without that account's
+session is refused with 403 before the code is compared, so a signed-out guess doesn't count.
 
 Code emails count towards the same limits as phase 1's emails: 3 per address per hour and 10 per IP
 per day (FR-012).
@@ -60,26 +60,27 @@ per day (FR-012).
 
 | Method and path                 | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/auth/link-social`    | session required; `{ provider: "google", callbackURL }`; same address enforced. A non-authoritative Google account links only to a verified account; an unverified one comes back with `?error=verify_email_first` (research D17)                                                                                                                                                                                                                                                                         |
+| `POST /api/auth/link-social`    | session from a sign-in within the last day required (`403 SESSION_NOT_FRESH` otherwise); `{ provider: "google", callbackURL }`; same address enforced. A non-authoritative Google account links only to a verified account; an unverified one comes back with `?error=verify_email_first` (research D17)                                                                                                                                                                                                  |
 | `GET /api/auth/callback/google` | when the address matches an existing account and Google verified it but isn't authoritative, sends a verification code to the address and redirects to the picker with `&code=1` (and `&sent=0` when a limit stopped the code); when Google is authoritative and the account is unverified, redirects to the choice as before. Both go to `<origin>/profiles?force=1&pending=<token>&email=<address>`, where `<origin>` is the origin of the client's `errorCallbackURL`, keeping the web app's base path |
 
 ## New routes (phase 2b)
 
 Mounted with the account routes at `/api`.
 
-| Method and path                     | Auth                    | Body       | Effect                                                                                                                                                                 | Errors                                                                                           |
-| ----------------------------------- | ----------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `POST /api/account/google/confirm`  | pending cookie          | `{ code }` | checks the emailed code for the pending record's address; then links Google to a verified account (`{ signIn: true }`) or marks the record proven (`{ choice: true }`) | 400 invalid or expired token or code; 403 too many attempts; 429 when the per-IP bucket is empty |
-| `POST /api/account/google/claim`    | session, pending cookie | none       | consumes a proven pending record; links its Google `sub` to the session user if they match; verifies                                                                   | 400 invalid, expired, or unproven token; 403 another account's session                           |
-| `POST /api/account/google/takeover` | pending cookie          | none       | consumes a proven pending record; deletes the password and every session; links Google; verifies                                                                       | 400 invalid, expired, or unproven token, or the user is already verified                         |
+| Method and path                     | Auth                    | Body       | Effect                                                                                                                               | Errors                                                                                           |
+| ----------------------------------- | ----------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `POST /api/account/google/confirm`  | pending cookie          | `{ code }` | checks the code-step code stored on the pending record (unverified accounts only); then marks the record proven (`{ choice: true }`) | 400 invalid or expired token or code; 403 too many attempts; 429 when the per-IP bucket is empty |
+| `POST /api/account/google/claim`    | session, pending cookie | none       | consumes a proven pending record; links its Google `sub` to the session user if they match; verifies                                 | 400 invalid, expired, or unproven token; 403 another account's session                           |
+| `POST /api/account/google/takeover` | pending cookie          | none       | consumes a proven pending record; deletes the password and every session; links Google; verifies                                     | 400 invalid, expired, or unproven token, or the user is already verified                         |
 
 Disconnecting Google uses Better Auth's `POST /api/auth/unlink-account` `{ providerId: "google" }`
 with a session; it refuses the last way to sign in with `400 FAILED_TO_UNLINK_LAST_ACCOUNT`.
 
-`POST /api/account/google/resend`, with the pending cookie, sends a new code-step code under the
-email limits (`429` past them). The pending token is never in a body or a page address: the callback
-sets it in an HTTP-only cookie sent only to `/api/account/google`, so only the browser that signed
-in with Google can use it.
+`POST /api/account/google/resend`, with the pending cookie, answers `{ proven: true }` when the row
+was confirmed meanwhile, and otherwise sends a new code-step code under the email limits (`429` past
+them). The pending token is never in a body or a page address: the callback sets it in an HTTP-only
+cookie sent only to `/api/account/google`, so only the browser that signed in with Google can use
+it.
 
 A missing, invalid, used, expired, or unproven token returns the same 400 body in every case,
 revealing nothing about the account (FR-021).

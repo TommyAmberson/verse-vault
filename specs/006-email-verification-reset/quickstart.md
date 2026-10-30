@@ -67,8 +67,10 @@ cover the callback itself).
 3. "Forgot password?": enter the code from the log and a new password, signed in at once; other
    sessions end; the old password fails. Old `/reset-password?token=` and `/verify-email?token=`
    links show the "request a code" page.
-4. Picker with a pending row needing a code: enter the code; a verified account goes on to Google
-   sign-in, an unverified one to the choice.
+4. Picker with a pending row needing a code (an unverified account): enter the code from the
+   "connect Google" email; it goes on to the choice. A verification code for the same address does
+   not pass. A Google sign-in Google isn't authoritative for onto a verified account is refused with
+   the message to sign in with the password and connect Google in settings.
 5. "That's me" with the password: Google connected, password kept, verified. "That's not me":
    warning, confirm, then the redirect to Google; the old password fails and sessions are gone.
 6. Settings on an unverified account, "Connect Google": comes back asking to verify first. Verified,
