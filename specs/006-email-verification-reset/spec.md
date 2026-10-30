@@ -280,6 +280,10 @@ the same sign-in methods still work.
   wait and try again later.
 * **Several reset emails in a row.** Only the most recent reset code needs to work; using any code
   must not leave an older one usable afterwards.
+* **Someone else asks for codes for my address.** Anyone can ask for a code for any address, and
+  each new code replaces the older one, so another person's requests can replace the code I'm about
+  to type. The codes come only to my inbox, so the newest email's code still works, and the
+  per-address limit caps how long they can hold me up, at about 20 minutes (research D15).
 * **Sending fails.** If the email provider is down or rejects the message, the learner sees the same
   confirmation as on success (so the response reveals nothing about the account), and the failure is
   logged on the server for the operator.
@@ -366,8 +370,9 @@ the same sign-in methods still work.
   that the account may hold someone else's progress, and MUST require an explicit confirmation.
   Confirming MUST remove the password, end every existing session for the account, connect Google,
   mark the address verified, and sign the learner in.
-* **FR-021**: The choice in FR-019 MUST only be reachable within 10 minutes of a completed Google
-  sign-in for that exact address, after the inbox proof, and MUST NOT reveal anything about the
+* **FR-021**: The choice in FR-019 MUST only be reachable within 10 minutes of the inbox proof for
+  that exact address (a completed Google sign-in Google is authoritative for, or the confirmed
+  emailed code, itself within 10 minutes of the sign-in), and MUST NOT reveal anything about the
   account otherwise. When Google isn't authoritative for the address, the emailed code comes first;
   a learner who can't enter it gets no choice and no information about the account.
 * **FR-022**: Account settings MUST warn, next to an unverified address, that until it is verified
