@@ -39,7 +39,10 @@ export function readPendingProvider(): AuthProvider | undefined {
     const v = sessionStorage.getItem(PENDING_PROVIDER_KEY)
     if (v) {
       sessionStorage.removeItem(PENDING_PROVIDER_KEY)
-      if (socialSignInError(window.location.search)) return undefined
+      // A refused Google sign-in that went on to the picker's code step or
+      // choice comes back with `pending=1` rather than `?error=`.
+      const search = window.location.search
+      if (socialSignInError(search) || new URLSearchParams(search).has('pending')) return undefined
       return v as AuthProvider
     }
   } catch {

@@ -8,6 +8,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ProfileCard from '@/components/ProfileCard.vue'
 import SignInForm from '@/components/SignInForm.vue'
 import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
+import { readPendingProvider } from '@/lib/authClient'
 import { reconcileDeviceSessions, useAuth } from '@/composables/useAuth'
 import { useEmailRequest } from '@/composables/useEmailRequest'
 import { CODE_FAILURES, codeErrorMessage } from '@/lib/authEmail'
@@ -58,16 +59,14 @@ const banner = ref<string | null>(
 )
 
 // A Google sign-in onto an unverified password account comes back with
-// `?pending=` and the address: the learner says whether the account is
-// theirs. The token is single-use proof of that Google sign-in. Where
-// Google doesn't speak for the address, `code=1` asks first for the code
-// emailed to it, which proves the inbox (research D16); `sent=0` means a
-// limit stopped that code. Once proven, the token alone can take the
-// account over, so it moves out of the URL (history, synced tabs) into this
-// tab's storage, which also carries it across the reload email sign-in
+// `?pending=1` and the address: the learner says whether the account is
+// theirs. The single-use proof of that Google sign-in is a cookie the API
+// set, so only this browser can act on it. Where Google doesn't speak for
+// the address, `code=1` asks first for the code emailed to it, which proves
+// the inbox (research D16); `sent=0` means a limit stopped that code. The
+// step is kept in this tab's storage across the reload email sign-in
 // causes.
 interface PendingChoice {
-  token: string
   email: string
   step: 'code' | 'ask' | 'mine'
   unsent: boolean
@@ -92,9 +91,8 @@ function savePending(pending: PendingChoice | null) {
     // Storage blocked: after a reload the learner signs in with Google again.
   }
 }
-const fromUrl: PendingChoice | null = typeof route.query.pending === 'string'
+const fromUrl: PendingChoice | null = route.query.pending === '1'
   ? {
-    token: route.query.pending,
     email: typeof route.query.email === 'string' ? route.query.email : '',
     step: route.query.code === '1' ? 'code' : 'ask',
     unsent: route.query.sent === '0',
@@ -105,8 +103,11 @@ const savedChoice = fromUrl ?? loadPending()
 if (fromUrl) {
   savePending(fromUrl)
   void router.replace({ query: queryWithout(route.query, 'pending', 'email', 'code', 'sent') })
+  // The refused Google round trip left its provider stashed without an
+  // `?error=` to discard it; drop it so no profile is recorded as Google.
+  readPendingProvider()
 }
-const pendingToken = savedChoice?.token ?? null
+const hasPending = savedChoice !== null
 const pendingEmail = savedChoice?.email ?? ''
 const codeUnsent = ref(savedChoice?.unsent ?? false)
 const codeStep = ref(savedChoice?.step === 'code')
@@ -117,7 +118,15 @@ const {
   notice: codeNotice,
   run: resendGoogleCode,
 } = useEmailRequest(
-  () => sendVerificationCode(pendingEmail),
+  () =>
+    api.resendGoogleCode(pendingEmail).then(
+      () => ({ error: null }),
+      (err: unknown) => {
+        // The step has expired; say so and leave it, as confirming would.
+        if (err instanceof ApiError && err.status === 400) leaveChoice(CHOICE_EXPIRED)
+        return { error: { status: err instanceof ApiError ? err.status : undefined } }
+      },
+    ),
   () => `We sent a new code to ${pendingEmail}.`,
 )
 const choice = ref<'ask' | 'mine' | null>(
@@ -299,12 +308,12 @@ function leaveChoice(error = '') {
 // again; an unverified one goes on to the choice. A learner who can't
 // enter the code sees nothing more about the account.
 async function onConfirmCode() {
-  if (!pendingToken) return
+  if (!hasPending) return
   choiceError.value = ''
   codeBusy.value = true
   let result
   try {
-    result = await api.confirmGoogle(pendingToken, googleCode.value)
+    result = await api.confirmGoogle(pendingEmail, googleCode.value)
   } catch (err) {
     // The code's own failures get their messages; anything else, such as a
     // code the plugin adds later, falls back to the token's handling.
@@ -326,10 +335,10 @@ async function onConfirmCode() {
 
 // "That's me": signed in with the account's password, so link Google to it.
 async function onMineSignedIn() {
-  if (!pendingToken || choiceBusy.value) return
+  if (!hasPending || choiceBusy.value) return
   choiceBusy.value = true
   try {
-    await api.claimGoogle(pendingToken)
+    await api.claimGoogle(pendingEmail)
     leaveChoice()
     // Pick up the now-verified address on this device's profile rows.
     await reconcileDeviceSessions()
@@ -344,10 +353,10 @@ async function onMineSignedIn() {
 // "That's not me", confirmed: take the account over, then sign in with
 // Google again, which now finds it linked.
 async function onTakeover() {
-  if (!pendingToken) return
+  if (!hasPending) return
   choiceBusy.value = true
   try {
-    await api.takeOverWithGoogle(pendingToken)
+    await api.takeOverWithGoogle(pendingEmail)
   } catch (err) {
     confirmTakeover.value = false
     choiceBusy.value = false
@@ -378,8 +387,8 @@ async function onTakeover() {
 
     <form v-if="codeStep" class="choice" @submit.prevent="onConfirmCode">
       <p v-if="codeUnsent">
-        To connect Google, enter a code sent to <strong>{{ pendingEmail }}</strong>. We couldn't
-        send one just now; try "Send a new code" in a few minutes.
+        We couldn't send a code to <strong>{{ pendingEmail }}</strong> just now: too many were asked
+        for that address. Sign in with Google again in about 20 minutes.
       </p>
       <p v-else>
         To connect Google, enter the code we sent to <strong>{{ pendingEmail }}</strong>.

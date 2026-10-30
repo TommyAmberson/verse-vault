@@ -6,17 +6,25 @@ const code = defineModel<string>({ required: true })
 defineProps<{ resending?: boolean }>()
 const emit = defineEmits<{ (e: 'resend'): void }>()
 
-// Keeps the digits only, so a code pasted with spaces around or inside it
-// still fits; a length limit on the input would cut the paste short instead.
-// A pasted line holding a six-digit run keeps the last such run, so a new
-// code pasted after an old one replaces it. The value is only rewritten when it changes, so typing keeps the
-// caret where it was.
+// Typing keeps digits only, up to six; the value is only rewritten when it
+// changes, so the caret stays where it was.
 function onInput(event: Event) {
   const input = event.target as HTMLInputElement
-  const runs = input.value.match(/\d{6}/g)
-  const digits = (runs?.[runs.length - 1] ?? input.value.replace(/\D/g, '')).slice(0, 6)
+  const digits = input.value.replace(/\D/g, '').slice(0, 6)
   code.value = digits
   if (input.value !== digits) input.value = digits
+}
+
+// A paste replaces the field with the code in the pasted text (its last
+// six-digit run, or its digits), so spacing or an old code in the field
+// doesn't get mixed in.
+function onPaste(event: ClipboardEvent) {
+  const text = event.clipboardData?.getData('text') ?? ''
+  event.preventDefault()
+  const runs = text.match(/\d{6}/g)
+  const digits = (runs?.[runs.length - 1] ?? text.replace(/\D/g, '')).slice(0, 6)
+  code.value = digits
+  ;(event.target as HTMLInputElement).value = digits
 }
 </script>
 
@@ -33,6 +41,7 @@ function onInput(event: Event) {
       required
       class="auth-field"
       @input="onInput"
+      @paste="onPaste"
     />
     <button type="button" class="link-btn" :disabled="resending" @click="emit('resend')">
       {{ resending ? 'Sending…' : 'Send a new code' }}

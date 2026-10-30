@@ -439,13 +439,15 @@ export interface ApiClient {
   deleteAllProgress(): Promise<ProgressDeletionSummary>
   /** "That's me" on the Google choice: link Google to the account just
    *  signed in to with its password. */
-  claimGoogle(token: string): Promise<{ ok: true }>
+  claimGoogle(email: string): Promise<{ ok: true }>
   /** "That's not me": remove the account's password and sessions and link
    *  Google. Needs no session. */
-  takeOverWithGoogle(token: string): Promise<{ ok: true }>
+  takeOverWithGoogle(email: string): Promise<{ ok: true }>
   /** The Google code step: the emailed code proves the inbox. A verified
    *  account is linked (`signIn`); an unverified one goes on to the choice. */
-  confirmGoogle(token: string, code: string): Promise<{ signIn?: true; choice?: true }>
+  confirmGoogle(email: string, code: string): Promise<{ signIn?: true; choice?: true }>
+  /** "Send a new code" on the Google code step. */
+  resendGoogleCode(email: string): Promise<{ sent: true }>
 }
 
 let onUnauthorized: (() => void) | null = null
@@ -573,10 +575,13 @@ export function createApiClient(apiUrl: string): ApiClient {
     exportAccount: () => request('GET', '/api/export'),
     importAccount: (payload) => request('POST', '/api/import', payload),
     deleteAllProgress: () => request('DELETE', '/api/account/progress'),
-    claimGoogle: (token) => request('POST', '/api/account/google/claim', { token }),
-    takeOverWithGoogle: (token) => request('POST', '/api/account/google/takeover', { token }),
-    confirmGoogle: (token, code) =>
-      request('POST', '/api/account/google/confirm', { token, code }),
+    // The pending token rides in a cookie the API set on Google's return,
+    // never in the request, so only the browser that signed in can act. The
+    // address names which pending sign-in this tab is on.
+    claimGoogle: (email) => request('POST', '/api/account/google/claim', { email }),
+    takeOverWithGoogle: (email) => request('POST', '/api/account/google/takeover', { email }),
+    confirmGoogle: (email, code) => request('POST', '/api/account/google/confirm', { email, code }),
+    resendGoogleCode: (email) => request('POST', '/api/account/google/resend', { email }),
   }
 }
 
