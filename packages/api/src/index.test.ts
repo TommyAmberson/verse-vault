@@ -1180,22 +1180,46 @@ describe('the Google code step', () => {
     expect((await confirm(test, token, newer)).status).toBe(200);
   });
 
-  it("keeps a code the owner already holds rather than replacing it", async () => {
+  it("sends its own code even when the address holds one, replacing it", async () => {
     const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
     cleanup = test.cleanup;
-    const { cookie } = await signUpTestUser(test, 'holding@example.com', PASSWORD);
+    await signUpTestUser(test, 'holding@example.com', PASSWORD);
     const held = emailCode(test.emails, 'holding@example.com');
     test.emails.length = 0;
 
-    await signIn(test, outside('holding@example.com'));
-    expect(test.emails).toHaveLength(0);
-    const res = await postAuth(
-      test,
-      'email-otp/verify-email',
-      { email: 'holding@example.com', otp: held },
-      cookie,
-    );
-    expect(res.status).toBe(200);
+    const token = (await signIn(test, outside('holding@example.com'))).get('pending')!;
+    expect(test.emails.map((m) => m.subject)).toEqual(['Your VerseVault code to connect Google']);
+    const fresh = emailCode(test.emails, 'holding@example.com');
+    if (held !== fresh) expect((await confirm(test, token, held)).status).toBe(400);
+    expect((await confirm(test, token, fresh)).status).toBe(200);
+  });
+
+  it('disconnects Google only while a password remains', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const { cookie, userId } = await signUpTestUser(test, 'both@example.com', PASSWORD);
+    test.db.update(user).set({ emailVerified: true }).where(eq(user.id, userId)).run();
+    await googleLink(test, cookie, { ...outside('both@example.com'), hd: 'example.com' });
+    expect(providers(test, userId)).toContain('google');
+
+    const unlink = (sessionCookie: string) =>
+      postAuth(test, 'unlink-account', { providerId: 'google' }, sessionCookie);
+    expect((await unlink(cookie)).status).toBe(200);
+    expect(providers(test, userId)).toEqual(['credential']);
+
+    // A Google-only account would be left with no way in.
+    const onlyGoogle = await googleSignIn(test, {
+      sub: 'g-only',
+      email: 'only@gmail.com',
+      email_verified: true,
+    });
+    const sessionCookie = onlyGoogle.headers
+      .getSetCookie()
+      .map((c) => c.split(';')[0])
+      .join('; ');
+    const refused = await unlink(sessionCookie);
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toMatchObject({ code: 'FAILED_TO_UNLINK_LAST_ACCOUNT' });
   });
 
   it('tells the owner when Google joins an account that signs in another way', async () => {
@@ -1207,6 +1231,7 @@ describe('the Google code step', () => {
     await confirm(test, token, emailCode(test.emails, 'told@example.com'));
     expect(test.emails.at(-1)?.subject).toBe('Google was connected to your VerseVault account');
     expect(test.emails.at(-1)?.to).toBe('told@example.com');
+    expect(test.emails.at(-1)?.text).toMatch(/disconnect Google in account settings/);
 
     // A new Google-only sign-up has nothing to warn about.
     test.emails.length = 0;

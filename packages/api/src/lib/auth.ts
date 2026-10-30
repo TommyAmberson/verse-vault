@@ -391,11 +391,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           path: pendingCookiePath,
         });
         ctx.setCookie(cookie.name, token, cookie.attributes);
-        // A code the inbox already holds proves it as well as a new one, so
-        // it is kept rather than replaced under the owner.
-        const sent = pending.proven
-          ? 'sent'
-          : await sendGoogleCode(pending.email, ctx.request ?? null, { keepLive: true });
+        // Always this step's own code, which says what it is for, replacing
+        // any older one (research D16).
+        const sent = pending.proven ? 'sent' : await sendGoogleCode(pending.email, ctx.request ?? null);
         // On the web app's own origin, keep its base path (a subpath deploy).
         // A desktop client's `tauri://localhost` has the opaque origin
         // "null", so rebuild it from the scheme and host.
@@ -478,21 +476,14 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       }),
     ],
   });
-  /** Emails a Google code-step code for `email`, under both email limits.
-   *  With `keepLive`, an address that already holds a usable code keeps it
-   *  instead. `limited` when a limit stopped the send. */
+  /** Emails a Google code-step code for `email`, under both email limits,
+   *  replacing any older code. `limited` when a limit stopped the send. */
   async function sendGoogleCode(
     email: string,
     request: Request | null,
-    { keepLive }: { keepLive: boolean },
-  ): Promise<'sent' | 'kept' | 'limited'> {
+  ): Promise<'sent' | 'raced' | 'limited'> {
     const internal = (await auth.$context).internalAdapter;
     const identifier = verificationCodeIdentifier(email);
-    if (keepLive) {
-      const live = await internal.findVerificationValue(identifier);
-      const tries = Number(live?.value.split(':').at(-1) ?? 0);
-      if (live && live.expiresAt > new Date() && tries < 3) return 'kept';
-    }
     const ip = request ? getIp(request, auth.options) : null;
     if (chargeSend(email, ip)) return 'limited';
     await internal.deleteVerificationByIdentifier(identifier);
@@ -501,7 +492,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
     const code = await auth.api
       .createVerificationOTP({ body: { email, type: 'email-verification' } })
       .catch(() => null);
-    if (!code) return 'kept';
+    if (!code) return 'raced';
     sendEmail(googleCodeEmail(email, code, CODE_TTL_S / 60));
     return 'sent';
   }

@@ -85,7 +85,8 @@ export function googleLinkedEmail(to: string): EmailMessage {
   const lines = [
     'A Google account was just connected to your VerseVault account, so it can now be used to ' +
     'sign in.',
-    'If this wasn\'t you, reset your password from the sign-in page ("Forgot password?").',
+    'If this wasn\'t you, sign in with your password (reset it from the sign-in page with ' +
+    '"Forgot password?" if you need to), then disconnect Google in account settings.',
   ];
   return {
     to,

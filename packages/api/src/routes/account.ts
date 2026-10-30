@@ -190,9 +190,7 @@ export function accountRoutes(deps: AccountRoutesDeps) {
   app.post('/account/google/resend', async (c) => {
     const found = await readPending(c);
     if (!found || found.pending.proven) return invalidToken(c);
-    const sent = await deps.auth.sendGoogleCode(found.pending.email, c.req.raw, {
-      keepLive: false,
-    });
+    const sent = await deps.auth.sendGoogleCode(found.pending.email, c.req.raw);
     if (sent === 'limited') {
       return c.json({ error: 'Too many requests for this address. Try again later.' }, 429);
     }
