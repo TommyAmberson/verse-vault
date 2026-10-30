@@ -443,11 +443,13 @@ export interface ApiClient {
   /** "That's not me": remove the account's password and sessions and link
    *  Google. Needs no session. */
   takeOverWithGoogle(email: string): Promise<{ ok: true }>
-  /** The Google code step: the emailed code proves the inbox. A verified
-   *  account is linked (`signIn`); an unverified one goes on to the choice. */
-  confirmGoogle(email: string, code: string): Promise<{ signIn?: true; choice?: true }>
+  /** The Google code step, for an unverified account: the emailed code
+   *  proves the inbox, and the learner goes on to the choice. */
+  confirmGoogle(email: string, code: string): Promise<{ choice: true }>
   /** "Send a new code" on the Google code step. */
-  resendGoogleCode(email: string): Promise<{ sent: true }>
+  resendGoogleCode(email: string): Promise<{ sent: true } | { proven: true }>
+  /** Removes every Google account and ends every other session (FR-018). */
+  disconnectGoogle(): Promise<{ ok: true }>
 }
 
 let onUnauthorized: (() => void) | null = null
@@ -582,6 +584,7 @@ export function createApiClient(apiUrl: string): ApiClient {
     takeOverWithGoogle: (email) => request('POST', '/api/account/google/takeover', { email }),
     confirmGoogle: (email, code) => request('POST', '/api/account/google/confirm', { email, code }),
     resendGoogleCode: (email) => request('POST', '/api/account/google/resend', { email }),
+    disconnectGoogle: () => request('POST', '/api/account/google/disconnect'),
   }
 }
 

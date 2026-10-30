@@ -131,10 +131,6 @@ export function createAppAuthClient(baseURL: string) {
       return data.map((a) => a.providerId)
     }
 
-    // Better Auth refuses to remove the last way to sign in.
-    function unlinkGoogle() {
-      return authClient.unlinkAccount({ providerId: 'google' })
-    }
 
     return {
       session,
@@ -148,7 +144,6 @@ export function createAppAuthClient(baseURL: string) {
       sendVerificationCode,
       linkGoogle,
       signInMethods,
-      unlinkGoogle,
     }
   }
 

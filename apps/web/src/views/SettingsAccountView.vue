@@ -21,7 +21,6 @@ const {
   verifyEmail,
   linkGoogle,
   signInMethods,
-  unlinkGoogle,
 } = useAuth()
 const route = useRoute()
 const router = useRouter()
@@ -65,14 +64,25 @@ watch(
 async function onDisconnectGoogle() {
   banner.value = null
   disconnectBusy.value = true
-  const result = await unlinkGoogle().catch(() => null)
-  disconnectBusy.value = false
-  if (!result || result.error) {
-    banner.value = { kind: 'error', text: "Couldn't disconnect Google. Try again." }
+  try {
+    await api.disconnectGoogle()
+  } catch (err) {
+    const stale = err instanceof ApiError && err.code === 'SESSION_NOT_FRESH'
+    banner.value = {
+      kind: 'error',
+      text: stale
+        ? 'For safety, sign out and sign in again with your password, then disconnect Google.'
+        : "Couldn't disconnect Google. Try again.",
+    }
     return
+  } finally {
+    disconnectBusy.value = false
   }
   methods.value = methods.value?.filter((m) => m !== 'google') ?? null
-  banner.value = { kind: 'info', text: 'Google disconnected. Sign in with your password from now on.' }
+  banner.value = {
+    kind: 'info',
+    text: 'Google disconnected, and your other devices were signed out. Sign in with your password.',
+  }
 }
 
 async function onConnectGoogle() {
@@ -81,7 +91,14 @@ async function onConnectGoogle() {
   // On success the browser leaves for Google.
   const result = await linkGoogle().catch(() => null)
   if (!result || result.error) {
-    banner.value = { kind: 'error', text: "Couldn't connect Google. Try again." }
+    // Connecting asks for a sign-in within the last day.
+    const stale = result?.error?.code === 'SESSION_NOT_FRESH'
+    banner.value = {
+      kind: 'error',
+      text: stale
+        ? 'For safety, sign out and sign in again with your password, then connect Google.'
+        : "Couldn't connect Google. Try again.",
+    }
     connectBusy.value = false
   }
 }

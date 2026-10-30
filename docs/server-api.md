@@ -121,8 +121,11 @@ trusts Google's address:
 * **Verified account, Google authoritative**: the Google sign-in links and signs in.
 * **Google never checked the address** (`email_verified` false): refused with
   `?error=account_not_linked`.
-* **Google checked the address but isn't authoritative**: the inbox still needs proving, so the code
-  step comes first, for a verified account or not.
+* **Google checked the address but isn't authoritative, verified account**: refused with
+  `?error=account_not_linked`. Adding a sign-in method needs a session on the account (OWASP), so
+  the learner signs in with the password and connects Google from settings.
+* **Google checked the address but isn't authoritative, unverified account**: the code step, then
+  the choice.
 * **Unverified account, Google authoritative**: straight to the choice.
 
 An after hook on the callback turns Better Auth's `account_not_linked` into a redirect to
@@ -150,15 +153,12 @@ so the newest email's code still works, and the per-address limit caps the delay
 minutes. Major providers accept the same trade-off (research D15).
 
 `POST /api/account/google/confirm` `{ code }`, with the pending cookie and no session, checks the
-code against the address's verification code. It runs one check at a time per address, holding an
-in-process lock through the check and the delete that makes the code single-use, because the
-plugin's check counts wrong tries in separate read and write steps; the lock is enough while the API
-runs as one process. It takes the tight per-IP bucket. Answers:
+code against the one stored on the pending row (its SHA-256 hash and wrong tries), so a code sent
+for anything else doesn't pass, and this one verifies nothing else. It runs one check at a time per
+row, holding an in-process lock, so tries sent at the same moment each see the last count; the lock
+is enough while the API runs as one process. It takes the tight per-IP bucket. Answers:
 
-* `{ signIn: true }` for a verified account: the Google `sub` is linked, and the client runs Google
-  sign-in again, which now finds it;
-* `{ choice: true }` for an unverified one: the row is marked proven and gets a fresh 10 minutes for
-  the choice;
+* `{ choice: true }`: the row is marked proven and gets a fresh 10 minutes for the choice;
 * `400 { error, code }` with `INVALID_OTP` or `OTP_EXPIRED`, `403` with `TOO_MANY_ATTEMPTS`, and
   `400 { error }` for a used, expired, unknown, or already proven token.
 
@@ -174,22 +174,29 @@ consume a proven token once and answer every used, expired, unknown, or unproven
   signing in with the account's password: links the Google `sub`, keeps the password, and verifies.
   `403` when the session belongs to a different account.
 * `POST /api/account/google/takeover` ("That's not me"), with the pending cookie and no session:
-  refuses an account verified since the token was issued, then deletes the password and every
-  session (as Better Auth's `revokeUnprovenAccountAccess` does), links the Google `sub`, and
-  verifies. The client then signs in with Google again, which now finds the account linked.
+  refuses an account verified since the token was issued, then links the Google `sub`, removes every
+  other way to sign in (the password, and any Google account the registrant linked) and every
+  session (as Better Auth's `revokeUnprovenAccountAccess` does), and verifies. The client then signs
+  in with Google again, which now finds the account linked.
 
-Connecting Google from account settings (`POST /api/auth/link-social`) needs a session and a Google
-account with the same address. Where Google is authoritative, Better Auth links it, and the same
-after hook verifies the address, since the link route doesn't. Where it isn't, Better Auth refuses
-with `unable_to_link_account`, and the after hook, reading the connecting account from the OAuth
-state, links it when that account is verified and otherwise redirects with
-`?error=verify_email_first`: the account proves the inbox with a verification code first, which also
-verifies it.
+Connecting Google from account settings (`POST /api/auth/link-social`) needs a session from a
+sign-in within the last day (`403 SESSION_NOT_FRESH` otherwise) and a Google account with the same
+address. Where Google is authoritative, Better Auth links it, and the same after hook verifies the
+address, since the link route doesn't. Where it isn't, Better Auth refuses with
+`unable_to_link_account`, and the after hook, reading the connecting account from the OAuth state,
+links it when that account is verified and otherwise redirects with `?error=verify_email_first`: the
+account proves the inbox with a verification code first, which also verifies it.
 
-Disconnecting Google from account settings is Better Auth's `POST /api/auth/unlink-account`
-`{ providerId: "google" }`, with a session. It refuses to remove the last way to sign in
-(`400 FAILED_TO_UNLINK_LAST_ACCOUNT`), so settings offers it only while the account has a password.
-The "Google was connected" email points there.
+Disconnecting Google from account settings is `POST /api/account/google/disconnect`, with a session.
+In one server step it removes every Google account on the account and ends every other session, so
+the account is no longer reachable through Google; Better Auth's own unlink route, which removes one
+account and leaves sessions alone, is refused (`404`). It refuses when no password remains to sign
+in with (`400 FAILED_TO_UNLINK_LAST_ACCOUNT`) and asks for a sign-in within the last day
+(`403 SESSION_NOT_FRESH`), so settings offers it only while the account has a password and says to
+sign in again when the session is older. The "Google was connected" email points there, and
+disconnecting sends a "Google was disconnected" email. Both notices come from `databaseHooks` on
+account create and delete; the connected one skips a new Google sign-up and the learner's own
+takeover.
 
 ### `GET /api/me`
 

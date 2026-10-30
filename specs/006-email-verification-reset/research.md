@@ -404,10 +404,9 @@ say what each code is for, and Auth0 likewise lets only the newest code work. A 
 therefore replace a code the owner was about to type, the trade-off D15 accepts for every send.
 
 The notice's advice has to work, so account settings can disconnect Google while the account keeps a
-password (Better Auth's `unlinkAccount`, which refuses to remove the last way to sign in). This is
-the usual "connected accounts" pattern, and NIST SP 800-63B-4 requires notifying the subscriber
-whenever an authenticator is added. A password reset leaves Google connected, as most products do;
-the owner resets, signs in, and disconnects.
+password. This is the usual "connected accounts" pattern, and NIST SP 800-63B-4 requires notifying
+the subscriber whenever an authenticator is added. A password reset leaves Google connected, as most
+products do; the owner resets, signs in, and disconnects.
 
 Claim and takeover refuse a pending row that is not proven. An authoritative refusal writes it
 proven from the start, as phase 2 already does.
@@ -421,9 +420,12 @@ Node process against one SQLite file (`deploy/verse-vault.service`). The send go
 per-address and per-IP limits as the plugin's routes (FR-012).
 
 Disconnecting Google ends every other session, as OWASP asks ("the account must no longer be
-accessible through that identity"); Better Auth's `unlinkAccount` only deletes the link, so the
-settings flow also calls `revokeOtherSessions`. Better Auth doesn't record how a session started, so
-every other session ends, not only those started through Google.
+accessible through that identity"). Better Auth's `unlinkAccount` deletes one link and leaves
+sessions alone, so our own route removes every Google account and the other sessions in one server
+step, which a client-side follow-up call could fail to do. A takeover likewise removes every way in
+except the new Google link, not only the password, since a registrant may have linked a Google
+account of their own. Better Auth doesn't record how a session started, so every other session ends,
+not only those started through Google.
 
 **Alternatives considered**: the email-code plugin's shared verification row (the first design: a
 code sent for verification could pass the Google step, and a Google sign-in replaced the owner's own

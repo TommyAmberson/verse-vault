@@ -65,7 +65,7 @@ access, then takes the account over and runs Google sign-in again, landing on a 
 to Delete all progress (see
 [`server-api.md`](server-api.md#google-sign-in-onto-a-password-account)). An account without Google
 also gets a "Connect Google" card in `/settings` → Account, and an account with both Google and a
-password gets "Disconnect Google" there instead.
+password gets "Disconnect Google" there instead, which also signs out every other device.
 
 ### Future surfaces to leave room for
 

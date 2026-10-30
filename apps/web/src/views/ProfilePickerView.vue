@@ -69,7 +69,8 @@ const banner = ref<string | null>(
 interface PendingChoice {
   email: string
   step: 'code' | 'ask' | 'mine'
-  unsent: boolean
+  /** Which limit stopped the code, if one did. */
+  unsent: '' | 'address' | 'network'
   savedAt: number
 }
 const PENDING_KEY = 'vv:google-pending'
@@ -85,7 +86,9 @@ function loadPending(): PendingChoice | null {
 }
 function savePending(pending: PendingChoice | null) {
   try {
-    if (pending) sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending))
+    // Each save restarts the age, as the server restarts the row's 10 minutes
+    // on a resend or a confirmed code.
+    if (pending) sessionStorage.setItem(PENDING_KEY, JSON.stringify({ ...pending, savedAt: Date.now() }))
     else sessionStorage.removeItem(PENDING_KEY)
   } catch {
     // Storage blocked: after a reload the learner signs in with Google again.
@@ -95,7 +98,7 @@ const fromUrl: PendingChoice | null = route.query.pending === '1'
   ? {
     email: typeof route.query.email === 'string' ? route.query.email : '',
     step: route.query.code === '1' ? 'code' : 'ask',
-    unsent: route.query.sent === '0',
+    unsent: route.query.sent === 'network' ? 'network' : route.query.sent === '0' ? 'address' : '',
     savedAt: Date.now(),
   }
   : null
@@ -109,7 +112,7 @@ if (fromUrl) {
 }
 const hasPending = savedChoice !== null
 const pendingEmail = savedChoice?.email ?? ''
-const codeUnsent = ref(savedChoice?.unsent ?? false)
+const codeUnsent = ref<PendingChoice['unsent']>(savedChoice?.unsent ?? '')
 const codeStep = ref(savedChoice?.step === 'code')
 const googleCode = ref('')
 const codeBusy = ref(false)
@@ -120,11 +123,23 @@ const {
 } = useEmailRequest(
   () =>
     api.resendGoogleCode(pendingEmail).then(
-      () => ({ error: null }),
+      (result) => {
+        // Confirmed already, in another tab: go on to the choice.
+        if ('proven' in result) {
+          codeStep.value = false
+          choice.value = 'ask'
+        }
+        return { error: null }
+      },
       (err: unknown) => {
         // The step has expired; say so and leave it, as confirming would.
         if (err instanceof ApiError && err.status === 400) leaveChoice(CHOICE_EXPIRED)
-        return { error: { status: err instanceof ApiError ? err.status : undefined } }
+        const status = err instanceof ApiError ? err.status : undefined
+        // The network's limit lasts the day, the address's about 20 minutes.
+        const message = err instanceof ApiError && err.message.includes('network')
+          ? 'Too many requests from this network. Try again tomorrow.'
+          : undefined
+        return { error: { status, message } }
       },
     ),
   () => `We sent a new code to ${pendingEmail}.`,
@@ -144,7 +159,10 @@ const choiceError = ref('')
 const CHOICE_EXPIRED = 'That choice has expired. Sign in with Google again.'
 
 async function onResendCode() {
-  if (await resendGoogleCode()) codeUnsent.value = false
+  if (!(await resendGoogleCode())) return
+  codeUnsent.value = ''
+  // The server gave the new code 10 minutes; restart the stored step's age.
+  if (savedChoice && codeStep.value) savePending({ ...savedChoice, step: 'code', unsent: '' })
 }
 
 /** Says why a choice request failed. Only a 400 means the token is gone;
@@ -304,9 +322,9 @@ function leaveChoice(error = '') {
   savePending(null)
 }
 
-// The code step: a verified account is now linked, so sign in with Google
-// again; an unverified one goes on to the choice. A learner who can't
-// enter the code sees nothing more about the account.
+// The code step, for an unverified account: a confirmed code goes on to the
+// choice. A learner who can't enter the code sees nothing more about the
+// account.
 async function onConfirmCode() {
   if (!hasPending) return
   choiceError.value = ''
@@ -323,11 +341,6 @@ async function onConfirmCode() {
     return
   } finally {
     codeBusy.value = false
-  }
-  if (result.signIn) {
-    leaveChoice()
-    signInSocialToDestination('google')
-    return
   }
   codeStep.value = false
   choice.value = 'ask'
@@ -386,9 +399,13 @@ async function onTakeover() {
     </p>
 
     <form v-if="codeStep" class="choice" @submit.prevent="onConfirmCode">
-      <p v-if="codeUnsent">
+      <p v-if="codeUnsent === 'address'">
         We couldn't send a code to <strong>{{ pendingEmail }}</strong> just now: too many were asked
         for that address. Sign in with Google again in about 20 minutes.
+      </p>
+      <p v-else-if="codeUnsent === 'network'">
+        We couldn't send a code to <strong>{{ pendingEmail }}</strong>: this network has sent its
+        emails for today. Sign in with Google again tomorrow.
       </p>
       <p v-else>
         To connect Google, enter the code we sent to <strong>{{ pendingEmail }}</strong>.

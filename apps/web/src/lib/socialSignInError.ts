@@ -13,8 +13,9 @@ export interface SocialSignInError {
 
 /** A Google sign-in onto an existing account is refused unless Google is
  *  authoritative for the address (Gmail, or a Workspace account); an
- *  unverified account then gets the choice on the picker instead. Until
- *  Google can join, the password or a reset gets the learner in. */
+ *  unverified account then gets the choice on the picker instead, after a
+ *  code when Google isn't authoritative. A verified account connects Google
+ *  from settings once signed in with the password (FR-014). */
 const ACCOUNT_NOT_LINKED = 'account_not_linked'
 
 export function socialSignInError(search: string): SocialSignInError | null {
@@ -23,8 +24,8 @@ export function socialSignInError(search: string): SocialSignInError | null {
   if (code === ACCOUNT_NOT_LINKED) {
     return {
       message:
-        "This email already has a VerseVault account that Google can't sign in to yet. Sign in " +
-        'with your password instead, or reset it.',
+        'This email already has a VerseVault account. Sign in with your password (or reset it), ' +
+        'then connect Google in account settings.',
       passwordAccount: true,
       code,
     }

@@ -642,7 +642,6 @@ export function useAuth() {
     sendVerificationCode: factoryShape.sendVerificationCode,
     linkGoogle: factoryShape.linkGoogle,
     signInMethods: factoryShape.signInMethods,
-    unlinkGoogle: factoryShape.unlinkGoogle,
     activeProfile: computed(() => activeProfile.value),
     profiles: computed(() => profilesList.value),
     syncState: computed(() => syncState.value),

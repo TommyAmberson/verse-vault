@@ -71,10 +71,12 @@ Mounted with the account routes at `/api`.
 | ----------------------------------- | ----------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | `POST /api/account/google/confirm`  | pending cookie          | `{ code }` | checks the code-step code stored on the pending record (unverified accounts only); then marks the record proven (`{ choice: true }`) | 400 invalid or expired token or code; 403 too many attempts; 429 when the per-IP bucket is empty |
 | `POST /api/account/google/claim`    | session, pending cookie | none       | consumes a proven pending record; links its Google `sub` to the session user if they match; verifies                                 | 400 invalid, expired, or unproven token; 403 another account's session                           |
-| `POST /api/account/google/takeover` | pending cookie          | none       | consumes a proven pending record; deletes the password and every session; links Google; verifies                                     | 400 invalid, expired, or unproven token, or the user is already verified                         |
+| `POST /api/account/google/takeover` | pending cookie          | none       | consumes a proven pending record; links Google; removes every other way to sign in and every session; verifies                       | 400 invalid, expired, or unproven token, or the user is already verified                         |
 
-Disconnecting Google uses Better Auth's `POST /api/auth/unlink-account` `{ providerId: "google" }`
-with a session; it refuses the last way to sign in with `400 FAILED_TO_UNLINK_LAST_ACCOUNT`.
+`POST /api/account/google/disconnect`, with a session from a sign-in within the last day, removes
+every Google account on the account and ends every other session;
+`400 FAILED_TO_UNLINK_LAST_ACCOUNT` when no password remains, `403 SESSION_NOT_FRESH` for an older
+session.
 
 `POST /api/account/google/resend`, with the pending cookie, answers `{ proven: true }` when the row
 was confirmed meanwhile, and otherwise sends a new code-step code under the email limits (`429` past
