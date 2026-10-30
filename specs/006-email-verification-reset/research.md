@@ -392,9 +392,17 @@ inbox's owner, who would enter the code just emailed and link the stranger's Goo
 code's email says a Google account is being connected and to enter it only if the reader did that,
 and the owner is told by email whenever Google joins an account that already signs in another way,
 as [Ory](https://www.ory.com/blog/secure-account-linking-iam-sso-oidc-saml) and
-[WorkOS](https://workos.com/blog/oauth-auto-link-email-account-takeover) recommend. A code the
-address already holds is kept rather than replaced, so a Google sign-in can't cancel the owner's own
-code.
+[WorkOS](https://workos.com/blog/oauth-auto-link-email-account-takeover) recommend. The Google step
+always sends its own code, replacing any older one, rather than keeping a code the address already
+holds: a kept code arrived in an email about something else, while guidance on code messages is to
+say what each code is for, and Auth0 likewise lets only the newest code work. A Google sign-in can
+therefore replace a code the owner was about to type, the trade-off D15 accepts for every send.
+
+The notice's advice has to work, so account settings can disconnect Google while the account keeps a
+password (Better Auth's `unlinkAccount`, which refuses to remove the last way to sign in). This is
+the usual "connected accounts" pattern, and NIST SP 800-63B-4 requires notifying the subscriber
+whenever an authenticator is added. A password reset leaves Google connected, as most products do;
+the owner resets, signs in, and disconnects.
 
 Claim and takeover refuse a pending row that is not proven. An authoritative refusal writes it
 proven from the start, as phase 2 already does.

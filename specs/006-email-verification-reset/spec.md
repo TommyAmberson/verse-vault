@@ -343,8 +343,9 @@ the same sign-in methods still work.
   including those sent at sign-up, and a throttled request MUST tell the learner to try again later.
   Sign-up itself is never refused for this limit.
 * **FR-013**: All outgoing email MUST come from `VerseVault <no-reply@versevault.ca>`, show the code
-  prominently, say why it was sent, how long it lasts, that VerseVault never asks anyone for it, and
-  what to do if the recipient did not ask for it.
+  prominently, say why it was sent, how long it lasts, not to share it, and what to do if the
+  recipient did not ask for it. The code that lets a Google account join an account MUST say that a
+  Google account is being connected and to enter it only if the reader did that themselves.
 * **FR-014**: A Google sign-in links to an existing account with the same address only with proof
   that the learner controls the inbox now: Google is authoritative for the address (a Gmail address,
   or a Workspace account, shown by an `hd` claim), or the learner enters a code emailed to the
@@ -361,7 +362,8 @@ the same sign-in methods still work.
   account. The Google account's address MUST match the account's address, and connecting keeps the
   password. For an unverified account, connecting needs inbox proof (FR-014): a Google account
   authoritative for the address, or the emailed code; either marks the address verified. A verified
-  account connects on its session alone.
+  account connects on its session alone. Account settings MUST also let a learner disconnect Google,
+  but only while the account keeps another way to sign in (a password).
 * **FR-019**: When a signed-out Google sign-in with inbox proof (FR-014) matches an unverified
   password account, the app MUST say that an unverified account with this address already exists and
   ask whether it is theirs. "That's me" MUST ask for the account's password and, on success, behave
@@ -385,6 +387,10 @@ the same sign-in methods still work.
 * **FR-025**: "Delete all progress" and "Reset account" MUST each require the learner to type the
   account's email address as a challenge phrase, matching exactly, before running, and MUST offer a
   backup download first.
+* **FR-027**: When Google joins an account that already has another way to sign in, by any route,
+  the app MUST email the account's address saying so, and how to undo it if it wasn't them: sign in
+  with the password (resetting it if needed) and disconnect Google in account settings (FR-018).
+  NIST SP 800-63B-4 requires such a notice whenever an authenticator is added.
 
 ### Key Entities
 
