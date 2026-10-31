@@ -166,6 +166,28 @@ describe('account routes', () => {
     expect(res.status).toBe(401);
   });
 
+  it('tells signed-in requests the reset counter, and wipes move it on', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie, userId } = await enroll(test, 'counter@example.com');
+
+    const anonymous = await test.app.request('/api/me');
+    expect(anonymous.headers.get('X-Reset-Epoch')).toBeNull();
+    const before = await test.app.request('/api/me', { headers: { cookie } });
+    expect(before.headers.get('X-Reset-Epoch')).toBe(`${userId}:0`);
+
+    const wipe = await test.app.request('/api/account/progress', {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(wipe.headers.get('X-Reset-Epoch')).toBe(`${userId}:1`);
+    const reset = await test.app.request('/api/account/data', {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(reset.headers.get('X-Reset-Epoch')).toBe(`${userId}:2`);
+  });
+
   it('resets the account to new, keeping sign-in and other accounts', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;

@@ -3,8 +3,9 @@ import { eq, sql } from 'drizzle-orm';
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 
-/** Carries the counter both ways: the client's last-seen value on requests,
- *  the account's current one on responses (spec 007). */
+/** Carries the counter both ways (spec 007): on requests, the value the
+ *  client last saw; on responses, `<userId>:<counter>`, the account's
+ *  current value. */
 export const RESET_COUNTER_HEADER = 'X-Reset-Epoch';
 
 /** The account's current reset counter; 0 for an account never wiped. */

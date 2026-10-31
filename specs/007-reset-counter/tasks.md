@@ -70,7 +70,7 @@ No setup: the feature lives in the existing `packages/api` and `apps/web`.
   (plan.md "Reuse and Ownership": read, compare, increment). No existing lib module holds per-account
   state outside Better Auth's tables, so a new one is the owner. Unit tests in a sibling test file:
   no row reads 0, increment is monotonic.
-- [ ] T002 Make every response to an authenticated `/api/*` request carry the current counter header
+- [X] T002 Make every response to an authenticated `/api/*` request carry the current counter header
   (contracts/server-api.md "Response"), as one middleware registered next to the existing
   `/api/*` middleware in `packages/api/src/app.ts`, reading through T001's owner. Test in
   `packages/api/src/routes/account.test.ts` that a signed-in request gets the header and an
@@ -87,7 +87,7 @@ No setup: the feature lives in the existing `packages/api` and `apps/web`.
 **Independent Test**: wipe an account, then send a review upload with the old counter; it is refused
 with 409 and nothing is held; enrolling the deck again shows no progress.
 
-- [ ] T003 [US1] Move the counter on at the start of `wipeAccount` in
+- [X] T003 [US1] Move the counter on at the start of `wipeAccount` in
   `packages/api/src/lib/reset.ts`, before the per-deck passes (research.md D4), and return it with
   the summary so `DELETE /api/account/progress` and `DELETE /api/account/data` in
   `packages/api/src/routes/account.ts` include `resetEpoch` in their bodies (contracts "Wipes").

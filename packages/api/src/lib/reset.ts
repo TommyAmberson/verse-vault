@@ -4,6 +4,7 @@ import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 
 import { EngineStore } from './engine.js';
+import { advanceResetCounter } from './reset-counter.js';
 
 export interface ProgressDeletionSummary {
   /** Enrolled materials that actually had rows removed. */
@@ -85,6 +86,9 @@ async function wipeAccount(
 
   // Each deck counts once, however many passes or sweeps touched it.
   const changedMaterials = new Set<string>();
+  // First, so any write that takes a deck's lock after this point is
+  // refused as pre-wipe (spec 007).
+  advanceResetCounter(db, userId);
   let eventsDeleted = 0;
   let graduationsDeleted = 0;
   const cleared = new Set<string>();
