@@ -97,6 +97,11 @@ is for being offline, so once a client is online it drains to empty and everythi
 If clearing a connected client's storage can lose a user's work, one of the obligations above is
 being broken, and the store holding that work is the evidence.
 
+One end state besides "delivered" is allowed: a record made before the learner wiped their account
+(Delete all progress or Reset account) may be refused and discarded, because the wipe is the
+decision such data was waiting for. The server identifies these records only by its account reset
+counter, and a client that discards them MUST tell the learner.
+
 Rationale: a stuck client is invisible from both ends. The server sees a 4xx it does not record, the
 user sees "it just doesn't save", and the gap between the two is measured in weeks of lost work. On
 2026-09-23 one account had synced nothing from one browser since 2026-09-09 because eight queued
@@ -177,4 +182,4 @@ the principles above. Added complexity — a new crate, a new package, an except
 MUST carry its justification in the pull request body, and an exception that outlives its
 justification is a defect to be removed.
 
-**Version**: 1.4.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-10-01
+**Version**: 1.5.0 | **Ratified**: 2026-09-10 | **Last Amended**: 2026-10-30
