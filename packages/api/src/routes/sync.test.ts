@@ -6,6 +6,7 @@ import {
   graduatedCards,
   graduatedVerses,
   pendingEvents,
+  resetCounters,
   reviewEvents,
   testStates,
 } from '../db/schema.js';
@@ -56,10 +57,11 @@ async function upload(
   cookie: string,
   events: unknown[],
   extra: Record<string, unknown> = {},
+  headers: Record<string, string> = {},
 ): Promise<{ status: number; body: UploadResponse }> {
   const res = await test.app.request(`/api/sync/${MATERIAL_ID}/events`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', cookie },
+    headers: { 'Content-Type': 'application/json', cookie, ...headers },
     body: JSON.stringify({ events, ...extra }),
   });
   return { status: res.status, body: (await res.json()) as UploadResponse };
@@ -156,6 +158,87 @@ describe('sync routes', () => {
     // new user already has the full seed set even before any review.
     expect(body.testStates.length).toBeGreaterThan(0);
     expect(body.lastEventId).toBeNull();
+  });
+
+  describe('reset counter (spec 007)', () => {
+    const wipe = (test: TestApp, cookie: string, path = '/api/account/progress') =>
+      test.app.request(path, { method: 'DELETE', headers: { cookie } });
+    const uploadAt = (test: TestApp, cookie: string, counter: string) =>
+      upload(test, cookie, [event()], {}, { 'X-Reset-Epoch': counter });
+
+    it('refuses an upload sent against an older counter, storing nothing', async () => {
+      const test = createTestApp();
+      cleanup = test.cleanup;
+      const { cookie } = await enroll(test, 'stale@example.com');
+      await wipe(test, cookie);
+
+      const res = await uploadAt(test, cookie, '0');
+      expect(res.status).toBe(409);
+      expect(res.body).toMatchObject({ code: 'reset' });
+      expect(test.db.select().from(reviewEvents).all()).toHaveLength(0);
+      expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
+
+      expect((await uploadAt(test, cookie, '1')).status).toBe(200);
+      expect(test.db.select().from(reviewEvents).all()).toHaveLength(1);
+    });
+
+    it('does not hold an upload for a reset deck sent against an older counter', async () => {
+      const test = createTestApp();
+      cleanup = test.cleanup;
+      const { cookie } = await enroll(test, 'held@example.com');
+      await wipe(test, cookie, '/api/account/data');
+
+      expect((await uploadAt(test, cookie, '0')).status).toBe(409);
+      expect(test.db.select().from(pendingEvents).all()).toHaveLength(0);
+    });
+
+    it('refuses a merge answer or confirmMerge sent against an older counter', async () => {
+      const test = createTestApp();
+      cleanup = test.cleanup;
+      const { cookie } = await enroll(test, 'answer@example.com');
+      await wipe(test, cookie);
+
+      const confirm = await test.app.request(`/api/sync/${MATERIAL_ID}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie, 'X-Reset-Epoch': '0' },
+        body: JSON.stringify({ decision: 'merge' }),
+      });
+      expect(confirm.status).toBe(409);
+      const merge = await upload(test, cookie, [event()], { confirmMerge: true }, {
+        'X-Reset-Epoch': '0',
+      });
+      expect(merge.status).toBe(409);
+    });
+
+    it('refuses a review that was waiting on its deck while a wipe began', async () => {
+      const test = createTestApp();
+      cleanup = test.cleanup;
+      const { cookie, userId } = await enroll(test, 'queued@example.com');
+
+      let release!: () => void;
+      const held = test.engines.withLock(
+        { userId, materialId: MATERIAL_ID },
+        () => new Promise<void>((resolve) => (release = resolve)),
+      );
+      const review = test.app.request('/api/cards/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie, 'X-Reset-Epoch': '0' },
+        body: JSON.stringify({ materialId: MATERIAL_ID, cardId: 0, grade: 3 }),
+      });
+      // Let the review load its deck and queue on the lock, then start the wipe.
+      for (let tick = 0; tick < 20; tick++) await new Promise((r) => setImmediate(r));
+      const wiping = wipe(test, cookie);
+      // Release the deck only once the wipe has moved the counter on.
+      while (test.db.select().from(resetCounters).all().length === 0) {
+        await new Promise((r) => setImmediate(r));
+      }
+      release();
+      await held;
+
+      expect((await review).status).toBe(409);
+      expect((await wiping).status).toBe(200);
+      expect(test.db.select().from(reviewEvents).all()).toHaveLength(0);
+    });
   });
 
   it('accepts an event batch and persists merged state', async () => {

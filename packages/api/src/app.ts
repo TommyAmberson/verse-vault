@@ -7,7 +7,7 @@ import { ApibibleCache } from './lib/apibible-cache.js';
 import { TAURI_ORIGINS, type AuthEnv, createAuth } from './lib/auth.js';
 import { type SendEmail, createEmailSender } from './lib/email.js';
 import { EngineStore } from './lib/engine.js';
-import { currentResetCounter, RESET_COUNTER_HEADER } from './lib/reset-counter.js';
+import { announcedResetCounter, RESET_COUNTER_HEADER } from './lib/reset-counter.js';
 import { type Dialect } from './lib/spelling.js';
 import {
   type ObservabilityOptions,
@@ -139,7 +139,7 @@ export function createApp(deps: AppDeps) {
     await next();
     const user = c.get('user');
     if (user) {
-      c.header(RESET_COUNTER_HEADER, `${user.id}:${currentResetCounter(deps.db, user.id)}`);
+      c.header(RESET_COUNTER_HEADER, `${user.id}:${announcedResetCounter(deps.db, user.id)}`);
     }
   });
 

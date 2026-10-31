@@ -186,6 +186,17 @@ describe('account routes', () => {
       headers: { cookie },
     });
     expect(reset.headers.get('X-Reset-Epoch')).toBe(`${userId}:2`);
+
+    // Restoring a backup is exempt: a stale counter doesn't block it, and it
+    // doesn't move the counter (FR-009).
+    const backup = await (await test.app.request('/api/export', { headers: { cookie } })).json();
+    const restored = await test.app.request('/api/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie, 'X-Reset-Epoch': '0' },
+      body: JSON.stringify(backup),
+    });
+    expect(restored.status).toBe(200);
+    expect(restored.headers.get('X-Reset-Epoch')).toBe(`${userId}:2`);
   });
 
   it('resets the account to new, keeping sign-in and other accounts', async () => {

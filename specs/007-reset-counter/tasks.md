@@ -93,7 +93,7 @@ with 409 and nothing is held; enrolling the deck again shows no progress.
   `packages/api/src/routes/account.ts` include `resetEpoch` in their bodies (contracts "Wipes").
   Extend `packages/api/src/lib/reset.test.ts`: both wipes increment it once, and the existing race
   test's queued writes see the new value.
-- [ ] T004 [US1] Refuse a stale counter on the progress routes (contracts "Progress writes"):
+- [X] T004 [US1] Refuse a stale counter on the progress routes (contracts "Progress writes"):
   `POST /api/sync/:materialId/events` in `packages/api/src/routes/sync.ts`, and `POST /review`,
   `/memorize/graduate`, `/memorize/graduate-card` in `packages/api/src/routes/cards.ts`. Each checks
   through T001's owner at the top of the handler, before any `takeNotApplied`, and again inside
@@ -141,7 +141,7 @@ data, stores 1, and raises the notice once; a profile with no stored counter ado
 
 ## Phase 5: User Story 3 - Older clients keep working for one release (Priority: P3)
 
-- [ ] T008 [US3] Confirm, with the absent-header tests from T004, that requests without a counter
+- [X] T008 [US3] Confirm, with the absent-header tests from T004, that requests without a counter
   are handled as before; no code beyond T004's allowance.
 
 ---

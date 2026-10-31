@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { createTestDb, createTestUser } from '../test-utils.js';
 
-import { advanceResetCounter, currentResetCounter, staleResetCounter } from './reset-counter.js';
+import { announcedResetCounter, currentResetCounter, duringWipe } from './reset-counter.js';
 
 describe('reset counter', () => {
   let cleanup: (() => void) | null = null;
@@ -18,21 +18,15 @@ describe('reset counter', () => {
     return test.db;
   }
 
-  it('reads 0 for an account never wiped and goes up by one per wipe', () => {
+  it('moves on once per wipe, announcing the new value only when the wipe is done', async () => {
     const db = setup();
     expect(currentResetCounter(db, 'u1')).toBe(0);
-    advanceResetCounter(db, 'u1');
-    expect(currentResetCounter(db, 'u1')).toBe(1);
-    advanceResetCounter(db, 'u1');
-    expect(currentResetCounter(db, 'u1')).toBe(2);
-  });
-
-  it('refuses only a sent counter that is not the current one', () => {
-    const db = setup();
-    advanceResetCounter(db, 'u1');
-    expect(staleResetCounter(db, 'u1', '1')).toBeNull();
-    expect(staleResetCounter(db, 'u1', '0')).toBe(1);
-    expect(staleResetCounter(db, 'u1', 'junk')).toBe(1);
-    expect(staleResetCounter(db, 'u1', undefined)).toBeNull();
+    await duringWipe(db, 'u1', async () => {
+      expect(currentResetCounter(db, 'u1')).toBe(1);
+      expect(announcedResetCounter(db, 'u1')).toBe(0);
+    });
+    expect(announcedResetCounter(db, 'u1')).toBe(1);
+    await duringWipe(db, 'u1', async () => {});
+    expect(announcedResetCounter(db, 'u1')).toBe(2);
   });
 });
