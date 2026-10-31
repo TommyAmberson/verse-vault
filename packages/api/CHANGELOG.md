@@ -10,6 +10,21 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.52] - 2026-10-30
+
+PATCH: Reset account.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Added
+
+* `DELETE /api/account/data` (Reset account): removes everything Delete all progress does, plus the
+  enrolled decks, per-year settings, custom schedules, and content snapshots. The account, its
+  address, its sign-in methods, and its sessions stay, so it is as if newly created.
+
 ## [0.1.51] - 2026-10-26
 
 PATCH: emailed codes replace links, and Google proves the inbox with a code where it doesn't host
