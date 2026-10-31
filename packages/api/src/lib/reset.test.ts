@@ -6,7 +6,7 @@ import { createTestDb } from '../test-utils.js';
 
 import { EngineStore } from './engine.js';
 import { take } from './pending-events.js';
-import { deleteAccountProgress } from './reset.js';
+import { deleteAccountProgress, resetAccount } from './reset.js';
 
 const MATERIAL_ID = 'nkjv-cor';
 const NOW = 1_700_000_000;
@@ -124,6 +124,48 @@ describe('deleteAccountProgress', () => {
       await deleteAccountProgress(test.db, engines, 'u1');
       const second = await deleteAccountProgress(test.db, engines, 'u1');
       expect(second).toEqual({ materialsReset: 0, eventsDeleted: 0, graduationsDeleted: 0 });
+    } finally {
+      engines.clear();
+    }
+  });
+});
+
+describe('resetAccount', () => {
+  let cleanup: (() => void) | null = null;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = null;
+  });
+
+  it('clears writes that were waiting on a deck it reset', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedProgress(test.db);
+
+    const engines = new EngineStore(test.db);
+    try {
+      const key = { userId: 'u1', materialId: MATERIAL_ID };
+      const graduate = (verseId: number) => () => {
+        test.db
+          .insert(schema.graduatedVerses)
+          .values({ userId: 'u1', materialId: MATERIAL_ID, verseId, graduatedAtSecs: NOW })
+          .run();
+        return Promise.resolve();
+      };
+      // Two writes queue behind the reset's lock on the deck; the second
+      // resolves several ticks after the first.
+      const reset = resetAccount(test.db, engines, 'u1');
+      const first = engines.withLock(key, graduate(1));
+      const second = engines.withLock(key, async () => {
+        for (let tick = 0; tick < 10; tick++) await Promise.resolve();
+        await graduate(2)();
+      });
+      const [summary] = await Promise.all([reset, first, second]);
+
+      expect(test.db.select().from(schema.graduatedVerses).all()).toHaveLength(0);
+      // The deck counts once, and the sweep's graduations count too.
+      expect(summary).toEqual({ materialsReset: 1, eventsDeleted: 2, graduationsDeleted: 4 });
+      expect(test.db.select().from(schema.userMaterials).all()).toHaveLength(0);
     } finally {
       engines.clear();
     }

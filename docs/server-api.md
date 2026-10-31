@@ -673,7 +673,7 @@ over `test_states`:
 Stability buckets (days): `weak < 1`, `learning [1, 7)`, `familiar [7, 30)`, `strong [30, 90)`,
 `mastered >= 90`.
 
-## Account data — `/api/export`, `/api/import`, `/api/account/progress`
+## Account data — `/api/export`, `/api/import`, `/api/account/progress`, `/api/account/data`
 
 Account-level data portability + reset. All require the session cookie.
 
@@ -706,6 +706,14 @@ snapshot — decks stay, reset to all-new. Idempotent. Returns:
 ```json
 { "materialsReset": 8, "eventsDeleted": 41608, "graduationsDeleted": 631 }
 ```
+
+### `DELETE /api/account/data`
+
+Reset account: everything `DELETE /api/account/progress` removes, plus the caller's enrollments
+(`user_materials`), per-year settings, custom schedules, and content snapshots, including any left
+from decks no longer enrolled. Same per-material lock and engine invalidation, same summary shape.
+The user row, its verified address, its sign-in methods, and its sessions stay, so the account is as
+if newly created.
 
 ## Status codes
 

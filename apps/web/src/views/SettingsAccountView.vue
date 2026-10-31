@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { api, ApiError, type ImportSummary } from '@/api'
+import { api, ApiError, type ImportSummary, type ProgressDeletionSummary } from '@/api'
 import CodeField from '@/components/CodeField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import ImportResultDialog from '@/components/ImportResultDialog.vue'
@@ -116,9 +116,28 @@ const importSummary = ref<ImportSummary | null>(null)
 const importError = ref<string | null>(null)
 const showImportResult = ref(false)
 
-// Delete all progress
-const showDeleteProgress = ref(false)
-const deleteProgressBusy = ref(false)
+// Delete all progress and Reset account share one typed-address dialog with
+// a backup button, and differ in what they remove.
+const WIPES = {
+  progress: {
+    title: 'Delete all progress?',
+    confirmLabel: 'Delete all progress',
+    run: () => api.deleteAllProgress(),
+    done: (s: ProgressDeletionSummary) =>
+      `Reset ${s.materialsReset} deck(s): removed ${s.eventsDeleted} reviews and ${s.graduationsDeleted} graduations.`,
+    failed: 'Delete failed.',
+  },
+  account: {
+    title: 'Reset account?',
+    confirmLabel: 'Reset account',
+    run: () => api.resetAccount(),
+    done: (s: ProgressDeletionSummary) =>
+      `Account reset: removed ${s.materialsReset} deck(s), ${s.eventsDeleted} reviews, and ${s.graduationsDeleted} graduations.`,
+    failed: 'Reset failed.',
+  },
+}
+const wipe = ref<keyof typeof WIPES | null>(null)
+const wipeBusy = ref(false)
 
 const email = computed(() => activeProfile.value?.email ?? '')
 
@@ -247,35 +266,44 @@ function closeImportResult() {
   showImportResult.value = false
 }
 
-function onDeleteProgressClick() {
+function openWipe(kind: keyof typeof WIPES) {
   banner.value = null
-  showDeleteProgress.value = true
+  backupErrorInDialog.value = null
+  wipe.value = kind
 }
 
-function cancelDeleteProgress() {
-  showDeleteProgress.value = false
+function cancelWipe() {
+  if (!wipeBusy.value) wipe.value = null
 }
 
-async function confirmDeleteProgress() {
-  deleteProgressBusy.value = true
+async function confirmWipe() {
+  if (!wipe.value) return
+  const { run, done, failed } = WIPES[wipe.value]
+  wipeBusy.value = true
   try {
-    const summary = await api.deleteAllProgress()
-    banner.value = {
-      kind: 'info',
-      text: `Reset ${summary.materialsReset} deck(s): removed ${summary.eventsDeleted} reviews and ${summary.graduationsDeleted} graduations.`,
+    let summary
+    try {
+      summary = await run()
+    } catch (err) {
+      banner.value = { kind: 'error', text: err instanceof ApiError ? err.message : failed }
+      return
     }
+    banner.value = { kind: 'info', text: done(summary) }
     // The wipe didn't bump the snapshot version; without dropping the
     // local cache the engine would keep serving (and could re-sync) the
-    // now-deleted progress.
-    if (activeProfile.value) await resetProfileLocalData(activeProfile.value.profileId)
-  } catch (err) {
-    banner.value = {
-      kind: 'error',
-      text: err instanceof ApiError ? err.message : 'Delete failed.',
+    // now-deleted data. The server side is done either way, so a failure
+    // here says to reload rather than that the wipe failed.
+    try {
+      if (activeProfile.value) await resetProfileLocalData(activeProfile.value.profileId)
+    } catch {
+      banner.value = {
+        kind: 'error',
+        text: `${done(summary)} Close other tabs of this app and reload this page to finish.`,
+      }
     }
   } finally {
-    deleteProgressBusy.value = false
-    showDeleteProgress.value = false
+    wipeBusy.value = false
+    wipe.value = null
   }
 }
 
@@ -408,8 +436,22 @@ async function onBackupInsideDialog() {
             to restore.
           </p>
         </header>
-        <button type="button" class="btn btn-destructive" @click="onDeleteProgressClick">
+        <button type="button" class="btn btn-destructive" @click="openWipe('progress')">
           Delete all progress…
+        </button>
+      </article>
+
+      <article class="action-card action-card-destructive">
+        <header>
+          <h3>Reset account</h3>
+          <p>
+            Returns the account to how it was when new: removes all progress, your decks, and
+            their settings and schedules. Your email address and sign-in methods stay. Download a
+            backup first if you might want to restore.
+          </p>
+        </header>
+        <button type="button" class="btn btn-destructive" @click="openWipe('account')">
+          Reset account…
         </button>
       </article>
     </template>
@@ -445,18 +487,23 @@ async function onBackupInsideDialog() {
     />
 
     <TypeToConfirmDialog
-      v-if="showDeleteProgress && activeProfile"
-      title="Delete all progress?"
-      confirm-label="Delete all progress"
+      v-if="wipe && activeProfile"
+      :title="WIPES[wipe].title"
+      :confirm-label="WIPES[wipe].confirmLabel"
       :match-text="email"
-      :busy="deleteProgressBusy"
-      @confirm="confirmDeleteProgress"
-      @cancel="cancelDeleteProgress"
+      :busy="wipeBusy"
+      @confirm="confirmWipe"
+      @cancel="cancelWipe"
     >
-      <p>
+      <p v-if="wipe === 'progress'">
         This permanently deletes <strong>all review history, graduations,
         and progress</strong> for <strong>{{ email }}</strong>
         across every deck. Your decks and settings stay. This cannot be undone.
+      </p>
+      <p v-else>
+        This permanently deletes <strong>all progress, enrolled decks, per-deck settings, and
+        schedules</strong> for <strong>{{ email }}</strong>. Your email address, its verified
+        status, and your sign-in methods stay. This cannot be undone.
       </p>
       <button type="button" class="backup-btn" @click="onBackupInsideDialog">
         ⬇ Download a backup (.json)

@@ -62,10 +62,15 @@ sign-in onto an unverified password account lands on the choice instead of an er
 when Google hosts the address. "That's me" opens the sign-in form prefilled with the address and,
 once the password works, connects Google. "That's not me" warns that whoever set the password loses
 access, then takes the account over and runs Google sign-in again, landing on a notice that points
-to Delete all progress (see
+to Delete all progress and Reset account (see
 [`server-api.md`](server-api.md#google-sign-in-onto-a-password-account)). An account without Google
 also gets a "Connect Google" card in `/settings` → Account, and an account with both Google and a
 password gets "Disconnect Google" there instead, which also signs out every other device.
+
+`/settings` → Account offers two wipes, each confirmed by typing the account's address with a backup
+download in the dialog. Delete all progress clears review history and graduations and keeps the
+decks. Reset account also removes the enrolled decks with their settings and schedules, returning
+the account to new while its address and sign-in methods stay.
 
 ### Future surfaces to leave room for
 
