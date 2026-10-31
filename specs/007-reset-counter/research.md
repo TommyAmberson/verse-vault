@@ -14,9 +14,10 @@ wipe covers every deck).
 
 ## D2. How the counter travels
 
-**Decision**: one request header carries the client's last-seen counter on every API call, and one
-response header carries the current counter on every authenticated response. Wipe responses also put
-the new counter in the body.
+**Decision**: one request header carries the client's last-seen counter on every API call, and the
+same header on every authenticated response carries `<userId>:<counter>`, wipes and refusals
+included. Naming the account matters during a profile switch, when the session cookie has moved to
+the next account before the app shows it. No response body repeats the counter.
 
 **Rationale**: `request()` in `apps/web/src/api.ts` is the single place every call goes through, so
 sending is one line, and reading it back from any response covers "at launch" and "with each sync"
@@ -29,9 +30,9 @@ still needs a way to learn the counter); a dedicated endpoint polled at launch (
 
 **Decision**: the three progress routes (`POST /api/sync/:materialId/events`,
 `POST /api/cards/review`, `POST /api/cards/memorize/graduate` and `/graduate-card`) compare the sent
-counter with the current one at the top of the handler, before any hold is written, and again inside
-`withLock` immediately before writing. A mismatch returns 409 with a stable code and the current
-counter, and stores nothing.
+counter with the current one right before each hold, with no await between check and write, and
+again inside `withLock` immediately before writing. A mismatch returns 409 with a stable code, the
+current counter in the response header, and stores nothing.
 
 **Rationale**: the check inside the lock catches a write that loaded its deck before the wipe
 (FR-003). The early check keeps the sync route from parking a stale batch as held events in the
@@ -42,22 +43,33 @@ across a wipe).
 
 ## D4. Moving the counter during a wipe
 
-**Decision**: `wipeAccount` increments the counter first, before its per-deck passes.
+**Decision**: a wipe increments the counter first, before its per-deck passes, but responses keep
+announcing the old value until the wipe has finished (an in-process record of running wipes; the API
+is one process, as its per-deck locks already assume).
 
 **Rationale**: every write that takes a deck's lock after the wipe starts then sees the new value,
 including writes queued behind the wipe's own lock. Incrementing at the end would leave the gap spec
-006 recorded.
+006 recorded. Announcing late means a client catches up only once nothing more will be cleared, so
+what it writes afterwards can't be deleted by a pass still to come.
 
 ## D5. Catching up on the client
 
-**Decision**: the client keeps the counter on its profile row. When a response carries a counter
-higher than the stored one, or a request is refused with one, the client runs
-`resetProfileLocalData`, stores the new counter, and shows a one-time notice. The device that runs a
-wipe marks it in progress for the profile before sending it; while the mark is set, a newer counter
-(the wipe response's own header included) is adopted without the notice, and the mark clears once
-the wipe's local reset finishes. Its own late refusals then match the stored counter and stay quiet
-(spec US2 scenario 3). Catch-up sends a running review or memorize session back to Home, where the
-app shell shows the notice (spec edge case "Wipe while a device is mid-session").
+**Decision**: the client keeps the counter on its profile row, and a response counts only when the
+account it names is the active profile. A newer counter starts a catch-up, one at a time, which
+first re-reads the stored counter, since another tab may have caught up already. Otherwise it clears
+the profile's local data, stores the counter with a notice flag on the profile row, and reloads the
+page, so no view keeps running on cleared data and the notice shows from the row until dismissed.
+Until the clear has finished, the old outbox still goes up with the old counter and is refused,
+never accepted; if the clear fails, the counter stays old and the next response tries again. A first
+counter is adopted without clearing (spec edge case "A device that first hears of the counter after
+a wipe"). A lower counter than the stored one means the server went back (a restore), so it is
+adopted without clearing rather than leaving the device refused for good. A reset refusal is not
+treated as a snapshot mismatch: its events are not re-stamped and resent. The device that runs a
+wipe holds back the counter its own responses bring, clears its local data, and then stores it with
+no notice (spec US2 scenario 3), even when the wipe request fails after the counter moved; if it
+heard nothing back, the catch-up that follows shows no notice either; if its clear fails, the next
+launch catches up instead. A tab that finds the stored counter already current (another tab caught
+up) reloads onto what that tab left.
 
 **Rationale**: reuses the local reset that the wipe already runs. A profile with no stored counter
 (first launch after this release) adopts the server's value without clearing (spec edge case "A new

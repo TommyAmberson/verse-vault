@@ -88,18 +88,19 @@ No setup: the feature lives in the existing `packages/api` and `apps/web`.
 with 409 and nothing is held; enrolling the deck again shows no progress.
 
 - [X] T003 [US1] Move the counter on at the start of `wipeAccount` in
-  `packages/api/src/lib/reset.ts`, before the per-deck passes (research.md D4), and return it with
-  the summary so `DELETE /api/account/progress` and `DELETE /api/account/data` in
-  `packages/api/src/routes/account.ts` include `resetEpoch` in their bodies (contracts "Wipes").
+  `packages/api/src/lib/reset.ts`, before the per-deck passes (research.md D4), so the responses of
+  `DELETE /api/account/progress` and `DELETE /api/account/data` carry the new value in their header
+  (contracts "Wipes").
   Extend `packages/api/src/lib/reset.test.ts`: both wipes increment it once, and the existing race
   test's queued writes see the new value.
 - [X] T004 [US1] Refuse a stale counter on the progress routes (contracts "Progress writes"):
-  `POST /api/sync/:materialId/events` in `packages/api/src/routes/sync.ts`, and `POST /review`,
+  `POST /api/sync/:materialId/events` (and its `confirmMerge` promotion) and `POST .../confirm` in
+  `packages/api/src/routes/sync.ts`, and `POST /review`,
   `/memorize/graduate`, `/memorize/graduate-card` in `packages/api/src/routes/cards.ts`. Each checks
-  through T001's owner at the top of the handler, before any `takeNotApplied`, and again inside
+  through T001's owner right before each `takeNotApplied`, with no await between, and again inside
   `withLock` before writing; a mismatch returns `409` with
-  `{ "error", "code": "reset", "resetEpoch" }` and stores nothing. An absent header is accepted (D6)
-  with a TODO at the comparison pointing to the removal issue (T010). Tests in
+  `{ "error", "code": "reset" }` and stores nothing. An absent header is accepted (D6)
+  with a TODO at the comparison pointing to the removal issue (T010, #199). Tests in
   `packages/api/src/routes/sync.test.ts` and a cards route test: stale counter refused with nothing
   stored or held; current counter accepted; absent header accepted; a review queued on the deck's
   lock behind a wipe is refused. Extend the import tests in `packages/api/src/routes/account.test.ts`:
@@ -122,18 +123,14 @@ data, stores 1, and raises the notice once; a profile with no stored counter ado
   "absent until the first response that carries a counter; then the highest value seen") and have
   `request()` in `apps/web/src/api.ts` send it on every call and read the response header back,
   reusing its existing header handling. A newer value, or a `409` with `code: "reset"`, triggers
-  catch-up in `apps/web/src/composables/useAuth.ts`: `resetProfileLocalData`, store the counter, mark
-  the notice pending; absent → n adopts without clearing. A refused request is not retried. Tests
-  beside the existing `api.ts` / `useAuth.ts` tests for each data-model.md transition.
-- [X] T006 [US2] Mark a wipe as in progress for the profile before `confirmWipe` in
-  `apps/web/src/views/SettingsAccountView.vue` sends it, and clear the mark after its local reset;
-  T005's catch-up adopts a newer counter without the notice while the mark is set (D5), so neither
-  the wipe response's header nor a late refusal of this device's own upload shows it. Test in
-  T005's test file.
-- [X] T007 [US2] After catch-up, send a running review or memorize session back to Home and show the
-  one-time "reset on another device" notice in the app shell (`apps/web/src/App.vue`), so it shows
-  whatever view the learner is in; cleared once seen; plain text, no download option. Reuse an
-  existing app-level banner if one exists rather than adding a component.
+  catch-up in `apps/web/src/composables/useAuth.ts` per data-model.md's transitions (checked against
+  the stored row; clear, then store with the notice flag, then reload). A refused request is not
+  retried. Tests for the transition rule in `apps/web/src/lib/`.
+- [X] T006 [US2] A wipe run from `confirmWipe` in `apps/web/src/views/SettingsAccountView.vue` holds
+  back the counter its responses bring, clears local data, then stores it with no notice (D5).
+- [X] T007 [US2] Show the "reset on another device" notice in the app shell (`apps/web/src/App.vue`)
+  from the profile row's flag, until dismissed; plain text, no download option. The catch-up's
+  reload ends any running session.
 
 **Checkpoint**: two-browser walkthrough in quickstart.md steps 1-6 passes.
 
@@ -148,13 +145,13 @@ data, stores 1, and raises the notice once; a profile with no stored counter ado
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T009 [P] Document the counter header, the refusal, and the wipe response in
+- [X] T009 [P] Document the counter header, the refusal, and the wipe response in
   `docs/server-api.md`, the notice in `docs/web-nav.md`, and point spec 006's "Another device still
   signed in after a wipe" edge case in `specs/006-email-verification-reset/spec.md` to this feature
   (FR-010). Prose says "reset counter"; `resetEpoch` names it only on the wire and in storage.
-- [ ] T010 [P] File a GitHub issue to refuse requests without a counter in the next api release
+- [X] T010 [P] File a GitHub issue to refuse requests without a counter in the next api release
   (FR-008), labelled `claude-created`; reference it from T004's TODO.
-- [ ] T011 Release api MINOR and web MINOR with changelog entries
+- [X] T011 Release api MINOR and web MINOR with changelog entries
   (`packages/api/CHANGELOG.md`, `apps/web/CHANGELOG.md`); core and wasm unchanged.
 - [ ] T012 Run quickstart.md: automated checks including `vite build`, then the browser walkthrough
   (user-side).
