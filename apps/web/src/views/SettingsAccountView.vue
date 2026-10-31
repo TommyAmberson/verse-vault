@@ -17,6 +17,7 @@ import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
 const {
   activeProfile,
   resetProfileLocalData,
+  runOwnWipe,
   sendVerificationCode,
   verifyEmail,
   linkGoogle,
@@ -277,30 +278,28 @@ function cancelWipe() {
 }
 
 async function confirmWipe() {
-  if (!wipe.value) return
+  if (!wipe.value || !activeProfile.value) return
   const { run, done, failed } = WIPES[wipe.value]
   wipeBusy.value = true
   try {
-    let summary
+    // The wipe didn't bump the snapshot version; without dropping the
+    // local cache the engine would keep serving (and could re-sync) the
+    // now-deleted data, so `runOwnWipe` clears it too. The server side is
+    // done either way, so a failed local clear says to reload rather than
+    // that the wipe failed; the reload then catches up.
+    let outcome
     try {
-      summary = await run()
+      outcome = await runOwnWipe(activeProfile.value.profileId, run)
     } catch (err) {
       banner.value = { kind: 'error', text: err instanceof ApiError ? err.message : failed }
       return
     }
-    banner.value = { kind: 'info', text: done(summary) }
-    // The wipe didn't bump the snapshot version; without dropping the
-    // local cache the engine would keep serving (and could re-sync) the
-    // now-deleted data. The server side is done either way, so a failure
-    // here says to reload rather than that the wipe failed.
-    try {
-      if (activeProfile.value) await resetProfileLocalData(activeProfile.value.profileId)
-    } catch {
-      banner.value = {
-        kind: 'error',
-        text: `${done(summary)} Close other tabs of this app and reload this page to finish.`,
-      }
-    }
+    banner.value = outcome.clearedLocally
+      ? { kind: 'info', text: done(outcome.result) }
+      : {
+          kind: 'error',
+          text: `${done(outcome.result)} Close other tabs of this app and reload this page to finish.`,
+        }
   } finally {
     wipeBusy.value = false
     wipe.value = null

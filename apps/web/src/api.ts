@@ -467,6 +467,23 @@ export function setUnauthorizedHandler(fn: (() => void) | null): void {
   onUnauthorized = fn
 }
 
+/** Where the account's reset counter is tracked (spec 007): `current` is
+ *  the value this device last saw for the active profile, sent on every
+ *  request so the server can refuse progress made before a wipe;
+ *  `observe` gets the account and value each response names. */
+interface ResetCounterTracker {
+  current(): number | undefined
+  observe(userId: string, counter: number, sentCounter: number | undefined): void
+}
+
+let resetCounterTracker: ResetCounterTracker | null = null
+const RESET_COUNTER_HEADER = 'X-Reset-Epoch'
+
+/** Register the reset-counter tracker; `main.ts` wires it to `useAuth`. */
+export function setResetCounterTracker(tracker: ResetCounterTracker): void {
+  resetCounterTracker = tracker
+}
+
 /** Build an API client targeting `apiUrl`. Sends `credentials: 'include'`
  *  so the Better Auth session cookie flows through on every call. */
 export function createApiClient(apiUrl: string): ApiClient {
@@ -477,6 +494,8 @@ export function createApiClient(apiUrl: string): ApiClient {
   ): Promise<T> {
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
+    const sentCounter = resetCounterTracker?.current()
+    if (sentCounter !== undefined) headers[RESET_COUNTER_HEADER] = String(sentCounter)
     const doFetch = () =>
       fetch(`${apiUrl}${path}`, {
         method,
@@ -498,6 +517,12 @@ export function createApiClient(apiUrl: string): ApiClient {
         res = await doFetch()
       }
     }
+    // Every signed-in response names its account and that account's
+    // counter, a refusal included, so this one read covers launch, sync
+    // and a refused write alike.
+    const named = res.headers.get(RESET_COUNTER_HEADER)?.match(/^(.+):(\d+)$/)
+    const [, userId, counter] = named ?? []
+    if (userId && counter) resetCounterTracker?.observe(userId, Number(counter), sentCounter)
     if (!res.ok) {
       if (res.status === 401) onUnauthorized?.()
       const text = await res.text().catch(() => '')

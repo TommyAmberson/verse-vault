@@ -118,19 +118,19 @@ notice, unless it ran the wipe.
 **Independent Test**: with a stored counter of 0, a response carrying 1 clears the profile's local
 data, stores 1, and raises the notice once; a profile with no stored counter adopts 1 silently.
 
-- [ ] T005 [US2] Keep the last-seen counter on the profile row (`resetEpoch` per data-model.md:
+- [X] T005 [US2] Keep the last-seen counter on the profile row (`resetEpoch` per data-model.md:
   "absent until the first response that carries a counter; then the highest value seen") and have
   `request()` in `apps/web/src/api.ts` send it on every call and read the response header back,
   reusing its existing header handling. A newer value, or a `409` with `code: "reset"`, triggers
   catch-up in `apps/web/src/composables/useAuth.ts`: `resetProfileLocalData`, store the counter, mark
   the notice pending; absent → n adopts without clearing. A refused request is not retried. Tests
   beside the existing `api.ts` / `useAuth.ts` tests for each data-model.md transition.
-- [ ] T006 [US2] Mark a wipe as in progress for the profile before `confirmWipe` in
+- [X] T006 [US2] Mark a wipe as in progress for the profile before `confirmWipe` in
   `apps/web/src/views/SettingsAccountView.vue` sends it, and clear the mark after its local reset;
   T005's catch-up adopts a newer counter without the notice while the mark is set (D5), so neither
   the wipe response's header nor a late refusal of this device's own upload shows it. Test in
   T005's test file.
-- [ ] T007 [US2] After catch-up, send a running review or memorize session back to Home and show the
+- [X] T007 [US2] After catch-up, send a running review or memorize session back to Home and show the
   one-time "reset on another device" notice in the app shell (`apps/web/src/App.vue`), so it shows
   whatever view the learner is in; cleared once seen; plain text, no download option. Reuse an
   existing app-level banner if one exists rather than adding a component.
