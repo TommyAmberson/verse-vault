@@ -9,6 +9,21 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-10-30
+
+PATCH: Reset account.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Added
+
+* A "Reset account" card in account settings, confirmed by typing the account's address, with a
+  backup download in the dialog, as Delete all progress now is too.
+* The notice after "That's not me" points to Reset account as well as Delete all progress.
+
 ## [0.10.8] - 2026-10-26
 
 PATCH: emailed codes replace links, and the picker asks for a code before Google joins where Google

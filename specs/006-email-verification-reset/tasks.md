@@ -275,7 +275,7 @@ Google, and their docs move into 2b and are amended by Phase 12. The test helper
 
 **Independent Test**: as Phase 8.
 
-- [ ] T051 [US5] On the branch from T038 (`feat/reset-account`), rebased on master, run Phase 8's tests and quickstart.md's phase 2c check; if 2b merged first, add "or Reset account" back to the takeover notice in `apps/web/src/views/ProfilePickerView.vue` and `docs/web-nav.md` (2b points only to Delete all progress); then release api PATCH and web PATCH, one bump commit each with a CHANGELOG entry
+- [X] T051 [US5] On the branch from T038 (`feat/reset-account`), rebased on master, run Phase 8's tests and quickstart.md's phase 2c check; if 2b merged first, add "or Reset account" back to the takeover notice in `apps/web/src/views/ProfilePickerView.vue` and `docs/web-nav.md` (2b points only to Delete all progress); then release api PATCH and web PATCH, one bump commit each with a CHANGELOG entry
 
 ---
 
