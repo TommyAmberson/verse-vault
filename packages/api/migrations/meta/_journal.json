@@ -225,6 +225,13 @@
       "when": 1790337600000,
       "tag": "0031_account_provider_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1793318400000,
+      "tag": "0032_reset_counters",
+      "breakpoints": true
     }
   ]
 }

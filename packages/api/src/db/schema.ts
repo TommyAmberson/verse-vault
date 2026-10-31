@@ -81,6 +81,16 @@ export const verification = sqliteTable(
   }),
 );
 
+// One row per account that has been wiped: Delete all progress and Reset
+// account move `counter` on, and progress writes sent against an older value
+// are refused (spec 007). No row reads as 0.
+export const resetCounters = sqliteTable('reset_counters', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  counter: integer('counter').notNull(),
+});
+
 // Which materials (e.g. a Bible book) a user has enrolled in.
 export const userMaterials = sqliteTable(
   'user_materials',

@@ -63,7 +63,7 @@ No setup: the feature lives in the existing `packages/api` and `apps/web`.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T001 Add the reset-counter table to `packages/api/src/db/schema.ts` per data-model.md
+- [X] T001 Add the reset-counter table to `packages/api/src/db/schema.ts` per data-model.md
   (`userId` primary key referencing `user.id`, cascade on delete; `counter` "not null, starts at 0
   (no row reads as 0), only increases") and generate its migration into `packages/api/migrations/`
   with `pnpm db:generate`. Add the counter owner in a new module under `packages/api/src/lib/`
