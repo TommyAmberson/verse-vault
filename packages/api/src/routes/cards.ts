@@ -13,6 +13,7 @@ import {
 } from '../lib/engine.js';
 import { bookCodeOf } from '../lib/book-codes.js';
 import { type ComposedRender, composeRender } from '../lib/render.js';
+import { refuseIfReset } from '../lib/reset-counter.js';
 import { type Grade, persistEngineState } from '../lib/review-log.js';
 import { DEFAULT_DIALECT, type Dialect } from '../lib/spelling.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
@@ -166,6 +167,10 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
     // callback resolves, not when the outer function returns the
     // pending promise (which would drop refcount mid-callback).
     return await deps.engines.withLock(key, async () => {
+      // Under the lock, before the engine changes: a write that loaded its
+      // deck before a wipe is refused, not applied (spec 007).
+      const refused = refuseIfReset(c, deps.db, user.id);
+      if (refused) return refused;
       let updates: TestUpdateWire[];
       try {
         updates = JSON.parse(
@@ -231,6 +236,10 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
 
     const nowSecs = now();
     return await deps.engines.withLock(key, async () => {
+      // Under the lock, before the engine changes: a write that loaded its
+      // deck before a wipe is refused, not applied (spec 007).
+      const refused = refuseIfReset(c, deps.db, user.id);
+      if (refused) return refused;
       const count = loaded.engine.graduate_verse(verseId);
       if (count === 0) {
         // Two cases collapse to a zero count: (a) already-graduated
@@ -284,6 +293,10 @@ export function cardsRoutes(deps: CardsRoutesDeps) {
 
     const nowSecs = now();
     return await deps.engines.withLock(key, async () => {
+      // Under the lock, before the engine changes: a write that loaded its
+      // deck before a wipe is refused, not applied (spec 007).
+      const refused = refuseIfReset(c, deps.db, user.id);
+      if (refused) return refused;
       const flipped = loaded.engine.graduate_card(cardId);
       if (!flipped) {
         // Distinguish "already graduated" (idempotent, row exists) from

@@ -4,6 +4,7 @@ import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 
 import { EngineStore } from './engine.js';
+import { duringWipe } from './reset-counter.js';
 
 export interface ProgressDeletionSummary {
   /** Enrolled materials that actually had rows removed. */
@@ -34,7 +35,7 @@ export function deleteAccountProgress(
   engines: EngineStore,
   userId: string,
 ): Promise<ProgressDeletionSummary> {
-  return wipeAccount(db, engines, userId, []);
+  return duringWipe(db, userId, () => wipeAccount(db, engines, userId, []));
 }
 
 /**
@@ -49,7 +50,7 @@ export function resetAccount(
   engines: EngineStore,
   userId: string,
 ): Promise<ProgressDeletionSummary> {
-  return wipeAccount(db, engines, userId, SETUP_TABLES);
+  return duringWipe(db, userId, () => wipeAccount(db, engines, userId, SETUP_TABLES));
 }
 
 /** Tables only a full reset clears, keyed by user and material. */

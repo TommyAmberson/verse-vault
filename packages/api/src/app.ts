@@ -7,6 +7,7 @@ import { ApibibleCache } from './lib/apibible-cache.js';
 import { TAURI_ORIGINS, type AuthEnv, createAuth } from './lib/auth.js';
 import { type SendEmail, createEmailSender } from './lib/email.js';
 import { EngineStore } from './lib/engine.js';
+import { announcedResetCounter, RESET_COUNTER_HEADER } from './lib/reset-counter.js';
 import { type Dialect } from './lib/spelling.js';
 import {
   type ObservabilityOptions,
@@ -107,9 +108,10 @@ export function createApp(deps: AppDeps) {
         return null;
       },
       credentials: true,
-      // Expose 429-related + correlation headers so browser JS can
-      // read them (defaults to a fixed safelist that omits these).
-      exposeHeaders: ['Retry-After', 'X-Request-Id'],
+      // Expose 429-related, correlation and reset-counter headers so
+      // browser JS can read them (defaults to a fixed safelist that omits
+      // these).
+      exposeHeaders: ['Retry-After', 'X-Request-Id', RESET_COUNTER_HEADER],
     }),
   );
   // Observability + rate-limit middleware replaces Hono's default
@@ -127,6 +129,18 @@ export function createApp(deps: AppDeps) {
   app.use('/api/*', async (c, next) => {
     if (c.req.path.startsWith('/api/auth/')) return next();
     return session(c, next);
+  });
+  // Every signed-in response says where the account's reset counter stands,
+  // as `<userId>:<counter>`, so a client learns of a wipe made elsewhere at
+  // launch or sync and credits it to the account the server authenticated
+  // (spec 007). Read after the handler, so a wipe's own response carries
+  // the new value.
+  app.use('/api/*', async (c, next) => {
+    await next();
+    const user = c.get('user');
+    if (user) {
+      c.header(RESET_COUNTER_HEADER, `${user.id}:${announcedResetCounter(deps.db, user.id)}`);
+    }
   });
 
   app.get('/health', (c) => c.json({ status: 'ok' }));

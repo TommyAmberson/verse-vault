@@ -2,8 +2,9 @@ import { createApp } from 'vue'
 
 import './assets/colors.css'
 import './assets/auth-form.css'
-import { setUnauthorizedHandler } from './api'
+import { setResetCounterTracker, setUnauthorizedHandler } from './api'
 import App from './App.vue'
+import { resetCounterTracker } from './composables/useAuth'
 import router from './router'
 
 // Session cookie died mid-session (expired / revoked) while a local
@@ -32,5 +33,9 @@ setUnauthorizedHandler(() => {
       redirecting = false
     })
 })
+
+// Spec 007: send the reset counter and catch up when a response carries a
+// newer one.
+setResetCounterTracker(resetCounterTracker)
 
 createApp(App).use(router).mount('#app')

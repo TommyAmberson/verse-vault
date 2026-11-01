@@ -29,6 +29,7 @@ import {
   type TakeInput,
 } from '../lib/pending-events.js';
 import type { UserMaterial } from '../lib/keys.js';
+import { refuseIfReset } from '../lib/reset-counter.js';
 import { computeStateRev } from '../lib/state-rev.js';
 import {
   cardIdOf,
@@ -147,13 +148,18 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       return c.json({ error: "decision must be 'merge' or 'discard'" }, 400);
     }
     if (!getLatestSnapshot(deps.db, key)) return c.json({ error: 'Not enrolled' }, 404);
-
     // Answering with nothing open is a no-op, not an error: another
     // device may have answered first.
+    // A device that missed a wipe doesn't get to answer for what was held
+    // after it (spec 007): checked right before discarding, and under the
+    // lock before merging.
     if (decision === 'discard') {
+      const refused = refuseIfReset(c, deps.db, user.id);
+      if (refused) return refused;
       return c.json({ discarded: markDiscarded(deps.db, key) });
     }
-    const merged = await mergeAwaiting(deps, key);
+    const merged = await mergeAwaiting(deps, key, () => refuseIfReset(c, deps.db, user.id));
+    if (merged instanceof Response) return merged;
     return c.json({
       ...unchangedResponse(deps.db, key, merged.length, 0),
       rebuilt: merged.length > 0,
@@ -196,6 +202,17 @@ export function syncRoutes(deps: SyncRoutesDeps) {
 
     const dispositions: Disposition[] = new Array(events.length);
     const notApplied: { index: number; take: TakeInput }[] = [];
+
+    // Hold what can't be applied yet, unless it was sent against an older
+    // reset counter (spec 007). Check and write run with no await between,
+    // so a wipe that started meanwhile is seen.
+    const holdOrRefuse = (): Response | null => {
+      const refused = refuseIfReset(c, deps.db, user.id);
+      if (refused) return refused;
+      takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
+      return null;
+    };
+
     const setAside = (
       index: number,
       parsed: UploadIds,
@@ -252,7 +269,8 @@ export function syncRoutes(deps: SyncRoutesDeps) {
         seen.add(event.clientEventId);
         setAside(index, ids, 'pending', 'not-enrolled', `not enrolled in ${materialId}`);
       }
-      takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
+      const refused = holdOrRefuse();
+      if (refused) return refused;
       return c.json({
         accepted: 0,
         duplicates,
@@ -277,7 +295,9 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     // anything applied below must go through a rebuild too.
     const mergedIds = new Set<string>();
     if (body.confirmMerge === true) {
-      for (const row of await mergeAwaiting(deps, key)) {
+      const merged = await mergeAwaiting(deps, key, () => refuseIfReset(c, deps.db, user.id));
+      if (merged instanceof Response) return merged;
+      for (const row of merged) {
         if (row.clientEventId !== null) mergedIds.add(row.clientEventId);
       }
     }
@@ -330,7 +350,8 @@ export function syncRoutes(deps: SyncRoutesDeps) {
       );
 
     if (fresh.length === 0) {
-      takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
+      const refused = holdOrRefuse();
+      if (refused) return refused;
       return c.json({
         ...unchangedResponse(deps.db, key, mergedHere, duplicates),
         rebuilt: mergedHere > 0,
@@ -361,7 +382,8 @@ export function syncRoutes(deps: SyncRoutesDeps) {
             'batch predates newer history; waiting for the learner to merge or discard it',
           );
         }
-        takeNotApplied(deps.db, key, notApplied, nowSecs, c.get('requestId'));
+        const refused = holdOrRefuse();
+        if (refused) return refused;
         return c.json({
           ...unchangedResponse(deps.db, key, mergedHere, duplicates),
           rebuilt: mergedHere > 0,
@@ -420,6 +442,11 @@ export function syncRoutes(deps: SyncRoutesDeps) {
     // lock callback resolves, not when the function returns the
     // pending promise.
     return await deps.engines.withLock(key, async () => {
+      // Every hold above and every write below is guarded with no await
+      // between check and write, so nothing sent against an older reset
+      // counter is applied or held (spec 007).
+      const refused = refuseIfReset(c, deps.db, user.id);
+      if (refused) return refused;
       const allUpdates: TestUpdateWire[] = [];
       const reviewEventInputs: ReviewEventInput[] = [];
       const graduations: { verseId: number; timestampSecs: number }[] = [];
@@ -562,11 +589,19 @@ function unchangedResponse(
  *  event is re-judged first, by the rule the upload used: a card the
  *  learner has switched off since keeps waiting, and one no config emits
  *  any more becomes unusable, rather than either reaching the log. */
-async function mergeAwaiting(deps: SyncRoutesDeps, key: UserMaterial): Promise<PendingRow[]> {
-  if (!hasPromotable(deps.db, key, ['awaiting-confirmation'])) return [];
+async function mergeAwaiting(
+  deps: SyncRoutesDeps,
+  key: UserMaterial,
+  // Checked under the lock, right before promoting: a device that missed a
+  // wipe doesn't get to answer for what was held after it (spec 007).
+  refuse: () => Response | null,
+): Promise<PendingRow[] | Response> {
+  if (!hasPromotable(deps.db, key, ['awaiting-confirmation'])) return refuse() ?? [];
   // Loaded outside the lock, as every route does: load never takes it.
   using loaded = await deps.engines.load(key);
   return await deps.engines.withLock(key, async () => {
+    const refused = refuse();
+    if (refused) return refused;
     const promoted = rejudgeHeld(deps.db, key, ['awaiting-confirmation'], (ids) =>
       deps.engines.classifyCardIds(key, loaded.engine, ids),
     );

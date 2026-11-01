@@ -6,6 +6,7 @@ import { clearAllSessions } from '@/lib/engine/engineStore'
 import { migrateLegacyDb } from '@/lib/engine/migrate-legacy'
 import { deleteIdb, profileDbName, setActiveProfile } from '@/lib/engine/persistence'
 import * as registry from '@/lib/engine/registry'
+import { resetCounterStep } from '@/lib/resetCounter'
 
 /** Drop every profile-scoped in-memory cache. Called from each
  *  profile-transition path so module-level caches keyed only by
@@ -304,7 +305,24 @@ export async function signInComplete(
     provider: provider ?? existing?.provider,
     emailVerified: user.emailVerified ?? existing?.emailVerified,
   }
-  await registry.upsertProfile(row)
+  // An existing row is patched with only what this sign-in supplies, so
+  // fields it doesn't set (the reset counter, a pending notice, a token
+  // written meanwhile) survive.
+  let saved: registry.ProfileRow = row
+  if (existing) {
+    const patch: Partial<registry.ProfileRow> = {
+      email: row.email,
+      displayName: row.displayName,
+      image: row.image,
+      lastUsedAt: row.lastUsedAt,
+    }
+    if (sessionToken) patch.sessionToken = sessionToken
+    if (provider) patch.provider = provider
+    if (user.emailVerified !== undefined) patch.emailVerified = user.emailVerified
+    saved = (await registry.updateProfile(user.id, patch)) ?? row
+  } else {
+    await registry.upsertProfile(row)
+  }
   await registry.setLastActiveProfileId(user.id)
 
   // Pin the new session as Better Auth's active device session.
@@ -338,7 +356,7 @@ export async function signInComplete(
     }
   }
 
-  activeProfile.value = row
+  activeProfile.value = saved
   syncState.value = 'online'
   await refreshProfilesList()
 }
@@ -372,8 +390,9 @@ export async function enterProfile(profileId: string): Promise<EnterResult> {
   await clearProfileCaches()
   await setActiveProfile(profileId)
 
-  const touched: registry.ProfileRow = { ...row, lastUsedAt: nowSecs() }
-  await registry.upsertProfile(touched)
+  const touched =
+    (await registry.updateProfile(profileId, { lastUsedAt: nowSecs() })) ??
+    { ...row, lastUsedAt: nowSecs() }
   await registry.setLastActiveProfileId(profileId)
   activeProfile.value = touched
   await refreshProfilesList()
@@ -438,6 +457,141 @@ async function resetProfileLocalData(profileId: string): Promise<void> {
   await setActiveProfile(profileId)
 }
 
+// Spec 007. While this device runs a wipe itself: the profile it wipes,
+// and the newest counter that profile's responses brought, stored once the
+// wipe's local clear has finished.
+let ownWipe: { profileId: string; counter: number | null } | null = null
+// A profile whose wipe this device sent but got no counter back for: it may
+// have gone through, so the catch-up it leads to shows no notice.
+let ownWipeUnconfirmed: string | null = null
+let catchingUp = false
+
+async function storeResetCounter(profileId: string, counter: number): Promise<void> {
+  applyProfileRowUpdate(profileId, await registry.updateProfile(profileId, { resetEpoch: counter }))
+}
+
+/** What `request()` sends and reports for the reset counter (spec 007).
+ *  A response names the account the server authenticated, and only counts
+ *  when that is the active profile. */
+export const resetCounterTracker = {
+  current: () => activeProfile.value?.resetEpoch,
+  observe(userId: string, counter: number, sentCounter: number | undefined): void {
+    const row = activeProfile.value
+    if (!row || row.profileId !== userId || counter === row.resetEpoch) return
+    // A lower counter means the server went back, but only if the request
+    // carried the counter this device holds: a slow response to a request
+    // sent before this device's own wipe would otherwise look the same.
+    if (row.resetEpoch !== undefined && counter < row.resetEpoch && sentCounter !== row.resetEpoch) {
+      return
+    }
+    if (ownWipe?.profileId === userId) {
+      ownWipe.counter = Math.max(ownWipe.counter ?? counter, counter)
+      return
+    }
+    if (catchingUp) return
+    catchingUp = true
+    void catchUp(row.profileId, counter)
+      // Left on the old counter, so the next response tries again.
+      .catch(() => {})
+      .finally(() => {
+        catchingUp = false
+      })
+  },
+}
+
+/** Bring this device in line with a reset counter that differs from its own. The stored counter
+ *  is read again first, since another tab may have caught up already. Data
+ *  that predates the counter is cleared before the counter is stored, so
+ *  until then the old outbox still goes up with the old counter and is
+ *  refused; then the page reloads, so nothing keeps running on the cleared
+ *  data, and the notice shows from the profile row. */
+async function catchUp(profileId: string, counter: number): Promise<void> {
+  const stored = await registry.getProfile(profileId)
+  if (!stored) return
+  const step = resetCounterStep(stored.resetEpoch, counter)
+  if (step === 'ignore') {
+    const heldInMemory = activeProfile.value?.resetEpoch
+    // Another tab caught up from a counter this tab still holds, so it
+    // cleared the data this tab is running on: reload onto what it left.
+    // Otherwise it only adopted a value, and this tab just takes it too.
+    if (heldInMemory !== undefined && counter > heldInMemory) {
+      window.location.reload()
+      return
+    }
+    applyProfileRowUpdate(profileId, stored)
+    return
+  }
+  if (step === 'adopt') {
+    await storeResetCounter(profileId, counter)
+    return
+  }
+  // No notice for a wipe this device ran itself but never heard back from.
+  const notice = ownWipeUnconfirmed !== profileId
+  await resetProfileLocalData(profileId)
+  await registry.updateProfile(profileId, {
+    resetEpoch: counter,
+    ...(notice ? { resetNoticePending: true } : {}),
+  })
+  if (ownWipeUnconfirmed === profileId) ownWipeUnconfirmed = null
+  window.location.reload()
+}
+
+/** Clear the "reset on another device" notice for the active profile. */
+async function dismissResetNotice(): Promise<void> {
+  const profileId = activeProfile.value?.profileId
+  if (!profileId) return
+  applyProfileRowUpdate(profileId, await registry.updateProfile(profileId, { resetNoticePending: false }))
+}
+
+/** Run a wipe of the active profile's account on the server, then clear
+ *  this device's copy, and only then store the counter the wipe brought,
+ *  so this device's own wipe shows no "reset on another device" notice.
+ *  Throws if the server wipe fails; `clearedLocally` is false if the local
+ *  clear failed, in which case the old counter stays and the next launch
+ *  catches up. */
+async function runOwnWipe<T>(
+  profileId: string,
+  wipe: () => Promise<T>,
+): Promise<{ result: T; clearedLocally: boolean }> {
+  const own = { profileId, counter: null as number | null }
+  ownWipe = own
+  // Clear this device's copy, then store the counter the wipe brought.
+  const finish = async (): Promise<boolean> => {
+    try {
+      await resetProfileLocalData(profileId)
+    } catch {
+      return false
+    }
+    if (own.counter !== null) {
+      // Overrides a notice another tab of this device flagged meanwhile:
+      // the wipe was this device's own.
+      applyProfileRowUpdate(
+        profileId,
+        await registry.updateProfile(profileId, { resetEpoch: own.counter, resetNoticePending: false }),
+      )
+    }
+    if (ownWipeUnconfirmed === profileId) ownWipeUnconfirmed = null
+    return true
+  }
+  try {
+    let result: T
+    try {
+      result = await wipe()
+    } catch (err) {
+      // A response that still moved the counter on means the server wiped
+      // before failing: this device's copy is out of date all the same.
+      if (own.counter !== null) await finish()
+      // No new counter came back (no response, or a proxy error page): the
+      // server may have wiped without saying so.
+      else ownWipeUnconfirmed = profileId
+      throw err
+    }
+    return { result, clearedLocally: await finish() }
+  } finally {
+    ownWipe = null
+  }
+}
+
 /** Sign out a profile by revoking its server-side session and clearing
  *  its stored token. Defaults to the active profile when no id is
  *  given. Profile + IDB stay intact — sign-out is the "I'll be back"
@@ -457,7 +611,7 @@ export async function signOut(targetProfileId?: string): Promise<void> {
       // Cookie still flips locally; server token will expire on its own.
     }
   }
-  await registry.upsertProfile({ ...row, sessionToken: null })
+  await registry.updateProfile(targetId, { sessionToken: null })
 
   if (activeProfile.value?.profileId === targetId) {
     await registry.setLastActiveProfileId(null)
@@ -652,6 +806,8 @@ export function useAuth() {
     enterProfile,
     deleteProfile,
     resetProfileLocalData,
+    runOwnWipe,
+    dismissResetNotice,
     markSyncState,
     clearConflict,
     acceptPendingSignIn,

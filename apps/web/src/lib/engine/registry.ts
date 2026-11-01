@@ -52,6 +52,12 @@ export interface ProfileRow {
    *  session user on sign-in and boot reconcile. `undefined` means not
    *  yet known, and shows nothing. */
   emailVerified?: boolean
+  /** The account's reset counter as this device last saw it (spec 007);
+   *  `undefined` until a response first carries one. */
+  resetEpoch?: number
+  /** Set when this device cleared the profile's data because the account
+   *  was reset on another device, until the learner dismisses the notice. */
+  resetNoticePending?: boolean
 }
 
 interface MetaRow {
@@ -179,16 +185,26 @@ export async function updateProfileSessionToken(
   return updateProfile(profileId, { sessionToken })
 }
 
-/** Merge `patch` into a profile's row. Returns the updated row, or null
- *  when the profile is gone. */
+/** Merge `patch` into a profile's row, reading and writing in one
+ *  transaction so a concurrent update can't put back a field this one
+ *  just changed. Returns the updated row, or null when the profile is
+ *  gone. */
 export async function updateProfile(
   profileId: string,
   patch: Partial<Omit<ProfileRow, 'profileId'>>,
 ): Promise<ProfileRow | null> {
-  const existing = await getProfile(profileId)
-  if (!existing) return null
-  const updated: ProfileRow = { ...existing, ...patch }
-  await upsertProfile(updated)
+  const db = await openRegistry()
+  const tx = db.transaction(STORE.Profiles, 'readwrite')
+  const store = tx.objectStore(STORE.Profiles)
+  let updated: ProfileRow | null = null
+  const getReq = store.get(profileId)
+  getReq.onsuccess = () => {
+    const existing = getReq.result as ProfileRow | undefined
+    if (!existing) return
+    updated = { ...existing, ...patch }
+    store.put(updated)
+  }
+  await transactionComplete(tx)
   return updated
 }
 

@@ -9,6 +9,21 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-31
+
+MINOR: a device catches up when its account was reset on another one.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Added
+
+* The app sends the account's reset counter with every request. When a response shows the account
+  was reset on another device, it clears its copy of the account, reloads, and shows a notice until
+  dismissed. A reset run on this device shows only its own banner.
+
 ## [0.10.9] - 2026-10-30
 
 PATCH: Reset account.

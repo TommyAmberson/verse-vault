@@ -707,13 +707,37 @@ snapshot — decks stay, reset to all-new. Idempotent. Returns:
 { "materialsReset": 8, "eventsDeleted": 41608, "graduationsDeleted": 631 }
 ```
 
+The wipe moves the account's [reset counter](#reset-counter) on before clearing anything; its
+response's `X-Reset-Epoch` carries the new value.
+
 ### `DELETE /api/account/data`
 
 Reset account: everything `DELETE /api/account/progress` removes, plus the caller's enrollments
 (`user_materials`), per-year settings, custom schedules, and content snapshots, including any left
 from decks no longer enrolled. Same per-material lock and engine invalidation, same summary shape.
 The user row, its verified address, its sign-in methods, and its sessions stay, so the account is as
-if newly created.
+if newly created. Moves the [reset counter](#reset-counter) on, like `DELETE /api/account/progress`.
+
+### Reset counter
+
+Each account has a reset counter: 0 until its first wipe, then moved on by one by each
+`DELETE /api/account/progress` and `DELETE /api/account/data`, before they clear anything (spec
+007). Every response to a signed-in `/api/*` request carries `X-Reset-Epoch: <userId>:<counter>`,
+read after the handler, so a wipe's own response has the new value. While a wipe is still running,
+responses announce the value it started from, so clients catch up only once it is done. Naming the
+account lets a client credit the value to the account the server authenticated, not whichever
+profile it shows, which can differ mid-switch. The web client sends just the value it last saw in
+the same header on every request.
+
+The progress writes, `POST /api/sync/:materialId/events` (and its `confirmMerge` promotion),
+`POST /api/sync/:materialId/confirm`, `POST /api/cards/review`, `POST /api/cards/memorize/graduate`
+and `POST /api/cards/memorize/graduate-card`, compare the sent value with the account's right before
+each write or hold, and under the deck's lock before the engine changes. A different value is
+refused with `409` `{ "error": "...", "code": "reset" }`, the current value in its `X-Reset-Epoch`,
+and nothing is applied or held: the work predates a wipe the learner ran (constitution principle
+VI's wipe exception). A request without the header is accepted for now, so older web clients keep
+syncing until they reload; a later release refuses it. Import, export, settings and enrolment are
+not checked.
 
 ## Status codes
 
@@ -722,7 +746,7 @@ if newly created.
 | 400    | malformed JSON, missing required field, invalid `grade`, invalid scope value, …                                                                          |
 | 401    | no session cookie / expired session                                                                                                                      |
 | 404    | material id unknown, or caller not enrolled in the requested material, or card id unknown (a sync upload 404s only for a material outside the catalogue) |
-| 409    | sync batch uses a stale `snapshotVersion`, or already-enrolled on `/enroll`                                                                              |
+| 409    | sync batch uses a stale `snapshotVersion`, already-enrolled on `/enroll`, or a progress write sent with an old [reset counter](#reset-counter)           |
 | 413    | sync batch exceeds the 500-event cap                                                                                                                     |
 | 429    | rate limit exceeded; `Retry-After` header carries integer seconds until next allowed request                                                             |
 | 500    | engine threw on `replay_event` / `get_card_render` (unknown card id, malformed state) — caller's bug                                                     |

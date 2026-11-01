@@ -72,6 +72,11 @@ download in the dialog. Delete all progress clears review history and graduation
 decks. Reset account also removes the enrolled decks with their settings and schedules, returning
 the account to new while its address and sign-in methods stay.
 
+A device signed in when the account was wiped elsewhere learns of it from the next response (the
+[reset counter](server-api.md#reset-counter)): it clears its copy of the account and reloads, which
+ends any running review or memorize session, and a notice under the header says "This account was
+reset on another device" until dismissed. The device that ran the wipe shows only its own banner.
+
 ### Future surfaces to leave room for
 
 Not building these now — but the nav design must not preclude them:

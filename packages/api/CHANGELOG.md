@@ -10,6 +10,24 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.53] - 2026-10-31
+
+MINOR: a wipe can't be undone by a device that missed it.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Added
+
+* An account reset counter (spec 007). Delete all progress and Reset account move it on before
+  clearing anything; every signed-in response carries it in `X-Reset-Epoch`, a wipe's own response
+  the new value.
+* Sync uploads, reviews and graduations sent with an older counter are refused with `409`
+  `{ code: "reset" }` and nothing is applied or held, so pre-wipe progress can't come back when a
+  deck is enrolled again. Requests without the header are still accepted for this release.
+
 ## [0.1.52] - 2026-10-30
 
 PATCH: Reset account.

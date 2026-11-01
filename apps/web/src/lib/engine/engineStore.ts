@@ -718,7 +718,10 @@ async function uploadPage(
     // version, every retry 409s on the same rows, and the queue
     // wedges forever. Any other error propagates.
     const status = (err as { status?: number }).status
-    if (status === 409) {
+    // A reset refusal (spec 007) is not a snapshot mismatch: these events
+    // predate a wipe and must not be re-stamped and resent. Let it
+    // propagate; catch-up clears the outbox.
+    if (status === 409 && (err as { code?: string }).code !== 'reset') {
       await refetchSyncState(session, nowSecs)
       await idb.rewriteQueuedSnapshotVersion(materialId, session.snapshotVersion)
       return 'refetched'

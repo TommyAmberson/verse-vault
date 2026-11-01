@@ -297,13 +297,12 @@ the same sign-in methods still work.
   logged on the server for the operator.
 * **Desktop app.** Codes are typed into whichever app asked for them, so reset and verification work
   inside the desktop app as well as the browser.
-* **Another device still signed in after a wipe (known limitation).** Delete all progress and Reset
-  account clear the server, and the device that ran them, but another device still signed in keeps
-  its cached data and unsent reviews. When it next syncs, those reviews are held, and enrolling the
-  deck again brings them back. The device that ran the wipe can do the same in a narrow window: an
-  upload its sync starts while the wipe runs, or a review that loaded its deck before the wipe but
-  writes after it. A follow-up adds a per-account reset counter so the server refuses work from
-  before a wipe and a device that missed one clears its own data instead.
+* **Another device still signed in after a wipe (closed by spec 007).** Delete all progress and
+  Reset account clear the server, and the device that ran them, but another device still signed in
+  keeps its cached data and unsent reviews, and the device that ran the wipe can have an upload or a
+  review in flight. Without more, those reviews would be held and come back when the deck is
+  enrolled again. [Spec 007](../007-reset-counter/spec.md) adds a per-account reset counter: the
+  server refuses work from before a wipe, and a device that missed one clears its own data.
 * **No email code to wipe (accepted).** Both wipes ask for the typed address and offer a backup, but
   not an emailed code or a recent sign-in: a wipe can be undone by importing that backup, and a code
   would spend the email limits and block an unverified account's own user. A permanent "Delete

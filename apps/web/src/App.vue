@@ -12,7 +12,8 @@ import { useAuth } from '@/composables/useAuth'
 import { getCachedYears } from '@/lib/apiCache'
 import { memorizeBadgeCount } from '@/lib/badges'
 
-const { activeProfile, conflict, acceptPendingSignIn, cancelPendingSignIn } = useAuth()
+const { activeProfile, conflict, acceptPendingSignIn, cancelPendingSignIn, dismissResetNotice } =
+  useAuth()
 const route = useRoute()
 
 // Driven by the active profile (cached locally) rather than Better
@@ -60,6 +61,10 @@ watch(() => route.fullPath, refreshMemorizeCount)
       <AppAvatar />
     </header>
     <OfflineBanner />
+    <p v-if="activeProfile?.resetNoticePending" class="reset-notice" role="status">
+      This account was reset on another device, so this device's copy was cleared.
+      <button type="button" @click="dismissResetNotice">Dismiss</button>
+    </p>
     <ConfirmDialog
       v-if="conflict"
       title="Switch to a different account?"
@@ -101,6 +106,19 @@ watch(() => route.fullPath, refreshMemorizeCount)
 </template>
 
 <style scoped>
+.reset-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.6rem 1rem;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  text-align: center;
+}
+
 .site {
   display: flex;
   flex-direction: column;
