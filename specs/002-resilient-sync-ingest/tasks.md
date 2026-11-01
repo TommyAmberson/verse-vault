@@ -312,7 +312,7 @@ confirm it applied at its recorded time and the row records the repair.
       `pendingConfirmation`, removing the deviation note added earlier on this branch (FR-015)
 - [X] T064 [P] Add `pending_events` to the storage model in `docs/persistence.md`, stating that
       replay reads `review_events` only
-- [ ] T065 Close #151, #153, #155, #156, #157, #158 against this branch, and #152 with T004
+- [X] T065 Close #151, #153, #155, #156, #157, #158 against this branch, and #152 with T004
 - [ ] T066 Run the whole of [quickstart.md](./quickstart.md), including both wipe tests on a real
       browser profile
 - [X] T067 Decide whether an `unusable` or `discarded` row is terminal: unusable rows are retryable

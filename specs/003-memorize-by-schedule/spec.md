@@ -4,7 +4,8 @@
 
 **Created**: 2026-09-24
 
-**Status**: Approved 2026-09-24; amended 2026-10-01 (SC-002, SC-004, FR-001, FR-004, FR-012, FR-013)
+**Status**: Shipped (approved 2026-09-24; amended 2026-10-01: SC-002, SC-004, FR-001, FR-004,
+FR-012, FR-013); the after-deploy check (T025) is still open.
 
 **Input**: User description: "The memorize queue should serve from the schedule, not from deck
 order. The count is what the schedule has asked for through the current week, un-memorized, across

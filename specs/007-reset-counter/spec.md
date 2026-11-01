@@ -4,7 +4,8 @@
 
 **Created**: 2026-10-30
 
-**Status**: Draft
+**Status**: Shipped in #200; the browser walkthrough (T012) is still open, and #199 refuses requests
+without a counter in a later release.
 
 **Input**: User description: "Per-account reset counter, so work from before Delete all progress or
 Reset account can't bring old progress back" (follow-up to spec 006, phase 2c)
