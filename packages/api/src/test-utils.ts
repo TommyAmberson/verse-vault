@@ -224,7 +224,7 @@ export async function googleLink(
   return googleCallback(test, start, profile);
 }
 
-async function googleCallback(
+export async function googleCallback(
   test: TestApp,
   start: Response,
   profile: GoogleProfile,

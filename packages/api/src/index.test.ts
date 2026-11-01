@@ -14,6 +14,7 @@ import {
   createTestDb,
   createTestUser,
   emailCode,
+  googleCallback,
   googleLink,
   googleSignIn,
   pendingCookie,
@@ -186,6 +187,33 @@ describe('password reset', () => {
     expect(await res.json()).toMatchObject({ googleDisconnected: true });
     expect(providers(test, userId)).not.toContain('google');
     expect(test.emails.slice(before).map((e) => e.subject)).toEqual([]);
+  });
+
+  // A Connect Google started before the reset must not finish after it:
+  // the reset ended the session that started it (FR-029).
+  it('refuses a Google link started before the reset', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    for (const email of ['before@gmail.com', 'before@outside.example']) {
+      const { userId } = await signUpTestUser(test, email, 'oldPassword123!');
+      // A first reset verifies the address, so the outside address would link too.
+      await requestReset(test, email);
+      await resetPassword(test, email, emailCode(test.emails, email), 'midPassword123!');
+      const fresh = await signIn(test, email, 'midPassword123!');
+      const freshCookie = fresh.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+      const start = await test.app.request('/api/auth/link-social', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie: freshCookie },
+        body: JSON.stringify({ provider: 'google', callbackURL: 'http://localhost:5173/settings' }),
+      });
+
+      await requestReset(test, email);
+      await resetPassword(test, email, emailCode(test.emails, email), 'newPassword123!');
+      const res = await googleCallback(test, start, { sub: `g-${email}`, email, email_verified: true });
+
+      expect(res.headers.get('location')).toContain('error=');
+      expect(providers(test, userId)).not.toContain('google');
+    }
   });
 
   it('answers a reset without Google as before', async () => {

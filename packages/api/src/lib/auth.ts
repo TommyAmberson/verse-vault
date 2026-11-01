@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { defineRequestState } from '@better-auth/core/context';
 import type { HookEndpointContext } from '@better-auth/core';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, gt, ne } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import {
   APIError,
@@ -265,6 +265,10 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       // failing a reset that has already changed the password.
       onPasswordReset: async ({ user }) => {
         try {
+          // Sessions first: a Connect Google landing now finds the session
+          // that started it gone and is refused, rather than slipping in
+          // before the reset revokes sessions itself.
+          db.delete(schema.session).where(eq(schema.session.userId, user.id)).run();
           const removed = db
             .delete(schema.account)
             .where(and(eq(schema.account.userId, user.id), eq(schema.account.providerId, 'google')))
@@ -379,6 +383,13 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
               code: 'SESSION_NOT_FRESH',
             });
           }
+          // Remember which session started the link: the link only lands
+          // while that session lasts, so a password reset, which ends every
+          // session, also cancels a link started before it (FR-029).
+          if (session) {
+            const body = ctx.body as { additionalData?: Record<string, unknown> };
+            body.additionalData = { ...body.additionalData, linkSession: session.session.id };
+          }
         }
         if (!EMAILING_PATHS.has(ctx.path)) return;
         const email = (ctx.body as { email?: unknown } | undefined)?.email;
@@ -442,7 +453,8 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           // Google account; Better Auth's refusal then stands.
           const linked = await internal
             .linkAccount({ providerId: 'google', accountId: profile.sub, userId: found.user.id })
-            .then(() => true, () => false);
+            // A refusing create hook returns null rather than throwing.
+            .then((created) => !!created, () => false);
           if (!linked) return;
           throw ctx.redirect(state.callbackURL);
         }
@@ -527,6 +539,26 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       },
       account: {
         create: {
+          // Connecting Google (FR-018) lands only while the session that
+          // started it lasts; see the `/link-social` before hook.
+          before: async (account) => {
+            if (account.providerId !== 'google') return;
+            // Outside an OAuth callback (the claim and takeover routes) there
+            // is no state to read, and no link from settings to check.
+            const state = await getOAuthState().catch(() => null);
+            if (!state?.link) return;
+            const started = (state as { linkSession?: unknown }).linkSession;
+            const live = typeof started === 'string' && db
+              .select({ id: schema.session.id })
+              .from(schema.session)
+              .where(and(
+                eq(schema.session.id, started),
+                eq(schema.session.userId, state.link.userId),
+                gt(schema.session.expiresAt, new Date()),
+              ))
+              .get();
+            if (!live) return false;
+          },
           // A Google account joining an account that already has a way to
           // sign in, by any route (choice, Connect Google, or Better Auth
           // linking an authoritative sign-in): tell the owner (FR-027). Not
