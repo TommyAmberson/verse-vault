@@ -67,7 +67,20 @@ new password in the same form, which posts `POST /api/auth/email-otp/reset-passw
 reset:
 
 * ends every session for the account on every device;
-* marks the address verified, since receiving the code proves the inbox.
+* marks the address verified, since receiving the code proves the inbox;
+* ends every session, then disconnects every Google sign-in on the account, so no Google sign-in can
+  land in between, without a separate disconnect notice, and then answers
+  `{ "success": true, "googleDisconnected": true }` instead of `{ "success": true }`. A Google
+  sign-in added by whoever held the address before (a lapsed domain, say) must not outlive the real
+  owner's reset, the pre-hijacking study's defence in depth (Sudhodanan and Paverd, USENIX Security
+  2022, §6.2.2); the owner connects Google again from settings if it's theirs.
+* cancels any Connect Google started before it: `/link-social` records the session that started the
+  link, and the link lands only while that session lasts.
+* cancels the account's pending Google sign-ins (the code step and the choice), as OWASP asks
+  recovery to invalidate outstanding codes;
+* emails the address "Your VerseVault password was reset", saying Google was disconnected, or that
+  disconnecting it failed and to do it in settings, and what to do if it wasn't them (OWASP Forgot
+  Password Cheat Sheet).
 
 An account with only Google sign-in gets its first password this way.
 
@@ -109,7 +122,10 @@ organization's domain. That follows Google's own guidance ("Verify the Google ID
 server side"): for any other address Google checked ownership once, when the Google account was
 created, and the address may since have changed hands. The Google provider's `mapProfileToUser` in
 `packages/api/src/lib/auth.ts` applies the rule, and Better Auth uses the result everywhere it
-trusts Google's address:
+trusts Google's address. A Google sign-up whose `email_verified` is false at all is refused, so no
+account starts out with a Google sign-in for an address Google never confirmed (the "non-verifying
+IdP" route in Sudhodanan and Paverd's pre-hijacking study); an existing link still signs in. The
+refusal redirects with `error=google_email_unverified`. Where the result is used:
 
 * a Google sign-in links into an existing account only when that account is verified and Google is
   authoritative; otherwise Better Auth refuses it with `account_not_linked`, which the steps below

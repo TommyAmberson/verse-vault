@@ -321,7 +321,11 @@ the same sign-in methods still work.
   never confirmed (its "non-verifying IdP" attack), which FR-028 refuses. And a Google sign-in
   linked by someone who once controlled the address survives the real owner's password reset, which
   the study's defence in depth closes by disconnecting on reset unless the owner keeps it (FR-029:
-  the owner keeps it by connecting it again).
+  the owner keeps it by connecting it again). A Google sign-in linked by an unconfirmed sign-up
+  before 2d stays until the owner's next reset removes it; no one-off cleanup was judged worth it. A
+  Workspace account on a domain that changed hands counts as Google-hosted (it carries `hd`), so its
+  next Google sign-in links again after a reset; the owner gets the "Google was connected" notice.
+  Whoever controls the domain controls its Workspace accounts, so this is the existing trust model.
 * **Codes read on another device.** The learner can read the email on a phone and type the code on
   the device that asked for it.
 * **A verification email for an account I did not create.** Someone registered my address and the
@@ -433,10 +437,10 @@ the same sign-in methods still work.
 * **FR-027**: When a Google account joins an account, by any route other than the learner's own
   takeover (FR-020) or a new Google sign-up, the app MUST email the account's address saying so, and
   how to undo it if it wasn't them: sign in with the password (resetting it if needed) and
-  disconnect Google in account settings (FR-018). Disconnecting Google MUST send a notice too,
-  except when a password reset disconnects it (FR-029): the reset code has just gone to that inbox,
-  and the form says Google was disconnected. NIST SP 800-63B-4 requires a notice whenever an
-  authenticator is added, and OWASP when a linked identity is added or removed.
+  disconnect Google in account settings (FR-018). Disconnecting Google MUST send a notice too; when
+  a password reset disconnects it, the reset's own notice (FR-030) says so instead. NIST SP
+  800-63B-4 requires a notice whenever an authenticator is added, and OWASP when a linked identity
+  is added or removed.
 * **FR-028**: A Google sign-up MUST be refused when Google doesn't report the address as verified
   (`email_verified`), so no account starts out carrying a Google sign-in for an address Google never
   confirmed. The learner MUST be told why, and offered to confirm the address with Google or sign up
@@ -444,9 +448,16 @@ the same sign-in methods still work.
 * **FR-029**: Completing a password reset MUST disconnect every Google sign-in on the account, and
   the app MUST then say so and offer to connect Google again from account settings (FR-018). A
   former owner of the address (a lapsed domain, say) therefore keeps no way in after the real owner
-  resets it. The disconnect MUST happen before the reset ends the account's sessions, so no Google
-  sign-in can open a session in between; if it fails, the failure is logged and the reset still
-  completes, since the password has already changed.
+  resets it. When the reset completes, every session MUST have ended and Google MUST be gone, with
+  no Google sign-in or connection able to land in between; a Google connection started before the
+  reset MUST NOT complete after it and is refused with an error. If the disconnect fails, the
+  failure is logged and the reset still completes, since the password has already changed.
+* **FR-030**: Completing a password reset MUST email the address that the password was reset, and
+  what to do if it wasn't them. When the reset disconnected Google, the email MUST say so; when the
+  disconnect failed, it MUST say Google is still connected and to disconnect it in account settings
+  (OWASP Forgot Password Cheat Sheet).
+* **FR-031**: Completing a password reset MUST cancel the account's pending Google sign-ins (the
+  code step and the choice), as OWASP asks recovery to invalidate outstanding codes.
 
 ### Key Entities
 

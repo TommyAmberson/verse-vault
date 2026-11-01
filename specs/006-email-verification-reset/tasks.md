@@ -290,11 +290,16 @@ reset on an account with Google linked leaves no Google sign-in, and the client 
   stashed Google profile.
 - [X] T059 Tests first in `packages/api/src/index.test.ts`: completing a reset on an account with
   Google linked removes every Google account, sends no disconnect notice, and reports it in the
-  response; without Google the response is unchanged. Then the after hook on
-  `/email-otp/reset-password` in `packages/api/src/lib/auth.ts`.
+  response; without Google the response is unchanged. Then `emailAndPassword.onPasswordReset` (before
+  sessions are revoked) and an after hook on `/email-otp/reset-password` that reports it, in
+  `packages/api/src/lib/auth.ts`.
 - [X] T060 In the web reset flow (`apps/web/src/lib/authClient.ts` and the sign-in form), after a
   reset that disconnected Google, say so and point to Connect Google in account settings.
-- [ ] T061 Docs (`docs/server-api.md`, `docs/web-nav.md`), then releases: api and web PATCH.
+- [X] T062 Tests first in `packages/api/src/index.test.ts`: a completed reset emails that the
+  password was reset, mentioning Google when it was disconnected and not otherwise; it deletes the
+  account's pending Google rows. Then in `packages/api/src/lib/email.ts` and `onPasswordReset` in
+  `packages/api/src/lib/auth.ts` (FR-030, FR-031).
+- [X] T061 Docs (`docs/server-api.md`, `docs/web-nav.md`), then releases: api and web PATCH.
 
 ---
 

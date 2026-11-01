@@ -44,9 +44,10 @@ Aliases (redirects): `/` → `/home`, `/session` → `/review`, `/signin` → `/
 
 Emails carry a 6-digit code, entered where it was asked for, through one `CodeField` (number pad,
 `autocomplete="one-time-code"`, "Send a new code"). The sign-in form's "Forgot password?" takes the
-address, then the code and a new password, and signs in. After sign-up the form asks for the
-verification code, with "Skip for now". Both email pages are linked only from emails sent before
-codes, so they sit outside the nav (see [`server-api.md`](server-api.md#codes)).
+address, then the code and a new password, and signs in; when the reset disconnected a Google
+sign-in, it first says so and points to Connect Google in account settings. After sign-up the form
+asks for the verification code, with "Skip for now". Both email pages are linked only from emails
+sent before codes, so they sit outside the nav (see [`server-api.md`](server-api.md#codes)).
 
 Verification status shows in two places: an "Unverified" chip on the profile's card in `/profiles`,
 and an Email address card at the top of `/settings` → Account, with a warning and a "Send

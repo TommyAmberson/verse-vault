@@ -90,5 +90,8 @@ matching account and confirm the code step.
 * Google sign-up with an address Google hasn't verified (stub `email_verified: false` locally): the
   sign-in is refused and no account is created; an existing Google link still signs in.
 * Reset the password of an account with Google connected: the form stops on "Password changed" and
-  says Google was disconnected; account settings then offer Connect Google, and no "Google was
-  disconnected" email arrives.
+  says Google was disconnected; account settings then offer Connect Google. One email arrives, "Your
+  VerseVault password was reset", saying Google was disconnected, and no separate "Google was
+  disconnected" email. A reset without Google sends the same notice without the Google line.
+* Start Connect Google in settings, reset the password from another tab, then finish the Google
+  step: the refusal shows and Google stays disconnected.

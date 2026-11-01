@@ -460,9 +460,20 @@ settings is the same proof, already built).
 
 **Decision**: refuse a Google sign-up whose `email_verified` is false when the user row would be
 created (a `databaseHooks.user.create.before` that reads the profile the Google provider stashed in
-request state). Completing a password reset (`/email-otp/reset-password`) disconnects every Google
-account on the user, without the usual disconnect notice since the reset already went to the inbox,
-and the response tells the client, which says so and points to Connect Google.
+request state), and say why on the redirect (`google_email_unverified`) rather than Better Auth's
+generic failure. Completing a password reset disconnects every Google account on the user in
+`emailAndPassword.onPasswordReset`, which runs after the password changes and before Better Auth
+revokes sessions: it ends the account's sessions itself first, so a Connect Google landing now finds
+its session gone, then deletes the Google rows directly, without the usual disconnect notice since
+the reset already went to the inbox, logs a failure rather than failing a reset that already changed
+the password, and flags the request so the response tells the client, which says so and points to
+Connect Google. Connecting Google from settings records the session that started it in the OAuth
+state, and the link lands only while that session lasts, so a reset, which ends every session, also
+cancels a connection started before it. The reset then emails the address that the password was
+reset, saying Google was disconnected, or that disconnecting it failed and how to do it in settings
+(FR-030), and deletes the account's pending Google rows (FR-031). Signing in after the reset goes
+through the normal password sign-in with the new password, not a session the reset issues, as
+OWASP's Forgot Password Cheat Sheet asks.
 
 **Rationale**: the pre-hijacking study's root fix is to trust a provider only with "a strong
 guarantee" that it verified the address (§6.2.1), and its defence in depth for resets is to unlink

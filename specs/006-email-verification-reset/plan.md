@@ -63,8 +63,8 @@ spend the quota (research D5, D13); no send failure may fail or slow a request
 plugin, a `hooks.before` refusing its out-of-scope routes, one confirm route, code fields in the
 sign-in form, settings, and the picker, and turns the two link pages into "request a code" pages. 2c
 is one lib extension, one route, and a settings card. 2d is a user create hook, the reset callback
-that disconnects Google before sessions are revoked, an after hook that reports it, and one step in
-the sign-in form.
+that ends sessions and disconnects Google, an after hook that reports it, and one step in the
+sign-in form.
 
 **Scale/Scope (phase 1)**: phase 1 touches `lib/auth.ts`, one new sender module, the app's env
 wiring, five web files and two new web pages, four docs, and the provision script. Phase 2 adds two
