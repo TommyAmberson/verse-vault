@@ -4,7 +4,8 @@
 
 **Created**: 2026-10-06
 
-**Status**: In progress (phase 1, 2a and 2b shipped)
+**Status**: Shipped (phases 1, 2a, 2b and 2c); the 2b production checks (T049) are still open. The
+follow-up for devices that miss a wipe is [spec 007](../007-reset-counter/spec.md).
 
 **Input**: User description: "adding email verification and password reset"
 (TommyAmberson/verse-vault#171)
