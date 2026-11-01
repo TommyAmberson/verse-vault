@@ -277,6 +277,25 @@ Google, and their docs move into 2b and are amended by Phase 12. The test helper
 
 - [X] T051 [US5] On the branch from T038 (`feat/reset-account`), rebased on master, run Phase 8's tests and quickstart.md's phase 2c check; if 2b merged first, add "or Reset account" back to the takeover notice in `apps/web/src/views/ProfilePickerView.vue` and `docs/web-nav.md` (2b points only to Delete all progress); then release api PATCH and web PATCH, one bump commit each with a CHANGELOG entry
 
+## Phase 15: Phase 2d - Close the Google pre-hijacking routes (PR 2d)
+
+**Goal**: FR-028 and FR-029 (research D19).
+
+**Independent Test**: a Google sign-up with `email_verified` false is refused and creates no user; a
+reset on an account with Google linked leaves no Google sign-in, and the client says so.
+
+- [ ] T058 Tests first in `packages/api/src/index.test.ts`: a Google sign-up whose `email_verified`
+  is false is refused and creates no user or account; an existing Google link still signs in. Then
+  the refusal as a `databaseHooks.user.create.before` in `packages/api/src/lib/auth.ts` reading the
+  stashed Google profile.
+- [ ] T059 Tests first in `packages/api/src/index.test.ts`: completing a reset on an account with
+  Google linked removes every Google account, sends no disconnect notice, and reports it in the
+  response; without Google the response is unchanged. Then the after hook on
+  `/email-otp/reset-password` in `packages/api/src/lib/auth.ts`.
+- [ ] T060 In the web reset flow (`apps/web/src/lib/authClient.ts` and the sign-in form), after a
+  reset that disconnected Google, say so and point to Connect Google in account settings.
+- [ ] T061 Docs (`docs/server-api.md`, `docs/web-nav.md`), then releases: api and web PATCH.
+
 ---
 
 ## Dependencies & Execution Order

@@ -456,9 +456,27 @@ reset would not remove.
 **Alternatives considered**: a separate code step inside Connect Google (the verification code in
 settings is the same proof, already built).
 
+## D19. Closing the Google pre-hijacking routes (2d)
+
+**Decision**: refuse a Google sign-up whose `email_verified` is false when the user row would be
+created (a `databaseHooks.user.create.before` that reads the profile the Google provider stashed in
+request state). Completing a password reset (`/email-otp/reset-password`) disconnects every Google
+account on the user, without the usual disconnect notice since the reset already went to the inbox,
+and the response tells the client, which says so and points to Connect Google.
+
+**Rationale**: the pre-hijacking study's root fix is to trust a provider only with "a strong
+guarantee" that it verified the address (§6.2.1), and its defence in depth for resets is to unlink
+federated identities by default and let the owner choose which to keep (§6.2.2). Reconnecting from
+settings is that choice, using the existing Connect Google flow; a learner who still uses Google
+signs in with it rather than resetting, so the extra step is rare.
+
+**Alternatives considered**: listing linked Google accounts after the reset with a tick box to keep
+each (the study's wording; needs a held state and a restore route for little gain over reconnect);
+removing links only on unverified accounts (misses a verified account whose address changed hands).
+
 ## D18. Delivery (2a, 2b, 2c)
 
-**Decision**: three pull requests, each with api and web PATCH releases where they touch them.
+**Decision**: four pull requests, each with api and web PATCH releases where they touch them.
 
 * **2a** (`fix/google-authoritative-email`, off master): D14, with tests that an authoritative Gmail
   or Workspace sign-in links as before and an outside address does not link, does not verify, and
@@ -470,6 +488,8 @@ settings is the same proof, already built).
   the docs for them.
 * **2c** (`feat/reset-account`, off master): Reset account (User Story 5), whose commits move over
   unchanged.
+
+* **2d** (`fix/google-pre-hijack`, off master, after the qzr-sheet spec security review): D19.
 
 **Rationale**: 2a closes a gap already live and is small, so it should not wait on the code rework.
 Reset account is independent of the Google work.
