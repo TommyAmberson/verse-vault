@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-02
 
-**Status**: Draft
+**Status**: Shipped; the rendering check (T010) and the quickstart run (T018) are still open.
 
 **Input**: Redesign the type-to-recite feedback shown on the back of a card. The current word diff
 is hard to read: it is unclear what was missing versus extra, and where. Replace it with a

@@ -4,7 +4,8 @@
 
 **Created**: 2026-10-02
 
-**Status**: Draft (clarified 2026-10-02: extras caps, drill order, single-book drill)
+**Status**: Shipped (clarified 2026-10-02: extras caps, drill order, single-book drill); the
+quickstart run (T016) is still open, and the follow-up is #188.
 
 **Input**: User description: "The memorize session flow: what happens from pressing Memorize to the
 verses being memorized. Today the web Memorize page runs its own three phases (read every item,

@@ -241,7 +241,7 @@ finds nothing.
 - [ ] T016 Run quickstart.md: the automated block (`cargo test`, `cargo clippy --all-targets -- -D
       warnings`, `pnpm test`, `dprint check`, `typos`) and the manual web check, on an account with
       owed verses and outstanding extras
-- [ ] T017 With the user's go-ahead, file the follow-up issue plan.md's Complexity Tracking
+- [X] T017 With the user's go-ahead, file the follow-up issue plan.md's Complexity Tracking
       proposes: move the session builder from `crates/wasm/src/lib.rs` into core. Mention
       `CardKind::Reading` and the uncalled core `Session` type (research D6) in it or a sibling
       issue, as the user prefers
