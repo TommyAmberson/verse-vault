@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { defineRequestState } from '@better-auth/core/context';
+import type { HookEndpointContext } from '@better-auth/core';
 import { and, eq, ne } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import {
@@ -157,6 +158,10 @@ const googleProfile = defineRequestState<{
   authoritative: boolean;
 } | null>(() => null);
 
+/** Set when the current password reset disconnected Google, so the reset's
+ *  response can say so (FR-029). */
+const googleDisconnectedByReset = defineRequestState<boolean>(() => false);
+
 export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const isProd = process.env.NODE_ENV === 'production';
   // Browsers send Origin headers as scheme+host+port only — never a path.
@@ -250,6 +255,25 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       // Reset by code (the email-code plugin below) ends every session; the
       // plugin also verifies the address, since the code proves the inbox.
       revokeSessionsOnPasswordReset: true,
+      // A completed reset disconnects every Google sign-in on the account:
+      // one added by whoever held the address before (a lapsed domain, say)
+      // must not outlive the real owner's reset (FR-029, research D19). This
+      // runs before the sessions are revoked, so a Google sign-in can't slip
+      // a session in between. Straight to the table, past the account delete
+      // hook and its notice: the reset went to the same inbox, and the
+      // response tells the client. A failure here is logged rather than
+      // failing a reset that has already changed the password.
+      onPasswordReset: async ({ user }) => {
+        try {
+          const removed = db
+            .delete(schema.account)
+            .where(and(eq(schema.account.userId, user.id), eq(schema.account.providerId, 'google')))
+            .run().changes;
+          if (removed > 0) await googleDisconnectedByReset.set(true);
+        } catch (err) {
+          console.error('[auth] disconnecting Google on reset failed:', err);
+        }
+      },
     },
     emailVerification: {
       // The email-code plugin sends this as a code.
@@ -372,10 +396,20 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       // checked the address. Where it doesn't speak for the address, the
       // inbox still needs proving (research D16, D17).
       after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === '/email-otp/reset-password') return reportGoogleDisconnected(ctx);
         if (ctx.path !== '/callback/:id') return;
         const location = ctx.context.responseHeaders?.get('location');
         const profile = await googleProfile.get();
-        if (!location || !profile?.emailVerified) return;
+        if (!location || !profile) return;
+        if (!profile.emailVerified) {
+          // The user create hook refused a sign-up for an address Google
+          // never confirmed (FR-028): say why, rather than Better Auth's
+          // generic failure, which invites a retry that can't work.
+          const refused = new URL(location, webBase);
+          if (refused.searchParams.get('error') !== 'unable_to_create_user') return;
+          refused.searchParams.set('error', 'google_email_unverified');
+          throw ctx.redirect(refused.toString());
+        }
         const internal = ctx.context.internalAdapter;
         const redirect = new URL(location, webBase);
         const error = redirect.searchParams.get('error');
@@ -589,6 +623,12 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       sendEmail(googleCodeEmail(pending.email, code, CODE_TTL_S / 60));
       return 'sent';
     });
+  }
+
+  /** Tells the client when the reset just completed disconnected Google. */
+  async function reportGoogleDisconnected(ctx: HookEndpointContext) {
+    if (!(await googleDisconnectedByReset.get())) return;
+    return ctx.json?.({ success: true, googleDisconnected: true });
   }
 
   /** Runs `link` without the "Google was connected" or "disconnected"

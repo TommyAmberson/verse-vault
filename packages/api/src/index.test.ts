@@ -37,6 +37,10 @@ function isVerified(test: TestApp, userId: string): boolean | undefined {
   return test.db.select().from(user).where(eq(user.id, userId)).get()?.emailVerified;
 }
 
+function userRow(test: TestApp, email: string) {
+  return test.db.select().from(user).all().find((u) => u.email === email);
+}
+
 /** The account's sign-in methods: `credential` for a password, `google`. */
 function providers(test: TestApp, userId: string): string[] {
   return test.db
@@ -161,6 +165,39 @@ describe('password reset', () => {
     expect((await signIn(test, 'change@example.com', 'newPassword123!')).status).toBe(200);
     expect((await test.app.request('/api/me', { headers: { cookie } })).status).toBe(401);
     expect(isVerified(test, userId)).toBe(true);
+  });
+
+  // A Google sign-in added by whoever held the address before must not
+  // outlive the real owner's reset (FR-029): it is disconnected, and the
+  // owner connects it again if it's theirs.
+  it('disconnects Google on a reset and says so, without a disconnect notice', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await googleSignIn(test, { sub: 'g-old', email: 'lapsed@outside.example', email_verified: true });
+    const userId = userRow(test, 'lapsed@outside.example')!.id;
+    expect(providers(test, userId)).toContain('google');
+    await requestReset(test, 'lapsed@outside.example');
+    const before = test.emails.length;
+
+    const code = emailCode(test.emails, 'lapsed@outside.example');
+    const res = await resetPassword(test, 'lapsed@outside.example', code, 'newPassword123!');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ googleDisconnected: true });
+    expect(providers(test, userId)).not.toContain('google');
+    expect(test.emails.slice(before).map((e) => e.subject)).toEqual([]);
+  });
+
+  it('answers a reset without Google as before', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'plain@example.com');
+    await requestReset(test, 'plain@example.com');
+
+    const code = emailCode(test.emails, 'plain@example.com');
+    const res = await resetPassword(test, 'plain@example.com', code, 'newPassword123!');
+
+    expect(await res.json()).toEqual({ success: true });
   });
 
   it('accepts only the newest code, and only once', async () => {
@@ -572,10 +609,6 @@ describe('Google sign-in onto a password account', () => {
       .filter((a) => a.userId === userId && a.providerId === 'google');
   }
 
-  function userRow(test: TestApp, email: string) {
-    return test.db.select().from(user).all().find((u) => u.email === email);
-  }
-
   // Google speaks for an address only when it hosts the mail: a Gmail
   // address, or a Workspace account.
   it('links a Gmail account into a verified account', async () => {
@@ -706,7 +739,7 @@ describe('Google sign-in onto a password account', () => {
       email_verified: false,
     });
 
-    expect(res.headers.get('location')).toContain('error=');
+    expect(res.headers.get('location')).toContain('error=google_email_unverified');
     expect(userRow(test, 'unconfirmed@gmail.com')).toBeUndefined();
   });
 

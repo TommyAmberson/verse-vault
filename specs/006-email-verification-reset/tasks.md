@@ -288,7 +288,7 @@ reset on an account with Google linked leaves no Google sign-in, and the client 
   is false is refused and creates no user or account; an existing Google link still signs in. Then
   the refusal as a `databaseHooks.user.create.before` in `packages/api/src/lib/auth.ts` reading the
   stashed Google profile.
-- [ ] T059 Tests first in `packages/api/src/index.test.ts`: completing a reset on an account with
+- [X] T059 Tests first in `packages/api/src/index.test.ts`: completing a reset on an account with
   Google linked removes every Google account, sends no disconnect notice, and reports it in the
   response; without Google the response is unchanged. Then the after hook on
   `/email-otp/reset-password` in `packages/api/src/lib/auth.ts`.
