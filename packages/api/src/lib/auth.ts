@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { defineRequestState } from '@better-auth/core/context';
 import type { HookEndpointContext } from '@better-auth/core';
-import { and, eq, gt, ne } from 'drizzle-orm';
+import { and, eq, gt, like, ne, sql } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import {
   APIError,
@@ -22,6 +22,7 @@ import {
   googleCodeEmail,
   googleLinkedEmail,
   googleUnlinkedEmail,
+  passwordResetEmail,
   resetCodeEmail,
   verificationCodeEmail,
 } from './email.js';
@@ -258,25 +259,51 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       // A completed reset disconnects every Google sign-in on the account:
       // one added by whoever held the address before (a lapsed domain, say)
       // must not outlive the real owner's reset (FR-029, research D19). This
-      // runs before the sessions are revoked, so a Google sign-in can't slip
-      // a session in between. Straight to the table, past the account delete
-      // hook and its notice: the reset went to the same inbox, and the
-      // response tells the client. A failure here is logged rather than
-      // failing a reset that has already changed the password.
+      // runs before Better Auth revokes sessions. Straight to the table, past
+      // the account delete hook and its notice: the reset's own notice
+      // (FR-030) says what happened to Google, and the response tells the
+      // client. A failure here is logged rather than failing a reset that
+      // has already changed the password.
       onPasswordReset: async ({ user }) => {
+        let google: 'none' | 'disconnected' | 'still-connected' = 'none';
         try {
           // Sessions first: a Connect Google landing now finds the session
           // that started it gone and is refused, rather than slipping in
-          // before the reset revokes sessions itself.
+          // before the reset revokes sessions itself. Better Auth revokes
+          // them again afterwards, which covers this step failing.
           db.delete(schema.session).where(eq(schema.session.userId, user.id)).run();
           const removed = db
             .delete(schema.account)
             .where(and(eq(schema.account.userId, user.id), eq(schema.account.providerId, 'google')))
             .run().changes;
-          if (removed > 0) await googleDisconnectedByReset.set(true);
+          if (removed > 0) google = 'disconnected';
         } catch (err) {
           console.error('[auth] disconnecting Google on reset failed:', err);
+          google = googleLeft(user.id);
         }
+        // Its own step, so failing to flag the response can't hide a
+        // disconnect from the notice.
+        if (google === 'disconnected') {
+          try {
+            await googleDisconnectedByReset.set(true);
+          } catch (err) {
+            console.error('[auth] flagging the reset response failed:', err);
+          }
+        }
+        try {
+          // Recovery invalidates outstanding codes (OWASP): pending Google
+          // sign-ins for the account go too (FR-031).
+          db.delete(schema.verification)
+            .where(and(
+              like(schema.verification.identifier, `${PENDING_GOOGLE_PREFIX}%`),
+              sql`json_extract(${schema.verification.value}, '$.userId') = ${user.id}`,
+            ))
+            .run();
+        } catch (err) {
+          console.error('[auth] cancelling pending Google sign-ins on reset failed:', err);
+        }
+        // Tell the owner, whatever the reset did to Google (FR-030).
+        sendEmail(passwordResetEmail(user.email, google));
       },
     },
     emailVerification: {
@@ -386,7 +413,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           // Remember which session started the link: the link only lands
           // while that session lasts, so a password reset, which ends every
           // session, also cancels a link started before it (FR-029).
-          if (session) {
+          if (session && ctx.body && typeof ctx.body === 'object') {
             const body = ctx.body as { additionalData?: Record<string, unknown> };
             body.additionalData = { ...body.additionalData, linkSession: session.session.id };
           }
@@ -655,6 +682,21 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       sendEmail(googleCodeEmail(pending.email, code, CODE_TTL_S / 60));
       return 'sent';
     });
+  }
+
+  /** After a failed disconnect, whether the account still has Google. If
+   *  even that can't be read, say so, so the owner checks. */
+  function googleLeft(userId: string): 'none' | 'still-connected' {
+    try {
+      const left = db
+        .select({ id: schema.account.id })
+        .from(schema.account)
+        .where(and(eq(schema.account.userId, userId), eq(schema.account.providerId, 'google')))
+        .get();
+      return left ? 'still-connected' : 'none';
+    } catch {
+      return 'still-connected';
+    }
   }
 
   /** Tells the client when the reset just completed disconnected Google. */

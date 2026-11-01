@@ -171,7 +171,7 @@ describe('password reset', () => {
   // A Google sign-in added by whoever held the address before must not
   // outlive the real owner's reset (FR-029): it is disconnected, and the
   // owner connects it again if it's theirs.
-  it('disconnects Google on a reset and says so, without a disconnect notice', async () => {
+  it('disconnects Google on a reset and says so in the reset notice', async () => {
     const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
     cleanup = test.cleanup;
     await googleSignIn(test, { sub: 'g-old', email: 'lapsed@outside.example', email_verified: true });
@@ -186,7 +186,9 @@ describe('password reset', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ googleDisconnected: true });
     expect(providers(test, userId)).not.toContain('google');
-    expect(test.emails.slice(before).map((e) => e.subject)).toEqual([]);
+    const sent = test.emails.slice(before);
+    expect(sent.map((e) => e.subject)).toEqual(['Your VerseVault password was reset']);
+    expect(sent[0]!.text).toMatch(/Google was disconnected/);
   });
 
   // A Connect Google started before the reset must not finish after it:
@@ -223,9 +225,30 @@ describe('password reset', () => {
     await requestReset(test, 'plain@example.com');
 
     const code = emailCode(test.emails, 'plain@example.com');
+    const before = test.emails.length;
     const res = await resetPassword(test, 'plain@example.com', code, 'newPassword123!');
 
     expect(await res.json()).toEqual({ success: true });
+    // OWASP: tell the owner the password was reset (FR-030).
+    const sent = test.emails.slice(before);
+    expect(sent.map((e) => e.subject)).toEqual(['Your VerseVault password was reset']);
+    expect(sent[0]!.text).not.toMatch(/Google/);
+  });
+
+  it('cancels pending Google sign-ins on a reset', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'pending@outside.example');
+    await googleSignIn(test, { sub: 'g-pending', email: 'pending@outside.example', email_verified: true });
+    const pending = () =>
+      test.db.select().from(verification).all().filter((v) => v.identifier.startsWith('pending-google:'));
+    expect(pending()).toHaveLength(1);
+    await requestReset(test, 'pending@outside.example');
+
+    const code = emailCode(test.emails.filter((e) => /reset/i.test(e.subject)), 'pending@outside.example');
+    await resetPassword(test, 'pending@outside.example', code, 'newPassword123!');
+
+    expect(pending()).toHaveLength(0);
   });
 
   it('accepts only the newest code, and only once', async () => {
