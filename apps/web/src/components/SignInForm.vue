@@ -54,7 +54,7 @@ if (oauthError) {
   void router.replace({ query: queryWithout(route.query, 'error', 'error_description') })
 }
 
-const mode = ref<'pick' | 'signin' | 'signup' | 'forgot' | 'signedUp'>(
+const mode = ref<'pick' | 'signin' | 'signup' | 'forgot' | 'signedUp' | 'googleDisconnected'>(
   props.forgot
     ? 'forgot'
     : props.reauth?.provider === 'email' || oauthError?.passwordAccount
@@ -105,6 +105,9 @@ async function sendResetCode() {
   }
 }
 
+// Set by a reset that disconnected Google, for the step after sign-in.
+let googleDisconnected = false
+
 /** Sets the new password with the code, then signs in with it. */
 async function submitReset() {
   error.value = ''
@@ -112,6 +115,9 @@ async function submitReset() {
   try {
     const result = await props.resetPassword(email.value, code.value, password.value)
     error.value = codeErrorMessage(result) ?? ''
+    // A reset that disconnected the account's Google sign-in says so (FR-029).
+    const data = (result as { data?: { googleDisconnected?: unknown } | null } | undefined)?.data
+    googleDisconnected = data?.googleDisconnected === true
   } catch {
     // Offline, or the server never answered.
     error.value = 'Something went wrong. Try again.'
@@ -122,13 +128,18 @@ async function submitReset() {
   }
   // The password has changed and the code is spent, so anything failing from
   // here sends the learner to sign in with the new password.
+  // The notice about Google ends in this form, so the parent must keep it
+  // mounted once the signed-in profile appears.
+  if (googleDisconnected) emit('hold', true)
   try {
     // The reset ended every session for this account, including any this
     // device still holds; drop them before signing in afresh.
     await reconcileDeviceSessions()
     const signedIn = await props.signInEmail(email.value, password.value)
     if (!signedIn?.error) {
-      emit('success')
+      // Say so before leaving, so the owner can connect it again.
+      if (googleDisconnected) mode.value = 'googleDisconnected'
+      else emit('success')
       return
     }
   } catch {
@@ -136,8 +147,17 @@ async function submitReset() {
   } finally {
     pending.value = false
   }
+  emit('hold', false)
   mode.value = 'signin'
-  error.value = 'Password changed. Sign in with it.'
+  error.value = googleDisconnected
+    ? 'Password changed, and your Google sign-in was disconnected in case someone else had added it. Sign in with the new password; if Google is yours, connect it again in account settings.'
+    : 'Password changed. Sign in with it.'
+}
+
+/** Leaves the note about Google that ends a reset. */
+function finishGoogleNotice() {
+  emit('hold', false)
+  emit('success')
 }
 
 async function submitVerify() {
@@ -230,6 +250,15 @@ async function submitEmail() {
         </button>
       </form>
       <button type="button" class="link-btn" @click="emit('success')">Skip for now</button>
+    </template>
+
+    <template v-else-if="mode === 'googleDisconnected'">
+      <p class="form-title">Password changed</p>
+      <p class="auth-notice" role="status">
+        Your Google sign-in was disconnected, in case someone else had added it. If it's yours,
+        connect it again in account settings.
+      </p>
+      <button type="button" class="auth-submit" @click="finishGoogleNotice">Continue</button>
     </template>
 
     <template v-else-if="mode === 'forgot'">

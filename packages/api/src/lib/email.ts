@@ -112,6 +112,37 @@ export function googleUnlinkedEmail(to: string): EmailMessage {
   };
 }
 
+/** Sent after every completed password reset (OWASP), saying what the
+ *  reset did to a connected Google sign-in. */
+export function passwordResetEmail(
+  to: string,
+  google: 'none' | 'disconnected' | 'still-connected',
+): EmailMessage {
+  const subject = 'Your VerseVault password was reset';
+  const lines = [
+    'The password for your VerseVault account was just reset, and every session was signed out.',
+    ...(google === 'disconnected'
+      ? [
+        'Google was disconnected from your account, in case someone else had added it. If it was ' +
+        'yours, connect it again in account settings.',
+      ]
+      : google === 'still-connected'
+      ? [
+        "We couldn't disconnect Google from your account. If you didn't add it, disconnect it in " +
+        'account settings.',
+      ]
+      : []),
+    "If this wasn't you, reset your password again from the sign-in page (\"Forgot password?\"), " +
+    'and check who can read this inbox.',
+  ];
+  return {
+    to,
+    subject,
+    text: lines.join('\n\n'),
+    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('\n'),
+  };
+}
+
 interface CodeEmailParts {
   subject: string;
   reason: string;

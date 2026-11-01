@@ -10,6 +10,30 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.54] - 2026-10-31
+
+PATCH: close two Google pre-hijacking routes.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Fixed
+
+* A Google sign-up for an address Google hasn't verified (`email_verified` false) is refused, so no
+  account starts out with a Google sign-in for someone else's address.
+* A completed password reset disconnects every Google sign-in on the account and answers
+  `googleDisconnected: true`, so a Google sign-in added by a former holder of the address doesn't
+  outlive the real owner's reset.
+* A Connect Google started before a password reset can't complete after it: the link lands only
+  while the session that started it lasts.
+
+### Added
+
+* Every completed password reset emails the address that the password was reset, saying whether
+  Google was disconnected, and cancels the account's pending Google sign-ins.
+
 ## [0.1.53] - 2026-10-31
 
 MINOR: a wipe can't be undone by a device that missed it.

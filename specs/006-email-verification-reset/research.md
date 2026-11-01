@@ -456,9 +456,38 @@ reset would not remove.
 **Alternatives considered**: a separate code step inside Connect Google (the verification code in
 settings is the same proof, already built).
 
+## D19. Closing the Google pre-hijacking routes (2d)
+
+**Decision**: refuse a Google sign-up whose `email_verified` is false when the user row would be
+created (a `databaseHooks.user.create.before` that reads the profile the Google provider stashed in
+request state), and say why on the redirect (`google_email_unverified`) rather than Better Auth's
+generic failure. Completing a password reset disconnects every Google account on the user in
+`emailAndPassword.onPasswordReset`, which runs after the password changes and before Better Auth
+revokes sessions: it ends the account's sessions itself first, so a Connect Google landing now finds
+its session gone, then deletes the Google rows directly, without the usual disconnect notice since
+the reset already went to the inbox, logs a failure rather than failing a reset that already changed
+the password, and flags the request so the response tells the client, which says so and points to
+Connect Google. Connecting Google from settings records the session that started it in the OAuth
+state, and the link lands only while that session lasts, so a reset, which ends every session, also
+cancels a connection started before it. The reset then emails the address that the password was
+reset, saying Google was disconnected, or that disconnecting it failed and how to do it in settings
+(FR-030), and deletes the account's pending Google rows (FR-031). Signing in after the reset goes
+through the normal password sign-in with the new password, not a session the reset issues, as
+OWASP's Forgot Password Cheat Sheet asks.
+
+**Rationale**: the pre-hijacking study's root fix is to trust a provider only with "a strong
+guarantee" that it verified the address (§6.2.1), and its defence in depth for resets is to unlink
+federated identities by default and let the owner choose which to keep (§6.2.2). Reconnecting from
+settings is that choice, using the existing Connect Google flow; a learner who still uses Google
+signs in with it rather than resetting, so the extra step is rare.
+
+**Alternatives considered**: listing linked Google accounts after the reset with a tick box to keep
+each (the study's wording; needs a held state and a restore route for little gain over reconnect);
+removing links only on unverified accounts (misses a verified account whose address changed hands).
+
 ## D18. Delivery (2a, 2b, 2c)
 
-**Decision**: three pull requests, each with api and web PATCH releases where they touch them.
+**Decision**: four pull requests, each with api and web PATCH releases where they touch them.
 
 * **2a** (`fix/google-authoritative-email`, off master): D14, with tests that an authoritative Gmail
   or Workspace sign-in links as before and an outside address does not link, does not verify, and
@@ -470,6 +499,8 @@ settings is the same proof, already built).
   the docs for them.
 * **2c** (`feat/reset-account`, off master): Reset account (User Story 5), whose commits move over
   unchanged.
+
+* **2d** (`fix/google-pre-hijack`, off master, after the qzr-sheet spec security review): D19.
 
 **Rationale**: 2a closes a gap already live and is small, so it should not wait on the code rework.
 Reset account is independent of the Google work.

@@ -42,6 +42,8 @@ const LINK_ERRORS: Record<string, string> = {
   // Google doesn't speak for this address, and the account hasn't proven
   // the inbox yet (research D17).
   verify_email_first: 'Verify your email address with a code first, then connect Google.',
+  google_email_unverified:
+    "Google hasn't confirmed this account's email address. Confirm it with Google, or create an account with your email instead.",
 }
 
 /** `query` without `keys`, for dropping one-shot parameters through the

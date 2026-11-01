@@ -14,6 +14,7 @@ import {
   createTestDb,
   createTestUser,
   emailCode,
+  googleCallback,
   googleLink,
   googleSignIn,
   pendingCookie,
@@ -35,6 +36,10 @@ const wrongFor = (code: string) => (code === '000000' ? '111111' : '000000');
 
 function isVerified(test: TestApp, userId: string): boolean | undefined {
   return test.db.select().from(user).where(eq(user.id, userId)).get()?.emailVerified;
+}
+
+function userRow(test: TestApp, email: string) {
+  return test.db.select().from(user).all().find((u) => u.email === email);
 }
 
 /** The account's sign-in methods: `credential` for a password, `google`. */
@@ -161,6 +166,89 @@ describe('password reset', () => {
     expect((await signIn(test, 'change@example.com', 'newPassword123!')).status).toBe(200);
     expect((await test.app.request('/api/me', { headers: { cookie } })).status).toBe(401);
     expect(isVerified(test, userId)).toBe(true);
+  });
+
+  // A Google sign-in added by whoever held the address before must not
+  // outlive the real owner's reset (FR-029): it is disconnected, and the
+  // owner connects it again if it's theirs.
+  it('disconnects Google on a reset and says so in the reset notice', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await googleSignIn(test, { sub: 'g-old', email: 'lapsed@outside.example', email_verified: true });
+    const userId = userRow(test, 'lapsed@outside.example')!.id;
+    expect(providers(test, userId)).toContain('google');
+    await requestReset(test, 'lapsed@outside.example');
+    const before = test.emails.length;
+
+    const code = emailCode(test.emails, 'lapsed@outside.example');
+    const res = await resetPassword(test, 'lapsed@outside.example', code, 'newPassword123!');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ googleDisconnected: true });
+    expect(providers(test, userId)).not.toContain('google');
+    const sent = test.emails.slice(before);
+    expect(sent.map((e) => e.subject)).toEqual(['Your VerseVault password was reset']);
+    expect(sent[0]!.text).toMatch(/Google was disconnected/);
+  });
+
+  // A Connect Google started before the reset must not finish after it:
+  // the reset ended the session that started it (FR-029).
+  it('refuses a Google link started before the reset', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    for (const email of ['before@gmail.com', 'before@outside.example']) {
+      const { userId } = await signUpTestUser(test, email, 'oldPassword123!');
+      // A first reset verifies the address, so the outside address would link too.
+      await requestReset(test, email);
+      await resetPassword(test, email, emailCode(test.emails, email), 'midPassword123!');
+      const fresh = await signIn(test, email, 'midPassword123!');
+      const freshCookie = fresh.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+      const start = await test.app.request('/api/auth/link-social', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie: freshCookie },
+        body: JSON.stringify({ provider: 'google', callbackURL: 'http://localhost:5173/settings' }),
+      });
+
+      await requestReset(test, email);
+      await resetPassword(test, email, emailCode(test.emails, email), 'newPassword123!');
+      const res = await googleCallback(test, start, { sub: `g-${email}`, email, email_verified: true });
+
+      expect(res.headers.get('location')).toContain('error=');
+      expect(providers(test, userId)).not.toContain('google');
+    }
+  });
+
+  it('answers a reset without Google as before', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'plain@example.com');
+    await requestReset(test, 'plain@example.com');
+
+    const code = emailCode(test.emails, 'plain@example.com');
+    const before = test.emails.length;
+    const res = await resetPassword(test, 'plain@example.com', code, 'newPassword123!');
+
+    expect(await res.json()).toEqual({ success: true });
+    // OWASP: tell the owner the password was reset (FR-030).
+    const sent = test.emails.slice(before);
+    expect(sent.map((e) => e.subject)).toEqual(['Your VerseVault password was reset']);
+    expect(sent[0]!.text).not.toMatch(/Google/);
+  });
+
+  it('cancels pending Google sign-ins on a reset', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'pending@outside.example');
+    await googleSignIn(test, { sub: 'g-pending', email: 'pending@outside.example', email_verified: true });
+    const pending = () =>
+      test.db.select().from(verification).all().filter((v) => v.identifier.startsWith('pending-google:'));
+    expect(pending()).toHaveLength(1);
+    await requestReset(test, 'pending@outside.example');
+
+    const code = emailCode(test.emails.filter((e) => /reset/i.test(e.subject)), 'pending@outside.example');
+    await resetPassword(test, 'pending@outside.example', code, 'newPassword123!');
+
+    expect(pending()).toHaveLength(0);
   });
 
   it('accepts only the newest code, and only once', async () => {
@@ -572,10 +660,6 @@ describe('Google sign-in onto a password account', () => {
       .filter((a) => a.userId === userId && a.providerId === 'google');
   }
 
-  function userRow(test: TestApp, email: string) {
-    return test.db.select().from(user).all().find((u) => u.email === email);
-  }
-
   // Google speaks for an address only when it hosts the mail: a Gmail
   // address, or a Workspace account.
   it('links a Gmail account into a verified account', async () => {
@@ -692,6 +776,33 @@ describe('Google sign-in onto a password account', () => {
     expect(userRow(test, 'new@gmail.com')?.emailVerified).toBe(true);
     expect(userRow(test, 'new@example.com')?.emailVerified).toBe(true);
     expect(userRow(test, 'new@outside.example')?.emailVerified).toBe(false);
+  });
+
+  // An address Google never confirmed is the pre-hijacking study's
+  // "non-verifying IdP" route (FR-028).
+  it("refuses a Google sign-up for an address Google hasn't verified", async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+
+    const res = await googleSignIn(test, {
+      sub: 'g-unconfirmed',
+      email: 'unconfirmed@gmail.com',
+      email_verified: false,
+    });
+
+    expect(res.headers.get('location')).toContain('error=google_email_unverified');
+    expect(userRow(test, 'unconfirmed@gmail.com')).toBeUndefined();
+  });
+
+  it('still signs in through an existing Google link if Google stops reporting it verified', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const profile = { sub: 'g-later', email: 'later@gmail.com', email_verified: true };
+    await googleSignIn(test, profile);
+
+    const res = await googleSignIn(test, { ...profile, email_verified: false });
+
+    expect(res.headers.get('location')).toBe('http://localhost:5173/home');
   });
 });
 

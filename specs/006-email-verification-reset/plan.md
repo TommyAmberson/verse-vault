@@ -1,7 +1,7 @@
 # Implementation Plan: Email Verification and Password Reset
 
-**Branch**: `feat/email-verification-reset` (phase 1), then 2a, 2b, 2c (research D18) | **Date**:
-2026-10-07, revised 2026-10-13 | **Spec**: [spec.md](./spec.md)
+**Branch**: `feat/email-verification-reset` (phase 1), then 2a, 2b, 2c, 2d (research D18) |
+**Date**: 2026-10-07, revised 2026-10-13 | **Spec**: [spec.md](./spec.md)
 
 **Input**: Feature specification from `specs/006-email-verification-reset/spec.md`
 
@@ -24,7 +24,9 @@ claim), in the provider's `mapProfileToUser`, closing a gap already in productio
 replaces links with codes through Better Auth's `emailOTP` plugin (D15), adds an emailed code before
 a non-authoritative Google sign-in can link or reach the choice (D16), and limits Connect Google to
 verified accounts unless Google is authoritative (D17), carrying over the choice screen, takeover,
-and Connect Google already built. **2c** is Reset account.
+and Connect Google already built. **2c** is Reset account. **2d** closes two Google pre-hijacking
+routes (D19): a Google sign-up Google hasn't verified is refused, and a password reset disconnects
+Google.
 
 ## Technical Context
 
@@ -57,10 +59,12 @@ normal sending within Resend's free allowance (100 a day, 3,000 a month), with 3
 address per hour so no inbox can be flooded (FR-012) and 10 per IP per day so no one client can
 spend the quota (research D5, D13); no send failure may fail or slow a request
 
-**Scale/Scope (2a to 2c)**: 2a is one provider option, its tests, a message, and docs. 2b adds the
+**Scale/Scope (2a to 2d)**: 2a is one provider option, its tests, a message, and docs. 2b adds the
 plugin, a `hooks.before` refusing its out-of-scope routes, one confirm route, code fields in the
 sign-in form, settings, and the picker, and turns the two link pages into "request a code" pages. 2c
-is one lib extension, one route, and a settings card.
+is one lib extension, one route, and a settings card. 2d is a user create hook, the reset callback
+that ends sessions and disconnects Google, an after hook that reports it, and one step in the
+sign-in form.
 
 **Scale/Scope (phase 1)**: phase 1 touches `lib/auth.ts`, one new sender module, the app's env
 wiring, five web files and two new web pages, four docs, and the provision script. Phase 2 adds two
@@ -170,8 +174,8 @@ addresses, and reset by code creating a first password, verifying, and ending se
 these is restated in our code.
 
 **Releases**: phase 1 PR: api PATCH and web PATCH. 2a: api PATCH, and web PATCH for the reworded
-message. 2b: api PATCH and web PATCH. 2c: api PATCH and web PATCH. Version numbers are set when each
-bump commit is written.
+message. 2b: api PATCH and web PATCH. 2c: api PATCH and web PATCH. 2d: api PATCH and web PATCH.
+Version numbers are set when each bump commit is written.
 
 ## Complexity Tracking
 
@@ -212,3 +216,6 @@ Phase 2b (`feat/inbox-codes`, with the Google commits from the earlier branch; 2
    bumps.
 
 Phase 2c: Reset account (lib, route, dialog), docs, release bumps.
+
+Phase 2d (`fix/google-pre-hijack`): refuse a Google sign-up Google hasn't verified; disconnect
+Google on a reset and say so; docs, release bumps.
