@@ -693,6 +693,33 @@ describe('Google sign-in onto a password account', () => {
     expect(userRow(test, 'new@example.com')?.emailVerified).toBe(true);
     expect(userRow(test, 'new@outside.example')?.emailVerified).toBe(false);
   });
+
+  // An address Google never confirmed is the pre-hijacking study's
+  // "non-verifying IdP" route (FR-028).
+  it("refuses a Google sign-up for an address Google hasn't verified", async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+
+    const res = await googleSignIn(test, {
+      sub: 'g-unconfirmed',
+      email: 'unconfirmed@gmail.com',
+      email_verified: false,
+    });
+
+    expect(res.headers.get('location')).toContain('error=');
+    expect(userRow(test, 'unconfirmed@gmail.com')).toBeUndefined();
+  });
+
+  it('still signs in through an existing Google link if Google stops reporting it verified', async () => {
+    const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+    cleanup = test.cleanup;
+    const profile = { sub: 'g-later', email: 'later@gmail.com', email_verified: true };
+    await googleSignIn(test, profile);
+
+    const res = await googleSignIn(test, { ...profile, email_verified: false });
+
+    expect(res.headers.get('location')).toBe('http://localhost:5173/home');
+  });
 });
 
 describe('Google sign-in onto an unverified password account', () => {

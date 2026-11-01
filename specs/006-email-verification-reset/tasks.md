@@ -284,7 +284,7 @@ Google, and their docs move into 2b and are amended by Phase 12. The test helper
 **Independent Test**: a Google sign-up with `email_verified` false is refused and creates no user; a
 reset on an account with Google linked leaves no Google sign-in, and the client says so.
 
-- [ ] T058 Tests first in `packages/api/src/index.test.ts`: a Google sign-up whose `email_verified`
+- [X] T058 Tests first in `packages/api/src/index.test.ts`: a Google sign-up whose `email_verified`
   is false is refused and creates no user or account; an existing Google link still signs in. Then
   the refusal as a `databaseHooks.user.create.before` in `packages/api/src/lib/auth.ts` reading the
   stashed Google profile.

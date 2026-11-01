@@ -479,6 +479,18 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       }),
     },
     databaseHooks: {
+      user: {
+        create: {
+          // A Google sign-up for an address Google never confirmed is the
+          // pre-hijacking study's "non-verifying IdP" route: refuse it, so
+          // no account starts out with a Google sign-in for someone else's
+          // address (FR-028). An existing link still signs in by its `sub`.
+          before: async () => {
+            const profile = await googleProfile.get();
+            if (profile && !profile.emailVerified) return false;
+          },
+        },
+      },
       account: {
         create: {
           // A Google account joining an account that already has a way to
