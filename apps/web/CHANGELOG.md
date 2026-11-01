@@ -9,6 +9,20 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-31
+
+PATCH: say when a password reset disconnected Google.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Changed
+
+* After a password reset that disconnected the account's Google sign-in, the sign-in form says so
+  and points to Connect Google in account settings before continuing.
+
 ## [0.11.0] - 2026-10-31
 
 MINOR: a device catches up when its account was reset on another one.
