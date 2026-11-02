@@ -171,7 +171,9 @@ export function observabilityMiddleware(
 
     if (!isHealth && !skipForUnknownIp) {
       const tier = isAuthTight ? opts.unauthedAuthTier : opts.authedTier;
-      const key = `ip:${ip}`;
+      // Each tier its own bucket: app traffic mustn't use up the credential
+      // routes' allowance, nor a sign-in shrink the app's.
+      const key = isAuthTight ? `auth:${ip}` : `ip:${ip}`;
       const result = opts.buckets.consume(key, tier);
       if (!result.allowed) {
         // Clamp to a finite, sensible upper bound. A zero refill rate

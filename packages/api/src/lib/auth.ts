@@ -615,6 +615,26 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         },
       },
     },
+    // On in production explicitly, rather than left to Better Auth's own
+    // NODE_ENV check (FR-032, research D20). Limits count per network, and a
+    // group may share one, so these leave room for a room full signing in at
+    // once where Better Auth's defaults (3 per 10 seconds for sign-in and
+    // sign-up, 3 a minute for the email-code routes) would turn them away.
+    // The email limits still bound what is sent.
+    rateLimit: {
+      enabled: isProd,
+      customRules: {
+        '/sign-in/email': { window: 60, max: 15 },
+        '/sign-in/social': { window: 60, max: 30 },
+        '/sign-up/email': { window: 60, max: 15 },
+        '/email-otp/verify-email': { window: 60, max: 15 },
+        '/email-otp/reset-password': { window: 60, max: 15 },
+        '/email-otp/request-password-reset': { window: 60, max: 15 },
+        '/email-otp/send-verification-otp': { window: 60, max: 15 },
+        // Reading the session guards nothing and runs on every page load.
+        '/get-session': false,
+      },
+    },
     advanced: {
       // Cloudflare Tunnel delivers the client's address in CF-Connecting-IP
       // without X-Forwarded-For, Better Auth's only default; reading neither

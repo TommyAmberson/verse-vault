@@ -345,7 +345,7 @@ Task: "Reset page in apps/web/src/views/ResetPasswordView.vue"
 
 ## Phase 16: Phase 2e - Hardening from the qzr review (PR 2e)
 
-- [ ] T063 Tests first in `packages/api/src/index.test.ts`: password sign-in past its limit gets 429 in production mode; set Better Auth's rate limiter on explicitly in production with per-network rules for sign-in, sign-up and the email-code routes (FR-032, research D20).
+- [X] T063 Tests first in `packages/api/src/index.test.ts`: password sign-in past its limit gets 429 in production mode; set Better Auth's rate limiter on explicitly in production with per-network rules for sign-in, sign-up and the email-code routes (FR-032, research D20).
 - [ ] T064 Tests first: a client over its daily limit doesn't use up an address's allowance; an overlong address counts; sign-up codes count apart and a sign-up over its limit says no code was sent; then the email limits in `packages/api/src/lib/auth.ts` (FR-012).
 - [ ] T065 Tests first: asking to send a verification code needs a session on that account, while sign-up still sends its own (FR-035).
 - [ ] T066 Tests first: a form post to the account routes from another origin is refused and changes nothing (FR-033).
