@@ -68,6 +68,9 @@ const REFUSED_PATHS = [
   '/email-otp/check-verification-otp',
   // Disconnecting Google is our own route, which also ends other sessions.
   '/unlink-account',
+  // Phase 1's send route, replaced by the email-code plugin's, which checks
+  // the session (FR-035); the web app no longer calls it.
+  '/send-verification-email',
 ];
 
 /** Phase 1's link routes. Links emailed before codes would otherwise keep
@@ -396,6 +399,22 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         // The send route's types for the refused flows, from outside only.
         if (ctx.request && isRefusedSend(ctx.path, ctx.body)) {
           throw new APIError('NOT_FOUND');
+        }
+        // A verification code is sent only for a session on that account
+        // (FR-035), so a stranger can't have codes mailed to any address.
+        // Sign-up's own send calls the plugin directly and runs no hooks.
+        if (ctx.request && ctx.path === '/email-otp/send-verification-otp') {
+          const body = ctx.body as { email?: unknown; type?: unknown } | undefined;
+          const session = await getSessionFromCtx(ctx);
+          if (
+            body?.type === 'email-verification' &&
+            (typeof body.email !== 'string' ||
+              session?.user.email.toLowerCase() !== body.email.trim().toLowerCase())
+          ) {
+            throw new APIError('FORBIDDEN', {
+              message: 'Sign in to this account to verify its email.',
+            });
+          }
         }
         // The plugin compares the code before `beforeEmailVerification`
         // checks the session, so without this a signed-out guess would still

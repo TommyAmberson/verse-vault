@@ -37,3 +37,37 @@ describe('rate limits in production', () => {
     expect(statuses[15]).toBe(429);
   });
 });
+
+describe('sending a verification code', () => {
+  it('needs a session on that account', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'owner@example.com');
+    const other = await signUpTestUser(test, 'other@example.com');
+    const sent = test.emails.length;
+    const body = { email: 'owner@example.com', type: 'email-verification' };
+
+    const signedOut = await postAuth(test, 'email-otp/send-verification-otp', body);
+    const otherAccount = await postAuth(test, 'email-otp/send-verification-otp', body, other.cookie);
+
+    expect([signedOut.status, otherAccount.status]).toEqual([403, 403]);
+    expect(test.emails.length).toBe(sent);
+  });
+
+  it("isn't sent through phase 1's route either", async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'old-route@example.com');
+    const sent = test.emails.length;
+    const res = await postAuth(test, 'send-verification-email', { email: 'old-route@example.com' });
+    expect(res.status).toBe(404);
+    expect(test.emails.length).toBe(sent);
+  });
+
+  it('still goes out at sign-up', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'new@example.com');
+    expect(test.emails.some((m) => m.to === 'new@example.com')).toBe(true);
+  });
+});

@@ -483,7 +483,7 @@ describe('verifying an existing account', () => {
     expect((await verify(newer)).status).toBe(200);
   });
 
-  it('answers an unknown address the same way and sends nothing', async () => {
+  it('answers a signed-out request the same way for any address, sending nothing', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     await signUpTestUser(test, 'known@example.com');
@@ -491,8 +491,9 @@ describe('verifying an existing account', () => {
 
     const known = await sendCode(test, 'known@example.com');
     const unknown = await sendCode(test, 'unknown@example.com');
+    expect(known.status).toBe(403);
     expect(await unknown.json()).toEqual(await known.json());
-    expect(test.emails.map((m) => m.to)).toEqual(['known@example.com']);
+    expect(test.emails).toEqual([]);
   });
 });
 
@@ -558,7 +559,7 @@ describe('email request throttling', () => {
 
     for (const email of ['busy@example.com', 'ghost@example.com']) {
       expect((await post(test, RESET, email)).status).toBe(200);
-      expect((await post(test, SEND_CODE, email)).status).toBe(200);
+      expect((await post(test, RESET, email)).status).toBe(200);
       expect((await post(test, RESET, email.toUpperCase())).status).toBe(200);
       const fourth = await post(test, RESET, email);
       expect(fourth.status).toBe(429);
