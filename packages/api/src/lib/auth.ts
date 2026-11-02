@@ -10,6 +10,7 @@ import {
   getIp,
   getOAuthState,
   getSessionFromCtx,
+  isAPIError,
 } from 'better-auth/api';
 import { generateRandomString } from 'better-auth/crypto';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -47,12 +48,10 @@ export interface AuthEnv {
  *  origin (CORS, Better Auth `trustedOrigins`). */
 export const TAURI_ORIGINS = ['tauri://localhost', 'https://tauri.localhost'] as const;
 
-/** Requests that email an address a code: reset and verification. The
- *  phase 1 verification route stays, sending a code now. */
+/** Requests that email an address a code: reset and verification. */
 const EMAILING_PATHS = new Set([
   '/email-otp/request-password-reset',
   '/email-otp/send-verification-otp',
-  '/send-verification-email',
 ]);
 
 /** Email-code routes outside this app: code sign-in, changing the address,
@@ -90,10 +89,15 @@ const PER_ADDRESS_TIER: RateLimitTier = { capacity: 3, refillPerSec: 3 / 3600 };
 /** Better Auth's default for "a recent sign-in". */
 export const FRESH_SESSION_MS = 24 * 60 * 60 * 1000;
 
-/** At most 10 emails per IP per day: requests on those paths, plus
- *  verification emails sent at sign-up. */
-const PER_IP_TIER: RateLimitTier = { capacity: 10, refillPerSec: 10 / (24 * 3600) };
+/** At most 30 emails per IP per day from requests on those paths (FR-012). */
+const PER_IP_TIER: RateLimitTier = { capacity: 30, refillPerSec: 30 / (24 * 3600) };
 
+/** Codes sent at sign-up, counted apart so sign-ups on one shared network
+ *  don't use up its people's resets: 30 per IP per day (FR-012). */
+const PER_IP_SIGNUP_TIER: RateLimitTier = { capacity: 30, refillPerSec: 30 / (24 * 3600) };
+
+/** An address can't be longer; a longer one counts under its first 254
+ *  characters, so junk can't fill the bucket store with long keys. */
 const MAX_EMAIL_LENGTH = 254;
 
 /** Verification rows for a refused Google sign-in: the code step, then
@@ -163,6 +167,10 @@ const googleProfile = defineRequestState<{
  *  response can say so (FR-029). */
 const googleDisconnectedByReset = defineRequestState<boolean>(() => false);
 
+/** Set when sign-up skipped its code over the daily limit, so its response
+ *  can say so (FR-012). */
+const signUpCodeSkipped = defineRequestState<boolean>(() => false);
+
 export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const isProd = process.env.NODE_ENV === 'production';
   // Browsers send Origin headers as scheme+host+port only — never a path.
@@ -206,34 +214,39 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   // throttling reveals nothing about which addresses have accounts.
   const sendBuckets = new TokenBucketStore();
 
-  /** Counts a request to email `email` against both limits, the address
-   *  first so requests it refuses don't use up the whole network's
-   *  allowance. Which limit refused it, with the error to answer, or null
-   *  when the email may go. */
+  /** Counts a request to email `email` against both limits, the client
+   *  first: a client over its own limit must not go on using up an
+   *  address's allowance, which would lock the address's owner out of
+   *  resets. A request the address limit then refuses sends nothing, so it
+   *  gives the client its token back. Which limit refused it, with the error
+   *  to answer, or null when the email may go. */
   function chargeSend(
     email: string,
     ip: string | null,
   ): { limit: 'address' | 'network'; error: APIError } | null {
-    const perAddress = sendBuckets.consume(`email:${email.trim().toLowerCase()}`, PER_ADDRESS_TIER);
-    if (!perAddress.allowed) {
-      return {
-        limit: 'address',
-        error: new APIError(
-          'TOO_MANY_REQUESTS',
-          { message: 'Too many requests for this address. Try again later.' },
-          { 'Retry-After': String(Math.ceil(perAddress.retryAfterSec)) },
-        ),
-      };
+    if (ip) {
+      const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
+      if (!perIp.allowed) {
+        return {
+          limit: 'network',
+          error: new APIError(
+            'TOO_MANY_REQUESTS',
+            { message: 'Too many requests from this network. Try again later.' },
+            { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
+          ),
+        };
+      }
     }
-    if (!ip) return null;
-    const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
-    if (perIp.allowed) return null;
+    const key = `email:${email.trim().toLowerCase().slice(0, MAX_EMAIL_LENGTH)}`;
+    const perAddress = sendBuckets.consume(key, PER_ADDRESS_TIER);
+    if (perAddress.allowed) return null;
+    if (ip) sendBuckets.refund(`ip:${ip}`, PER_IP_TIER);
     return {
-      limit: 'network',
+      limit: 'address',
       error: new APIError(
         'TOO_MANY_REQUESTS',
-        { message: 'Too many requests from this network. Try again later.' },
-        { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
+        { message: 'Too many requests for this address. Try again later.' },
+        { 'Retry-After': String(Math.ceil(perAddress.retryAfterSec)) },
       ),
     };
   }
@@ -420,10 +433,8 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         }
         if (!EMAILING_PATHS.has(ctx.path)) return;
         const email = (ctx.body as { email?: unknown } | undefined)?.email;
-        // The body isn't validated yet. Anything longer than an address can
-        // be (254 characters) matches no account, so skip it rather than
-        // let oversized junk fill the bucket store.
-        if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH) return;
+        // Every address counts, however long, so no request sends unlimited.
+        if (typeof email !== 'string') return;
         const refused = chargeSend(
           email,
           ctx.request ? getIp(ctx.request, ctx.context.options) : null,
@@ -435,6 +446,20 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       // inbox still needs proving (research D16, D17).
       after: createAuthMiddleware(async (ctx) => {
         if (ctx.path === '/email-otp/reset-password') return reportGoogleDisconnected(ctx);
+        // A sign-up whose code was skipped says so, so the form doesn't wait
+        // for an email that isn't coming.
+        if (ctx.path === '/sign-up/email') {
+          const returned = ctx.context.returned;
+          if (
+            !(await signUpCodeSkipped.get()) ||
+            !returned ||
+            returned instanceof Response ||
+            isAPIError(returned)
+          ) {
+            return;
+          }
+          return ctx.json({ ...(returned as object), codeSkipped: true });
+        }
         if (ctx.path !== '/callback/:id') return;
         const location = ctx.context.responseHeaders?.get('location');
         const profile = await googleProfile.get();
@@ -665,8 +690,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           const request = ctx?.request;
           if (request && !EMAILING_PATHS.has(authPath(request))) {
             const ip = getIp(request, auth.options);
-            if (ip && !sendBuckets.consume(`ip:${ip}`, PER_IP_TIER).allowed) {
+            if (ip && !sendBuckets.consume(`signup:${ip}`, PER_IP_SIGNUP_TIER).allowed) {
               console.warn(`[email] sign-up verification skipped: daily limit reached for ${ip}`);
+              await signUpCodeSkipped.set(true);
               return;
             }
           }

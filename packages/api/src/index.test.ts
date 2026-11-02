@@ -567,7 +567,24 @@ describe('email request throttling', () => {
     expect((await post(test, RESET, 'fresh@example.com')).status).toBe(200);
   });
 
-  it('sends at most 10 emails per IP per day, never refusing a sign-up', async () => {
+  it('sends at most 30 reset or verification emails per IP per day', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const from = (ip: string, path: string, body: object) =>
+      test.app.request(`/api/auth/${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': ip },
+        body: JSON.stringify(body),
+      });
+    for (let i = 0; i < 30; i++) {
+      expect((await from('203.0.113.7', RESET, { email: `r${i}@example.com` })).status).toBe(200);
+    }
+    const over = await from('203.0.113.7', RESET, { email: 'r30@example.com' });
+    expect(over.status).toBe(429);
+    expect(Number(over.headers.get('Retry-After'))).toBeGreaterThan(0);
+  });
+
+  it('counts sign-up codes apart, never refusing a sign-up', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const from = (ip: string, path: string, body: object) =>
@@ -578,25 +595,34 @@ describe('email request throttling', () => {
       });
     const signUp = (ip: string, email: string) =>
       from(ip, 'sign-up/email', { email, password: 'superSecret123!', name: email });
-
-    expect((await signUp('203.0.113.7', 'new0@example.com')).status).toBe(200);
-    // A sign-up that creates no account sends nothing and costs nothing.
-    expect((await signUp('203.0.113.7', 'new0@example.com')).status).not.toBe(200);
-    expect((await from('203.0.113.7', RESET, { email: 'new0@example.com' })).status)
-      .toBe(200);
-    for (let i = 1; i < 9; i++) {
-      expect((await signUp('203.0.113.7', `new${i}@example.com`)).status).toBe(200);
+    // A network's resets don't stop its sign-up codes.
+    for (let i = 0; i < 30; i++) await from('203.0.113.7', RESET, { email: `r${i}@example.com` });
+    for (let i = 0; i < 30; i++) {
+      const res = await signUp('203.0.113.7', `new${i}@example.com`);
+      expect(await res.json()).not.toHaveProperty('codeSkipped');
     }
-    // That's 10 emails. Past the limit, sign-up still works but sends no email.
-    expect((await signUp('203.0.113.7', 'late@example.com')).status).toBe(200);
-    expect(test.emails).toHaveLength(10);
+    // Past its own limit, sign-up still works, sends nothing and says so.
+    const late = await signUp('203.0.113.7', 'late@example.com');
+    expect(late.status).toBe(200);
+    expect(await late.json()).toMatchObject({ codeSkipped: true });
     expect(test.emails.some((m) => m.to === 'late@example.com')).toBe(false);
-
-    const reset = await from('203.0.113.7', RESET, { email: 'new1@example.com' });
-    expect(reset.status).toBe(429);
-    expect(Number(reset.headers.get('Retry-After'))).toBeGreaterThan(3600);
     expect((await signUp('198.51.100.4', 'other@example.com')).status).toBe(200);
     expect(test.emails.at(-1)?.to).toBe('other@example.com');
+  });
+
+  it("doesn't let a client over its limit use up an address's allowance", async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const from = (ip: string, path: string, body: object) =>
+      test.app.request(`/api/auth/${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': ip },
+        body: JSON.stringify(body),
+      });
+    for (let i = 0; i < 30; i++) await from('203.0.113.7', RESET, { email: `x${i}@example.com` });
+    for (let i = 0; i < 3; i++) await from('203.0.113.7', RESET, { email: 'victim@example.com' });
+    // Those were refused for the network, so the owner's allowance is whole.
+    expect((await from('198.51.100.4', RESET, { email: 'victim@example.com' })).status).toBe(200);
   });
 
   it("doesn't charge the network for requests the address limit refuses", async () => {
@@ -609,20 +635,20 @@ describe('email request throttling', () => {
         body: JSON.stringify({ email }),
       });
     for (let i = 0; i < 10; i++) await reset('impatient@example.com');
-    // Only 3 of those counted for the network, so 7 more addresses fit.
-    for (let i = 0; i < 7; i++) {
+    // Only 3 of those counted for the network, so 27 more addresses fit.
+    for (let i = 0; i < 27; i++) {
       expect((await reset(`other${i}@example.com`)).status).toBe(200);
     }
     expect((await reset('one-too-many@example.com')).status).toBe(429);
   });
 
-  it('never counts a body too long to be an address', async () => {
+  it('counts an overlong address too', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;
     const junk = `${'x'.repeat(300)}@example.com`;
-    for (let i = 0; i < 4; i++) {
-      expect((await post(test, RESET, junk)).status).not.toBe(429);
-    }
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) statuses.push((await post(test, RESET, junk)).status);
+    expect(statuses[3]).toBe(429);
   });
 
   it("reads the client IP from Cloudflare's header for Better Auth's own limits", () => {
@@ -755,7 +781,7 @@ describe('Google sign-in onto a password account', () => {
     await googleSignIn(test, outside(0));
     expect(test.emails.map((m) => m.to)).toEqual(['outside0@example.com']);
 
-    for (let i = 1; i < 10; i++) await signUpTestUser(test, `fill${i}@example.com`);
+    for (let i = 1; i < 30; i++) await signUpTestUser(test, `fill${i}@example.com`);
     const res = await googleSignIn(test, outside(1));
     expect(res.headers.get('location')).toBe('http://localhost:5173/home');
     expect(test.emails.some((m) => m.to === 'outside1@example.com')).toBe(false);

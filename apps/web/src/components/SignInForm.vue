@@ -11,7 +11,10 @@ import type { AuthProvider } from '@/lib/engine/registry'
 import { queryWithout, socialSignInError } from '@/lib/socialSignInError'
 
 type SignInResult =
-  | { error?: { message?: string | null; status?: number; code?: string } | null }
+  | {
+      data?: unknown
+      error?: { message?: string | null; status?: number; code?: string } | null
+    }
   | undefined
 
 const props = defineProps<{
@@ -78,15 +81,22 @@ const {
   () => RESET_SENT,
 )
 
-// After sign-up: the verification code, or skip.
+// After sign-up: the verification code, or skip. Over the network's daily
+// limit sign-up sends no code, and says so (FR-012).
+const codeSkipped = ref(false)
 const {
   pending: verifyResending,
   notice: verifyNotice,
-  run: resendVerification,
+  run: sendVerificationAgain,
 } = useEmailRequest(
   () => props.sendVerificationCode(email.value),
   () => `We sent a new code to ${email.value}.`,
 )
+
+/** A new code that went out replaces the note that none could be sent. */
+async function resendVerification() {
+  if (await sendVerificationAgain()) codeSkipped.value = false
+}
 
 function openForgot() {
   error.value = ''
@@ -197,6 +207,7 @@ async function submitEmail() {
   } else if (mode.value === 'signup') {
     // Sign-up normally sends a verification code (not past the network's
     // daily limit); offer to enter it before moving on.
+    codeSkipped.value = (result?.data as { codeSkipped?: unknown } | undefined)?.codeSkipped === true
     code.value = ''
     mode.value = 'signedUp'
   } else {
@@ -237,7 +248,11 @@ async function submitEmail() {
 
     <template v-else-if="mode === 'signedUp'">
       <p class="form-title">Account created</p>
-      <p class="auth-notice" role="status">
+      <p v-if="codeSkipped" class="auth-notice" role="status">
+        We couldn't send a code to {{ email }} just now. Try sending a new one later, or skip and
+        verify from account settings.
+      </p>
+      <p v-else class="auth-notice" role="status">
         Enter the code we sent to {{ email }} to verify it, or skip and verify later from account
         settings.
       </p>
