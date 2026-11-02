@@ -463,8 +463,8 @@ the same sign-in methods still work.
 * **FR-032**: Password sign-in, sign-up and the email-code routes MUST be rate limited per client,
   with room for a group on one network (15 a minute; 30 for starting a Google sign-in), and entering
   Google code-step codes per client too. A limited request is told to try again later.
-* **FR-033**: The account routes (the Google code step, the choice and disconnect) MUST accept form
-  posts only from the app's own origins.
+* **FR-033**: Every route that acts on the session cookie, outside Better Auth's own, MUST accept
+  form posts only from the app's own origins.
 * **FR-034**: A new password, at sign-up, reset or change, MUST be refused when it appears in a list
   of breached passwords, with a message to choose another; the check MUST NOT send the password or
   its full hash anywhere, and MUST NOT spend a reset code. The minimum length stays 8.

@@ -71,3 +71,18 @@ describe('sending a verification code', () => {
     expect(test.emails.some((m) => m.to === 'new@example.com')).toBe(true);
   });
 });
+
+describe('form posts from another origin', () => {
+  it('are refused on every cookie route, not only the account ones', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'forged@example.com');
+    const res = await test.app.request('/api/materials/enroll', {
+      method: 'POST',
+      headers: { cookie, origin: 'https://evil.example', 'content-type': 'text/plain' },
+      body: '{}',
+    });
+    expect(res.status).toBe(403);
+  });
+});
+

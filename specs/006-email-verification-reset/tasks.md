@@ -348,7 +348,7 @@ Task: "Reset page in apps/web/src/views/ResetPasswordView.vue"
 - [X] T063 Tests first in `packages/api/src/index.test.ts`: password sign-in past its limit gets 429 in production mode; set Better Auth's rate limiter on explicitly in production with per-network rules for sign-in, sign-up and the email-code routes (FR-032, research D20).
 - [X] T064 Tests first: a client over its daily limit doesn't use up an address's allowance; an overlong address counts; sign-up codes count apart and a sign-up over its limit says no code was sent; then the email limits in `packages/api/src/lib/auth.ts` (FR-012).
 - [X] T065 Tests first: asking to send a verification code needs a session on that account, while sign-up still sends its own (FR-035).
-- [ ] T066 Tests first: a form post to the account routes from another origin is refused and changes nothing (FR-033).
+- [X] T066 Tests first: a form post to the account routes from another origin is refused and changes nothing (FR-033).
 - [ ] T067 Tests first: sign-up, reset and change with a breached password are refused, the reset code still works, and the tests never reach the network; then the check in the before hook (FR-034).
 - [ ] T068 `docs/server-api.md`, `docs/deployment.md` (NODE_ENV=production in the service), then releases: api PATCH, web PATCH if it changed.
 

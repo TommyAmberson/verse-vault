@@ -83,6 +83,16 @@ export function createTestApp(opts: CreateTestAppOptions = {}) {
     observability: { ...TEST_DEFAULT_OBSERVABILITY, ...opts.observability },
     sendEmail: opts.sendEmail ?? ((message) => emails.push(message)),
   });
+  // Requests carry the web app's Origin, as a browser's do; a test that
+  // needs another passes its own.
+  const origin = new URL({ ...TEST_AUTH_ENV, ...opts.authEnv }.webOrigin ?? TEST_AUTH_ENV.webOrigin)
+    .origin;
+  const request = app.request.bind(app);
+  app.request = ((input: RequestInfo | URL, init?: RequestInit, ...rest: unknown[]) => {
+    const headers = new Headers(init?.headers);
+    if (!headers.has('origin')) headers.set('origin', origin);
+    return (request as (...args: unknown[]) => unknown)(input, { ...init, headers }, ...rest);
+  }) as typeof app.request;
   return { app, engines, emails, ...test };
 }
 
