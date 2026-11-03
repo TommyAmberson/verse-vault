@@ -10,6 +10,34 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.55] - 2026-11-02
+
+PATCH: auth hardening from the qzr review (spec 006 phase 2e).
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Added
+
+* A new password at sign-up, reset or change that appears in a data breach is refused with
+  `PASSWORD_COMPROMISED` (503 when Pwned Passwords can't be reached); a refused reset keeps its
+  code.
+* Routes outside Better Auth's refuse form posts from an origin it doesn't trust.
+
+### Changed
+
+* Better Auth's rate limiter is on in production explicitly, with room for a group on one network:
+  15 a minute for password sign-in, sign-up and the email-code routes, 30 for starting a Google
+  sign-in.
+* The email limits check the client first, count every address, and keep sign-up codes apart: 30
+  reset or verification emails and 30 sign-up codes per network a day. A sign-up whose code was
+  skipped says `codeSkipped: true`.
+* Asking for a verification code needs a session on that account.
+* "That's not me" runs in one transaction, and the pending row is used up only once it lands.
+* hono 4.13.
+
 ## [0.1.54] - 2026-10-31
 
 PATCH: close two Google pre-hijacking routes.
