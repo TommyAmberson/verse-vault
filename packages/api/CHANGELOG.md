@@ -10,6 +10,23 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.56] - 2026-11-03
+
+PATCH: disconnecting Google takes the password; client address from Cloudflare only.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Changed
+
+* `POST /api/account/google/disconnect` takes `{ password }` and refuses a wrong one with
+  `INVALID_PASSWORD`, 429 after 5 tries for the account (one more every 3 minutes). A password row
+  counts as another way in only when it holds a password.
+* The client address for every rate limit comes from `CF-Connecting-IP` only; `X-Forwarded-For` is
+  no longer read.
+
 ## [0.1.55] - 2026-11-02
 
 PATCH: auth hardening from the qzr review (spec 006 phase 2e).

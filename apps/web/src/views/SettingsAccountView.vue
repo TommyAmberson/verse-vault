@@ -37,6 +37,7 @@ const canDisconnectGoogle = computed(
   () => !!methods.value?.includes('google') && methods.value.includes('credential'),
 )
 const disconnectBusy = ref(false)
+const disconnectPassword = ref('')
 const connectBusy = ref(false)
 // A refused link comes back here with `?error=`.
 // Asked to verify first, the message sits with the verification controls.
@@ -62,23 +63,28 @@ watch(
   { immediate: true },
 )
 
+function disconnectErrorMessage(err: unknown): string {
+  if (!(err instanceof ApiError)) return "Couldn't disconnect Google. Try again."
+  if (err.code === 'SESSION_NOT_FRESH') {
+    return 'For safety, sign out and sign in again with your password, then disconnect Google.'
+  }
+  if (err.code === 'INVALID_PASSWORD') return "That password isn't right."
+  if (err.status === 429) return 'Too many tries. Try again later.'
+  return "Couldn't disconnect Google. Try again."
+}
+
 async function onDisconnectGoogle() {
   banner.value = null
   disconnectBusy.value = true
   try {
-    await api.disconnectGoogle()
+    await api.disconnectGoogle(disconnectPassword.value)
   } catch (err) {
-    const stale = err instanceof ApiError && err.code === 'SESSION_NOT_FRESH'
-    banner.value = {
-      kind: 'error',
-      text: stale
-        ? 'For safety, sign out and sign in again with your password, then disconnect Google.'
-        : "Couldn't disconnect Google. Try again.",
-    }
+    banner.value = { kind: 'error', text: disconnectErrorMessage(err) }
     return
   } finally {
     disconnectBusy.value = false
   }
+  disconnectPassword.value = ''
   methods.value = methods.value?.filter((m) => m !== 'google') ?? null
   banner.value = {
     kind: 'info',
@@ -379,12 +385,23 @@ async function onBackupInsideDialog() {
           <h3>Sign in with Google</h3>
           <p>
             A Google account is connected, so you can sign in with it as well as your password.
-            If you didn't connect it, disconnect it here.
+            If you didn't connect it, disconnect it here with your password.
           </p>
         </header>
-        <button type="button" class="btn" :disabled="disconnectBusy" @click="onDisconnectGoogle">
-          {{ disconnectBusy ? 'Disconnecting…' : 'Disconnect Google' }}
-        </button>
+        <form class="password-form" @submit.prevent="onDisconnectGoogle">
+          <input
+            v-model="disconnectPassword"
+            type="password"
+            placeholder="Password"
+            aria-label="Password"
+            autocomplete="current-password"
+            required
+            class="auth-field"
+          />
+          <button type="submit" class="btn" :disabled="disconnectBusy">
+            {{ disconnectBusy ? 'Disconnecting…' : 'Disconnect Google' }}
+          </button>
+        </form>
       </article>
 
       <article v-if="hasGoogle === false" class="action-card">
@@ -515,7 +532,8 @@ async function onBackupInsideDialog() {
 </template>
 
 <style scoped>
-.verify-code {
+.verify-code,
+.password-form {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

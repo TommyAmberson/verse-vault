@@ -709,10 +709,11 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       },
     },
     advanced: {
-      // Cloudflare Tunnel delivers the client's address in CF-Connecting-IP
-      // without X-Forwarded-For, Better Auth's only default; reading neither
-      // would put every production client in one rate-limit bucket.
-      ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
+      // Cloudflare Tunnel delivers the client's address in CF-Connecting-IP,
+      // not X-Forwarded-For, Better Auth's only default; reading neither
+      // would put every production client in one rate-limit bucket. Only
+      // Cloudflare's header: anything else a client could set itself.
+      ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] },
     },
     plugins: [
       multiSession(),

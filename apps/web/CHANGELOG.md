@@ -9,6 +9,20 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.11.3] - 2026-11-03
+
+PATCH: disconnecting Google asks for the password.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Changed
+
+* The "Sign in with Google" card in account settings asks for the account's password to disconnect
+  Google, and says when it's wrong or tried too often.
+
 ## [0.11.2] - 2026-11-02
 
 PATCH: say when sign-up couldn't send its code.

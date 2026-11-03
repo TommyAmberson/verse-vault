@@ -41,9 +41,18 @@ export default {
     // + Location both flow through to the browser). Body omitted on
     // bodiless verbs because some runtimes throw if body is set on GET/HEAD.
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+    // The API is in this zone, where a subrequest's CF-Connecting-IP comes from
+    // its X-Real-IP, so set that from the address Cloudflare saw rather than
+    // pass on whatever the client sent; the API keys its rate limits on it.
+    // X-Forwarded-For, the API's fallback, goes for the same reason.
+    const headers = new Headers(request.headers);
+    headers.delete('x-forwarded-for');
+    const clientIp = request.headers.get('cf-connecting-ip');
+    if (clientIp) headers.set('x-real-ip', clientIp);
+    else headers.delete('x-real-ip');
     return fetch(target, {
       method: request.method,
-      headers: request.headers,
+      headers,
       body: hasBody ? request.body : undefined,
       redirect: 'manual',
     });

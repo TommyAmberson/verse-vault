@@ -24,6 +24,7 @@ import {
   ImportValidationError,
   applyAccountImport,
 } from '../lib/import.js';
+import { type RateLimitTier, TokenBucketStore } from '../lib/rate-limit.js';
 import { deleteAccountProgress, resetAccount } from '../lib/reset.js';
 import { type SessionVariables, getUser, requireAuth } from '../middleware/session.js';
 
@@ -39,6 +40,9 @@ export interface AccountRoutesDeps {
  *  coverage at ~5x headroom. Beyond that, the user should split the
  *  export anyway. */
 const IMPORT_MAX_BYTES = 50 * 1024 * 1024;
+
+/** Disconnect's password checks: 5 per account, one back every 3 minutes. */
+const PASSWORD_TRIES_TIER: RateLimitTier = { capacity: 5, refillPerSec: 1 / 180 };
 
 /** better-sqlite3 reports a unique index refusing a row on `.code`, which
  *  Better Auth's adapter may wrap as the error's cause. */
@@ -120,6 +124,7 @@ export function accountRoutes(deps: AccountRoutesDeps) {
   // account it might have named (FR-021).
   const invalidToken = (c: Context) => c.json({ error: 'invalid or expired token' }, 400);
 
+  const passwordTries = new TokenBucketStore();
   const adapter = async () => (await deps.auth.$context).internalAdapter;
 
   // The pending row's token travels in a cookie set when Google sign-in
@@ -310,20 +315,37 @@ export function accountRoutes(deps: AccountRoutesDeps) {
   // Disconnect Google: every Google account on this account goes, and every
   // other session ends, so the account is no longer reachable through
   // Google (FR-018, OWASP). Done here rather than by Better Auth's unlink
-  // route, which removes one account and leaves sessions alone. Needs a
-  // sign-in within the last day and a password to keep signing in with.
+  // route, which removes one account and leaves sessions alone. Needs the
+  // password, a sign-in within the last day, and a password to keep signing
+  // in with.
   app.post('/account/google/disconnect', async (c) => {
     const user = getUser(c);
+    const body = await c.req.json<{ password?: unknown }>().catch(() => null);
+    if (typeof body?.password !== 'string') {
+      return c.json({ error: 'password required' }, 400);
+    }
     const current = await deps.auth.api.getSession({ headers: c.req.raw.headers });
     if (!current) return c.json({ error: 'not signed in' }, 401);
     const age = Date.now() - new Date(current.session.createdAt).getTime();
     if (age > FRESH_SESSION_MS) {
       return c.json({ error: 'sign in again first', code: 'SESSION_NOT_FRESH' }, 403);
     }
-    const internal = await adapter();
+    const ctx = await deps.auth.$context;
+    const internal = ctx.internalAdapter;
     const accounts = await internal.findAccounts(user.id);
-    if (!accounts.some((a) => a.providerId === 'credential')) {
+    const credential = accounts.find((a) => a.providerId === 'credential');
+    if (!credential?.password) {
       return c.json({ error: 'no other way to sign in', code: 'FAILED_TO_UNLINK_LAST_ACCOUNT' }, 400);
+    }
+    // Better Auth's rate limiter covers only its own routes, so guesses here
+    // count per account.
+    const tries = passwordTries.consume(user.id, PASSWORD_TRIES_TIER);
+    if (!tries.allowed) {
+      c.header('Retry-After', String(Math.ceil(tries.retryAfterSec)));
+      return c.json({ error: 'too many tries, try again later' }, 429);
+    }
+    if (!(await ctx.password.verify({ hash: credential.password, password: body.password }))) {
+      return c.json({ error: 'wrong password', code: 'INVALID_PASSWORD' }, 403);
     }
     for (const account of accounts) {
       if (account.providerId === 'google') await internal.deleteAccount(account.id);

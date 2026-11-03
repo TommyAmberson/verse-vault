@@ -655,7 +655,8 @@ describe('email request throttling', () => {
   it("reads the client IP from Cloudflare's header for Better Auth's own limits", () => {
     // Requests reach the API through Cloudflare Tunnel with CF-Connecting-IP
     // and no X-Forwarded-For; read only Better Auth's default header and
-    // every production client would share one rate-limit bucket.
+    // every production client would share one rate-limit bucket. A client's
+    // own X-Forwarded-For counts for nothing.
     const test = createTestDb();
     cleanup = test.cleanup;
     const auth = createAuth(test.db, TEST_AUTH_ENV, () => {});
@@ -663,6 +664,10 @@ describe('email request throttling', () => {
       headers: { 'cf-connecting-ip': '203.0.113.7' },
     });
     expect(getIp(request, auth.options)).toBe('203.0.113.7');
+    const forged = new Request('http://localhost:3000/api/auth/request-password-reset', {
+      headers: { 'x-forwarded-for': '198.51.100.9' },
+    });
+    expect(getIp(forged, auth.options)).not.toBe('198.51.100.9');
   });
 });
 
@@ -1377,7 +1382,7 @@ describe('the Google code step', () => {
     expect((await confirm(test, token, fresh)).status).toBe(200);
   });
 
-  it('disconnects every Google account, ending other sessions, only while a password remains', async () => {
+  it('disconnects every Google account with the password, ending other sessions, only while a password remains', async () => {
     const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
     cleanup = test.cleanup;
     const { cookie, userId } = await signUpTestUser(test, 'both@example.com', PASSWORD);
@@ -1390,13 +1395,18 @@ describe('the Google code step', () => {
     const otherCookie = elsewhere.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
     expect(providers(test, userId)).toContain('google');
 
-    const disconnect = (sessionCookie: string) =>
+    const disconnect = (sessionCookie: string, password = PASSWORD) =>
       test.app.request('/api/account/google/disconnect', {
         method: 'POST',
-        headers: { cookie: sessionCookie },
+        headers: { cookie: sessionCookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ password }),
       });
     // Better Auth's own unlink, which would leave sessions, is refused.
     expect((await postAuth(test, 'unlink-account', { providerId: 'google' }, cookie)).status).toBe(404);
+    const wrong = await disconnect(cookie, 'not-the-password');
+    expect(wrong.status).toBe(403);
+    expect(await wrong.json()).toMatchObject({ code: 'INVALID_PASSWORD' });
+    expect(providers(test, userId)).toContain('google');
     expect((await disconnect(cookie)).status).toBe(200);
     expect(providers(test, userId)).toEqual(['credential']);
     expect(test.emails.at(-1)?.subject).toBe('Google was disconnected from your VerseVault account');
