@@ -408,9 +408,9 @@ the same sign-in methods still work.
   authoritative for the address, or the emailed code; either marks the address verified. A verified
   account connects on its session alone, from a sign-in within the last day (OWASP: re-authenticate
   before linking). Account settings MUST also let a learner disconnect Google, but only while the
-  account keeps another way to sign in (a password), and only from a sign-in within the last day
-  (Better Auth's fresh-session rule). Disconnecting MUST end every other session on the account, so
-  the account is no longer reachable through Google (OWASP).
+  account keeps another way to sign in (a password), only with that password, and only from a
+  sign-in within the last day (Better Auth's fresh-session rule). Disconnecting MUST end every other
+  session on the account, so the account is no longer reachable through Google (OWASP).
 * **FR-019**: When a signed-out Google sign-in with inbox proof (FR-014) matches an unverified
   password account, the app MUST say that an unverified account with this address already exists and
   ask whether it is theirs. "That's me" MUST ask for the account's password and, on success, behave

@@ -1377,7 +1377,7 @@ describe('the Google code step', () => {
     expect((await confirm(test, token, fresh)).status).toBe(200);
   });
 
-  it('disconnects every Google account, ending other sessions, only while a password remains', async () => {
+  it('disconnects every Google account with the password, ending other sessions, only while a password remains', async () => {
     const test = createTestApp({ authEnv: TEST_GOOGLE_ENV });
     cleanup = test.cleanup;
     const { cookie, userId } = await signUpTestUser(test, 'both@example.com', PASSWORD);
@@ -1390,13 +1390,18 @@ describe('the Google code step', () => {
     const otherCookie = elsewhere.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
     expect(providers(test, userId)).toContain('google');
 
-    const disconnect = (sessionCookie: string) =>
+    const disconnect = (sessionCookie: string, password = PASSWORD) =>
       test.app.request('/api/account/google/disconnect', {
         method: 'POST',
-        headers: { cookie: sessionCookie },
+        headers: { cookie: sessionCookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ password }),
       });
     // Better Auth's own unlink, which would leave sessions, is refused.
     expect((await postAuth(test, 'unlink-account', { providerId: 'google' }, cookie)).status).toBe(404);
+    const wrong = await disconnect(cookie, 'not-the-password');
+    expect(wrong.status).toBe(403);
+    expect(await wrong.json()).toMatchObject({ code: 'INVALID_PASSWORD' });
+    expect(providers(test, userId)).toContain('google');
     expect((await disconnect(cookie)).status).toBe(200);
     expect(providers(test, userId)).toEqual(['credential']);
     expect(test.emails.at(-1)?.subject).toBe('Google was disconnected from your VerseVault account');

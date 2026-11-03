@@ -208,16 +208,17 @@ address, since the link route doesn't. Where it isn't, Better Auth refuses with
 links it when that account is verified and otherwise redirects with `?error=verify_email_first`: the
 account proves the inbox with a verification code first, which also verifies it.
 
-Disconnecting Google from account settings is `POST /api/account/google/disconnect`, with a session.
-In one server step it removes every Google account on the account and ends every other session, so
-the account is no longer reachable through Google; Better Auth's own unlink route, which removes one
-account and leaves sessions alone, is refused (`404`). It refuses when no password remains to sign
-in with (`400 FAILED_TO_UNLINK_LAST_ACCOUNT`) and asks for a sign-in within the last day
-(`403 SESSION_NOT_FRESH`), so settings offers it only while the account has a password and says to
-sign in again when the session is older. The "Google was connected" email points there, and
-disconnecting sends a "Google was disconnected" email. Both notices come from `databaseHooks` on
-account create and delete; the connected one skips a new Google sign-up and the learner's own
-takeover.
+Disconnecting Google from account settings is `POST /api/account/google/disconnect` with
+`{ password }`, with a session. In one server step it removes every Google account on the account
+and ends every other session, so the account is no longer reachable through Google; Better Auth's
+own unlink route, which removes one account and leaves sessions alone, is refused (`404`). It
+refuses when no password remains to sign in with (`400 FAILED_TO_UNLINK_LAST_ACCOUNT`) and asks for
+a sign-in within the last day (`403 SESSION_NOT_FRESH`), refuses a wrong password
+(`403 INVALID_PASSWORD`, `429` after 5 tries for the account, one more every 3 minutes), so settings
+offers it only while the account has a password and says to sign in again when the session is older.
+The "Google was connected" email points there, and disconnecting sends a "Google was disconnected"
+email. Both notices come from `databaseHooks` on account create and delete; the connected one skips
+a new Google sign-up and the learner's own takeover.
 
 ### `GET /api/me`
 

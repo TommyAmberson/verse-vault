@@ -116,8 +116,13 @@ const AUTH_LOOSE_PATHS = new Set<string>([
 ]);
 
 /** Credential surfaces outside `/api/auth/*` that take the tight tier: the
- *  Google code step's routes check and send emailed codes. */
-const TIGHT_PATHS = new Set<string>(['/api/account/google/confirm', '/api/account/google/resend']);
+ *  Google code step's routes check and send emailed codes, and disconnect
+ *  checks the password. */
+const TIGHT_PATHS = new Set<string>([
+  '/api/account/google/confirm',
+  '/api/account/google/resend',
+  '/api/account/google/disconnect',
+]);
 
 /** IP source: Cloudflare Tunnel → standard proxy header → fallback.
  *  In tests the harness doesn't synthesise a socket; injecting

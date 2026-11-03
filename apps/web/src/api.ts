@@ -449,7 +449,7 @@ export interface ApiClient {
   /** "Send a new code" on the Google code step. */
   resendGoogleCode(email: string): Promise<{ sent: true } | { proven: true }>
   /** Removes every Google account and ends every other session (FR-018). */
-  disconnectGoogle(): Promise<{ ok: true }>
+  disconnectGoogle(password: string): Promise<{ ok: true }>
   /** Reset account: progress plus enrolled decks, per-year settings,
    *  schedules, and snapshots; keeps sign-in (DELETE /api/account/data). */
   resetAccount(): Promise<ProgressDeletionSummary>
@@ -612,7 +612,8 @@ export function createApiClient(apiUrl: string): ApiClient {
     takeOverWithGoogle: (email) => request('POST', '/api/account/google/takeover', { email }),
     confirmGoogle: (email, code) => request('POST', '/api/account/google/confirm', { email, code }),
     resendGoogleCode: (email) => request('POST', '/api/account/google/resend', { email }),
-    disconnectGoogle: () => request('POST', '/api/account/google/disconnect'),
+    disconnectGoogle: (password) =>
+      request('POST', '/api/account/google/disconnect', { password }),
     resetAccount: () => request('DELETE', '/api/account/data'),
   }
 }
