@@ -13,6 +13,8 @@ app-level changes don't need a bump here.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-03
+
 ### Changed
 
 * The API request carries the client address Cloudflare saw as `X-Real-IP`, and no
