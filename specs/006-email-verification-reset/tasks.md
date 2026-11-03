@@ -351,5 +351,5 @@ Task: "Reset page in apps/web/src/views/ResetPasswordView.vue"
 - [X] T066 Tests first: a form post to the account routes from another origin is refused and changes nothing (FR-033).
 - [X] T067 Tests first: sign-up, reset and change with a breached password are refused, the reset code still works, and the tests never reach the network; then the check in the before hook (FR-034).
 - [X] T069 "That's not me" in one transaction (connect Google, remove the other sign-ins and sessions, verify), the pending row used up only after it lands, and a connection refused only for the unique index, any other failure thrown (research D20).
-- [ ] T068 `docs/server-api.md`, `docs/deployment.md` (NODE_ENV=production in the service), then releases: api PATCH, web PATCH if it changed.
+- [X] T068 `docs/server-api.md`, `docs/deployment.md` (NODE_ENV=production in the service), then releases: api PATCH, web PATCH if it changed.
 

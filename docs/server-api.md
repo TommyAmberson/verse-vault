@@ -27,17 +27,17 @@ depend on the env vars set on the server (`GOOGLE_CLIENT_ID`, etc. — see
 
 Useful endpoints (Better Auth defaults):
 
-| method | path                                         | purpose                                                 |
-| ------ | -------------------------------------------- | ------------------------------------------------------- |
-| GET    | `/api/auth/get-session`                      | current session or null                                 |
-| POST   | `/api/auth/sign-in/email`                    | password sign-in                                        |
-| POST   | `/api/auth/sign-out`                         | clear session cookie                                    |
-| GET    | `/api/auth/callback/<provider>`              | OAuth provider callback (per provider config)           |
-| POST   | `/api/auth/email-otp/request-password-reset` | `{ email }`; emails a reset code                        |
-| POST   | `/api/auth/email-otp/reset-password`         | `{ email, otp, password }`; sets the password           |
-| POST   | `/api/auth/email-otp/send-verification-otp`  | `{ email, type: "email-verification" }`; emails a code  |
-| POST   | `/api/auth/email-otp/verify-email`           | `{ email, otp }`; verifies, with that account's session |
-| POST   | `/api/auth/link-social`                      | connects Google to the signed-in account                |
+| method | path                                         | purpose                                                                             |
+| ------ | -------------------------------------------- | ----------------------------------------------------------------------------------- |
+| GET    | `/api/auth/get-session`                      | current session or null                                                             |
+| POST   | `/api/auth/sign-in/email`                    | password sign-in                                                                    |
+| POST   | `/api/auth/sign-out`                         | clear session cookie                                                                |
+| GET    | `/api/auth/callback/<provider>`              | OAuth provider callback (per provider config)                                       |
+| POST   | `/api/auth/email-otp/request-password-reset` | `{ email }`; emails a reset code                                                    |
+| POST   | `/api/auth/email-otp/reset-password`         | `{ email, otp, password }`; sets the password                                       |
+| POST   | `/api/auth/email-otp/send-verification-otp`  | `{ email, type: "email-verification" }`; emails a code, with that account's session |
+| POST   | `/api/auth/email-otp/verify-email`           | `{ email, otp }`; verifies, with that account's session                             |
+| POST   | `/api/auth/link-social`                      | connects Google to the signed-in account                                            |
 
 ### Codes
 
@@ -46,6 +46,11 @@ lasts 10 minutes, is stored hashed in `verification`, and allows 3 wrong tries; 
 the third answers `403 TOO_MANY_ATTEMPTS` and the code is gone. Asking again replaces the older
 code, so only the newest works, and a code works once. A wrong code answers `400 INVALID_OTP`, an
 expired one `400 OTP_EXPIRED`.
+
+A new password at sign-up, reset or `change-password` that appears in a data breach is refused with
+`400 { code: "PASSWORD_COMPROMISED" }`, or `503` when Pwned Passwords can't be reached; only the
+first 5 characters of its SHA-1 are sent. Routes outside Better Auth's refuse form posts from an
+origin it doesn't trust (403).
 
 Emails are sent from `no-reply@versevault.ca` through Resend (`RESEND_API_KEY`; without it the API
 logs the message, code included, instead). The send starts and the request returns without waiting
@@ -108,8 +113,8 @@ account that then accepts the owner's Google sign-in. Signing in proves the pass
 proves the inbox. The plugin compares the code before checking the session, so a `hooks.before`
 refuses a request without that account's session first, and a signed-out guess neither counts nor
 tells a right code from a wrong one. The phase 1 route `POST /api/auth/send-verification-email`
-still works and now sends a code too; the phase 1 link routes (`/request-password-reset`,
-`/reset-password`, `/verify-email`) answer `404`, so links in older emails stop working.
+answers `404`, like the phase 1 link routes (`/request-password-reset`, `/reset-password`,
+`/verify-email`) answer `404`, so links in older emails stop working.
 
 Verification links from emails sent before codes open `<WEB_BASE_URL>/verify-email`, which now
 points to account settings.
@@ -776,7 +781,7 @@ The API runs an in-memory token-bucket per client IP. Defaults:
 | tier                 | limit       | applies to                                                                                                        |
 | -------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
 | authed               | 120 req/min | every route except `/health` and the credential surfaces below — includes cheap `/api/auth/*` session-state reads |
-| unauthed (auth-flow) | 10 req/min  | credential surfaces under `/api/auth/*` (sign-in, sign-up, password reset, OAuth callbacks, sign-out, etc.)       |
+| unauthed (auth-flow) | 60 req/min  | credential surfaces under `/api/auth/*` (sign-in, sign-up, password reset, OAuth callbacks, sign-out, etc.)       |
 | exempt               | —           | `/health` (no bucket, no 429)                                                                                     |
 
 Cheap session-state reads (`GET /api/auth/get-session`,
@@ -786,44 +791,48 @@ that volume into the credential-stuffing bucket 429'd normal nav long before any
 traffic. Add new paths to `AUTH_LOOSE_PATHS` in `packages/api/src/middleware/observability.ts` when
 a future Better Auth route lands in the same shape.
 
-Bucket key is the client IP (`CF-Connecting-IP` in production behind the Cloudflare Tunnel,
-`X-Forwarded-For` first hop in dev, `unknown` if neither is present). In local dev, `ip:unknown`
-skips the bucket entirely — localhost requests carry no proxy header, so without the skip every
-unauthenticated request shares one bucket and a couple of refreshes exhaust it. Toggle the skip via
-`rateLimitUnknownIp` (defaults to `NODE_ENV === 'production'`); prod still limits unknown IPs as a
-defense-in-depth measure since a real `ip:unknown` request behind the Tunnel is a misconfig or a
-header-spoof bypass attempt. Per-user keying is a follow-up if NAT'd users start tripping limits —
-siblings sharing a NAT currently share a bucket.
+Each tier has its own bucket per client IP (`CF-Connecting-IP` in production behind the Cloudflare
+Tunnel, `X-Forwarded-For` first hop in dev, `unknown` if neither is present), so app traffic and the
+credential routes don't draw on each other. In local dev, `ip:unknown` skips the bucket entirely —
+localhost requests carry no proxy header, so without the skip every unauthenticated request shares
+one bucket and a couple of refreshes exhaust it. Toggle the skip via `rateLimitUnknownIp` (defaults
+to `NODE_ENV === 'production'`); prod still limits unknown IPs as a defense-in-depth measure since a
+real `ip:unknown` request behind the Tunnel is a misconfig or a header-spoof bypass attempt.
+Per-user keying is a follow-up if NAT'd users start tripping limits — siblings sharing a NAT
+currently share a bucket.
 
 Failed Better Auth attempts (e.g. 401 from `/api/auth/sign-in/email` with a bad password) still
 consume a token. That's intentional brute-force protection.
 
 Two more limits sit inside Better Auth (`packages/api/src/lib/auth.ts`):
 
-* **Better Auth's own per-IP limits**, on in production only, including 3 per minute on each code
-  route (`/email-otp/request-password-reset`, `/email-otp/send-verification-otp`,
-  `/email-otp/verify-email`, `/email-otp/reset-password`). It reads the client IP from
+* **Better Auth's own per-IP limits**, on in production (set explicitly, not left to its own
+  `NODE_ENV` check): 15 a minute for password sign-in, sign-up and each code route
+  (`/email-otp/request-password-reset`, `/email-otp/send-verification-otp`,
+  `/email-otp/verify-email`, `/email-otp/reset-password`), and 30 for starting a Google sign-in, so
+  a group on one network fits; reading the session isn't limited. It reads the client IP from
   `CF-Connecting-IP`, then `X-Forwarded-For`; with neither it would key every client to one shared
   bucket.
+* **Per IP per day**: at most 30 reset or verification emails per client IP a day, so one client
+  can't spend the email provider's daily quota. Requests to the routes above count when they arrive,
+  before the per-address limit, so a client over its limit doesn't use up an address's allowance;
+  over the limit they get `429 { code: "TOO_MANY_REQUESTS" }` with "Too many requests from this
+  network." Sign-up codes, with a password or with Google, count apart, 30 per IP a day, once the
+  account is created; over that a sign-up still succeeds without the code (logged as
+  `[email] sign-up verification skipped`) and its response says `codeSkipped: true`.
 * **Per address**: at most 3 requests an hour for any one address, across reset and verification
-  codes together (`/email-otp/request-password-reset`, `/email-otp/send-verification-otp`, and the
-  phase 1 `/send-verification-email`), keyed by the lowercased `email` in the body. It counts
-  requests, not emails sent, so throttling looks the same whether or not the address has an account.
-  Over the limit: `429 { code: "TOO_MANY_REQUESTS", message }` with `Retry-After`. The bucket lives
-  in memory and resets on restart, which is fine for an abuse guard. Sign-up's own verification code
-  isn't counted; sign-up can't repeat for an address.
-* **Per IP per day**: at most 10 emails per client IP a day, so one client can't spend the email
-  provider's daily quota. Requests to the routes above count when they arrive, once they pass the
-  per-address limit; over the limit they get the same 429 shape with "Too many requests from this
-  network." A sign-up, with a password or with Google, counts only once its account is created, and
-  over the limit it succeeds without sending the verification code (logged as
-  `[email] sign-up verification skipped`), so a group on one network is never refused. Shares the
-  per-address limit's in-memory store.
+  codes together, keyed by the lowercased `email` in the body (a longer one by its first 254
+  characters). It counts requests, not emails sent, so throttling looks the same whether or not the
+  address has an account. Over the limit: the same 429 with `Retry-After`. Sign-up's own
+  verification code isn't counted.
+
+These counts live in memory and reset on restart, which is fine for an abuse guard.
 
 Tuneable via env vars at boot:
 
 * `RATE_LIMIT_AUTHED_PER_MIN` — default 120.
-* `RATE_LIMIT_UNAUTHED_PER_MIN` — default 10.
+* `RATE_LIMIT_UNAUTHED_PER_MIN` — default 60, shared by the credential routes; Better Auth's own
+  per-route limits govern each one.
 
 Garbage values (non-integer, non-positive) fall back to the defaults. Limits are per single API
 instance with no distributed coordination; a horizontal scale-out will need a shared store.
