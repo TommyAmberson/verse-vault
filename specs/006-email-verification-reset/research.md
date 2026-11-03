@@ -492,7 +492,8 @@ Auth's rate limiter on in production explicitly, with per-network limits that le
 on one network; the email limits checking the client first, counting every address, and keeping
 sign-up codes apart; a session check before sending a verification code; an origin check on the
 account routes' form posts; and new passwords checked against Pwned Passwords in the before hook,
-ahead of Better Auth, whose own plugin checks only after a reset has spent its code.
+ahead of Better Auth, whose own plugin checks only after a reset has spent its code. "That's not me"
+runs in one transaction, so a failure can't leave the account half taken over.
 
 **Rationale**: the same flows run here; the API is one Node process, so Better Auth's memory store
 holds its counts, unlike qzr's Workers.

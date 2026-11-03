@@ -126,11 +126,6 @@ export interface PendingGoogle {
 /** How a code is stored: SHA-256, base64url. */
 export const hashCode = (code: string) => createHash('sha256').update(code).digest('base64url');
 
-/** Users whose Google links and unlinks should send no notice: the
- *  learner's own takeover, which also removes the password a notice would
- *  point to. */
-const quietLinks = new Set<string>();
-
 /** One step at a time per pending Google row: the code step's checks and
  *  sends read and write the same row, so each must see what the one before
  *  it wrote (research D16). A lock in this process suffices, as the API
@@ -668,9 +663,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           // sign in, by any route (choice, Connect Google, or Better Auth
           // linking an authoritative sign-in): tell the owner (FR-027). Not
           // for a new Google sign-up, which has nothing else, nor the
-          // learner's own takeover.
+          // learner's own takeover, which writes the tables directly.
           after: async (account) => {
-            if (account.providerId !== 'google' || quietLinks.has(account.userId)) return;
+            if (account.providerId !== 'google') return;
             const others = db
               .select()
               .from(schema.account)
@@ -685,7 +680,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         delete: {
           // Google disconnected while the account stays: tell the owner too.
           after: async (account) => {
-            if (account.providerId !== 'google' || quietLinks.has(account.userId)) return;
+            if (account.providerId !== 'google') return;
             const owner = db.select().from(schema.user).where(eq(schema.user.id, account.userId))
               .get();
             if (owner) sendEmail(googleUnlinkedEmail(owner.email));
@@ -804,18 +799,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
     return ctx.json?.({ success: true, googleDisconnected: true });
   }
 
-  /** Runs `link` without the "Google was connected" or "disconnected"
-   *  notices. */
-  async function withoutLinkNotice<T>(userId: string, link: () => Promise<T>): Promise<T> {
-    quietLinks.add(userId);
-    try {
-      return await link();
-    } finally {
-      quietLinks.delete(userId);
-    }
-  }
-
-  return Object.assign(auth, { sendGoogleCode, withoutLinkNotice, pendingCookiePath });
+  return Object.assign(auth, { sendGoogleCode, pendingCookiePath });
 }
 
 export type Auth = ReturnType<typeof createAuth>;
