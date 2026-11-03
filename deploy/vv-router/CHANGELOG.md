@@ -13,6 +13,11 @@ app-level changes don't need a bump here.
 
 ## [Unreleased]
 
+### Changed
+
+* The API request carries the client address Cloudflare saw as `X-Real-IP`, and no
+  `X-Forwarded-For`, rather than the incoming headers as sent.
+
 ## [0.2.0] - 2026-10-01
 
 MINOR: verse-vault moves from `/vv/` to the root of www.versevault.ca, so the Worker stops serving
