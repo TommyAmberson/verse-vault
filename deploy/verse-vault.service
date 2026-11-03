@@ -16,6 +16,9 @@ Group=verse-vault
 # the bundle root.
 WorkingDirectory=/opt/verse-vault/app
 EnvironmentFile=/etc/verse-vault.env
+# Production mode for the API and its libraries: trusted origins, CORS and
+# rate limits follow it.
+Environment=NODE_ENV=production
 # Hono binds 127.0.0.1:$PORT and the host runs `ufw default deny incoming`,
 # so the only path in is the Cloudflare Tunnel proxying to 127.0.0.1:3000
 # (see deploy/cloudflared/config.yml).

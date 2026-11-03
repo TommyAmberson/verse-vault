@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { compress } from 'hono/compress';
+import { csrf } from 'hono/csrf';
 import { cors } from 'hono/cors';
 
 import type { DB } from './db/client.js';
@@ -121,6 +122,18 @@ export function createApp(deps: AppDeps) {
   app.use('*', compress());
 
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+
+  // A form post from another origin, even one on the same site, carries the
+  // session cookie, and the routes read JSON whatever the content type:
+  // refuse it unless the origin is one Better Auth trusts (FR-033). Better
+  // Auth checks its own routes; JSON from elsewhere already fails CORS.
+  const csrfCheck = csrf({
+    origin: async (origin) => (await auth.$context).isTrustedOrigin(origin),
+  });
+  app.use('/api/*', async (c, next) => {
+    if (c.req.path.startsWith('/api/auth/')) return next();
+    return csrfCheck(c, next);
+  });
 
   // Session middleware runs on everything except Better Auth's own routes
   // (Better Auth does its own session handling internally) and /health

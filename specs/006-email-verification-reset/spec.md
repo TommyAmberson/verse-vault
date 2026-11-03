@@ -4,9 +4,8 @@
 
 **Created**: 2026-10-06
 
-**Status**: Shipped (phases 1, 2a, 2b and 2c); phase 2d (FR-028, FR-029) in progress; the 2b
+**Status**: Shipped (phases 1, 2a, 2b, 2c and 2d); phase 2e (FR-032 to FR-035) in progress; the 2b
 production checks (T049) are still open. The follow-up for devices that miss a wipe is
-[spec 007](../007-reset-counter/spec.md). follow-up for devices that miss a wipe is
 [spec 007](../007-reset-counter/spec.md).
 
 **Input**: User description: "adding email verification and password reset"
@@ -376,9 +375,12 @@ the same sign-in methods still work.
   them MUST lead to a page that asks the learner to request a code instead.
 * **FR-012**: Requests that send email (reset, verification, and the Google inbox check) MUST be
   throttled to at most 3 requests per address per hour (reset and verification combined; the email
-  sent at sign-up is not counted) and also per client, at most 10 emails per client per day
-  including those sent at sign-up, and a throttled request MUST tell the learner to try again later.
-  Sign-up itself is never refused for this limit.
+  sent at sign-up is not counted) and also per client, at most 30 emails per client per day. Codes
+  sent at sign-up count apart, 30 per client per day, so sign-ups on one shared network don't use up
+  its people's resets. The client limit is checked first, so a client over it can't use up an
+  address's allowance, and every address counts, however long. A throttled request MUST tell the
+  learner to try again later. Sign-up itself is never refused for this limit; over it, the sign-up
+  says no code was sent.
 * **FR-013**: All outgoing email MUST come from `VerseVault <no-reply@versevault.ca>`, show the code
   prominently, say why it was sent, how long it lasts, not to share it, and what to do if the
   recipient did not ask for it. Each code MUST work only for the purpose its email names. The code
@@ -458,6 +460,16 @@ the same sign-in methods still work.
   (OWASP Forgot Password Cheat Sheet).
 * **FR-031**: Completing a password reset MUST cancel the account's pending Google sign-ins (the
   code step and the choice), as OWASP asks recovery to invalidate outstanding codes.
+* **FR-032**: Password sign-in, sign-up and the email-code routes MUST be rate limited per client,
+  with room for a group on one network (15 a minute; 30 for starting a Google sign-in), and entering
+  Google code-step codes per client too. A limited request is told to try again later.
+* **FR-033**: Every route that acts on the session cookie, outside Better Auth's own, MUST accept
+  form posts only from the app's own origins.
+* **FR-034**: A new password, at sign-up, reset or change, MUST be refused when it appears in a list
+  of breached passwords, with a message to choose another; the check MUST NOT send the password or
+  its full hash anywhere, and MUST NOT spend a reset code. The minimum length stays 8.
+* **FR-035**: Only a session on an account MAY ask for a verification code to be sent to its
+  address; the code sent at sign-up is the exception.
 
 ### Key Entities
 

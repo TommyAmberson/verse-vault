@@ -10,6 +10,7 @@ import {
   getIp,
   getOAuthState,
   getSessionFromCtx,
+  isAPIError,
 } from 'better-auth/api';
 import { generateRandomString } from 'better-auth/crypto';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -26,6 +27,7 @@ import {
   resetCodeEmail,
   verificationCodeEmail,
 } from './email.js';
+import { isBreachedPassword } from './breached-passwords.js';
 import { type RateLimitTier, TokenBucketStore } from './rate-limit.js';
 
 export interface AuthEnv {
@@ -47,12 +49,10 @@ export interface AuthEnv {
  *  origin (CORS, Better Auth `trustedOrigins`). */
 export const TAURI_ORIGINS = ['tauri://localhost', 'https://tauri.localhost'] as const;
 
-/** Requests that email an address a code: reset and verification. The
- *  phase 1 verification route stays, sending a code now. */
+/** Requests that email an address a code: reset and verification. */
 const EMAILING_PATHS = new Set([
   '/email-otp/request-password-reset',
   '/email-otp/send-verification-otp',
-  '/send-verification-email',
 ]);
 
 /** Email-code routes outside this app: code sign-in, changing the address,
@@ -69,6 +69,9 @@ const REFUSED_PATHS = [
   '/email-otp/check-verification-otp',
   // Disconnecting Google is our own route, which also ends other sessions.
   '/unlink-account',
+  // Phase 1's send route, replaced by the email-code plugin's, which checks
+  // the session (FR-035); the web app no longer calls it.
+  '/send-verification-email',
 ];
 
 /** Phase 1's link routes. Links emailed before codes would otherwise keep
@@ -90,10 +93,15 @@ const PER_ADDRESS_TIER: RateLimitTier = { capacity: 3, refillPerSec: 3 / 3600 };
 /** Better Auth's default for "a recent sign-in". */
 export const FRESH_SESSION_MS = 24 * 60 * 60 * 1000;
 
-/** At most 10 emails per IP per day: requests on those paths, plus
- *  verification emails sent at sign-up. */
-const PER_IP_TIER: RateLimitTier = { capacity: 10, refillPerSec: 10 / (24 * 3600) };
+/** At most 30 emails per IP per day from requests on those paths (FR-012). */
+const PER_IP_TIER: RateLimitTier = { capacity: 30, refillPerSec: 30 / (24 * 3600) };
 
+/** Codes sent at sign-up, counted apart so sign-ups on one shared network
+ *  don't use up its people's resets: 30 per IP per day (FR-012). */
+const PER_IP_SIGNUP_TIER: RateLimitTier = { capacity: 30, refillPerSec: 30 / (24 * 3600) };
+
+/** An address can't be longer; a longer one counts under its first 254
+ *  characters, so junk can't fill the bucket store with long keys. */
 const MAX_EMAIL_LENGTH = 254;
 
 /** Verification rows for a refused Google sign-in: the code step, then
@@ -117,11 +125,6 @@ export interface PendingGoogle {
 
 /** How a code is stored: SHA-256, base64url. */
 export const hashCode = (code: string) => createHash('sha256').update(code).digest('base64url');
-
-/** Users whose Google links and unlinks should send no notice: the
- *  learner's own takeover, which also removes the password a notice would
- *  point to. */
-const quietLinks = new Set<string>();
 
 /** One step at a time per pending Google row: the code step's checks and
  *  sends read and write the same row, so each must see what the one before
@@ -162,6 +165,29 @@ const googleProfile = defineRequestState<{
 /** Set when the current password reset disconnected Google, so the reset's
  *  response can say so (FR-029). */
 const googleDisconnectedByReset = defineRequestState<boolean>(() => false);
+
+/** Set when sign-up skipped its code over the daily limit, so its response
+ *  can say so (FR-012). */
+const signUpCodeSkipped = defineRequestState<boolean>(() => false);
+
+/** Refuses a new password found in a breach, or any when the check can't be
+ *  made, rather than accepting it unchecked (research D20). One Better Auth
+ *  refuses for its length (8 to 128) needs no outside call. */
+async function refuseBreachedPassword(password: unknown) {
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128) return;
+  const breached = await isBreachedPassword(password).catch((err) => {
+    console.error('[auth] breached-password check failed:', err);
+    throw new APIError('SERVICE_UNAVAILABLE', {
+      message: "Couldn't check the password. Try again later.",
+    });
+  });
+  if (breached) {
+    throw new APIError('BAD_REQUEST', {
+      message: 'This password has appeared in a data breach. Choose a different one.',
+      code: 'PASSWORD_COMPROMISED',
+    });
+  }
+}
 
 export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const isProd = process.env.NODE_ENV === 'production';
@@ -206,34 +232,39 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   // throttling reveals nothing about which addresses have accounts.
   const sendBuckets = new TokenBucketStore();
 
-  /** Counts a request to email `email` against both limits, the address
-   *  first so requests it refuses don't use up the whole network's
-   *  allowance. Which limit refused it, with the error to answer, or null
-   *  when the email may go. */
+  /** Counts a request to email `email` against both limits, the client
+   *  first: a client over its own limit must not go on using up an
+   *  address's allowance, which would lock the address's owner out of
+   *  resets. A request the address limit then refuses sends nothing, so it
+   *  gives the client its token back. Which limit refused it, with the error
+   *  to answer, or null when the email may go. */
   function chargeSend(
     email: string,
     ip: string | null,
   ): { limit: 'address' | 'network'; error: APIError } | null {
-    const perAddress = sendBuckets.consume(`email:${email.trim().toLowerCase()}`, PER_ADDRESS_TIER);
-    if (!perAddress.allowed) {
-      return {
-        limit: 'address',
-        error: new APIError(
-          'TOO_MANY_REQUESTS',
-          { message: 'Too many requests for this address. Try again later.' },
-          { 'Retry-After': String(Math.ceil(perAddress.retryAfterSec)) },
-        ),
-      };
+    if (ip) {
+      const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
+      if (!perIp.allowed) {
+        return {
+          limit: 'network',
+          error: new APIError(
+            'TOO_MANY_REQUESTS',
+            { message: 'Too many requests from this network. Try again later.' },
+            { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
+          ),
+        };
+      }
     }
-    if (!ip) return null;
-    const perIp = sendBuckets.consume(`ip:${ip}`, PER_IP_TIER);
-    if (perIp.allowed) return null;
+    const key = `email:${email.trim().toLowerCase().slice(0, MAX_EMAIL_LENGTH)}`;
+    const perAddress = sendBuckets.consume(key, PER_ADDRESS_TIER);
+    if (perAddress.allowed) return null;
+    if (ip) sendBuckets.refund(`ip:${ip}`, PER_IP_TIER);
     return {
-      limit: 'network',
+      limit: 'address',
       error: new APIError(
         'TOO_MANY_REQUESTS',
-        { message: 'Too many requests from this network. Try again later.' },
-        { 'Retry-After': String(Math.ceil(perIp.retryAfterSec)) },
+        { message: 'Too many requests for this address. Try again later.' },
+        { 'Retry-After': String(Math.ceil(perAddress.retryAfterSec)) },
       ),
     };
   }
@@ -384,6 +415,36 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         if (ctx.request && isRefusedSend(ctx.path, ctx.body)) {
           throw new APIError('NOT_FOUND');
         }
+        // A new password, however it's set, that appears in a breach is
+        // refused (FR-034), here rather than through Better Auth's
+        // haveIBeenPwned plugin, which checks while hashing: by then a reset
+        // has spent its code.
+        if (ctx.request) {
+          const body = ctx.body as { password?: unknown; newPassword?: unknown } | undefined;
+          if (ctx.path === '/sign-up/email' || ctx.path === '/email-otp/reset-password') {
+            await refuseBreachedPassword(body?.password);
+          } else if (ctx.path === '/change-password' && (await getSessionFromCtx(ctx))) {
+            // Only for a signed-in request: Better Auth refuses the rest
+            // itself, and they shouldn't cost a call to Pwned Passwords.
+            await refuseBreachedPassword(body?.newPassword);
+          }
+        }
+        // A verification code is sent only for a session on that account
+        // (FR-035), so a stranger can't have codes mailed to any address.
+        // Sign-up's own send calls the plugin directly and runs no hooks.
+        if (ctx.request && ctx.path === '/email-otp/send-verification-otp') {
+          const body = ctx.body as { email?: unknown; type?: unknown } | undefined;
+          const session = await getSessionFromCtx(ctx);
+          if (
+            body?.type === 'email-verification' &&
+            (typeof body.email !== 'string' ||
+              session?.user.email.toLowerCase() !== body.email.trim().toLowerCase())
+          ) {
+            throw new APIError('FORBIDDEN', {
+              message: 'Sign in to this account to verify its email.',
+            });
+          }
+        }
         // The plugin compares the code before `beforeEmailVerification`
         // checks the session, so without this a signed-out guess would still
         // count and still learn whether the code was right. Refuse first.
@@ -420,10 +481,8 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         }
         if (!EMAILING_PATHS.has(ctx.path)) return;
         const email = (ctx.body as { email?: unknown } | undefined)?.email;
-        // The body isn't validated yet. Anything longer than an address can
-        // be (254 characters) matches no account, so skip it rather than
-        // let oversized junk fill the bucket store.
-        if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH) return;
+        // Every address counts, however long, so no request sends unlimited.
+        if (typeof email !== 'string') return;
         const refused = chargeSend(
           email,
           ctx.request ? getIp(ctx.request, ctx.context.options) : null,
@@ -435,6 +494,20 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
       // inbox still needs proving (research D16, D17).
       after: createAuthMiddleware(async (ctx) => {
         if (ctx.path === '/email-otp/reset-password') return reportGoogleDisconnected(ctx);
+        // A sign-up whose code was skipped says so, so the form doesn't wait
+        // for an email that isn't coming.
+        if (ctx.path === '/sign-up/email') {
+          const returned = ctx.context.returned;
+          if (
+            !(await signUpCodeSkipped.get()) ||
+            !returned ||
+            returned instanceof Response ||
+            isAPIError(returned)
+          ) {
+            return;
+          }
+          return ctx.json({ ...(returned as object), codeSkipped: true });
+        }
         if (ctx.path !== '/callback/:id') return;
         const location = ctx.context.responseHeaders?.get('location');
         const profile = await googleProfile.get();
@@ -590,9 +663,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           // sign in, by any route (choice, Connect Google, or Better Auth
           // linking an authoritative sign-in): tell the owner (FR-027). Not
           // for a new Google sign-up, which has nothing else, nor the
-          // learner's own takeover.
+          // learner's own takeover, which writes the tables directly.
           after: async (account) => {
-            if (account.providerId !== 'google' || quietLinks.has(account.userId)) return;
+            if (account.providerId !== 'google') return;
             const others = db
               .select()
               .from(schema.account)
@@ -607,12 +680,32 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         delete: {
           // Google disconnected while the account stays: tell the owner too.
           after: async (account) => {
-            if (account.providerId !== 'google' || quietLinks.has(account.userId)) return;
+            if (account.providerId !== 'google') return;
             const owner = db.select().from(schema.user).where(eq(schema.user.id, account.userId))
               .get();
             if (owner) sendEmail(googleUnlinkedEmail(owner.email));
           },
         },
+      },
+    },
+    // On in production explicitly, rather than left to Better Auth's own
+    // NODE_ENV check (FR-032, research D20). Limits count per network, and a
+    // group may share one, so these leave room for a room full signing in at
+    // once where Better Auth's defaults (3 per 10 seconds for sign-in and
+    // sign-up, 3 a minute for the email-code routes) would turn them away.
+    // The email limits still bound what is sent.
+    rateLimit: {
+      enabled: isProd,
+      customRules: {
+        '/sign-in/email': { window: 60, max: 15 },
+        '/sign-in/social': { window: 60, max: 30 },
+        '/sign-up/email': { window: 60, max: 15 },
+        '/email-otp/verify-email': { window: 60, max: 15 },
+        '/email-otp/reset-password': { window: 60, max: 15 },
+        '/email-otp/request-password-reset': { window: 60, max: 15 },
+        '/email-otp/send-verification-otp': { window: 60, max: 15 },
+        // Reading the session guards nothing and runs on every page load.
+        '/get-session': false,
       },
     },
     advanced: {
@@ -645,8 +738,9 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
           const request = ctx?.request;
           if (request && !EMAILING_PATHS.has(authPath(request))) {
             const ip = getIp(request, auth.options);
-            if (ip && !sendBuckets.consume(`ip:${ip}`, PER_IP_TIER).allowed) {
+            if (ip && !sendBuckets.consume(`signup:${ip}`, PER_IP_SIGNUP_TIER).allowed) {
               console.warn(`[email] sign-up verification skipped: daily limit reached for ${ip}`);
+              await signUpCodeSkipped.set(true);
               return;
             }
           }
@@ -705,18 +799,7 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
     return ctx.json?.({ success: true, googleDisconnected: true });
   }
 
-  /** Runs `link` without the "Google was connected" or "disconnected"
-   *  notices. */
-  async function withoutLinkNotice<T>(userId: string, link: () => Promise<T>): Promise<T> {
-    quietLinks.add(userId);
-    try {
-      return await link();
-    } finally {
-      quietLinks.delete(userId);
-    }
-  }
-
-  return Object.assign(auth, { sendGoogleCode, withoutLinkNotice, pendingCookiePath });
+  return Object.assign(auth, { sendGoogleCode, pendingCookiePath });
 }
 
 export type Auth = ReturnType<typeof createAuth>;

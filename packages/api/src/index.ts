@@ -44,7 +44,10 @@ runMigrations(dbPath);
 // from the same per-minute number so they can't drift apart on a future
 // edit.
 const authedPerMin = rateLimitPerMin('RATE_LIMIT_AUTHED_PER_MIN', 120);
-const unauthedPerMin = rateLimitPerMin('RATE_LIMIT_UNAUTHED_PER_MIN', 10);
+// The credential routes share this per network; Better Auth's own limits
+// govern each route (FR-032), so this only bounds the total and leaves room
+// for a group on one network.
+const unauthedPerMin = rateLimitPerMin('RATE_LIMIT_UNAUTHED_PER_MIN', 60);
 
 const db = createDb(dbPath);
 const { app, engines } = createApp({
@@ -61,8 +64,8 @@ const { app, engines } = createApp({
   dialect: ['american', 'british', 'canadian'].includes(process.env.RENDER_DIALECT ?? '')
     ? (process.env.RENDER_DIALECT as 'american' | 'british' | 'canadian')
     : 'canadian',
-  // Rate-limit tuneables. Defaults from middleware/observability.ts:
-  // 120 req/min for general traffic, 10 req/min for /api/auth/*.
+  // Rate-limit tuneables, read above: 120 req/min for general traffic and
+  // 60 req/min for the credential routes, each in its own bucket.
   observability: {
     authedTier: { capacity: authedPerMin, refillPerSec: authedPerMin / 60 },
     unauthedAuthTier: { capacity: unauthedPerMin, refillPerSec: unauthedPerMin / 60 },

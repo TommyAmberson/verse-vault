@@ -1,10 +1,12 @@
 import { timingSafeEqual } from 'node:crypto';
 
+import { and, eq, ne } from 'drizzle-orm';
 import { type Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 
 import type { DB } from '../db/client.js';
+import * as schema from '../db/schema.js';
 import {
   type Auth,
   FRESH_SESSION_MS,
@@ -37,6 +39,78 @@ export interface AccountRoutesDeps {
  *  coverage at ~5x headroom. Beyond that, the user should split the
  *  export anyway. */
 const IMPORT_MAX_BYTES = 50 * 1024 * 1024;
+
+/** better-sqlite3 reports a unique index refusing a row on `.code`, which
+ *  Better Auth's adapter may wrap as the error's cause. */
+function isUniqueViolation(err: unknown): boolean {
+  const code = (e: unknown) => (e as { code?: string } | null)?.code;
+  return (
+    code(err) === 'SQLITE_CONSTRAINT_UNIQUE' ||
+    code((err as { cause?: unknown } | null)?.cause) === 'SQLITE_CONSTRAINT_UNIQUE'
+  );
+}
+
+/**
+ * "That's not me": the Google identity becomes the account's only way in. In
+ * one transaction, so a failure leaves the account as it was: connects
+ * Google, removes the password and every other sign-in the registrant
+ * linked, ends every session, and verifies the address. Whoever set the
+ * password loses it, as Better Auth's `revokeUnprovenAccountAccess` does for
+ * an unverified account. Direct writes send no notices: the learner did
+ * this. False when that Google account belongs to another account.
+ */
+function takeOver(db: DB, pending: PendingGoogle): boolean {
+  // False also when the account is no longer unverified, which the route
+  // checked but another request may have changed since.
+  try {
+    db.transaction((tx) => {
+      // Taken over, or verified, meanwhile (a repeated request, say):
+      // nothing more to take.
+      const target = tx
+        .select({ emailVerified: schema.user.emailVerified })
+        .from(schema.user)
+        .where(eq(schema.user.id, pending.userId))
+        .get();
+      if (!target || target.emailVerified) throw new LinkTaken();
+      const existing = tx
+        .select()
+        .from(schema.account)
+        .where(
+          and(eq(schema.account.providerId, 'google'), eq(schema.account.accountId, pending.sub)),
+        )
+        .get();
+      if (existing && existing.userId !== pending.userId) throw new LinkTaken();
+      const now = new Date();
+      const linkId = existing?.id ?? crypto.randomUUID();
+      if (!existing) {
+        tx.insert(schema.account)
+          .values({
+            id: linkId,
+            userId: pending.userId,
+            providerId: 'google',
+            accountId: pending.sub,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      }
+      tx.delete(schema.account)
+        .where(and(eq(schema.account.userId, pending.userId), ne(schema.account.id, linkId)))
+        .run();
+      tx.delete(schema.session).where(eq(schema.session.userId, pending.userId)).run();
+      tx.update(schema.user)
+        .set({ emailVerified: true, updatedAt: now })
+        .where(eq(schema.user.id, pending.userId))
+        .run();
+    });
+    return true;
+  } catch (err) {
+    if (err instanceof LinkTaken || isUniqueViolation(err)) return false;
+    throw err;
+  }
+}
+
+class LinkTaken extends Error {}
 
 export function accountRoutes(deps: AccountRoutesDeps) {
   const app = new Hono<{ Variables: SessionVariables }>();
@@ -110,9 +184,17 @@ export function accountRoutes(deps: AccountRoutesDeps) {
     if (existing && existing.userId !== pending.userId) return null;
     return async (): Promise<boolean> => {
       if (!existing) {
+        // The unique index refuses a link that raced another for the same
+        // Google account; any other failure is a real error.
         const linked = await internal
           .linkAccount({ providerId: 'google', accountId: pending.sub, userId: pending.userId })
-          .then(() => true, () => false);
+          .then(
+            () => true,
+            (err) => {
+              if (isUniqueViolation(err)) return false;
+              throw err;
+            },
+          );
         if (!linked) return false;
       }
       await internal.updateUser(pending.userId, { emailVerified: true });
@@ -203,25 +285,10 @@ export function accountRoutes(deps: AccountRoutesDeps) {
     const internal = await adapter();
     const target = await internal.findUserById(pending.userId);
     if (!target || target.emailVerified) return invalidToken(c);
-    const link = await googleLinker(pending);
-    if (!link || !(await consume(c, found.identifier))) return invalidToken(c);
-    // Linked first, so a link refused because another request took the
-    // same Google account in between leaves the password and sessions. No
-    // "Google was connected" notice: the learner did this, and the password
-    // it would point to goes next.
-    if (!(await deps.auth.withoutLinkNotice(pending.userId, link))) return invalidToken(c);
-    // Whoever set the password loses it and every session, as Better Auth's
-    // `revokeUnprovenAccountAccess` does for an unverified account.
-    // Every other way in goes, not only the password: a Google account the
-    // registrant linked would otherwise keep its access.
-    // Quietly: the learner did this, so no "Google was disconnected" email.
-    await deps.auth.withoutLinkNotice(pending.userId, async () => {
-      for (const account of await internal.findAccounts(pending.userId)) {
-        const isNewLink = account.providerId === 'google' && account.accountId === pending.sub;
-        if (!isNewLink) await internal.deleteAccount(account.id);
-      }
-    });
-    await internal.deleteUserSessions(pending.userId);
+    // Taken over before the row is used up, so a failure leaves it for a
+    // retry.
+    if (!takeOver(deps.db, pending)) return invalidToken(c);
+    await consume(c, found.identifier);
     return c.json({ ok: true });
   });
 

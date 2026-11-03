@@ -485,6 +485,19 @@ signs in with it rather than resetting, so the extra step is rare.
 each (the study's wording; needs a held state and a restore route for little gain over reconnect);
 removing links only on unverified accounts (misses a verified account whose address changed hands).
 
+## D20. Hardening from the qzr review (2e)
+
+**Decision**: carry back what the code reviews of qzr's port (qzr-sheet spec 005) found: Better
+Auth's rate limiter on in production explicitly, with per-network limits that leave room for a group
+on one network; the email limits checking the client first, counting every address, and keeping
+sign-up codes apart; a session check before sending a verification code; an origin check on the
+account routes' form posts; and new passwords checked against Pwned Passwords in the before hook,
+ahead of Better Auth, whose own plugin checks only after a reset has spent its code. "That's not me"
+runs in one transaction, so a failure can't leave the account half taken over.
+
+**Rationale**: the same flows run here; the API is one Node process, so Better Auth's memory store
+holds its counts, unlike qzr's Workers.
+
 ## D18. Delivery (2a, 2b, 2c)
 
 **Decision**: four pull requests, each with api and web PATCH releases where they touch them.

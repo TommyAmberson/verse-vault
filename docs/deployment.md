@@ -156,12 +156,17 @@ curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/dep
 systemctl daemon-reload
 ```
 
-The unit runs `node dist/index.js` as the `verse-vault` user with
-`WorkingDirectory=/opt/verse-vault/app` (a symlink the CI workflow flips between releases). Hono
-binds 127.0.0.1:3000, so the only path in is the Cloudflare Tunnel proxying to it, and `ufw` blocks
-everything else inbound as a second layer. The API trusts the tunnel's `CF-Connecting-IP` header for
-the client address, which only holds while nothing else can reach the port. Drizzle migrations run
-on each boot (`runMigrations` in `packages/api/src/index.ts`).
+The unit runs `node dist/index.js` as the `verse-vault` user, with `NODE_ENV=production` (trusted
+origins, CORS and the rate limits follow it), and `WorkingDirectory=/opt/verse-vault/app` (a symlink
+the CI workflow flips between releases). Hono binds 127.0.0.1:3000, so the only path in is the
+Cloudflare Tunnel proxying to it, and `ufw` blocks everything else inbound as a second layer. The
+API trusts the tunnel's `CF-Connecting-IP` header for the client address, which only holds while
+nothing else can reach the port. Drizzle migrations run on each boot (`runMigrations` in
+`packages/api/src/index.ts`).
+
+The deploy workflow restarts the unit but doesn't install it, so a change to
+`deploy/verse-vault.service` reaches the box only by fetching it again as above, then
+`systemctl daemon-reload && systemctl restart verse-vault`.
 
 ### 4. Cloudflare Tunnel
 

@@ -80,6 +80,13 @@ export class TokenBucketStore {
     return { allowed: false, retryAfterSec };
   }
 
+  /** Gives back a token `consume` took, up to the tier's capacity: for a
+   *  request a later check refused, which shouldn't count here. */
+  refund(key: string, tier: RateLimitTier): void {
+    const state = this.buckets.get(key);
+    if (state) state.tokens = Math.min(tier.capacity, state.tokens + 1);
+  }
+
   size(): number {
     return this.buckets.size;
   }

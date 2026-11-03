@@ -133,6 +133,24 @@ describe('account routes', () => {
     expect(res.status).toBe(401);
   });
 
+  it('refuses a form post from another origin, changing nothing', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await enroll(test, 'forged@example.com');
+
+    const forged = await test.app.request('/api/account/progress', {
+      method: 'DELETE',
+      headers: { cookie, origin: 'https://evil.example', 'content-type': 'text/plain' },
+    });
+
+    expect(forged.status).toBe(403);
+    const own = await test.app.request('/api/account/progress', {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(((await own.json()) as { materialsReset: number }).materialsReset).toBeGreaterThan(0);
+  });
+
   it('wipes progress but keeps the enrolled material', async () => {
     const test = createTestApp();
     cleanup = test.cleanup;

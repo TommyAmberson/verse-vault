@@ -9,6 +9,20 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-11-02
+
+PATCH: say when sign-up couldn't send its code.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Changed
+
+* When the network's daily email limit skipped the sign-up code, the code step says it couldn't be
+  sent instead of asking for it.
+
 ## [0.11.1] - 2026-10-31
 
 PATCH: say when a password reset disconnected Google.
