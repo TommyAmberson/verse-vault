@@ -55,10 +55,10 @@ export interface ObservabilityOptions {
   /** Request-id generator. Defaults to `crypto.randomUUID`. */
   randomId?: () => string;
   /** Whether to rate-limit requests that resolve to `ip:unknown` (no
-   *  `CF-Connecting-IP` and no `X-Forwarded-For`). Defaults to `true`
+   *  `CF-Connecting-IP`). Defaults to `true`
    *  in production (NODE_ENV=production) and `false` elsewhere.
    *
-   *  Local dev needs `false`: localhost requests carry neither header,
+   *  Local dev needs `false`: localhost requests carry no such header,
    *  so every unauthenticated request collapses into one shared
    *  bucket and a couple of page refreshes exhaust the `unauthedAuth`
    *  tier. In production the Cloudflare Tunnel always injects
@@ -124,18 +124,13 @@ const TIGHT_PATHS = new Set<string>([
   '/api/account/google/disconnect',
 ]);
 
-/** IP source: Cloudflare Tunnel → standard proxy header → fallback.
- *  In tests the harness doesn't synthesise a socket; injecting
- *  `CF-Connecting-IP` per request keeps test buckets isolated. */
+/** The client's address as Cloudflare saw it. Every production request
+ *  comes through the Tunnel, which sets it; X-Forwarded-For isn't read,
+ *  since only a client could have set it. In tests the harness doesn't
+ *  synthesise a socket; injecting `CF-Connecting-IP` per request keeps test
+ *  buckets isolated. */
 function resolveIp(c: Context): string {
-  const cf = c.req.header('CF-Connecting-IP');
-  if (cf) return cf;
-  const xff = c.req.header('X-Forwarded-For');
-  if (xff) {
-    const first = xff.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return 'unknown';
+  return c.req.header('CF-Connecting-IP') ?? 'unknown';
 }
 
 export function observabilityMiddleware(
@@ -168,7 +163,7 @@ export function observabilityMiddleware(
     // so a refresher isn't rate-limited like an attacker.
     const isAuthTight = (path.startsWith('/api/auth/') && !AUTH_LOOSE_PATHS.has(path)) ||
       TIGHT_PATHS.has(path);
-    // In local dev nothing injects CF-Connecting-IP / X-Forwarded-For,
+    // In local dev nothing injects CF-Connecting-IP,
     // so every unauthenticated request shares the `ip:unknown` bucket
     // and a couple of page refreshes exhaust it. See
     // `rateLimitUnknownIp` on ObservabilityOptions.

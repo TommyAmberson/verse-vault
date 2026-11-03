@@ -655,7 +655,8 @@ describe('email request throttling', () => {
   it("reads the client IP from Cloudflare's header for Better Auth's own limits", () => {
     // Requests reach the API through Cloudflare Tunnel with CF-Connecting-IP
     // and no X-Forwarded-For; read only Better Auth's default header and
-    // every production client would share one rate-limit bucket.
+    // every production client would share one rate-limit bucket. A client's
+    // own X-Forwarded-For counts for nothing.
     const test = createTestDb();
     cleanup = test.cleanup;
     const auth = createAuth(test.db, TEST_AUTH_ENV, () => {});
@@ -663,6 +664,10 @@ describe('email request throttling', () => {
       headers: { 'cf-connecting-ip': '203.0.113.7' },
     });
     expect(getIp(request, auth.options)).toBe('203.0.113.7');
+    const forged = new Request('http://localhost:3000/api/auth/request-password-reset', {
+      headers: { 'x-forwarded-for': '198.51.100.9' },
+    });
+    expect(getIp(forged, auth.options)).not.toBe('198.51.100.9');
   });
 });
 

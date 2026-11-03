@@ -793,14 +793,14 @@ traffic. Add new paths to `AUTH_LOOSE_PATHS` in `packages/api/src/middleware/obs
 a future Better Auth route lands in the same shape.
 
 Each tier has its own bucket per client IP (`CF-Connecting-IP` in production behind the Cloudflare
-Tunnel, `X-Forwarded-For` first hop in dev, `unknown` if neither is present), so app traffic and the
-credential routes don't draw on each other. In local dev, `ip:unknown` skips the bucket entirely —
-localhost requests carry no proxy header, so without the skip every unauthenticated request shares
-one bucket and a couple of refreshes exhaust it. Toggle the skip via `rateLimitUnknownIp` (defaults
-to `NODE_ENV === 'production'`); prod still limits unknown IPs as a defense-in-depth measure since a
-real `ip:unknown` request behind the Tunnel is a misconfig or a header-spoof bypass attempt.
-Per-user keying is a follow-up if NAT'd users start tripping limits — siblings sharing a NAT
-currently share a bucket.
+Tunnel, `unknown` without it; `X-Forwarded-For` isn't read, since a client can set it), so app
+traffic and the credential routes don't draw on each other. In local dev, `ip:unknown` skips the
+bucket entirely — localhost requests carry no such header, so without the skip every unauthenticated
+request shares one bucket and a couple of refreshes exhaust it. Toggle the skip via
+`rateLimitUnknownIp` (defaults to `NODE_ENV === 'production'`); prod still limits unknown IPs as a
+defense-in-depth measure since a real `ip:unknown` request behind the Tunnel is a misconfig or a
+header-spoof bypass attempt. Per-user keying is a follow-up if NAT'd users start tripping limits —
+siblings sharing a NAT currently share a bucket.
 
 Failed Better Auth attempts (e.g. 401 from `/api/auth/sign-in/email` with a bad password) still
 consume a token. That's intentional brute-force protection.
@@ -812,8 +812,8 @@ Two more limits sit inside Better Auth (`packages/api/src/lib/auth.ts`):
   (`/email-otp/request-password-reset`, `/email-otp/send-verification-otp`,
   `/email-otp/verify-email`, `/email-otp/reset-password`), and 30 for starting a Google sign-in, so
   a group on one network fits; reading the session isn't limited. It reads the client IP from
-  `CF-Connecting-IP`, then `X-Forwarded-For`; with neither it would key every client to one shared
-  bucket.
+  `CF-Connecting-IP` only; Better Auth's default, `X-Forwarded-For`, isn't there behind the Tunnel
+  and would key every client to one shared bucket.
 * **Per IP per day**: at most 30 reset or verification emails per client IP a day, so one client
   can't spend the email provider's daily quota. Requests to the routes above count when they arrive,
   before the per-address limit, so a client over its limit doesn't use up an address's allowance;
