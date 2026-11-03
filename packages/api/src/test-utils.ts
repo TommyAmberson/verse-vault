@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import Database from 'better-sqlite3';
+import { createHash } from 'node:crypto';
 import { expect, vi } from 'vitest';
 
 import { createApp } from './app.js';
@@ -12,6 +13,19 @@ import type { EmailMessage, SendEmail } from './lib/email.js';
 import { user } from './db/schema.js';
 import { MIGRATIONS_FOLDER, runMigrations } from './db/migrate.js';
 import type { ObservabilityOptions } from './middleware/observability.js';
+
+/** The one password the stubbed Pwned Passwords service reports breached. */
+export const BREACHED_PASSWORD = 'breached-password-1';
+
+// Pwned Passwords answers from here, so no test reaches the network: a range
+// lists only BREACHED_PASSWORD's hash.
+const networkFetch = globalThis.fetch;
+globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const href = input instanceof Request ? input.url : String(input);
+  if (!href.startsWith('https://api.pwnedpasswords.com/range/')) return networkFetch(input, init);
+  const hash = createHash('sha1').update(BREACHED_PASSWORD).digest('hex').toUpperCase();
+  return new Response(href.endsWith(`/${hash.slice(0, 5)}`) ? `${hash.slice(5)}:42\n` : '');
+}) as typeof fetch;
 
 export const TEST_AUTH_ENV = {
   baseUrl: 'http://localhost:3000',

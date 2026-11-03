@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { type TestApp, createTestApp, signUpTestUser } from './test-utils.js';
+import {
+  BREACHED_PASSWORD,
+  type TestApp,
+  createTestApp,
+  emailCode,
+  signUpTestUser,
+} from './test-utils.js';
 
 function postAuth(test: TestApp, path: string, body: object, cookie?: string) {
   return test.app.request(`/api/auth/${path}`, {
@@ -86,3 +92,66 @@ describe('form posts from another origin', () => {
   });
 });
 
+describe('breached passwords', () => {
+  it('are refused at sign-up', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const res = await postAuth(test, 'sign-up/email', {
+      email: 'new@example.com',
+      password: BREACHED_PASSWORD,
+      name: 'new@example.com',
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: 'PASSWORD_COMPROMISED' });
+  });
+
+  it('are refused at reset, keeping the code', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    await signUpTestUser(test, 'reset@example.com');
+    await postAuth(test, 'email-otp/request-password-reset', { email: 'reset@example.com' });
+    const otp = emailCode(test.emails, 'reset@example.com');
+
+    const refused = await postAuth(test, 'email-otp/reset-password', {
+      email: 'reset@example.com',
+      otp,
+      password: BREACHED_PASSWORD,
+    });
+    expect(refused.status).toBe(400);
+
+    const retry = await postAuth(test, 'email-otp/reset-password', {
+      email: 'reset@example.com',
+      otp,
+      password: 'a-much-better-password',
+    });
+    expect(retry.status).toBe(200);
+  });
+
+  it('are refused as a new password for a signed-in account', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'change@example.com');
+    const res = await postAuth(
+      test,
+      'change-password',
+      { currentPassword: 'superSecret123!', newPassword: BREACHED_PASSWORD },
+      cookie,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("refuse a password they can't check, rather than accept it", async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const spy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('unavailable', { status: 503 }));
+    const res = await postAuth(test, 'sign-up/email', {
+      email: 'later@example.com',
+      password: 'a-fine-password-1',
+      name: 'later@example.com',
+    });
+    spy.mockRestore();
+    expect(res.status).toBe(503);
+  });
+});

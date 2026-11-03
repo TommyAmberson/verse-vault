@@ -27,6 +27,7 @@ import {
   resetCodeEmail,
   verificationCodeEmail,
 } from './email.js';
+import { isBreachedPassword } from './breached-passwords.js';
 import { type RateLimitTier, TokenBucketStore } from './rate-limit.js';
 
 export interface AuthEnv {
@@ -173,6 +174,25 @@ const googleDisconnectedByReset = defineRequestState<boolean>(() => false);
 /** Set when sign-up skipped its code over the daily limit, so its response
  *  can say so (FR-012). */
 const signUpCodeSkipped = defineRequestState<boolean>(() => false);
+
+/** Refuses a new password found in a breach, or any when the check can't be
+ *  made, rather than accepting it unchecked (research D20). One Better Auth
+ *  refuses for its length (8 to 128) needs no outside call. */
+async function refuseBreachedPassword(password: unknown) {
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128) return;
+  const breached = await isBreachedPassword(password).catch((err) => {
+    console.error('[auth] breached-password check failed:', err);
+    throw new APIError('SERVICE_UNAVAILABLE', {
+      message: "Couldn't check the password. Try again later.",
+    });
+  });
+  if (breached) {
+    throw new APIError('BAD_REQUEST', {
+      message: 'This password has appeared in a data breach. Choose a different one.',
+      code: 'PASSWORD_COMPROMISED',
+    });
+  }
+}
 
 export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
   const isProd = process.env.NODE_ENV === 'production';
@@ -399,6 +419,20 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
         // The send route's types for the refused flows, from outside only.
         if (ctx.request && isRefusedSend(ctx.path, ctx.body)) {
           throw new APIError('NOT_FOUND');
+        }
+        // A new password, however it's set, that appears in a breach is
+        // refused (FR-034), here rather than through Better Auth's
+        // haveIBeenPwned plugin, which checks while hashing: by then a reset
+        // has spent its code.
+        if (ctx.request) {
+          const body = ctx.body as { password?: unknown; newPassword?: unknown } | undefined;
+          if (ctx.path === '/sign-up/email' || ctx.path === '/email-otp/reset-password') {
+            await refuseBreachedPassword(body?.password);
+          } else if (ctx.path === '/change-password' && (await getSessionFromCtx(ctx))) {
+            // Only for a signed-in request: Better Auth refuses the rest
+            // itself, and they shouldn't cost a call to Pwned Passwords.
+            await refuseBreachedPassword(body?.newPassword);
+          }
         }
         // A verification code is sent only for a session on that account
         // (FR-035), so a stranger can't have codes mailed to any address.
