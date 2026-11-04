@@ -44,7 +44,9 @@ from evaluate_phrases import (
 from phrase_splitter.apibible import DEFAULT_DB_PATH, DEFAULT_NKJV_ID
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-from split_phrases import _render_current_split, _render_signals
+from split_phrases import _render_current_split, _render_signals, _validate
+from phrase_splitter.apibible import extract_chapter_text, extract_chapter_verses
+from phrase_splitter.prompts import format_judge_prompt
 
 
 class WordCountTests(unittest.TestCase):
@@ -444,7 +446,7 @@ class FormatSplitPromptTests(unittest.TestCase):
             current_split='  - "For the kingdom of God"\n  - "is not in word but in power."',
         )
         self.assertIn("Current split", out)
-        self.assertIn("best split, not a different split", out)
+        self.assertIn("honest best split", out)
         self.assertNotIn("Signals (auto-computed)", out)
 
     def test_with_signals_only(self):
@@ -582,6 +584,91 @@ class PrintPromptRenderingTests(unittest.TestCase):
         self.assertIn("severance=", rendered)
         # Composite score is displayed
         self.assertIn("composite=", rendered)
+
+
+class RenderSignalsTests(unittest.TestCase):
+    def test_new_signals_are_named(self):
+        feats = extract_verse_features(
+            T("Nevertheless, the Lord raised up judges who delivered them out of the hand "
+              "of those who plundered them."), [17]
+        )
+        rendered = _render_signals(feats)
+        self.assertIn("long_run=", rendered)
+        self.assertIn("pause_points=relative@'who'", rendered)
+
+    def test_boundary_and_verse_signals_are_named(self):
+        cor = T("Therefore I make known to you that no one speaking by the Spirit of God calls "
+                "Jesus accursed, and no one can say that Jesus is Lord except by the Holy Spirit.")
+        rendered = _render_signals(extract_verse_features(cor, [6, 12, 9, 5]))
+        self.assertIn("parallel_asymmetry=", rendered)
+        rendered = _render_signals(extract_verse_features(T("He said this, and the man went"), [5, 2]))
+        self.assertIn("no_pause_cue=", rendered)
+        rendered = _render_signals(extract_verse_features(ListTests.PLEASURE, [4, 4, 6, 3]))
+        self.assertIn("list_breaks: word_list_cut", rendered)
+        rendered = _render_signals(extract_verse_features(
+            T("That it may give seed to the sower And bread to the eater,"), [12]))
+        self.assertIn("lost_line_break", rendered)
+
+
+class DisplayTextTests(unittest.TestCase):
+    # John 5:28-29 as api.bible serves it: the dash sits between spans.
+    HTML = (
+        '<p class="p"><span data-number="28" data-sid="JHN 5:28" class="v">28</span>'
+        '<span class="wj">Do not marvel at this; for the hour is coming in which all who are '
+        'in the graves will hear His voice </span>'
+        '<span data-number="29" data-sid="JHN 5:29" class="v">29</span>'
+        '<span class="wj">and come forth—</span><span class="wj">those who have done good, '
+        'to the resurrection of life, and those who have done evil, to the resurrection of '
+        'condemnation.</span></p>'
+    )
+
+    def test_dash_kept_in_display_text(self):
+        text = extract_chapter_text(self.HTML, "John", 5)[29]
+        self.assertIn("come forth—those who", text)
+
+    def test_tokens_unchanged(self):
+        tokens = extract_chapter_verses(self.HTML, "John", 5)[29]
+        self.assertEqual(tokens[:4], ["and", "come", "forth", "those"])
+        self.assertEqual(len(tokens), 24)
+
+    def test_no_markup_or_dash_matches_tokens(self):
+        self.assertEqual(
+            extract_chapter_text(self.HTML, "John", 5)[28],
+            " ".join(extract_chapter_verses(self.HTML, "John", 5)[28]),
+        )
+
+
+class ReplyValidationTests(unittest.TestCase):
+    TOKENS = extract_chapter_verses(DisplayTextTests.HTML, "John", 5)[29]
+    TAIL = ["those who have done good, to the resurrection of life,",
+            "and those who have done evil, to the resurrection of condemnation."]
+
+    def test_dash_kept_dropped_or_spaced(self):
+        for head in ("and come forth—", "and come forth", "and come forth —"):
+            errors, counts = _validate([head] + self.TAIL, self.TOKENS)
+            self.assertEqual(errors, [], head)
+            self.assertEqual(counts, [3, 10, 11])
+
+    def test_dash_inside_phrase(self):
+        errors, counts = _validate(
+            ["and come forth—those who have done good, to the resurrection of life,",
+             self.TAIL[1]], self.TOKENS)
+        self.assertEqual(errors, [])
+        self.assertEqual(counts, [13, 11])
+
+    def test_straight_quotes_accepted(self):
+        tokens = ["He", "said,", "“Follow", "Me.”"]
+        errors, counts = _validate(['He said,', '"Follow Me."'], tokens)
+        self.assertEqual(errors, [])
+        self.assertEqual(counts, [2, 2])
+
+    def test_paraphrase_rejected(self):
+        errors, _ = _validate(["and came forth"] + self.TAIL, self.TOKENS)
+        self.assertTrue(errors)
+
+    def test_word_count_mismatch_rejected(self):
+        errors, _ = _validate(["and come forth"] + self.TAIL[:1], self.TOKENS)
+        self.assertTrue(errors)
 
 
 class ReferenceSetValidationTests(unittest.TestCase):

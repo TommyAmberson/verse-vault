@@ -393,13 +393,9 @@ def get_book_sections(
     return sections
 
 
-def extract_chapter_verses(
-    html: str, book: str, chapter: int
-) -> dict[int, List[str]]:
-    """Tokens for every verse in a chapter, keyed by verse number.
-    Cheaper than calling ``extract_verse_tokens`` per verse when a
-    tool needs the full chapter (e.g. the keyword auditor)."""
-    out: dict[int, List[str]] = {}
+def _chapter_chunks(html: str, book: str, chapter: int):
+    """Yield ``(verse_number, html_chunk)`` for every verse marker of the
+    given chapter."""
     markers = list(_VERSE_MARKER_RE.finditer(html))
     for i, m in enumerate(markers):
         sid = m.group(1)
@@ -411,7 +407,33 @@ def extract_chapter_verses(
             continue
         if book_part != book_code(book) or ch != chapter:
             continue
-        start = m.end()
         end = markers[i + 1].start() if i + 1 < len(markers) else len(html)
-        out[v] = _tokenise(_strip_to_text(html[start:end]))
-    return out
+        yield v, html[m.end():end]
+
+
+def extract_chapter_verses(
+    html: str, book: str, chapter: int
+) -> dict[int, List[str]]:
+    """Tokens for every verse in a chapter, keyed by verse number.
+    Cheaper than calling ``extract_verse_tokens`` per verse when a
+    tool needs the full chapter (e.g. the keyword auditor)."""
+    return {
+        v: _tokenise(_strip_to_text(chunk)) for v, chunk in _chapter_chunks(html, book, chapter)
+    }
+
+
+_WS_RE = re.compile(r"\s+")
+# Span seams can leave a space beside a dash ("forth— those"); NKJV
+# dashes are never spaced.
+_SPACED_DASH_RE = re.compile(r"\s*—\s*")
+
+
+def extract_chapter_text(html: str, book: str, chapter: int) -> dict[int, str]:
+    """Readable text for every verse in a chapter, keyed by verse number.
+    Same stripping as the token stream, but em dashes stay in place
+    ("come forth—those"), since they mark a pause a reader hears. Word
+    counts always come from ``extract_chapter_verses``."""
+    return {
+        v: _SPACED_DASH_RE.sub("—", _WS_RE.sub(" ", _strip_to_text(chunk))).strip()
+        for v, chunk in _chapter_chunks(html, book, chapter)
+    }

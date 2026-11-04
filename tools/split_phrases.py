@@ -62,12 +62,13 @@ from phrase_splitter.prompts import format_judge_prompt  # noqa: E402
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
     DEFAULT_NKJV_ID,
+    _tokenise,
+    extract_chapter_text,
     extract_chapter_verses,
     get_chapter_html,
     open_cache,
 )
 
-WORD_MIN_HARD = 1
 # No upper word-count cap in the validator: the soft target ceiling lives in
 # quality-criteria.md (≈10, audit warning at >12), but recitation phrases for
 # continuous clauses without a natural internal break can legitimately exceed
@@ -100,6 +101,22 @@ def _verse_by_ref(deck: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         f"{v['book']} {v['chapter']}:{v['verse']}": v
         for v in deck.get("verses", [])
     }
+
+
+def _verse_tokens_and_text(
+    conn, chapter_cache: Dict[tuple, Dict[str, Any]], verse: Dict[str, Any], bible_id: str
+) -> Tuple[List[str], str]:
+    """Canonical tokens (the word-count convention) and display text (with
+    em dashes, for the LLM) for a deck verse, caching chapter HTML."""
+    key = (verse["book"], verse["chapter"])
+    if key not in chapter_cache:
+        html = get_chapter_html(conn, verse["book"], verse["chapter"], bible_id=bible_id)
+        chapter_cache[key] = {
+            "tokens": extract_chapter_verses(html, verse["book"], verse["chapter"]),
+            "text": extract_chapter_text(html, verse["book"], verse["chapter"]),
+        }
+    cached = chapter_cache[key]
+    return cached["tokens"].get(verse["verse"], []), cached["text"].get(verse["verse"], "")
 
 
 def _render_current_split(tokens: List[str], pwc: List[int]) -> str:
@@ -202,18 +219,13 @@ def cmd_print_prompt(args: argparse.Namespace) -> None:
     conn = open_cache(args.db)
     try:
         prompts: List[Dict[str, Any]] = []
-        chapter_cache: Dict[tuple, Dict[int, List[str]]] = {}
+        chapter_cache: Dict[tuple, Dict[str, Any]] = {}
         for ref in refs:
             verse = by_ref.get(ref)
             if not verse:
                 sys.stderr.write(f"warning: {ref!r} not in deck; skipping\n")
                 continue
-            key = (verse["book"], verse["chapter"])
-            if key not in chapter_cache:
-                html = get_chapter_html(conn, verse["book"], verse["chapter"], bible_id=args.bible)
-                chapter_cache[key] = extract_chapter_verses(html, verse["book"], verse["chapter"])
-            tokens = chapter_cache[key].get(verse["verse"], [])
-            text = " ".join(tokens)
+            tokens, text = _verse_tokens_and_text(conn, chapter_cache, verse, args.bible)
             pwc = verse.get("phraseWordCounts") or []
 
             current_split: Optional[str] = None
@@ -287,42 +299,34 @@ def cmd_print_prompt(args: argparse.Namespace) -> None:
             sys.stdout.write(divider)
 
 
-def _word_count(s: str) -> int:
-    return len(s.split())
+# LLM replies sometimes write ASCII quotes where the canonical text has
+# curly ones; fold both sides before comparing.
+_QUOTE_FOLD = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"'})
 
 
-# When the LLM has copied from canonical text byte-for-byte, the rejoin
-# matches. When it has rendered an ASCII ``'`` / ``"`` in place of the
-# canonical curly form, this fallback restores the canonical bytes while
-# keeping the splitter's phrase boundaries. Anything beyond a quote-only
-# mismatch (paraphrase, dropped punctuation, etc.) returns None and the
-# apply step fails the ref.
-_QUOTE_EQUIV = {"'": "‘’", '"': "“”"}
-
-
-def _splice_smart_quotes(phrases: List[str], canonical_text: str) -> Optional[List[str]]:
-    rejoin = " ".join(phrases)
-    if len(rejoin) != len(canonical_text):
-        return None
-    patched_chars: List[str] = []
-    for r, t in zip(rejoin, canonical_text):
-        if r == t:
-            patched_chars.append(r)
-        elif r in _QUOTE_EQUIV and t in _QUOTE_EQUIV[r]:
-            patched_chars.append(t)
-        else:
-            return None
-    patched = "".join(patched_chars)
-    out: List[str] = []
-    pos = 0
-    for i, p in enumerate(phrases):
-        out.append(patched[pos : pos + len(p)])
-        pos += len(p)
-        if i + 1 < len(phrases):
-            if patched[pos] != " ":
-                return None
-            pos += 1
-    return out
+def _validate(
+    phrases: List[str], canonical_tokens: List[str]
+) -> Tuple[List[str], List[int]]:
+    """Check a reply against the canonical verse. Phrases are tokenised the
+    same way as the deck's word counts (whitespace or em dash), so a reply
+    that keeps, drops, or spaces a dash still matches. Returns
+    ``(errors, phrase_word_counts)``; errors empty means OK."""
+    if not isinstance(phrases, list) or not phrases:
+        return ["phrases is empty or not a list"], []
+    if any(not isinstance(p, str) or not _tokenise(p) for p in phrases):
+        return ["phrases contains an empty or non-string entry"], []
+    phrase_tokens = [_tokenise(p) for p in phrases]
+    counts = [len(t) for t in phrase_tokens]
+    if sum(counts) != len(canonical_tokens):
+        return [
+            f"phrase word counts sum to {sum(counts)}; "
+            f"canonical verse has {len(canonical_tokens)} words"
+        ], counts
+    got = [t.translate(_QUOTE_FOLD) for toks in phrase_tokens for t in toks]
+    want = [t.translate(_QUOTE_FOLD) for t in canonical_tokens]
+    if got != want:
+        return ["phrases don't rejoin to canonical text"], counts
+    return [], counts
 
 
 def cmd_judge_pairs(args: argparse.Namespace) -> None:
@@ -345,7 +349,7 @@ def cmd_judge_pairs(args: argparse.Namespace) -> None:
 
     conn = open_cache(args.db)
     try:
-        chapter_cache: Dict[tuple, Dict[int, List[str]]] = {}
+        chapter_cache: Dict[tuple, Dict[str, Any]] = {}
         for item in proposals:
             ref = normalize_reference(item["ref"])
             phrases = item.get("phrases")
@@ -354,16 +358,12 @@ def cmd_judge_pairs(args: argparse.Namespace) -> None:
                 skipped_unknown += 1
                 continue
             current_pwc = verse.get("phraseWordCounts") or []
-            proposed_pwc = [_word_count(p) for p in phrases] if isinstance(phrases, list) else []
-            key = (verse["book"], verse["chapter"])
-            if key not in chapter_cache:
-                html = get_chapter_html(conn, verse["book"], verse["chapter"], bible_id=args.bible)
-                chapter_cache[key] = extract_chapter_verses(html, verse["book"], verse["chapter"])
-            tokens = chapter_cache[key].get(verse["verse"], [])
+            tokens, text = _verse_tokens_and_text(conn, chapter_cache, verse, args.bible)
             if not tokens or not current_pwc or sum(current_pwc) != len(tokens):
                 skipped_invalid += 1
                 continue
-            if sum(proposed_pwc) != len(tokens):
+            errors, proposed_pwc = _validate(phrases, tokens)
+            if errors:
                 skipped_invalid += 1
                 continue
             if current_pwc == proposed_pwc:
@@ -373,7 +373,6 @@ def cmd_judge_pairs(args: argparse.Namespace) -> None:
             proposed_split = _render_current_split(tokens, proposed_pwc)
             current_signals = _render_signals(extract_verse_features(tokens, current_pwc))
             proposed_signals = _render_signals(extract_verse_features(tokens, proposed_pwc))
-            text = " ".join(tokens)
             prompts.append({
                 "ref": ref,
                 "prompt": format_judge_prompt(
@@ -407,30 +406,6 @@ def cmd_judge_pairs(args: argparse.Namespace) -> None:
             f"(skipped: {skipped_match} match, {skipped_unknown} unknown, "
             f"{skipped_invalid} invalid)\n"
         )
-
-
-def _validate(ref: str, phrases: List[str], canonical_tokens: int) -> List[str]:
-    """Return a list of human-readable validation errors. Empty = OK."""
-    errors: List[str] = []
-    if not isinstance(phrases, list) or not phrases:
-        return ["phrases is empty or not a list"]
-    if any(not isinstance(p, str) or not p for p in phrases):
-        errors.append("phrases contains an empty or non-string entry")
-    counts: List[int] = []
-    for i, p in enumerate(phrases):
-        if not isinstance(p, str) or not p:
-            counts.append(0)
-            continue
-        wc = _word_count(p)
-        counts.append(wc)
-        if wc < WORD_MIN_HARD:
-            errors.append(f"phrase {i+1} has 0 words")
-    total = sum(counts)
-    if total != canonical_tokens:
-        errors.append(
-            f"phrase word counts sum to {total}; canonical verse has {canonical_tokens} words"
-        )
-    return errors
 
 
 def cmd_apply(args: argparse.Namespace) -> None:
@@ -474,7 +449,7 @@ def cmd_apply(args: argparse.Namespace) -> None:
 
     conn = open_cache(args.db)
     try:
-        chapter_cache: Dict[tuple, Dict[int, List[str]]] = {}
+        chapter_cache: Dict[tuple, Dict[str, Any]] = {}
         for item in proposed:
             ref = normalize_reference(item["ref"])
             phrases = item.get("phrases")
@@ -482,29 +457,11 @@ def cmd_apply(args: argparse.Namespace) -> None:
             if not verse:
                 failures.append({"ref": ref, "errors": ["not in deck"]})
                 continue
-            key = (verse["book"], verse["chapter"])
-            if key not in chapter_cache:
-                html = get_chapter_html(conn, verse["book"], verse["chapter"], bible_id=args.bible)
-                chapter_cache[key] = extract_chapter_verses(html, verse["book"], verse["chapter"])
-            tokens = chapter_cache[key].get(verse["verse"], [])
-            errs = _validate(ref, phrases, len(tokens))
+            tokens, _ = _verse_tokens_and_text(conn, chapter_cache, verse, args.bible)
+            errs, new_pwc = _validate(phrases, tokens)
             if errs:
                 failures.append({"ref": ref, "errors": errs})
                 continue
-            # Byte-exact rejoin check: " ".join(phrases) must equal the
-            # canonical text. Fall back to a smart-quote splice when the
-            # only divergence is ASCII vs curly quotes (a Sonnet quirk on
-            # force-fresh translations).
-            canonical_text = " ".join(tokens)
-            if " ".join(phrases) != canonical_text:
-                patched = _splice_smart_quotes(phrases, canonical_text)
-                if patched is None:
-                    failures.append(
-                        {"ref": ref, "errors": ["phrases don't rejoin to canonical text"]}
-                    )
-                    continue
-                phrases = patched
-            new_pwc = [_word_count(p) for p in phrases]
             if verse.get("phraseWordCounts") == new_pwc:
                 skipped += 1
                 continue
