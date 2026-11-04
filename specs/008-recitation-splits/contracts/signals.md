@@ -9,18 +9,18 @@ or an LLM, not rules.
 
 ## Per phrase (`signals.phrases[]`)
 
-| Name                         | Type                    | Meaning                                                                                                                                  |
-| ---------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `text`                       | string                  | The phrase's tokens joined by spaces                                                                                                     |
-| `word_count`                 | int                     | Tokens in the phrase                                                                                                                     |
-| `position`                   | string                  | `first`, `middle`, `last` or `only`                                                                                                      |
-| `starts_with_weak_connector` | bool                    | First word is a coordinating or relative connector                                                                                       |
-| `ends_in_pause_punct`        | bool                    | Last token ends in `,` `;` `:` or `—`                                                                                                    |
-| `contains_internal_pause`    | bool                    | An internal token ends in pause punctuation                                                                                              |
-| `ends_mid_clause`            | bool                    | Last token ends without pause or terminal punctuation                                                                                    |
-| `pause_points`               | list of `{index, kind}` | Token indexes (within the phrase) where a cut could go; `kind` is `punct`, `relative`, `content_clause`, `line_break`, `list` or `parse` |
-| `long_run`                   | float                   | How far the phrase runs past one recitation run, scaled down when it has no pause point                                                  |
-| `lost_line_break`            | bool                    | Contains a capitalized line-initial function word mid-phrase (NKJV poetry)                                                               |
+| Name                         | Type                    | Meaning                                                                                                                                                                                                                  |
+| ---------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `text`                       | string                  | The phrase's tokens joined by spaces                                                                                                                                                                                     |
+| `word_count`                 | int                     | Tokens in the phrase                                                                                                                                                                                                     |
+| `position`                   | string                  | `first`, `middle`, `last` or `only`                                                                                                                                                                                      |
+| `starts_with_weak_connector` | bool                    | First word is a coordinating or relative connector                                                                                                                                                                       |
+| `ends_in_pause_punct`        | bool                    | Last token ends in `,` `;` `:` or `—`                                                                                                                                                                                    |
+| `contains_internal_pause`    | bool                    | An internal token ends in pause punctuation                                                                                                                                                                              |
+| `ends_mid_clause`            | bool                    | Last token ends without pause or terminal punctuation                                                                                                                                                                    |
+| `pause_points`               | list of `{index, kind}` | Token indexes (within the phrase) where a cut could go; `kind` is `punct`, `relative`, `content_clause`, `line_break`, `list` or `parse`, or one of the weak cues `coordinator` and `preposition` (after a content word) |
+| `long_run`                   | float                   | How far the phrase runs past one recitation run, scaled down when it has no pause point                                                                                                                                  |
+| `lost_line_break`            | bool                    | Contains a capitalized line-initial function word mid-phrase (NKJV poetry)                                                                                                                                               |
 
 ## Per boundary (`signals.boundaries[]`, one between each pair of phrases)
 

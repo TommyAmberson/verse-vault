@@ -10,14 +10,12 @@ NKJV tokens, then emits one record per verse with two layers:
   disagree; a human must fix the deck before any re-split is meaningful.
 
 * **Signals + composite score** — deterministic features of the current
-  split (``boundary_severance`` with ``severance_kind``, ``stub_phrase``,
-  ``cognitive_overload``, ``missing_split``, …). These don't say a split
-  is wrong; they surface what's worth a look. The composite
-  ``signal_score`` is a weighted sum in ``[0, 1]`` and drives ``--top`` /
-  ``--min-score``.
-
-The judge step is gone — the splitter prompt now folds in that
-judgement using the current split + signals + a stability clause.
+  split measured against recitation runs (``long_run`` with its
+  ``pause_points``, ``no_pause_cue``, ``boundary_severance``,
+  ``lost_line_break``, ``parallel_asymmetry``, ``list_breaks``, …). These
+  don't say a split is wrong; they surface what's worth a look. The
+  composite ``signal_score`` is a weighted sum in ``[0, 1]`` and drives
+  ``--top`` / ``--min-score``.
 
 Usage:
     python3 tools/evaluate_phrases.py
@@ -43,9 +41,9 @@ from phrase_splitter import (  # noqa: E402
 )
 from phrase_splitter.helpers import html_tags_balanced  # noqa: E402
 from phrase_splitter.features import (  # noqa: E402
-    _COMPOSITE_COMPONENTS,
-    _MISSING_SPLIT_WEIGHT,
-    _signal_float,
+    COMPOSITE_COMPONENTS,
+    LIST_BREAK_WEIGHTS,
+    component_value,
     slice_phrases,
 )
 from phrase_splitter.apibible import (  # noqa: E402
@@ -132,56 +130,39 @@ def check_verse(verse: Dict[str, Any], tokens: List[str]) -> Dict[str, Any]:
     return {"blockers": [], "signal_score": round(score, 3), "signals": signals}
 
 
-# Rank bullets by their actual contribution to the composite score
-# (signal value × composite weight) so the top-k surfaces the signals
-# that actually dominate the rank, not an arbitrary display priority.
-_SIGNAL_WEIGHTS = {sig_key: weight for _, sig_key, weight in _COMPOSITE_COMPONENTS}
-_SIGNAL_WEIGHTS["missing_split"] = _MISSING_SPLIT_WEIGHT
+def _describe(signals: Dict[str, Any], container: str, key: str) -> str:
+    """Name where a signal fired: the strongest phrase or boundary, with
+    the detail a reader needs to find it."""
+    if container == "verse":
+        if key == "missing_split":
+            return f"single phrase, {signals.get('token_count', 0)} tokens"
+        return key
+    items = signals.get(container) or []
+    best = max(range(len(items)), key=lambda i: float(items[i].get(key) or 0))
+    item = items[best]
+    if container == "boundaries":
+        kind = item.get("severance_kind") if key == "boundary_severance" else None
+        return f"boundary {best + 1}→{best + 2}: {kind or key}"
+    detail = f"{item.get('word_count')}w"
+    kinds = sorted({p["kind"] for p in item.get("pause_points") or []})
+    if kinds:
+        detail += ", pauses: " + "/".join(kinds)
+    return f"phrase {best + 1}: {key} ({detail})"
 
 
 def _top_signals(signals: Dict[str, Any], k: int = 3) -> List[str]:
-    """Extract the k most anomalous signal bullets for stdout display.
-    Emits at most k human-readable strings; for ``--out`` JSON callers
-    write the full ``signals`` dict directly."""
+    """The k signals contributing most to the composite score, as
+    human-readable bullets. ``--out`` callers get the full payload."""
     if not isinstance(signals, dict):
         return []
-
-    bullets: List[Tuple[float, str]] = []  # (contribution, message)
-
-    for i, b in enumerate(signals.get("boundaries") or []):
-        sev = _signal_float(b, "boundary_severance")
-        kind = b.get("severance_kind") if isinstance(b, dict) else None
-        if sev > 0.0 and kind:
-            bullets.append((
-                sev * _SIGNAL_WEIGHTS["boundary_severance"],
-                f"boundary {i+1}→{i+2}: {kind} (severance={sev:.2f})",
-            ))
-
-    for i, p in enumerate(signals.get("phrases") or []):
-        stub = _signal_float(p, "stub_phrase")
-        if stub > 0.0:
-            wc = p.get("word_count") if isinstance(p, dict) else None
-            bullets.append((
-                stub * _SIGNAL_WEIGHTS["stub_phrase"],
-                f"phrase {i+1}: stub ({wc}w)",
-            ))
-        ov = _signal_float(p, "cognitive_overload")
-        if ov > 0.0:
-            cw = p.get("content_word_count") if isinstance(p, dict) else None
-            bullets.append((
-                ov * _SIGNAL_WEIGHTS["cognitive_overload"],
-                f"phrase {i+1}: overload ({cw} content words)",
-            ))
-
-    missing = _signal_float(signals, "missing_split")
-    if missing > 0.0:
-        token_count = signals.get("token_count", 0)
-        bullets.append((
-            missing * _SIGNAL_WEIGHTS["missing_split"],
-            f"single phrase, {token_count} tokens — likely missing split",
-        ))
-
-    bullets.sort(reverse=True)
+    bullets: List[Tuple[float, str]] = []
+    for container, key, weight in COMPOSITE_COMPONENTS:
+        value = component_value(signals, container, key)
+        if value > 0.0:
+            bullets.append((value * weight, f"{_describe(signals, container, key)} ({value:.2f})"))
+    for lb in signals.get("list_breaks") or []:
+        bullets.append((LIST_BREAK_WEIGHTS.get(lb["kind"], 0.0), f"phrase {lb['phrase']}: {lb['kind']}"))
+    bullets.sort(key=lambda b: -b[0])
     return [msg for _, msg in bullets[:k]]
 
 
@@ -283,10 +264,9 @@ def _split_text(tokens: List[str], pwc: List[int]) -> str:
     return " / ".join(" ".join(p) for p in slice_phrases(tokens, pwc))
 
 
-def calibrate(db_path: str, bible_id: str, min_score: float, show_text: bool) -> int:
-    """Run the audit over every reference verse and print how its flags
-    line up with the maintainer's verdicts. Returns the exit status:
-    non-zero only when the reference set itself fails validation."""
+def run_calibration(db_path: str, bible_id: str, min_score: float) -> Dict[str, Any]:
+    """Audit every reference verse. Returns the entries, the validation
+    errors, per-verse results, and what ``--show-text`` needs."""
     with open(REFERENCE_SET_PATH, encoding="utf-8") as f:
         entries = json.load(f)
 
@@ -315,13 +295,28 @@ def calibrate(db_path: str, bible_id: str, min_score: float, show_text: bool) ->
     token_counts = {ref: len(toks) for ref, toks in tokens_by_ref.items() if toks}
     errors = validate_reference_set(entries, token_counts)
     errors += [f"{ref}: {'; '.join(r['blockers'])}" for ref, r in records.items() if r["blockers"]]
-    if errors:
+    results = [] if errors else calibration_results(entries, deck_counts, records, min_score)
+    return {
+        "entries": entries,
+        "errors": errors,
+        "results": results,
+        "deck_counts": deck_counts,
+        "tokens": tokens_by_ref,
+    }
+
+
+def calibrate(db_path: str, bible_id: str, min_score: float, show_text: bool) -> int:
+    """Print how the audit's flags line up with the maintainer's verdicts.
+    Returns the exit status: non-zero only when the reference set itself
+    fails validation."""
+    run = run_calibration(db_path, bible_id, min_score)
+    entries, results, deck_counts = run["entries"], run["results"], run["deck_counts"]
+    if run["errors"]:
         print("Reference set failed validation:")
-        for err in errors:
+        for err in run["errors"]:
             print(f"  - {err}")
         return 1
 
-    results = calibration_results(entries, deck_counts, records, min_score)
     agreed_by_ref = {e["ref"]: e["agreed"] for e in entries}
     for r in results:
         verdict = "ok" if r["ok"] else ("MISS" if r["state"] == "changed" else "FALSE ALARM")
@@ -330,7 +325,7 @@ def calibrate(db_path: str, bible_id: str, min_score: float, show_text: bool) ->
         for sig in r["fired"]:
             print(f"    - {sig}")
         if show_text:
-            toks = tokens_by_ref[r["ref"]]
+            toks = run["tokens"][r["ref"]]
             print(f"    deck:   {_split_text(toks, deck_counts[r['ref']])}")
             if r["state"] == "changed":
                 print(f"    agreed: {_split_text(toks, agreed_by_ref[r['ref']])}")

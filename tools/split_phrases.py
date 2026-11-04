@@ -110,33 +110,32 @@ def _render_current_split(tokens: List[str], pwc: List[int]) -> str:
 
 def _render_signals(signals: Dict[str, Any]) -> str:
     """Render the signal payload as a compact text block for the
-    prompt's signals section."""
+    prompt's signals section. Names match contracts in
+    ``specs/008-recitation-splits/contracts/signals.md``."""
     lines: List[str] = []
-    tc = signals.get("token_count")
-    pc = signals.get("phrase_count")
     header_bits: List[str] = []
-    if isinstance(tc, int):
-        header_bits.append(f"tokens={tc}")
-    if isinstance(pc, int):
-        header_bits.append(f"phrases={pc}")
-    # length_balance and verse_function_ratio stay in the report payload
-    # but are not rendered here — the splitter has tended to over-balance
-    # phrase lengths when shown the raw balance number.
+    for key in ("token_count", "phrase_count"):
+        if isinstance(signals.get(key), int):
+            header_bits.append(f"{key.split('_')[0]}s={signals[key]}")
     if header_bits:
         lines.append("  " + " ".join(header_bits))
 
     for i, p in enumerate(signals.get("phrases") or []):
         if not isinstance(p, dict):
             continue
-        wc = p.get("word_count", 0)
-        cw = p.get("content_word_count", 0)
-        bits = [f"phrase {i+1}: {wc}w ({cw} content)"]
-        stub = _signal_float(p, "stub_phrase")
-        if stub > 0:
-            bits.append(f"stub={stub:.2f}")
-        ov = _signal_float(p, "cognitive_overload")
-        if ov > 0:
-            bits.append(f"overload={ov:.2f}")
+        bits = [f"phrase {i+1}: {p.get('word_count', 0)}w"]
+        long_run = _signal_float(p, "long_run")
+        if long_run > 0:
+            bits.append(f"long_run={long_run:.2f}")
+        points = p.get("pause_points") or []
+        if points:
+            words = (p.get("text") or "").split(" ")
+            bits.append("pause_points=" + ",".join(
+                f"{pp['kind']}@'{words[pp['index']] if pp['index'] < len(words) else '?'}'"
+                for pp in points
+            ))
+        if p.get("lost_line_break"):
+            bits.append("lost_line_break")
         if p.get("ends_mid_clause"):
             bits.append("ends-mid-clause")
         if p.get("starts_with_weak_connector"):
@@ -148,10 +147,16 @@ def _render_signals(signals: Dict[str, Any]) -> str:
         if sev > 0:
             kind = (b.get("severance_kind") if isinstance(b, dict) else None) or "?"
             lines.append(f"  boundary {i+1}→{i+2}: {kind} severance={sev:.2f}")
+        cue = _signal_float(b, "no_pause_cue")
+        if cue > 0:
+            lines.append(f"  boundary {i+1}→{i+2}: no_pause_cue={cue:.2f}")
 
-    missing = _signal_float(signals, "missing_split")
-    if missing > 0:
-        lines.append(f"  missing_split={missing:.2f}")
+    for key in ("parallel_asymmetry", "missing_split"):
+        value = _signal_float(signals, key)
+        if value > 0:
+            lines.append(f"  {key}={value:.2f}")
+    for lb in signals.get("list_breaks") or []:
+        lines.append(f"  list_breaks: {lb['kind']} in phrase {lb['phrase']}")
 
     lines.append(f"  composite={composite_signal_score(signals):.2f}")
     return "\n".join(lines)
