@@ -5,24 +5,33 @@ Operates on ``data/<N>-<book>.json`` (durable source for
 ``phraseWordCounts``) plus the api.bible canonical-text cache for the
 verse content fed to the LLM.
 
-Two subcommands:
+Subcommands, in pipeline order:
 
-  ``print-prompt`` — emit the LLM prompt for one or more verse refs.
-                     The prompt includes the canonical text plus, by
-                     default, the verse's current split (with the
-                     stability clause) and a Signals block of
-                     deterministic features. Use ``--no-current`` to
-                     propose from scratch; use ``--no-signals`` for
-                     wording iterations.
+  ``print-prompt``   — emit the splitter prompt for one or more verse refs:
+                       the criteria, the verse text (with its em dashes),
+                       and by default the current split and a Signals
+                       block. The splitter replies with one to three
+                       candidate splits per verse.
 
-  ``apply``        — read proposed ``{ref, phrases}`` JSON, count the
-                     words per phrase, validate that the per-verse
-                     sum matches the canonical token count, then
-                     rewrite the verse's ``phraseWordCounts`` in the
-                     deck file. Annotation ``wordIndex`` values and
-                     ``ftvWordCount`` are positions in the token
-                     stream and don't shift when only the split
-                     boundaries change, so they're preserved.
+  ``rate-prompts``   — merge each verse's candidates with its current
+                       split (validated, de-duplicated, given ids that
+                       don't reveal which is current), write the
+                       candidate sets, and emit one rating prompt per
+                       candidate, batched so no batch holds two
+                       candidates of the same verse.
+
+  ``select-prompts`` — emit one prompt per verse showing every candidate
+                       with its rating, for a selector to pick one;
+                       ``--churn-guard`` keeps the current split unless
+                       another is clearly better.
+
+  ``apply``          — write the chosen splits (``--candidates`` +
+                       ``--choices``) or, for a force-fresh pass, the
+                       splitter's first candidates (``--input``) back to
+                       ``phraseWordCounts``. Annotation ``wordIndex``
+                       values and ``ftvWordCount`` are positions in the
+                       token stream and don't shift when only the split
+                       boundaries change, so they're preserved.
 
 The split keeps the CLI free of network dependencies — the LLM call
 is the skill's job — while letting the deck file remain the single
@@ -58,7 +67,7 @@ from phrase_splitter import (  # noqa: E402
     normalize_reference,
 )
 from phrase_splitter.features import _signal_float, slice_phrases  # noqa: E402
-from phrase_splitter.prompts import format_judge_prompt  # noqa: E402
+from phrase_splitter.prompts import format_rate_prompt, format_select_prompt  # noqa: E402
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
     DEFAULT_NKJV_ID,
@@ -329,151 +338,281 @@ def _validate(
     return [], counts
 
 
-def cmd_judge_pairs(args: argparse.Namespace) -> None:
-    """Emit one JUDGE_PROMPT per verse whose proposed split differs
-    from the deck's current split. Signal blocks for both sides come
-    from the auditor's features module, freshly recomputed against
-    each pwc — there's no signal carryover from earlier reports."""
-    with open(args.deck, encoding="utf-8") as f:
-        deck = json.load(f)
-    with open(args.proposals, encoding="utf-8") as f:
-        proposals = json.load(f)
-    if not isinstance(proposals, list):
-        raise SystemExit("proposals must be a JSON array of {ref, phrases}")
+def _proposal_candidates(item: Dict[str, Any]) -> List[Any]:
+    """Candidate phrase lists from one splitter reply entry: the
+    ``candidates`` list, or the older single ``phrases`` list."""
+    if isinstance(item.get("candidates"), list):
+        return list(item["candidates"])
+    if "phrases" in item:
+        return [item["phrases"]]
+    return []
 
+
+def _candidate_set(
+    tokens: List[str], current_pwc: List[int], proposals: List[Any]
+) -> Tuple[List[Dict[str, Any]], str, List[str]]:
+    """Validate proposals against the canonical tokens and merge them with
+    the current split. Identical splits share one id; ids follow the
+    splits' word counts, so they say nothing about which one is current.
+    Returns ``(candidates, current_id, errors)``."""
+    errors: List[str] = []
+    distinct = {tuple(current_pwc)}
+    for n, phrases in enumerate(proposals, 1):
+        errs, counts = _validate(phrases, tokens)
+        if errs:
+            errors.append(f"candidate {n}: " + "; ".join(errs))
+            continue
+        distinct.add(tuple(counts))
+    ordered = sorted(distinct)
+    candidates = [
+        {"id": chr(ord("a") + k), "counts": list(c)} for k, c in enumerate(ordered)
+    ]
+    current_id = candidates[ordered.index(tuple(current_pwc))]["id"]
+    return candidates, current_id, errors
+
+
+def _rating_batches(entries: List[Dict[str, Any]], size: int) -> List[List[Dict[str, Any]]]:
+    """Group rating prompts so no batch holds two candidates of the same
+    verse: a rater working through a batch then never sees a verse's
+    candidates side by side."""
+    by_ref: Dict[str, List[Dict[str, Any]]] = {}
+    for e in entries:
+        by_ref.setdefault(e["ref"], []).append(e)
+    batches: List[List[Dict[str, Any]]] = []
+    rank = 0
+    while True:
+        layer = [group[rank] for group in by_ref.values() if rank < len(group)]
+        if not layer:
+            return batches
+        batches += [layer[i : i + size] for i in range(0, len(layer), size)]
+        rank += 1
+
+
+def _check_ratings(
+    cset: Dict[str, Any], ratings: List[Dict[str, Any]]
+) -> Tuple[Dict[str, Dict[str, Any]], List[str]]:
+    """Keep well-formed ratings of known candidates; report the rest."""
+    ids = {c["id"] for c in cset["candidates"]}
+    good: Dict[str, Dict[str, Any]] = {}
+    errors: List[str] = []
+    for r in ratings:
+        where = f"{cset['ref']} rating {r.get('id')!r}"
+        if r.get("id") not in ids:
+            errors.append(f"{where}: unknown candidate")
+        elif not isinstance(r.get("score"), int) or not 1 <= r["score"] <= 10:
+            errors.append(f"{where}: score must be an integer from 1 to 10")
+        elif not isinstance(r.get("pros"), list) or not isinstance(r.get("cons"), list):
+            errors.append(f"{where}: pros and cons must be lists")
+        else:
+            good[r["id"]] = r
+    return good, errors
+
+
+def _check_choice(
+    cset: Dict[str, Any], choice: Dict[str, Any]
+) -> Tuple[Optional[List[int]], Optional[str]]:
+    """The chosen candidate's word counts, or an error naming the verse."""
+    for c in cset["candidates"]:
+        if c["id"] == choice.get("choice"):
+            return c["counts"], None
+    return None, f"{cset['ref']}: choice {choice.get('choice')!r} is not a candidate"
+
+
+def _write_batches(outdir: str, batches: List[List[Dict[str, Any]]]) -> None:
+    os.makedirs(outdir, exist_ok=True)
+    for stale in os.listdir(outdir):
+        if stale.startswith("batch_") and stale.endswith(".json"):
+            os.remove(os.path.join(outdir, stale))
+    for idx, batch in enumerate(batches):
+        with open(os.path.join(outdir, f"batch_{idx:02d}.json"), "w", encoding="utf-8") as f:
+            json.dump(batch, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+    sys.stderr.write(f"wrote {len(batches)} batches → {outdir}/\n")
+
+
+def _load_json(path: str) -> Any:
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _dump_json(path: str, data: Any) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
+def cmd_rate_prompts(args: argparse.Namespace) -> None:
+    """Collect the splitter's candidates with each verse's current split,
+    write the candidate sets, and emit one rating prompt per candidate."""
+    if not (args.out or args.outdir):
+        raise SystemExit("rate-prompts needs --out or --outdir")
+    deck = _load_json(args.deck)
     by_ref = _verse_by_ref(deck)
-    prompts: List[Dict[str, Any]] = []
-    skipped_match = 0
-    skipped_unknown = 0
-    skipped_invalid = 0
-
+    csets: List[Dict[str, Any]] = []
+    entries: List[Dict[str, Any]] = []
     conn = open_cache(args.db)
     try:
         chapter_cache: Dict[tuple, Dict[str, Any]] = {}
-        for item in proposals:
+        for item in _load_json(args.proposals):
             ref = normalize_reference(item["ref"])
-            phrases = item.get("phrases")
             verse = by_ref.get(ref)
             if not verse:
-                skipped_unknown += 1
+                sys.stderr.write(f"{ref}: not in deck; skipped\n")
                 continue
-            current_pwc = verse.get("phraseWordCounts") or []
             tokens, text = _verse_tokens_and_text(conn, chapter_cache, verse, args.bible)
-            if not tokens or not current_pwc or sum(current_pwc) != len(tokens):
-                skipped_invalid += 1
+            current = verse.get("phraseWordCounts") or []
+            if not tokens or sum(current) != len(tokens):
+                sys.stderr.write(f"{ref}: deck split doesn't match canonical text; skipped\n")
                 continue
-            errors, proposed_pwc = _validate(phrases, tokens)
-            if errors:
-                skipped_invalid += 1
+            candidates, current_id, errors = _candidate_set(
+                tokens, current, _proposal_candidates(item)
+            )
+            for err in errors:
+                sys.stderr.write(f"{ref} {err}\n")
+            if len(candidates) < 2:
                 continue
-            if current_pwc == proposed_pwc:
-                skipped_match += 1
-                continue
-            current_split = _render_current_split(tokens, current_pwc)
-            proposed_split = _render_current_split(tokens, proposed_pwc)
-            current_signals = _render_signals(extract_verse_features(tokens, current_pwc))
-            proposed_signals = _render_signals(extract_verse_features(tokens, proposed_pwc))
-            prompts.append({
-                "ref": ref,
-                "prompt": format_judge_prompt(
-                    verse_text=text,
-                    option_a_split=current_split,
-                    signals_a=current_signals,
-                    option_b_split=proposed_split,
-                    signals_b=proposed_signals,
-                ),
-            })
+            csets.append({"ref": ref, "current": current_id, "candidates": candidates})
+            for c in candidates:
+                entries.append({
+                    "ref": ref,
+                    "id": c["id"],
+                    "prompt": format_rate_prompt(
+                        text,
+                        _render_current_split(tokens, c["counts"]),
+                        _render_signals(extract_verse_features(tokens, c["counts"])),
+                    ),
+                })
     finally:
         conn.close()
 
-    if args.out:
-        with open(args.out, "w", encoding="utf-8") as f:
-            json.dump(prompts, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        sys.stderr.write(
-            f"Wrote {len(prompts)} judge prompts to {args.out}"
-            f" (skipped: {skipped_match} match, {skipped_unknown} unknown, "
-            f"{skipped_invalid} invalid)\n"
-        )
+    _dump_json(args.candidates_out, csets)
+    batches = _rating_batches(entries, args.batch_size)
+    if args.outdir:
+        _write_batches(args.outdir, batches)
     else:
-        divider = "\n" + "=" * 72 + "\n"
-        for item in prompts:
-            sys.stdout.write(f"### {item['ref']}\n\n")
-            sys.stdout.write(item["prompt"])
-            sys.stdout.write(divider)
-        sys.stderr.write(
-            f"\n{len(prompts)} judge prompts emitted "
-            f"(skipped: {skipped_match} match, {skipped_unknown} unknown, "
-            f"{skipped_invalid} invalid)\n"
-        )
+        _dump_json(args.out, [e for b in batches for e in b])
+    sys.stderr.write(
+        f"{len(csets)} verses with alternatives, {len(entries)} rating prompts\n"
+    )
 
 
-def cmd_apply(args: argparse.Namespace) -> None:
-    with open(args.deck, encoding="utf-8") as f:
-        deck = json.load(f)
-
-    if args.input == "-" or args.input is None:
-        proposed = json.load(sys.stdin)
-    else:
-        with open(args.input, encoding="utf-8") as f:
-            proposed = json.load(f)
-    if not isinstance(proposed, list):
-        raise SystemExit("input must be a JSON array of {ref, phrases} objects")
-
-    # When verdicts are supplied, drop every proposal whose verdict is
-    # "A" (keep current). Refs absent from the verdicts file pass
-    # through unchanged — letting the caller mix unjudged proposals
-    # (e.g. force-fresh) with judged ones in one apply.
-    judge_filtered = 0
-    if args.verdicts:
-        with open(args.verdicts, encoding="utf-8") as f:
-            verdicts = json.load(f)
-        verdict_by_ref = {
-            normalize_reference(v["ref"]): str(v.get("verdict", "")).strip().upper()
-            for v in verdicts
-        }
-        kept: List[Dict[str, Any]] = []
-        for item in proposed:
-            r = normalize_reference(item["ref"])
-            verdict = verdict_by_ref.get(r)
-            if verdict == "A":
-                judge_filtered += 1
-                continue
-            kept.append(item)
-        proposed = kept
-
+def cmd_select_prompts(args: argparse.Namespace) -> None:
+    """Emit one selection prompt per verse whose candidates are all rated."""
+    deck = _load_json(args.deck)
     by_ref = _verse_by_ref(deck)
-    applied = 0
-    skipped = 0
-    failures: List[Dict[str, Any]] = []
+    ratings_by_ref: Dict[str, List[Dict[str, Any]]] = {}
+    for r in _load_json(args.ratings):
+        ratings_by_ref.setdefault(normalize_reference(r["ref"]), []).append(r)
+    prompts: List[Dict[str, Any]] = []
+    conn = open_cache(args.db)
+    try:
+        chapter_cache: Dict[tuple, Dict[str, Any]] = {}
+        for cset in _load_json(args.candidates):
+            ref = cset["ref"]
+            good, errors = _check_ratings(cset, ratings_by_ref.get(ref, []))
+            for err in errors:
+                sys.stderr.write(err + "\n")
+            missing = [c["id"] for c in cset["candidates"] if c["id"] not in good]
+            if missing:
+                sys.stderr.write(f"{ref}: unrated candidates {missing}; skipped\n")
+                continue
+            tokens, text = _verse_tokens_and_text(conn, chapter_cache, by_ref[ref], args.bible)
+            options = [
+                {
+                    "id": c["id"],
+                    "split": _render_current_split(tokens, c["counts"]),
+                    "score": good[c["id"]]["score"],
+                    "pros": good[c["id"]]["pros"],
+                    "cons": good[c["id"]]["cons"],
+                    "current": c["id"] == cset["current"],
+                }
+                for c in cset["candidates"]
+            ]
+            prompts.append({
+                "ref": ref,
+                "prompt": format_select_prompt(text, options, args.churn_guard),
+            })
+    finally:
+        conn.close()
+    _dump_json(args.out, prompts)
+    sys.stderr.write(f"{len(prompts)} selection prompts → {args.out}\n")
 
+
+def _new_counts_from_choices(
+    args: argparse.Namespace, by_ref: Dict[str, Dict[str, Any]], failures: List[Dict[str, Any]]
+) -> List[Tuple[str, List[int]]]:
+    """Chosen candidates that differ from the current split. Candidate
+    counts were validated when the candidate sets were written."""
+    out: List[Tuple[str, List[int]]] = []
+    choices = {normalize_reference(c["ref"]): c for c in _load_json(args.choices)}
+    for cset in _load_json(args.candidates):
+        ref = cset["ref"]
+        choice = choices.get(ref)
+        if choice is None:
+            failures.append({"ref": ref, "errors": ["no choice; left unchanged"]})
+            continue
+        counts, error = _check_choice(cset, choice)
+        if error:
+            failures.append({"ref": ref, "errors": [error]})
+            continue
+        if choice["choice"] != cset["current"] and ref in by_ref:
+            out.append((ref, counts))
+    return out
+
+
+def _new_counts_from_input(
+    args: argparse.Namespace, by_ref: Dict[str, Dict[str, Any]], failures: List[Dict[str, Any]]
+) -> List[Tuple[str, List[int]]]:
+    """Splits proposed directly (a force-fresh pass with no rating step):
+    each verse's first candidate, validated against the canonical words."""
+    proposed = json.load(sys.stdin) if args.input in (None, "-") else _load_json(args.input)
+    if not isinstance(proposed, list):
+        raise SystemExit("input must be a JSON array of {ref, phrases} or {ref, candidates}")
+    out: List[Tuple[str, List[int]]] = []
     conn = open_cache(args.db)
     try:
         chapter_cache: Dict[tuple, Dict[str, Any]] = {}
         for item in proposed:
             ref = normalize_reference(item["ref"])
-            phrases = item.get("phrases")
             verse = by_ref.get(ref)
             if not verse:
                 failures.append({"ref": ref, "errors": ["not in deck"]})
                 continue
+            candidates = _proposal_candidates(item)
             tokens, _ = _verse_tokens_and_text(conn, chapter_cache, verse, args.bible)
-            errs, new_pwc = _validate(phrases, tokens)
+            errs, counts = _validate(candidates[0] if candidates else [], tokens)
             if errs:
                 failures.append({"ref": ref, "errors": errs})
                 continue
-            if verse.get("phraseWordCounts") == new_pwc:
-                skipped += 1
-                continue
-            verse["phraseWordCounts"] = new_pwc
-            applied += 1
+            out.append((ref, counts))
     finally:
         conn.close()
+    return out
+
+
+def cmd_apply(args: argparse.Namespace) -> None:
+    deck = _load_json(args.deck)
+    by_ref = _verse_by_ref(deck)
+    failures: List[Dict[str, Any]] = []
+    if args.choices or args.candidates:
+        if not (args.choices and args.candidates):
+            raise SystemExit("--choices and --candidates go together")
+        updates = _new_counts_from_choices(args, by_ref, failures)
+    else:
+        updates = _new_counts_from_input(args, by_ref, failures)
+
+    applied = 0
+    skipped = 0
+    for ref, counts in updates:
+        verse = by_ref[ref]
+        if verse.get("phraseWordCounts") == counts:
+            skipped += 1
+            continue
+        verse["phraseWordCounts"] = counts
+        applied += 1
 
     print(f"Applied: {applied}")
     print(f"Skipped (already current): {skipped}")
-    if args.verdicts:
-        print(f"Skipped (judge picked A): {judge_filtered}")
     print(f"Failed: {len(failures)}")
     for fail in failures:
         print(f"\n  {fail['ref']}")
@@ -483,8 +622,7 @@ def cmd_apply(args: argparse.Namespace) -> None:
     if args.dry_run:
         print("\n(dry-run; deck file unchanged)")
     elif applied:
-        with open(args.deck, "w", encoding="utf-8") as f:
-            json.dump(deck, f, indent=2, ensure_ascii=False)
+        _dump_json(args.deck, deck)
         print(f"\nUpdated {args.deck}")
 
     if failures and not args.allow_failures:
@@ -541,31 +679,50 @@ def main() -> None:
     )
     pp.set_defaults(func=cmd_print_prompt)
 
-    jp = sub.add_parser(
-        "judge-pairs",
-        help="Emit one JUDGE_PROMPT per ref where the proposal differs from the deck",
+    rp = sub.add_parser(
+        "rate-prompts",
+        help="Collect candidate splits and emit one rating prompt per candidate",
     )
-    jp.add_argument(
+    rp.add_argument(
         "--proposals",
         required=True,
-        help="Path to a JSON file of {ref, phrases} objects (the splitter's output)",
+        help="Splitter replies: JSON array of {ref, candidates} (or {ref, phrases})",
     )
-    jp.add_argument(
-        "--out",
-        help="Write the {ref, prompt} array to this path (default: stdout text form)",
+    rp.add_argument(
+        "--candidates-out", required=True, help="Write the candidate sets to this path"
     )
-    jp.set_defaults(func=cmd_judge_pairs)
+    rp.add_argument("--out", help="Write all rating prompts to this path")
+    rp.add_argument(
+        "--outdir",
+        help="Write rating prompts as batch_NN.json files, no batch holding two "
+        "candidates of the same verse",
+    )
+    rp.add_argument("--batch-size", type=int, default=15, help="Prompts per batch (default 15)")
+    rp.set_defaults(func=cmd_rate_prompts)
+
+    sp = sub.add_parser(
+        "select-prompts", help="Emit one selection prompt per verse from its rated candidates"
+    )
+    sp.add_argument("--candidates", required=True, help="Candidate sets from rate-prompts")
+    sp.add_argument("--ratings", required=True, help="Rater replies: JSON array of ratings")
+    sp.add_argument("--out", required=True, help="Write the {ref, prompt} array to this path")
+    sp.add_argument(
+        "--churn-guard",
+        action="store_true",
+        help="Tell the selector to keep the current split unless another is clearly better",
+    )
+    sp.set_defaults(func=cmd_select_prompts)
 
     ap_apply = sub.add_parser("apply", help="Validate proposed splits and write them back")
     ap_apply.add_argument(
         "--input",
         "-i",
-        help="Path to a JSON file of {ref, phrases} objects (use '-' for stdin)",
+        help="Splits to apply directly: {ref, phrases} or {ref, candidates} (first one); "
+        "'-' for stdin",
     )
+    ap_apply.add_argument("--candidates", help="Candidate sets from rate-prompts")
     ap_apply.add_argument(
-        "--verdicts",
-        help="Path to a JSON file of {ref, verdict} objects from the judge step. "
-        "Refs with verdict=A are dropped before applying.",
+        "--choices", help="Selector replies: JSON array of {ref, choice}; needs --candidates"
     )
     ap_apply.add_argument(
         "--dry-run", action="store_true", help="Validate without writing the deck"

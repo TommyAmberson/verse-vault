@@ -45,9 +45,18 @@ from evaluate_phrases import (
 from phrase_splitter.apibible import DEFAULT_DB_PATH, DEFAULT_NKJV_ID
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-from split_phrases import _render_current_split, _render_signals, _validate
+from split_phrases import (
+    _candidate_set,
+    _check_choice,
+    _check_ratings,
+    _proposal_candidates,
+    _rating_batches,
+    _render_current_split,
+    _render_signals,
+    _validate,
+)
 from phrase_splitter.apibible import extract_chapter_text, extract_chapter_verses
-from phrase_splitter.prompts import format_judge_prompt
+from phrase_splitter.prompts import format_rate_prompt, format_select_prompt
 
 
 class WordCountTests(unittest.TestCase):
@@ -680,14 +689,6 @@ class RecitationPromptTests(unittest.TestCase):
             self.assertIn(heading, out.lower())
         self.assertIn("word-perfect", out)
 
-    def test_judge_prompt_keeps_current_on_tie(self):
-        out = format_judge_prompt(
-            verse_text="a b", option_a_split="  - a b", signals_a="",
-            option_b_split="  - a\n  - b", signals_b="",
-        )
-        self.assertIn("word-perfect", out)
-        self.assertIn("A", out)
-
 
 class ParseSignalTests(unittest.TestCase):
     EXODUS = T("Now the sojourn of the children of Israel who lived in Egypt was four "
@@ -705,6 +706,98 @@ class ParseSignalTests(unittest.TestCase):
         feats = extract_verse_features(self.EXODUS, [18])
         points = {(p["index"], p["kind"]) for p in feats["phrases"][0]["pause_points"]}
         self.assertIn((12, "parse"), points)
+
+
+class CandidateSetTests(unittest.TestCase):
+    TOKENS = T("For this reason the Jews persecuted Jesus, and sought to kill Him,")
+    CURRENT = [3, 4, 5]
+
+    def test_both_proposal_shapes(self):
+        self.assertEqual(_proposal_candidates({"ref": "x", "phrases": ["a b"]}), [["a b"]])
+        self.assertEqual(
+            _proposal_candidates({"ref": "x", "candidates": [["a b"], ["a", "b"]]}),
+            [["a b"], ["a", "b"]],
+        )
+
+    def test_duplicates_and_current_share_an_id(self):
+        cands = [
+            ["For this reason", "the Jews persecuted Jesus,", "and sought to kill Him,"],
+            ["For this reason the Jews persecuted Jesus,", "and sought to kill Him,"],
+            ["For this reason the Jews persecuted Jesus,", "and sought to kill Him,"],
+        ]
+        candidates, current_id, errors = _candidate_set(self.TOKENS, self.CURRENT, cands)
+        self.assertEqual(errors, [])
+        self.assertEqual(len(candidates), 2)
+        self.assertIn(current_id, {c["id"] for c in candidates})
+
+    def test_invalid_candidate_dropped_and_reported(self):
+        candidates, _, errors = _candidate_set(
+            self.TOKENS, self.CURRENT, [["For this reason the Jews hated Jesus,"]]
+        )
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(len(candidates), 1)  # only the current split
+
+    def test_ids_do_not_reveal_current(self):
+        # The same splits get the same ids whichever of them is current.
+        a = ["For this reason", "the Jews persecuted Jesus, and sought to kill Him,"]
+        b = ["For this reason the Jews persecuted Jesus,", "and sought to kill Him,"]
+        one, cur_one, _ = _candidate_set(self.TOKENS, [3, 9], [b])
+        two, cur_two, _ = _candidate_set(self.TOKENS, [7, 5], [a])
+        self.assertEqual(one, two)
+        self.assertNotEqual(cur_one, cur_two)
+
+    def test_rating_batches_never_repeat_a_verse(self):
+        entries = [{"ref": r, "id": i} for r in ("A", "B", "C") for i in ("a", "b", "c")]
+        for batch in _rating_batches(entries, 4):
+            refs = [e["ref"] for e in batch]
+            self.assertEqual(len(refs), len(set(refs)))
+        self.assertEqual(sum(len(b) for b in _rating_batches(entries, 4)), 9)
+
+
+class RatingAndChoiceTests(unittest.TestCase):
+    CSET = {"ref": "A 1:1", "current": "b",
+            "candidates": [{"id": "a", "counts": [2, 2]}, {"id": "b", "counts": [4]}]}
+
+    def test_good_ratings(self):
+        ratings = [{"ref": "A 1:1", "id": "a", "score": 7, "pros": ["x"], "cons": []},
+                   {"ref": "A 1:1", "id": "b", "score": 4, "pros": [], "cons": ["y"]}]
+        by_id, errors = _check_ratings(self.CSET, ratings)
+        self.assertEqual(errors, [])
+        self.assertEqual(set(by_id), {"a", "b"})
+
+    def test_bad_ratings_reported_and_skipped(self):
+        ratings = [{"ref": "A 1:1", "id": "z", "score": 7, "pros": ["x"], "cons": []},
+                   {"ref": "A 1:1", "id": "a", "score": 11, "pros": ["x"], "cons": []},
+                   {"ref": "A 1:1", "id": "b", "score": 5}]
+        by_id, errors = _check_ratings(self.CSET, ratings)
+        self.assertEqual(by_id, {})
+        self.assertEqual(len(errors), 3)
+
+    def test_choice(self):
+        self.assertEqual(_check_choice(self.CSET, {"ref": "A 1:1", "choice": "a"}), ([2, 2], None))
+        counts, error = _check_choice(self.CSET, {"ref": "A 1:1", "choice": "q"})
+        self.assertIsNone(counts)
+        self.assertIn("A 1:1", error)
+
+
+class RatePromptTests(unittest.TestCase):
+    def test_rate_prompt_does_not_reveal_current(self):
+        out = format_rate_prompt("a b c", '  - "a b c"', "  composite=0.00")
+        self.assertNotIn("current", out.lower())
+        self.assertIn("word-perfect", out)
+        self.assertIn("pros", out)
+
+    def test_select_prompt(self):
+        options = [
+            {"id": "a", "split": '  - "a b"', "score": 8, "pros": ["p"], "cons": [], "current": False},
+            {"id": "b", "split": '  - "a"\n  - "b"', "score": 5, "pros": [], "cons": ["c"], "current": True},
+        ]
+        plain = format_select_prompt("a b", options, churn_guard=False)
+        guarded = format_select_prompt("a b", options, churn_guard=True)
+        self.assertIn("(current)", plain)
+        self.assertIn("score 8", plain)
+        self.assertNotIn("clearly better", plain)
+        self.assertIn("clearly better", guarded)
 
 
 class ReferenceSetValidationTests(unittest.TestCase):

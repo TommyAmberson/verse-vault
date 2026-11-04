@@ -120,8 +120,11 @@ verdicts. Use them to spot patterns; don't echo them back.
 
 _OUTPUT_CONTRACT = """\
 
-Now split this verse. Reply with a single JSON array of strings on one
-line, nothing else.
+Now split this verse. Reply on one line with a JSON array of one to
+three candidate splits, best first, each candidate a JSON array of
+phrase strings, and nothing else. Offer more than one only when the
+verse has a real choice (a coarser and a finer split that both meet the
+criteria); a rater and a selector will compare them.
 
 Verse:
     {verse_text}
@@ -153,83 +156,102 @@ def format_split_prompt(
 SPLIT_PROMPT = SPLIT_PROMPT_HEADER + _OUTPUT_CONTRACT
 
 
-JUDGE_PROMPT = """\
-You are picking the better of two memorization phrase splits for a
-Bible verse, for word-perfect Bible-quizzing recitation.
-
-**What makes a split good.** A reciter says a verse in runs,
-stretches said in one go; errors cluster at the handoffs between runs
-and at swapped words inside them. Each phrase carries its own recall
-state, so the better split matches the runs:
+# The criteria in brief, shared by the rating and selection prompts so
+# both steps judge by the same list.
+_CRITERIA_SUMMARY = """\
+A reciter says a verse in runs, stretches said in one go; errors
+cluster at the handoffs between runs and at swapped words inside them.
+Quizzing is word-perfect, so the wording of a lead-in matters. A good
+split matches the runs:
 
 1. Cuts fall where you would naturally pause reciting aloud, never
    inside a run.
 2. A chunk is one run, usually 3 to 10 words; longer only when it has
    no pause point.
 3. Each chunk start is a practised handoff: lead-ins whose wording
-   matters and speech tags that open a quotation keep their own chunk.
-   Merging a short phrase into its neighbour is not an improvement in
-   itself: if its wording could slip on its own, it earns its chunk.
+   matters and speech tags that open a quotation keep their own chunk;
+   a tag that follows narrative stays with it.
 4. Each chunk can fail on its own; no fragment that only makes sense
    glued to its neighbour.
-5. A short word list is one chunk, apart from a lead-in that can stand
-   as a run: a lead-in of three or more words ("to whom pertain",
-   "Therefore I take pleasure") is its own chunk, not the head of the
-   list's first line. Clause-list items preferably get a chunk each.
+5. A short word list is one chunk, apart from a lead-in of three or
+   more words that can stand as a run; clause-list items preferably get
+   a chunk each.
 6. Parallel halves get matching cuts.
 
-**How to read the signals.** Each option carries a signal block:
-``long_run`` (a phrase running past one run, with its
-``pause_points``), ``no_pause_cue`` and ``boundary_severance`` (a cut
-inside a run), ``lost_line_break`` (a poetry line joined into a
-phrase), ``parallel_asymmetry``, ``list_breaks``, and a composite.
-Lower composite generally means fewer issues, but signals are context,
-not verdicts. The criteria decide.
+The signals block (``long_run`` with ``pause_points``,
+``no_pause_cue``, ``boundary_severance``, ``lost_line_break``,
+``parallel_asymmetry``, ``list_breaks``) is context, not a verdict;
+some judgements have no surface cue.
+"""
 
-**Hard constraints.** Both options have already been validated for
-rejoin, word-count sum, and HTML tag balance; you don't need to
-re-check.
+RATE_PROMPT = """\
+You are rating one memorization phrase split of a Bible verse for
+word-perfect Bible quizzing. Rate it on its own merits against the
+criteria; don't imagine other splits.
 
-**Pick rule.** Prefer Option A (the current split) by default:
-needless churn is bad. Pick B only when it is *clearly* better under
-the criteria, not merely defensible.
-
+{criteria}
 **Verse.**
     {verse_text}
 
-**Option A (current).**
-{option_a_split}
+**Split.**
+{split}
 
-Signals A:
-{signals_a}
+**Signals.**
+{signals}
 
-**Option B (proposed).**
-{option_b_split}
+Reply on one line with a JSON object and nothing else:
+{{"score": <integer 1 to 10>, "pros": [<short strings>], "cons": [<short strings>]}}
+A score of 10 meets every criterion; 1 breaks them badly. Name the
+phrase a pro or con is about.
+"""
 
-Signals B:
-{signals_b}
+SELECT_PROMPT = """\
+You are choosing the best memorization phrase split of a Bible verse
+for word-perfect Bible quizzing, from candidates that have each been
+rated on their own.
 
-Reply with exactly one character — `A` or `B` — and nothing else.
+{criteria}
+**Verse.**
+    {verse_text}
+
+**Candidates.**
+{options}
+{guard}
+Weigh the ratings, but decide by the criteria: a decisive con can
+outweigh a higher score. Reply on one line with a JSON object and
+nothing else: {{"choice": "<candidate id>"}}
+"""
+
+_CHURN_GUARD = """
+**Churn guard.** The candidate marked (current) is what the deck has
+now. Keep it unless another candidate is clearly better under the
+criteria; needless churn is bad.
 """
 
 
-def format_judge_prompt(
-    verse_text: str,
-    option_a_split: str,
-    signals_a: str,
-    option_b_split: str,
-    signals_b: str,
-) -> str:
-    """Render ``JUDGE_PROMPT`` for a single verse comparison.
+def format_rate_prompt(verse_text: str, split: str, signals: str) -> str:
+    """Render ``RATE_PROMPT`` for one candidate. Nothing in it says
+    whether the split is the deck's current one."""
+    return RATE_PROMPT.format(
+        criteria=_CRITERIA_SUMMARY, verse_text=verse_text, split=split, signals=signals
+    )
 
-    ``option_a_split`` / ``option_b_split`` are pre-rendered bullet
-    blocks (one phrase per line); ``signals_a`` / ``signals_b`` are
-    the same compact text blocks the splitter prompt sees, generated
-    by ``tools/split_phrases.py:_render_signals``."""
-    return JUDGE_PROMPT.format(
+
+def format_select_prompt(verse_text: str, options: list, churn_guard: bool) -> str:
+    """Render ``SELECT_PROMPT``. Each option is a dict with ``id``,
+    ``split`` (rendered bullets), ``score``, ``pros``, ``cons`` and
+    ``current``."""
+    blocks = []
+    for o in options:
+        label = f"Candidate {o['id']}" + (" (current)" if o["current"] else "")
+        pros = "; ".join(o["pros"]) or "none"
+        cons = "; ".join(o["cons"]) or "none"
+        blocks.append(
+            f"**{label}**, score {o['score']}\n{o['split']}\n  pros: {pros}\n  cons: {cons}\n"
+        )
+    return SELECT_PROMPT.format(
+        criteria=_CRITERIA_SUMMARY,
         verse_text=verse_text,
-        option_a_split=option_a_split,
-        signals_a=signals_a,
-        option_b_split=option_b_split,
-        signals_b=signals_b,
+        options="\n".join(blocks),
+        guard=_CHURN_GUARD if churn_guard else "",
     )
