@@ -219,12 +219,19 @@ def validate_reference_set(
         agreed = e.get("agreed") or []
         if sum(agreed) != total:
             problems.append(f"agreed sums to {sum(agreed)}, canonical has {total}")
-        for r in e.get("rejected") or []:
-            counts = r.get("counts") or []
-            if sum(counts) != total:
-                problems.append(f"rejected {counts} sums to {sum(counts)}, canonical has {total}")
-            if counts == agreed:
-                problems.append(f"rejected {counts} equals agreed")
+        acceptable = [a.get("counts") or [] for a in e.get("acceptable") or []]
+        rejected = [r.get("counts") or [] for r in e.get("rejected") or []]
+        for label, alternatives in (("acceptable", acceptable), ("rejected", rejected)):
+            for counts in alternatives:
+                if sum(counts) != total:
+                    problems.append(
+                        f"{label} {counts} sums to {sum(counts)}, canonical has {total}"
+                    )
+                if counts == agreed:
+                    problems.append(f"{label} {counts} equals agreed")
+        for counts in acceptable:
+            if counts in rejected:
+                problems.append(f"{counts} is both acceptable and rejected")
         if problems:
             errors.append(f"{ref}: " + "; ".join(problems))
     return errors
@@ -237,16 +244,17 @@ def calibration_results(
     min_score: float,
 ) -> List[Dict[str, Any]]:
     """Score the audit against each scored reference entry. A ``changed``
-    entry (agreed split differs from the deck) should be flagged; a
-    ``kept`` one should stay under ``min_score``. ``unresolved`` entries
-    are left out."""
+    entry (the deck's split is neither the agreed one nor an acceptable
+    alternative) should be flagged; a ``kept`` one should stay under
+    ``min_score``. ``unresolved`` entries are left out."""
     results: List[Dict[str, Any]] = []
     for e in entries:
         if e.get("confidence") == "unresolved":
             continue
         ref = e["ref"]
         record = records[ref]
-        state = "kept" if deck_counts[ref] == e["agreed"] else "changed"
+        fine = [e["agreed"]] + [a["counts"] for a in e.get("acceptable") or []]
+        state = "kept" if deck_counts[ref] in fine else "changed"
         flagged = record["signal_score"] >= min_score
         results.append({
             "ref": ref,

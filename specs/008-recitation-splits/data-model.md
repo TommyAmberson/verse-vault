@@ -15,17 +15,18 @@ One entry in the committed reference set (see
 | `agreed`     | `phraseWordCounts` of the split the maintainer agreed                                          |
 | `confidence` | `agreed`, `weak` or `unresolved`                                                               |
 | `note`       | Optional: why, in a sentence (e.g. "parallel halves stay whole")                               |
+| `acceptable` | Optional list of other `phraseWordCounts` the maintainer would accept, each with a reason      |
 | `rejected`   | Optional list of `phraseWordCounts` the maintainer rejected for this verse, each with a reason |
 
 Validation:
 
 * `agreed` and every `rejected` entry sum to the verse's canonical token count.
-* No `rejected` entry equals `agreed`.
+* No `acceptable` or `rejected` entry equals `agreed`, and no split is both acceptable and rejected.
 * `ref` is unique within the set.
 * An `unresolved` entry is excluded from calibration scores but still validated.
 
-Derived state used by calibration: _kept_ when `agreed` equals the deck's current counts, _changed_
-otherwise.
+Derived state used by calibration: _kept_ when the deck's current counts equal `agreed` or an
+`acceptable` alternative, _changed_ otherwise.
 
 ## Signals
 

@@ -93,18 +93,28 @@
     "ref": "John 5:28",
     "deck": "data/4-john.json",
     "agreed": [5, 5, 12],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [5, 5, 8, 4],
+        "reason": "a long subject cut from its verb: barely worse"
+      }
+    ]
   },
   {
     "ref": "John 5:29",
     "deck": "data/4-john.json",
     "agreed": [13, 11],
-    "confidence": "agreed",
-    "note": "a short lead-in stays with what follows",
-    "rejected": [
+    "confidence": "weak",
+    "note": "continues John 5:28 mid-sentence",
+    "acceptable": [
       {
         "counts": [3, 10, 11],
-        "reason": "'and come forth' alone is a weak handoff"
+        "reason": "the verse starts mid-sentence, so 'and come forth' is where a reciter picks it up"
+      },
+      {
+        "counts": [8, 5, 6, 5],
+        "reason": "each half cut at its comma, matching cuts in both"
       }
     ]
   },
@@ -167,7 +177,13 @@
     "ref": "John 9:22",
     "deck": "data/4-john.json",
     "agreed": [10, 6, 8, 8],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [5, 5, 6, 8, 8],
+        "reason": "the reason is its own beat: arguably better"
+      }
+    ]
   },
   {
     "ref": "Hebrews 10:11",
@@ -215,7 +231,13 @@
     "ref": "Daniel 3:29",
     "deck": "data/6-ot-survey.json",
     "agreed": [5, 6, 4, 8, 5, 9, 11],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [5, 6, 4, 8, 5, 9, 6, 5],
+        "reason": "a long final clause cut at its relative: barely worse"
+      }
+    ]
   },
   {
     "ref": "Exodus 12:40",
@@ -227,7 +249,13 @@
     "ref": "Exodus 3:9",
     "deck": "data/6-ot-survey.json",
     "agreed": [3, 11, 7, 6],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [3, 7, 4, 7, 6],
+        "reason": "a long subject cut from its verb: barely worse"
+      }
+    ]
   },
   {
     "ref": "Genesis 2:9",
@@ -258,7 +286,13 @@
     "ref": "Isaiah 6:4",
     "deck": "data/6-ot-survey.json",
     "agreed": [8, 8, 7],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "rejected": [
+      {
+        "counts": [6, 10, 7],
+        "reason": "subject cut from 'were shaken' instead of before 'by the voice'"
+      }
+    ]
   },
   {
     "ref": "Isaiah 6:6",

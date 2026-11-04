@@ -54,9 +54,9 @@ python3 tools/evaluate_phrases.py --calibrate --show-text
 ```
 
 To add a verse once a split is settled, append an entry with its `ref`, `deck`, `agreed` word
-counts, `confidence` (`agreed`, `weak` or `unresolved`), an optional `note`, and any `rejected`
-alternatives as `{counts, reason}`. `--calibrate` refuses an entry whose counts don't sum to the
-canonical verse.
+counts, `confidence` (`agreed`, `weak` or `unresolved`), an optional `note`, any `acceptable`
+alternatives and any `rejected` ones, each as `{counts, reason}`. A deck already at an acceptable
+split counts as kept. `--calibrate` refuses an entry whose counts don't sum to the canonical verse.
 
 **Optional parse signal.** With spaCy and its small English model installed, the audit adds pause
 points from a dependency parse (clause starts, and the end of a long subject). Install them in a

@@ -75,8 +75,11 @@ No fragment that only makes sense glued to its neighbour.
 
 * Rejected (2 Corinthians 11:24): `From the Jews / five times I received forty stripes minus one.`
   Agreed instead: `From the Jews five times / I received forty stripes minus one.`
-* Rejected (John 5:29): `and come forth / those who have done good, …`. A short lead-in stays with
-  what follows it.
+
+A verse that starts mid-sentence is the exception: its opening words are where a reciter picks the
+verse up, so a short opening can be a handoff of its own. John 5:29 continues 5:28's "all who are in
+the graves will hear His voice", and `and come forth / those who have done good, …` is acceptable
+there, though the maintainer kept the verse at two phrases.
 
 ### 5. Lists
 

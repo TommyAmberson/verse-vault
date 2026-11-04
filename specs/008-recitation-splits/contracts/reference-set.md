@@ -21,6 +21,10 @@ A JSON array committed beside the tooling. Word counts only, never verse text (s
 
 Entries are converted from the reviewed splits in the maintainer's working notes.
 
+An entry may also carry `acceptable`: other splits the maintainer would accept, as
+`{counts, reason}`. A deck already at an acceptable split counts as kept, and a splitter proposal
+matching one counts as a match; the selector test checks that `rejected` splits are never picked.
+
 `confidence`:
 
 * `agreed`: scored by calibration and used for SC-001, SC-003, SC-004.

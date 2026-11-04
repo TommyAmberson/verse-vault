@@ -730,6 +730,15 @@ class ReferenceSetValidationTests(unittest.TestCase):
         entry = self._entry(rejected=[{"counts": [6, 6], "reason": "x"}])
         self.assertEqual(len(validate_reference_set([entry], {"John 5:5": 12})), 1)
 
+    def test_acceptable_sum_mismatch(self):
+        entry = self._entry(acceptable=[{"counts": [5, 5], "reason": "x"}])
+        self.assertEqual(len(validate_reference_set([entry], {"John 5:5": 12})), 1)
+
+    def test_acceptable_also_rejected(self):
+        entry = self._entry(acceptable=[{"counts": [4, 8], "reason": "x"}],
+                            rejected=[{"counts": [4, 8], "reason": "y"}])
+        self.assertEqual(len(validate_reference_set([entry], {"John 5:5": 12})), 1)
+
     def test_duplicate_ref(self):
         errors = validate_reference_set([self._entry(), self._entry()], {"John 5:5": 12})
         self.assertEqual(len(errors), 1)
@@ -764,6 +773,14 @@ class CalibrationResultTests(unittest.TestCase):
         self.assertEqual(results["A 1:2"]["state"], "kept")
         self.assertFalse(results["A 1:2"]["ok"])
         self.assertNotIn("A 1:3", results)
+
+    def test_deck_matching_an_acceptable_split_counts_as_kept(self):
+        entries = [{"ref": "A 1:1", "agreed": [2, 2], "confidence": "agreed",
+                    "acceptable": [{"counts": [4], "reason": "x"}]}]
+        records = {"A 1:1": {"signal_score": 0.0, "signals": {}}}
+        results = calibration_results(entries, {"A 1:1": [4]}, records, 0.2)
+        self.assertEqual(results[0]["state"], "kept")
+        self.assertTrue(results[0]["ok"])
 
 
 
