@@ -31,7 +31,8 @@ Audit `phraseWordCounts` in the structural deck against api.bible's canonical to
 one record per verse with two layers: structural **blockers** (deck/canonical sum drift, missing
 canonical tokens, unbalanced HTML inside a phrase, ftv out of range) that must be fixed before
 re-splitting, and a numeric **signal_score** in `[0, 1]` plus the full signals payload from the
-features module. The judge step is gone — the splitter prompt now folds in that judgement.
+features module. The signals measure splits against recitation runs; the criteria behind them are in
+`.claude/skills/phrase-splitter/references/quality-criteria.md`.
 
 ```bash
 python3 tools/evaluate_phrases.py --top 20
@@ -40,12 +41,42 @@ python3 tools/evaluate_phrases.py --refs "1 Cor 12:11,1 Cor 1:26" --all
 python3 tools/evaluate_phrases.py --out /tmp/report.json --all
 ```
 
+**Calibration.** `--calibrate` scores the audit against the maintainer-reviewed reference set,
+`phrase_splitter/reference_set.json`, instead of auditing a deck. Each entry holds a verse's agreed
+split and any rejected alternatives as word counts (no verse text is committed). The report says,
+per verse, whether the audit flags the deck split where the agreed split differs (`MISS` if not) and
+stays quiet where the maintainer kept it (`FALSE ALARM` if not), with the signals that fired;
+`--show-text` adds the splits as text. The test suite fails if any agreed change goes unflagged at
+the default threshold.
+
+```bash
+python3 tools/evaluate_phrases.py --calibrate --show-text
+```
+
+To add a verse once a split is settled, append an entry with its `ref`, `deck`, `agreed` word
+counts, `confidence` (`agreed`, `weak` or `unresolved`), an optional `note`, and any `rejected`
+alternatives as `{counts, reason}`. `--calibrate` refuses an entry whose counts don't sum to the
+canonical verse.
+
+**Optional parse signal.** With spaCy and its small English model installed, the audit adds pause
+points from a dependency parse (clause starts, and the end of a long subject). Install them in a
+virtual environment for the tools and run the audit with its interpreter; the report's `parse` field
+says whether the signal ran.
+
+```bash
+python3 -m venv ~/.venvs/verse-vault-tools
+~/.venvs/verse-vault-tools/bin/pip install spacy
+~/.venvs/verse-vault-tools/bin/python -m spacy download en_core_web_sm
+~/.venvs/verse-vault-tools/bin/python tools/evaluate_phrases.py --calibrate
+```
+
 ### `split_phrases.py`
 
 Re-split verses by feeding canonical text + the existing split + a signals block to an LLM, then
-applying the proposed phrase boundaries back to `phraseWordCounts`. The prompt's stability clause
-biases the LLM toward returning the current split unchanged when it already passes the stand-alone
-test.
+applying the proposed phrase boundaries back to `phraseWordCounts`. The splitter proposes its best
+split; `judge-pairs` then asks a judge to keep the current split unless the proposal is clearly
+better. Prompts show the verse with NKJV's em dashes, which the token stream splits on; replies are
+checked token by token, so a phrase may keep or drop a dash.
 
 ```bash
 # emit the prompt(s) for one or more verses (current split + signals included by default)
@@ -146,6 +177,15 @@ fetch, one 30-day TTL, one MAUA-compliant surface.
 Tools auto-create the table on first run if the API migrations haven't been applied yet, and they
 fall through to a fresh fetch when an entry is missing or past the 30-day TTL. Set `BIBLE_API_KEY`
 (or `API_BIBLE_KEY`) in the environment for the fallback fetch to succeed.
+
+A git worktree starts without the cache. Link the main clone's file into a real `packages/api/data/`
+directory (git ignores the directory only when it is a real one, not a link), so the tools and the
+calibration test find it:
+
+```bash
+mkdir -p packages/api/data
+ln -s <main-clone>/packages/api/data/verse-vault.db packages/api/data/
+```
 
 Subject to the [API.Bible Terms of Service](https://api.bible/terms-and-conditions) — in particular
 the [Acceptable Use](https://api.bible/terms-and-conditions#acceptable_use) clause and the

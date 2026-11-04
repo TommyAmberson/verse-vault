@@ -127,7 +127,7 @@ signals; replies with or without dashes apply to the same counts.
 - [X] T020 [US2] Rewrite `.claude/skills/phrase-splitter/references/quality-criteria.md` around the word-perfect goal and the six criteria (spec Background), with worked examples drawn from the reference set (agreed and rejected, at least one per criterion where one exists, FR-002); keep NKJV quotations to the short examples the doc already uses
 - [X] T021 [US2] Rewrite `SPLIT_PROMPT` and `JUDGE_PROMPT` in `tools/phrase_splitter/prompts.py` and the signal rendering in `split_phrases._render_signals` to match T020 and contracts/signals.md; the judge keeps the current split on a tie (FR-013); covered by T016
 - [X] T022 [P] [US2] Update `.claude/skills/phrase-splitter/references/splitter-agent-instructions.md` and `judge-agent-instructions.md` to point at the criteria doc and the new signal names instead of restating them; add the v0.6 entry to `references/prompt-design.md` and the transition note to `.claude/skills/phrase-splitter/SKILL.md`
-- [ ] T023 [US2] Measure after the rewrite: repeat T017 with the new prompt (new exact-match count must exceed the baseline, SC-003); run `judge-pairs` pairing each `agreed` split with each of its `rejected` alternatives in both orders and dispatch the judge with Sonnet (must pick `agreed` every time, SC-004). Record results in `~/notes/verse-split/` for the PR body; if SC-004 fails, revise T020/T021 and repeat
+- [X] T023 [US2] Measure after the rewrite: repeat T017 with the new prompt (new exact-match count must exceed the baseline, SC-003); run `judge-pairs` pairing each `agreed` split with each of its `rejected` alternatives in both orders and dispatch the judge with Sonnet (must pick `agreed` every time, SC-004). Record results in `~/notes/verse-split/` for the PR body; if SC-004 fails, revise T020/T021 and repeat
 
 **Checkpoint**: Splitter and judge follow the criteria; measurements recorded.
 
@@ -139,10 +139,10 @@ signals; replies with or without dashes apply to the same counts.
 
 **Independent Test**: quickstart.md step 2 with and without spaCy.
 
-- [ ] T024 [US3] Tests in `tools/test_phrase_splitter.py` for the optional parse signal: without spaCy importable the verse payload's `parse` is `skipped` and every other signal is unchanged; with it (skip the test when spaCy is absent) Exodus 12:40's subject–predicate boundary appears as a `parse` pause point
-- [ ] T025 [US3] Optional parse signal per research R6 in new `tools/phrase_splitter/parse.py` (kept apart so the stdlib path never imports spaCy; no existing module fits because `features.py` must stay importable without it), called once per verse from `extract_verse_features` in `tools/phrase_splitter/features.py` only when importable, attaching its pause points to the phrases that contain them; the audit and `--calibrate` report which ran; covered by T024
-- [ ] T026 [US3] Document in `tools/README.md`: optional spaCy setup in a virtual environment for the tools, the cache link for worktrees, `--calibrate` usage and how to add a reviewed verse to the reference set
-- [ ] T027 [US3] Re-run `--calibrate` with the spaCy environment; if any `agreed` `changed` entry is missed or the weights from T015 no longer hold, re-tune the weight table in `tools/phrase_splitter/features.py` so SC-001 passes both with and without the parse signal; covered by the T015 calibration test run under each interpreter
+- [X] T024 [US3] Tests in `tools/test_phrase_splitter.py` for the optional parse signal: without spaCy importable the verse payload's `parse` is `skipped` and every other signal is unchanged; with it (skip the test when spaCy is absent) Exodus 12:40's subject–predicate boundary appears as a `parse` pause point
+- [X] T025 [US3] Optional parse signal per research R6 in new `tools/phrase_splitter/parse.py` (kept apart so the stdlib path never imports spaCy; no existing module fits because `features.py` must stay importable without it), called once per verse from `extract_verse_features` in `tools/phrase_splitter/features.py` only when importable, attaching its pause points to the phrases that contain them; the audit and `--calibrate` report which ran; covered by T024
+- [X] T026 [US3] Document in `tools/README.md`: optional spaCy setup in a virtual environment for the tools, the cache link for worktrees, `--calibrate` usage and how to add a reviewed verse to the reference set
+- [X] T027 [US3] Re-run `--calibrate` with the spaCy environment; if any `agreed` `changed` entry is missed or the weights from T015 no longer hold, re-tune the weight table in `tools/phrase_splitter/features.py` so SC-001 passes both with and without the parse signal; covered by the T015 calibration test run under each interpreter
 
 **Checkpoint**: Calibration runs with and without the parse signal.
 
@@ -150,8 +150,8 @@ signals; replies with or without dashes apply to the same counts.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T028 Run quickstart.md end to end, including the SC-005 timing with and without spaCy; confirm `git status` shows no change under `data/` (FR-016)
-- [ ] T029 Run `dprint check` and `typos` over the changed docs; run `python3 -m unittest tools/test_phrase_splitter.py`
+- [X] T028 Run quickstart.md end to end, including the SC-005 timing with and without spaCy; confirm `git status` shows no change under `data/` (FR-016)
+- [X] T029 Run `dprint check` and `typos` over the changed docs; run `python3 -m unittest tools/test_phrase_splitter.py`
 
 ---
 

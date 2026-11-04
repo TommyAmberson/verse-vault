@@ -14,6 +14,13 @@ from typing import Any, Dict, List, Sequence
 
 from .helpers import normalise_word, strip_html
 
+# The optional parse signal needs spaCy; without it the audit runs on the
+# stdlib signals and reports the parse as skipped.
+try:
+    from . import parse as _parse
+except ImportError:
+    _parse = None
+
 # Function words — articles, common pronouns, prepositions, auxiliaries,
 # conjunctions, complementisers. Kept deliberately narrow so the
 # ``function_ratio`` signal stays meaningful. ``that`` is classed as
@@ -581,6 +588,11 @@ def extract_verse_features(
     for n in pwc[:-1]:
         cuts.append((cuts[-1] if cuts else 0) + n)
     lists = _word_lists(tokens_list)
+    parse_cuts: set = set()
+    parse_status = "skipped"
+    if _parse is not None and _parse.available():
+        parse_cuts = _parse.pause_cuts(tokens_list)
+        parse_status = f"spacy:{_parse.MODEL}"
 
     phrases: List[Dict[str, Any]] = []
     offset = 0
@@ -604,6 +616,11 @@ def extract_verse_features(
             local = lst["start"] - offset
             if lst["lead_in"] >= 3 and 2 <= local < len(ptoks) - 1:
                 points.append({"index": local, "kind": PAUSE_LIST})
+        taken = {p["index"] for p in points}
+        for cut in parse_cuts:
+            local = cut - offset
+            if 2 <= local < len(ptoks) - 1 and local not in taken:
+                points.append({"index": local, "kind": PAUSE_PARSE})
         points.sort(key=lambda p: p["index"])
         feat["pause_points"] = points
         feat["long_run"] = _long_run(len(ptoks), points)
@@ -615,9 +632,11 @@ def extract_verse_features(
     for i in range(phrase_count - 1):
         prev = phrase_token_lists[i]
         opens_sentence = i == 0 or _ends_sentence(phrase_token_lists[i - 1][-1])
-        boundaries.append(
-            extract_boundary_features(prev, phrase_token_lists[i + 1], opens_sentence)
-        )
+        boundary = extract_boundary_features(prev, phrase_token_lists[i + 1], opens_sentence)
+        # A clause or subject edge the parse found is a pause point too.
+        if cuts[i] in parse_cuts:
+            boundary["no_pause_cue"] = 0.0
+        boundaries.append(boundary)
 
     if phrase_count == 1 and token_count > 12:
         missing_split = _clamp01((token_count - 12) / 10)
@@ -630,7 +649,7 @@ def extract_verse_features(
         "missing_split": round(missing_split, 3),
         "parallel_asymmetry": _parallel_asymmetry(tokens_list, cuts),
         "list_breaks": _list_breaks(tokens_list, cuts, lists, phrase_token_lists),
-        "parse": "skipped",
+        "parse": parse_status,
         "phrases": phrases,
         "boundaries": boundaries,
     }

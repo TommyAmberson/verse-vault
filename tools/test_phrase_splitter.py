@@ -32,6 +32,7 @@ from phrase_splitter.features import (
     slice_phrases,
 )
 from phrase_splitter.prompts import format_split_prompt
+import phrase_splitter.features as features_module
 
 from evaluate_phrases import (
     DEFAULT_MIN_SCORE,
@@ -686,6 +687,24 @@ class RecitationPromptTests(unittest.TestCase):
         )
         self.assertIn("word-perfect", out)
         self.assertIn("A", out)
+
+
+class ParseSignalTests(unittest.TestCase):
+    EXODUS = T("Now the sojourn of the children of Israel who lived in Egypt was four "
+               "hundred and thirty years.")
+
+    def test_parse_reported(self):
+        feats = extract_verse_features(self.EXODUS, [18])
+        if features_module._parse is None:
+            self.assertEqual(feats["parse"], "skipped")
+        else:
+            self.assertTrue(feats["parse"].startswith("spacy:"))
+
+    @unittest.skipIf(features_module._parse is None, "spaCy not installed")
+    def test_long_subject_ends_in_a_pause(self):
+        feats = extract_verse_features(self.EXODUS, [18])
+        points = {(p["index"], p["kind"]) for p in feats["phrases"][0]["pause_points"]}
+        self.assertIn((12, "parse"), points)
 
 
 class ReferenceSetValidationTests(unittest.TestCase):
