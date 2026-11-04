@@ -204,6 +204,21 @@ overall score.
 * **FR-020**: Applying MUST write only verses whose chosen split differs from the current one; this
   replaces the A/B judge step.
 
+* **FR-021**: Rating prompts MUST present the audit's findings as plain-language flags grouped under
+  the criterion each one tests, shown only when a signal passes its threshold, each marked strong or
+  weak with its known blind spot, and MUST NOT show raw signal values or the composite score. One
+  table owns each signal's criterion, threshold, strength rule and wording; the thresholds and
+  strengths are set from the reference set.
+* **FR-022**: The long-run signal MUST measure a phrase's length in syllables rather than words.
+* **FR-023**: The no-pause-cue signal MUST exempt a short lead-in that starts after any pause
+  punctuation, not only at a sentence start; the parse MUST treat the end of a long subject or of a
+  fronted object as a pause, except before a predicate of one or two words.
+* **FR-024**: The parse model MUST be selectable (the small model or the transformer model), and the
+  audit MUST report which ran.
+* **FR-025**: When candidates are equally good, the selector MUST prefer the one with more phrases;
+  with the churn guard on, this applies only after the current split has been found not clearly
+  better.
+
 ### Key Entities
 
 * **Reference verse**: a reviewed verse with its agreed split, confidence level, note, and any
