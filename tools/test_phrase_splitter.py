@@ -795,6 +795,15 @@ class CandidateSetTests(unittest.TestCase):
         self.assertEqual(one, two)
         self.assertNotEqual(cur_one, cur_two)
 
+    def test_ids_do_not_follow_split_order(self):
+        # With many splits, sorted order and id order should disagree
+        # somewhere; a selector can't learn that "a" is the coarsest.
+        tokens = T("a b c d e f g h")
+        cands = [[" ".join(tokens[:k]), " ".join(tokens[k:])] for k in range(1, 8)]
+        candidates, _, _ = _candidate_set(tokens, [8], cands)
+        by_id = [c["counts"] for c in sorted(candidates, key=lambda c: c["id"])]
+        self.assertNotEqual(by_id, sorted(by_id))
+
     def test_rating_batches_never_repeat_a_verse(self):
         entries = [{"ref": r, "id": i} for r in ("A", "B", "C") for i in ("a", "b", "c")]
         for batch in _rating_batches(entries, 4):

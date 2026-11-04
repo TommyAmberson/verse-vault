@@ -53,6 +53,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -323,8 +324,9 @@ def _candidate_set(
     tokens: List[str], current_pwc: List[int], proposals: List[Any]
 ) -> Tuple[List[Dict[str, Any]], str, List[str]]:
     """Validate proposals against the canonical tokens and merge them with
-    the current split. Identical splits share one id; ids follow the
-    splits' word counts, so they say nothing about which one is current.
+    the current split. Identical splits share one id. Ids follow a hash of
+    each split's word counts: repeatable, and they say nothing about which
+    split is current or which is finer, so id ``a`` carries no hint.
     Returns ``(candidates, current_id, errors)``."""
     errors: List[str] = []
     distinct = {tuple(current_pwc)}
@@ -334,7 +336,7 @@ def _candidate_set(
             errors.append(f"candidate {n}: " + "; ".join(errs))
             continue
         distinct.add(tuple(counts))
-    ordered = sorted(distinct)
+    ordered = sorted(distinct, key=lambda c: hashlib.sha256(repr(c).encode()).hexdigest())
     candidates = [
         {"id": chr(ord("a") + k), "counts": list(c)} for k, c in enumerate(ordered)
     ]
