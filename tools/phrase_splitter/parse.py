@@ -8,32 +8,49 @@ the children of Israel who lived in Egypt / was four hundred and thirty
 years."). See research R6 in ``specs/008-recitation-splits/``.
 """
 
+import os
 from functools import lru_cache
 from typing import List, Sequence, Set
 
 import spacy
 
-MODEL = "en_core_web_sm"
+# Best first. The transformer model parses archaic syntax ("He who eats
+# ... abides") far better but needs PyTorch; PHRASE_PARSE_MODEL picks one.
+_MODELS = ("en_core_web_trf", "en_core_web_sm")
 
 # Clauses whose first word starts a new run.
 _CLAUSE_DEPS = frozenset({"advcl", "relcl", "ccomp"})
 _SUBJECT_DEPS = frozenset({"nsubj", "nsubjpass", "csubj"})
-# A subject this long is a run of its own before its verb.
-_LONG_SUBJECT = 4
+_OBJECT_DEPS = frozenset({"dobj", "obj"})
+# A subject or fronted object this long is a run of its own before its
+# verb. Shorter ones stay with the verb: the maintainer rejected "And the
+# posts of the door / were shaken" but kept the 6- to 11-word subjects.
+_LONG_SUBJECT = 6
+_LONG_OBJECT = 4
 
 
 @lru_cache(maxsize=1)
+def _loaded():
+    wanted = os.environ.get("PHRASE_PARSE_MODEL")
+    for name in (wanted,) if wanted else _MODELS:
+        try:
+            return name, spacy.load(name)
+        except OSError:
+            continue
+    return None, None
+
+
 def _nlp():
-    return spacy.load(MODEL)
+    return _loaded()[1]
+
+
+def model_name() -> str:
+    return _loaded()[0]
 
 
 def available() -> bool:
-    """Whether the model loads; spaCy can be installed without it."""
-    try:
-        _nlp()
-    except OSError:
-        return False
-    return True
+    """Whether a model loads; spaCy can be installed without one."""
+    return _nlp() is not None
 
 
 def pause_cuts(tokens: Sequence[str]) -> Set[int]:
@@ -61,7 +78,13 @@ def pause_cuts(tokens: Sequence[str]) -> Set[int]:
         subtree = list(t.subtree)
         if t.dep_ in _CLAUSE_DEPS:
             cuts.add(ours(subtree[0].idx))
-        elif t.dep_ in _SUBJECT_DEPS and len(subtree) >= _LONG_SUBJECT:
+            continue
+        words = [w for w in subtree if not w.is_punct and w.dep_ != "cc"]
+        is_subject = t.dep_ in _SUBJECT_DEPS and len(words) >= _LONG_SUBJECT
+        is_fronted_object = (
+            t.dep_ in _OBJECT_DEPS and t.i < t.head.i and len(words) >= _LONG_OBJECT
+        )
+        if is_subject or is_fronted_object:
             after = subtree[-1].i + 1
             if after < len(doc):
                 cuts.add(ours(doc[after].idx))

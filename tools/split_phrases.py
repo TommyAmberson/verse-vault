@@ -61,12 +61,11 @@ from typing import Any, Dict, List, Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from phrase_splitter import (  # noqa: E402
-    composite_signal_score,
     extract_verse_features,
     format_split_prompt,
     normalize_reference,
 )
-from phrase_splitter.features import _signal_float, slice_phrases  # noqa: E402
+from phrase_splitter.features import criterion_flags, slice_phrases  # noqa: E402
 from phrase_splitter.prompts import format_rate_prompt, format_select_prompt  # noqa: E402
 from phrase_splitter.apibible import (  # noqa: E402
     DEFAULT_DB_PATH,
@@ -134,57 +133,29 @@ def _render_current_split(tokens: List[str], pwc: List[int]) -> str:
     return "\n".join(f'  - "{" ".join(pt)}"' for pt in phrase_token_lists)
 
 
+_CRITERION_NAMES = {
+    1: "Cut where you'd pause",
+    2: "One run per chunk",
+    5: "Lists",
+    6: "Parallel halves",
+}
+
+
 def _render_signals(signals: Dict[str, Any]) -> str:
-    """Render the signal payload as a compact text block for the
-    prompt's signals section. Names match contracts in
-    ``specs/008-recitation-splits/contracts/signals.md``."""
-    lines: List[str] = []
-    header_bits: List[str] = []
-    for key in ("token_count", "phrase_count"):
-        if isinstance(signals.get(key), int):
-            header_bits.append(f"{key.split('_')[0]}s={signals[key]}")
-    if header_bits:
-        lines.append("  " + " ".join(header_bits))
-
-    for i, p in enumerate(signals.get("phrases") or []):
-        if not isinstance(p, dict):
-            continue
-        bits = [f"phrase {i+1}: {p.get('word_count', 0)}w"]
-        long_run = _signal_float(p, "long_run")
-        if long_run > 0:
-            bits.append(f"long_run={long_run:.2f}")
-        points = p.get("pause_points") or []
-        if points:
-            words = (p.get("text") or "").split(" ")
-            bits.append("pause_points=" + ",".join(
-                f"{pp['kind']}@'{words[pp['index']] if pp['index'] < len(words) else '?'}'"
-                for pp in points
-            ))
-        if p.get("lost_line_break"):
-            bits.append("lost_line_break")
-        if p.get("ends_mid_clause"):
-            bits.append("ends-mid-clause")
-        if p.get("starts_with_weak_connector"):
-            bits.append("opens-with-connector")
-        lines.append("  " + " ".join(bits))
-
-    for i, b in enumerate(signals.get("boundaries") or []):
-        sev = _signal_float(b, "boundary_severance")
-        if sev > 0:
-            kind = (b.get("severance_kind") if isinstance(b, dict) else None) or "?"
-            lines.append(f"  boundary {i+1}→{i+2}: {kind} severance={sev:.2f}")
-        cue = _signal_float(b, "no_pause_cue")
-        if cue > 0:
-            lines.append(f"  boundary {i+1}→{i+2}: no_pause_cue={cue:.2f}")
-
-    for key in ("parallel_asymmetry", "missing_split"):
-        value = _signal_float(signals, key)
-        if value > 0:
-            lines.append(f"  {key}={value:.2f}")
-    for lb in signals.get("list_breaks") or []:
-        lines.append(f"  list_breaks: {lb['kind']} in phrase {lb['phrase']}")
-
-    lines.append(f"  composite={composite_signal_score(signals):.2f}")
+    """Render the audit's findings for an LLM prompt: plain-language flags
+    under the criterion each one tests, marked strong or weak, with no
+    numbers (``criterion_flags`` owns thresholds and wording)."""
+    flags = criterion_flags(signals)
+    lines = ["  Hints, not verdicts: strong flags usually matter, weak ones often don't."]
+    for criterion, name in _CRITERION_NAMES.items():
+        found = flags.get(criterion, [])
+        lines.append(f"  {criterion}. {name}: " + ("none flagged" if not found else ""))
+        for strength, text in found:
+            lines.append(f"     - [{strength}] {text}")
+    lines.append(
+        "  Not checked by signals: 3 (lead-in and speech-tag handoffs), "
+        "4 (chunks that can fail on their own)."
+    )
     return "\n".join(lines)
 
 

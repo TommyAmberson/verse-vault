@@ -601,7 +601,7 @@ def extract_verse_features(
     parse_status = "skipped"
     if _parse is not None and _parse.available():
         parse_cuts = _parse.pause_cuts(tokens_list)
-        parse_status = f"spacy:{_parse.MODEL}"
+        parse_status = f"spacy:{_parse.model_name()}"
 
     phrases: List[Dict[str, Any]] = []
     offset = 0
@@ -666,26 +666,102 @@ def extract_verse_features(
     }
 
 
-# Score components: (container, signal key, weight). ``container`` is
-# ``"phrases"`` or ``"boundaries"`` (max over the list) or ``"verse"``
-# (a top-level field). Total weight at full strength is intentionally
-# over 1.0 so several saturating problems hit the clamp instead of
-# summing past it. Weights are tuned with ``evaluate_phrases.py
-# --calibrate`` against the reference set.
-COMPOSITE_COMPONENTS = [
-    ("boundaries", "boundary_severance", 0.5),
-    ("boundaries", "no_pause_cue", 0.3),
-    ("phrases", "long_run", 0.6),
-    ("phrases", "lost_line_break", 0.4),
-    ("verse", "parallel_asymmetry", 0.4),
-    ("verse", "missing_split", 0.3),
+# One row per scored signal: where it lives, its composite weight, the
+# recitation criterion it tests, and the value at which the LLM prompts
+# show it as a flag. Weights and thresholds are tuned with
+# ``evaluate_phrases.py --calibrate`` against the reference set. Total
+# weight at full strength is intentionally over 1.0 so several saturating
+# problems hit the clamp instead of summing past it. ``missing_split``
+# has no criterion of its own: ``long_run`` already reports it.
+SIGNAL_GUIDE = [
+    {"container": "phrases", "key": "long_run", "weight": 0.6, "criterion": 2, "flag_at": 0.3},
+    {"container": "phrases", "key": "lost_line_break", "weight": 0.4, "criterion": 1, "flag_at": 0.5},
+    {"container": "boundaries", "key": "boundary_severance", "weight": 0.5, "criterion": 1, "flag_at": 0.5},
+    {"container": "boundaries", "key": "no_pause_cue", "weight": 0.3, "criterion": 1, "flag_at": 0.6},
+    {"container": "verse", "key": "parallel_asymmetry", "weight": 0.4, "criterion": 6, "flag_at": 0.5},
+    {"container": "verse", "key": "missing_split", "weight": 0.3, "criterion": None, "flag_at": None},
 ]
-# List-break kinds, weighted like a component that is 1.0 when present.
+COMPOSITE_COMPONENTS = [(g["container"], g["key"], g["weight"]) for g in SIGNAL_GUIDE]
+# List-break kinds (criterion 5), weighted like a component that is 1.0
+# when present, with how much a flag of that kind should count.
 LIST_BREAK_WEIGHTS = {
     LIST_WORD_CUT: 0.4,
     LIST_LEAD_IN_MERGED: 0.2,
     LIST_CLAUSE_ITEMS_MERGED: 0.15,
 }
+_LIST_BREAK_FLAGS = {
+    LIST_WORD_CUT: ("strong", "phrase {n} cuts a short word list between its items"),
+    LIST_LEAD_IN_MERGED: (
+        "weak", "phrase {n} keeps a lead-in that could stand alone together with its word list"
+    ),
+    LIST_CLAUSE_ITEMS_MERGED: (
+        "weak", "phrase {n} holds two clause-list items that could each be a chunk"
+    ),
+}
+_PAUSE_KIND_WORDS = {
+    PAUSE_PUNCT_KIND: "punctuation",
+    PAUSE_RELATIVE: "a relative clause",
+    PAUSE_CONTENT_CLAUSE: 'a "that" clause',
+    PAUSE_LINE_BREAK: "a poetry line break",
+    PAUSE_LIST: "the start of a list",
+    PAUSE_PARSE: "a clause or long-subject edge",
+    PAUSE_COORDINATOR: '"and" or "but"',
+    PAUSE_PREPOSITION: "a preposition",
+}
+_SEVERANCE_WORDS = {
+    SEVERANCE_VERB_CONTENT: "separates a verb from the clause it introduces",
+    SEVERANCE_BARE_RELATIVE: "separates a short relative clause from its noun",
+    SEVERANCE_STRANDED_STUB: "leaves a short fragment that belongs with the next phrase",
+}
+
+
+def _quote(words: Sequence[str]) -> str:
+    return " ".join(words)
+
+
+def criterion_flags(verse_features: Dict[str, Any]) -> Dict[int, List[tuple]]:
+    """The signals that pass their thresholds, as ``(strength, text)``
+    flags keyed by recitation criterion, in plain words for an LLM. No
+    numbers: a flag is a hint with a known reliability, not a verdict."""
+    flags: Dict[int, List[tuple]] = {}
+    phrases = verse_features.get("phrases") or []
+    words = [(p.get("text") or "").split(" ") for p in phrases]
+    for g in SIGNAL_GUIDE:
+        if g["criterion"] is None:
+            continue
+        add = flags.setdefault(g["criterion"], []).append
+        if g["container"] == "verse":
+            if _signal_float(verse_features, g["key"]) >= g["flag_at"]:
+                add(("strong", "two parallel halves are cut differently: one split, its mirror whole"))
+            continue
+        for n, item in enumerate(verse_features.get(g["container"]) or [], 1):
+            if _signal_float(item, g["key"]) < g["flag_at"]:
+                continue
+            if g["key"] == "long_run":
+                kinds = [p["kind"] for p in item.get("pause_points") or []]
+                where = ", ".join(sorted({_PAUSE_KIND_WORDS[k] for k in kinds})) or "no clear cue"
+                strong = any(k not in _WEAK_KINDS for k in kinds)
+                text = f'phrase {n} ("{_quote(words[n - 1][:4])} …") runs past one breath; pause cues inside it: {where}'
+                if not strong:
+                    text += "; with no strong cue, staying whole may be right"
+                add(("strong" if strong else "weak", text))
+            elif g["key"] == "lost_line_break":
+                add(("strong", f"phrase {n} joins two poetry lines (a capitalized line start mid-phrase)"))
+            elif g["key"] == "boundary_severance":
+                seam = f'"… {_quote(words[n - 1][-2:])} / {_quote(words[n][:2])} …"'
+                add(("strong", f"cut {n}→{n + 1} {seam} {_SEVERANCE_WORDS[item['severance_kind']]}"))
+            elif g["key"] == "no_pause_cue":
+                seam = f'"… {_quote(words[n - 1][-2:])} / {_quote(words[n][:2])} …"'
+                add((
+                    "weak",
+                    f"cut {n}→{n + 1} {seam} has no punctuation before it and no clause opener "
+                    "after it. This check can't see the pause after a long subject or a fronted "
+                    "object, or before a completing phrase; a cut there is fine",
+                ))
+    for lb in verse_features.get("list_breaks") or []:
+        strength, text = _LIST_BREAK_FLAGS[lb["kind"]]
+        flags.setdefault(5, []).append((strength, text.format(n=lb["phrase"])))
+    return {c: f for c, f in flags.items() if f}
 
 
 def component_value(verse_features: Dict[str, Any], container: str, key: str) -> float:

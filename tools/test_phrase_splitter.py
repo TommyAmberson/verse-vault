@@ -23,6 +23,7 @@ from phrase_splitter import (
     word_count,
 )
 from phrase_splitter.features import (
+    criterion_flags,
     FUNCTION_WORDS,
     WEAK_CONNECTORS,
     composite_signal_score,
@@ -609,43 +610,52 @@ class PrintPromptRenderingTests(unittest.TestCase):
         # Two bulleted lines.
         self.assertEqual(out.count("  - "), 2)
 
-    def test_render_signals_includes_header_and_boundary(self):
+    def test_render_signals_names_the_severed_relative(self):
         feats = extract_verse_features(
             ["nothing", "was", "made", "that", "was", "made."], [3, 3]
         )
         rendered = _render_signals(feats)
-        # Header line with verse-level metrics
-        self.assertIn("tokens=6", rendered)
-        self.assertIn("phrases=2", rendered)
-        # Per-boundary line names the severance kind and value
-        self.assertIn("bare_relative", rendered)
-        self.assertIn("severance=", rendered)
-        # Composite score is displayed
-        self.assertIn("composite=", rendered)
+        self.assertIn("[strong] cut 1→2", rendered)
+        self.assertIn("short relative clause", rendered)
 
 
 class RenderSignalsTests(unittest.TestCase):
-    def test_new_signals_are_named(self):
-        feats = extract_verse_features(
-            T("Nevertheless, the Lord raised up judges who delivered them out of the hand "
-              "of those who plundered them."), [17]
-        )
-        rendered = _render_signals(feats)
-        self.assertIn("long_run=", rendered)
-        self.assertIn("pause_points=relative@'who'", rendered)
+    JUDGES = T("Nevertheless, the Lord raised up judges who delivered them out of the hand "
+               "of those who plundered them.")
 
-    def test_boundary_and_verse_signals_are_named(self):
+    def test_flags_are_words_not_numbers(self):
+        rendered = _render_signals(extract_verse_features(self.JUDGES, [18]))
+        self.assertIn("2. One run per chunk", rendered)
+        self.assertIn("runs past one breath", rendered)
+        self.assertIn("a relative clause", rendered)
+        self.assertNotIn("composite", rendered)
+        self.assertNotRegex(rendered, r"\d\.\d")
+
+    def test_unchecked_criteria_are_named(self):
+        rendered = _render_signals(extract_verse_features(T("Jesus wept."), [2]))
+        self.assertIn("Not checked by signals: 3", rendered)
+
+    def test_no_pause_cue_is_weak_with_its_blind_spot(self):
+        flags = criterion_flags(extract_verse_features(T("He said this, and the man went home"), [5, 3]))
+        (strength, text), = flags[1]
+        self.assertEqual(strength, "weak")
+        self.assertIn("long subject", text)
+
+    def test_below_threshold_is_silent(self):
+        flags = criterion_flags(extract_verse_features(T("For when I am weak, then I am strong."), [9]))
+        self.assertEqual(flags.get(2, []), [])
+
+    def test_list_and_parallel_flags(self):
         cor = T("Therefore I make known to you that no one speaking by the Spirit of God calls "
                 "Jesus accursed, and no one can say that Jesus is Lord except by the Holy Spirit.")
-        rendered = _render_signals(extract_verse_features(cor, [6, 12, 9, 5]))
-        self.assertIn("parallel_asymmetry=", rendered)
-        rendered = _render_signals(extract_verse_features(T("He said this, and the man went"), [5, 2]))
-        self.assertIn("no_pause_cue=", rendered)
-        rendered = _render_signals(extract_verse_features(ListTests.PLEASURE, [4, 4, 6, 3]))
-        self.assertIn("list_breaks: word_list_cut", rendered)
-        rendered = _render_signals(extract_verse_features(
-            T("That it may give seed to the sower And bread to the eater,"), [12]))
-        self.assertIn("lost_line_break", rendered)
+        self.assertTrue(criterion_flags(extract_verse_features(cor, [6, 12, 9, 5])).get(6))
+        flags = criterion_flags(extract_verse_features(ListTests.PLEASURE, [4, 4, 6, 3]))
+        self.assertEqual(flags[5][0][0], "strong")
+
+    def test_dropped_raw_flags(self):
+        rendered = _render_signals(extract_verse_features(T("and the man went home"), [3, 2]))
+        self.assertNotIn("ends-mid-clause", rendered)
+        self.assertNotIn("opens-with-connector", rendered)
 
 
 class DisplayTextTests(unittest.TestCase):
@@ -728,6 +738,17 @@ class ParseSignalTests(unittest.TestCase):
             self.assertEqual(feats["parse"], "skipped")
         else:
             self.assertTrue(feats["parse"].startswith("spacy:"))
+
+    @unittest.skipIf(features_module._parse is None, "spaCy not installed")
+    def test_short_subject_keeps_its_verb(self):
+        # Isaiah 6:4: "And the posts of the door / were shaken" was rejected.
+        tokens = T("And the posts of the door were shaken by the voice of him who cried out,")
+        self.assertNotIn(6, features_module._parse.pause_cuts(tokens))
+
+    @unittest.skipIf(features_module._parse is None, "spaCy not installed")
+    def test_parse_reports_its_model(self):
+        feats = extract_verse_features(self.EXODUS, [18])
+        self.assertEqual(feats["parse"], f"spacy:{features_module._parse.model_name()}")
 
     @unittest.skipIf(features_module._parse is None, "spaCy not installed")
     def test_long_subject_ends_in_a_pause(self):

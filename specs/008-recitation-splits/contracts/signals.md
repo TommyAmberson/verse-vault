@@ -47,3 +47,13 @@ or an LLM, not rules.
 to `[0, 1]`. The weight table has one owner (`phrase_splitter/features.py`); the audit's "top
 signals" summary reads the same table. Weights are set by calibration against the reference set, so
 the numbers are not part of this contract.
+
+## What the LLM prompts show
+
+Splitter and rating prompts show none of the values above. `criterion_flags` turns the signals that
+pass their `flag_at` threshold in `SIGNAL_GUIDE` into plain-language flags, grouped under the
+recitation criterion each one tests (1 cut at pauses, 2 one run per chunk, 5 lists, 6 parallel
+halves) and marked strong or weak. `no_pause_cue` is always weak and names its blind spot (pauses
+after a long subject or fronted object, or before a completing phrase). The prompt also says that
+criteria 3 and 4 are not checked by signals. The audit report, worklist ranking and calibration keep
+the numbers.
