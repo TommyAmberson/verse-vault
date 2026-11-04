@@ -42,6 +42,12 @@
         "counts": [8, 6, 3, 9],
         "reason": "a short word list is one chunk, kept apart from a lead-in that can stand alone"
       }
+    ],
+    "acceptable": [
+      {
+        "counts": [4, 10, 3, 5, 4],
+        "reason": "acceptable alternative, maintainer's review of model candidates"
+      }
     ]
   },
   {
@@ -54,6 +60,12 @@
       {
         "counts": [7, 4, 6, 3, 7],
         "reason": "'and said to him,' after narrative is a throwaway chunk"
+      }
+    ],
+    "acceptable": [
+      {
+        "counts": [11, 6, 10],
+        "reason": "acceptable alternative, maintainer's review of model candidates"
       }
     ]
   },
@@ -82,10 +94,10 @@
     "agreed": [7, 6, 7, 7, 4, 7],
     "confidence": "agreed",
     "note": "word-perfect: each half's wording can slip",
-    "rejected": [
+    "acceptable": [
       {
         "counts": [7, 6, 7, 7, 11],
-        "reason": "merge rejected by the maintainer"
+        "reason": "slightly worse (second review)"
       }
     ]
   },
@@ -124,10 +136,10 @@
     "agreed": [8, 5, 5],
     "confidence": "agreed",
     "note": "lead-in wording keeps its own chunk",
-    "rejected": [
+    "acceptable": [
       {
         "counts": [8, 10],
-        "reason": "merge rejected by the maintainer"
+        "reason": "either way is fine (second review)"
       }
     ]
   },
@@ -171,7 +183,17 @@
     "ref": "John 6:56",
     "deck": "data/4-john.json",
     "agreed": [9, 3, 4],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [12, 4],
+        "reason": "slightly worse"
+      },
+      {
+        "counts": [9, 7],
+        "reason": "acceptable alternative, maintainer's review of model candidates"
+      }
+    ]
   },
   {
     "ref": "John 9:22",
@@ -195,7 +217,13 @@
     "ref": "Hebrews 10:30",
     "deck": "data/5-hp.json",
     "agreed": [6, 6, 3, 2, 6],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [6, 9, 2, 6],
+        "reason": "acceptable alternative, maintainer's review of model candidates"
+      }
+    ]
   },
   {
     "ref": "Hebrews 12:25",
@@ -219,7 +247,13 @@
     "ref": "1 Samuel 17:25",
     "deck": "data/6-ot-survey.json",
     "agreed": [6, 9, 8, 10, 7, 5, 10],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "rejected": [
+      {
+        "counts": [6, 9, 8, 17, 5, 10],
+        "reason": "too long, needs a split"
+      }
+    ]
   },
   {
     "ref": "Daniel 3:22",
@@ -237,13 +271,31 @@
         "counts": [5, 6, 4, 8, 5, 9, 6, 5],
         "reason": "a long final clause cut at its relative: barely worse"
       }
+    ],
+    "rejected": [
+      {
+        "counts": [5, 18, 14, 11],
+        "reason": "too long, needs a split"
+      }
     ]
   },
   {
     "ref": "Exodus 12:40",
     "deck": "data/6-ot-survey.json",
     "agreed": [8, 4, 6],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "rejected": [
+      {
+        "counts": [18],
+        "reason": "too long, needs a split"
+      }
+    ],
+    "acceptable": [
+      {
+        "counts": [12, 6],
+        "reason": "acceptable alternative, maintainer's review of model candidates"
+      }
+    ]
   },
   {
     "ref": "Exodus 3:9",
@@ -254,6 +306,12 @@
       {
         "counts": [3, 7, 4, 7, 6],
         "reason": "a long subject cut from its verb: barely worse"
+      }
+    ],
+    "rejected": [
+      {
+        "counts": [14, 13],
+        "reason": "too long, needs a split"
       }
     ]
   },
@@ -291,6 +349,10 @@
       {
         "counts": [6, 10, 7],
         "reason": "subject cut from 'were shaken' instead of before 'by the voice'"
+      },
+      {
+        "counts": [16, 7],
+        "reason": "too long, needs a split"
       }
     ]
   },
@@ -310,7 +372,13 @@
     "ref": "Joshua 4:12",
     "deck": "data/6-ot-survey.json",
     "agreed": [9, 6, 8, 6],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [15, 8, 6],
+        "reason": "either way is fine"
+      }
+    ]
   },
   {
     "ref": "Judges 2:16",
@@ -322,19 +390,37 @@
     "ref": "Psalms 139:18",
     "deck": "data/6-ot-survey.json",
     "agreed": [5, 9, 8],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [5, 9, 3, 5],
+        "reason": "acceptable alternative, maintainer's review of model candidates"
+      }
+    ]
   },
   {
     "ref": "Psalms 32:8",
     "deck": "data/6-ot-survey.json",
     "agreed": [7, 6, 7],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [13, 7],
+        "reason": "slightly worse"
+      }
+    ]
   },
   {
     "ref": "Psalms 46:4",
     "deck": "data/6-ot-survey.json",
     "agreed": [4, 9, 10],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [13, 10],
+        "reason": "slightly worse"
+      }
+    ]
   },
   {
     "ref": "Romans 13:3",
@@ -366,10 +452,10 @@
     "agreed": [3, 3, 6, 12],
     "confidence": "agreed",
     "note": "list isolated from lead-in, split where items lengthen",
-    "rejected": [
+    "acceptable": [
       {
         "counts": [3, 9, 12],
-        "reason": "the lead-in 'to whom pertain' can stand alone, so it stays out of the list"
+        "reason": "barely worse; 'to whom pertain' alone isn't a great chunk (second review)"
       }
     ]
   },
