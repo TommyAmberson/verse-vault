@@ -10,6 +10,7 @@ The module is pure-stdlib and side-effect-free. It reuses ``tokens`` and
 is constants and small computations over token lists.
 """
 
+import re
 from typing import Any, Dict, List, Sequence
 
 from .helpers import normalise_word, strip_html
@@ -111,12 +112,14 @@ SEVERANCE_VERB_CONTENT = "verb_content"
 SEVERANCE_BARE_RELATIVE = "bare_relative"
 SEVERANCE_STRANDED_STUB = "stranded_stub"
 
-# A recitation run: the stretch a reciter says in one go. Runs much
-# longer than this usually hide a pause point; cuts inside a shorter
-# combined run usually sever one memory unit.
+# A recitation run: the stretch a reciter says in one go. Cuts inside a
+# shorter combined run usually sever one memory unit.
 SHORT_RUN = 10
-# Length at which a run with a pause point is fully overlong.
-LONG_RUN = 16
+# Phrase length is measured in syllables, which track breath better than
+# words: about one breath, and the length at which a run with a pause
+# point is fully overlong.
+BREATH_SYLLABLES = 14
+LONG_RUN_SYLLABLES = 22
 
 RELATIVE_WORDS = frozenset({"who", "whom", "whose", "which"})
 PREPOSITIONS = frozenset({
@@ -200,11 +203,6 @@ def _ends_in_pause(token: str) -> bool:
 def _ends_in_terminal(token: str) -> bool:
     tail = _trailing_punct(token)
     return bool(tail) and tail[-1] in _TERMINAL_PUNCT
-
-
-def _ends_sentence(token: str) -> bool:
-    tail = _trailing_punct(token)
-    return bool(tail) and tail[-1] in _SENTENCE_END
 
 
 def _opens_quote(token: str) -> bool:
@@ -292,21 +290,31 @@ def _pause_points(phrase_tokens: Sequence[str]) -> List[Dict[str, Any]]:
     return points
 
 
-def _long_run(word_count: int, pause_points: Sequence[Dict[str, Any]]) -> float:
-    """How far a phrase runs past one recitation run. A phrase with no
-    pause point may legitimately stay whole, so it scores at a fraction;
-    a punctuation or line-break pause starts the ramp earlier because the
-    reciter already breathes there."""
+def count_syllables(token: str) -> int:
+    """Vowel-group heuristic with a silent-final-e correction. Off by one
+    now and then; it only needs to rank phrases by how long they take to
+    say."""
+    w = normalise_word(token)
+    if not w:
+        return 0
+    n = len(re.findall(r"[aeiouy]+", w))
+    if w.endswith("e") and not w.endswith(("le", "ee")) and n > 1:
+        n -= 1
+    return max(1, n)
+
+
+def _long_run(phrase_tokens: Sequence[str], pause_points: Sequence[Dict[str, Any]]) -> float:
+    """How far a phrase runs past one breath, in syllables. A phrase with
+    no pause point may legitimately stay whole, so it scores at a
+    fraction; a punctuation or line-break pause starts the ramp earlier
+    because the reciter already breathes there."""
+    syllables = sum(count_syllables(t) for t in phrase_tokens)
+    span = LONG_RUN_SYLLABLES - BREATH_SYLLABLES
     if not pause_points:
-        return round(0.7 * _clamp01((word_count - SHORT_RUN) / (LONG_RUN - SHORT_RUN)), 3)
+        return round(0.7 * _clamp01((syllables - BREATH_SYLLABLES) / span), 3)
     kinds = {p["kind"] for p in pause_points}
-    if kinds & {PAUSE_PUNCT_KIND, PAUSE_LINE_BREAK}:
-        start = SHORT_RUN - 3
-    elif kinds <= _WEAK_KINDS:
-        start = SHORT_RUN
-    else:
-        start = SHORT_RUN
-    return round(_clamp01((word_count - start) / (LONG_RUN - start)), 3)
+    start = BREATH_SYLLABLES - 4 if kinds & {PAUSE_PUNCT_KIND, PAUSE_LINE_BREAK} else BREATH_SYLLABLES
+    return round(_clamp01((syllables - start) / (LONG_RUN_SYLLABLES - start)), 3)
 
 
 def extract_phrase_features(
@@ -327,7 +335,7 @@ def extract_phrase_features(
         "ends_mid_clause": bool(last_token) and not _ends_in_terminal(last_token),
         "position": position,
         "pause_points": pause_points,
-        "long_run": _long_run(wc, pause_points),
+        "long_run": _long_run(phrase_tokens, pause_points),
         "lost_line_break": any(p["kind"] == PAUSE_LINE_BREAK for p in pause_points),
     }
 
@@ -344,7 +352,7 @@ def _opens_run(prev_last: str, next_first: str) -> bool:
 def extract_boundary_features(
     prev_tokens: Sequence[str],
     next_tokens: Sequence[str],
-    prev_opens_sentence: bool = False,
+    prev_opens_clause: bool = False,
 ) -> Dict[str, Any]:
     """Features for a boundary *between* two adjacent phrases.
 
@@ -352,8 +360,9 @@ def extract_boundary_features(
     names it) that lands inside a short run; cutting a long run at the
     same cue is what the reference set wants, so it scores nothing.
     ``no_pause_cue`` scores a cut with no punctuation before it and no
-    clause edge after it. ``prev_opens_sentence`` exempts a short
-    sentence-opening lead-in ("For this reason / the Jews …"), whose
+    clause edge after it. ``prev_opens_clause`` exempts a short
+    lead-in that opens a sentence or a clause ("For this reason / the
+    Jews …", "to whom pertain / the adoption …"), whose
     wording is worth its own chunk in word-perfect recall.
     """
     if not prev_tokens or not next_tokens:
@@ -403,7 +412,7 @@ def extract_boundary_features(
         )
 
     no_pause_cue = 0.0
-    lead_in = prev_opens_sentence and len(prev_tokens) <= 4
+    lead_in = prev_opens_clause and len(prev_tokens) <= 4
     if not _ends_in_terminal(prev_last_raw) and not lead_in:
         if not _opens_run(prev_last_raw, next_first_raw):
             # The shorter the severed piece, the more clearly it was one
@@ -623,7 +632,7 @@ def extract_verse_features(
                 points.append({"index": local, "kind": PAUSE_PARSE})
         points.sort(key=lambda p: p["index"])
         feat["pause_points"] = points
-        feat["long_run"] = _long_run(len(ptoks), points)
+        feat["long_run"] = _long_run(ptoks, points)
         feat["text"] = " ".join(ptoks)
         phrases.append(feat)
         offset += len(ptoks)
@@ -631,8 +640,10 @@ def extract_verse_features(
     boundaries: List[Dict[str, Any]] = []
     for i in range(phrase_count - 1):
         prev = phrase_token_lists[i]
-        opens_sentence = i == 0 or _ends_sentence(phrase_token_lists[i - 1][-1])
-        boundary = extract_boundary_features(prev, phrase_token_lists[i + 1], opens_sentence)
+        # A short lead-in keeps its own chunk at the start of a sentence or
+        # of any clause opened after pause punctuation ("to whom pertain").
+        opens_clause = i == 0 or _ends_in_terminal(phrase_token_lists[i - 1][-1])
+        boundary = extract_boundary_features(prev, phrase_token_lists[i + 1], opens_clause)
         # A clause or subject edge the parse found is a pause point too.
         if cuts[i] in parse_cuts:
             boundary["no_pause_cue"] = 0.0

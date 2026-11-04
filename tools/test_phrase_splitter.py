@@ -332,6 +332,34 @@ class NoPauseCueTests(unittest.TestCase):
         self.assertLess(composite_signal_score(feats), 0.2)
 
 
+class SyllableLengthTests(unittest.TestCase):
+    def test_short_words_make_a_short_run(self):
+        # 9 words but only 9 syllables: one breath.
+        feat = extract_phrase_features(T("For when I am weak, then I am strong."), "last")
+        self.assertEqual(feat["long_run"], 0.0)
+
+    def test_long_words_make_a_long_run(self):
+        # 10 words but about 20 syllables, with a comma to breathe at.
+        feat = extract_phrase_features(
+            T("persecutions, revelations, abominations, and tribulations everywhere imaginable"), "middle"
+        )
+        self.assertGreater(feat["long_run"], 0.0)
+
+
+class ClauseLeadInTests(unittest.TestCase):
+    def test_lead_in_after_a_comma_is_exempt(self):
+        # Romans 9:4: "to whom pertain" opens a clause after a comma.
+        feats = extract_verse_features(
+            T("who are Israelites, to whom pertain the adoption, the glory, the covenants,"),
+            [3, 3, 6],
+        )
+        self.assertEqual(feats["boundaries"][1]["no_pause_cue"], 0.0)
+
+    def test_mid_clause_cut_still_fires(self):
+        feats = extract_verse_features(T("He said this, and the man went home"), [5, 3])
+        self.assertGreater(feats["boundaries"][0]["no_pause_cue"], 0.0)
+
+
 class LineBreakTests(unittest.TestCase):
     def test_capital_function_word_mid_phrase(self):
         feat = extract_phrase_features(
