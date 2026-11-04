@@ -113,3 +113,15 @@ mistakes.
   stay in the payload but no longer contribute to the score — they're context for the reviewer, not
   bits in the rank. The rendered signals block now shows graded numbers (`severance=0.65`,
   `stub=0.50`) so the splitter can weigh severity instead of presence.
+
+* **v4: recitation criteria.** The maintainer's review of about 50 verses showed the v2/v3 framing
+  was aimed at the wrong target: splits served meaning and grammar, but the decks serve word-perfect
+  Bible quizzing, where the wording of a lead-in is often what slips. `SPLIT_PROMPT_HEADER` and
+  `JUDGE_PROMPT` now open with the word-perfect goal and the idea of recitation _runs_, list the six
+  agreed criteria (pause points, one run per chunk, handoffs, independent failure, lists, parallel
+  halves), and use worked examples from the committed reference set instead of 1 Corinthians
+  examples chosen by hand. The signals block names the run-based signals (`long_run` with
+  `pause_points`, `no_pause_cue`, `lost_line_break`, `parallel_asymmetry`, `list_breaks`); the
+  content-word, stub and length-balance signals are gone. The verse line keeps NKJV's em dashes,
+  which the token stream drops, so the model sees the pause a dash marks. Measured on the reference
+  verses with no current split shown: see the pull request for the before and after counts.

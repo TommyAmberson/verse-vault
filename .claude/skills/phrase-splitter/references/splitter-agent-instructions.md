@@ -11,8 +11,8 @@ subagent is dispatched for the re-split step of the phrase-splitter workflow.
 
 ## Required reading (do this once at start)
 
-* [`quality-criteria.md`](./quality-criteria.md) — the memorisable-chunk principle, hard
-  constraints, signals (context, not rules), and worked examples.
+* [`quality-criteria.md`](./quality-criteria.md): the word-perfect goal, the six recitation criteria
+  with worked examples, hard constraints, and the signals (context, not rules).
 
 The embedded `prompt` field in each batch entry contains the active `SPLIT_PROMPT`, so you don't
 need to read `prompts.py` separately. If anything in the embedded prompt conflicts with
@@ -21,26 +21,20 @@ need to read `prompts.py` separately. If anything in the embedded prompt conflic
 ## Current split + signals (context, not echo)
 
 Each batch entry's `prompt` may contain a `Current split` section and a `Signals` section. Use them
-as context for your rewrite; don't echo them back. The goal is the best split — not necessarily a
-different split. If the current split already passes the recall test (each phrase a coherent
-memorisable chunk that the reciter could blank on and still sense the shape of the gap), return it
-verbatim. Change boundaries only when the new split is _clearly_ better, not merely defensible.
+as context for your rewrite; don't echo them back. Propose your honest best split under the criteria
+in [`quality-criteria.md`](./quality-criteria.md), which may be the current one; the judge step
+decides whether a change is worth making.
 
-A phrase doesn't have to read as a complete English sentence to be a good memorisable unit — short
-framing intros and appositive chunks are valid when they do a discrete job. Partition by function,
-not by grammatical completeness. The signals are continuous floats in `[0, 1]` describing the
-current split: `boundary_severance` (with a `severance_kind` label — `verb_content`,
-`bare_relative`, or `stranded_stub`), `stub_phrase`, `cognitive_overload`, and `missing_split`. Read
-them to spot patterns and weigh severity, not to fix every flag mechanically — a high score on a
-single signal sometimes reflects a deliberate trade-off the splitter should keep.
+The signals describe the current split; their names are listed in the criteria doc. Read them to
+spot where a run is too long or a cut falls inside one, not to fix every flag mechanically.
 
 ## Workflow
 
 1. Read the **batch file** at the path given.
 2. For each entry, follow the embedded `prompt` to produce a JSON array of phrase strings.
-3. Before adding to the output, **mentally verify the rejoin**: `" ".join(phrases)` must exactly
-   equal the verse text from the prompt (single spaces, all punctuation, smart quotes, HTML tags
-   preserved byte-for-byte). If it doesn't match, fix the split.
+3. Before adding to the output, **mentally verify the rejoin**: the phrases' words, in order, must
+   be the verse's words (all punctuation, smart quotes and HTML tags kept). A phrase may end on an
+   em dash (`and come forth—`). If it doesn't match, fix the split.
 4. Collect results as a JSON array of `{ref, phrases}` objects.
 5. Write the array to the **output path**.
 6. Reply with one short summary line (e.g.

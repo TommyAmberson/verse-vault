@@ -23,11 +23,10 @@ version: 0.5.0
 The verse-vault deck stores memorisation phrases as **word counts**, not strings: each year deck
 (`data/<N>-<book>.json` — e.g. `data/3-corinthians.json`, `data/4-john.json`) has a per-verse
 `phraseWordCounts: [n1, n2, …]` that slices the canonical NKJV (fetched from api.bible) into
-phrases. The guiding principle is that **each phrase is a memorisable chunk** — a unit a reciter
-could blank on while still sensing the shape of the gap from what's left. Partition by _function_,
-not by grammatical completeness: short framing intros, appositive chunks, and parallel siblings are
-all valid even when they don't read as complete sentences in isolation. There are no rules, only
-signals; the splitter aspires to the best split, sometimes by leaving a long clause whole.
+phrases. The decks serve word-perfect Bible quizzing, and the guiding principle is that **a split
+matches the reciter's runs**: cut where you would naturally pause reciting aloud, keep each chunk to
+one run, and give lead-ins and speech tags whose wording slips their own handoff. The six criteria
+and their worked examples live in `references/quality-criteria.md`.
 
 ## When to invoke
 
@@ -69,8 +68,8 @@ The pipeline has two LLM-touching parts: the splitter (proposes its honest best 
 bias) and the judge (compares the current split against the proposed one and picks). The auditor is
 deterministic and runs twice — once on the current splits to build the worklist, once on the
 proposals so the judge sees both signal blocks. Stability lives _only_ in the judge step now: when
-the two options are genuinely equivalent under the recall test, the judge picks A (the current
-split). The splitter no longer carries that bias itself.
+the two options are genuinely equivalent under the criteria, the judge picks A (the current split).
+The splitter no longer carries that bias itself.
 
 ## Workflow
 
@@ -217,8 +216,8 @@ edit. No regeneration step is needed — the year deck IS the file.
 ## Single-verse path (no audit needed)
 
 When the user pastes a verse and asks for a split without referencing a specific ref or the deck,
-the workflow shortens to: read `references/quality-criteria.md`, apply the recall test, return a
-JSON array. Still mentally check the rejoin (joined phrases match the input) before answering.
+the workflow shortens to: read `references/quality-criteria.md`, apply its criteria, return a JSON
+array. Still mentally check the rejoin (joined phrases match the input) before answering.
 
 If the verse exists in a deck and the user wants the same context the LLM normally sees, the
 `--no-current --no-signals` form of `print-prompt` renders a clean prompt with just the verse text.
@@ -229,17 +228,23 @@ If the verse exists in a deck and the user wants the same context the LLM normal
   clause and decided whether to change boundaries itself. That over-merged because the splitter
   could only see one side of the comparison (its own proposal); the conservatism collapsed into "the
   current split is probably fine."
-* **v0.5 (current).** Judge restored, but at a different position. Pre-v0.4's judge gated _whether
-  to re-split_ — i.e. ran before the splitter. v0.5's judge runs _after_ the splitter and compares
-  two concrete options (current vs proposed). The splitter is free to propose its honest best split;
+* **v0.5.** Judge restored, but at a different position. Pre-v0.4's judge gated _whether to
+  re-split_ — i.e. ran before the splitter. v0.5's judge runs _after_ the splitter and compares two
+  concrete options (current vs proposed). The splitter is free to propose its honest best split;
   stability lives in the judge's tie-break rule (ties go to A = current). `JUDGE_PROMPT` and
   `format_judge_prompt` are back in `tools/phrase_splitter/prompts.py`.
+* **v0.6 (current).** Recitation criteria (spec `specs/008-recitation-splits/`). The meaning-load
+  and merge-pressure signals gave way to signals for recitation runs (`long_run` with
+  `pause_points`, `no_pause_cue`, `lost_line_break`, `parallel_asymmetry`, `list_breaks`). The
+  prompts teach the six criteria with examples the maintainer agreed, and show verses with their em
+  dashes. `evaluate_phrases.py --calibrate` scores the audit against the committed reference set;
+  add a verse there whenever the maintainer settles a split.
 
 ## Reference files
 
-* `references/quality-criteria.md` — the memorisable-chunk principle, hard constraints, signals
-  (context, not rules), worked examples, and the recall test that's the judge's deciding criterion.
-  Read before splitting or judging any verse you're not sure about, and pass to subagents.
+* `references/quality-criteria.md`: the word-perfect goal, the six recitation criteria with agreed
+  and rejected examples, hard constraints, and the signals (context, not rules). Read before
+  splitting or judging any verse you're not sure about, and pass to subagents.
 * `references/splitter-agent-instructions.md` — entry point for splitter subagents.
 * `references/judge-agent-instructions.md` — entry point for judge subagents.
 * `references/prompt-design.md` — current state of `SPLIT_PROMPT` / `JUDGE_PROMPT` and notes on

@@ -6,140 +6,101 @@ so iterations land in one place.
 """
 
 SPLIT_PROMPT_HEADER = """\
-You are splitting a Bible verse into memorisation phrases.
+You are splitting a Bible verse into memorization phrases for Bible
+quizzing.
 
-**Goal.** Partition the verse into chunks the reciter can forget
-and recover independently. A phrase is a *memorisable unit* — a
-chunk doing a discrete job different from its neighbours. Partition
-by function, not prose-completeness: a 4-word framing intro is a
-valid phrase, and phrases needn't read as complete sentences in
-isolation. There are no rules, only guidelines; the best split
-sometimes leaves a long clause whole.
+**Goal: word-perfect recitation.** Quizzers recite verses word for
+word; knowing the gist is not enough. The wording of a lead-in ("For
+this reason" against "Therefore") is often exactly what slips. A
+reciter says a verse in *runs*, stretches said in one go, and errors
+cluster at the handoffs between runs and at swapped words inside
+them. Each phrase carries its own recall state, so a good split
+matches the runs.
 
-**How phrases are reviewed.** Each phrase ends up reviewed in two
-modes:
+**Criteria.**
 
-- *PhraseFill* — the whole verse is shown with one phrase blanked.
-  The reciter recovers that phrase from surrounding context, and the
-  grade updates that phrase's FSRS state directly.
-- *Recitation* — only the verse reference is shown. The reciter
-  recites the whole verse from memory, and one grade is decomposed
-  across every phrase's FSRS state.
+1. *Cut where you would naturally pause reciting aloud.* A cut inside
+   a run feels wrong ("into the pool / when the water is stirred up").
+2. *A chunk is one run*, usually 3 to 10 words, longer only when it
+   has no pause point. Split long runs at their pause points; below
+   about 10 words a cut has to earn its place.
+3. *Each chunk start is a practised handoff.* Lead-ins whose exact
+   wording matters keep their own chunk ("For this reason"), and a
+   speech tag that opens a quotation stays separate from it ("The sick
+   man answered Him,"). Don't merge a short phrase into its neighbour
+   just because it is short. A tag that follows narrative stays with the
+   narrative ("Afterward Jesus found him in the temple, and said to
+   him,").
+4. *Each chunk can fail on its own*, independently of its neighbours.
+   Don't leave a fragment that only makes sense glued to the next
+   phrase ("From the Jews / five times").
+5. *Lists.* A word list (items of 1 to 3 words, no verb of their own)
+   is itself the memory item: one chunk, with a lead-in that can stand
+   as a run kept out of it ("Therefore I take pleasure / in
+   infirmities, in reproaches, in needs, in persecutions, in
+   distresses,"). Split a word list only when it is longer than one
+   run or its items lengthen partway. A lead-in of three or more words
+   ("to whom pertain") stands as its own run. Short lists, fixed groups
+   ("Shadrach, Meshach, and Abed-Nego") and lead-ins that can't stand
+   alone ("that any people, nation, or language") stay together. In a
+   clause list, each item preferably gets its own chunk.
+6. *Parallel halves get matching cuts*: both split or both whole
+   ("that no one speaking by the Spirit of God calls Jesus accursed, /
+   and no one can say that Jesus is Lord except by the Holy Spirit.").
 
-The split is the partition both modes operate on. PhraseFill demands
-each phrase be recoverable from context; Recitation demands each
-phrase be a real memory unit whose recall state means something on
-its own.
-
-**The recall test (operational).** Mentally do a PhraseFill on each
-candidate phrase: blank it, look at what's left. If the gap has a
-recognisable shape — a verb, a content clause, a relative modifier,
-a parallel sibling — the boundary is doing useful work; the blanked
-piece is a distinct unit that could fail without its neighbours. If
-blanking leaves a fuzzy mid-thought gap, the two sides are one
-mental move and the boundary is in the wrong place.
-
-**Why split at all.** Each phrase carries its own FSRS recall
-state. The split's job is to put boundaries at real memory seams —
-points where the reciter could plausibly fail one side without the
-other. Both directions away from that have costs.
-
-*Under-splitting* (boundaries too coarse) bundles separable memories
-under one state. Composite stability follows roughly ``S = (S_a ×
-S_b) / (S_a + S_b)`` and approaches zero as more pieces compose; the
-shared state decays prematurely for both. This hurts Recitation
-most — the decomposed grade can't cleanly attribute failure when two
-distinct things share one phrase, polluting the state of the piece
-the reciter actually had down cold.
-
-*Over-splitting* (boundaries too fine) creates phrases too small to
-be coherent memorisable units. A sub-clause the reciter can't
-recover from context produces noise on PhraseFill rather than
-signal. Awkward, unnatural cuts break review flow. And two pieces
-the reciter would always succeed or fail *together* are intertwined
-enough to be one memory unit; giving them separate states produces
-noisy reviews on either side of a boundary that isn't a memory
-boundary.
-
-Aim for granularity that matches the verse's actual memory
-structure — neither finer nor coarser.
+Punctuation, meaning and grammar are evidence of where pauses fall,
+not criteria in themselves. Dashes and commas usually mark a breath;
+a relative clause or a "that" clause often starts a new run in a long
+sentence. In poetry, each line is usually its own run.
 
 **Hard constraints.**
 
 - Joining the phrases with single spaces must reproduce the verse
-  verbatim. If your draft doesn't round-trip, fix it before answering.
-- The word counts must sum to the canonical verse length.
+  word for word. A dash between words may stay at the end of a phrase
+  ("and come forth—"). If your draft doesn't round-trip, fix it before
+  answering.
 - HTML tags (``<b>...</b>``, ``<i>...</i>``, ``<span ...>...</span>``)
-  stay balanced inside each phrase — never split inside a tag.
+  stay balanced inside each phrase; never split inside a tag.
 
-**Signals (context, not rules).** Treat these as cues, not commands:
-
-- *Cognitive weight* — a phrase reads better when the content words
-  fit a reciter's working memory. Long all-content phrases get harder;
-  long mostly-function phrases (``of the spirit of the world which is
-  in him``) often stay fine.
-- *Parallel siblings* — coordinated items at the same syntactic level
-  often want to land as sibling phrases of similar shape (``not many
-  wise, / not many mighty, / not many noble``).
-- *Weak-connector starts* — a phrase opening with ``and``, ``but``,
-  ``that``, ``which``, ``who`` often signals the phrase was glued back
-  onto the previous one; check whether they should rejoin.
-- *Verb + content clause* — ``know that``, ``see how``, ``believe
-  whether`` often signal a verb separated from its object, which the
-  recitation usually wants whole.
-- *Restrictive relatives* — when ``that``, ``who``, ``which`` follow a
-  noun *without* a preceding comma, the relative restrictively modifies
-  the noun and reads as one unit; severing it usually feels wrong.
-- *Mid-clause endings* — a phrase that ends without any pause
-  punctuation (``...and was buried``) often wants to extend until it
-  reaches a natural break.
-- *Lopsidedness* — one phrase that swallows most of the verse while
-  the rest are stubs often signals a missed boundary.
-
-**Worked examples.**
+**Worked examples** (agreed by the maintainer).
 
 Input:
-    Paul, called to be an apostle of Jesus Christ through the will of God, and <b>Sosthenes</b> our brother,
+    Nevertheless, the Lord raised up judges who delivered them out of the hand of those who plundered them.
 Output:
-    ["Paul, called to be an apostle of Jesus Christ",
-     "through the will of God,",
-     "and <b>Sosthenes</b> our brother,"]
-(Parallel siblings; weak-connector start on the last phrase reads as
-the natural continuation.)
+    ["Nevertheless, the Lord raised up judges",
+     "who delivered them out of the hand of those who plundered them."]
+(Criterion 2: a long run split at its relative clause.)
 
 Input:
-    For the kingdom of God is not in word but in power.
+    The sick man answered Him, “Sir, I have no man to put me into the pool when the water is stirred up; but while I am coming, another steps down before me.”
 Output:
-    ["For the kingdom of God is not in word but in power."]
-(Single continuous clause; size is fine because each piece would feel
-suspended.)
+    ["The sick man answered Him,",
+     "“Sir, I have no man to put me into the pool when the water is stirred up;",
+     "but while I am coming,",
+     "another steps down before me.”"]
+(Criteria 1 and 3: the speech tag is its own handoff; "into the pool
+when the water is stirred up" is one run; the comma before "another"
+is a real breath.)
 
 Input:
-    For you see your calling, brethren, that not many wise according to the flesh, not many mighty, not many <b>noble</b>, are called.
+    For this reason the Jews persecuted Jesus, and sought to kill Him, because He had done these things on the Sabbath.
 Output:
-    ["For you see your calling, brethren,",
-     "that not many wise according to the flesh,",
-     "not many mighty,",
-     "not many <b>noble</b>,",
-     "are called."]
-(Parallel siblings; the verb-clause signal applies but the parallel
-items make the larger structure read more cleanly as five phrases.)
+    ["For this reason",
+     "the Jews persecuted Jesus,",
+     "and sought to kill Him,",
+     "because He had done these things on the Sabbath."]
+(Criterion 3: the lead-in's wording is easy to misquote, so it keeps
+its own chunk.)
 
 Input:
-    Do you not know that we shall judge angels? How much more, things that pertain to this life?
+    That it may give seed to the sower And bread to the eater,
 Output:
-    ["Do you not know that we shall judge angels?",
-     "How much more, things that pertain to this life?"]
-(Verb + content clause stays whole; rhetorical question ends at the
-question mark.)
+    ["That it may give seed to the sower",
+     "And bread to the eater,"]
+(Poetry: the capital "And" marks a line break.)
 
-Input:
-    All things were made through Him, and without Him nothing was made that was made.
-Output:
-    ["All things were made through Him,",
-     "and without Him nothing was made that was made."]
-(Restrictive relative: ``that was made`` attaches to ``nothing``.)
 """
+
 
 _CURRENT_SPLIT_BLOCK = """\
 
@@ -193,47 +154,45 @@ SPLIT_PROMPT = SPLIT_PROMPT_HEADER + _OUTPUT_CONTRACT
 
 
 JUDGE_PROMPT = """\
-You are picking the better of two memorisation phrase splits for a
-Bible verse.
+You are picking the better of two memorization phrase splits for a
+Bible verse, for word-perfect Bible-quizzing recitation.
 
-**How phrases are reviewed.** Each phrase ends up reviewed in two
-modes: *PhraseFill* (the whole verse is shown with one phrase
-blanked, the reciter recovers it from context, grade updates that
-phrase's FSRS state directly) and *Recitation* (only the verse
-reference is shown, the reciter recites the whole verse, one grade
-is decomposed across every phrase's FSRS state). The split is the
-partition both modes operate on.
+**What makes a split good.** A reciter says a verse in runs,
+stretches said in one go; errors cluster at the handoffs between runs
+and at swapped words inside them. Each phrase carries its own recall
+state, so the better split matches the runs:
 
-**Why split at all.** Each phrase carries its own FSRS recall
-state. The better split has boundaries at real memory seams —
-neither finer (boundaries fall mid-thought, intertwined pieces get
-separate states, hurting PhraseFill) nor coarser
-(independently-forgettable chunks share one state, and composite
-stability ``S = (S_a × S_b) / (S_a + S_b)`` decays prematurely for
-both, hurting Recitation).
+1. Cuts fall where you would naturally pause reciting aloud, never
+   inside a run.
+2. A chunk is one run, usually 3 to 10 words; longer only when it has
+   no pause point.
+3. Each chunk start is a practised handoff: lead-ins whose wording
+   matters and speech tags that open a quotation keep their own chunk.
+   Merging a short phrase into its neighbour is not an improvement in
+   itself: if its wording could slip on its own, it earns its chunk.
+4. Each chunk can fail on its own; no fragment that only makes sense
+   glued to its neighbour.
+5. A short word list is one chunk, apart from a lead-in that can stand
+   as a run: a lead-in of three or more words ("to whom pertain",
+   "Therefore I take pleasure") is its own chunk, not the head of the
+   list's first line. Clause-list items preferably get a chunk each.
+6. Parallel halves get matching cuts.
 
-**The recall test (deciding criterion).** Mentally do a PhraseFill
-on each phrase in each option: blank it, look at what's left. An
-option whose blanks leave a recognisable shape — each phrase a
-distinct unit that could fail without its neighbours — is better
-than one whose blanks leave fuzzy mid-thought gaps.
-
-**How to read the signals.** Each option carries a signal block —
-composite score, per-phrase content-word load and stub flags,
-boundary severance kinds (``verb_content``, ``bare_relative``,
-``stranded_stub``), length balance. Lower composite generally means
-fewer flagged issues, but signals are context, not verdicts: a
-single high signal can reflect a deliberate trade-off (a stub
-parallel sibling, an ``and``-start continuing a coordinated list).
-The recall test decides; signals point at where to look.
+**How to read the signals.** Each option carries a signal block:
+``long_run`` (a phrase running past one run, with its
+``pause_points``), ``no_pause_cue`` and ``boundary_severance`` (a cut
+inside a run), ``lost_line_break`` (a poetry line joined into a
+phrase), ``parallel_asymmetry``, ``list_breaks``, and a composite.
+Lower composite generally means fewer issues, but signals are context,
+not verdicts. The criteria decide.
 
 **Hard constraints.** Both options have already been validated for
-rejoin, word-count sum, and HTML tag balance — you don't need to
+rejoin, word-count sum, and HTML tag balance; you don't need to
 re-check.
 
-**Pick rule.** Prefer Option A (the current split) by default —
-needless churn is bad. Pick B only when it is *clearly* better
-under the recall test, not merely defensible.
+**Pick rule.** Prefer Option A (the current split) by default:
+needless churn is bad. Pick B only when it is *clearly* better under
+the criteria, not merely defensible.
 
 **Verse.**
     {verse_text}

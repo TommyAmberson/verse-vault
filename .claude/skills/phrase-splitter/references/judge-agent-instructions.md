@@ -13,9 +13,8 @@ point when a subagent is dispatched for the judge step of the phrase-splitter wo
 
 ## Required reading (do this once at start)
 
-* [`quality-criteria.md`](./quality-criteria.md) — the memorisable-chunk principle, hard
-  constraints, signals (context, not rules), the recall test that is your deciding criterion, and
-  worked examples.
+* [`quality-criteria.md`](./quality-criteria.md): the word-perfect goal, the six recitation criteria
+  that decide between the options, worked examples, and the signals (context, not rules).
 
 The embedded `prompt` field in each batch entry contains the active `JUDGE_PROMPT`. If anything in
 the embedded prompt conflicts with `quality-criteria.md`, the prompt wins (it's the version actually
@@ -23,18 +22,17 @@ shipped to production).
 
 ## How to judge
 
-For each entry, read the verse text, both options, and both signal blocks. Apply the recall test to
-each option: mentally blank each phrase and ask whether what's left preserves a recognisable shape
-of the missing piece, or whether the blank leaves a fuzzy mid-thought gap.
+For each entry, read the verse text, both options, and both signal blocks, and judge each option
+against the criteria: do its cuts fall where a reciter pauses, is each chunk one run, do lead-ins
+and speech tags keep their handoffs, can each chunk fail on its own, are lists and parallel halves
+handled as the criteria say?
 
-Stability lives here. When both options pass the recall test equivalently, pick `A` (the current
-split). Pick `B` only when it is _clearly_ better — chunks the verse more usefully for recall, not
-merely defensible. The goal is the best split, not a different split.
+Stability lives here. When both options meet the criteria equivalently, pick `A` (the current
+split). Pick `B` only when it is _clearly_ better, not merely defensible.
 
 The signal blocks are context, not commands. A lower composite generally means fewer flagged issues,
-but a single high signal can reflect a deliberate trade-off (a stub parallel sibling, a deliberate
-`and`-start that continues a coordinated list). Don't pick `B` mechanically because its composite is
-lower — apply the recall test and let the signals point at where to look.
+but some judgements have no surface cue, so don't pick `B` mechanically because its composite is
+lower.
 
 ## Workflow
 

@@ -435,7 +435,7 @@ class FormatSplitPromptTests(unittest.TestCase):
 
     def test_bare_prompt(self):
         out = format_split_prompt(self.VERSE)
-        self.assertIn("memorisation phrases", out)
+        self.assertIn("memorization phrases", out)
         self.assertIn(self.VERSE, out)
         self.assertNotIn("Current split", out)
         self.assertNotIn("Signals (auto-computed)", out)
@@ -669,6 +669,23 @@ class ReplyValidationTests(unittest.TestCase):
     def test_word_count_mismatch_rejected(self):
         errors, _ = _validate(["and come forth"] + self.TAIL[:1], self.TOKENS)
         self.assertTrue(errors)
+
+
+class RecitationPromptTests(unittest.TestCase):
+    def test_split_prompt_states_criteria_and_dash(self):
+        out = format_split_prompt("and come forth—those who have done good,")
+        self.assertIn("come forth—those", out)
+        for heading in ("pause", "run", "handoff", "fail on its own", "list", "parallel"):
+            self.assertIn(heading, out.lower())
+        self.assertIn("word-perfect", out)
+
+    def test_judge_prompt_keeps_current_on_tie(self):
+        out = format_judge_prompt(
+            verse_text="a b", option_a_split="  - a b", signals_a="",
+            option_b_split="  - a\n  - b", signals_b="",
+        )
+        self.assertIn("word-perfect", out)
+        self.assertIn("A", out)
 
 
 class ReferenceSetValidationTests(unittest.TestCase):
