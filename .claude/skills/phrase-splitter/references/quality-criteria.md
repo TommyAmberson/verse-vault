@@ -34,6 +34,22 @@ A cut inside a run feels wrong, because the reciter's run passes straight throug
 Rejected (John 5:7): `“Sir, I have no man to put me into the pool / when the water is stirred up;`.
 "To put me into the pool when the water is stirred up" is said in one go.
 
+Punctuation is evidence of a pause, not the test. Three pauses recur in the agreed splits with no
+comma to mark them:
+
+* **After a long subject or a fronted object, before its verb.** Agreed (John 6:56):
+  `He who eats My flesh and drinks My blood / abides in Me, / and I in him.`; (1 Samuel 17:25):
+  `and it shall be that the man who kills him / the king will enrich with great riches,`; (Exodus
+  12:40): `… who lived in Egypt / was four hundred and thirty years.`. A short subject keeps its
+  verb: rejected (Isaiah 6:4) `And the posts of the door / were shaken by the voice …`, agreed
+  `And the posts of the door were shaken / by the voice of him who cried out,`.
+* **Before a completing phrase that is itself a run** (four or more words) in a long run. Agreed
+  (Psalm 32:8): `I will instruct you and teach you / in the way you should go;`. A short completion
+  stays with its verb: `to put me into the pool` (John 5:7).
+* **Before a relative or "that" clause of four or more words**, with or without a comma. Agreed
+  (John 5:15): `The man departed and told the Jews / that it was Jesus who had made him well.`. A
+  relative of three words is not severed from its noun (`the one who told you`).
+
 ### 2. A chunk is one run
 
 Usually 3 to 10 words, longer only when there is no pause point. Pressure to split is strongest on a
@@ -56,6 +72,12 @@ that it was Jesus who had made him well.
 Kept whole (John 5:7): `“Sir, I have no man to put me into the pool when the water is stirred up;`,
 17 words with no natural pause.
 
+Pressure to cut grows with length, not with the number of chunks: seven chunks of eight words are
+seven runs, not an over-split. Length is measured by breath, which the audit estimates in syllables
+(`in infirmities, in reproaches, …` is 10 words but about 20 syllables). Over about 10 words, a run
+holding a pause of any kind in criterion 1 should be cut there; a run of 11 to 13 words with no
+pause stays whole.
+
 ### 3. Each chunk start is a practised handoff
 
 Handoffs are where a reciter blanks or picks the wrong connector, so a lead-in whose exact wording
@@ -65,16 +87,23 @@ matters keeps its own chunk even when it is short.
   easy to misquote.
 * A speech tag that opens a quotation stays separate from it:
   `The sick man answered Him, / “Sir, …`.
+* A lead-in of three or more words whose wording can slip is a chunk, not a stub, whether or not it
+  is a sentence: `For this reason` (John 5:16), `Now therefore, behold,` (Exodus 3:9). A short chunk
+  that is a handoff is never a fault in itself.
 * A tag that follows narrative stays with the narrative. Kept (John 5:14):
   `Afterward Jesus found him in the temple, and said to him,`; splitting off `and said to him,`
   makes a throwaway chunk.
 
 ### 4. Each chunk can fail on its own
 
-No fragment that only makes sense glued to its neighbour.
+The reciter could blank or misquote this chunk while getting its neighbours right. That is a test of
+recall, not of grammar: a lead-in, a subject, a fronted object or a clause opener passes it without
+being a sentence, because its wording can slip on its own. A chunk fails it only when its wording is
+forced by the chunk before it (`But one / and the same`) or when it is too slight to be a handoff of
+its own.
 
 * Rejected (2 Corinthians 11:24): `From the Jews / five times I received forty stripes minus one.`
-  Agreed instead: `From the Jews five times / I received forty stripes minus one.`
+  Agreed instead, weakly: `From the Jews five times / I received forty stripes minus one.`
 
 A verse that starts mid-sentence is the exception: its opening words are where a reciter picks the
 verse up, so a short opening can be a handoff of its own. John 5:29 continues 5:28's "all who are in
@@ -108,7 +137,9 @@ Two kinds, told apart by what the items are.
 
 ### 6. Parallel halves get matching cuts
 
-Both split or both whole; the mirror is what carries the reciter through.
+Parallel halves are two clauses of the same shape, usually with mirrored wording. Both split or both
+whole; the mirror is what carries the reciter through. Two clauses that merely share an `and` are
+not parallel halves, and a long half with a pause point is still cut.
 
 Kept (1 Corinthians 12:3), both halves whole:
 
@@ -142,25 +173,30 @@ These are blockers; the audit refuses a deck that breaks them.
 
 ## Signals
 
-The audit (`tools/evaluate_phrases.py`) reports deterministic signals for each split; the splitter
-and judge prompts show them. They are context, not rules. Names and shapes are fixed in
-`specs/008-recitation-splits/contracts/signals.md`:
+The audit (`tools/evaluate_phrases.py`) computes deterministic signals for each split; names and
+shapes are fixed in `specs/008-recitation-splits/contracts/signals.md`. The LLM prompts never see
+the numbers. They get plain-language flags, each under the criterion it tests and marked strong or
+weak:
 
-* `long_run`, with the phrase's `pause_points` (each with the cue that marks it: `punct`,
-  `relative`, `content_clause`, `line_break`, `list`, `parse`, or the weak `coordinator` and
-  `preposition`).
-* `no_pause_cue`: a cut with no punctuation before it and no clause edge after it. A short
-  sentence-opening lead-in is exempt.
-* `boundary_severance` (`verb_content`, `bare_relative`, `stranded_stub`): a cut at a known cue
-  inside a short run.
-* `lost_line_break`, `parallel_asymmetry`, `list_breaks` (`word_list_cut`, `lead_in_merged`,
-  `clause_items_merged`), `missing_split`.
+* **Criterion 1**: a cut at a known cue inside a short run (strong: a verb cut from its clause, a
+  short relative cut from its noun, a stranded fragment); a cut with no punctuation and no clause
+  opener (weak: it can't see the pause after a long subject or fronted object, or before a
+  completing phrase, so a cut there is fine); a poetry line joined into a phrase (strong).
+* **Criterion 2**: a phrase running past one breath, with the pause cues inside it. Strong when a
+  cue is punctuation, a relative or "that" clause, a line break, a list start or a parse edge; weak
+  when the only cues are "and" or a preposition, in which case staying whole may be right.
+* **Criterion 5**: a short word list cut between items (strong); a standalone lead-in merged with
+  its list, or two clause-list items in one phrase (weak).
+* **Criterion 6**: parallel halves cut differently (strong).
 
-Some judgements have no surface cue. "Into the pool / when the water is stirred up" looks just like
-the accepted "a certain man was there / who had an infirmity", so no signal catches it; the criteria
-above have to.
+Criteria 3 and 4 have no signals. Some judgements have no surface cue at all: "into the pool / when
+the water is stirred up" looks just like the accepted "a certain man was there / who had an
+infirmity", so no signal catches it; the criteria above have to.
 
-## The judge's tie-break
+## Choosing between splits
 
-The judge compares the current split (A) against a proposal (B) and picks B only when it is clearly
-better under these criteria. When the two are equivalent, it keeps A: needless churn is bad.
+Each candidate is rated on its own, then a selector picks. Candidates with a clear break of the
+criteria are set aside first; then the fewest and mildest remaining cons win. When two are still
+level, the maintainer's tie-break picks the one with more phrases: a cut that lets a slip be caught
+on one side alone is worth having. On an existing deck the churn guard comes first: the current
+split stays unless another candidate removes a clear break and adds none.

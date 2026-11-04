@@ -21,19 +21,30 @@ matches the runs.
 
 1. *Cut where you would naturally pause reciting aloud.* A cut inside
    a run feels wrong ("into the pool / when the water is stirred up").
-2. *A chunk is one run*, usually 3 to 10 words, longer only when it
-   has no pause point. Split long runs at their pause points; below
-   about 10 words a cut has to earn its place.
-3. *Each chunk start is a practised handoff.* Lead-ins whose exact
-   wording matters keep their own chunk ("For this reason"), and a
-   speech tag that opens a quotation stays separate from it ("The sick
-   man answered Him,"). Don't merge a short phrase into its neighbour
-   just because it is short. A tag that follows narrative stays with the
-   narrative ("Afterward Jesus found him in the temple, and said to
-   him,").
-4. *Each chunk can fail on its own*, independently of its neighbours.
-   Don't leave a fragment that only makes sense glued to the next
-   phrase ("From the Jews / five times").
+   Punctuation is evidence of a pause, not the test. Pauses with no
+   comma: after a long subject or fronted object, before its verb ("He
+   who eats My flesh and drinks My blood / abides in Me,"; a short
+   subject keeps its verb: "And the posts of the door were shaken / by
+   the voice"); before a completing phrase of four or more words in a
+   long run ("I will instruct you and teach you / in the way you should
+   go;"); before a relative or "that" clause of four or more words.
+2. *A chunk is one run*, about one breath, usually 3 to 10 words,
+   longer only when it has no pause point. Split long runs at their
+   pause points; below about 10 words a cut has to earn its place. The
+   number of chunks in a verse is not a criterion.
+3. *Each chunk start is a practised handoff.* A lead-in of three or
+   more words whose exact wording matters keeps its own chunk ("For
+   this reason"), and a speech tag that opens a quotation stays
+   separate from it ("The sick man answered Him,"). A tag that follows
+   narrative stays with the narrative ("Afterward Jesus found him in
+   the temple, and said to him,"). A short chunk that is a handoff is
+   not a stub.
+4. *Each chunk can fail on its own*: the reciter could blank or
+   misquote it while getting its neighbours right. This is a test of
+   recall, not grammar: a lead-in, a subject or a clause opener passes
+   it without being a sentence. A chunk fails it only when its wording
+   is forced by the chunk before it ("But one / and the same") or it is
+   too slight to be a handoff ("From the Jews / five times").
 5. *Lists.* A word list (items of 1 to 3 words, no verb of their own)
    is itself the memory item: one chunk, with a lead-in that can stand
    as a run kept out of it ("Therefore I take pleasure / in
@@ -104,7 +115,7 @@ Output:
 
 _CURRENT_SPLIT_BLOCK = """\
 
-**Current split** (for context only — propose your honest best split,
+**Current split** (for context only: propose your honest best split,
 not a defence of this one):
 {current_split}
 """
@@ -114,7 +125,7 @@ _SIGNALS_BLOCK = """\
 **Signals (auto-computed).**
 {signals}
 
-These are deterministic features of the current split — context, not
+These are deterministic features of the current split: context, not
 verdicts. Use them to spot patterns; don't echo them back.
 """
 
@@ -122,9 +133,28 @@ _OUTPUT_CONTRACT = """\
 
 Now split this verse. Reply on one line with a JSON array of one to
 three candidate splits, best first, each candidate a JSON array of
-phrase strings, and nothing else. Offer more than one only when the
-verse has a real choice (a coarser and a finer split that both meet the
-criteria); a rater and a selector will compare them.
+phrase strings, and nothing else. A rater and a selector will compare
+them, so give them a real choice of granularity:
+
+- Your best split comes first.
+- If any phrase of it has more than 10 words, add a finer candidate
+  that cuts each such phrase once at its clearest pause point: a comma,
+  semicolon or dash; the start of a relative or "that" clause of four
+  or more words; the end of a long subject or fronted object, before
+  its verb; the start of a completing phrase of four or more words; a
+  capitalized "And" or "But" that marks a poetry line. Leave at least
+  four words on each side. Cut a word list only where its items
+  lengthen or it outgrows a run; never sever a relative clause of three
+  words from its noun, a short completion from its verb ("put me into
+  the pool"), or a pronoun head from its preposition ("/ to those
+  who", not "to those / who"). If no phrase can be cut that way, offer
+  the one candidate.
+- If your best split has a chunk of three or four words that is not a
+  lead-in, a speech tag or a list item, you may add a coarser candidate
+  that merges it into its neighbour.
+
+Candidates must differ from each other, and each must round-trip to the
+verse word for word.
 
 Verse:
     {verse_text}
@@ -165,23 +195,43 @@ Quizzing is word-perfect, so the wording of a lead-in matters. A good
 split matches the runs:
 
 1. Cuts fall where you would naturally pause reciting aloud, never
-   inside a run.
-2. A chunk is one run, usually 3 to 10 words; longer only when it has
-   no pause point.
-3. Each chunk start is a practised handoff: lead-ins whose wording
-   matters and speech tags that open a quotation keep their own chunk;
-   a tag that follows narrative stays with it.
-4. Each chunk can fail on its own; no fragment that only makes sense
-   glued to its neighbour.
-5. A short word list is one chunk, apart from a lead-in of three or
-   more words that can stand as a run; clause-list items preferably get
-   a chunk each.
-6. Parallel halves get matching cuts.
+   inside a run. Punctuation is evidence of a pause, not the test.
+   Pauses with no comma: after a long subject or a fronted object,
+   before its verb ("He who eats My flesh and drinks My blood / abides
+   in Me,"); a short subject keeps its verb ("And the posts of the door
+   were shaken / by the voice"). The breath before a completing phrase
+   of four or more words in a long run ("I will instruct you and teach
+   you / in the way you should go;"). The start of a relative or "that"
+   clause of four or more words ("told the Jews / that it was Jesus").
+   A short completion stays with its verb ("put me into the pool").
+2. A chunk is one run, about one breath, usually 3 to 10 words, longer
+   only when it has no pause point of the kinds in 1. Over 10 words a
+   run with a pause point should be cut there; under 10 a cut has to
+   earn its place. The number of chunks in a verse is not a criterion.
+3. Each chunk start is a practised handoff. A lead-in of three or more
+   words whose wording can slip keeps its own chunk ("For this
+   reason"); a speech tag that opens a quotation is separate from it;
+   a tag that follows narrative stays with it. A short chunk that is a
+   handoff is not a stub.
+4. Each chunk can fail on its own: the reciter could blank or misquote
+   it while getting its neighbours right. This is a test of recall,
+   not of grammar: a lead-in, a subject or a clause opener passes it
+   without being a sentence. A chunk fails it only when its wording is
+   forced by the chunk before it ("But one / and the same") or when it
+   is too slight to be a handoff of its own.
+5. A word list (items of 1 to 3 words, no verb of their own) is one
+   chunk, cut only where it outgrows a run or its items lengthen. A
+   lead-in of three or more words that can stand alone stays out of
+   it; one that can't ("that any") stays in. Clause-list items
+   preferably get a chunk each.
+6. Parallel halves, two clauses of the same shape, get matching cuts:
+   both split or both whole. Two clauses that merely share a
+   conjunction are not parallel halves, and a long half with a pause
+   point is still cut.
 
-The signals block (``long_run`` with ``pause_points``,
-``no_pause_cue``, ``boundary_severance``, ``lost_line_break``,
-``parallel_asymmetry``, ``list_breaks``) is context, not a verdict;
-some judgements have no surface cue.
+The signals section lists the audit's flags under the criterion each
+one tests, marked strong or weak. They are hints, not verdicts: a weak
+flag on a cut at one of the pauses in 1 is not a con.
 """
 
 RATE_PROMPT = """\
@@ -199,10 +249,24 @@ criteria; don't imagine other splits.
 **Signals.**
 {signals}
 
+Judge every cut and every chunk against the six criteria. A con is a
+criterion the split breaks, named by number and phrase ("1: phrase 2
+cuts inside a run at 'pool / when'"). These are not cons: a chunk of
+three or four words that is a handoff; a cut with no punctuation at a
+pause named in criterion 1; a phrase that ends mid-clause; the number
+of chunks; a weak flag on its own. A run over 10 words is a con when it
+holds a pause point; one of 11 to 13 words with none is at most a note.
+
+Use the whole scale. 9 or 10: no criterion broken. 7 or 8: a note only
+(a long run with just a weak pause point, two short clause items
+merged). 4 to 6: one clear break (a cut inside a run, a lead-in or
+opening speech tag merged away, a word list cut between items, a run
+over 10 words left whole at a clear pause point, one of two parallel
+halves cut). 1 to 3: more than one clear break. Don't write a con and
+then call it acceptable: either it costs points or it is not a con.
+
 Reply on one line with a JSON object and nothing else:
 {{"score": <integer 1 to 10>, "pros": [<short strings>], "cons": [<short strings>]}}
-A score of 10 meets every criterion; 1 breaks them badly. Name the
-phrase a pro or con is about.
 """
 
 SELECT_PROMPT = """\
@@ -217,15 +281,32 @@ rated on their own.
 **Candidates.**
 {options}
 {guard}
-Weigh the ratings, but decide by the criteria: a decisive con can
-outweigh a higher score. Reply on one line with a JSON object and
-nothing else: {{"choice": "<candidate id>"}}
+Decide by the criteria. The scores are one rater's view of each
+candidate alone; the raters did not compare them.
+
+1. Set aside any candidate with a con that is a clear break: a cut
+   inside a run, a lead-in or opening speech tag merged away, a word
+   list cut between items, a run over 10 words left whole at a clear
+   pause point, one of two parallel halves cut. Check each con against
+   the verse first; a con that is not one of the criteria (a short
+   handoff called a stub, a long subject cut from its verb, a chunk
+   count, a phrase ending mid-clause) carries no weight.
+2. Among the rest, prefer the candidate whose remaining cons are fewest
+   and mildest.
+3. If two are still level, prefer the one with more phrases (the
+   maintainer's tie-break): a cut that lets a slip be caught on one
+   side alone is worth having.
+
+Reply on one line with a JSON object and nothing else:
+{{"choice": "<candidate id>"}}
 """
 
 _CHURN_GUARD = """
 **Churn guard.** The candidate marked (current) is what the deck has
-now. Keep it unless another candidate is clearly better under the
-criteria; needless churn is bad.
+now. Keep it unless another candidate removes a clear break that the
+current one has and adds none. A higher score on its own, a tie, or a
+gap of a point or two is not a reason to change, and step 3 does not
+apply: when nothing is clearly better, answer with the current id.
 """
 
 

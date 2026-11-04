@@ -19,10 +19,12 @@ phrase-splitter workflow.
 
 ## How to choose
 
-Weigh the ratings, but decide by the criteria: a single decisive con (a cut inside a run, a lead-in
-merged away) can outweigh a higher score. When the prompt includes the churn guard, keep the current
-split unless another candidate is clearly better; when it doesn't, pick the best candidate outright.
-Never write a new split: the choice must be one of the candidate ids.
+Follow the procedure in the prompt: set aside candidates with a clear break, then prefer the fewest
+and mildest remaining cons, then the one with more phrases. Check each con against the verse before
+weighing it; a con that names no criterion carries no weight. With the churn guard, the current
+split changes only when another candidate removes a clear break and adds none; a tie or a gap of a
+point or two keeps the current one. Never write a new split: the choice must be one of the candidate
+ids.
 
 ## Output
 

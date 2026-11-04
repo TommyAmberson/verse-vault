@@ -23,6 +23,11 @@ this one is the deck's current split; that is the selector's concern. Name the p
 is about ("phrase 2 cuts inside a run"). A score of 10 meets every criterion; 1 breaks them badly.
 Use the whole scale, so that a split with one real flaw scores clearly below a clean one.
 
+Name the criterion each con breaks, by number. A con you cannot tie to a criterion is not a con; in
+particular a short handoff, a cut with no punctuation at a long subject's verb, a phrase that ends
+mid-clause and the number of chunks are not faults. Score with the anchors in the prompt, and never
+write a con and then call it acceptable.
+
 ## Output
 
 Write a JSON array with one object per batch entry, copying `ref` and `id` verbatim:
