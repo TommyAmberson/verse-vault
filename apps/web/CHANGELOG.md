@@ -9,6 +9,15 @@ Released via `.github/workflows/deploy-web.yml` (Cloudflare Pages, `verse-vault-
 
 ## [Unreleased]
 
+## [0.11.4] - 2026-11-04
+
+PATCH: new app icon, and a browser tab icon.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
 ### Added
 
 * A browser tab icon, which the web app didn't have. It shows only the padlock, since the book blurs
