@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512">
+  <!--
+    Browser tab icon: the padlock from the app icon
+    (apps/web/src-tauri/icons/icon.svg) on its own, since the book blurs
+    at 16px. Keep the padlock in step with that file. favicon.ico is a
+    16/32/48px render of this.
+  -->
+  <defs>
+    <path id="shackle" d="M-82 -140 V-182 A82 82 0 0 1 82 -182 V-140" stroke-width="30" fill="none"/>
+    <path id="lock-body" d="M-152 -147 H-34 L0 -85 L34 -147 H152 L0 147Z" stroke-width="16" stroke-linejoin="round"/>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#1f1b18"/>
+
+  <g transform="translate(249 292) scale(0.96)">
+    <g transform="translate(14 14)" fill="#a87a24" stroke="#a87a24">
+      <use xlink:href="#shackle" fill="none"/>
+      <use xlink:href="#lock-body"/>
+    </g>
+    <g fill="#d6a640" stroke="#d6a640">
+      <use xlink:href="#shackle" fill="none"/>
+      <use xlink:href="#lock-body"/>
+    </g>
+    <!-- Keyhole, in the background colour -->
+    <circle cx="0" cy="-10" r="24" fill="#1f1b18"/>
+    <path d="M-14.88 -2.08 h29.76 l9.12 63.84 h-48z" fill="#1f1b18"/>
+  </g>
+</svg>

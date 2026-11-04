@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>verse-vault</title>
+    <!-- The tab icon drops the book and keeps only the padlock V, which
+         stays legible at 16px; the home-screen icon is the full design.
+         The .ico is a fallback: listed first and without every size, so
+         browsers that read SVG still pick the sharper SVG. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- Fraunces variable display serif — used by /dashboard for
          editorial masthead, oversized numerals, and small-caps section
          rules. Other views fall back to the system stack. -->
