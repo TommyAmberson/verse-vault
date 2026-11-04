@@ -70,6 +70,16 @@ python3 -m venv ~/.venvs/verse-vault-tools
 ~/.venvs/verse-vault-tools/bin/python tools/evaluate_phrases.py --calibrate
 ```
 
+The transformer model (`en_core_web_trf`, about 6 GB with PyTorch) parses archaic syntax better: it
+finds the pause in "He who eats My flesh and drinks My blood / abides in Me," which the small model
+misses. The audit uses the best model installed; set `PHRASE_PARSE_MODEL` to pick one. A full audit
+of every deck takes about two and a half minutes with it on the CPU.
+
+```bash
+~/.venvs/verse-vault-tools/bin/pip install "spacy[transformers]"
+~/.venvs/verse-vault-tools/bin/python -m spacy download en_core_web_trf
+```
+
 ### `split_phrases.py`
 
 Re-split verses by feeding canonical text + the existing split + a signals block to an LLM, then

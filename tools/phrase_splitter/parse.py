@@ -9,6 +9,7 @@ years."). See research R6 in ``specs/008-recitation-splits/``.
 """
 
 import os
+import warnings
 from functools import lru_cache
 from typing import List, Sequence, Set
 
@@ -34,7 +35,11 @@ def _loaded():
     wanted = os.environ.get("PHRASE_PARSE_MODEL")
     for name in (wanted,) if wanted else _MODELS:
         try:
-            return name, spacy.load(name)
+            # The transformer model pulls in PyTorch, which warns about
+            # its own Python version support on import.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", FutureWarning)
+                return name, spacy.load(name)
         except OSError:
             continue
     return None, None
