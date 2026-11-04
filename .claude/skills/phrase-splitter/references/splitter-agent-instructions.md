@@ -31,11 +31,13 @@ spot where a run is too long or a cut falls inside one, not to fix every flag me
 ## Workflow
 
 1. Read the **batch file** at the path given.
-2. For each entry, follow the embedded `prompt` to produce a JSON array of phrase strings.
-3. Before adding to the output, **mentally verify the rejoin**: the phrases' words, in order, must
-   be the verse's words (all punctuation, smart quotes and HTML tags kept). A phrase may end on an
-   em dash (`and come forth—`). If it doesn't match, fix the split.
-4. Collect results as a JSON array of `{ref, phrases}` objects.
+2. For each entry, follow the embedded `prompt` to produce one to three candidate splits, best
+   first, each a JSON array of phrase strings. Offer more than one only when the verse has a real
+   choice of granularity; a rater and a selector compare them.
+3. Before adding to the output, **mentally verify the rejoin** of each candidate: the phrases'
+   words, in order, must be the verse's words (all punctuation, smart quotes and HTML tags kept). A
+   phrase may end on an em dash (`and come forth—`). If it doesn't match, fix the split.
+4. Collect results as a JSON array of `{ref, candidates}` objects.
 5. Write the array to the **output path**.
 6. Reply with one short summary line (e.g.
    `Batch 07: 15 verses, longest 18w (rhetorical question)`).
@@ -46,10 +48,8 @@ spot where a run is too long or a cut falls inside one, not to fix every flag me
 [
   {
     "ref": "John 1:1",
-    "phrases": [
-      "In the beginning was the Word,",
-      "and the Word was with God,",
-      "and the Word was God."
+    "candidates": [
+      ["In the beginning was the Word,", "and the Word was with God,", "and the Word was God."]
     ]
   }
 ]

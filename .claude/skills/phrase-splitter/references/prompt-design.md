@@ -125,3 +125,10 @@ mistakes.
   content-word, stub and length-balance signals are gone. The verse line keeps NKJV's em dashes,
   which the token stream drops, so the model sees the pause a dash marks. Measured on the reference
   verses with no current split shown: see the pull request for the before and after counts.
+
+* **v5: propose, rate, select.** `JUDGE_PROMPT` gave way to `RATE_PROMPT` and `SELECT_PROMPT`, which
+  share one summary of the criteria. The A/B judge failed only when the better split sat in position
+  B, and a single proposal from a cheap model landed at the wrong granularity in either direction
+  depending on the wording (a length rule overcorrected into extra cuts; a stricter procedure swung
+  back to missed cuts). The splitter now offers up to three candidates, each is rated alone without
+  knowing which is current, and the selector decides with the churn guard as an option.

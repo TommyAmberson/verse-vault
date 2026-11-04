@@ -73,10 +73,12 @@ python3 -m venv ~/.venvs/verse-vault-tools
 ### `split_phrases.py`
 
 Re-split verses by feeding canonical text + the existing split + a signals block to an LLM, then
-applying the proposed phrase boundaries back to `phraseWordCounts`. The splitter proposes its best
-split; `judge-pairs` then asks a judge to keep the current split unless the proposal is clearly
-better. Prompts show the verse with NKJV's em dashes, which the token stream splits on; replies are
-checked token by token, so a phrase may keep or drop a dash.
+applying the chosen phrase boundaries back to `phraseWordCounts`. The splitter offers one to three
+candidate splits; `rate-prompts` emits one rating prompt per candidate (the current split included,
+unlabelled), `select-prompts` lets a selector pick from the rated candidates, optionally keeping the
+current split unless another is clearly better, and `apply` writes the choices. Prompts show the
+verse with NKJV's em dashes, which the token stream splits on; replies are checked token by token,
+so a phrase may keep or drop a dash.
 
 ```bash
 # emit the prompt(s) for one or more verses (current split + signals included by default)
