@@ -1,0 +1,372 @@
+[
+  {
+    "ref": "1 Corinthians 10:28",
+    "deck": "data/3-corinthians.json",
+    "agreed": [6, 5, 13, 4, 10],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "1 Corinthians 12:3",
+    "deck": "data/3-corinthians.json",
+    "agreed": [6, 12, 14],
+    "confidence": "agreed",
+    "note": "current kept: parallel halves stay whole",
+    "rejected": [
+      {
+        "counts": [6, 12, 9, 5],
+        "reason": "splitting one parallel half but not its mirror"
+      }
+    ]
+  },
+  {
+    "ref": "2 Corinthians 11:24",
+    "deck": "data/3-corinthians.json",
+    "agreed": [5, 6],
+    "confidence": "weak",
+    "note": "weak preference over unsplit",
+    "rejected": [
+      {
+        "counts": [3, 8],
+        "reason": "'From the Jews' alone is a weak handoff"
+      }
+    ]
+  },
+  {
+    "ref": "2 Corinthians 12:10",
+    "deck": "data/3-corinthians.json",
+    "agreed": [4, 10, 3, 9],
+    "confidence": "agreed",
+    "note": "short-item list isolated as one chunk",
+    "rejected": [
+      {
+        "counts": [8, 6, 3, 9],
+        "reason": "a short word list is one chunk, kept apart from a lead-in that can stand alone"
+      }
+    ]
+  },
+  {
+    "ref": "John 5:14",
+    "deck": "data/4-john.json",
+    "agreed": [11, 6, 3, 7],
+    "confidence": "agreed",
+    "note": "narrative and its speech tag stay together",
+    "rejected": [
+      {
+        "counts": [7, 4, 6, 3, 7],
+        "reason": "'and said to him,' after narrative is a throwaway chunk"
+      }
+    ]
+  },
+  {
+    "ref": "John 5:15",
+    "deck": "data/4-john.json",
+    "agreed": [7, 9],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "John 5:16",
+    "deck": "data/4-john.json",
+    "agreed": [3, 4, 5, 9],
+    "confidence": "agreed",
+    "note": "lead-in wording is what slips in word-perfect recall",
+    "rejected": [
+      {
+        "counts": [7, 5, 9],
+        "reason": "merging the lead-in hides wording that is easy to misquote"
+      }
+    ]
+  },
+  {
+    "ref": "John 5:19",
+    "deck": "data/4-john.json",
+    "agreed": [7, 6, 7, 7, 4, 7],
+    "confidence": "agreed",
+    "note": "word-perfect: each half's wording can slip",
+    "rejected": [
+      {
+        "counts": [7, 6, 7, 7, 11],
+        "reason": "merge rejected by the maintainer"
+      }
+    ]
+  },
+  {
+    "ref": "John 5:28",
+    "deck": "data/4-john.json",
+    "agreed": [5, 5, 12],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "John 5:29",
+    "deck": "data/4-john.json",
+    "agreed": [13, 11],
+    "confidence": "agreed",
+    "note": "a short lead-in stays with what follows",
+    "rejected": [
+      {
+        "counts": [3, 10, 11],
+        "reason": "'and come forth' alone is a weak handoff"
+      }
+    ]
+  },
+  {
+    "ref": "John 5:34",
+    "deck": "data/4-john.json",
+    "agreed": [8, 5, 5],
+    "confidence": "agreed",
+    "note": "lead-in wording keeps its own chunk",
+    "rejected": [
+      {
+        "counts": [8, 10],
+        "reason": "merge rejected by the maintainer"
+      }
+    ]
+  },
+  {
+    "ref": "John 5:4",
+    "deck": "data/4-john.json",
+    "agreed": [12, 5, 5, 6, 8],
+    "confidence": "agreed",
+    "note": "the condition's two halves can slip independently",
+    "rejected": [
+      {
+        "counts": [12, 5, 11, 8],
+        "reason": "merging 'after the stirring of the water' loses a detail worth its own chunk"
+      }
+    ]
+  },
+  {
+    "ref": "John 5:5",
+    "deck": "data/4-john.json",
+    "agreed": [6, 6],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "John 5:7",
+    "deck": "data/4-john.json",
+    "agreed": [5, 17, 5, 5],
+    "confidence": "agreed",
+    "note": "cut where you'd pause reciting; the comma before 'another' is a real breath",
+    "rejected": [
+      {
+        "counts": [5, 5, 12, 10],
+        "reason": "'Sir, I have no man' severs 'man' from 'to put me'"
+      },
+      {
+        "counts": [5, 11, 6, 10],
+        "reason": "'pool / when the water is stirred up' cuts inside one run"
+      }
+    ]
+  },
+  {
+    "ref": "John 6:56",
+    "deck": "data/4-john.json",
+    "agreed": [9, 3, 4],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "John 9:22",
+    "deck": "data/4-john.json",
+    "agreed": [10, 6, 8, 8],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Hebrews 10:11",
+    "deck": "data/5-hp.json",
+    "agreed": [6, 6, 6],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Hebrews 10:30",
+    "deck": "data/5-hp.json",
+    "agreed": [6, 6, 3, 2, 6],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Hebrews 12:25",
+    "deck": "data/5-hp.json",
+    "agreed": [9, 6, 7, 6, 10],
+    "confidence": "weak"
+  },
+  {
+    "ref": "Hebrews 4:12",
+    "deck": "data/5-hp.json",
+    "agreed": [9, 6, 9, 5, 12],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Hebrews 6:17",
+    "deck": "data/5-hp.json",
+    "agreed": [7, 5, 5, 5],
+    "confidence": "unresolved"
+  },
+  {
+    "ref": "1 Samuel 17:25",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [6, 9, 8, 10, 7, 5, 10],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Daniel 3:22",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [7, 5, 8, 7],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Daniel 3:29",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [5, 6, 4, 8, 5, 9, 11],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Exodus 12:40",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [8, 4, 6],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Exodus 3:9",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [3, 11, 7, 6],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Genesis 2:9",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [12, 10, 12, 10],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Genesis 3:1",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [12, 6, 6, 4, 10],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Genesis 6:10",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [5, 4],
+    "confidence": "weak",
+    "note": "fine either way; colon tips toward split"
+  },
+  {
+    "ref": "Isaiah 55:10",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [11, 5, 4, 7, 8, 5],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Isaiah 6:4",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [8, 8, 7],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Isaiah 6:6",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [8, 7, 10],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Joshua 23:16",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [11, 4, 7, 5, 10, 9, 5],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Joshua 4:12",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [9, 6, 8, 6],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Judges 2:16",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [6, 12],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Psalms 139:18",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [5, 9, 8],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Psalms 32:8",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [7, 6, 7],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Psalms 46:4",
+    "deck": "data/6-ot-survey.json",
+    "agreed": [4, 9, 10],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Romans 13:3",
+    "deck": "data/7-rj.json",
+    "agreed": [9, 3, 9, 4, 8],
+    "confidence": "weak"
+  },
+  {
+    "ref": "Romans 15:4",
+    "deck": "data/7-rj.json",
+    "agreed": [6, 5, 10, 3],
+    "confidence": "agreed-probably"
+  },
+  {
+    "ref": "Romans 4:12",
+    "deck": "data/7-rj.json",
+    "agreed": [5, 9, 10, 8],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Romans 6:19",
+    "deck": "data/7-rj.json",
+    "agreed": [5, 7, 11, 7, 11],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Romans 9:4",
+    "deck": "data/7-rj.json",
+    "agreed": [3, 3, 6, 12],
+    "confidence": "agreed",
+    "note": "list isolated from lead-in, split where items lengthen",
+    "rejected": [
+      {
+        "counts": [3, 9, 12],
+        "reason": "the lead-in 'to whom pertain' can stand alone, so it stays out of the list"
+      }
+    ]
+  },
+  {
+    "ref": "Luke 13:28",
+    "deck": "data/8-luke.json",
+    "agreed": [8, 8, 9, 4],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Luke 17:11",
+    "deck": "data/8-luke.json",
+    "agreed": [8, 10],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Luke 2:26",
+    "deck": "data/8-luke.json",
+    "agreed": [11, 6, 7],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "Luke 9:54",
+    "deck": "data/8-luke.json",
+    "agreed": [9, 2, 8, 8, 4],
+    "confidence": "weak"
+  },
+  {
+    "ref": "Luke 9:59",
+    "deck": "data/8-luke.json",
+    "agreed": [5, 2, 3, 9],
+    "confidence": "agreed"
+  }
+]

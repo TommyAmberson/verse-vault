@@ -6,6 +6,7 @@ eval loop and by the smoke-test in ``tools/README.md`` rather than by
 unittest.
 """
 
+import json
 import os
 import sys
 import unittest
@@ -33,7 +34,12 @@ from phrase_splitter.features import (
 )
 from phrase_splitter.prompts import format_split_prompt
 
-from evaluate_phrases import check_verse
+from evaluate_phrases import (
+    REFERENCE_SET_PATH,
+    calibration_results,
+    check_verse,
+    validate_reference_set,
+)
 from split_phrases import _render_current_split, _render_signals
 
 
@@ -530,6 +536,65 @@ class PrintPromptRenderingTests(unittest.TestCase):
         self.assertIn("severance=", rendered)
         # Composite score is displayed
         self.assertIn("composite=", rendered)
+
+
+class ReferenceSetValidationTests(unittest.TestCase):
+    def _entry(self, **kw):
+        entry = {"ref": "John 5:5", "deck": "data/4-john.json", "agreed": [6, 6],
+                 "confidence": "agreed"}
+        entry.update(kw)
+        return entry
+
+    def test_valid_entry(self):
+        self.assertEqual(validate_reference_set([self._entry()], {"John 5:5": 12}), [])
+
+    def test_agreed_sum_mismatch_names_ref(self):
+        errors = validate_reference_set([self._entry(agreed=[6, 5])], {"John 5:5": 12})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("John 5:5", errors[0])
+
+    def test_rejected_sum_mismatch(self):
+        entry = self._entry(rejected=[{"counts": [3, 3], "reason": "x"}])
+        self.assertEqual(len(validate_reference_set([entry], {"John 5:5": 12})), 1)
+
+    def test_rejected_equal_to_agreed(self):
+        entry = self._entry(rejected=[{"counts": [6, 6], "reason": "x"}])
+        self.assertEqual(len(validate_reference_set([entry], {"John 5:5": 12})), 1)
+
+    def test_duplicate_ref(self):
+        errors = validate_reference_set([self._entry(), self._entry()], {"John 5:5": 12})
+        self.assertEqual(len(errors), 1)
+
+    def test_unresolved_still_validated(self):
+        entry = self._entry(confidence="unresolved", agreed=[1])
+        self.assertEqual(len(validate_reference_set([entry], {"John 5:5": 12})), 1)
+
+    def test_committed_reference_set_parses(self):
+        with open(REFERENCE_SET_PATH, encoding="utf-8") as f:
+            entries = json.load(f)
+        self.assertTrue(entries)
+        self.assertEqual(len({e["ref"] for e in entries}), len(entries))
+
+
+class CalibrationResultTests(unittest.TestCase):
+    def test_classifies_changed_and_kept(self):
+        entries = [
+            {"ref": "A 1:1", "agreed": [2, 2], "confidence": "agreed"},
+            {"ref": "A 1:2", "agreed": [4], "confidence": "agreed"},
+            {"ref": "A 1:3", "agreed": [4], "confidence": "unresolved"},
+        ]
+        deck_counts = {"A 1:1": [4], "A 1:2": [4], "A 1:3": [2, 2]}
+        records = {
+            "A 1:1": {"signal_score": 0.5, "signals": {}},
+            "A 1:2": {"signal_score": 0.5, "signals": {}},
+            "A 1:3": {"signal_score": 0.0, "signals": {}},
+        }
+        results = {r["ref"]: r for r in calibration_results(entries, deck_counts, records, 0.2)}
+        self.assertEqual(results["A 1:1"]["state"], "changed")
+        self.assertTrue(results["A 1:1"]["ok"])
+        self.assertEqual(results["A 1:2"]["state"], "kept")
+        self.assertFalse(results["A 1:2"]["ok"])
+        self.assertNotIn("A 1:3", results)
 
 
 if __name__ == "__main__":

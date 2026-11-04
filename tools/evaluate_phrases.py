@@ -25,6 +25,7 @@ Usage:
     python3 tools/evaluate_phrases.py data/4-john.json --min-score 0.3
     python3 tools/evaluate_phrases.py data/4-john.json --refs "John 1:14"
     python3 tools/evaluate_phrases.py data/4-john.json --all --out report.json
+    python3 tools/evaluate_phrases.py --calibrate --show-text
 """
 
 import argparse
@@ -60,6 +61,12 @@ from phrase_splitter.apibible import (  # noqa: E402
 # while pure length-balance / weak-connector signals only emit if they
 # accumulate. Override with --min-score.
 DEFAULT_MIN_SCORE = 0.2
+
+# Maintainer-reviewed splits, stored as word counts so no verse text is
+# committed. ``--calibrate`` scores the audit against them.
+REFERENCE_SET_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "phrase_splitter", "reference_set.json"
+)
 
 
 def check_verse(verse: Dict[str, Any], tokens: List[str]) -> Dict[str, Any]:
@@ -183,11 +190,13 @@ def evaluate(
     conn,
     bible_id: str,
     ref_filter: Optional[Set[str]] = None,
+    tokens_out: Optional[Dict[str, List[str]]] = None,
 ) -> List[Dict[str, Any]]:
     """Walk the structural deck verse-by-verse, fetching each chapter's
     canonical tokens once and reusing them across the chapter's verses.
     Returns one record per verse that was checked (filtering happens in
-    main, not here)."""
+    main, not here). When ``tokens_out`` is given, each checked verse's
+    canonical tokens are stored in it by ref."""
     report: List[Dict[str, Any]] = []
     chapter_tokens: Dict[tuple, Dict[int, List[str]]] = {}
     for v in deck.get("verses", []):
@@ -199,10 +208,149 @@ def evaluate(
             html = get_chapter_html(conn, v["book"], v["chapter"], bible_id=bible_id)
             chapter_tokens[key] = extract_chapter_verses(html, v["book"], v["chapter"])
         tokens = chapter_tokens[key].get(v["verse"], [])
+        if tokens_out is not None:
+            tokens_out[ref] = tokens
         record = check_verse(v, tokens)
         record["ref"] = ref
         report.append(record)
     return report
+
+
+def validate_reference_set(
+    entries: List[Dict[str, Any]], token_counts: Dict[str, int]
+) -> List[str]:
+    """Return one error per broken reference entry. ``token_counts`` maps
+    each ref to its canonical token count; a ref missing from it is an
+    error too, since the entry can't be checked."""
+    errors: List[str] = []
+    seen: Set[str] = set()
+    for e in entries:
+        ref = e.get("ref", "?")
+        if ref in seen:
+            errors.append(f"{ref}: duplicate entry")
+            continue
+        seen.add(ref)
+        total = token_counts.get(ref)
+        if total is None:
+            errors.append(f"{ref}: no canonical tokens")
+            continue
+        problems = []
+        agreed = e.get("agreed") or []
+        if sum(agreed) != total:
+            problems.append(f"agreed sums to {sum(agreed)}, canonical has {total}")
+        for r in e.get("rejected") or []:
+            counts = r.get("counts") or []
+            if sum(counts) != total:
+                problems.append(f"rejected {counts} sums to {sum(counts)}, canonical has {total}")
+            if counts == agreed:
+                problems.append(f"rejected {counts} equals agreed")
+        if problems:
+            errors.append(f"{ref}: " + "; ".join(problems))
+    return errors
+
+
+def calibration_results(
+    entries: List[Dict[str, Any]],
+    deck_counts: Dict[str, List[int]],
+    records: Dict[str, Dict[str, Any]],
+    min_score: float,
+) -> List[Dict[str, Any]]:
+    """Score the audit against each scored reference entry. A ``changed``
+    entry (agreed split differs from the deck) should be flagged; a
+    ``kept`` one should stay under ``min_score``. ``unresolved`` entries
+    are left out."""
+    results: List[Dict[str, Any]] = []
+    for e in entries:
+        if e.get("confidence") == "unresolved":
+            continue
+        ref = e["ref"]
+        record = records[ref]
+        state = "kept" if deck_counts[ref] == e["agreed"] else "changed"
+        flagged = record["signal_score"] >= min_score
+        results.append({
+            "ref": ref,
+            "confidence": e.get("confidence"),
+            "state": state,
+            "score": record["signal_score"],
+            "flagged": flagged,
+            "ok": flagged if state == "changed" else not flagged,
+            "fired": _top_signals(record.get("signals") or {}, k=10),
+        })
+    return results
+
+
+def _split_text(tokens: List[str], pwc: List[int]) -> str:
+    return " / ".join(" ".join(p) for p in slice_phrases(tokens, pwc))
+
+
+def calibrate(db_path: str, bible_id: str, min_score: float, show_text: bool) -> int:
+    """Run the audit over every reference verse and print how its flags
+    line up with the maintainer's verdicts. Returns the exit status:
+    non-zero only when the reference set itself fails validation."""
+    with open(REFERENCE_SET_PATH, encoding="utf-8") as f:
+        entries = json.load(f)
+
+    by_deck: Dict[str, List[Dict[str, Any]]] = {}
+    for e in entries:
+        by_deck.setdefault(e["deck"], []).append(e)
+
+    records: Dict[str, Dict[str, Any]] = {}
+    deck_counts: Dict[str, List[int]] = {}
+    tokens_by_ref: Dict[str, List[str]] = {}
+    conn = open_cache(db_path)
+    try:
+        for deck_path, deck_entries in by_deck.items():
+            with open(deck_path, encoding="utf-8") as f:
+                deck = json.load(f)
+            refs = {e["ref"] for e in deck_entries}
+            for v in deck.get("verses", []):
+                ref = f"{v['book']} {v['chapter']}:{v['verse']}"
+                if ref in refs:
+                    deck_counts[ref] = v.get("phraseWordCounts") or []
+            for record in evaluate(deck, conn, bible_id, refs, tokens_by_ref):
+                records[record["ref"]] = record
+    finally:
+        conn.close()
+
+    token_counts = {ref: len(toks) for ref, toks in tokens_by_ref.items() if toks}
+    errors = validate_reference_set(entries, token_counts)
+    errors += [f"{ref}: {'; '.join(r['blockers'])}" for ref, r in records.items() if r["blockers"]]
+    if errors:
+        print("Reference set failed validation:")
+        for err in errors:
+            print(f"  - {err}")
+        return 1
+
+    results = calibration_results(entries, deck_counts, records, min_score)
+    agreed_by_ref = {e["ref"]: e["agreed"] for e in entries}
+    for r in results:
+        verdict = "ok" if r["ok"] else ("MISS" if r["state"] == "changed" else "FALSE ALARM")
+        weak = " (weak)" if r["confidence"] == "weak" else ""
+        print(f"[{r['score']:.2f}] {verdict:<11} {r['state']:<7} {r['ref']}{weak}")
+        for sig in r["fired"]:
+            print(f"    - {sig}")
+        if show_text:
+            toks = tokens_by_ref[r["ref"]]
+            print(f"    deck:   {_split_text(toks, deck_counts[r['ref']])}")
+            if r["state"] == "changed":
+                print(f"    agreed: {_split_text(toks, agreed_by_ref[r['ref']])}")
+
+    def count(state: str, ok: bool, weak: bool) -> int:
+        return sum(
+            1 for r in results
+            if r["state"] == state and r["ok"] == ok and (r["confidence"] == "weak") == weak
+        )
+
+    excluded = sum(1 for e in entries if e.get("confidence") == "unresolved")
+    print(f"\nmin_score={min_score}")
+    for label, weak in (("agreed", False), ("weak", True)):
+        print(
+            f"{label}: changed caught {count('changed', True, weak)}, "
+            f"missed {count('changed', False, weak)}; "
+            f"kept quiet {count('kept', True, weak)}, flagged {count('kept', False, weak)}"
+        )
+    print(f"unresolved (excluded): {excluded}")
+    return 0
 
 
 def _emit(record: Dict[str, Any], min_score: float, show_all: bool) -> bool:
@@ -245,7 +393,20 @@ def main() -> None:
     ap.add_argument("--db", default=DEFAULT_DB_PATH, help="Shared api.bible SQLite cache")
     ap.add_argument("--bible", default=DEFAULT_NKJV_ID, help="api.bible bibleId (default: NKJV)")
     ap.add_argument("--out", help="Write the JSON report to this path")
+    ap.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="Score the audit against the reference set instead of auditing a deck",
+    )
+    ap.add_argument(
+        "--show-text",
+        action="store_true",
+        help="With --calibrate, print the deck and agreed splits as text",
+    )
     args = ap.parse_args()
+
+    if args.calibrate:
+        sys.exit(calibrate(args.db, args.bible, args.min_score, args.show_text))
 
     with open(args.deck, encoding="utf-8") as f:
         deck = json.load(f)
