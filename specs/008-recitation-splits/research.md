@@ -237,3 +237,36 @@ that falls short on Haiku runs on Sonnet in a mixed setup; the skill records the
 
 **Rationale**: The maintainer's aim is a cheap pipeline. Per-step measurement shows which step, if
 any, needs the stronger model.
+
+## R14. Signals as criterion flags
+
+**Decision**: The rating prompt shows each signal only when it passes a per-signal threshold, as one
+plain sentence under the criterion it tests, labelled strong or weak, with its known blind spot
+("misses the pause after a long subject"). No numbers and no composite. The numbers stay in the
+audit report, the worklist ranking and calibration.
+
+**Rationale**: In the first rate-and-select measurement, raters repeated weak flags as cons against
+the maintainer's agreed cuts (`no_pause_cue` on John 6:56, Exodus 12:40, 1 Samuel 17:25 and Romans
+9:4), and Haiku quoted the undocumented `ends-mid-clause` and `opens-with-connector` flags. Numbers
+read as certainty; tying each flag to a criterion with its reliability lets the rater weigh it.
+
+## R15. Length in syllables
+
+**Decision**: `long_run` ramps on syllables (heuristic count) instead of words. Prompts describe a
+run as about one breath, roughly 10 to 15 words, and do not ask the model to count syllables.
+
+**Rationale**: Word counts poorly track spoken length ("in infirmities, in reproaches, ..." is 10
+words but about 20 syllables). The maintainer's too-long and fine-long phrases overlap on both
+measures (16 to 20 syllables), so length only decides when to look for a pause; the pause decides
+the cut.
+
+## R16. Parse model and rules
+
+**Decision**: Offer `en_core_web_sm` and `en_core_web_trf`, chosen by an option and reported in the
+output; compare them on the reference set. Pause rules: the end of a long subject or fronted object
+before its verb, except before a predicate of one or two words (the maintainer rejected "And the
+posts of the door / were shaken"), and clause starts as before.
+
+**Rationale**: The small model clears Exodus 12:40 and finds Exodus 3:9, John 5:28 and Romans 15:4's
+"might have hope", but misparses "He who eats ... abides" (John 6:56) and "whatever things were
+written before / were written" (Romans 15:4), and has no rule for fronted objects (1 Samuel 17:25).
