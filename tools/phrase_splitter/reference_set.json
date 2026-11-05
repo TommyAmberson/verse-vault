@@ -3,7 +3,13 @@
     "ref": "1 Corinthians 10:28",
     "deck": "data/3-corinthians.json",
     "agreed": [6, 5, 13, 4, 10],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "rejected": [
+      {
+        "counts": [6, 5, 4, 9, 4, 10],
+        "reason": "'do not eat it for the sake of the one who told you' is said in one go"
+      }
+    ]
   },
   {
     "ref": "1 Corinthians 12:3",
@@ -325,7 +331,13 @@
     "ref": "Genesis 3:1",
     "deck": "data/6-ot-survey.json",
     "agreed": [12, 6, 6, 4, 10],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "rejected": [
+      {
+        "counts": [6, 6, 6, 6, 4, 10],
+        "reason": "cutting before 'than any beast of the field' is unnatural"
+      }
+    ]
   },
   {
     "ref": "Genesis 6:10",
@@ -401,12 +413,12 @@
   {
     "ref": "Psalms 32:8",
     "deck": "data/6-ot-survey.json",
-    "agreed": [7, 6, 7],
+    "agreed": [13, 7],
     "confidence": "agreed",
     "acceptable": [
       {
-        "counts": [13, 7],
-        "reason": "slightly worse"
+        "counts": [7, 6, 7],
+        "reason": "either works; 13 words is not too long and whole is a little more natural"
       }
     ]
   },

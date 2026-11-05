@@ -26,8 +26,10 @@ matches the runs.
    who eats My flesh and drinks My blood / abides in Me,"; a short
    subject keeps its verb: "And the posts of the door were shaken / by
    the voice"); before a completing phrase of four or more words in a
-   long run ("I will instruct you and teach you / in the way you should
-   go;"); before a relative or "that" clause of four or more words.
+   run of 14 or more words ("were shaken / by the voice of him who cried
+   out,"), while a run of up to 13 stays whole ("do not eat it for the
+   sake of the one who told you,"); before a relative or "that" clause
+   of four or more words.
 2. *A chunk is one run*, about one breath, usually 3 to 10 words,
    longer only when it has no pause point. Split long runs at their
    pause points; below about 10 words a cut has to earn its place. The
@@ -141,7 +143,8 @@ them, so give them a real choice of granularity:
   that cuts each such phrase once at its clearest pause point: a comma,
   semicolon or dash; the start of a relative or "that" clause of four
   or more words; the end of a long subject or fronted object, before
-  its verb; the start of a completing phrase of four or more words; a
+  its verb; the start of a completing phrase of four or more words,
+  only in a phrase of 14 or more words; a
   capitalized "And" or "But" that marks a poetry line. Leave at least
   four words on each side. Cut a word list only where its items
   lengthen or it outgrows a run; never sever a relative clause of three
@@ -200,8 +203,9 @@ split matches the runs:
    before its verb ("He who eats My flesh and drinks My blood / abides
    in Me,"); a short subject keeps its verb ("And the posts of the door
    were shaken / by the voice"). The breath before a completing phrase
-   of four or more words in a long run ("I will instruct you and teach
-   you / in the way you should go;"). The start of a relative or "that"
+   of four or more words in a run of 14 or more words ("were shaken / by
+   the voice of him who cried out,"); up to 13 words the run stays whole.
+   The start of a relative or "that"
    clause of four or more words ("told the Jews / that it was Jesus").
    A short completion stays with its verb ("put me into the pool").
 2. A chunk is one run, about one breath, usually 3 to 10 words, longer

@@ -43,9 +43,14 @@ comma to mark them:
   12:40): `… who lived in Egypt / was four hundred and thirty years.`. A short subject keeps its
   verb: rejected (Isaiah 6:4) `And the posts of the door / were shaken by the voice …`, agreed
   `And the posts of the door were shaken / by the voice of him who cried out,`.
-* **Before a completing phrase that is itself a run** (four or more words) in a long run. Agreed
-  (Psalm 32:8): `I will instruct you and teach you / in the way you should go;`. A short completion
-  stays with its verb: `to put me into the pool` (John 5:7).
+* **Before a completing phrase that is itself a run** (four or more words) in a run of 14 or more
+  words. Agreed (Isaiah 6:4):
+  `And the posts of the door were shaken / by the voice of him who cried out,`. Up to 13 words the
+  run is said in one go and stays whole: agreed (Psalm 32:8)
+  `I will instruct you and teach you in the way you should go;`, (1 Corinthians 10:28)
+  `do not eat it for the sake of the one who told you,`, (Genesis 3:1)
+  `Now the serpent was more cunning than any beast of the field`. A short completion stays with its
+  verb at any length: `to put me into the pool` (John 5:7).
 * **Before a relative or "that" clause of four or more words**, with or without a comma. Agreed
   (John 5:15): `The man departed and told the Jews / that it was Jesus who had made him well.`. A
   relative of three words is not severed from its noun (`the one who told you`).
@@ -76,7 +81,7 @@ Pressure to cut grows with length, not with the number of chunks: seven chunks o
 seven runs, not an over-split. Length is measured by breath, which the audit estimates in syllables
 (`in infirmities, in reproaches, …` is 10 words but about 20 syllables). Over about 10 words, a run
 holding a pause of any kind in criterion 1 should be cut there; a run of 11 to 13 words with no
-pause stays whole.
+pause stays whole. A completing phrase counts as a pause only from 14 words.
 
 ### 3. Each chunk start is a practised handoff
 
