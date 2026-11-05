@@ -57,11 +57,24 @@
     ]
   },
   {
+    "ref": "John 3:2",
+    "deck": "data/4-john.json",
+    "agreed": [11, 11, 10, 5],
+    "confidence": "weak",
+    "note": "narrative and tag said in one go, a close call",
+    "acceptable": [
+      {
+        "counts": [7, 4, 11, 10, 5],
+        "reason": "either way is fine; 'by night' could be its own beat"
+      }
+    ]
+  },
+  {
     "ref": "John 5:14",
     "deck": "data/4-john.json",
     "agreed": [11, 6, 3, 7],
     "confidence": "agreed",
-    "note": "narrative and its speech tag stay together",
+    "note": "narrative and tag said in one go; a longer narrative would be cut before the tag",
     "rejected": [
       {
         "counts": [7, 4, 6, 3, 7],
