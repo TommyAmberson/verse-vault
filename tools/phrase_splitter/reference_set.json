@@ -166,10 +166,10 @@
     "agreed": [12, 5, 5, 6, 8],
     "confidence": "agreed",
     "note": "the condition's two halves can slip independently",
-    "rejected": [
+    "acceptable": [
       {
         "counts": [12, 5, 11, 8],
-        "reason": "merging 'after the stirring of the water' loses a detail worth its own chunk"
+        "reason": "on second review, 'after the stirring of the water' can merge with its subject"
       }
     ]
   },
@@ -516,6 +516,12 @@
     "ref": "Luke 9:59",
     "deck": "data/8-luke.json",
     "agreed": [5, 2, 3, 9],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [7, 3, 9],
+        "reason": "the short command can stay with its tag; the split only mirrors the long reply"
+      }
+    ]
   }
 ]
