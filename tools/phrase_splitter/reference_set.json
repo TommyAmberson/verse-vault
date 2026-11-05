@@ -75,13 +75,11 @@
     "agreed": [11, 6, 3, 7],
     "confidence": "agreed",
     "note": "narrative and tag said in one go; a longer narrative would be cut before the tag",
-    "rejected": [
+    "acceptable": [
       {
         "counts": [7, 4, 6, 3, 7],
-        "reason": "'and said to him,' after narrative is a throwaway chunk"
-      }
-    ],
-    "acceptable": [
+        "reason": "on second review, cutting before the tag is maybe ok"
+      },
       {
         "counts": [11, 6, 10],
         "reason": "acceptable alternative, maintainer's review of model candidates"
@@ -493,8 +491,14 @@
   {
     "ref": "Luke 17:11",
     "deck": "data/8-luke.json",
-    "agreed": [8, 10],
-    "confidence": "agreed"
+    "agreed": [3, 5, 10],
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [8, 10],
+        "reason": "the earlier agreed split; the frame and its time clause read as one"
+      }
+    ]
   },
   {
     "ref": "Luke 2:26",
