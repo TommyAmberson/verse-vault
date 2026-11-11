@@ -140,6 +140,8 @@ echo "  log into Cloudflare, and authorise the versevault.ca zone."
 echo "  Execution resumes automatically when you confirm."
 echo ""
 
+# Normally absent: the end of this phase removes it. Present only when an
+# earlier run stopped part way, and a second login would refuse to overwrite it.
 if [ -f /opt/verse-vault/.cloudflared/cert.pem ]; then
 	echo "  -> Tunnel cert already exists; skipping login"
 else
@@ -184,6 +186,12 @@ echo "  -> Routing DNS: $TUNNEL_HOSTNAME -> $TUNNEL_NAME"
 cd /opt/verse-vault && sudo -u verse-vault -H \
 	cloudflared tunnel route dns "$TUNNEL_NAME" "$TUNNEL_HOSTNAME" \
 	|| echo "     (route may already exist; continuing)"
+
+# The login's cert.pem can create and delete tunnels and DNS records for the
+# whole zone; the running tunnel needs only its credentials JSON. Remove it so
+# it doesn't sit on the box. A rerun of this phase logs in again.
+echo "  -> Removing the tunnel login cert"
+rm -f /opt/verse-vault/.cloudflared/cert.pem
 
 echo "  -> Enabling cloudflared.service"
 systemctl daemon-reload
