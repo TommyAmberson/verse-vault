@@ -216,17 +216,26 @@ echo "  -> SSH directory"
 sudo -u verse-vault -H mkdir -p /opt/verse-vault/.ssh
 chmod 700 /opt/verse-vault/.ssh
 
-if [ -f "$KEY_PATH" ]; then
-	echo "  -> Deploy key already exists; reusing"
+# The private half belongs only in the VPS_SSH_KEY secret: it is printed at
+# the end and then deleted, so the service account can't use it. A rerun
+# keeps a key that is already authorised; to replace it, remove its line from
+# authorized_keys and rerun.
+NEW_DEPLOY_KEY=0
+if grep -qs "github-actions-deploy@verse-vault-api" /opt/verse-vault/.ssh/authorized_keys; then
+	echo "  -> Deploy key already authorised; keeping it"
 else
 	echo "  -> Generating ed25519 deploy key"
+	rm -f "$KEY_PATH" "$KEY_PATH.pub"
 	sudo -u verse-vault -H ssh-keygen -t ed25519 -f "$KEY_PATH" -N "" \
 		-C "github-actions-deploy@verse-vault-api"
-fi
 
-echo "  -> Authorising deploy key for inbound SSH"
-sudo -u verse-vault -H cp "$KEY_PATH.pub" /opt/verse-vault/.ssh/authorized_keys
-chmod 600 /opt/verse-vault/.ssh/authorized_keys
+	echo "  -> Authorising deploy key for inbound SSH"
+	# restrict: no forwarding, agent or terminal; rsync and commands still work
+	printf 'restrict %s\n' "$(cat "$KEY_PATH.pub")" \
+		| sudo -u verse-vault -H tee /opt/verse-vault/.ssh/authorized_keys > /dev/null
+	chmod 600 /opt/verse-vault/.ssh/authorized_keys
+	NEW_DEPLOY_KEY=1
+fi
 
 echo "  -> Sudoers rule (verse-vault → limited systemctl)"
 # Only what the deploy runs. Not `status`: in a terminal it opens a pager,
@@ -562,11 +571,18 @@ echo ""
 echo "  (1) Add these to GitHub repo Settings -> Secrets and variables -> Actions:"
 echo ""
 echo "        VPS_HOST     = $PUBLIC_IP"
-echo "        VPS_SSH_KEY  = (paste the private key below)"
-echo ""
-echo "============================ BEGIN private key ============================"
-cat "$KEY_PATH"
-echo "============================= END private key ============================="
+if [ "$NEW_DEPLOY_KEY" = 1 ]; then
+	echo "        VPS_SSH_KEY  = (paste the private key below)"
+	echo ""
+	echo "============================ BEGIN private key ============================"
+	cat "$KEY_PATH"
+	echo "============================= END private key ============================="
+	rm -f "$KEY_PATH" "$KEY_PATH.pub"
+	echo ""
+	echo "      The private key has been deleted from this box: copy it now."
+else
+	echo "        VPS_SSH_KEY  = unchanged (the authorised deploy key was kept)"
+fi
 echo ""
 echo "  (2) Trigger the first deploy:"
 echo "        GitHub -> Actions -> 'Deploy API to VPS' -> Run workflow (master)"
