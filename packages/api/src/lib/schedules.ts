@@ -206,6 +206,26 @@ export interface SchedulePayloadV2 {
   meets?: ValidatedMeet[];
 }
 
+/** Upper bounds on a schedule. Every load of the user's material walks each verse of each block
+ *  and checks it against the block's club lists. The byte cap on the stored form is what keeps that
+ *  walk small; the shape caps refuse nonsense early with a clearer message. They sit well above any
+ *  real schedule: a season runs about 32 weeks of one or two passages in about 6 KiB, and no
+ *  chapter is longer than 176 verses (Psalm 119). */
+export const SCHEDULE_LIMITS = {
+  bytes: 64 * 1024,
+  weeks: 100,
+  blocksPerWeek: 10,
+  chapter: 150,
+  verse: 176,
+  meets: 20,
+} as const;
+
+function requireAtMost(label: string, list: unknown[], max: number): void {
+  if (list.length > max) {
+    throw new ScheduleValidationError(`${label} must have at most ${max} entries`);
+  }
+}
+
 function validatePassage(label: string, raw: unknown): ValidatedPassage {
   if (typeof raw !== 'object' || raw === null) {
     throw new ScheduleValidationError(`${label} must be an object`);
@@ -216,8 +236,9 @@ function validatePassage(label: string, raw: unknown): ValidatedPassage {
   }
   for (const f of ['chapter', 'startVerse', 'endVerse'] as const) {
     const v = p[f];
-    if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) {
-      throw new ScheduleValidationError(`${label}.${f} must be a positive integer`);
+    const max = f === 'chapter' ? SCHEDULE_LIMITS.chapter : SCHEDULE_LIMITS.verse;
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > max) {
+      throw new ScheduleValidationError(`${label}.${f} must be an integer from 1 to ${max}`);
     }
   }
   if ((p.endVerse as number) < (p.startVerse as number)) {
@@ -243,9 +264,12 @@ function validateClubVerseLists(label: string, raw: unknown): ClubVerseLists {
     if (!Array.isArray(val)) {
       throw new ScheduleValidationError(`${label}.${key} must be an array`);
     }
+    requireAtMost(`${label}.${key}`, val, SCHEDULE_LIMITS.verse);
     for (const n of val) {
-      if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) {
-        throw new ScheduleValidationError(`${label}.${key} entries must be positive integers`);
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > SCHEDULE_LIMITS.verse) {
+        throw new ScheduleValidationError(
+          `${label}.${key} entries must be integers from 1 to ${SCHEDULE_LIMITS.verse}`,
+        );
       }
     }
     return val as number[];
@@ -305,6 +329,7 @@ function validateV2Week(i: number, raw: Record<string, unknown>): ScheduleWeekV2
   if (!Array.isArray(blocksRaw)) {
     throw new ScheduleValidationError(`weeks[${i}].blocks must be an array`);
   }
+  requireAtMost(`weeks[${i}].blocks`, blocksRaw, SCHEDULE_LIMITS.blocksPerWeek);
   const blocks = blocksRaw.map((b, j) => validateBlock(`weeks[${i}].blocks[${j}]`, b));
   if (!isReview && blocks.length === 0) {
     throw new ScheduleValidationError(
@@ -336,7 +361,9 @@ function requireNonEmptyStr(
  *  `ScheduleValidationError` on any structural violation.
  *
  *  This is the single source of truth for schedule shape at the API
- *  boundary: every write path reaches it via `validateSchedule`. The
+ *  boundary: every write path reaches it via `canonicaliseSchedule`,
+ *  which also caps the stored size, so writers call that rather than
+ *  `validateSchedule` alone. The
  *  engine path doesn't — `EngineStore.load` passes the stored string
  *  straight to WASM, where core's `ScheduleWeek` does the equivalent
  *  fold at deserialize time. */
@@ -359,6 +386,7 @@ export function migrateSchedule(raw: unknown): SchedulePayloadV2 {
   if (!Array.isArray(weeksRaw)) {
     throw new ScheduleValidationError('missing array field: weeks');
   }
+  requireAtMost('weeks', weeksRaw, SCHEDULE_LIMITS.weeks);
   const weeks: ScheduleWeekV2[] = weeksRaw.map((w, i) => {
     if (typeof w !== 'object' || w === null) {
       throw new ScheduleValidationError(`weeks[${i}] must be an object`);
@@ -402,7 +430,14 @@ export function canonicaliseSchedule(json: string): {
   canonicalJson: string;
 } {
   const schedule = validateSchedule(json);
-  return { schedule, canonicalJson: JSON.stringify(schedule) };
+  const canonicalJson = JSON.stringify(schedule);
+  // Measured on the stored form, so PUT and import apply the same cap whatever the body's layout
+  if (Buffer.byteLength(canonicalJson) > SCHEDULE_LIMITS.bytes) {
+    throw new ScheduleValidationError(
+      `schedule must be at most ${SCHEDULE_LIMITS.bytes} bytes when stored`,
+    );
+  }
+  return { schedule, canonicalJson };
 }
 
 /** Field-level validation for the `meets` array. The Phase 3 editor
@@ -415,6 +450,7 @@ function validateMeets(raw: unknown): ValidatedMeet[] | undefined {
   if (!Array.isArray(raw)) {
     throw new ScheduleValidationError('meets must be an array when present');
   }
+  requireAtMost('meets', raw, SCHEDULE_LIMITS.meets);
   const seenIds = new Set<string>();
   const meets: ValidatedMeet[] = [];
   for (let i = 0; i < raw.length; i++) {

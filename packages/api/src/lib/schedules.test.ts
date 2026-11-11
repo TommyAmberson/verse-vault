@@ -13,7 +13,9 @@ import {
   V1_WEEK_WITH_BOTH_SHAPES,
 } from '../test-schedules.js';
 import {
+  canonicaliseSchedule,
   migrateSchedule,
+  SCHEDULE_LIMITS,
   ScheduleValidationError,
   loadBundledSchedule,
   loadSchedule,
@@ -438,6 +440,55 @@ describe('validateSchedule v2', () => {
       weeks: [{ date: '2025-09-08', isReview: false, blocks: [] }],
     };
     expect(() => validateSchedule(JSON.stringify(bad))).toThrow(ScheduleValidationError);
+  });
+
+  it('rejects schedules past the size limits, naming the field', () => {
+    const block = (passage: object = {}, club150: number[] = []) => ({
+      passage: { book: '1 Corinthians', chapter: 1, startVerse: 1, endVerse: 1, ...passage },
+      verses: { club150, club300: [] },
+    });
+    const week = (blocks: unknown[]) => ({ date: '2025-09-08', isReview: false, blocks });
+    const schedule = (weeks: unknown[], extra: object = {}) =>
+      JSON.stringify({ ...V1_SCHEDULE, version: 2, weeks, ...extra });
+    const { chapter, verse, blocksPerWeek, weeks, meets, bytes } = SCHEDULE_LIMITS;
+    const meet = (i: number) => ({
+      id: `m${i}`,
+      name: 'Meet',
+      startDate: '2025-10-01',
+      endDate: '2025-10-02',
+      location: '',
+    });
+
+    for (const ok of [
+      schedule([week([block({ chapter, endVerse: verse }, Array.from({ length: verse }, () => 1))])], {
+        meets: Array.from({ length: meets }, (_, i) => meet(i)),
+      }),
+      schedule([week(Array.from({ length: blocksPerWeek }, () => block()))]),
+      schedule(Array.from({ length: weeks }, () => week([block()]))),
+    ]) {
+      expect(() => canonicaliseSchedule(ok)).not.toThrow();
+    }
+    for (const [bad, message] of [
+      [schedule([week([block({ chapter: chapter + 1 })])]), 'chapter must be an integer'],
+      [schedule([week([block({ endVerse: verse + 1 })])]), 'endVerse must be an integer'],
+      [schedule([week([block({}, [verse + 1])])]), 'club150 entries must be integers'],
+      [
+        schedule([week([block({}, Array.from({ length: verse + 1 }, () => 1))])]),
+        'club150 must have at most',
+      ],
+      [
+        schedule([week(Array.from({ length: blocksPerWeek + 1 }, () => block()))]),
+        'blocks must have at most',
+      ],
+      [schedule(Array.from({ length: weeks + 1 }, () => week([block()]))), 'weeks must have at most'],
+      [
+        schedule([], { meets: Array.from({ length: meets + 1 }, (_, i) => meet(i)) }),
+        'meets must have at most',
+      ],
+      [schedule([], { title: 'x'.repeat(bytes) }), 'schedule must be at most'],
+    ] as const) {
+      expect(() => canonicaliseSchedule(bad)).toThrow(message);
+    }
   });
 
   it('returns v2 shape when parsing v1 payload', () => {

@@ -311,17 +311,6 @@ function applySchedule(
   material: MaterialExport,
 ): void {
   if (!material.schedule) return;
-  let scheduleJson: string;
-  try {
-    // An export taken before #103 may still carry a v1 schedule; store it
-    // in the same canonical form the PUT route writes.
-    scheduleJson = canonicaliseSchedule(material.schedule.scheduleJson).canonicalJson;
-  } catch (err) {
-    if (err instanceof ScheduleValidationError) {
-      throw new ImportValidationError(`schedule for ${key.materialId}: ${err.message}`);
-    }
-    throw err;
-  }
   const existing = tx
     .select({ updatedAt: schema.materialSchedules.updatedAt })
     .from(schema.materialSchedules)
@@ -333,6 +322,19 @@ function applySchedule(
     )
     .get();
   if (existing && existing.updatedAt >= material.schedule.updatedAt) return;
+
+  // Checked only once it would be stored, so re-importing an export whose schedule predates the
+  // limits still works. An export taken before #103 may carry a v1 schedule; store it in the same
+  // canonical form the PUT route writes.
+  let scheduleJson: string;
+  try {
+    scheduleJson = canonicaliseSchedule(material.schedule.scheduleJson).canonicalJson;
+  } catch (err) {
+    if (err instanceof ScheduleValidationError) {
+      throw new ImportValidationError(`schedule for ${key.materialId}: ${err.message}`);
+    }
+    throw err;
+  }
 
   const row = {
     userId: key.userId,

@@ -590,6 +590,19 @@ Per-material enrollment summary:
 
 `testCount` is the number of persisted `test_states` rows — proxies "how much progress is on file."
 
+### `GET` / `PUT` / `DELETE /api/materials/:id/schedule`
+
+The user's memorize schedule for the material. `GET` returns their saved copy, else the bundled
+default, else `{ "schedule": null }`. `PUT` validates a v1 or v2 schedule and stores its v2 form;
+`DELETE` drops the saved copy so the bundled default applies again. `PUT` answers `{ "ok": true }`;
+`DELETE` answers `{ "ok": true, "fallbackToBundled": … }`, where `fallbackToBundled` says whether a
+bundled default now applies.
+
+`PUT` answers 400 when the body's `materialId` differs from the URL's, or the schedule is malformed
+or past `SCHEDULE_LIMITS` (`packages/api/src/lib/schedules.ts`): 64 KiB stored, 100 weeks, 10 blocks
+a week, chapters up to 150, verse numbers and club-list lengths up to 176, and 20 meets. The message
+names the field. A body over 256 KiB is refused with 413.
+
 ## Years — `/api/years/*`
 
 The material picker. `years` is a misnomer left over from the original deck-per-year naming; returns
@@ -716,8 +729,8 @@ Apply an `AccountExport` to the caller's account. Additive and idempotent: revie
 { "materialsApplied": 8, "eventsInserted": 41608, "eventsSkipped": 0, "graduationsApplied": 631, "unresolvedCardRefs": 329 }
 ```
 
-400 on an unsupported `exportVersion`, unknown `materialId`, or out-of-bounds settings; 413 if the
-body exceeds the 50 MB cap.
+400 on an unsupported `exportVersion`, unknown `materialId`, out-of-bounds settings, or a schedule
+the schedule route would refuse; 413 if the body exceeds the 50 MB cap.
 
 ### `DELETE /api/account/progress`
 
@@ -769,7 +782,7 @@ not checked.
 | 401    | no session cookie / expired session                                                                                                                      |
 | 404    | material id unknown, or caller not enrolled in the requested material, or card id unknown (a sync upload 404s only for a material outside the catalogue) |
 | 409    | sync batch uses a stale `snapshotVersion`, already-enrolled on `/enroll`, or a progress write sent with an old [reset counter](#reset-counter)           |
-| 413    | sync batch exceeds the 500-event cap                                                                                                                     |
+| 413    | sync batch exceeds the 500-event cap, or a schedule body exceeds 256 KiB                                                                                 |
 | 429    | rate limit exceeded; `Retry-After` header carries integer seconds until next allowed request                                                             |
 | 500    | engine threw on `replay_event` / `get_card_render` (unknown card id, malformed state) — caller's bug                                                     |
 

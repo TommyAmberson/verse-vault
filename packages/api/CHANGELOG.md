@@ -10,6 +10,12 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### Changed
+
+* `PUT /api/materials/:materialId/schedule` takes at most 64 KiB (413 past it) and refuses schedules
+  past `SCHEDULE_LIMITS` with 400: 100 weeks, 10 blocks a week, chapters up to 150, and verse
+  numbers and club-list lengths up to 176. Every bundled schedule sits well inside them.
+
 ## [0.1.56] - 2026-11-03
 
 PATCH: disconnecting Google takes the password; client address from Cloudflare only.
