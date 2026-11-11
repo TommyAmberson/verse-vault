@@ -88,8 +88,13 @@ jobs:
           node-version: '22'
           cache: pnpm
 
+      # A fixed wasm-pack release, whose checksum the action verifies; the action is pinned by commit.
+      # No fallback: a version missing from the manifest fails rather than installing unchecked.
       - name: Install wasm-pack
-        run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: wasm-pack@0.15.1
+          fallback: none
 
       - name: Build WASM (nodejs target)
         run: wasm-pack build crates/wasm --target nodejs --out-dir pkg
