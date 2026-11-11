@@ -284,6 +284,39 @@ describe('applyAccountImport', () => {
     }
   });
 
+  it('skips a schedule no newer than the saved one without checking it', async () => {
+    const test = createTestDb();
+    cleanup = test.cleanup;
+    seedUserWithFixture({ db: test.db, userId: 'u1', materialId: MATERIAL_ID });
+    const engines = new EngineStore(test.db);
+    const saved = JSON.stringify({
+      version: 2,
+      materialId: MATERIAL_ID,
+      season: '2025-26',
+      title: 'Saved',
+      meetingDayOfWeek: 'Mon',
+      weeks: [],
+    });
+    test.db
+      .insert(schema.materialSchedules)
+      .values({ userId: 'u1', materialId: MATERIAL_ID, scheduleJson: saved, updatedAt: NOW })
+      .run();
+
+    // Re-importing an export whose schedule predates the limits leaves the saved one alone
+    const payload = await buildAccountExport(test.db, engines, 'u1', NOW);
+    payload.materials[0]!.schedule = {
+      updatedAt: NOW,
+      scheduleJson: JSON.stringify({ not: 'a schedule' }),
+    };
+
+    try {
+      await applyAccountImport(test.db, engines, 'u1', payload, NOW);
+      expect(loadSchedule(test.db, 'u1', MATERIAL_ID)).toBe(saved);
+    } finally {
+      engines.clear();
+    }
+  });
+
   it('counts unresolved cardRefs without rejecting the import', async () => {
     const test = createTestDb();
     cleanup = test.cleanup;

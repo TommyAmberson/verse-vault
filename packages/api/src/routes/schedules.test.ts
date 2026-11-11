@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { SchedulePayloadV2 } from '../lib/schedules.js';
+import { SCHEDULE_LIMITS, type SchedulePayloadV2 } from '../lib/schedules.js';
 import { createTestApp, signUpTestUser } from '../test-utils.js';
 
 const MATERIAL_ID = 'nkjv-cor';
@@ -159,6 +159,21 @@ describe('schedules routes', () => {
       },
     );
     expect(put.status).toBe(400);
+  });
+
+  it('PUT 413s on a body past the size limit', async () => {
+    const test = createTestApp();
+    cleanup = test.cleanup;
+    const { cookie } = await signUpTestUser(test, 'alice@example.com');
+    const put = await test.app.request(
+      `/api/materials/${MATERIAL_ID}/schedule`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', cookie },
+        body: JSON.stringify({ title: 'x'.repeat(4 * SCHEDULE_LIMITS.bytes) }),
+      },
+    );
+    expect(put.status).toBe(413);
   });
 
   it('DELETE drops the user override and bundled becomes visible again', async () => {

@@ -1,11 +1,13 @@
 import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 
 import type { DB } from '../db/client.js';
 import * as schema from '../db/schema.js';
 import type { EngineStore } from '../lib/engine.js';
 import { MATERIALS } from '../lib/materials.js';
 import {
+  SCHEDULE_LIMITS,
   ScheduleValidationError,
   canonicaliseSchedule,
   loadBundledSchedule,
@@ -34,6 +36,7 @@ export interface SchedulesRoutesDeps {
  *             Same engine-cache invalidation as PUT.
  *
  * No auth → 401. Unknown materialId → 404. Invalid PUT body → 400.
+ * PUT body over four times `SCHEDULE_LIMITS.bytes` → 413.
  */
 export function schedulesRoutes(deps: SchedulesRoutesDeps) {
   const app = new Hono<{ Variables: SessionVariables }>();
@@ -59,6 +62,17 @@ export function schedulesRoutes(deps: SchedulesRoutesDeps) {
     if (json === '') return c.json({ schedule: null });
     return c.body(json, 200, { 'Content-Type': 'application/json' });
   });
+
+  // A coarse guard against reading a huge body. The real cap is on the stored form, checked in
+  // canonicaliseSchedule: a v1 body grows into it, and a pretty-printed one (as in data/schedules)
+  // shrinks to about a third, so this one sits well above it.
+  app.put(
+    '/:materialId/schedule',
+    bodyLimit({
+      maxSize: 4 * SCHEDULE_LIMITS.bytes,
+      onError: (c) => c.json({ error: 'payload too large' }, 413),
+    }),
+  );
 
   app.put('/:materialId/schedule', async (c) => {
     const user = getUser(c);
