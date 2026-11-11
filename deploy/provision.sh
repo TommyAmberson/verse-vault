@@ -229,8 +229,10 @@ sudo -u verse-vault -H cp "$KEY_PATH.pub" /opt/verse-vault/.ssh/authorized_keys
 chmod 600 /opt/verse-vault/.ssh/authorized_keys
 
 echo "  -> Sudoers rule (verse-vault → limited systemctl)"
+# Only what the deploy runs. Not `status`: in a terminal it opens a pager,
+# and a pager run through sudo can start a root shell.
 cat > /etc/sudoers.d/verse-vault <<'EOF'
-verse-vault ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart verse-vault, /usr/bin/systemctl is-active verse-vault, /usr/bin/systemctl status verse-vault
+verse-vault ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart verse-vault, /usr/bin/systemctl is-active verse-vault
 EOF
 chmod 440 /etc/sudoers.d/verse-vault
 visudo -cf /etc/sudoers.d/verse-vault > /dev/null
