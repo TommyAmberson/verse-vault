@@ -10,11 +10,23 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.57] - 2026-11-11
+
+PATCH: limits on a saved schedule.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.15.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
 ### Changed
 
-* `PUT /api/materials/:materialId/schedule` takes at most 64 KiB (413 past it) and refuses schedules
-  past `SCHEDULE_LIMITS` with 400: 100 weeks, 10 blocks a week, chapters up to 150, and verse
-  numbers and club-list lengths up to 176. Every bundled schedule sits well inside them.
+* `PUT /api/materials/:materialId/schedule` refuses schedules past `SCHEDULE_LIMITS` with 400 naming
+  the field: 64 KiB stored, 100 weeks, 10 blocks a week, chapters up to 150, verse numbers and
+  club-list lengths up to 176, and 20 meets. A body over 256 KiB gets 413. Every bundled schedule
+  sits well inside the limits.
+* `POST /api/import` applies the same limits, so an export carrying a schedule past them is refused
+  with 400 naming it.
 
 ## [0.1.56] - 2026-11-03
 
