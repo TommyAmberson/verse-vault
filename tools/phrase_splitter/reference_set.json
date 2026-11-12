@@ -35,6 +35,12 @@
         "counts": [3, 8],
         "reason": "'From the Jews' alone is a weak handoff"
       }
+    ],
+    "acceptable": [
+      {
+        "counts": [11],
+        "reason": "maintainer review of consistent model splits, 2026-11-12"
+      }
     ]
   },
   {
@@ -66,6 +72,10 @@
       {
         "counts": [7, 4, 11, 10, 5],
         "reason": "either way is fine; 'by night' could be its own beat"
+      },
+      {
+        "counts": [11, 11, 15],
+        "reason": "maintainer review of consistent model splits, 2026-11-12"
       }
     ]
   },
@@ -173,7 +183,13 @@
     "ref": "John 5:5",
     "deck": "data/4-john.json",
     "agreed": [6, 6],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [12],
+        "reason": "maintainer review of consistent model splits, 2026-11-12"
+      }
+    ]
   },
   {
     "ref": "John 5:7",
@@ -317,12 +333,16 @@
   {
     "ref": "Exodus 3:9",
     "deck": "data/6-ot-survey.json",
-    "agreed": [3, 11, 7, 6],
+    "agreed": [3, 11, 13],
     "confidence": "agreed",
     "acceptable": [
       {
         "counts": [3, 7, 4, 7, 6],
         "reason": "a long subject cut from its verb: barely worse"
+      },
+      {
+        "counts": [3, 11, 7, 6],
+        "reason": "slightly worse than whole relative clause, still good (2026-11-12)"
       }
     ],
     "rejected": [
@@ -448,14 +468,30 @@
   {
     "ref": "Romans 13:3",
     "deck": "data/7-rj.json",
-    "agreed": [9, 3, 9, 4, 8],
-    "confidence": "weak"
+    "agreed": [12, 9, 4, 8],
+    "confidence": "weak",
+    "acceptable": [
+      {
+        "counts": [9, 3, 9, 4, 8],
+        "reason": "earlier ruling; the coarser model splits are better (2026-11-12)"
+      },
+      {
+        "counts": [12, 9, 12],
+        "reason": "maintainer review of consistent model splits, 2026-11-12"
+      }
+    ]
   },
   {
     "ref": "Romans 15:4",
     "deck": "data/7-rj.json",
-    "agreed": [6, 5, 10, 3],
-    "confidence": "agreed-probably"
+    "agreed": [11, 13],
+    "confidence": "agreed-probably",
+    "acceptable": [
+      {
+        "counts": [6, 5, 10, 3],
+        "reason": "earlier ruling; the model split is better (2026-11-12)"
+      }
+    ]
   },
   {
     "ref": "Romans 4:12",
@@ -466,8 +502,14 @@
   {
     "ref": "Romans 6:19",
     "deck": "data/7-rj.json",
-    "agreed": [5, 7, 11, 7, 11],
-    "confidence": "agreed"
+    "agreed": [12, 11, 7, 11],
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [5, 7, 11, 7, 11],
+        "reason": "earlier ruling; the model split is better (2026-11-12)"
+      }
+    ]
   },
   {
     "ref": "Romans 9:4",
@@ -486,7 +528,19 @@
     "ref": "Luke 13:28",
     "deck": "data/8-luke.json",
     "agreed": [8, 8, 9, 4],
-    "confidence": "agreed"
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [8, 17, 4],
+        "reason": "maintainer review of consistent model splits, 2026-11-12"
+      }
+    ],
+    "rejected": [
+      {
+        "counts": [8, 12, 5, 4],
+        "reason": "cutting '/ in the kingdom of God,' off the prophets is bad"
+      }
+    ]
   },
   {
     "ref": "Luke 17:11",
@@ -503,14 +557,32 @@
   {
     "ref": "Luke 2:26",
     "deck": "data/8-luke.json",
-    "agreed": [11, 6, 7],
-    "confidence": "agreed"
+    "agreed": [11, 13],
+    "confidence": "agreed",
+    "acceptable": [
+      {
+        "counts": [11, 6, 7],
+        "reason": "earlier ruling; the model split is better (2026-11-12)"
+      }
+    ]
   },
   {
     "ref": "Luke 9:54",
     "deck": "data/8-luke.json",
-    "agreed": [9, 2, 8, 8, 4],
-    "confidence": "weak"
+    "agreed": [11, 16, 4],
+    "confidence": "weak",
+    "acceptable": [
+      {
+        "counts": [9, 2, 8, 8, 4],
+        "reason": "earlier ruling; the model split is better (2026-11-12)"
+      }
+    ],
+    "rejected": [
+      {
+        "counts": [11, 13, 7],
+        "reason": "'/ and consume them, just as Elijah did?' is not good"
+      }
+    ]
   },
   {
     "ref": "Luke 9:59",
@@ -655,17 +727,36 @@
   {
     "ref": "John 19:18",
     "deck": "data/4-john.json",
-    "agreed": [4, 5, 9],
-    "confidence": "weak",
+    "agreed": [9, 9],
+    "confidence": "agreed",
     "acceptable": [
       {
-        "counts": [9, 9],
-        "reason": "either is fine (blind comparison, 2026-11-11)"
+        "counts": [4, 9, 5],
+        "reason": "cuts at the first and third commas: barely worse"
       },
       {
         "counts": [4, 5, 4, 5],
-        "reason": "either is fine (blind comparison, 2026-11-11)"
+        "reason": "every comma cut: ok"
+      },
+      {
+        "counts": [4, 5, 9],
+        "reason": "first and second commas: acceptable"
       }
-    ]
+    ],
+    "rejected": [
+      {
+        "counts": [9, 4, 5],
+        "reason": "second and third commas: not good"
+      },
+      {
+        "counts": [4, 14],
+        "reason": "first comma alone: worse"
+      },
+      {
+        "counts": [13, 5],
+        "reason": "third comma alone: worse"
+      }
+    ],
+    "note": "the cut after \"two others with Him,\" is the best single cut (maintainer, 2026-11-12)"
   }
 ]
