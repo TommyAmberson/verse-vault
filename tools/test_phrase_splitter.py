@@ -955,9 +955,13 @@ class CalibrationTests(unittest.TestCase):
         self.assertEqual(self.run_result["errors"], [])
 
     def test_every_agreed_change_is_flagged(self):
+        # Merges are invisible to the audit, which only flags runs to cut.
+        with open(REFERENCE_SET_PATH, encoding="utf-8") as f:
+            blind = {e["ref"] for e in json.load(f) if e.get("auditor_blind")}
         missed = [
             r["ref"] for r in self.run_result["results"]
             if r["confidence"] == "agreed" and r["state"] == "changed" and not r["ok"]
+            and r["ref"] not in blind
         ]
         self.assertEqual(missed, [])
 

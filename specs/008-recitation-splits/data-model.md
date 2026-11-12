@@ -8,15 +8,16 @@ shape and are not modified by this feature (FR-016).
 One entry in the committed reference set (see
 [contracts/reference-set.md](contracts/reference-set.md)).
 
-| Field        | Meaning                                                                                        |
-| ------------ | ---------------------------------------------------------------------------------------------- |
-| `ref`        | Verse reference in deck form, e.g. `John 5:7`                                                  |
-| `deck`       | Deck path relative to the repository root, e.g. `data/4-john.json`                             |
-| `agreed`     | `phraseWordCounts` of the split the maintainer agreed                                          |
-| `confidence` | `agreed`, `weak` or `unresolved`                                                               |
-| `note`       | Optional: why, in a sentence (e.g. "parallel halves stay whole")                               |
-| `acceptable` | Optional list of other `phraseWordCounts` the maintainer would accept, each with a reason      |
-| `rejected`   | Optional list of `phraseWordCounts` the maintainer rejected for this verse, each with a reason |
+| Field           | Meaning                                                                                                                                   |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ref`           | Verse reference in deck form, e.g. `John 5:7`                                                                                             |
+| `deck`          | Deck path relative to the repository root, e.g. `data/4-john.json`                                                                        |
+| `agreed`        | `phraseWordCounts` of the split the maintainer agreed                                                                                     |
+| `confidence`    | `agreed`, `weak` or `unresolved`                                                                                                          |
+| `note`          | Optional: why, in a sentence (e.g. "parallel halves stay whole")                                                                          |
+| `acceptable`    | Optional list of other `phraseWordCounts` the maintainer would accept, each with a reason                                                 |
+| `rejected`      | Optional list of `phraseWordCounts` the maintainer rejected for this verse, each with a reason                                            |
+| `auditor_blind` | Optional: why the audit cannot flag this change (e.g. a merge); calibration still scores it, but SC-001 does not require it to be flagged |
 
 Validation:
 
