@@ -95,13 +95,13 @@
   {
     "ref": "John 5:16",
     "deck": "data/4-john.json",
-    "agreed": [3, 4, 5, 9],
+    "agreed": [7, 5, 9],
     "confidence": "agreed",
-    "note": "lead-in wording is what slips in word-perfect recall",
-    "rejected": [
+    "note": "`For this reason` carries part of the point, so it stays with its clause",
+    "acceptable": [
       {
-        "counts": [7, 5, 9],
-        "reason": "merging the lead-in hides wording that is easy to misquote"
+        "counts": [3, 4, 5, 9],
+        "reason": "earlier ruling: the lead-in as its own run"
       }
     ]
   },
@@ -133,14 +133,10 @@
   {
     "ref": "John 5:29",
     "deck": "data/4-john.json",
-    "agreed": [13, 11],
-    "confidence": "weak",
+    "agreed": [3, 10, 11],
+    "confidence": "agreed",
     "note": "continues John 5:28 mid-sentence",
     "acceptable": [
-      {
-        "counts": [3, 10, 11],
-        "reason": "the verse starts mid-sentence, so 'and come forth' is where a reciter picks it up"
-      },
       {
         "counts": [8, 5, 6, 5],
         "reason": "each half cut at its comma, matching cuts in both"
@@ -150,13 +146,13 @@
   {
     "ref": "John 5:34",
     "deck": "data/4-john.json",
-    "agreed": [8, 5, 5],
+    "agreed": [8, 10],
     "confidence": "agreed",
-    "note": "lead-in wording keeps its own chunk",
+    "note": "the purpose is the point of its clause",
     "acceptable": [
       {
-        "counts": [8, 10],
-        "reason": "either way is fine (second review)"
+        "counts": [8, 5, 5],
+        "reason": "earlier ruling: the purpose as its own run"
       }
     ]
   },
@@ -165,7 +161,7 @@
     "deck": "data/4-john.json",
     "agreed": [12, 5, 5, 6, 8],
     "confidence": "agreed",
-    "note": "the condition's two halves can slip independently",
+    "note": "the angel's two acts (going down into the pool, stirring the water); the condition's two halves can slip independently",
     "acceptable": [
       {
         "counts": [12, 5, 11, 8],
@@ -239,6 +235,10 @@
       {
         "counts": [6, 9, 2, 6],
         "reason": "acceptable alternative, maintainer's review of model candidates"
+      },
+      {
+        "counts": [6, 9, 8],
+        "reason": "a bare tag after a short quotation can stay with it"
       }
     ]
   },
@@ -521,6 +521,150 @@
       {
         "counts": [7, 3, 9],
         "reason": "the short command can stay with its tag; the split only mirrors the long reply"
+      }
+    ]
+  },
+  {
+    "ref": "John 3:25",
+    "deck": "data/4-john.json",
+    "agreed": [15],
+    "confidence": "agreed",
+    "note": "near the line: the only cut, `a dispute / between`, has no pause"
+  },
+  {
+    "ref": "John 3:27",
+    "deck": "data/4-john.json",
+    "agreed": [4, 14],
+    "confidence": "weak",
+    "acceptable": [
+      {
+        "counts": [4, 5, 9],
+        "reason": "either is fine (blind comparison, 2026-11-11)"
+      }
+    ]
+  },
+  {
+    "ref": "John 4:29",
+    "deck": "data/4-john.json",
+    "agreed": [13, 5],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "John 4:36",
+    "deck": "data/4-john.json",
+    "agreed": [12, 12],
+    "confidence": "weak"
+  },
+  {
+    "ref": "John 6:13",
+    "deck": "data/4-john.json",
+    "agreed": [5, 12, 9],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "John 7:4",
+    "deck": "data/4-john.json",
+    "agreed": [15, 10],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "John 7:31",
+    "deck": "data/4-john.json",
+    "agreed": [10, 4, 12],
+    "confidence": "weak",
+    "acceptable": [
+      {
+        "counts": [10, 4, 7, 5],
+        "reason": "either is fine (blind comparison, 2026-11-11)"
+      }
+    ]
+  },
+  {
+    "ref": "John 8:6",
+    "deck": "data/4-john.json",
+    "agreed": [5, 10, 12, 6],
+    "confidence": "weak"
+  },
+  {
+    "ref": "John 8:47",
+    "deck": "data/4-john.json",
+    "agreed": [8, 11],
+    "confidence": "weak",
+    "acceptable": [
+      {
+        "counts": [8, 5, 6],
+        "reason": "either is fine (blind comparison, 2026-11-11)"
+      }
+    ]
+  },
+  {
+    "ref": "John 10:10",
+    "deck": "data/4-john.json",
+    "agreed": [14, 8, 8],
+    "confidence": "weak",
+    "acceptable": [
+      {
+        "counts": [5, 9, 8, 8],
+        "reason": "either is fine (blind comparison, 2026-11-11)"
+      }
+    ]
+  },
+  {
+    "ref": "John 11:4",
+    "deck": "data/4-john.json",
+    "agreed": [6, 12, 10],
+    "confidence": "agreed",
+    "rejected": [
+      {
+        "counts": [6, 6, 6, 10],
+        "reason": "'but for the glory of God' is not a good run on its own"
+      }
+    ],
+    "auditor_blind": "a merge: the audit flags runs that need cutting, never cuts that should go"
+  },
+  {
+    "ref": "John 12:12",
+    "deck": "data/4-john.json",
+    "agreed": [12, 9],
+    "confidence": "agreed"
+  },
+  {
+    "ref": "John 13:10",
+    "deck": "data/4-john.json",
+    "agreed": [4, 10, 4, 9],
+    "confidence": "weak",
+    "acceptable": [
+      {
+        "counts": [4, 10, 4, 4, 5],
+        "reason": "either is fine (blind comparison, 2026-11-11)"
+      }
+    ]
+  },
+  {
+    "ref": "John 16:28",
+    "deck": "data/4-john.json",
+    "agreed": [6, 6, 5, 5],
+    "confidence": "weak",
+    "acceptable": [
+      {
+        "counts": [12, 10],
+        "reason": "either is fine (blind comparison, 2026-11-11)"
+      }
+    ]
+  },
+  {
+    "ref": "John 19:18",
+    "deck": "data/4-john.json",
+    "agreed": [4, 5, 9],
+    "confidence": "weak",
+    "acceptable": [
+      {
+        "counts": [9, 9],
+        "reason": "either is fine (blind comparison, 2026-11-11)"
+      },
+      {
+        "counts": [4, 5, 4, 5],
+        "reason": "either is fine (blind comparison, 2026-11-11)"
       }
     ]
   }
