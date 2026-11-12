@@ -140,6 +140,8 @@ echo "  log into Cloudflare, and authorise the versevault.ca zone."
 echo "  Execution resumes automatically when you confirm."
 echo ""
 
+# Normally absent: the end of this phase removes it. Present only when an
+# earlier run stopped part way, and a second login would refuse to overwrite it.
 if [ -f /opt/verse-vault/.cloudflared/cert.pem ]; then
 	echo "  -> Tunnel cert already exists; skipping login"
 else
@@ -185,6 +187,12 @@ cd /opt/verse-vault && sudo -u verse-vault -H \
 	cloudflared tunnel route dns "$TUNNEL_NAME" "$TUNNEL_HOSTNAME" \
 	|| echo "     (route may already exist; continuing)"
 
+# The login's cert.pem can create and delete tunnels and DNS records for the
+# whole zone; the running tunnel needs only its credentials JSON. Remove it so
+# it doesn't sit on the box. A rerun of this phase logs in again.
+echo "  -> Removing the tunnel login cert"
+rm -f /opt/verse-vault/.cloudflared/cert.pem
+
 echo "  -> Enabling cloudflared.service"
 systemctl daemon-reload
 systemctl enable --now cloudflared
@@ -208,21 +216,32 @@ echo "  -> SSH directory"
 sudo -u verse-vault -H mkdir -p /opt/verse-vault/.ssh
 chmod 700 /opt/verse-vault/.ssh
 
-if [ -f "$KEY_PATH" ]; then
-	echo "  -> Deploy key already exists; reusing"
+# The private half belongs only in the VPS_SSH_KEY secret: it is printed at
+# the end and then deleted, so the service account can't use it. A rerun
+# keeps a key that is already authorised; to replace it, remove its line from
+# authorized_keys and rerun.
+NEW_DEPLOY_KEY=0
+if grep -qs "github-actions-deploy@verse-vault-api" /opt/verse-vault/.ssh/authorized_keys; then
+	echo "  -> Deploy key already authorised; keeping it"
 else
 	echo "  -> Generating ed25519 deploy key"
+	rm -f "$KEY_PATH" "$KEY_PATH.pub"
 	sudo -u verse-vault -H ssh-keygen -t ed25519 -f "$KEY_PATH" -N "" \
 		-C "github-actions-deploy@verse-vault-api"
+
+	echo "  -> Authorising deploy key for inbound SSH"
+	# restrict: no forwarding, agent or terminal; rsync and commands still work
+	printf 'restrict %s\n' "$(cat "$KEY_PATH.pub")" \
+		| sudo -u verse-vault -H tee /opt/verse-vault/.ssh/authorized_keys > /dev/null
+	chmod 600 /opt/verse-vault/.ssh/authorized_keys
+	NEW_DEPLOY_KEY=1
 fi
 
-echo "  -> Authorising deploy key for inbound SSH"
-sudo -u verse-vault -H cp "$KEY_PATH.pub" /opt/verse-vault/.ssh/authorized_keys
-chmod 600 /opt/verse-vault/.ssh/authorized_keys
-
 echo "  -> Sudoers rule (verse-vault → limited systemctl)"
+# Only what the deploy runs. Not `status`: in a terminal it opens a pager,
+# and a pager run through sudo can start a root shell.
 cat > /etc/sudoers.d/verse-vault <<'EOF'
-verse-vault ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart verse-vault, /usr/bin/systemctl is-active verse-vault, /usr/bin/systemctl status verse-vault
+verse-vault ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart verse-vault, /usr/bin/systemctl is-active verse-vault
 EOF
 chmod 440 /etc/sudoers.d/verse-vault
 visudo -cf /etc/sudoers.d/verse-vault > /dev/null
@@ -552,11 +571,18 @@ echo ""
 echo "  (1) Add these to GitHub repo Settings -> Secrets and variables -> Actions:"
 echo ""
 echo "        VPS_HOST     = $PUBLIC_IP"
-echo "        VPS_SSH_KEY  = (paste the private key below)"
-echo ""
-echo "============================ BEGIN private key ============================"
-cat "$KEY_PATH"
-echo "============================= END private key ============================="
+if [ "$NEW_DEPLOY_KEY" = 1 ]; then
+	echo "        VPS_SSH_KEY  = (paste the private key below)"
+	echo ""
+	echo "============================ BEGIN private key ============================"
+	cat "$KEY_PATH"
+	echo "============================= END private key ============================="
+	rm -f "$KEY_PATH" "$KEY_PATH.pub"
+	echo ""
+	echo "      The private key has been deleted from this box: copy it now."
+else
+	echo "        VPS_SSH_KEY  = unchanged (the authorised deploy key was kept)"
+fi
 echo ""
 echo "  (2) Trigger the first deploy:"
 echo "        GitHub -> Actions -> 'Deploy API to VPS' -> Run workflow (master)"
