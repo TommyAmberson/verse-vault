@@ -2,10 +2,11 @@
 #
 # Map the `vv-api` tunnel to the local Node API. Replace <UUID> with the
 # value `cloudflared tunnel create vv-api` printed (also the filename of
-# the credentials file it wrote under /opt/verse-vault/.cloudflared/).
+# the credentials file, which belongs in /etc/cloudflared/, owned by the
+# cloudflared user, mode 0400).
 
 tunnel: <UUID>
-credentials-file: /opt/verse-vault/.cloudflared/<UUID>.json
+credentials-file: /etc/cloudflared/<UUID>.json
 
 ingress:
   - hostname: vv-api.versevault.ca

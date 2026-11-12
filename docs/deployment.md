@@ -178,6 +178,9 @@ by default, so both `cd /opt/verse-vault` and the `-H` flag are required:
 cd /opt/verse-vault && sudo -u verse-vault -H cloudflared tunnel login    # prints a URL — open it in a local browser to authorise the box
 sudo -u verse-vault -H cloudflared tunnel create vv-api      # note the UUID it prints
 
+# The tunnel runs as its own account, the only one that can read its credentials
+useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin cloudflared
+
 # Fetch templates from the repo (no clone needed on the box)
 mkdir -p /etc/cloudflared
 curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/deploy/cloudflared/config.yml \
@@ -188,11 +191,20 @@ curl -sSL https://raw.githubusercontent.com/TommyAmberson/verse-vault/master/dep
 # Substitute the UUID into config.yml (replace `<UUID>` — the literal placeholder)
 TUNNEL_UUID=$(basename /opt/verse-vault/.cloudflared/*.json .json)
 sed -i "s|<UUID>|$TUNNEL_UUID|g" /etc/cloudflared/config.yml
+install -o cloudflared -g cloudflared -m 0400 \
+  "/opt/verse-vault/.cloudflared/$TUNNEL_UUID.json" "/etc/cloudflared/$TUNNEL_UUID.json"
+rm "/opt/verse-vault/.cloudflared/$TUNNEL_UUID.json"
 
 sudo -u verse-vault -H cloudflared tunnel route dns vv-api vv-api.versevault.ca
+# The login cert can manage every tunnel and DNS record in the zone; the running tunnel doesn't need it
+rm /opt/verse-vault/.cloudflared/cert.pem
 systemctl daemon-reload
 systemctl enable --now cloudflared
 ```
+
+The credentials let anyone run a connector for the tunnel and receive part of its traffic, so only
+the `cloudflared` account can read them, and `verse-vault.service` also hides `/etc/cloudflared`
+from the API.
 
 After this `vv-api.versevault.ca` resolves through CF and reaches the VPS via the Tunnel. The VPS
 still has no public ports open — `ufw default deny incoming` is fine.
