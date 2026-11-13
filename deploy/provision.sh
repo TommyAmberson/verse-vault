@@ -121,6 +121,12 @@ fi
 mkdir -p /var/lib/verse-vault /var/log/verse-vault /opt/verse-vault/releases
 chown verse-vault:verse-vault /var/lib/verse-vault /var/log/verse-vault /opt/verse-vault/releases
 
+echo "  -> cloudflared service account"
+# Runs the tunnel and alone can read its credentials (phase 3)
+if ! id -u cloudflared &>/dev/null; then
+	useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin cloudflared
+fi
+
 echo "  -> Firewall (SSH in, everything else denied)"
 ufw allow OpenSSH
 ufw default deny incoming
@@ -181,6 +187,21 @@ curl -fsSL "$RAW_URL_BASE/cloudflared/config.yml" -o /etc/cloudflared/config.yml
 curl -fsSL "$RAW_URL_BASE/cloudflared/cloudflared.service" \
 	-o /etc/systemd/system/cloudflared.service
 sed -i "s|<UUID>|$TUNNEL_UUID|g" /etc/cloudflared/config.yml
+
+# `tunnel create` writes the credentials into the verse-vault home. Move them
+# to the cloudflared user: with them anyone can run a connector for the tunnel
+# and receive part of its traffic. This also moves them on a box set up before.
+CREDS=/etc/cloudflared/$TUNNEL_UUID.json
+OLD_CREDS=/opt/verse-vault/.cloudflared/$TUNNEL_UUID.json
+if [ -f "$OLD_CREDS" ]; then
+	echo "  -> Moving tunnel credentials to $CREDS"
+	install -o cloudflared -g cloudflared -m 0400 "$OLD_CREDS" "$CREDS"
+	rm -f "$OLD_CREDS"
+fi
+if [ ! -f "$CREDS" ]; then
+	echo "ERROR: no tunnel credentials at $CREDS or $OLD_CREDS" >&2
+	exit 1
+fi
 
 echo "  -> Routing DNS: $TUNNEL_HOSTNAME -> $TUNNEL_NAME"
 cd /opt/verse-vault && sudo -u verse-vault -H \

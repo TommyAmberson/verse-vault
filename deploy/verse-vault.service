@@ -35,6 +35,9 @@ ProtectHome=true
 PrivateTmp=true
 NoNewPrivileges=true
 ReadWritePaths=/var/lib/verse-vault /var/log/verse-vault
+# The tunnel's config and credentials are none of the API's business; hide
+# them even though their own permissions already keep this user out.
+InaccessiblePaths=/etc/cloudflared
 
 # Don't let a runaway request take the host down.
 MemoryMax=1G
