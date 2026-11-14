@@ -171,10 +171,6 @@ pub struct VerseAtoms {
     pub clubs: Vec<ClubTier>,
     /// Word count of the FTV prompt, or None when this verse has no FTV.
     pub ftv_word_count: Option<u16>,
-    /// Word count of phrase 0, used to detect the equals-whole-phrase case
-    /// where we'd otherwise schedule a redundant phrase-0 test (the FTV
-    /// prompt already shows phrase 0 in full).
-    pub phrase_zero_word_count: u16,
     /// For pseudo verses anchoring `ChapterClubList` cards: the
     /// (verse_id, most-specific tier) of every real verse in the same
     /// chapter whose tier matches the card's exactly. A Club300
@@ -222,11 +218,18 @@ impl VerseAtoms {
 }
 
 pub fn ftv_tests(verse_id: u32, atoms: &VerseAtoms, with_citation: bool) -> Vec<TestKey> {
-    // When the FTV equals all of phrase 0, scheduling a phrase-0 test
-    // would just re-test what the FTV prompt already showed — skip it.
-    let start: u16 = match atoms.ftv_word_count {
-        Some(ftv_words) if ftv_words == atoms.phrase_zero_word_count => 1,
-        _ => 0,
+    // Phrases the FTV prompt shows in full would only re-test what the
+    // cue already gave away, so grading starts at the first phrase the
+    // user has to produce at least part of. The prompt can run past the
+    // first cut, e.g. a speech tag whose unique opening reaches into the
+    // quotation.
+    let start = match atoms.ftv_word_count {
+        Some(ftv_words) => atoms
+            .phrase_ranges
+            .iter()
+            .take_while(|&&(_, end_word)| end_word <= ftv_words)
+            .count() as u16,
+        None => 0,
     };
     let mut out: Vec<TestKey> = (start..atoms.phrase_count)
         .filter_map(|p| {
@@ -386,7 +389,6 @@ mod tests {
             headings: vec![0, 1, 2],
             clubs: vec![ClubTier::Club150, ClubTier::Club300],
             ftv_word_count: None,
-            phrase_zero_word_count: 0,
             chapter_members: Vec::new(),
             heading_members: Vec::new(),
         }
@@ -431,7 +433,6 @@ mod tests {
             headings: vec![0],
             clubs: vec![ClubTier::Club150],
             ftv_word_count: Some(2),
-            phrase_zero_word_count: 4,
             chapter_members: Vec::new(),
             heading_members: Vec::new(),
         };
@@ -533,11 +534,10 @@ mod tests {
         let atoms = VerseAtoms {
             verse_id: 7,
             phrase_count: 4,
-            phrase_ranges: vec![(0, 1), (1, 2), (2, 3), (3, 4)],
+            phrase_ranges: vec![(0, 6), (6, 7), (7, 8), (8, 9)],
             headings: vec![],
             clubs: vec![],
             ftv_word_count: Some(2),
-            phrase_zero_word_count: 6,
             chapter_members: Vec::new(),
             heading_members: Vec::new(),
         };
@@ -558,11 +558,10 @@ mod tests {
         let atoms = VerseAtoms {
             verse_id: 7,
             phrase_count: 4,
-            phrase_ranges: vec![(0, 1), (1, 2), (2, 3), (3, 4)],
+            phrase_ranges: vec![(0, 6), (6, 7), (7, 8), (8, 9)],
             headings: vec![],
             clubs: vec![],
             ftv_word_count: Some(6),
-            phrase_zero_word_count: 6,
             chapter_members: Vec::new(),
             heading_members: Vec::new(),
         };
@@ -578,15 +577,39 @@ mod tests {
     }
 
     #[test]
+    fn ftv_past_phrase_zero_grades_from_the_first_uncovered_phrase() {
+        // Phrase 0 is wholly inside the cue and phrase 1 partly, so the
+        // user produces the rest of phrase 1 onward.
+        let mut atoms = sample_atoms(7, 3);
+        atoms.phrase_ranges = vec![(0, 4), (4, 12), (12, 18)];
+        atoms.ftv_word_count = Some(5);
+        let c = atomic_card(
+            0,
+            CardKind::Ftv {
+                with_citation: false,
+            },
+            7,
+        );
+        let tests = c.tests(&atoms);
+        let starts: Vec<u16> = tests
+            .iter()
+            .filter_map(|t| match t.element {
+                ElementId::Phrase { start_word, .. } => Some(start_word),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(starts, vec![4, 12]);
+    }
+
+    #[test]
     fn ftv_with_citation_adds_three_tests() {
         let atoms = VerseAtoms {
             verse_id: 7,
             phrase_count: 4,
-            phrase_ranges: vec![(0, 1), (1, 2), (2, 3), (3, 4)],
+            phrase_ranges: vec![(0, 6), (6, 7), (7, 8), (8, 9)],
             headings: vec![],
             clubs: vec![],
             ftv_word_count: Some(2),
-            phrase_zero_word_count: 6,
             chapter_members: Vec::new(),
             heading_members: Vec::new(),
         };
@@ -655,7 +678,6 @@ mod tests {
             headings: vec![2],
             clubs: vec![],
             ftv_word_count: None,
-            phrase_zero_word_count: 0,
             chapter_members: Vec::new(),
             heading_members: vec![7, 8, 9],
         };

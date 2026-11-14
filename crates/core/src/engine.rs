@@ -207,7 +207,6 @@ impl ReviewEngine {
             headings,
             clubs,
             ftv_word_count: None,
-            phrase_zero_word_count: 0,
             chapter_members: Vec::new(),
             heading_members: Vec::new(),
         }
@@ -396,11 +395,10 @@ mod tests {
         let engine = build_engine();
         assert!(!engine.cards.is_empty());
         assert!(!engine.tests.is_empty());
-        // atoms_for round-trips ftv_word_count + phrase_zero_word_count.
+        // atoms_for round-trips ftv_word_count.
         let atoms = engine.atoms_for(0);
         assert_eq!(atoms.phrase_count, 4);
         assert_eq!(atoms.ftv_word_count, Some(2));
-        assert_eq!(atoms.phrase_zero_word_count, 2);
     }
 
     #[test]
