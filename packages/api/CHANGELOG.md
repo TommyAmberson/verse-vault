@@ -10,6 +10,21 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.58] - 2026-11-14
+
+PATCH: verses whose FTV runs past the first phrase get an FTV card.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.16.0`: the builder emits an FTV card when the FTV prompt runs past phrase 0,
+  grading from the first phrase the prompt doesn't show in full.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Fixed
+
+* 128 verses (44 in John) had no FTV card because their FTV, at most five words, ran past the first
+  phrase, typically a speech tag such as `Jesus said to her,`. They now get one, starting fresh.
+
 ## [0.1.57] - 2026-11-11
 
 PATCH: limits on a saved schedule.
