@@ -73,7 +73,7 @@ pub struct BuildResult {
     pub verse_index: VerseIndex,
     pub cards: Vec<Card>,
     pub tests: HashMap<TestKey, TestState>,
-    /// Per-verse atom data (phrase_count + ftv + phrase_zero_text). The
+    /// Per-verse atom data (phrase ranges, FTV word count, ...). The
     /// engine consumes this so it can rebuild a `VerseAtoms` for any verse
     /// at review/scheduling time without re-deriving from the source
     /// `MaterialData`.
@@ -215,7 +215,6 @@ fn emit_chapter_club_list_cards(
                     headings: Vec::new(),
                     clubs: vec![card_tier],
                     ftv_word_count: None,
-                    phrase_zero_word_count: 0,
                     chapter_members: members,
                     heading_members: Vec::new(),
                 },
@@ -309,7 +308,6 @@ fn emit_heading_passage_cards(
                 headings: vec![heading_idx],
                 clubs: Vec::new(),
                 ftv_word_count: None,
-                phrase_zero_word_count: 0,
                 chapter_members: Vec::new(),
                 heading_members: members,
             },
@@ -428,7 +426,7 @@ pub fn build_with_config(
         let verse_id = verse_id_usize as u32;
         let phrase_count = verse.phrase_word_counts.len() as u16;
         let phrases: Vec<u16> = (0..phrase_count).collect();
-        let phrase_zero_word_count = verse.phrase_word_counts.first().copied().unwrap_or(0);
+        let verse_word_count: u16 = verse.phrase_word_counts.iter().sum();
 
         let heading_idx = heading_lookup
             .get(&(verse.book.clone(), verse.chapter, verse.verse))
@@ -485,10 +483,11 @@ pub fn build_with_config(
         push(CardKind::Citation);
 
         // Composite: Ftv. Eligibility: verse has phrases, the FTV
-        // prompt is at least one word long, short enough overall, and
-        // doesn't exceed phrase 0 length. `derive_structure` verified
-        // the prefix invariant when emitting `ftv_word_count`, so we
-        // trust it here. The single FTV card always tests the citation
+        // prompt is at least one word long, short enough to be an FTV
+        // at all (quizzing treats a longer opening as not an FTV), and
+        // leaves something to recite. The prompt may run past the first
+        // phrase: a verse that opens with a speech tag usually needs a
+        // word or two of the quotation to be unique. The single FTV card always tests the citation
         // triple on reveal — the no-citation variant was dropped
         // because Recitation already covers the recall-without-ref
         // case from the verse-text side.
@@ -519,7 +518,7 @@ pub fn build_with_config(
             && ftv_words > 0
             && phrase_count > 0
             && (ftv_words as usize) <= FTV_MAX_WORDS
-            && ftv_words <= phrase_zero_word_count
+            && ftv_words < verse_word_count
         {
             push(CardKind::Ftv {
                 with_citation: true,
@@ -563,7 +562,6 @@ pub fn build_with_config(
                 headings,
                 clubs,
                 ftv_word_count: verse.ftv_word_count,
-                phrase_zero_word_count,
                 chapter_members: Vec::new(),
                 heading_members: Vec::new(),
             },
@@ -850,6 +848,43 @@ mod tests {
             .filter(|c| matches!(c.kind, CardKind::Ftv { .. }))
             .count();
         assert_eq!(ftv_cards, 0);
+    }
+
+    fn ftv_card_count(phrase_word_counts: &str, ftv: u16) -> usize {
+        let json = format!(
+            r#"{{
+            "year": 4,
+            "books": ["John"],
+            "chapters": [{{"book": "John", "number": 2, "start_verse": 4, "end_verse": 4}}],
+            "verses": [{{
+                "book": "John", "chapter": 2, "verse": 4,
+                "phraseWordCounts": {phrase_word_counts},
+                "annotations": [],
+                "ftvWordCount": {ftv},
+                "clubs": []
+            }}],
+            "headings": []
+        }}"#
+        );
+        let m: MaterialData = serde_json::from_str(&json).unwrap();
+        build(&m, 0)
+            .cards
+            .iter()
+            .filter(|c| matches!(c.kind, CardKind::Ftv { .. }))
+            .count()
+    }
+
+    #[test]
+    fn builder_emits_ftv_spanning_the_first_cut() {
+        // A verse that opens with a four-word speech tag, whose unique
+        // opening runs one word into the quotation.
+        assert_eq!(ftv_card_count("[4, 8, 6]", 5), 1);
+    }
+
+    #[test]
+    fn builder_skips_ftv_covering_the_whole_verse() {
+        // Nothing would be left to recite.
+        assert_eq!(ftv_card_count("[2, 2]", 4), 0);
     }
 
     #[test]

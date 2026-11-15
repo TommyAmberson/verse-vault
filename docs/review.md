@@ -62,7 +62,7 @@ Atomic cards return a 1-element vec; composites return their contained tests:
 | `VerseInClub { tier }`  | 1 — `VerseClub` binding                                                             | yes     |
 | `Recitation`            | N phrases (`PhraseFromContext`) + `VerseRefPosition` + `VerseChapter` + `VerseBook` | no      |
 | `Citation`              | 3 — `VerseRefPosition`, `VerseChapter`, `VerseBook`                                 | no      |
-| `Ftv { with_citation }` | phrases-after-FTV-prefix (`PhraseFromContext`) [+ citation triple]                  | no      |
+| `Ftv { with_citation }` | phrases not wholly inside the FTV prefix (`PhraseFromContext`) [+ citation triple]  | no      |
 | `Reading`               | 0 — UX-only verse-text card, never emitted or persisted                             | n/a     |
 
 Recitation is the "say it all" card; it now contains everything the old `Holistic` did. There is no

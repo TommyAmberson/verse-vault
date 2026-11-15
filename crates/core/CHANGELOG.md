@@ -22,6 +22,24 @@ Bumps follow semver semantics:
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-14
+
+MINOR: a verse whose FTV runs past its first phrase gets an FTV card. No state or replay change; the
+new cards start fresh and existing cards grade as before.
+
+### Fixed
+
+* The builder dropped the FTV card whenever the FTV prompt was longer than phrase 0. A verse that
+  opens with a speech tag (`Jesus said to her,`) is usually cut after the tag, and its unique
+  opening runs a word or two into the quotation, so 128 verses across the decks had no FTV card at
+  all. The card now needs only an FTV of one to five words that leaves something to recite.
+* `ftv_tests` grades from the first phrase the prompt doesn't show in full, instead of
+  special-casing an FTV equal to phrase 0.
+
+### Removed
+
+* `VerseAtoms::phrase_zero_word_count`: `phrase_ranges` carries the same information.
+
 ## [0.15.0] - 2026-10-26
 
 MINOR: the cross-club gates default to this week's checkpoint. No state or replay change; a stored

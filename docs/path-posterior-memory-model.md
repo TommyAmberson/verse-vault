@@ -856,7 +856,7 @@ That's the complete atomic card set: per-phrase + 5 per-verse binding cards.
 | -------------------------- | ---------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
 | **Recitation: ref → text** | book + chapter + verse       | full verse content + citation        | N× Phrase + 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                    |
 | **Citation: verse → ref**  | verse content                | full citation (verse, chapter, book) | 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book                                |
-| **FTV (Finish The Verse)** | the saved FTV opening string | rest of the verse content            | up to N× Phrase (typical: all N if FTV ⊂ phrase 1; N − 1 if FTV = phrase 1)            |
+| **FTV (Finish The Verse)** | the saved FTV opening string | rest of the verse content            | every Phrase not wholly inside the FTV (typical: all N if FTV ⊂ phrase 1)              |
 | **FTV with citation**      | the saved FTV opening string | rest of content + full citation      | the same Phrase tests as FTV + 1× VerseRef position + 1× Verse↔Chapter + 1× Verse↔Book |
 
 **FTV (Finish The Verse)** deserves explicit mention because it's a standard Bible-quizzer format
@@ -864,17 +864,19 @@ and uses **content metadata** that other card types don't.
 
 For each verse, the content pipeline stores an `ftv` field: the minimal opening string sufficient to
 uniquely identify the verse. This is set per-verse during content authoring (often a few words),
-distinct from the phrase decomposition. The FTV string is a strict prefix of the verse's content; in
-typical use it's shorter than phrase 1.
+distinct from the phrase decomposition. The FTV string is a strict prefix of the verse's content, at
+most five words (a longer opening is not an FTV in quizzing). It is often shorter than phrase 1, but
+not always: a verse that opens with a speech tag (`Jesus said to her,`) usually needs a word or two
+of the quotation to be unique, so its FTV runs past the first phrase.
 
 The card mechanics:
 
 * _Cue_: the saved FTV string (just the opening — typically a few words).
-* _User produces_: everything that follows — the rest of phrase 1 (if FTV is a strict prefix of it),
-  then phrases 2..N.
-* _Grades_: each Phrase the user produces. If FTV is a strict prefix of phrase 1 (the typical case),
-  all N phrases get graded — including phrase 1, since the user produced the part of it that wasn't
-  in the cue. If FTV happens to equal phrase 1 exactly, only phrases 2..N are graded.
+* _User produces_: everything that follows, from the first phrase the FTV doesn't cover in full.
+* _Grades_: each Phrase the user produces at least part of. If FTV is a strict prefix of phrase 1
+  (the typical case), all N phrases get graded, including phrase 1, since the user produced the part
+  of it that wasn't in the cue. Phrases the FTV shows in full (phrase 1 when FTV equals it exactly,
+  or more when it runs past the first cut) are not graded.
 
 Two variants:
 
