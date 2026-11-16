@@ -10,6 +10,20 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.59] - 2026-11-15
+
+PATCH: maintainer-ruled phrase splits for eight John verses.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.16.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Changed
+
+* `data/4-john.json`: John 1:50, 4:7, 4:21, 4:46, 5:40, 11:31, 13:2 and 19:28 take the maintainer's
+  ruled splits. Phrases whose word range moved start with fresh memory state; the rest keep theirs.
+
 ## [0.1.58] - 2026-11-14
 
 PATCH: verses whose FTV runs past the first phrase get an FTV card.
