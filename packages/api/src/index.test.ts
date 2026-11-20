@@ -671,6 +671,23 @@ describe('email request throttling', () => {
   });
 });
 
+// Signing out leaves the browser signed in to Google, so without the
+// chooser Google would hand back the same account every time.
+it('asks Google for its account chooser', async () => {
+  const app = createTestApp({ authEnv: TEST_GOOGLE_ENV });
+  try {
+    const start = await app.app.request('/api/auth/sign-in/social', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'google', callbackURL: 'http://localhost:5173/home' }),
+    });
+    const { url } = (await start.json()) as { url: string };
+    expect(new URL(url).searchParams.get('prompt')).toBe('select_account');
+  } finally {
+    app.cleanup();
+  }
+});
+
 describe('Google sign-in onto a password account', () => {
   let cleanup: (() => void) | null = null;
   afterEach(() => {

@@ -10,6 +10,11 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+### Fixed
+
+* Signing in with Google after signing out shows Google's account chooser, instead of signing
+  straight back in as the account the browser is still signed in to.
+
 ## [0.1.58] - 2026-11-14
 
 PATCH: verses whose FTV runs past the first phrase get an FTV card.
