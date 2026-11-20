@@ -10,6 +10,20 @@ Released via `.github/workflows/deploy-api.yml` (rsync to VPS, atomic symlink-fl
 
 ## [Unreleased]
 
+## [0.1.59] - 2026-11-19
+
+PATCH: Google sign-in shows the account chooser.
+
+### Bundled algorithm contract
+
+* `verse-vault-core@0.16.0`: unchanged.
+* `verse-vault-wasm@0.13.0`: unchanged.
+
+### Fixed
+
+* Signing in with Google after signing out shows Google's account chooser, instead of signing
+  straight back in as the account the browser is still signed in to.
+
 ## [0.1.58] - 2026-11-14
 
 PATCH: verses whose FTV runs past the first phrase get an FTV card.

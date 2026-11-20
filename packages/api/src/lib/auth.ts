@@ -365,6 +365,10 @@ export function createAuth(db: DB, env: AuthEnv, sendEmail: SendEmail) {
             // the in-app `callbackURL`) but isn't smoke-tested yet — see
             // the Known limitations entry in apps/web/CHANGELOG.md.
             redirectURI: `${env.baseUrl}/api/auth/callback/google`,
+            // Always show Google's account chooser. Signing out here leaves
+            // the browser signed in to Google, which would otherwise reuse
+            // that account and leave no way to pick another.
+            prompt: "select_account",
             // Better Auth trusts this flag to link a Google sign-in into an
             // existing account and to start a new account verified. Google
             // only speaks for an address whose mail it hosts: Gmail, or a
